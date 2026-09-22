@@ -19,7 +19,7 @@ class PortalUserWorkspace {
     @Column(name = "ID_USER", nullable = false) private Long userId;
     @Column(name = "ID_ORG_DEFAULT") private Long defaultOrganizationId;
     @Column(name = "ID_DEPT_DEFAULT") private Long defaultDepartmentId;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_FAVORITES", nullable = false) private String favoritesJson;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_FAVS", nullable = false) private String favoritesJson;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_TABS", nullable = false) private String tabsJson;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_LAYOUT", nullable = false) private String layoutJson;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;

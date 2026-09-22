@@ -26,7 +26,7 @@ public class Department {
     @Column(name = "NA_SHORT") private String shortName;
     @Column(name = "DES_DEPT") private String description;
     @Column(name = "SD_DEPT_TYPE", nullable = false) private String departmentType;
-    @Column(name = "SD_DEPT_PROPERTY") private String departmentProperty;
+    @Column(name = "SD_DEPT_PROP") private String departmentProperty;
     @Column(name = "FG_VIRTUAL", nullable = false) private boolean virtual;
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private OrganizationStatus status;

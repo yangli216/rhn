@@ -93,13 +93,13 @@ public class InpatientCareRequestStore {
         jdbc.update("""
                 insert into RHN_EX_CARE_REQ (
                     ID_CARE_REQ, REVISION, ID_TNT, ID_PAT, ID_ENC, CD_REQ_NO, SD_REQ_KIND,
-                    SD_STATUS, CD_INTENT, CD_PRIORITY, ID_CATALOG_ITEM, ID_ITEM_PKG,
-                    ID_ORG_EXEC, ID_DEPT_EXEC, ID_ORG_REQ, ID_DEPT_REQ, DA_BUSINESS, DT_AUTHORED,
-                    ID_USER_AUTHORED, DES_REASON, DT_CANCELLED, ID_USER_CANCELLED, DES_CANCEL_REASON,
+                    SD_STATUS, CD_INTENT, CD_PRI, ID_CATALOG_ITEM, ID_ITEM_PKG,
+                    ID_ORG_EXEC, ID_DEPT_EXEC, ID_ORG_REQ, ID_DEPT_REQ, DA_BIZ, DT_AUTHRD,
+                    ID_USER_AUTHRD, DES_REASON, DT_CNCLD, ID_USER_CNCLD, DES_CANCEL_REASON,
                     CD_ITEM_SNAP, NA_ITEM_SNAP, CD_UNIT_SNAP,
-                    CD_LOCAL_SNAP, NA_LOCAL_SNAP, ID_ORG_CATALOG_ITEM_ADOPTION, SN_ADOPTION_VER,
-                    ID_CATALOG_PRICE, SN_PRICE_VER, SD_PRICE_TYPE, PRICE_UNIT, AMT_TOTAL, CD_CURRENCY,
-                    JSON_ITEM_ATTR_SNAP, HASH_ITEM_ATTR, DT_ITEM_ATTR_RESOLVED,
+                    CD_LOCAL_SNAP, NA_LOCAL_SNAP, ID_ORG_CATALOG_ITEM_ADOPT, SN_ADOPT_VER,
+                    ID_CATALOG_PRICE, SN_PRICE_VER, SD_PRICE_TYPE, PRICE_UNIT, AMT_TOTAL, CD_CCY,
+                    JSON_ITEM_ATTR_SNAP, HASH_ITEM_ATTR, DT_ITEM_ATTR_RSLVD,
                     JSON_STD_MAP_SNAP
                 ) values (
                     :id, 0, :tenantId, :residentId, :encounterId, :requestNo, :requestKind,
@@ -121,7 +121,7 @@ public class InpatientCareRequestStore {
         if (!"MEDICATION".equals(orderCategory)) return RequestDetails.EMPTY;
         List<RequestDetails> values = jdbc.query("""
                 select ID_MED as medication_id, CD_MED_SNAP as medication_code_snapshot, NA_MED_SNAP as medication_name_snapshot,
-                       QTY_DOSE_VAL, DOSE_UNIT, CD_ROUTE as route_code, CD_FREQ as frequency_code, FG_SELF_PROVIDED as self_provided,
+                       QTY_DOSE_VAL, DOSE_UNIT, CD_ROUTE as route_code, CD_FREQ as frequency_code, FG_SELF_PRVDD as self_provided,
                        QTY_ORDERED as quantity, QTY_UNIT as quantity_unit, QTY_BASE as base_quantity, BASE_UNIT from RHN_EX_MED_REQ where ID_TNT = :tenantId and ID_CARE_REQ = :requestId
                 """, new MapSqlParameterSource().addValue("tenantId", tenantId).addValue("requestId", requestId),
                 (result, row) -> new RequestDetails(result.getLong(1), result.getString(2), result.getString(3),
@@ -234,14 +234,14 @@ public class InpatientCareRequestStore {
         jdbc.update("""
                 insert into RHN_EX_MED_REQ (
                     ID_CARE_REQ, ID_TNT, ID_MED, QTY_DOSE_VAL, DOSE_UNIT,
-                    ID_CONCEPT_ROUTE, CD_ROUTE, NA_ROUTE_SNAP, SD_ROUTE_EXEC_TYPE_SNAP, SD_ROUTE_RESOLUTION_STATUS,
-                    CD_FREQ, ID_ORDER_FREQ, NA_FREQ_SNAP, FREQUENCY_RULE_SNAPSHOT,
-                    QTY_ORDERED, QTY_UNIT, QTY_BASE, BASE_UNIT, PACKAGE_FACTOR_SNAPSHOT,
-                    FG_SUBSTITUTION, FG_SELF_PROVIDED, DES_MED_INSTRUCTION,
+                    ID_CONCEPT_ROUTE, CD_ROUTE, NA_ROUTE_SNAP, SD_ROUTE_EXEC_TYPE_SNAP, SD_ROUTE_RSLN_STATUS,
+                    CD_FREQ, ID_ORDER_FREQ, NA_FREQ_SNAP, FREQ_RULE_SNAP,
+                    QTY_ORDERED, QTY_UNIT, QTY_BASE, BASE_UNIT, PACKAGE_FACTOR_SNAP,
+                    FG_SUBSTN, FG_SELF_PRVDD, DES_MED_INSTR,
                     CD_MED_SNAP, NA_MED_SNAP, SD_MED_TYPE_SNAP,
-                    DOSE_FORM_SNAPSHOT, PREPARATION_SPEC_SNAPSHOT, PREPARATION_UNIT_SNAPSHOT,
-                    FG_SKIN_TEST_REQUIRED_SNAP, FG_ANTIMICROBIAL_SNAP, SD_ANTIMICROBIAL_LEVEL_SNAP,
-                    MEDICATION_SNAPSHOT
+                    DOSE_FORM_SNAP, PREP_SPEC_SNAP, PREP_UNIT_SNAP,
+                    FG_SKIN_TEST_RQD_SNAP, FG_ANTIMIC_SNAP, SD_ANTIMIC_LEVEL_SNAP,
+                    MED_SNAP
                 ) values (
                     :requestId, :tenantId, :medicationId, :dose, :doseUnit,
                     :routeId, :route, :routeName, :routeExecutionType, 'RESOLVED', :frequency, :frequencyId, :frequencyName, :frequencySnapshot,
@@ -257,7 +257,7 @@ public class InpatientCareRequestStore {
         jdbc.update("""
                 insert into RHN_EX_SVC_REQ (
                     ID_CARE_REQ, ID_TNT, SD_SVC_TYPE_SNAP, SD_SPEC_TYPE_SNAP,
-                    SD_EXAM_TYPE_SNAP, QTY_ORDERED, DES_CLIN_DESCRIPTION
+                    SD_EXAM_TYPE_SNAP, QTY_ORDERED, DES_CLIN_DESCR
                 ) values (
                     :requestId, :tenantId, :serviceType, :specimenType, :examinationType, 1, :description
                 )

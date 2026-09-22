@@ -24,7 +24,7 @@ public class OutpatientTriageRecord {
     @Column(name = "ID_ORG", nullable = false)
     private Long organizationId;
 
-    @Column(name = "ID_RESIDENT")
+    @Column(name = "ID_RESDNT")
     private Long residentId;
 
     @Column(name = "ID_ENC")
@@ -69,13 +69,13 @@ public class OutpatientTriageRecord {
     @Column(name = "SD_ARRIVAL_METHOD")
     private String arrivalMethod;
 
-    @Column(name = "SD_COMPANION_TYPE")
+    @Column(name = "SD_CMPNON_TYPE")
     private String companionType;
 
-    @Column(name = "DES_CHIEF_COMPLAINT")
+    @Column(name = "DES_CHIEF_CMPLNT")
     private String chiefComplaint;
 
-    @Column(name = "TXT_SYMPTOMS")
+    @Column(name = "TXT_SYMPT")
     private String symptoms;
 
     @Column(name = "VAL_TEMP")
@@ -102,13 +102,13 @@ public class OutpatientTriageRecord {
     @Column(name = "VAL_PAIN")
     private Integer painScore;
 
-    @Column(name = "SD_CONSCIOUSNESS")
+    @Column(name = "SD_CNSC")
     private String consciousness;
 
     @Column(name = "FG_FEVER", nullable = false)
     private short feverFlag;
 
-    @Column(name = "TXT_EPIDEMIC")
+    @Column(name = "TXT_EPID")
     private String epidemicHistory;
 
     @Column(name = "TXT_RISK_TAGS")
@@ -135,7 +135,7 @@ public class OutpatientTriageRecord {
     @Column(name = "SD_GREEN_CHANNEL")
     private String greenChannel;
 
-    @Column(name = "SD_DISPOSITION")
+    @Column(name = "SD_DISPOS")
     private String disposition;
 
     @Column(name = "SD_STATUS", nullable = false)

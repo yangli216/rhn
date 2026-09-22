@@ -2,6 +2,8 @@
 
 业务模块统一从 `shared/ui` 引入公共组件，不复制通用结构或交互行为。
 
+新增页面先读 [前端开发入口](../../../../docs/ai/frontend-ui.md)，并使用 [四种可运行页面模板](templates/README.md)。模板只负责页面编排，具体组件仍以本目录 API 为准。设计规则统一维护在 [UI 规范](../../../../docs/用户界面设计与开发规范.md)。
+
 ## 组件清单
 
 | 组件 | 用途 | 已内建能力 |
@@ -25,6 +27,7 @@
 | `ClinicalResourceSearch` | 临床业务主数据检索 | 通过 `resource` 配置诊断、通用药品或诊疗项目，统一适配接口和结果文案 |
 | `FormSelect` | 表单下拉适配 | 与 React Hook Form 的 `control`、字段值和校验状态集成 |
 | `TreePanel` | 分类、目录和层级对象维护 | 检索、展开/收起、选中、增改删操作插槽、拖拽与键盘排序、层级调整 |
+| `RelationshipGraph` | 物理表和统计实体的直接关系 | 当前对象的一跳关系、完整连接条件、候选虚线、分页、键盘可访问的对象跳转；不推断不存在的关联 |
 | `Alert` | 全局提示反馈 | 顶部向下浮现、自动关闭、手动关闭、消息堆叠、error/warning/success/info 语义与读屏播报 |
 | `StatusBadge` | 业务状态 | success/info/warning/danger/neutral 语义色 |
 | `LoadingState` / `EmptyState` | 异步区域状态 | 状态播报、统一空状态结构和可选操作 |
@@ -33,7 +36,15 @@
 | `BackButton` | 返回上层任务 | 统一图标、尺寸与焦点状态 |
 | `Switch` | 开关选择 | 遵循 ARIA switch 语义规范，支持键盘 Space/Enter 操作、受控/非受控、sm/md 尺寸与随动状态说明 |
 
+`SearchField` 可传 `inputRef`，用于 F1、Alt+K 等业务快捷键聚焦；清空后焦点仍回到同一输入框。有内容时也保持稳定的可访问名称，页面不需另写搜索外壳和清空按钮。
+
 业务枚举的文案和颜色不能写在功能组件中，应集中到 `shared/presentation.ts`，再传给 `StatusBadge`。
+
+字体统一使用 `styles/tokens.css`：页面标题 20/24px，弹窗标题 18/22px，面板标题 16/20px，正文/表格/表单值/标签/按钮 14/16px，辅助信息 12/14px（标准/大字）。详见 UI 规范第 4.2 节；标题语义级别不等同于视觉字号。`FontSizeControl` 提供即时切换与浏览器本地保存，应用入口通过 `useFontSizePreference` 恢复设置，屏幕上以根节点 `data-font-size` 切换令牌。弹窗 Portal 继承根令牌，打印不随屏幕档位放大。
+
+普通页面左右外边距由 `.page` 使用 `--layout-page-gutter`（24px）提供；高密度工作台主功能区使用 `--layout-workspace-gutter`（16px），二者不重复叠加。相邻面板默认横纵间距为 `--layout-panel-gap`（8px），较大业务分组为 `--layout-section-gap`（12px）。父容器负责 gap，子面板不额外叠加 margin；PageHeader 与正文默认相隔 8px，模板由父容器统一提供间距。
+
+Panel 标题默认采用紧凑密度：`PanelHead` 标准档最小高度 36px、大字档 40px，上下内边距 4px、左右 12px；标题字号保持不变，有按钮或多行标题时由内容撑高，不固定高度或压缩交互目标。模板负责消除面板内边距与首个标题的重复留白，表单字段垂直外边距默认 8px。规则详见 UI 规范第 6.3 节。
 
 ## 表格列语义与对齐
 
@@ -63,6 +74,10 @@ import { DataTable, StatusBadge, tableCellClass } from '../../shared/ui'
 采购计划、直接采购入库等连续输入场景统一使用 `EditableTable`。`EditableRow` 默认阅读态，点击字段或通过 Tab、程序焦点进入行时切换为编辑态；焦点离开该行和关联浮层后恢复阅读态。编辑器始终挂载，切换不会丢失输入值，也不会改变行高。
 
 `EditableCell` 的 `display` 提供阅读值，子元素使用系统基础控件。普通只读内容继续使用 `td`。数值列在表头和单元格均设置 `tableCellClass('numeric')`，统一右对齐。组件将文本框、下拉框、日期和数量控件统一为小尺寸，无需业务页面再次覆盖高度、边框或焦点样式。
+
+`TableShell` 的外框默认填满父容器剩余高度，滚动仅发生在 `.ui-table-scroll`，`footer` 保持可见。父容器必须提供连续的高度约束和 `min-height: 0`；不要给表格本身设置百分比高度拉伸数据行。`scrollLabel` 为可键盘进入的滚动区命名，`resetScrollKey` 在页码/筛选/对象变化时复位滚动，不重新挂载内容。只有参数未变化的刷新会保留当前阅读位置。
+
+主从和多栏页面使用模板导出的 `WorkspacePane`：`header` / `footer` 固定，默认 `scroll="pane"` 由正文滚动；正文包含独立 TableShell 或并列阅读区时使用 `scroll="content"`，关闭外层滚动。它已内建于 MasterDetailPage；固定头尾插槽及示例见 [模板说明](templates/README.md)。默认外框高度与滚动条位置遵循 UI 规范第 5.4 节。
 
 ```tsx
 <EditableTable onAppendRow={appendAndFocusNewRow} aria-label="采购连续录入">
@@ -105,7 +120,7 @@ return <>
 </>
 ```
 
-PC 端配置、基础数据和平台管理页面默认使用 `compact`。工作区 Tab 已承担当前页面识别，紧凑标题中的眉题、标题和说明只保留语义结构、不重复显示；存在主操作时仅显示操作区，并优先与页面内分类 Tab 合并。所有模块的 `PageHeader` 均吸附在主内容滚动区顶部，标题与主操作在长页面滚动时保持可见，但不固定到浏览器页面，也不与分类 Tab 叠加形成双层吸顶。带模块标题的页面顶部不保留可滚动空白，标题初始位置和吸顶位置必须一致。长列表页面应固定分类、筛选和操作区，仅让数据列表容器内部滚动；列表表头在滚动容器内保持可见。移动端或强调叙事与引导的页面可继续使用默认标题模式。
+PC 端配置、基础数据和平台管理页面默认使用 `compact`。当前紧凑模式仍保留可见的标题和说明；眉题保留语义结构但视觉隐藏，较窄 PC 视口下说明可隐藏。工作区 Tab 不替代页面的唯一 H1，不另建重复标题或操作条。`PageHeader` 吸附在当前主内容滚动区顶部；固定工作区模板中标题本身不参与正文滚动，不能叠加第二层吸顶。带模块标题的页面顶部不保留可滚动空白。长列表固定分类、筛选和操作区，仅让 TableShell 的数据区滚动；普通表单保留一个正文滚动区；主从/工作台允许有明确边界的独立阅读区。完整规则见 UI 规范第 5 节。
 
 平台管理页面不得自行用 `role="tablist"`、搜索输入框外壳或裸表格复制上述交互。业务差异通过 `Tabs` 的变体、组件 `className` 的布局修饰和表格单元格内容表达，不重复定义边框、圆角、焦点环、键盘行为或滚动规则。
 
@@ -229,6 +244,8 @@ const nodes = categories.map((item) => ({
 
 节点行必须保持真实树语义和键盘可达。业务页面不得把缩进空格拼进名称，也不得用扁平按钮列表模拟树。
 
+`headingLevel` 可选 2 或 3（默认 3），用于匹配页面标题层级；`searchLabel` 设置搜索框的可访问名称（默认“搜索树节点”）；`rootMeta` 可显示全部业务记录数，未传时显示节点数。参数分类使用这些属性保留“全部参数”的计数与搜索入口。
+
 ## 开发约束
 
 - 颜色、字号、间距、圆角、阴影和层级只使用 `styles/tokens.css` 中的语义令牌。
@@ -244,4 +261,4 @@ const nodes = categories.map((item) => ({
 npm run check
 ```
 
-该命令会先执行 UI 规范门禁，再完成 TypeScript 与生产构建验证。
+该命令先执行规则回归测试、原有全量 UI 门禁和新增规则检查，再运行前端测试、TypeScript 与生产构建。新增规则的历史基线不豁免原有门禁。例外与人工验收要求见前端开发入口。

@@ -20,19 +20,19 @@ public class MedicationDispense {
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
-    @Column(name = "ID_MED_DISP_ORIGINAL") private Long originalDispenseId;
+    @Column(name = "ID_MED_DISP_ORIG") private Long originalDispenseId;
     @Column(name = "CD_DISP_NO", nullable = false) private String dispenseNo;
     @Column(name = "SD_DISP_TYPE", nullable = false) private String dispenseType;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
-    @Column(name = "ID_DISPENSER_PRACT", nullable = false) private Long dispenserPractitionerId;
-    @Column(name = "ID_DISPENSER_USER", nullable = false) private Long dispenserUserId;
-    @Column(name = "ID_DISPENSER_ASSIGN", nullable = false) private Long dispenserAssignmentId;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_DSPNSR_PRACT", nullable = false) private Long dispenserPractitionerId;
+    @Column(name = "ID_DSPNSR_USER", nullable = false) private Long dispenserUserId;
+    @Column(name = "ID_DSPNSR_ASSIGN", nullable = false) private Long dispenserAssignmentId;
     @Column(name = "ID_CHECKER_PRACT") private Long checkerPractitionerId;
     @Column(name = "ID_CHECKER_USER") private Long checkerUserId;
     @Column(name = "ID_CHECKER_ASSIGN") private Long checkerAssignmentId;
     @Column(name = "DT_CHECKED") private Instant checkedAt;
-    @Column(name = "QTY_OPERATION", nullable = false, precision = 28, scale = 8) private BigDecimal operationQuantity;
-    @Column(name = "CD_OPERATION_UNIT", nullable = false) private String operationUnitCode;
+    @Column(name = "QTY_OPER", nullable = false, precision = 28, scale = 8) private BigDecimal operationQuantity;
+    @Column(name = "CD_OPER_UNIT", nullable = false) private String operationUnitCode;
     @Column(name = "DES_MED_DISP") private String description;
 
     protected MedicationDispense() {}

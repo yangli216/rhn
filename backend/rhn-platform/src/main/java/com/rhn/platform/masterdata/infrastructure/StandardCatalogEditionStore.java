@@ -19,15 +19,15 @@ public class StandardCatalogEditionStore {
         return value;
     }
     private Edition metadata(ResultSet rs,int row) throws SQLException {
-        var e=json.read(rs.getString("JSON_METADATA"),Edition.class);
-        if(!Objects.equals(ClinicalSemanticVersions.hash(e,json),rs.getString("HASH_METADATA"))||!Objects.equals(e.id(),rs.getObject("ID_STD_EDITION",Long.class))||!Objects.equals(e.identity().catalogId(),rs.getString("CD_CATALOG"))||!Objects.equals(e.identity().catalogVersion(),rs.getString("CATALOG_VERSION")))throw conflict("STANDARD_EDITION_INTEGRITY","目录登记摘要与指纹不一致");return e;
+        var e=json.read(rs.getString("JSON_META"),Edition.class);
+        if(!Objects.equals(ClinicalSemanticVersions.hash(e,json),rs.getString("HASH_META"))||!Objects.equals(e.id(),rs.getObject("ID_STD_EDITION",Long.class))||!Objects.equals(e.identity().catalogId(),rs.getString("CD_CATALOG"))||!Objects.equals(e.identity().catalogVersion(),rs.getString("CATALOG_VERSION")))throw conflict("STANDARD_EDITION_INTEGRITY","目录登记摘要与指纹不一致");return e;
     }
     public Optional<Stored> find(Long tenant,Long id) {return jdbc.query("select * from RHN_BD_STD_EDITION where ID_TNT=? and ID_STD_EDITION=?",this::read,tenant,id).stream().findFirst();}
-    public List<Edition> list(Long tenant,int page) {return jdbc.query("select ID_STD_EDITION,CD_CATALOG,CATALOG_VERSION,JSON_METADATA,HASH_METADATA from RHN_BD_STD_EDITION where ID_TNT=? order by ID_STD_EDITION desc offset ? rows fetch next 20 rows only",this::metadata,tenant,(long)page*20);}
+    public List<Edition> list(Long tenant,int page) {return jdbc.query("select ID_STD_EDITION,CD_CATALOG,CATALOG_VERSION,JSON_META,HASH_META from RHN_BD_STD_EDITION where ID_TNT=? order by ID_STD_EDITION desc offset ? rows fetch next 20 rows only",this::metadata,tenant,(long)page*20);}
     public void lockTenant(Long tenant) {if(jdbc.query("select ID_TNT from RHN_SYS_TNT where ID_TNT=? for update",(r,n)->r.getLong(1),tenant).isEmpty())throw notFound("STANDARD_EDITION_TENANT","未找到登记所属租户");}
     public Optional<Stored> version(Long tenant,String catalog,String version) {return jdbc.query("select * from RHN_BD_STD_EDITION where ID_TNT=? and CD_CATALOG=? and CATALOG_VERSION=?",this::read,tenant,catalog,version).stream().findFirst();}
     public long count(Long tenant) {return jdbc.queryForObject("select count(*) from RHN_BD_STD_EDITION where ID_TNT=?",Long.class,tenant);}
     public void append(Long tenant,Stored value) {
-        var e=value.edition();jdbc.update("insert into RHN_BD_STD_EDITION (ID_TNT,ID_STD_EDITION,CD_CATALOG,CATALOG_VERSION,JSON_EDITION,HASH_EDITION,JSON_METADATA,HASH_METADATA) values (?,?,?,?,?,?,?,?)",tenant,e.id(),e.identity().catalogId(),e.identity().catalogVersion(),json.write(value),ClinicalSemanticVersions.hash(value,json),json.write(e),ClinicalSemanticVersions.hash(e,json));
+        var e=value.edition();jdbc.update("insert into RHN_BD_STD_EDITION (ID_TNT,ID_STD_EDITION,CD_CATALOG,CATALOG_VERSION,JSON_EDITION,HASH_EDITION,JSON_META,HASH_META) values (?,?,?,?,?,?,?,?)",tenant,e.id(),e.identity().catalogId(),e.identity().catalogVersion(),json.write(value),ClinicalSemanticVersions.hash(value,json),json.write(e),ClinicalSemanticVersions.hash(e,json));
     }
 }

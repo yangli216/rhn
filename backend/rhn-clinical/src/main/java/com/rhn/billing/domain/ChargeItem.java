@@ -30,15 +30,15 @@ public class ChargeItem {
     @Column(name = "CD_UNIT", nullable = false) private String unitCode;
     @Column(name = "PRICE_UNIT", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
     @Column(name = "AMT_TOTAL", nullable = false, precision = 24, scale = 6) private BigDecimal totalAmount;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
     @Column(name = "ID_PRICE") private Long priceId;
     @Column(name = "SN_PRICE_VER") private Long priceRevision;
     @Column(name = "SD_PRICE_TYPE") private String priceType;
     @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
     @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
     @Column(name = "ID_USER_ENTERED", nullable = false) private Long enteredBy;
-    @Column(name = "ID_CHARGE_ITEM_REVERSES") private Long reversesChargeItemId;
+    @Column(name = "ID_CHARGE_ITEM_RVRS") private Long reversesChargeItemId;
 
     protected ChargeItem() {}
 

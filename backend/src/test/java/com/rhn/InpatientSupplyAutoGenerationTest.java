@@ -70,7 +70,7 @@ class InpatientSupplyAutoGenerationTest extends RhnIntegrationTestSupport {
                  where CD_JOB_KEY = ?
                 """, String.class, DAY_JOB));
         assertEquals(discoveryTime, jdbc.queryForObject("""
-                select DT_COMPLETED as completed_at from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                select DT_CMPLD as completed_at from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
                  where CD_JOB_KEY = ?
                 """, OffsetDateTime.class, DAY_JOB).toInstant());
         Long batchId = jdbc.queryForObject("""
@@ -111,7 +111,7 @@ class InpatientSupplyAutoGenerationTest extends RhnIntegrationTestSupport {
         scheduler.pollAt(noDemandTime);
         assertEquals(0, jdbc.queryForObject("""
                 select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
-                 where DA_BUSINESS = date '2026-09-06'
+                 where DA_BIZ = date '2026-09-06'
                 """, Integer.class));
         assertEquals(1, jdbc.queryForObject(
                 "select count(*) from RHN_SUP_INP_MED_SUPPLY_BATCH", Integer.class));

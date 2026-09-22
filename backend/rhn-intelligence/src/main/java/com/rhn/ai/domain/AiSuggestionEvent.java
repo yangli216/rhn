@@ -27,7 +27,7 @@ public class AiSuggestionEvent {
     @Column(name = "DES_DETAIL") private String detail;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "JSON_ACTION", nullable = false) private String actionJson;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
 
     protected AiSuggestionEvent() {}
 

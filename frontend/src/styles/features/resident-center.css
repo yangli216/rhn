@@ -140,8 +140,8 @@
 }
 
 .resident-registered-card.is-primary {
-  border-color: rgba(14, 116, 144, 0.35);
-  background: rgba(14, 116, 144, 0.03);
+  border-color: color-mix(in srgb, var(--color-info) 35%, transparent);
+  background: color-mix(in srgb, var(--color-info) 3%, transparent);
 }
 
 .resident-registered-card__head {

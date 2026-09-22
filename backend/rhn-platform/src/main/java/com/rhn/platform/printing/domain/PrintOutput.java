@@ -35,10 +35,10 @@ public class PrintOutput {
     @Column(name = "NA_FILE", nullable = false) private String fileName;
     @Column(name = "SD_MEDIA_TYPE", nullable = false) private String mediaType;
     @Lob @Column(name = "CONTENT_BASE64", nullable = false) private String contentBase64;
-    @Column(name = "CONTENT_DIGEST_ALGORITHM", nullable = false) private String contentDigestAlgorithm;
+    @Column(name = "CONTENT_DIGEST_ALGO", nullable = false) private String contentDigestAlgorithm;
     @Column(name = "HASH_CONTENT", nullable = false) private String contentDigest;
-    @Column(name = "DT_GENERATED", nullable = false) private Instant generatedAt;
-    @Column(name = "ID_USER_GENERATED", nullable = false) private Long generatedBy;
+    @Column(name = "DT_GEND", nullable = false) private Instant generatedAt;
+    @Column(name = "ID_USER_GEND", nullable = false) private Long generatedBy;
 
     protected PrintOutput() {}
 

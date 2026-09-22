@@ -49,9 +49,9 @@ public class DictionaryItemAttributeValue {
     private String codeValue;
     @Column(name = "DA_DATE_VAL")
     private LocalDate dateValue;
-    @Column(name = "DT_DATETIME_VAL")
+    @Column(name = "DT_DTTM_VAL")
     private Instant datetimeValue;
-    @Column(name = "ID_DICT_ITEM_REFERENCE")
+    @Column(name = "ID_DICT_ITEM_REF")
     private Long referenceItemId;
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_STATUS", nullable = false, length = 32)

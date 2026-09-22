@@ -1,0 +1,941 @@
+{
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "tables": [
+    {
+      "legacy": "an_audit_evt",
+      "logical": "an.audit_evt",
+      "physical": "RHN_AN_AUDIT_EVT",
+      "domain": "AN",
+      "comment": "一行代表分析审计事件",
+      "columns": [
+        {
+          "physical": "ID_AUDIT_EVT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "审计事件标识",
+          "logical": "id_audit_evt",
+          "catalogComment": "审计事件标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "id_tnt",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RUN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "运行标识",
+          "logical": "id_run",
+          "catalogComment": "运行标识"
+        },
+        {
+          "physical": "ID_USER_ACTOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "操作用户标识",
+          "logical": "id_user_actor",
+          "catalogComment": "操作用户标识"
+        },
+        {
+          "physical": "CD_EVENT",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "事件代码",
+          "logical": "cd_event",
+          "catalogComment": "事件代码"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "创建时间",
+          "logical": "dt_created",
+          "catalogComment": "创建时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_AUDIT_EVT"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_AN_AUDIT_TENANT",
+          "columns": [
+            "ID_TNT",
+            "ID_AUDIT_EVT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_AN_AUDIT_RUN_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RUN",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_AN_AUDIT_RUN",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RUN",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_1B5C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_AUDIT_EVT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_AN_AUDIT_TENANT_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_AUDIT_EVT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_AN_AUDIT_IDS",
+          "expression": "(\"id_audit_evt\" > CAST(0 AS BIGINT))\n    AND (\"id_tnt\" > CAST(0 AS BIGINT))"
+        }
+      ],
+      "catalogComment": "一行代表分析审计事件",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/domain/AnalysisAuditEvent.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "legacy": "an_catalog_ver",
+      "logical": "an.catalog_ver",
+      "physical": "RHN_AN_CATALOG_VER",
+      "domain": "AN",
+      "comment": "一行代表分析目录的一个版本",
+      "columns": [
+        {
+          "physical": "ID_CATALOG_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "目录版本标识",
+          "logical": "id_catalog_ver",
+          "catalogComment": "目录版本标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "id_tnt",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_CATALOG",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "目录代码",
+          "logical": "cd_catalog",
+          "catalogComment": "目录代码"
+        },
+        {
+          "physical": "NO_VERSION",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "版本号",
+          "logical": "no_version",
+          "catalogComment": "版本号"
+        },
+        {
+          "physical": "JSON_DEF",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "目录定义 JSON",
+          "logical": "json_definition",
+          "catalogComment": "目录定义 JSON"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "创建时间",
+          "logical": "dt_created",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "SD_REVIEW",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'CANDIDATE'",
+          "ordinal": 7,
+          "comment": "审核状态",
+          "logical": "sd_review",
+          "catalogComment": "审核状态"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_CATALOG_VER"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_AN_CAT_CODE",
+          "columns": [
+            "ID_TNT",
+            "CD_CATALOG",
+            "NO_VERSION"
+          ]
+        },
+        {
+          "name": "UQ_AN_CAT_TENANT",
+          "columns": [
+            "ID_TNT",
+            "ID_CATALOG_VER"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_36",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CATALOG_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_AN_CAT_CODE_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_CATALOG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NO_VERSION",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_AN_CAT_TENANT_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CATALOG_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_AN_CAT_IDS",
+          "expression": "(\"id_catalog_ver\" > CAST(0 AS BIGINT))\n    AND (\"id_tnt\" > CAST(0 AS BIGINT))"
+        },
+        {
+          "name": "CK_AN_CAT_REVIEW",
+          "expression": "\"sd_review\" IN('CANDIDATE', 'APPROVED', 'RETIRED')"
+        },
+        {
+          "name": "CK_AN_CAT_VERSION",
+          "expression": "\"no_version\" > 0"
+        }
+      ],
+      "catalogComment": "一行代表分析目录的一个版本",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/domain/AnalyticsCatalogVersion.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "legacy": "an_draft_ver",
+      "logical": "an.draft_ver",
+      "physical": "RHN_AN_DRAFT_VER",
+      "domain": "AN",
+      "comment": "一行代表分析草稿的一个版本",
+      "columns": [
+        {
+          "physical": "ID_DRAFT_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "草稿版本标识",
+          "logical": "id_draft_ver",
+          "catalogComment": "草稿版本标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "id_tnt",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_DRAFT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "草稿标识",
+          "logical": "id_draft",
+          "catalogComment": "草稿标识"
+        },
+        {
+          "physical": "NO_VERSION",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "版本号",
+          "logical": "no_version",
+          "catalogComment": "版本号"
+        },
+        {
+          "physical": "ID_USER_OWNER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "所属用户标识",
+          "logical": "id_user_owner",
+          "catalogComment": "所属用户标识"
+        },
+        {
+          "physical": "ID_CATALOG_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "目录版本标识",
+          "logical": "id_catalog_ver",
+          "catalogComment": "目录版本标识"
+        },
+        {
+          "physical": "JSON_SPEC",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "分析定义 JSON",
+          "logical": "json_spec",
+          "catalogComment": "分析定义 JSON"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "创建时间",
+          "logical": "dt_created",
+          "catalogComment": "创建时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_DRAFT_VER"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_AN_DRAFT_TENANT",
+          "columns": [
+            "ID_TNT",
+            "ID_DRAFT_VER"
+          ]
+        },
+        {
+          "name": "UQ_AN_DRAFT_VERSION",
+          "columns": [
+            "ID_TNT",
+            "ID_DRAFT",
+            "NO_VERSION"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IX_AN_DRAFT_CATALOG",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CATALOG_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_AN_DRAFT_OWNER",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_OWNER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_81",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DRAFT_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_AN_DRAFT_TENANT_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DRAFT_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_AN_DRAFT_VERSION_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DRAFT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NO_VERSION",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_AN_DRAFT_IDS",
+          "expression": "(\"id_draft_ver\" > CAST(0 AS BIGINT))\n    AND (\"id_tnt\" > CAST(0 AS BIGINT))"
+        },
+        {
+          "name": "CK_AN_DRAFT_VERSION",
+          "expression": "\"no_version\" > 0"
+        }
+      ],
+      "catalogComment": "一行代表分析草稿的一个版本",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/domain/AnalysisDraftVersion.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "legacy": "an_run",
+      "logical": "an.run",
+      "physical": "RHN_AN_RUN",
+      "domain": "AN",
+      "comment": "一行代表一次分析运行",
+      "columns": [
+        {
+          "physical": "ID_RUN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "运行标识",
+          "logical": "id_run",
+          "catalogComment": "运行标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "id_tnt",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_DRAFT_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "草稿版本标识",
+          "logical": "id_draft_ver",
+          "catalogComment": "草稿版本标识"
+        },
+        {
+          "physical": "ID_USER_OWNER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "所属用户标识",
+          "logical": "id_user_owner",
+          "catalogComment": "所属用户标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "创建时间",
+          "logical": "dt_created",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 6,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "SD_STATE",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'QUEUED'",
+          "ordinal": 7,
+          "comment": "运行状态",
+          "logical": "sd_state",
+          "catalogComment": "运行状态"
+        },
+        {
+          "physical": "SD_DELIV",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'UNAVAILABLE'",
+          "ordinal": 8,
+          "comment": "结果交付状态",
+          "logical": "sd_delivery",
+          "catalogComment": "结果交付状态"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RUN"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_AN_RUN_TENANT",
+          "columns": [
+            "ID_TNT",
+            "ID_RUN"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_AN_RUN_DRAFT_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DRAFT_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_AN_RUN_DRAFT",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DRAFT_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_AN_RUN_OWNER",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_OWNER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_F4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RUN",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_AN_RUN_TENANT_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RUN",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_AN_RUN_DELIVERY",
+          "expression": "\"sd_deliv\" IN('UNAVAILABLE', 'AVAILABLE', 'REVOKED', 'EXPIRED', 'PURGED')"
+        },
+        {
+          "name": "CK_AN_RUN_IDS",
+          "expression": "(\"id_run\" > CAST(0 AS BIGINT))\n    AND (\"id_tnt\" > CAST(0 AS BIGINT))"
+        },
+        {
+          "name": "CK_AN_RUN_STATE",
+          "expression": "\"sd_state\" IN('QUEUED', 'RUNNING', 'CANCEL_REQUESTED', 'SUCCEEDED', 'FAILED', 'REJECTED', 'CANCELLED')"
+        }
+      ],
+      "catalogComment": "一行代表一次分析运行",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/domain/AnalysisRun.java",
+          "line": 13
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "FK_AN_AUDIT_RUN",
+      "sourceTable": "RHN_AN_AUDIT_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_RUN"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_RUN"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AN_RUN",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AN_DRAFT_CATALOG",
+      "sourceTable": "RHN_AN_DRAFT_VER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CATALOG_VER"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CATALOG_VER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AN_CATALOG_VER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AN_RUN_DRAFT",
+      "sourceTable": "RHN_AN_RUN",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_DRAFT_VER"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_DRAFT_VER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AN_DRAFT_VER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    }
+  ]
+}

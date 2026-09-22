@@ -40,7 +40,7 @@
 }
 
 .sw-badge-asset {
-  font-size: 11px;
+  font-size: var(--font-size-small);
   padding: 3px 8px;
   border-radius: 4px;
   background: var(--color-brand-soft);
@@ -99,8 +99,8 @@
 
 .sw-tab-btn.is-active {
   background: var(--color-brand-primary);
-  color: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-sm);
 }
 
 /* 三栏高密度工作台主体布局 (PC 宽屏 Split Panes) */
@@ -147,7 +147,7 @@
 }
 
 .sw-group-label {
-  font-size: 11px;
+  font-size: var(--font-size-small);
   font-weight: 600;
   color: var(--color-text-secondary);
   text-transform: uppercase;
@@ -191,7 +191,7 @@
 }
 
 .sw-node-tag {
-  font-size: 10px;
+  font-size: var(--font-size-small);
   padding: 1px 6px;
   border-radius: 3px;
   background: var(--color-surface-subtle);
@@ -200,19 +200,19 @@
 }
 
 .sw-node-tag.tag-fact {
-  background: #eef2ff;
-  color: #3730a3;
-  border-color: #c7d2fe;
+  background: var(--color-violet-soft);
+  color: var(--color-violet-strong);
+  border-color: var(--color-violet-border);
 }
 
 .sw-node-tag.tag-dim {
-  background: #ecfdf5;
-  color: #065f46;
-  border-color: #a7f3d0;
+  background: var(--color-success-soft);
+  color: var(--color-success-strong);
+  border-color: var(--color-success-border);
 }
 
 .sw-node-item-meta {
-  font-size: 11px;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   font-family: monospace;
 }
@@ -220,7 +220,7 @@
 .sw-node-item-counts {
   display: flex;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   margin-top: 2px;
 }
@@ -229,7 +229,7 @@
 .sw-pane-center {
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
+  background: var(--color-surface-subtle);
   overflow: hidden;
   position: relative;
 }
@@ -271,8 +271,8 @@
   padding: 14px 16px;
   border-radius: 10px;
   border: 1px solid var(--color-border);
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
@@ -281,7 +281,7 @@
 
 .sw-card-node:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-hover);
   border-color: var(--color-brand-primary);
 }
 
@@ -300,12 +300,12 @@
 .sw-card-node-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--color-text-primary);
 }
 
 .sw-card-table {
-  font-size: 11px;
-  color: #64748b;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
   font-family: monospace;
   margin-bottom: 8px;
   word-break: break-all;
@@ -314,8 +314,8 @@
 .sw-card-details {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  color: #64748b;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
   border-top: 1px dashed var(--color-border);
   padding-top: 6px;
 }
@@ -326,11 +326,11 @@
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning-soft);
   border-radius: 8px;
   font-size: 12px;
-  color: #92400e;
+  color: var(--color-warning-strong);
   margin-bottom: 16px;
 }
 
@@ -424,7 +424,7 @@
 }
 
 .sw-attr-col {
-  font-size: 11px;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   font-family: monospace;
 }
@@ -449,7 +449,7 @@
 .sw-val-key {
   font-family: monospace;
   font-weight: 600;
-  color: #0f766e;
+  color: var(--color-success);
 }
 
 .sw-val-aliases {
@@ -459,8 +459,8 @@
 }
 
 .sw-alias-pill {
-  font-size: 11px;
-  background: #fff;
+  font-size: var(--font-size-small);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   padding: 1px 6px;
   border-radius: 4px;
@@ -482,10 +482,10 @@
 
 /* 人机共建 Copilot 面板 */
 .sw-copilot-box {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border-strong);
   border-radius: 8px;
   padding: 14px;
-  background: #f8fafc;
+  background: var(--color-surface-subtle);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -504,12 +504,12 @@
 }
 
 .sw-diff-box {
-  background: #1e293b;
-  color: #e2e8f0;
+  background: var(--color-text-primary);
+  color: var(--color-border);
   padding: 10px;
   border-radius: 6px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: var(--font-size-small);
   overflow-x: auto;
   white-space: pre-wrap;
 }
@@ -547,7 +547,7 @@
   padding: 4px 10px;
   border-radius: 20px;
   border: 1px solid var(--color-border);
-  background: #fff;
+  background: var(--color-surface);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.1s ease;
@@ -561,7 +561,7 @@
 .sw-probe-result {
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -569,8 +569,8 @@
 }
 
 .sw-probe-sql {
-  background: #0f172a;
-  color: #38bdf8;
+  background: var(--color-text-primary);
+  color: var(--color-info);
   padding: 12px;
   border-radius: 6px;
   font-family: monospace;
@@ -578,3 +578,19 @@
   overflow-x: auto;
   white-space: pre-wrap;
 }
+
+/* Business annotations share the system typography and semantic palette. */
+.sw-dimension-label, .sw-success-copy { color: var(--color-success); }
+.sw-dimension-hint, .sw-filter-empty { color: var(--color-text-disabled); }
+.sw-muted-copy, .sw-probe-presets-label, .sw-filter-label, .sw-detail-copy { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.sw-probe-presets-label { align-self: center; }
+.sw-clarification { background: var(--color-warning-soft); padding: var(--space-3); border-radius: var(--radius-sm); }
+.sw-clarification__message { margin: 0 0 var(--space-2); font-size: var(--font-size-table); color: var(--color-warning-strong); }
+.sw-alias-pill--clarification { background: var(--color-surface); border-color: var(--color-warning-border); }
+.sw-filter-label { display: block; margin-bottom: var(--space-1); }
+.sw-alias-pill--filter { background: var(--color-info-soft); }
+.sw-filter-empty, .sw-success-copy, .sw-detail-value { font-size: var(--font-size-small); }
+.sw-detail-heading { font-size: var(--font-size-table); color: var(--color-text-primary); }
+.sw-detail-copy { margin: 0; }
+.sw-success-copy { font-weight: var(--font-weight-semibold); }
+.sw-detail-value { color: var(--color-text-primary); }

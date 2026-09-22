@@ -5,42 +5,49 @@ description: "包含门诊挂号、就诊、处方医嘱、记账费用、确诊
 
 entities:
   - code: "PATIENT"
+    table: "RHN_PI_PAT"
     name: "患者"
     description: "医院注册患者主数据档案"
     primaryKey: "ID_PAT"
     grain: "PATIENT_RECORD"
 
   - code: "ENCOUNTER"
+    table: "RHN_VIS_ENC"
     name: "门诊就诊"
     description: "患者单次挂号就诊会话"
     primaryKey: "ID_ENC"
     grain: "ENCOUNTER_VISIT"
 
   - code: "DIAGNOSIS"
+    table: "RHN_VIS_ENC_DIAG"
     name: "门诊诊断"
     description: "门诊就诊过程中录入的确诊记录明细"
     primaryKey: "ID_ENC_DIAG"
     grain: "DIAGNOSIS_ENTRY"
 
   - code: "ORDER"
+    table: "RHN_EX_CARE_REQ"
     name: "门诊医嘱"
     description: "门诊医生开立的药品或诊疗服务医嘱明细"
     primaryKey: "ID_CARE_REQ"
     grain: "CARE_REQUEST"
 
   - code: "CHARGE"
+    table: "RHN_BIL_CHARGE_ITEM"
     name: "门诊记账费用"
     description: "门诊就诊及医嘱产生的已记账费用明细（含冲销）"
     primaryKey: "ID_CHARGE_ITEM"
     grain: "CHARGE_ITEM"
 
   - code: "PRESCRIPTION"
+    # 当前尚无对应的独立处方物理表；保持未映射，不能据此生成可执行查询。
     name: "门诊处方"
     description: "门诊处方单单据"
     primaryKey: "ID_PRESC"
     grain: "PRESCRIPTION_RECORD"
 
   - code: "DEPARTMENT"
+    table: "RHN_SYS_DEPT"
     name: "科室主数据"
     description: "医院科室主数据（含临床诊疗、医技、行政后勤、药库等性质）"
     primaryKey: "ID_DEPT"
@@ -114,7 +121,7 @@ relationships:
     to: "DEPARTMENT"
     cardinality: "MANY_TO_ONE"
     conditions:
-      - from: "ID_DEPT"
+      - from: "ID_DEPT_REQ"
         to: "ID_DEPT"
     aggregationSafe: true
     fanoutRisk: false
@@ -167,7 +174,7 @@ dimensions:
     name: "开立科室"
     aliases: ["医嘱科室", "开立部门", "开单科室", "开立科室"]
     entity: "ORDER"
-    field: "ID_DEPT"
+    field: "ID_DEPT_REQ"
     grain: "DEPARTMENT"
     compatibleMetrics: []
     attributes:
@@ -242,7 +249,7 @@ metrics:
     aggregate: "COUNT"
     grain: "ENCOUNTER_VISIT"
     defaultFilters: []
-    timeDimension: "DT_REGISTERED"
+    timeDimension: "DT_REGD"
     supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT", "STATUS"]
     forbiddenMeanings: ["去重人数", "实际就诊人数"]
 
@@ -259,7 +266,7 @@ metrics:
       - field: "status"
         op: "NE"
         values: ["CANCELLED"]
-    timeDimension: "DT_REGISTERED"
+    timeDimension: "DT_REGD"
     supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT"]
     forbiddenMeanings: ["去重人数", "患者数"]
 
@@ -276,7 +283,7 @@ metrics:
       - field: "status"
         op: "EQ"
         values: ["COMPLETED"]
-    timeDimension: "DT_REGISTERED"
+    timeDimension: "DT_REGD"
     supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT", "STATUS"]
     forbiddenMeanings: ["挂号人次", "挂号总数"]
 
@@ -293,7 +300,7 @@ metrics:
       - field: "status"
         op: "EQ"
         values: ["CANCELLED"]
-    timeDimension: "DT_REGISTERED"
+    timeDimension: "DT_REGD"
     supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT"]
     forbiddenMeanings: ["退号率"]
 
@@ -310,7 +317,7 @@ metrics:
       - field: "status"
         op: "NE"
         values: ["CANCELLED"]
-    timeDimension: "DT_REGISTERED"
+    timeDimension: "DT_REGD"
     supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT"]
     forbiddenMeanings: ["就诊人次", "挂号人次"]
 
@@ -327,7 +334,7 @@ metrics:
       - field: "status"
         op: "EQ"
         values: ["ACTIVE"]
-    timeDimension: "DT_AUTHORED"
+    timeDimension: "DT_AUTHRD"
     supportedDimensions: ["DAY", "MONTH", "ORDER_DEPARTMENT", "ORDER_TYPE", "ITEM", "STATUS"]
     forbiddenMeanings: ["处方张数", "药品盒数"]
 
@@ -344,7 +351,7 @@ metrics:
       - field: "status"
         op: "EQ"
         values: ["CANCELLED"]
-    timeDimension: "DT_AUTHORED"
+    timeDimension: "DT_AUTHRD"
     supportedDimensions: ["DAY", "MONTH", "ORDER_DEPARTMENT", "ITEM"]
     forbiddenMeanings: ["有效医嘱"]
 
@@ -367,7 +374,7 @@ metrics:
       - field: "deptType"
         op: "EQ"
         values: ["CLINICAL"]
-    timeDimension: "DT_AUTHORED"
+    timeDimension: "DT_AUTHRD"
     supportedDimensions: ["DAY", "MONTH", "ORDER_DEPARTMENT", "ITEM"]
     forbiddenMeanings: ["处方张数", "药品消耗总金额"]
 
@@ -387,7 +394,7 @@ metrics:
       - field: "status"
         op: "EQ"
         values: ["ACTIVE"]
-    timeDimension: "DT_AUTHORED"
+    timeDimension: "DT_AUTHRD"
     supportedDimensions: ["DAY", "MONTH", "ORDER_DEPARTMENT", "ORDER_TYPE"]
     forbiddenMeanings: ["检查检验项目明细次数"]
 
@@ -410,7 +417,7 @@ metrics:
       - field: "deptType"
         op: "EQ"
         values: ["CLINICAL"]
-    timeDimension: "DT_AUTHORED"
+    timeDimension: "DT_AUTHRD"
     supportedDimensions: ["DAY", "MONTH", "ORDER_DEPARTMENT"]
     forbiddenMeanings: ["用药人次", "药品销售盒数"]
 
@@ -424,7 +431,7 @@ metrics:
     aggregate: "SUM"
     grain: "CHARGE_ITEM"
     defaultFilters: []
-    timeDimension: "DT_OCCURRED"
+    timeDimension: "DT_OCCRD"
     supportedDimensions: ["DAY", "MONTH", "CHARGE_DEPARTMENT", "ITEM", "ORDER_TYPE"]
     forbiddenMeanings: ["实际收款", "已结算收入", "医保到账", "实收金额"]
 
@@ -447,7 +454,7 @@ metrics:
       - field: "deptType"
         op: "EQ"
         values: ["CLINICAL"]
-    timeDimension: "DT_OCCURRED"
+    timeDimension: "DT_OCCRD"
     supportedDimensions: ["DAY", "MONTH", "CHARGE_DEPARTMENT", "ITEM"]
     forbiddenMeanings: ["实际收款", "医保到账", "药品实收"]
 
@@ -467,7 +474,7 @@ metrics:
       - field: "orderStatus"
         op: "EQ"
         values: ["ACTIVE"]
-    timeDimension: "DT_OCCURRED"
+    timeDimension: "DT_OCCRD"
     supportedDimensions: ["DAY", "MONTH", "CHARGE_DEPARTMENT", "ITEM"]
     forbiddenMeanings: ["实际收款", "医保到账"]
 
@@ -481,7 +488,7 @@ metrics:
     aggregate: "COUNT"
     grain: "DIAGNOSIS_ENTRY"
     defaultFilters: []
-    timeDimension: "DT_RECORDED"
+    timeDimension: "DT_RECDD"
     supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT", "DIAGNOSIS"]
     forbiddenMeanings: ["确诊患者去重人数", "患病人数"]
 
@@ -495,6 +502,6 @@ metrics:
     aggregate: "COUNT_DISTINCT"
     grain: "DIAGNOSIS_ENTRY"
     defaultFilters: []
-    timeDimension: "DT_RECORDED"
+    timeDimension: "DT_RECDD"
     supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT"]
     forbiddenMeanings: ["确诊记录条数", "诊断发生人次"]

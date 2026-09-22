@@ -14,13 +14,13 @@ public class StandardCatalogReviewStore {
     public StandardCatalogReviewStore(JdbcTemplate jdbc, JsonCodec json) { this.jdbc = jdbc; this.json = json; }
     public List<Event> history(Long tenant, String identityHash, int limit) {
         return jdbc.query("""
-                select JSON_EVENT from RHN_BD_STD_REVIEW where ID_TNT=? and HASH_IDENTITY=?
+                select JSON_EVENT from RHN_BD_STD_REVIEW where ID_TNT=? and HASH_IDTY=?
                 order by REVISION desc fetch first ? rows only
                 """, (rs, row) -> json.read(rs.getString(1), Event.class), tenant, identityHash, limit);
     }
     public void append(Long tenant, String identityHash, Event event) {
         jdbc.update("""
-                insert into RHN_BD_STD_REVIEW (ID_STD_REVIEW, ID_TNT, CD_CATALOG, HASH_IDENTITY, REVISION, JSON_EVENT)
+                insert into RHN_BD_STD_REVIEW (ID_STD_REVIEW, ID_TNT, CD_CATALOG, HASH_IDTY, REVISION, JSON_EVENT)
                 values (?, ?, ?, ?, ?, ?)
                 """, event.id(), tenant, event.identity().catalogId(), identityHash, event.revision(), json.write(event));
     }

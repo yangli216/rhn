@@ -16,14 +16,20 @@ public class MedicationStandardSource {
     @Column(name = "CD_STD_ENTRY", nullable = false) private String entryCode;
     @Column(name = "CD_STD_SPEC", nullable = false) private String specificationCode;
     @Column(name = "SOURCE_HASH", nullable = false) private String sourceHash;
+    @Column(name = "CD_BINDING_CLAIM", nullable = false, length = 64) private String bindingClaim;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     protected MedicationStandardSource() {}
     public MedicationStandardSource(Long tenant, Long medication, String catalog, String version,
             String entry, String specification, String hash, Long actor) {
+        this(tenant, medication, catalog, version, entry, specification, hash, actor, false);
+    }
+    public MedicationStandardSource(Long tenant, Long medication, String catalog, String version,
+            String entry, String specification, String hash, Long actor, boolean existingLocalRecord) {
         id = GlobalIds.next(); tenantId = tenant; medicationId = medication; catalogCode = catalog;
         catalogVersion = version; entryCode = entry; specificationCode = specification;
         sourceHash = hash; createdAt = Instant.now(); createdBy = actor;
+        bindingClaim = existingLocalRecord ? "EXISTING:" + medication : "CANONICAL";
     }
     public Long id() { return id; }
     public Long createdBy() { return createdBy; }

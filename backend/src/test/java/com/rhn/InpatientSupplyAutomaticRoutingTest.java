@@ -99,17 +99,17 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
 
         assertEquals(2, count("""
                 select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
-                 where ID_DEPT_NURS_UNIT = ? and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
+                 where ID_DEPT_NURS_UNIT = ? and DA_BIZ = ? and CD_SHIFT = 'DAY'
                    and SD_STATUS = 'SUCCEEDED'
                 """, WARD_DEPARTMENT, BUSINESS_DATE));
         assertEquals(1, count("""
                 select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
-                 where ID_DEPT_NURS_UNIT = ? and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
+                 where ID_DEPT_NURS_UNIT = ? and DA_BIZ = ? and CD_SHIFT = 'DAY'
                    and SD_MED_TYPE_SNAP = 'WESTERN' and ID_STOCK_SITE = ? and SD_STATUS = 'SUCCEEDED'
                 """, WARD_DEPARTMENT, BUSINESS_DATE, GENERAL_INPATIENT_SITE));
         assertEquals(1, count("""
                 select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
-                 where ID_DEPT_NURS_UNIT = ? and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
+                 where ID_DEPT_NURS_UNIT = ? and DA_BIZ = ? and CD_SHIFT = 'DAY'
                    and SD_MED_TYPE_SNAP = 'HERBAL'
                    and ID_DISP_ROUTE = ? and ID_STOCK_SITE = ? and SD_STATUS = 'SUCCEEDED'
                 """, WARD_DEPARTMENT, BUSINESS_DATE, herbalRoute.get("id").asString(), HERBAL_SITE));
@@ -129,7 +129,7 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
                        SD_MED_TYPE_SNAP as medication_type_snapshot, SD_STATUS as status,
                        CD_LAST_ERROR as last_error_code from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
                  where ID_TNT = ? and ID_ORG = ? and ID_DEPT_NURS_UNIT = ?
-                   and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
+                   and DA_BIZ = ? and CD_SHIFT = 'DAY'
                 """, Long.valueOf(TENANT), Long.valueOf(ORGANIZATION), Long.valueOf(WARD_DEPARTMENT), BUSINESS_DATE);
         assertEquals(1, blocked.size(), "缺路由的真实计划剂次必须形成一条且仅一条可治理运行事实");
         assertEquals("WESTERN", blocked.getFirst().get("medication_type_snapshot"));
@@ -150,7 +150,7 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
                 select ID_INP_MED_SUPPLY_GEN_RUN as id, CD_JOB_KEY as job_key,
                        SD_STATUS as status, ID_INP_MED_SUPPLY_BATCH as batch_id from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
                  where ID_TNT = ? and ID_ORG = ? and ID_DEPT_NURS_UNIT = ?
-                   and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
+                   and DA_BIZ = ? and CD_SHIFT = 'DAY'
                 """, Long.valueOf(TENANT), Long.valueOf(ORGANIZATION), Long.valueOf(WARD_DEPARTMENT), BUSINESS_DATE);
         assertEquals(runId, String.valueOf(recovered.get("id")),
                 "补齐路由后必须恢复原运行事实而不是制造第二条作业");
@@ -184,7 +184,7 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
         assertEquals(0, routedLineCount(GENERAL_INPATIENT_SITE, herbalRequestId, "HERBAL"));
         List<Map<String, Object>> blocked = jdbc.queryForList("""
                 select SD_MED_TYPE_SNAP as medication_type_snapshot, SD_STATUS as status, CD_LAST_ERROR as last_error_code from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
-                 where ID_DEPT_NURS_UNIT = ? and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
+                 where ID_DEPT_NURS_UNIT = ? and DA_BIZ = ? and CD_SHIFT = 'DAY'
                 """, Long.valueOf(WARD_DEPARTMENT), BUSINESS_DATE);
         assertEquals(1, blocked.size());
         assertEquals("HERBAL", blocked.getFirst().get("medication_type_snapshot"));

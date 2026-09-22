@@ -114,7 +114,7 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
                 Integer.class, Long.valueOf(encounterId)));
         assertEquals(5, jdbcTemplate.queryForObject("""
                 select count(*) from RHN_INT_IDEMP_RECORD
-                 where ID_RSRC=? and CD_OPERATION like 'OUTPATIENT.ENCOUNTER.%' and SD_STATUS='COMPLETED'
+                 where ID_RSRC=? and CD_OPER like 'OUTPATIENT.ENCOUNTER.%' and SD_STATUS='COMPLETED'
                 """, Integer.class, Long.valueOf(encounterId)));
     }
 

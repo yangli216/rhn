@@ -28,18 +28,18 @@ class HealthEvent {
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "JSON_PAYLOAD", nullable = false)
     private String payloadJson;
-    @Column(name = "DT_OCCURRED", nullable = false)
+    @Column(name = "DT_OCCRD", nullable = false)
     private Instant occurredAt;
-    @Column(name = "DT_RECORDED", nullable = false)
+    @Column(name = "DT_RECDD", nullable = false)
     private Instant recordedAt;
-    @Column(name = "ID_USER_RECORDED", nullable = false)
+    @Column(name = "ID_USER_RECDD", nullable = false)
     private String recordedBy;
     @Column(name = "ID_SRC_EVT")
     private Long sourceEventId;
     @Column(name = "SN_EVT_VER")
     private Integer eventVersion;
     @Column(name = "SOURCE") private String source;
-    @Column(name = "ID_CORRELATION")
+    @Column(name = "ID_CORR")
     private String correlationId;
 
     protected HealthEvent() {

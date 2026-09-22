@@ -24,7 +24,7 @@ class ScheduleSlotHold {
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_EXPIRES", nullable = false) private Instant expiresAt;
     @Column(name = "DT_CLOSED") private Instant closedAt;
-    @Column(name = "ID_PAT_REG_CONSUMED") private Long consumedRegistrationId;
+    @Column(name = "ID_PAT_REG_CNSMD") private Long consumedRegistrationId;
 
     protected ScheduleSlotHold() {}
 

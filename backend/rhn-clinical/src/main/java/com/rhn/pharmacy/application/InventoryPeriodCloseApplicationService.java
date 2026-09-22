@@ -121,16 +121,16 @@ public class InventoryPeriodCloseApplicationService {
         String reconciliationNo = "REC" + RUN_TIME.format(now) + GlobalIds.randomSuffix(6);
         jdbc.update("""
                 insert into RHN_SUP_INV_RECON_RUN
-                (ID_INV_RECON_RUN, ID_TNT, ID_ORG, ID_STOCK_SITE, CD_RUN_NO, SD_RUN_TYPE, SD_STATUS, DA_BUSINESS,
-                 DT_STARTED, ID_USER_RUN, QTY_DIMENSION, QTY_ISSUE)
+                (ID_INV_RECON_RUN, ID_TNT, ID_ORG, ID_STOCK_SITE, CD_RUN_NO, SD_RUN_TYPE, SD_STATUS, DA_BIZ,
+                 DT_STARTED, ID_USER_RUN, QTY_DIM, QTY_ISSUE)
                 values (?, ?, ?, ?, ?, 'PERIOD_CLOSE', 'RUNNING', ?, ?, ?, 0, 0)
                 """, reconciliationId, context.tenantId(), site.organizationId(), site.id(), reconciliationNo,
                 sqlDate(period.periodTo()), sqlTimestamp(now), context.subjectId());
         jdbc.update("""
                 insert into RHN_SUP_INV_PERIOD_CLOSE_RUN
-                (ID_INV_PERIOD_CLOSE_RUN, ID_TNT, ID_ORG, ID_STOCK_SITE, ID_INV_PERIOD, ID_INV_PERIOD_PREVIOUS,
-                 ID_INV_RECON_RUN, CD_RUN_NO, CD_REQ, HASH_REQ, SD_STATUS, QTY_DIMENSION,
-                 QTY_DIFFERENCE, DT_STARTED, ID_USER_STARTED)
+                (ID_INV_PERIOD_CLOSE_RUN, ID_TNT, ID_ORG, ID_STOCK_SITE, ID_INV_PERIOD, ID_INV_PERIOD_PREV,
+                 ID_INV_RECON_RUN, CD_RUN_NO, CD_REQ, HASH_REQ, SD_STATUS, QTY_DIM,
+                 QTY_DIFF, DT_STARTED, ID_USER_STARTED)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RUNNING', 0, 0, ?, ?)
                 """, closeRunId, context.tenantId(), site.organizationId(), site.id(), period.id(),
                 period.previousPeriodId(), reconciliationId, runNo, request, stateHash, sqlTimestamp(now),
@@ -150,7 +150,7 @@ public class InventoryPeriodCloseApplicationService {
                     (ID_INV_PERIOD_BAL_SNAP, ID_TNT, ID_INV_PERIOD_CLOSE_RUN, ID_INV_PERIOD,
                      ID_INV_PERIOD_BAL_SNAP_OPENING, ID_INV_BAL, SN_INV_BAL_VER, ID_STOCK_SITE, ID_STOCK_BIN,
                      ID_STOCK_ITEM, ID_STOCK_LOT, SD_STOCK_STATUS, CD_BASE_UNIT, QTY_OPENING,
-                     QTY_MOVEMENT, QTY_CLOSE, QTY_BAL, QTY_DIFFERENCE,
+                     QTY_MVMT, QTY_CLOSE, QTY_BAL, QTY_DIFF,
                      SD_SNAP_STATUS, DT_CREATED, ID_USER_CREATED)
                     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, snapshotId, context.tenantId(), closeRunId, period.id(), dimension.openingSnapshotId(),
@@ -161,10 +161,10 @@ public class InventoryPeriodCloseApplicationService {
                     quantityIssue ? "DIFFERENCE" : "RECONCILED", sqlTimestamp(now), context.subjectId());
             jdbc.update("""
                     insert into RHN_SUP_INV_PERIOD_BAL_VAL
-                    (ID_INV_PERIOD_BAL_VAL, ID_TNT, ID_INV_PERIOD_BAL_SNAP, SD_VALUAT_BASIS, CD_CURRENCY,
-                     PRICE_OPENING, PRICE_CLOSE, AMT_OPENING, AMT_MOVEMENT,
-                     AMT_VALUAT_ADJ, AMT_ROUNDING_ADJ, AMT_CLOSE,
-                     AMT_BAL, AMT_VAL_DIFFERENCE, SD_VAL_STATUS, DT_CREATED)
+                    (ID_INV_PERIOD_BAL_VAL, ID_TNT, ID_INV_PERIOD_BAL_SNAP, SD_VALUAT_BASIS, CD_CCY,
+                     PRICE_OPENING, PRICE_CLOSE, AMT_OPENING, AMT_MVMT,
+                     AMT_VALUAT_ADJ, AMT_RND_ADJ, AMT_CLOSE,
+                     AMT_BAL, AMT_VAL_DIFF, SD_VAL_STATUS, DT_CREATED)
                     values (?, ?, ?, 'COST', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, GlobalIds.next(), context.tenantId(), snapshotId, currency,
                     dimension.openingUnitValue(), dimension.closingUnitValue(), dimension.openingValue(),
@@ -197,22 +197,22 @@ public class InventoryPeriodCloseApplicationService {
         BigDecimal totalDifference = amount(balanceTotal.subtract(closingTotal));
         jdbc.update("""
                 insert into RHN_SUP_INV_PERIOD_CLOSE_TOTAL
-                (ID_INV_PERIOD_CLOSE_TOTAL, ID_TNT, ID_INV_PERIOD_CLOSE_RUN, SD_VALUAT_BASIS, CD_CURRENCY, AMT_OPENING,
-                 AMT_MOVEMENT, AMT_VALUAT_ADJ, AMT_ROUNDING_ADJ,
-                 AMT_CLOSE, AMT_BAL, AMT_VAL_DIFFERENCE, DT_CREATED)
+                (ID_INV_PERIOD_CLOSE_TOTAL, ID_TNT, ID_INV_PERIOD_CLOSE_RUN, SD_VALUAT_BASIS, CD_CCY, AMT_OPENING,
+                 AMT_MVMT, AMT_VALUAT_ADJ, AMT_RND_ADJ,
+                 AMT_CLOSE, AMT_BAL, AMT_VAL_DIFF, DT_CREATED)
                 values (?, ?, ?, 'COST', ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, GlobalIds.next(), context.tenantId(), closeRunId, currency, amount(openingTotal),
                 amount(movementTotal), amount(valuationTotal), amount(roundingTotal), amount(closingTotal),
                 amount(balanceTotal), totalDifference, sqlTimestamp(now));
         String reconciliationStatus = issueCount == 0 ? "PASSED" : "ISSUES";
         jdbc.update("""
-                update RHN_SUP_INV_RECON_RUN set SD_STATUS = ?, DT_COMPLETED = ?,
-                       QTY_DIMENSION = ?, QTY_ISSUE = ? where ID_TNT = ? and ID_INV_RECON_RUN = ?
+                update RHN_SUP_INV_RECON_RUN set SD_STATUS = ?, DT_CMPLD = ?,
+                       QTY_DIM = ?, QTY_ISSUE = ? where ID_TNT = ? and ID_INV_RECON_RUN = ?
                 """, reconciliationStatus, sqlTimestamp(now), dimensions.size() + missing.size(), issueCount,
                 context.tenantId(), reconciliationId);
         jdbc.update("""
-                update RHN_SUP_INV_PERIOD_CLOSE_RUN set SD_STATUS = 'VALIDATED', QTY_DIMENSION = ?,
-                       QTY_DIFFERENCE = ?, DT_VALIDATED = ?, ID_USER_VALIDATED = ?, DT_COMPLETED = ?
+                update RHN_SUP_INV_PERIOD_CLOSE_RUN set SD_STATUS = 'VALIDATED', QTY_DIM = ?,
+                       QTY_DIFF = ?, DT_VLDTD = ?, ID_USER_VLDTD = ?, DT_CMPLD = ?
                 where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ?
                 """, dimensions.size() + missing.size(), differenceCount, sqlTimestamp(now), context.subjectId(),
                 sqlTimestamp(now), context.tenantId(), closeRunId);
@@ -249,7 +249,7 @@ public class InventoryPeriodCloseApplicationService {
         Instant now = Instant.now();
         jdbc.update("""
                 update RHN_SUP_INV_PERIOD_CLOSE_RUN set SD_STATUS = 'POSTED', DT_POSTED = ?, ID_USER_POSTED = ?,
-                       DT_COMPLETED = ? where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ? and SD_STATUS = 'VALIDATED'
+                       DT_CMPLD = ? where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ? and SD_STATUS = 'VALIDATED'
                 """, sqlTimestamp(now), context.subjectId(), sqlTimestamp(now), context.tenantId(), closeRunId);
         period.close(closeRunId, context.subjectId()); periods.saveAndFlush(period);
         createNextPeriodIfAbsent(context, period);
@@ -282,13 +282,13 @@ public class InventoryPeriodCloseApplicationService {
                 select s.ID_INV_PERIOD_BAL_SNAP as id, s.ID_INV_BAL as inventory_balance_id,
                        s.SN_INV_BAL_VER as inventory_balance_revision, s.ID_STOCK_BIN as stock_bin_id,
                        s.ID_STOCK_ITEM as stock_item_id, s.ID_STOCK_LOT as stock_lot_id, l.CD_LOT_NO as lot_no, s.SD_STOCK_STATUS as stock_status, s.CD_BASE_UNIT as base_unit_code,
-                       s.QTY_OPENING as opening_quantity, s.QTY_MOVEMENT as movement_quantity, s.QTY_CLOSE as closing_quantity,
-                       s.QTY_BAL as balance_quantity, s.QTY_DIFFERENCE as quantity_difference,
-                       v.SD_VALUAT_BASIS as valuation_basis, v.CD_CURRENCY as currency_code,
-                       v.AMT_OPENING as opening_value, v.AMT_MOVEMENT as movement_amount,
+                       s.QTY_OPENING as opening_quantity, s.QTY_MVMT as movement_quantity, s.QTY_CLOSE as closing_quantity,
+                       s.QTY_BAL as balance_quantity, s.QTY_DIFF as quantity_difference,
+                       v.SD_VALUAT_BASIS as valuation_basis, v.CD_CCY as currency_code,
+                       v.AMT_OPENING as opening_value, v.AMT_MVMT as movement_amount,
                        v.AMT_VALUAT_ADJ as valuation_adjustment_amount,
-                       v.AMT_ROUNDING_ADJ as rounding_adjustment_amount, v.AMT_CLOSE as closing_value,
-                       v.AMT_BAL as balance_value, v.AMT_VAL_DIFFERENCE as value_difference
+                       v.AMT_RND_ADJ as rounding_adjustment_amount, v.AMT_CLOSE as closing_value,
+                       v.AMT_BAL as balance_value, v.AMT_VAL_DIFF as value_difference
                   from RHN_SUP_INV_PERIOD_BAL_SNAP s
                 join RHN_SUP_INV_PERIOD_BAL_VAL v
                   on v.ID_TNT = s.ID_TNT and v.ID_INV_PERIOD_BAL_SNAP = s.ID_INV_PERIOD_BAL_SNAP
@@ -425,8 +425,8 @@ public class InventoryPeriodCloseApplicationService {
         jdbc.update("""
                 insert into RHN_SUP_INV_RECON_LINE
                 (ID_INV_RECON_LINE, ID_TNT, ID_INV_RECON_RUN, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT,
-                 SD_STOCK_STATUS, SD_ISSUE_TYPE, QTY_EXPECTED, QTY_ACTUAL, QTY_DIFFERENCE,
-                 SD_SEVERITY, DES_INV_RECON_LINE)
+                 SD_STOCK_STATUS, SD_ISSUE_TYPE, QTY_EXPCTD, QTY_ACTUAL, QTY_DIFF,
+                 SD_SEV, DES_INV_RECON_LINE)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ERROR', ?)
                 """, GlobalIds.next(), tenantId, reconciliationId, binId, itemId, lotId, status, type,
                 expected, actual, quantity(actual.subtract(expected)), description);
@@ -439,9 +439,9 @@ public class InventoryPeriodCloseApplicationService {
         jdbc.update("""
                 insert into RHN_SUP_INV_RECON_LINE
                 (ID_INV_RECON_LINE, ID_TNT, ID_INV_RECON_RUN, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT,
-                 SD_STOCK_STATUS, SD_ISSUE_TYPE, QTY_EXPECTED, QTY_ACTUAL, QTY_DIFFERENCE,
-                 SD_VALUAT_BASIS, CD_CURRENCY, AMT_EXPECTED, AMT_ACTUAL, AMT_DIFFERENCE,
-                 SD_SEVERITY, DES_INV_RECON_LINE)
+                 SD_STOCK_STATUS, SD_ISSUE_TYPE, QTY_EXPCTD, QTY_ACTUAL, QTY_DIFF,
+                 SD_VALUAT_BASIS, CD_CCY, AMT_EXPCTD, AMT_ACTUAL, AMT_DIFF,
+                 SD_SEV, DES_INV_RECON_LINE)
                 values (?, ?, ?, ?, ?, ?, ?, 'PERIOD_VALUE', 0, 0, 0,
                         'COST', ?, ?, ?, ?, 'ERROR', ?)
                 """, GlobalIds.next(), tenantId, reconciliationId, d.binId(), d.itemId(), d.lotId(), d.status(),
@@ -472,12 +472,12 @@ public class InventoryPeriodCloseApplicationService {
         List<PeriodCloseRunView> values = jdbc.query("""
                 select ID_INV_PERIOD_CLOSE_RUN as id, REVISION,
                        ID_STOCK_SITE as stock_site_id, ID_INV_PERIOD as inventory_period_id,
-                       ID_INV_PERIOD_PREVIOUS as previous_period_id,
+                       ID_INV_PERIOD_PREV as previous_period_id,
                        ID_INV_RECON_RUN as reconciliation_run_id, CD_RUN_NO as run_no,
-                       CD_REQ as request_code, SD_STATUS as status, QTY_DIMENSION as dimension_count,
-                       QTY_DIFFERENCE as difference_count, DT_STARTED as started_at,
-                       ID_USER_STARTED as started_by, DT_VALIDATED as validated_at, ID_USER_VALIDATED as validated_by,
-                       DT_POSTED as posted_at, ID_USER_POSTED as posted_by, DT_COMPLETED as completed_at, CD_FAILURE as failure_code, DES_FAILURE_MSG as failure_message from RHN_SUP_INV_PERIOD_CLOSE_RUN where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ?
+                       CD_REQ as request_code, SD_STATUS as status, QTY_DIM as dimension_count,
+                       QTY_DIFF as difference_count, DT_STARTED as started_at,
+                       ID_USER_STARTED as started_by, DT_VLDTD as validated_at, ID_USER_VLDTD as validated_by,
+                       DT_POSTED as posted_at, ID_USER_POSTED as posted_by, DT_CMPLD as completed_at, CD_FAILURE as failure_code, DES_FAILURE_MSG as failure_message from RHN_SUP_INV_PERIOD_CLOSE_RUN where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ?
                 """, (rs, row) -> new PeriodCloseRunView(rs.getLong("id"), rs.getLong("revision"),
                 rs.getLong("stock_site_id"), rs.getLong("inventory_period_id"),
                 nullableLong(rs, "previous_period_id"), nullableLong(rs, "reconciliation_run_id"),
@@ -493,14 +493,14 @@ public class InventoryPeriodCloseApplicationService {
 
     private List<PeriodCloseTotalView> closeTotals(Long tenantId, Long closeRunId) {
         return jdbc.query("""
-                select SD_VALUAT_BASIS as valuation_basis, CD_CURRENCY as currency_code,
-                       AMT_OPENING as opening_value, AMT_MOVEMENT as movement_amount,
+                select SD_VALUAT_BASIS as valuation_basis, CD_CCY as currency_code,
+                       AMT_OPENING as opening_value, AMT_MVMT as movement_amount,
                        AMT_VALUAT_ADJ as valuation_adjustment_amount,
-                       AMT_ROUNDING_ADJ as rounding_adjustment_amount, AMT_CLOSE as closing_value,
-                       AMT_BAL as balance_value, AMT_VAL_DIFFERENCE as value_difference
+                       AMT_RND_ADJ as rounding_adjustment_amount, AMT_CLOSE as closing_value,
+                       AMT_BAL as balance_value, AMT_VAL_DIFF as value_difference
                   from RHN_SUP_INV_PERIOD_CLOSE_TOTAL
                  where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ?
-                order by SD_VALUAT_BASIS, CD_CURRENCY
+                order by SD_VALUAT_BASIS, CD_CCY
                 """, (rs, row) -> new PeriodCloseTotalView(rs.getString("valuation_basis"),
                 rs.getString("currency_code"), rs.getBigDecimal("opening_value"),
                 rs.getBigDecimal("movement_amount"), rs.getBigDecimal("valuation_adjustment_amount"),
@@ -511,7 +511,7 @@ public class InventoryPeriodCloseApplicationService {
     private RunRecord requireRun(Long tenantId, Long id) {
         return jdbc.query("""
                 select ID_INV_PERIOD_CLOSE_RUN as id, ID_INV_PERIOD as inventory_period_id,
-                       HASH_REQ as request_hash, SD_STATUS as status, QTY_DIFFERENCE as difference_count
+                       HASH_REQ as request_hash, SD_STATUS as status, QTY_DIFF as difference_count
                   from RHN_SUP_INV_PERIOD_CLOSE_RUN
                  where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ?
                 """, (rs, row) -> new RunRecord(rs.getLong("id"), rs.getLong("inventory_period_id"),

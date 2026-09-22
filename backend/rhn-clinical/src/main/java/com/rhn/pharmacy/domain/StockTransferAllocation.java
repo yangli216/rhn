@@ -16,11 +16,11 @@ public class StockTransferAllocation {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_STOCK_XFER_LINE", nullable = false) private Long stockTransferLineId;
     @Column(name = "ID_STOCK_BIN_SRC", nullable = false) private Long sourceBinId;
-    @Column(name = "ID_STOCK_BIN_DESTINATION") private Long destinationBinId;
+    @Column(name = "ID_STOCK_BIN_DEST") private Long destinationBinId;
     @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
     @Column(name = "SD_STOCK_STATUS", nullable = false) private String stockStatus;
-    @Column(name = "QTY_DISPATCHED", nullable = false, precision = 28, scale = 8) private BigDecimal dispatchedQuantity;
-    @Column(name = "QTY_RECEIVED", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
+    @Column(name = "QTY_DSPTD", nullable = false, precision = 28, scale = 8) private BigDecimal dispatchedQuantity;
+    @Column(name = "QTY_RECVD", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
     @Column(name = "QTY_DAMAGED", nullable = false, precision = 28, scale = 8) private BigDecimal damagedQuantity;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;

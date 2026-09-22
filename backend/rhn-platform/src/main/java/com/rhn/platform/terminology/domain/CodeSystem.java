@@ -25,7 +25,7 @@ public class CodeSystem {
     private String code;
     @Column(name = "NA_CODE_SYSTEM", nullable = false)
     private String name;
-    @Column(name = "CD_CANONICAL_URI")
+    @Column(name = "CD_CANON_URI")
     private String canonicalUri;
     @Column(name = "CD_VER", nullable = false)
     private String versionCode;
@@ -33,11 +33,11 @@ public class CodeSystem {
     private String systemType;
     @Column(name = "SD_DIAG_DOMAIN")
     private String diagnosisDomain;
-    @Column(name = "PUBLISHER") private String publisher;
+    @Column(name = "PUBLSHR") private String publisher;
     @Column(name = "DES_CODE_SYSTEM") private String description;
     @Column(name = "SD_SRC_TYPE", nullable = false)
     private String sourceType;
-    @Column(name = "SD_AUTHORITY_TYPE", nullable = false)
+    @Column(name = "SD_AUTHRTY_TYPE", nullable = false)
     private String authorityType;
     @Column(name = "CD_SRC_URI")
     private String sourceUri;
@@ -46,9 +46,9 @@ public class CodeSystem {
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_STATUS", nullable = false)
     private TerminologyStatus status;
-    @Column(name = "DA_EFFECTIVE_FROM", nullable = false)
+    @Column(name = "DA_EFF_FROM", nullable = false)
     private LocalDate effectiveFrom;
-    @Column(name = "DA_EFFECTIVE_TO")
+    @Column(name = "DA_EFF_TO")
     private LocalDate effectiveTo;
     @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;

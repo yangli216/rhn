@@ -1,0 +1,1565 @@
+{
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "tables": [
+    {
+      "logical": "int.event_consumption",
+      "legacy": "event_consumptions",
+      "physical": "RHN_INT_EVT_CONSUME",
+      "domain": "INT",
+      "comment": "事件消耗；一行代表一条事件消耗记录",
+      "columns": [
+        {
+          "physical": "ID_EVT_CONSUME",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "事件消耗主键",
+          "logical": "id",
+          "catalogComment": "事件消耗主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "NA_CNSMR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "consumer名称",
+          "logical": "consumer_name",
+          "catalogComment": "consumer名称"
+        },
+        {
+          "physical": "ID_EVT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "事件标识",
+          "logical": "event_id",
+          "catalogComment": "事件标识"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "DT_PROCSD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "processed时间",
+          "logical": "processed_at",
+          "catalogComment": "processed时间"
+        },
+        {
+          "physical": "DES_LAST_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "last错误",
+          "logical": "last_error",
+          "catalogComment": "last错误"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_EVT_CONSUME"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_INT_EVT_CONSUM_EVENT_CONSUM",
+          "columns": [
+            "NA_CONSUMER",
+            "ID_EVT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_INT_EVT_CONSUM_SYS_TNT_EVEN_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_F2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_EVT_CONSUME",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INT_EVT_CONSUM_EVENT_CONSUM_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "NA_CNSMR",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EVT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "事件消耗；一行代表一条事件消耗记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/eventing/domain/EventConsumption.java",
+          "line": 12
+        }
+      ]
+    },
+    {
+      "logical": "int.external_message",
+      "legacy": "external_messages",
+      "physical": "RHN_INT_EXT_MSG",
+      "domain": "INT",
+      "comment": "外部消息；一行代表一条外部消息记录",
+      "columns": [
+        {
+          "physical": "ID_EXT_MSG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "外部消息主键",
+          "logical": "id",
+          "catalogComment": "外部消息主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "CD_ENDPT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "endpoint编码",
+          "logical": "endpoint_code",
+          "catalogComment": "endpoint编码"
+        },
+        {
+          "physical": "SD_DIR",
+          "type": "CHARACTER VARYING",
+          "size": 8,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "方向",
+          "logical": "direction",
+          "catalogComment": "方向"
+        },
+        {
+          "physical": "SD_MSG_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "消息类型",
+          "logical": "message_type",
+          "catalogComment": "消息类型"
+        },
+        {
+          "physical": "ID_BIZ_MSG",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "业务消息标识",
+          "logical": "business_message_id",
+          "catalogComment": "业务消息标识"
+        },
+        {
+          "physical": "ID_CORR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "关联标识",
+          "logical": "correlation_id",
+          "catalogComment": "关联标识"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "JSON_PAYLOAD",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "载荷JSON",
+          "logical": "payload_json",
+          "catalogComment": "载荷JSON"
+        },
+        {
+          "physical": "PAYLOAD_DIGEST_ALGO",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "载荷摘要算法",
+          "logical": "payload_digest_algorithm",
+          "catalogComment": "载荷摘要算法"
+        },
+        {
+          "physical": "HASH_PAYLOAD",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "载荷摘要",
+          "logical": "payload_digest",
+          "catalogComment": "载荷摘要"
+        },
+        {
+          "physical": "SD_RELATED_RSRC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "关联资源类型",
+          "logical": "related_resource_type",
+          "catalogComment": "关联资源类型"
+        },
+        {
+          "physical": "ID_RELATED_RSRC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "关联资源标识",
+          "logical": "related_resource_id",
+          "catalogComment": "关联资源标识"
+        },
+        {
+          "physical": "SN_RELATED_RSRC_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "关联资源版本",
+          "logical": "related_resource_version",
+          "catalogComment": "关联资源版本"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "DT_SENT",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "sent时间",
+          "logical": "sent_at",
+          "catalogComment": "sent时间"
+        },
+        {
+          "physical": "DT_RECVD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "接收时间",
+          "logical": "received_at",
+          "catalogComment": "接收时间"
+        },
+        {
+          "physical": "DT_PROCSD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "processed时间",
+          "logical": "processed_at",
+          "catalogComment": "processed时间"
+        },
+        {
+          "physical": "CD_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "错误编码",
+          "logical": "error_code",
+          "catalogComment": "错误编码"
+        },
+        {
+          "physical": "DES_ERROR_MSG",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "错误消息",
+          "logical": "error_message",
+          "catalogComment": "错误消息"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_EXT_MSG"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_INT_EXT_MSG_EXTERNAL_MESS_1",
+          "columns": [
+            "ID_TNT",
+            "CD_ENDPOINT",
+            "SD_DIRECTION",
+            "ID_BUSINESS_MSG"
+          ]
+        },
+        {
+          "name": "UK_INT_EXT_MSG_EXTERNAL_MESSAG",
+          "columns": [
+            "ID_TNT",
+            "ID_EXT_MSG"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_INT_EXT_MSG_SYS_DEPT_EXTERN_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_INT_EXT_MSG_SYS_ORG_EXTERNA_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_INT_EXT_MSG_SYS_TNT_EXTERNA_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INT_EXT_MSG_EXTERNAL_MESSA",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "CD_ENDPT",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "SD_DIR",
+              "direction": "A"
+            },
+            {
+              "position": 6,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 7,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INT_EXT_MSG_EXTERNAL_MES_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_ENDPT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_CORR",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_EXT_MSG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INT_EXT_MSG_EXTERNAL_MESSAG_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EXT_MSG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INT_EXT_MSG_EXTERNAL_MESS_1_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_ENDPT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_DIR",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_BIZ_MSG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_INT_EXT_MSG_EXTERNAL_MESS_1",
+          "expression": "\"sd_status\" IN('PENDING', 'SENT', 'FAILED', 'ACKNOWLEDGED', 'REJECTED', 'RECEIVED', 'PROCESSED')"
+        },
+        {
+          "name": "CK_INT_EXT_MSG_EXTERNAL_MESS_2",
+          "expression": "((\"sd_related_rsrc_type\" IS NULL)\n    AND (\"id_related_rsrc\" IS NULL)\n    AND (\"sn_related_rsrc_ver\" IS NULL))\n    OR ((\"sd_related_rsrc_type\" IS NOT NULL)\n    AND (\"id_related_rsrc\" IS NOT NULL)\n    AND (\"sn_related_rsrc_ver\" IS NOT NULL))"
+        },
+        {
+          "name": "CK_INT_EXT_MSG_EXTERNAL_MESSAG",
+          "expression": "\"sd_dir\" IN('INBOUND', 'OUTBOUND')"
+        }
+      ],
+      "catalogComment": "外部消息；一行代表一条外部消息记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/integration/domain/ExternalMessage.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "int.idempotency_record",
+      "legacy": "idempotency_records",
+      "physical": "RHN_INT_IDEMP_RECORD",
+      "domain": "INT",
+      "comment": "幂等记录；一行代表一条幂等记录记录",
+      "columns": [
+        {
+          "physical": "ID_IDEMP_RECORD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "幂等记录主键",
+          "logical": "id",
+          "catalogComment": "幂等记录主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_OPER",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "业务操作编码",
+          "logical": "operation_code",
+          "catalogComment": "业务操作编码"
+        },
+        {
+          "physical": "CD_IDEMP_KEY",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "幂等键",
+          "logical": "idempotency_key",
+          "catalogComment": "幂等键"
+        },
+        {
+          "physical": "HASH_REQ",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "请求摘要",
+          "logical": "request_hash",
+          "catalogComment": "请求摘要"
+        },
+        {
+          "physical": "SD_RSRC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "资源类型",
+          "logical": "resource_type",
+          "catalogComment": "资源类型"
+        },
+        {
+          "physical": "ID_RSRC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "资源标识",
+          "logical": "resource_id",
+          "catalogComment": "资源标识"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "SD_RESP_STATUS",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "响应状态",
+          "logical": "response_status",
+          "catalogComment": "响应状态"
+        },
+        {
+          "physical": "JSON_RESP",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "响应JSON",
+          "logical": "response_json",
+          "catalogComment": "响应JSON"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "DT_CMPLD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "完成时间",
+          "logical": "completed_at",
+          "catalogComment": "完成时间"
+        },
+        {
+          "physical": "DT_EXPIRES",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "到期时间",
+          "logical": "expires_at",
+          "catalogComment": "到期时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_IDEMP_RECORD"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_INT_IDEMP_RECO_IDEMPOTENCY_",
+          "columns": [
+            "ID_TNT",
+            "CD_OPERATION",
+            "CD_IDEMP_KEY"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_INT_IDEMP_RECO_SYS_TNT_IDEM_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INT_IDEMP_RECO_IDEMPOTENCY",
+          "columns": [
+            {
+              "position": 1,
+              "name": "DT_EXPIRES",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_173",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_IDEMP_RECORD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INT_IDEMP_RECO_IDEMPOTENCY__INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_OPER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_IDEMP_KEY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "幂等记录；一行代表一条幂等记录记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/idempotency/IdempotencyRecord.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "int.outbox_event",
+      "legacy": "outbox_events",
+      "physical": "RHN_INT_OUTBOX_EVT",
+      "domain": "INT",
+      "comment": "发件箱事件；一行代表一条发件箱事件记录",
+      "columns": [
+        {
+          "physical": "ID_EVT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "事件标识",
+          "logical": "event_id",
+          "catalogComment": "事件标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "SD_EVT_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 160,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "事件类型",
+          "logical": "event_type",
+          "catalogComment": "事件类型"
+        },
+        {
+          "physical": "SN_EVT_VER",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "事件版本",
+          "logical": "event_version",
+          "catalogComment": "事件版本"
+        },
+        {
+          "physical": "SD_AGG_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "aggregate类型",
+          "logical": "aggregate_type",
+          "catalogComment": "aggregate类型"
+        },
+        {
+          "physical": "ID_AGG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "aggregate标识",
+          "logical": "aggregate_id",
+          "catalogComment": "aggregate标识"
+        },
+        {
+          "physical": "SN_AGG_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "aggregate版本",
+          "logical": "aggregate_version",
+          "catalogComment": "aggregate版本"
+        },
+        {
+          "physical": "ID_SUBJECT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "主体标识",
+          "logical": "subject_id",
+          "catalogComment": "主体标识"
+        },
+        {
+          "physical": "DT_OCCRD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "发生时间",
+          "logical": "occurred_at",
+          "catalogComment": "发生时间"
+        },
+        {
+          "physical": "DT_RECDD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "记录时间",
+          "logical": "recorded_at",
+          "catalogComment": "记录时间"
+        },
+        {
+          "physical": "CD_ACTOR",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "操作人",
+          "logical": "actor",
+          "catalogComment": "操作人"
+        },
+        {
+          "physical": "SOURCE",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "来源",
+          "logical": "source",
+          "catalogComment": "来源"
+        },
+        {
+          "physical": "ID_CORR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "关联标识",
+          "logical": "correlation_id",
+          "catalogComment": "关联标识"
+        },
+        {
+          "physical": "ID_CAUS",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "causation标识",
+          "logical": "causation_id",
+          "catalogComment": "causation标识"
+        },
+        {
+          "physical": "JSON_PAYLOAD",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "载荷JSON",
+          "logical": "payload_json",
+          "catalogComment": "载荷JSON"
+        },
+        {
+          "physical": "SN_SCHEMA_VER",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "模式定义版本",
+          "logical": "schema_version",
+          "catalogComment": "模式定义版本"
+        },
+        {
+          "physical": "SD_PUBLCN_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "publication状态",
+          "logical": "publication_status",
+          "catalogComment": "publication状态"
+        },
+        {
+          "physical": "DT_PUBLISD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "发布时间",
+          "logical": "published_at",
+          "catalogComment": "发布时间"
+        },
+        {
+          "physical": "QTY_ATTEMPT",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 20,
+          "comment": "attempt盘点",
+          "logical": "attempt_count",
+          "catalogComment": "attempt盘点"
+        },
+        {
+          "physical": "DES_LAST_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "last错误",
+          "logical": "last_error",
+          "catalogComment": "last错误"
+        },
+        {
+          "physical": "DT_NEXT_ATTEMPT",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "下一attempt时间",
+          "logical": "next_attempt_at",
+          "catalogComment": "下一attempt时间"
+        },
+        {
+          "physical": "ID_USER_CLAIMED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "认领人标识",
+          "logical": "claimed_by",
+          "catalogComment": "认领人标识"
+        },
+        {
+          "physical": "DT_CLAIMED_UNTIL",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "认领until",
+          "logical": "claimed_until",
+          "catalogComment": "认领until"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_EVT"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_INT_OUTBOX_EVT_SYS_TNT_OUTB_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INT_OUTBOX_EVT_OUTBOX_AGGR",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_AGG_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_AGG",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SN_AGG_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INT_OUTBOX_EVT_OUTBOX_DISP",
+          "columns": [
+            {
+              "position": 1,
+              "name": "SD_PUBLCN_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_NEXT_ATTEMPT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_RECDD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INT_OUTBOX_EVT_OUTBOX_PEND",
+          "columns": [
+            {
+              "position": 1,
+              "name": "SD_PUBLCN_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_RECDD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_243",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_EVT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "发件箱事件；一行代表一条发件箱事件记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/eventing/domain/OutboxEvent.java",
+          "line": 16
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "FK_BIL_PAY_EVT_INT_EXT_PAY_EVE",
+      "sourceTable": "RHN_BIL_PAY_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INT_EXT_MSG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RCPT_EVT_INT_EXT_RECEIP",
+      "sourceTable": "RHN_BIL_RCPT_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INT_EXT_MSG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RECON_BATC_INT_EXT_RECO",
+      "sourceTable": "RHN_BIL_RECON_BATCH",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INT_EXT_MSG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_DIAG_REPORT_INT_EXT_DIAG",
+      "sourceTable": "RHN_EX_DIAG_REPORT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG_INBOUND"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INT_EXT_MSG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_RESP_INT_EXT_INS_",
+      "sourceTable": "RHN_INS_CLAIM_RESP",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INT_EXT_MSG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INT_EVT_CONSUM_SYS_TNT_EVEN",
+      "sourceTable": "RHN_INT_EVT_CONSUME",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INT_EXT_MSG_SYS_DEPT_EXTERN",
+      "sourceTable": "RHN_INT_EXT_MSG",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_DEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INT_EXT_MSG_SYS_ORG_EXTERNA",
+      "sourceTable": "RHN_INT_EXT_MSG",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INT_EXT_MSG_SYS_TNT_EXTERNA",
+      "sourceTable": "RHN_INT_EXT_MSG",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INT_IDEMP_RECO_SYS_TNT_IDEM",
+      "sourceTable": "RHN_INT_IDEMP_RECORD",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INT_OUTBOX_EVT_SYS_TNT_OUTB",
+      "sourceTable": "RHN_INT_OUTBOX_EVT",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    }
+  ]
+}

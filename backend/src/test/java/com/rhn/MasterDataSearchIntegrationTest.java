@@ -37,9 +37,9 @@ class MasterDataSearchIntegrationTest extends RhnIntegrationTestSupport {
         jdbcTemplate.update("""
                 insert into RHN_BD_ORG_CATALOG_ITEM (
                     ID_ORG_CATALOG_ITEM, REVISION, ID_TNT, ID_ORG, ID_CATALOG_ITEM, ID_DEPT_DEFAULT,
-                    CD_LOCAL, NA_LOCAL, FG_ORDERABLE, FG_EXECUTABLE, FG_CHARGEABLE, FG_PURCHASABLE,
-                    FG_STOCKED, FG_DISPENSABLE, FG_RETURNABLE, SD_STATUS, DA_VALID_FROM, DA_VALID_TO,
-                    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, ID_ORG_CATALOG_ITEM_REPLACED
+                    CD_LOCAL, NA_LOCAL, FG_ORDRBL, FG_EXECBL, FG_CHGBL, FG_PURCHBL,
+                    FG_STOCKED, FG_DISPBL, FG_RETBL, SD_STATUS, DA_VALID_FROM, DA_VALID_TO,
+                    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, ID_ORG_CATALOG_ITEM_RPLCD
                 ) values (?, 0, ?, ?, ?, ?, 'OLD-VB1', '历史维生素B1', true, false, true, true,
                           true, true, true, 'REPLACED', date '2025-01-01', date '2025-12-31',
                           current_timestamp, ?, current_timestamp, ?, null)
@@ -53,9 +53,9 @@ class MasterDataSearchIntegrationTest extends RhnIntegrationTestSupport {
         jdbcTemplate.update("""
                 insert into RHN_BD_ORG_CATALOG_ITEM (
                     ID_ORG_CATALOG_ITEM, REVISION, ID_TNT, ID_ORG, ID_CATALOG_ITEM, ID_DEPT_DEFAULT,
-                    CD_LOCAL, NA_LOCAL, FG_ORDERABLE, FG_EXECUTABLE, FG_CHARGEABLE, FG_PURCHASABLE,
-                    FG_STOCKED, FG_DISPENSABLE, FG_RETURNABLE, SD_STATUS, DA_VALID_FROM, DA_VALID_TO,
-                    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, ID_ORG_CATALOG_ITEM_REPLACED
+                    CD_LOCAL, NA_LOCAL, FG_ORDRBL, FG_EXECBL, FG_CHGBL, FG_PURCHBL,
+                    FG_STOCKED, FG_DISPBL, FG_RETBL, SD_STATUS, DA_VALID_FROM, DA_VALID_TO,
+                    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, ID_ORG_CATALOG_ITEM_RPLCD
                 ) values (?, 0, ?, ?, ?, ?, 'NEW-VB1', '维生素B1注射液新版', true, false, true, true,
                           true, true, true, 'ACTIVE', date '2027-01-01', null,
                           current_timestamp, ?, current_timestamp, ?, ?)

@@ -16,17 +16,17 @@ public class LedgerEntry {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
     @Column(name = "SD_ENTRY_TYPE", nullable = false) private String entryType;
-    @Column(name = "SD_DIRECTION", nullable = false) private String direction;
+    @Column(name = "SD_DIR", nullable = false) private String direction;
     @Column(name = "AMT_ENTRY", nullable = false, precision = 24, scale = 6) private BigDecimal amount;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
     @Column(name = "ID_CHARGE_ITEM") private Long chargeItemId;
     @Column(name = "ID_INVOICE") private Long invoiceId;
     @Column(name = "ID_PAY") private Long paymentId;
     @Column(name = "ID_CLAIM_RESP") private Long claimResponseId;
-    @Column(name = "ID_LEDGER_ENTRY_REVERSES") private Long reversesLedgerEntryId;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
-    @Column(name = "DT_RECORDED", nullable = false) private Instant recordedAt;
-    @Column(name = "ID_USER_RECORDED", nullable = false) private Long recordedBy;
+    @Column(name = "ID_LEDGER_ENTRY_RVRS") private Long reversesLedgerEntryId;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_RECDD", nullable = false) private Instant recordedAt;
+    @Column(name = "ID_USER_RECDD", nullable = false) private Long recordedBy;
 
     protected LedgerEntry() {}
 

@@ -23,9 +23,9 @@ public class InpatientChartEvent {
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "DES_DISPLAY", nullable = false) private String displayText;
     @Column(name = "DES_NOTE") private String note;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
-    @Column(name = "ID_USER_RECORDED", nullable = false) private Long recordedBy;
-    @Column(name = "DT_RECORDED", nullable = false) private Instant recordedAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_RECDD", nullable = false) private Long recordedBy;
+    @Column(name = "DT_RECDD", nullable = false) private Instant recordedAt;
 
     protected InpatientChartEvent() {
     }

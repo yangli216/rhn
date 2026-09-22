@@ -18,19 +18,19 @@ public class InpatientOrderWorkflow {
     @Version @Column(name = "REVISION", nullable = false) private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_CARE_EPISODE", nullable = false) private Long episodeId;
-    @Column(name = "SD_DURATION_TYPE", nullable = false) private String durationType;
+    @Column(name = "SD_DUR_TYPE", nullable = false) private String durationType;
     @Column(name = "SD_WF_STATUS", nullable = false) private String workflowStatus;
-    @Column(name = "ID_AUTHORED_PRACT") private Long authoredPractitionerId;
+    @Column(name = "ID_AUTHRD_PRACT") private Long authoredPractitionerId;
     @Column(name = "QTY_MED_PER_OCC", precision = 28, scale = 8)
     private BigDecimal medicationQuantityPerOccurrence;
-    @Column(name = "MEDICATION_QUANTITY_UNIT") private String medicationQuantityUnit;
+    @Column(name = "MED_QTY_UNIT") private String medicationQuantityUnit;
     @Column(name = "QTY_MED_BASE_PER_OCC", precision = 28, scale = 8)
     private BigDecimal medicationBaseQuantityPerOccurrence;
-    @Column(name = "MEDICATION_BASE_UNIT") private String medicationBaseUnit;
+    @Column(name = "MED_BASE_UNIT") private String medicationBaseUnit;
     @Column(name = "ID_USER_SIGNED") private Long signedBy;
     @Column(name = "DT_SIGNED") private Instant signedAt;
-    @Column(name = "ID_USER_VERIFIED") private Long verifiedBy;
-    @Column(name = "DT_VERIFIED") private Instant verifiedAt;
+    @Column(name = "ID_USER_VRFD") private Long verifiedBy;
+    @Column(name = "DT_VRFD") private Instant verifiedAt;
     @Column(name = "ID_USER_STOPPED") private Long stoppedBy;
     @Column(name = "DT_STOPPED") private Instant stoppedAt;
     @Column(name = "DES_STOP_REASON") private String stopReason;

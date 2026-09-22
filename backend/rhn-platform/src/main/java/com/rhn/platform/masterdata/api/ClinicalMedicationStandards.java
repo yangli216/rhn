@@ -25,6 +25,23 @@ public final class ClinicalMedicationStandards {
             ClinicalFrequencySemantics.Frequency interpretation) {}
     public record Dose(String version, String status, BigDecimal singleDose, String unit,
             BigDecimal averageDailyDose, String conversionBasis, List<String> unavailableReasons) {}
+    public record ConversionCapability(String status, String inputUnit, String outputUnit,
+            String basis, List<String> unavailableReasons) {}
+
+    /** Probe the actual clinical input, not an invented container (e.g. one vial). */
+    public static ConversionCapability conversionCapability(MedicationStandardReference reference) {
+        if (reference == null || !reference.linked())
+            return new ConversionCapability("NOT_ASSESSED", null, null, null, List.of("STANDARD_REFERENCE_MISSING"));
+        boolean concentration = reference.strength() != null
+                && "CONCENTRATION".equals(reference.strength().path("kind").asString());
+        String input = concentration ? "mL" : reference.presentationUnit();
+        Dose probe = dose(BigDecimal.ONE, input, reference, null);
+        // Same-dimension arithmetic alone is not evidence of a specification-based conversion.
+        boolean defined = "COMPUTABLE".equals(probe.status()) && !"CLINICAL_UNIT".equals(probe.conversionBasis());
+        return new ConversionCapability(defined ? "COMPUTABLE" : "UNAVAILABLE", input,
+                defined ? probe.unit() : null, defined ? probe.conversionBasis() : null,
+                defined ? List.of() : probe.unavailableReasons().stream().filter(s -> !"FREQUENCY_MISSING".equals(s)).toList());
+    }
 
     public static StandardFrequency frequency(OrderFrequencyDirectory.FrequencySnapshot value) {
         var semantics = ClinicalFrequencySemantics.interpret(value);
@@ -57,6 +74,20 @@ public final class ClinicalMedicationStandards {
             canonical = clinical.get().canonicalUnit();
             normalized = ClinicalDoseUnits.convert(amount, unit, canonical).orElseThrow();
             basis = "CLINICAL_UNIT";
+            var strength = reference == null || !reference.linked() ? null : reference.strength();
+            if ("mL".equals(canonical) && strength != null && "CONCENTRATION".equals(strength.path("kind").asString())) {
+                if (!strength.path("computable").asBoolean()) return unavailable("DOSE_CONVERSION_NOT_DEFINED");
+                var numerator = strength.path("numerator"); var denominator = strength.path("denominator");
+                BigDecimal mass = positiveDecimal(numerator.path("value").asString());
+                BigDecimal volume = positiveDecimal(denominator.path("value").asString());
+                if (mass == null || volume == null) return unavailable("STRENGTH_VALUE_INVALID");
+                var grams = ClinicalDoseUnits.convert(mass, numerator.path("unit").asString(), "g");
+                var millilitres = ClinicalDoseUnits.convert(volume, denominator.path("unit").asString(), "mL");
+                if (grams.isEmpty() || millilitres.isEmpty()) return unavailable("STRENGTH_UNIT_NOT_COMPUTABLE");
+                normalized = normalized.multiply(grams.get()).divide(millilitres.get(), MathContext.DECIMAL128);
+                canonical = "g";
+                basis = "REFERENCE_MASS_PER_VOLUME";
+            }
         } else {
             if (reference == null || !reference.linked()) return unavailable("STANDARD_REFERENCE_MISSING");
             var strength = reference.strength();
@@ -66,8 +97,10 @@ public final class ClinicalMedicationStandards {
             var numerator = strength.path("numerator");
             var strengthUnit = ClinicalDoseUnits.resolve(numerator.path("unit").asString());
             if (strengthUnit.isEmpty()) return unavailable("STRENGTH_UNIT_NOT_COMPUTABLE");
+            BigDecimal value = positiveDecimal(numerator.path("value").asString());
+            if (value == null) return unavailable("STRENGTH_VALUE_INVALID");
             canonical = strengthUnit.get().canonicalUnit();
-            normalized = ClinicalDoseUnits.convert(amount.multiply(new BigDecimal(numerator.path("value").asString())),
+            normalized = ClinicalDoseUnits.convert(amount.multiply(value),
                     numerator.path("unit").asString(), canonical).orElseThrow();
             basis = "REFERENCE_AMOUNT_PER_PRESENTATION";
         }
@@ -76,6 +109,10 @@ public final class ClinicalMedicationStandards {
                 ? normalized.multiply(rate.doses()).divide(rate.perDays(), MathContext.DECIMAL128).stripTrailingZeros() : null;
         return new Dose(VERSION, "COMPUTABLE", normalized.stripTrailingZeros(), canonical, daily, basis,
                 daily == null ? List.of(rate == null ? "FREQUENCY_MISSING" : rate.unknownReason()) : List.of());
+    }
+    private static BigDecimal positiveDecimal(String text) {
+        try { var value = new BigDecimal(text); return value.signum() > 0 ? value : null; }
+        catch (NumberFormatException | NullPointerException invalid) { return null; }
     }
     private static Dose unavailable(String reason) {
         return new Dose(VERSION, "UNAVAILABLE", null, null, null, null, List.of(reason));

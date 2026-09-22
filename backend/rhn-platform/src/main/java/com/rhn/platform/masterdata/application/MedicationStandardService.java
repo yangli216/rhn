@@ -27,7 +27,7 @@ public class MedicationStandardService {
     public void validateNew(Long tenant, MedicationCommand command) {
         validateSpecification(command.standardSpecificationId(), command);
         var summary = catalog.summary();
-        if (sources.findByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCode(tenant,
+        if (sources.findFirstByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCodeOrderByMedicationIdAsc(tenant,
                 summary.path("catalogId").asString(), summary.path("catalogVersion").asString(), command.standardSpecificationId()).isPresent())
             throw conflict("STANDARD_MEDICATION_REUSE_REQUIRED", "标准规格已有药品档案，请从标准目录关联已有档案");
     }
@@ -38,8 +38,10 @@ public class MedicationStandardService {
         var spec = catalog.specification(specificationId);
         if (!catalog.specificationIdentityIssues(spec).isEmpty())
             throw badRequest("MEDICATION_STANDARD_SPECIFICATION_REQUIRES_REVIEW", "标准原文存在规格不完整、剂型边界或成分拆分问题，请先核对标准规格");
+        if (!catalog.qualifierIdentityIssues(command.name(), spec).isEmpty())
+            throw badRequest("MEDICATION_STANDARD_QUALIFIER_MISMATCH", "药品名称须明确与标准一致的盐型，不能混用或省略同规格的盐型区别");
         if (!Objects.equals(spec.path("medicationType").asString(), command.medicationType())
-                || !Objects.equals(spec.path("doseForm").asString(), command.doseForm())
+                || !doseFormMatches(command.name(), command.doseForm(), spec)
                 || !normalize(spec.path("specification").asString()).equals(normalize(command.preparationSpec())))
             throw badRequest("MEDICATION_STANDARD_IDENTITY_MISMATCH", "药品类型、剂型和规格须与标准参考目录一致");
         String unit = spec.path("presentationUnit").asString("");
@@ -76,6 +78,15 @@ public class MedicationStandardService {
 
     @org.springframework.transaction.annotation.Transactional
     public void link(Long tenant, Long medicationId, String specificationId, Long actor) {
+        link(tenant, medicationId, specificationId, actor, false);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void linkExisting(Long tenant, Long medicationId, String specificationId, Long actor) {
+        link(tenant, medicationId, specificationId, actor, true);
+    }
+
+    private void link(Long tenant, Long medicationId, String specificationId, Long actor, boolean existingLocalRecord) {
         medications.lockByIdAndTenantId(medicationId, tenant)
                 .orElseThrow(() -> notFound("MEDICATION_NOT_FOUND", "未找到通用药品"));
         var spec = catalog.specification(specificationId); var summary = catalog.summary();
@@ -88,7 +99,7 @@ public class MedicationStandardService {
         }
         sources.saveAndFlush(new MedicationStandardSource(tenant, medicationId, summary.path("catalogId").asString(),
                 summary.path("catalogVersion").asString(), spec.path("entryId").asString(), specificationId,
-                summary.path("contentHash").asString(), actor));
+                summary.path("contentHash").asString(), actor, existingLocalRecord));
     }
 
     public MedicationStandardReference reference(Long tenant, Long medicationId) {
@@ -137,8 +148,9 @@ public class MedicationStandardService {
         String unit = spec.path("presentationUnit").asString("");
         if (medication == null) return List.of("STANDARD_REFERENCE_IDENTITY_MISMATCH");
         var differences = new java.util.ArrayList<String>();
+        differences.addAll(catalog.qualifierIdentityIssues(medication.name(), spec));
         if (!Objects.equals(medication.medicationType(), spec.path("medicationType").asString())) differences.add("STANDARD_REFERENCE_TYPE_MISMATCH");
-        if (!Objects.equals(medication.doseForm(), spec.path("doseForm").asString())) differences.add("STANDARD_REFERENCE_FORM_MISMATCH");
+        if (!doseFormMatches(medication.name(), medication.doseForm(), spec)) differences.add("STANDARD_REFERENCE_FORM_MISMATCH");
         if (!normalize(medication.preparationSpec()).equals(normalize(spec.path("specification").asString()))) differences.add("STANDARD_REFERENCE_SPEC_MISMATCH");
         if (!unit.isBlank() && !Objects.equals(unit, medication.preparationUnit())) differences.add("STANDARD_REFERENCE_UNIT_MISMATCH");
         if (!differences.isEmpty()) {
@@ -155,6 +167,29 @@ public class MedicationStandardService {
                 return List.of("STANDARD_REFERENCE_STRENGTH_MISMATCH");
         }
         return List.of();
+    }
+
+    /**
+     * A local catalogue often stores the base form (CAPSULE/TABLET) while its
+     * displayed name carries a controlled release qualifier. Treat the
+     * corresponding standard variant as the same identity only when that
+     * qualifier is explicit in the local name. Never broaden unrelated forms.
+     */
+    public boolean doseFormMatches(String medicationName, String localDoseForm, JsonNode spec) {
+        String standardDoseForm = spec.path("doseForm").asString("");
+        if (Objects.equals(localDoseForm, standardDoseForm)) return true;
+        String baseDoseForm = baseDoseForm(standardDoseForm);
+        if (!Objects.equals(localDoseForm, baseDoseForm)) return false;
+        String name = normalize(medicationName);
+        if (standardDoseForm.startsWith("EXTENDED_RELEASE_")) return name.contains("缓释") || name.contains("控释") || name.contains("长效");
+        if (standardDoseForm.startsWith("ENTERIC_")) return name.contains("肠溶");
+        return false;
+    }
+
+    private static String baseDoseForm(String doseForm) {
+        if (doseForm.startsWith("EXTENDED_RELEASE_")) return doseForm.substring("EXTENDED_RELEASE_".length());
+        if (doseForm.startsWith("ENTERIC_")) return doseForm.substring("ENTERIC_".length());
+        return doseForm;
     }
 
     public void requireLinked(Long tenant, Long medicationId) {

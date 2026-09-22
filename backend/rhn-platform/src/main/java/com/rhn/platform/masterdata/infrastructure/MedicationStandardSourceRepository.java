@@ -5,6 +5,8 @@ import java.util.Optional;
 public interface MedicationStandardSourceRepository extends JpaRepository<MedicationStandardSource, Long> {
     java.util.List<MedicationStandardSource> findByTenantId(Long tenantId);
     java.util.List<MedicationStandardSource> findByTenantIdAndMedicationId(Long tenantId, Long medicationId);
-    Optional<MedicationStandardSource> findByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCode(
+    java.util.List<MedicationStandardSource> findAllByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCodeOrderByMedicationIdAsc(
+            Long tenantId, String catalogCode, String catalogVersion, String specificationCode);
+    Optional<MedicationStandardSource> findFirstByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCodeOrderByMedicationIdAsc(
             Long tenantId, String catalogCode, String catalogVersion, String specificationCode);
 }

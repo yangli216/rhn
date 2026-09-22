@@ -26,7 +26,7 @@ public class InpatientMedicationSupplyGenerationRun {
     @Column(name = "ID_DISP_ROUTE") private Long dispenseRouteId;
     @Column(name = "SN_DISP_ROUTE_VER") private Long dispenseRouteRevision;
     @Column(name = "SD_MED_TYPE_SNAP", nullable = false) private String medicationTypeSnapshot;
-    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
+    @Column(name = "DA_BIZ", nullable = false) private LocalDate businessDate;
     @Column(name = "CD_SHIFT", nullable = false) private String shiftCode;
     @Column(name = "DT_WINDOW_START", nullable = false) private Instant windowStart;
     @Column(name = "DT_WINDOW_END", nullable = false) private Instant windowEnd;
@@ -43,7 +43,7 @@ public class InpatientMedicationSupplyGenerationRun {
     @Column(name = "DES_LAST_ERROR") private String lastError;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_STARTED") private Instant startedAt;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
     protected InpatientMedicationSupplyGenerationRun() {

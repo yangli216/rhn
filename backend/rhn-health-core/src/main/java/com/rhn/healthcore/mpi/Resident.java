@@ -22,16 +22,16 @@ class Resident {
     private String healthRecordNo;
     @Column(name = "NA_FULL", nullable = false)
     private String fullName;
-    @Column(name = "ID_NATIONAL")
+    @Column(name = "ID_NATL")
     private String nationalId;
     @Column(name = "SD_GENDER", nullable = false)
     private String gender;
     @Column(name = "DA_BIRTH", nullable = false)
     private LocalDate birthDate;
     @Column(name = "CD_PHONE") private String phone;
-    @Column(name = "FG_DECEASED", nullable = false)
+    @Column(name = "FG_DCD", nullable = false)
     private boolean deceased;
-    @Column(name = "DT_DECEASED")
+    @Column(name = "DT_DCD")
     private Instant deceasedAt;
     @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;

@@ -23,15 +23,15 @@ public class DispenseTask {
     @Column(name = "ID_PHARM_REVIEW_LATEST") private Long latestReviewId;
     @Column(name = "CD_TASK_NO", nullable = false) private String taskNo;
     @Column(name = "SD_TASK_TYPE", nullable = false) private String taskType;
-    @Column(name = "SD_PRIORITY", nullable = false) private String priority;
+    @Column(name = "SD_PRI", nullable = false) private String priority;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_DUE") private Instant dueAt;
     @Column(name = "DT_PICKED") private Instant pickedAt;
-    @Column(name = "ID_ASSIGNED_PRACT") private Long assignedPractitionerId;
+    @Column(name = "ID_ASGND_PRACT") private Long assignedPractitionerId;
     @Column(name = "ID_PICKED_BY_USER") private Long pickedByUserId;
     @Column(name = "ID_PICKED_ASSIGN") private Long pickedAssignmentId;
-    @Column(name = "DES_PICK_DESCRIPTION") private String pickDescription;
+    @Column(name = "DES_PICK_DESCR") private String pickDescription;
     @Column(name = "DES_DISP_TASK") private String description;
 
     protected DispenseTask() {}

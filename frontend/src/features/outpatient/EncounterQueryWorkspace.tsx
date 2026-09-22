@@ -151,13 +151,6 @@ export function EncounterQueryWorkspace({ api, clinicalContext, onNavigate }: {
 
     {encounters.error && <Alert className="ui-page-feedback">{errorMessage(encounters.error)}</Alert>}
 
-    <section className="registration-metrics" aria-label="就诊查询摘要">
-      <div><span>查询结果</span><strong>{totalElements}</strong><small>{dateRangeLabel}</small></div>
-      <div><span>接诊中 / 暂挂</span><strong>{active}</strong><small>正在进行的诊疗流程</small></div>
-      <div><span>已诊毕 / 已转科</span><strong>{completed}</strong><small>诊疗正常结束记录</small></div>
-      <div><span>已终止 / 已取消</span><strong>{closed}</strong><small>退号或非计划终止</small></div>
-    </section>
-
     <Panel className="encounter-query-filter-panel">
       <form className="encounter-query-filter-form" onSubmit={search}>
         <FormField label="就诊日期范围">
@@ -301,6 +294,24 @@ export function EncounterQueryWorkspace({ api, clinicalContext, onNavigate }: {
             </div>
           </div>
           <Pagination
+            left={
+              <div className="query-status-summary" aria-label="就诊状态汇总">
+                <span className="query-status-summary__item">
+                  <span>接诊中 / 暂挂</span>
+                  <strong>{active}</strong>
+                </span>
+                <span className="query-status-summary__divider" aria-hidden="true" />
+                <span className="query-status-summary__item">
+                  <span>已诊毕 / 已转科</span>
+                  <strong>{completed}</strong>
+                </span>
+                <span className="query-status-summary__divider" aria-hidden="true" />
+                <span className="query-status-summary__item">
+                  <span>已终止 / 已取消</span>
+                  <strong>{closed}</strong>
+                </span>
+              </div>
+            }
             page={pageIndex}
             totalPages={totalPages}
             total={totalElements}

@@ -27,8 +27,8 @@ public class SupplyItem {
     @Column(name = "NA_CATALOG_ITEM", nullable = false) private String name;
     @Column(name = "SD_ITEM_TYPE", nullable = false) private String itemType;
     @Column(name = "CD_UNIT") private String unitCode;
-    @Column(name = "FG_ORDERABLE", nullable = false) private boolean orderable;
-    @Column(name = "FG_CHARGEABLE", nullable = false) private boolean chargeable;
+    @Column(name = "FG_ORDRBL", nullable = false) private boolean orderable;
+    @Column(name = "FG_CHGBL", nullable = false) private boolean chargeable;
     @Column(name = "FG_STOCKED", nullable = false) private boolean stocked;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
@@ -44,22 +44,22 @@ public class SupplyItem {
     @Column(name = "NA_GENERIC", table = "RHN_BD_SUPPLY_ITEM") private String genericName;
     @Column(name = "NA_MODEL", table = "RHN_BD_SUPPLY_ITEM") private String modelName;
     @Column(name = "DES_SPEC", table = "RHN_BD_SUPPLY_ITEM") private String specification;
-    @Column(name = "SD_MATERIAL_TYPE", table = "RHN_BD_SUPPLY_ITEM") private String materialType;
+    @Column(name = "SD_MATL_TYPE", table = "RHN_BD_SUPPLY_ITEM") private String materialType;
     @Column(name = "SD_DEVICE_CLASS", table = "RHN_BD_SUPPLY_ITEM") private String deviceClass;
     @Column(name = "FG_HIGH_VAL", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean highValue;
     @Column(name = "FG_IMPLANT", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean implant;
-    @Column(name = "FG_INTERVENTION", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean intervention;
+    @Column(name = "FG_INTRVN", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean intervention;
     @Column(name = "FG_STERILE", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean sterile;
     @Column(name = "FG_SINGLE_USE", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean singleUse;
     @Column(name = "CD_REG", table = "RHN_BD_SUPPLY_ITEM") private String registrationCode;
     @Column(name = "NA_REG", table = "RHN_BD_SUPPLY_ITEM") private String registrationName;
-    @Column(name = "NA_REGISTRANT", table = "RHN_BD_SUPPLY_ITEM") private String registrantName;
+    @Column(name = "NA_REGSTR", table = "RHN_BD_SUPPLY_ITEM") private String registrantName;
     @Column(name = "DA_REG_FROM", table = "RHN_BD_SUPPLY_ITEM") private LocalDate registrationFrom;
     @Column(name = "DA_REG_TO", table = "RHN_BD_SUPPLY_ITEM") private LocalDate registrationTo;
     @Column(name = "ID_MFR", table = "RHN_BD_SUPPLY_ITEM") private Long manufacturerId;
-    @Column(name = "DES_STRUCTURE_DESCRIPTION", table = "RHN_BD_SUPPLY_ITEM") private String structureDescription;
-    @Column(name = "DES_SCOPE_DESCRIPTION", table = "RHN_BD_SUPPLY_ITEM") private String scopeDescription;
-    @Column(name = "DES_INSTRUCTION", table = "RHN_BD_SUPPLY_ITEM") private String instruction;
+    @Column(name = "DES_STRUCT_DESCR", table = "RHN_BD_SUPPLY_ITEM") private String structureDescription;
+    @Column(name = "DES_SCOPE_DESCR", table = "RHN_BD_SUPPLY_ITEM") private String scopeDescription;
+    @Column(name = "DES_INSTR", table = "RHN_BD_SUPPLY_ITEM") private String instruction;
 
     protected SupplyItem() {}
 

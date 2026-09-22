@@ -1,0 +1,10 @@
+.ui-relationship-graph { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.ui-relationship-graph__center { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); padding: var(--space-3); background: var(--color-brand-soft); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.ui-relationship-graph__paths { display: flex; flex-direction: column; gap: var(--space-4); }
+.ui-relationship-graph__path { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, 1.1fr) minmax(0, 1fr); align-items: center; gap: var(--space-2); }
+.ui-relationship-graph__path > .ui-button { width: 100%; min-width: 0; height: auto; white-space: normal; }
+.ui-relationship-graph__path small { display: block; font-size: var(--font-size-small); overflow-wrap: anywhere; }
+.ui-relationship-graph__edge { text-align: center; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.ui-relationship-graph__edge svg { display: block; width: 100%; height: 16px; color: var(--color-brand-primary); }
+.ui-relationship-graph__edge path { fill: none; stroke: currentColor; stroke-width: 2; }
+.ui-relationship-graph__edge.is-tentative path { stroke-dasharray: 4 3; }

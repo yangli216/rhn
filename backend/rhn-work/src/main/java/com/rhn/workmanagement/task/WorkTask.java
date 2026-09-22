@@ -22,10 +22,10 @@ public class WorkTask {
     @Column(name = "SD_TASK_TYPE", nullable = false) private String taskType;
     @Column(name = "NA_TITLE", nullable = false) private String title;
     @Column(name = "DES_SUM") private String summary;
-    @Enumerated(EnumType.STRING) @Column(name = "SD_PRIORITY", nullable = false) private TaskPriority priority;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_PRI", nullable = false) private TaskPriority priority;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private TaskStatus status;
-    @Enumerated(EnumType.STRING) @Column(name = "SD_ASSIGNEE_TYPE", nullable = false) private AssigneeType assigneeType;
-    @Column(name = "ID_USER_ASSIGNEE") private Long assigneeId;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_ASGNEE_TYPE", nullable = false) private AssigneeType assigneeType;
+    @Column(name = "ID_USER_ASGNEE") private Long assigneeId;
     @Column(name = "ID_PAT") private Long residentId;
     @Column(name = "ID_ENC") private Long encounterId;
     @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;
@@ -35,8 +35,8 @@ public class WorkTask {
     @Column(name = "DT_DUE") private Instant dueAt;
     @Column(name = "ID_USER_CLAIMED") private Long claimedBy;
     @Column(name = "DT_CLAIMED") private Instant claimedAt;
-    @Column(name = "ID_USER_COMPLETED") private Long completedBy;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "ID_USER_CMPLD") private Long completedBy;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;

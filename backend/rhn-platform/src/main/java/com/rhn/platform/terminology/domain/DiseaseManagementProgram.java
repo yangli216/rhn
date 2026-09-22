@@ -25,11 +25,11 @@ public class DiseaseManagementProgram {
     @Column(name = "SD_TRIGGER_ACTION", nullable = false) private String triggerAction;
     @Column(name = "DES_DISEASE_MGMT_PROG") private String description;
     @Column(name = "SD_REPORT_CARD_TYPE") private String reportCardType;
-    @Column(name = "QTY_REPORT_DEADLINE_HOURS") private Integer reportDeadlineHours;
+    @Column(name = "QTY_REPORT_DDLN_HOURS") private Integer reportDeadlineHours;
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_STATUS", nullable = false) private TerminologyStatus status;
-    @Column(name = "DA_EFFECTIVE_FROM", nullable = false) private LocalDate effectiveFrom;
-    @Column(name = "DA_EFFECTIVE_TO") private LocalDate effectiveTo;
+    @Column(name = "DA_EFF_FROM", nullable = false) private LocalDate effectiveFrom;
+    @Column(name = "DA_EFF_TO") private LocalDate effectiveTo;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 

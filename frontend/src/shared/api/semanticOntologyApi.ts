@@ -4,7 +4,7 @@ export interface OntologyNodeDto {
   id: string
   label: string
   entityCode: string
-  table: string
+  table: string | null
   primaryKey: string
   grain: string
   description: string

@@ -98,7 +98,7 @@ class ScheduleTemplate {
     @Column(name = "CD_TMPL", nullable = false) private String templateCode;
     @Column(name = "NA_TMPL", nullable = false) private String templateName;
     @Column(name = "SD_MGMT_MODE", nullable = false) private String managementMode;
-    @Column(name = "CD_TIMEZONE", nullable = false) private String timezoneCode;
+    @Column(name = "CD_TZ", nullable = false) private String timezoneCode;
     @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
     @Column(name = "DA_VALID_TO") private LocalDate validTo;
     @Column(name = "SD_STATUS", nullable = false) private String status;
@@ -155,7 +155,7 @@ class ScheduleTemplatePeriod {
     @Column(name = "SD_DAY_PART", nullable = false) private String dayPart;
     @Column(name = "QTY_MINUTE_START", nullable = false) private int minuteStart;
     @Column(name = "QTY_MINUTE_END", nullable = false) private int minuteEnd;
-    @Column(name = "QTY_DEFAULT_CAPACITY", nullable = false) private int defaultCapacity;
+    @Column(name = "QTY_DEFAULT_CAPCTY", nullable = false) private int defaultCapacity;
     @Column(name = "SD_SLOT_MODE", nullable = false) private String slotMode;
     @Column(name = "QTY_SLOT_MINUTES") private Integer slotMinutes;
     @Column(name = "FG_ACTIVE", nullable = false) private boolean active;
@@ -204,7 +204,7 @@ class ScheduleException {
     @Column(name = "SD_EXCEPT_TYPE", nullable = false) private String exceptionType;
     @Column(name = "QTY_MINUTE_START") private Integer minuteStart;
     @Column(name = "QTY_MINUTE_END") private Integer minuteEnd;
-    @Column(name = "QTY_CAPACITY") private Integer capacity;
+    @Column(name = "QTY_CAPCTY") private Integer capacity;
     @Column(name = "QTY_SLOT_MINUTES") private Integer slotMinutes;
     @Column(name = "DES_REASON", nullable = false) private String reason;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
@@ -251,13 +251,13 @@ class ScheduleGenerationRun {
     @Column(name = "DA_DATE_TO", nullable = false) private LocalDate dateTo;
     @Column(name = "SD_TRIGGER_TYPE", nullable = false) private String triggerType;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "QTY_GENERATED", nullable = false) private int generatedCount;
+    @Column(name = "QTY_GEND", nullable = false) private int generatedCount;
     @Column(name = "QTY_SKIPPED", nullable = false) private int skippedCount;
     @Lob @Column(name = "JSON_REQ", nullable = false) private String requestJson;
     @Column(name = "DT_STARTED", nullable = false) private Instant startedAt;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
     @Column(name = "DES_ERROR_MSG") private String errorMessage;
-    @Column(name = "ID_USER_TRIGGERED", nullable = false) private Long triggeredBy;
+    @Column(name = "ID_USER_TRIGD", nullable = false) private Long triggeredBy;
 
     protected ScheduleGenerationRun() {}
 
@@ -320,11 +320,11 @@ class ServiceSchedule {
     @Column(name = "CD_SVC_SNAP", nullable = false) private String serviceCodeSnapshot;
     @Column(name = "NA_SVC_SNAP", nullable = false) private String serviceNameSnapshot;
     @Column(name = "NA_LOC") private String locationName;
-    @Column(name = "CD_TIMEZONE", nullable = false) private String timezoneCode;
+    @Column(name = "CD_TZ", nullable = false) private String timezoneCode;
     @Column(name = "DA_SVC", nullable = false) private LocalDate serviceDate;
     @Column(name = "DT_START", nullable = false) private Instant startAt;
     @Column(name = "DT_END", nullable = false) private Instant endAt;
-    @Column(name = "QTY_TOTAL_CAPACITY", nullable = false) private int totalCapacity;
+    @Column(name = "QTY_TOTAL_CAPCTY", nullable = false) private int totalCapacity;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
@@ -438,7 +438,7 @@ class ScheduleSlotPool {
     @Column(name = "SD_QUOTA_MODE", nullable = false) private String quotaMode;
     @Column(name = "QTY_TOTAL", nullable = false) private int totalCount;
     @Column(name = "QTY_HELD", nullable = false) private int heldCount;
-    @Column(name = "QTY_OCCUPIED", nullable = false) private int occupiedCount;
+    @Column(name = "QTY_OCCPD", nullable = false) private int occupiedCount;
     @Column(name = "QTY_FROZEN", nullable = false) private int frozenCount;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
@@ -552,7 +552,7 @@ class ServiceScheduleEvent {
     @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "ID_USER_ACTOR", nullable = false) private Long actorUserId;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
     @Column(name = "DES_SVC_SCHED_EVT") private String description;
 
     protected ServiceScheduleEvent() {}
@@ -592,14 +592,14 @@ class SlotEvent {
     @Column(name = "ID_SCHED_SLOT_POOL", nullable = false) private Long poolId;
     @Column(name = "ID_SVC_SCHED", nullable = false) private Long scheduleId;
     @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
-    @Column(name = "SN_SEQUENCE", nullable = false) private int sequenceNo;
+    @Column(name = "SN_SEQ", nullable = false) private int sequenceNo;
     @Column(name = "QTY_TOTAL_DELTA", nullable = false) private int totalDelta;
     @Column(name = "QTY_HELD_DELTA", nullable = false) private int heldDelta;
-    @Column(name = "QTY_OCCUPIED_DELTA", nullable = false) private int occupiedDelta;
+    @Column(name = "QTY_OCCPD_DELTA", nullable = false) private int occupiedDelta;
     @Column(name = "QTY_FROZEN_DELTA", nullable = false) private int frozenDelta;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "ID_USER_ACTOR", nullable = false) private Long actorUserId;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
     @Column(name = "DES_SLOT_EVT") private String description;
 
     protected SlotEvent() {}

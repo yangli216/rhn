@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { ClinicalAiCapabilities, ClinicalAiDraftContext,
   ClinicalAiSuggestion } from '../../../shared/api/clinicalAiApi'
-import { Button, FormField, Icon } from '../../../shared/ui'
+import { Button, FormField, Icon, StatusBadge } from '../../../shared/ui'
 import type { ClinicalAiPreview } from '../../../shared/api/clinicalAiStream'
+import { clinicalAiDraftStatusPresentation } from '../../../shared/presentation'
 import { recordDraftFields, recordDraftFieldLabels } from './aiDraftAdapter'
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
 import { ClinicalAiPipelineStepper } from './ClinicalAiPipelineStepper'
@@ -186,19 +187,11 @@ export function ClinicalAiCopilotHub({
             </div>
 
             <div className="doctor-ai-copilot-popover__status-wrap">
-              {generating ? (
-                <span className="doctor-ai-status-pill is-generating">
-                  <span className="doctor-ai-status-dot" aria-hidden="true" />
-                  <span className="doctor-ai-status-text">正在共写…</span>
-                </span>
-              ) : (
-                <span className={`doctor-ai-status-pill is-${error ? 'error' : current ? 'ready' : suggestion ? 'stale' : 'idle'}`} role="status">
-                  <span className="doctor-ai-status-dot" aria-hidden="true" />
-                  <span className="doctor-ai-status-text">
-                    {error ? '整理未完成' : current ? '建议已准备好' : suggestion ? '资料已变化，等待更新' : '待分析'}
-                  </span>
-                </span>
-              )}
+              <span role="status">
+                <StatusBadge tone={clinicalAiDraftStatusPresentation({ generating, error: !!error, current, hasSuggestion: !!suggestion }).tone}>
+                  {clinicalAiDraftStatusPresentation({ generating, error: !!error, current, hasSuggestion: !!suggestion }).label}
+                </StatusBadge>
+              </span>
               <button
                 type="button"
                 className="doctor-ai-copilot-popover__close"

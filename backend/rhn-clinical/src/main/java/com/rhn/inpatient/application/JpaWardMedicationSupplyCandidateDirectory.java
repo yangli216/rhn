@@ -49,16 +49,16 @@ public class JpaWardMedicationSupplyCandidateDirectory implements WardMedication
                        episode.ID_ORG as organization_id,
                        encounter.ID_DEPT as department_id,
                        detail.CD_BED_SNAP as bed_no,
-                       task.DT_SCHEDULED as scheduled_at,
+                       task.DT_SCHEDD as scheduled_at,
                        workflow.QTY_MED_PER_OCC as required_quantity,
-                       workflow.MEDICATION_QUANTITY_UNIT as quantity_unit,
+                       workflow.MED_QTY_UNIT as quantity_unit,
                        workflow.QTY_MED_BASE_PER_OCC as required_base_quantity,
-                       workflow.MEDICATION_BASE_UNIT as base_unit,
+                       workflow.MED_BASE_UNIT as base_unit,
                        medication.ID_MED as medication_id,
                        medication.CD_MED_SNAP as medication_code,
                        medication.NA_MED_SNAP as medication_name,
                        medication.SD_MED_TYPE_SNAP as medication_type,
-                       medication.FG_SELF_PROVIDED as self_provided from RHN_EX_INP_ORDER_TASK task
+                       medication.FG_SELF_PRVDD as self_provided from RHN_EX_INP_ORDER_TASK task
                   join RHN_EX_INP_ORDER_WF workflow
                     on workflow.ID_TNT = task.ID_TNT and workflow.ID_CARE_REQ = task.ID_CARE_REQ
                   join RHN_EX_CARE_REQ request
@@ -76,7 +76,7 @@ public class JpaWardMedicationSupplyCandidateDirectory implements WardMedication
                     on resident.ID_TNT = task.ID_TNT and resident.ID_PAT = episode.ID_PAT
                  where task.ID_TNT = :tenantId
                    and task.SD_STATUS = 'PLANNED'
-                   and task.DT_SCHEDULED >= :windowFrom and task.DT_SCHEDULED < :windowTo
+                   and task.DT_SCHEDD >= :windowFrom and task.DT_SCHEDD < :windowTo
                    and workflow.SD_WF_STATUS = 'ACTIVE'
                    and workflow.QTY_MED_PER_OCC > 0
                    and workflow.QTY_MED_BASE_PER_OCC > 0
@@ -100,7 +100,7 @@ public class JpaWardMedicationSupplyCandidateDirectory implements WardMedication
                           and dispensed.ID_FULFILL_SRC = request.ID_CARE_REQ
                           and dispensed.SD_STATUS <> 'CANCELLED'
                    )
-                 order by task.DT_SCHEDULED, task.ID_INP_ORDER_TASK
+                 order by task.DT_SCHEDD, task.ID_INP_ORDER_TASK
                 """.formatted(medicationTypePredicate), parameters, (result, row) -> {
             if (result.getBoolean("self_provided")) return null;
             OffsetDateTime scheduledAt = result.getObject("scheduled_at", OffsetDateTime.class);
@@ -129,8 +129,8 @@ public class JpaWardMedicationSupplyCandidateDirectory implements WardMedication
                        episode.ID_ORG as organization_id,
                        encounter.ID_DEPT as department_id,
                        medication.SD_MED_TYPE_SNAP as medication_type,
-                       medication.FG_SELF_PROVIDED as self_provided,
-                       min(task.DT_SCHEDULED) as earliest_scheduled_at from RHN_EX_INP_ORDER_TASK task
+                       medication.FG_SELF_PRVDD as self_provided,
+                       min(task.DT_SCHEDD) as earliest_scheduled_at from RHN_EX_INP_ORDER_TASK task
                   join RHN_EX_INP_ORDER_WF workflow
                     on workflow.ID_TNT = task.ID_TNT and workflow.ID_CARE_REQ = task.ID_CARE_REQ
                   join RHN_EX_CARE_REQ request
@@ -147,7 +147,7 @@ public class JpaWardMedicationSupplyCandidateDirectory implements WardMedication
                   join RHN_PI_PAT resident
                     on resident.ID_TNT = task.ID_TNT and resident.ID_PAT = episode.ID_PAT
                  where task.SD_STATUS = 'PLANNED'
-                   and task.DT_SCHEDULED >= :windowFrom and task.DT_SCHEDULED < :windowTo
+                   and task.DT_SCHEDD >= :windowFrom and task.DT_SCHEDD < :windowTo
                    and workflow.SD_WF_STATUS = 'ACTIVE'
                    and workflow.QTY_MED_PER_OCC > 0
                    and workflow.QTY_MED_BASE_PER_OCC > 0
@@ -171,7 +171,7 @@ public class JpaWardMedicationSupplyCandidateDirectory implements WardMedication
                           and dispensed.SD_STATUS <> 'CANCELLED'
                    )
                  group by task.ID_TNT, episode.ID_ORG, encounter.ID_DEPT,
-                          medication.SD_MED_TYPE_SNAP, medication.FG_SELF_PROVIDED
+                          medication.SD_MED_TYPE_SNAP, medication.FG_SELF_PRVDD
                  order by earliest_scheduled_at, task.ID_TNT, episode.ID_ORG,
                           encounter.ID_DEPT, medication.SD_MED_TYPE_SNAP
                 """, parameters, (result, row) -> {

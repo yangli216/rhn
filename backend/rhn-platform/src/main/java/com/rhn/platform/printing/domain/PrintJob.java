@@ -14,13 +14,13 @@ public class PrintJob {
     @Id @Column(name = "ID_PRINT_JOB") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_PRINT_OUTPUT", nullable = false) private Long outputId;
-    @Column(name = "ID_PRINT_JOB_ORIGINAL") private Long originalJobId;
+    @Column(name = "ID_PRINT_JOB_ORIG") private Long originalJobId;
     @Column(name = "SD_REQ_TYPE", nullable = false) private String requestType;
     @Column(name = "QTY_COPIES", nullable = false) private int copies;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "DT_REQUESTED", nullable = false) private Instant requestedAt;
-    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedBy;
-    @Column(name = "ID_CORRELATION", nullable = false) private String correlationId;
+    @Column(name = "DT_REQD", nullable = false) private Instant requestedAt;
+    @Column(name = "ID_USER_REQD", nullable = false) private Long requestedBy;
+    @Column(name = "ID_CORR", nullable = false) private String correlationId;
 
     protected PrintJob() {}
 

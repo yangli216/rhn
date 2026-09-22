@@ -247,12 +247,12 @@ export function SettlementPaymentPanel({
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               <span>{insuranceMode ? '个人自付金额' : '本次支付金额'}</span>
               {roundingAdjustment !== 0 && (
-                <span style={{ fontSize: '12px', fontWeight: 'normal', color: roundingAdjustment > 0 ? 'var(--color-warning, #e67e22)' : 'var(--color-success, #27ae60)' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'normal', color: roundingAdjustment > 0 ? 'var(--color-warning)' : 'var(--color-success)' }}>
                   {roundingAdjustment > 0 ? `(含货币误差 +¥${roundingAdjustment.toFixed(2)})` : `(按精度抹零 -¥${Math.abs(roundingAdjustment).toFixed(2)})`}
                 </span>
               )}
               {isAmountLocked && (
-                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', background: 'var(--color-bg-subtle, #f0f0f0)', padding: '1px 6px', borderRadius: '4px' }}>
+                <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)', background: 'var(--color-surface-subtle)', padding: '1px 6px', borderRadius: '4px' }}>
                   已锁定
                 </span>
               )}
@@ -265,7 +265,7 @@ export function SettlementPaymentPanel({
             min="0.01"
             step={selectedMethod?.precision === '0.1' ? '0.1' : '0.01'}
             readOnly={isAmountLocked}
-            style={isAmountLocked ? { backgroundColor: 'var(--color-bg-subtle, #fafafa)', cursor: 'not-allowed' } : undefined}
+            style={isAmountLocked ? { backgroundColor: 'var(--color-surface-subtle)', cursor: 'not-allowed' } : undefined}
             value={amount}
             onChange={(event) => {
               if (!isAmountLocked) {

@@ -85,7 +85,7 @@ class SemanticAnalysisServiceTest {
                 ID_ENC BIGINT NOT NULL,
                 ID_CARE_REQ BIGINT,
                 AMT_TOTAL DECIMAL(12, 2) NOT NULL,
-                DT_OCCURRED TIMESTAMP NOT NULL
+                DT_OCCRD TIMESTAMP NOT NULL
             );
             INSERT INTO RHN_SYS_DEPT VALUES (101, 888, '心血管内科', 'CLINICAL');
             INSERT INTO RHN_VIS_ENC VALUES (201, 888, 999, 101);

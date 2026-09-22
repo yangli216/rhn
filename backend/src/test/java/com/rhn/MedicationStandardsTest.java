@@ -51,11 +51,22 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
         assertThat(readiness.inspect(-1L, "", "ALL", 0, 20).content()).isEmpty();
     }
 
+    @Test void readiness_distinguishes_concentration_from_undefined_container_conversion() throws Exception {
+        var linked = linkStandardMedication("STD-01DA2F4B12655FB389688C18", "MED-2026-W016-01");
+        mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext())
+                .param("query", linked.path("code").asString()).param("filter", "CONCENTRATION_AVAILABLE"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].presentationConversionStatus").value("UNAVAILABLE"))
+                .andExpect(jsonPath("$.content[0].clinicalConversion.status").value("COMPUTABLE"))
+                .andExpect(jsonPath("$.content[0].clinicalConversion.inputUnit").value("mL"))
+                .andExpect(jsonPath("$.content[0].clinicalConversion.basis").value("REFERENCE_MASS_PER_VOLUME"));
+    }
+
     @Test void readiness_classifies_duplicates_across_pages_and_then_reports_the_occupied_standard() throws Exception {
         long original = 362387880000024L;
         long other = jdbc.queryForObject("select min(ID_MED) from RHN_BD_MED where ID_TNT=? and ID_MED<>?", Long.class, Long.valueOf(TENANT), original);
         var spec = references.specification(SPEC);
-        jdbc.update("update RHN_BD_MED set CD_MED='DUPLICATE-LOCAL', NA_MED=?, NA_ALIAS=null, SD_MED_TYPE=?, DOSE_FORM=?, PREPARATION_SPEC=?, PREPARATION_UNIT=?, QTY_STRENGTH_VAL=null, STRENGTH_UNIT=null where ID_MED=?",
+        jdbc.update("update RHN_BD_MED set CD_MED='DUPLICATE-LOCAL', NA_MED=?, NA_ALIAS=null, SD_MED_TYPE=?, DOSE_FORM=?, PREP_SPEC=?, PREP_UNIT=?, QTY_STRNTH_VAL=null, STRNTH_UNIT=null where ID_MED=?",
                 spec.path("name").asString(), spec.path("medicationType").asString(), spec.path("doseForm").asString(),
                 spec.path("specification").asString(), spec.path("presentationUnit").asString(), other);
         var duplicate = readiness.inspect(Long.valueOf(TENANT), "DUPLICATE-LOCAL", "DUPLICATE_LOCAL", 0, 1);
@@ -77,7 +88,7 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
     @Test void readiness_reports_drift_missing_specification_and_inactive_exclusion() throws Exception {
         var linked = linkStandardMedication(SPEC, "MED-2026-W006-04");
         long id = linked.path("id").asLong(); String code = linked.path("code").asString();
-        jdbc.update("update RHN_BD_MED set PREPARATION_SPEC=? where ID_MED=?", "0.5g", id);
+        jdbc.update("update RHN_BD_MED set PREP_SPEC=? where ID_MED=?", "0.5g", id);
         mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext()).param("query", code).param("filter", "MISMATCH"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].presentationConversionStatus").value("NOT_ASSESSED"));
@@ -150,7 +161,7 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
 
     @Test void legacy_drift_is_not_treated_as_a_valid_standard_reference() throws Exception {
         var linked = linkStandardMedication(SPEC, "MED-2026-W006-04");
-        jdbc.update("update RHN_BD_MED set PREPARATION_SPEC=? where ID_MED=?", "0.5g", linked.path("id").asLong());
+        jdbc.update("update RHN_BD_MED set PREP_SPEC=? where ID_MED=?", "0.5g", linked.path("id").asLong());
         mockMvc.perform(get(BASE+"/medications").param("query",linked.path("code").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].standardReference.status").value("MISMATCH"));
     }

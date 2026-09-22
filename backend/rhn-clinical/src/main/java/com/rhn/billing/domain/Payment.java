@@ -25,10 +25,10 @@ public class Payment {
     @Column(name = "CD_PAY_SCENE") private String paymentSceneCode;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "AMT_PAYMENT", nullable = false, precision = 24, scale = 6) private BigDecimal amount;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
     @Column(name = "DT_PAID", nullable = false) private Instant paidAt;
     @Column(name = "CD_EXT_TXN_NO") private String externalTransactionNo;
-    @Column(name = "ID_PAY_REVERSES") private Long reversesPaymentId;
+    @Column(name = "ID_PAY_RVRS") private Long reversesPaymentId;
     @Column(name = "ID_USER_ENTERED", nullable = false) private Long enteredBy;
     @Column(name = "DES_PAY") private String description;
 

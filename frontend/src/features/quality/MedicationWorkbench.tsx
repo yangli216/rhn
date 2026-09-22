@@ -13,6 +13,7 @@ import type {
   MedicationTrialRun
 } from '../../shared/api/medicationWorkbenchApi'
 import { Alert, Button, Dialog, FormField, IconButton, Icon, PageHeader, SearchField, Select, StatusBadge } from '../../shared/ui'
+import { medicationCandidateStatusPresentation } from '../../shared/presentation'
 import './medication-workbench.css'
 import { MedicationRuleIntake, type IntakeSeed } from './MedicationRuleIntake'
 import { MedicationKnowledgeDrafts } from './MedicationKnowledgeDrafts'
@@ -1041,9 +1042,9 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   >
                     <div className="qmed-cand-title">
                       <strong>{c.rule.name}</strong>
-                      <span className={`qmed-status-pill pill-${c.status.toLowerCase()}`}>
-                        {c.status === 'APPROVED_FOR_SHADOW' ? '已批准进入旁路监控' : c.status}
-                      </span>
+                      <StatusBadge tone={medicationCandidateStatusPresentation(c.status).tone}>
+                        {medicationCandidateStatusPresentation(c.status).label}
+                      </StatusBadge>
                     </div>
                     {c.rule.ruleExpression && (
                       <div className="qmed-cand-expr-snippet">

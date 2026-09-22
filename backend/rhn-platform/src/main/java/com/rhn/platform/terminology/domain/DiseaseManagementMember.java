@@ -16,11 +16,11 @@ public class DiseaseManagementMember {
     @Id @Column(name = "ID_DISEASE_MGMT_MEMBER") private Long id;
     @Column(name = "ID_DISEASE_MGMT_PROG", nullable = false) private Long programId;
     @Column(name = "ID_CONCEPT", nullable = false) private Long conceptId;
-    @Column(name = "SD_INCLUSION_MODE", nullable = false) private String inclusionMode;
+    @Column(name = "SD_INCL_MODE", nullable = false) private String inclusionMode;
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_STATUS", nullable = false) private TerminologyStatus status;
-    @Column(name = "DA_EFFECTIVE_FROM", nullable = false) private LocalDate effectiveFrom;
-    @Column(name = "DA_EFFECTIVE_TO") private LocalDate effectiveTo;
+    @Column(name = "DA_EFF_FROM", nullable = false) private LocalDate effectiveFrom;
+    @Column(name = "DA_EFF_TO") private LocalDate effectiveTo;
     @Column(name = "DES_NOTE") private String note;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 

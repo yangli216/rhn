@@ -18,7 +18,7 @@ public class StockRequisitionAllocation {
     @Column(name = "ID_STOCK_BIN", nullable = false) private Long stockBinId;
     @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
     @Column(name = "SD_STOCK_STATUS", nullable = false) private String stockStatus;
-    @Column(name = "QTY_ALLOCATED", nullable = false, precision = 28, scale = 8) private BigDecimal allocatedQuantity;
+    @Column(name = "QTY_ALLOCD", nullable = false, precision = 28, scale = 8) private BigDecimal allocatedQuantity;
     @Column(name = "QTY_ISSUED", nullable = false, precision = 28, scale = 8) private BigDecimal issuedQuantity;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;

@@ -23,8 +23,8 @@ public class InsuranceClaimLine {
     @Column(name = "QTY_CLAIM", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
     @Column(name = "PRICE_UNIT", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
     @Column(name = "AMT_CLAIMED", nullable = false, precision = 24, scale = 6) private BigDecimal claimedAmount;
-    @Column(name = "AMT_APPROVED", precision = 24, scale = 6) private BigDecimal approvedAmount;
-    @Column(name = "CD_REJECTION") private String rejectionCode;
+    @Column(name = "AMT_APRVD", precision = 24, scale = 6) private BigDecimal approvedAmount;
+    @Column(name = "CD_REJCTN") private String rejectionCode;
     @Column(name = "JSON_TRACE_ATTR") private String traceAttributesJson;
 
     protected InsuranceClaimLine() {}

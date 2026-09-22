@@ -219,7 +219,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     await userEvent.click(screen.getByRole('button', { name: '全天' }))
-    expect(screen.getByRole('button', { name: '全天' })).toHaveClass('is-active')
+    expect(screen.getByRole('button', { name: '全天' })).toHaveAttribute('aria-pressed', 'true')
 
     // Registration desks see all departments and sessions when viewing all day.
     expect(await screen.findByRole('button', { name: /全科门诊/ })).toBeInTheDocument()
@@ -236,7 +236,8 @@ describe('OutpatientRegistrationWorkspace', () => {
     })
 
     // Clear search
-    await userEvent.clear(searchInput)
+    await userEvent.click(screen.getByRole('button', { name: '清空科室或医生' }))
+    expect(searchInput).toHaveFocus()
     expect(screen.getByRole('button', { name: /全科门诊/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
 

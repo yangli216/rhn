@@ -19,7 +19,7 @@ class OutpatientNoteFormVersion {
     @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "CD_FORM", nullable = false) private String formCode;
     @Column(name = "CD_VER_NUMBER", nullable = false) private int versionNumber;
-    @Column(name = "CD_SPECIALTY", nullable = false) private String specialtyCode;
+    @Column(name = "CD_SPECLTY", nullable = false) private String specialtyCode;
     @Column(name = "NA_FORM", nullable = false) private String name;
     @Column(name = "DES_OP_NOTE_FORM_VER") private String description;
     @Column(name = "JSON_DEF_SCHEMA", nullable = false) private String definitionSchema;

@@ -23,12 +23,12 @@ public class PurchaseOrder {
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DA_ORDER", nullable = false) private LocalDate orderDate;
-    @Column(name = "DA_EXPECTED") private LocalDate expectedDate;
-    @Column(name = "DT_SUBMITTED") private Instant submittedAt;
-    @Column(name = "ID_USER_SUBMITTED") private Long submittedBy;
-    @Column(name = "DT_APPROVED") private Instant approvedAt;
-    @Column(name = "ID_USER_APPROVED") private Long approvedBy;
-    @Column(name = "DES_APPROVAL_REASON") private String approvalReason;
+    @Column(name = "DA_EXPCTD") private LocalDate expectedDate;
+    @Column(name = "DT_SUBMTD") private Instant submittedAt;
+    @Column(name = "ID_USER_SUBMTD") private Long submittedBy;
+    @Column(name = "DT_APRVD") private Instant approvedAt;
+    @Column(name = "ID_USER_APRVD") private Long approvedBy;
+    @Column(name = "DES_APRVL_REASON") private String approvalReason;
     @Column(name = "DES_PURCH_ORDER") private String description;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;

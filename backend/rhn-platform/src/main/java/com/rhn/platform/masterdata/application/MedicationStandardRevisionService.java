@@ -53,7 +53,7 @@ public class MedicationStandardRevisionService {
     }
     private List<String> eligible(MedicationStandardBindingService.Preview base,List<SourceLink> links) {
         if(!"ACTIVE".equals(base.medication().status())||links.isEmpty()) return List.of();
-        return base.candidates().stream().filter(c->c.issues().isEmpty()&&(c.boundMedicationId()==null||c.boundMedicationId().equals(base.medication().id())))
+        return base.candidates().stream().filter(c->c.issues().isEmpty())
                 .filter(c->!(links.size()==1&&sameTarget(links.getFirst(),base.identity(),c.specification())))
                 .map(c->c.specification().path("id").asString()).toList();
     }
@@ -104,7 +104,7 @@ public class MedicationStandardRevisionService {
             semantics.captureMedication(medication);
             try {
                 sources.deleteAll(sources.findByTenantIdAndMedicationId(tenant,id));sources.flush();
-                standards.link(tenant,id,proposal.specificationId(),c.subjectId());
+                standards.linkExisting(tenant,id,proposal.specificationId(),c.subjectId());
             } catch(DataIntegrityViolationException race) {throw conflict("STANDARD_REVISION_CONCURRENT","目标标准已被其他药品占用，请重新核对");}
             if(!standards.reference(tenant,id).linked())throw conflict("STANDARD_REVISION_TARGET","应用后的标准身份未通过校验，修订已回滚");
             semantics.captureMedication(medication);

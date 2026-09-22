@@ -1,0 +1,35 @@
+{
+  "sourceUrl": "https://www.gov.cn/zhengce/zhengceku/202607/P020260709781823352041.pdf",
+  "sourcePages": [
+    3,
+    4
+  ],
+  "scope": "成分身份映射；不表达重复用药或相互作用的临床结论，不从复方比例推定每袋/每支的产品含量。",
+  "system": "RHN.ESSENTIAL.ACTIVE_SUBSTANCE",
+  "systemVersion": "2026",
+  "ingredients": [
+    {
+      "code": "AMOXICILLIN",
+      "display": "阿莫西林"
+    },
+    {
+      "code": "CLAVULANIC_ACID",
+      "display": "克拉维酸"
+    }
+  ],
+  "entryMappings": [
+    {
+      "legacyCode": "MED-2026-W006",
+      "ingredientCodes": [
+        "AMOXICILLIN"
+      ]
+    },
+    {
+      "legacyCode": "MED-2026-W007",
+      "ingredientCodes": [
+        "AMOXICILLIN",
+        "CLAVULANIC_ACID"
+      ]
+    }
+  ]
+}

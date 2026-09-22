@@ -176,7 +176,7 @@
 
 .qmed-code-pill {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
@@ -192,7 +192,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   padding: 1px 6px;
   border-radius: var(--radius-sm);
@@ -362,7 +362,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -430,7 +430,7 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: var(--font-size-small);
   border-radius: var(--radius-round);
   background: var(--color-brand-soft);
   color: var(--color-brand-strong);
@@ -442,7 +442,7 @@
 .qmed-code-block {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background: #1e293b;
+  background: var(--color-text-primary);
   overflow: hidden;
 }
 
@@ -451,14 +451,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 10px;
-  background: #0f172a;
-  border-bottom: 1px solid #334155;
-  font-size: 11px;
-  color: #94a3b8;
+  background: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-text-primary);
+  font-size: var(--font-size-small);
+  color: var(--color-text-disabled);
 }
 
 .qmed-code-type {
-  color: #38bdf8;
+  color: var(--color-info);
   font-weight: var(--font-weight-medium);
 }
 
@@ -468,7 +468,7 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
   line-height: 1.5;
-  color: #e2e8f0;
+  color: var(--color-border);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   background: transparent;
@@ -532,12 +532,12 @@
 }
 
 .qmed-evidence-ver {
-  font-size: 11px;
+  font-size: var(--font-size-small);
   color: var(--color-text-disabled);
 }
 
 .qmed-evidence-card__locator {
-  font-size: 11px;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 
@@ -656,7 +656,7 @@
   display: inline-block;
   font-family: ui-monospace, monospace;
   font-weight: var(--font-weight-semibold);
-  font-size: 11px;
+  font-size: var(--font-size-small);
   padding: 1px 6px;
   background: var(--color-neutral-soft);
   border-radius: var(--radius-sm);
@@ -664,7 +664,7 @@
 }
 
 .qmed-scope-tag {
-  font-size: 11px;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
@@ -676,7 +676,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 11px;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   flex-wrap: wrap;
 }
@@ -725,7 +725,7 @@
   align-items: center;
   gap: var(--space-2);
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-size-small);
 }
 
 .qmed-stream-item__right code {
@@ -780,7 +780,7 @@
 }
 
 .qmed-ver-chip {
-  font-size: 11px;
+  font-size: var(--font-size-small);
   padding: 0 5px;
   background: var(--color-neutral-soft);
   border-radius: var(--radius-sm);
@@ -797,7 +797,7 @@
 }
 
 .qmed-count-chip {
-  font-size: 11px;
+  font-size: var(--font-size-small);
   padding: 1px 7px;
   border-radius: var(--radius-round);
   background: var(--color-neutral-soft);

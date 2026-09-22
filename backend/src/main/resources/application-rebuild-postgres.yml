@@ -1,0 +1,11 @@
+spring:
+  config:
+    activate:
+      on-profile: rebuild-postgres
+  datasource:
+    url: ${RHN_REBUILD_DB_URL:jdbc:postgresql://localhost:5432/rhn_rebuild}
+    username: ${RHN_REBUILD_DB_USER:rhn}
+    password: ${RHN_REBUILD_DB_PASSWORD:rhn_dev}
+  flyway:
+    locations: classpath:db/rebuild/postgresql,classpath:db/rebuild/local
+

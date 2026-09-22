@@ -63,12 +63,12 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
         assertEquals("DRAFT", medication.get("status").asString());
         assertEquals("MEDICATION", medication.get("orderCategory").asString());
         assertEquals("阿莫西林胶囊 0.25g", medication.get("itemName").asString());
-        var frozen = json(jdbcTemplate.queryForObject("select MEDICATION_SNAPSHOT from RHN_EX_MED_REQ where ID_CARE_REQ = ?", String.class, medicationId));
+        var frozen = json(jdbcTemplate.queryForObject("select MED_SNAP from RHN_EX_MED_REQ where ID_CARE_REQ = ?", String.class, medicationId));
         assertEquals("qmed-medication-semantics-v1", frozen.at("/clinicalSemantics/schemaVersion").asString());
         assertEquals("UCUM:g", frozen.at("/clinicalSemantics/dose/clinicalUnit/id").asString());
         assertEquals("TIMES_PER_DAY", frozen.at("/clinicalSemantics/frequency/interpretation/kind").asString());
         org.junit.jupiter.api.Assertions.assertNotNull(jdbcTemplate.queryForObject(
-                "select FREQUENCY_RULE_SNAPSHOT from RHN_EX_MED_REQ where ID_CARE_REQ = ?", String.class, medicationId));
+                "select FREQ_RULE_SNAP from RHN_EX_MED_REQ where ID_CARE_REQ = ?", String.class, medicationId));
 
         JsonNode replay = postJson("/api/inpatient/orders", medicationBody, 201);
         assertEquals(medicationId, replay.get("id").asString());

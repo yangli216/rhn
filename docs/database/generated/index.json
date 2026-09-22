@@ -1,0 +1,2320 @@
+{
+  "formatVersion": 1,
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
+  "domains": [
+    {
+      "code": "AI",
+      "name": "AI 协作",
+      "count": 2
+    },
+    {
+      "code": "AN",
+      "name": "统计分析",
+      "count": 4
+    },
+    {
+      "code": "ANL",
+      "name": "分析读模型",
+      "count": 1
+    },
+    {
+      "code": "AUD",
+      "name": "审计与质量",
+      "count": 22
+    },
+    {
+      "code": "BD",
+      "name": "基础数据与术语",
+      "count": 60
+    },
+    {
+      "code": "BIL",
+      "name": "收费与结算",
+      "count": 25
+    },
+    {
+      "code": "EX",
+      "name": "医疗请求与执行",
+      "count": 17
+    },
+    {
+      "code": "HPL",
+      "name": "健康计划",
+      "count": 6
+    },
+    {
+      "code": "INS",
+      "name": "医保",
+      "count": 4
+    },
+    {
+      "code": "INT",
+      "name": "集成",
+      "count": 4
+    },
+    {
+      "code": "META",
+      "name": "元数据",
+      "count": 16
+    },
+    {
+      "code": "OP",
+      "name": "预检分诊",
+      "count": 1
+    },
+    {
+      "code": "PI",
+      "name": "居民与患者",
+      "count": 10
+    },
+    {
+      "code": "SC",
+      "name": "排班与挂号",
+      "count": 16
+    },
+    {
+      "code": "SUP",
+      "name": "药品与供应",
+      "count": 59
+    },
+    {
+      "code": "SYS",
+      "name": "平台与组织",
+      "count": 41
+    },
+    {
+      "code": "VIS",
+      "name": "就诊与临床",
+      "count": 30
+    }
+  ],
+  "tables": [
+    {
+      "physical": "RHN_SYS_ACC_PERM",
+      "logical": "sys.access_permission",
+      "domain": "SYS",
+      "comment": "访问权限；一行代表一条访问权限记录",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_SYS_ACC_ROLE",
+      "logical": "sys.access_role",
+      "domain": "SYS",
+      "comment": "访问角色；一行代表一条访问角色记录",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_AI_SUGGEST_EVT",
+      "logical": "ai.ai_suggestion_event",
+      "domain": "AI",
+      "comment": "AI建议事件；一行代表一条AI建议事件记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_AI_SUGGEST",
+      "logical": "ai.ai_suggestion",
+      "domain": "AI",
+      "comment": "AI建议；一行代表一条AI建议记录",
+      "columns": 30
+    },
+    {
+      "physical": "RHN_VIS_ALLERGY_INTOL",
+      "logical": "vis.allergy_intolerance",
+      "domain": "VIS",
+      "comment": "过敏不耐受；一行代表一条过敏不耐受记录",
+      "columns": 28
+    },
+    {
+      "physical": "RHN_SYS_ANN_READ_RCPT",
+      "logical": "sys.announcement_read_receipt",
+      "domain": "SYS",
+      "comment": "公告已读票据；一行代表一条公告已读票据记录",
+      "columns": 5
+    },
+    {
+      "physical": "RHN_SC_APPT_EVT",
+      "logical": "sc.appointment_event",
+      "domain": "SC",
+      "comment": "预约事件；一行代表一条预约事件记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_SC_APPT",
+      "logical": "sc.appointment",
+      "domain": "SC",
+      "comment": "预约；一行代表一条预约记录",
+      "columns": 29
+    },
+    {
+      "physical": "RHN_AUD_LOG",
+      "logical": "aud.audit_log",
+      "domain": "AUD",
+      "comment": "审计日志；一行代表一条审计日志记录",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_VIS_CARE_EPISODE",
+      "logical": "vis.care_episode",
+      "domain": "VIS",
+      "comment": "照护周期；一行代表一条照护周期记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_EX_CARE_REQ",
+      "logical": "ex.care_request",
+      "domain": "EX",
+      "comment": "照护请求；一行代表一条照护请求记录",
+      "columns": 43
+    },
+    {
+      "physical": "RHN_HPL_CARE_TASK_EVT",
+      "logical": "hpl.care_task_event",
+      "domain": "HPL",
+      "comment": "照护任务事件；一行代表一条照护任务事件记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_HPL_CARE_TASK",
+      "logical": "hpl.care_task",
+      "domain": "HPL",
+      "comment": "照护任务；一行代表一条照护任务记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_BIL_CASHIER_CLOSE_EVT",
+      "logical": "bil.cashier_close_event",
+      "domain": "BIL",
+      "comment": "收银日结事件；一行代表一条收银日结事件记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_BIL_CASHIER_CLOSE_ITEM",
+      "logical": "bil.cashier_close_item",
+      "domain": "BIL",
+      "comment": "收银日结项目；一行代表一条收银日结项目记录",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_BIL_CASHIER_CLOSE_LINE",
+      "logical": "bil.cashier_close_line",
+      "domain": "BIL",
+      "comment": "收银日结明细；一行代表一条收银日结明细记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_BIL_CASHIER_CLOSE",
+      "logical": "bil.cashier_close",
+      "domain": "BIL",
+      "comment": "收银日结；一行代表一条收银日结记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_BD_CATALOG_CHG_ROW",
+      "logical": "bd.catalog_change_batch_row",
+      "domain": "BD",
+      "comment": "目录变更批次行；一行代表一条目录变更批次行记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_BD_CATALOG_CHG_BATCH",
+      "logical": "bd.catalog_change_batch",
+      "domain": "BD",
+      "comment": "目录变更批次；一行代表一条目录变更批次记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_BD_CATALOG_ITEM",
+      "logical": "bd.catalog_item",
+      "domain": "BD",
+      "comment": "目录项目；一行代表一条目录项目记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_BD_CATALOG_PRICE",
+      "logical": "bd.catalog_price",
+      "domain": "BD",
+      "comment": "目录价格；一行代表一条目录价格记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_BIL_CHARGE_ITEM_COMP",
+      "logical": "bil.charge_item_component",
+      "domain": "BIL",
+      "comment": "收费项目组成；一行代表一条收费项目组成记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_BIL_CHARGE_ITEM",
+      "logical": "bil.charge_item",
+      "domain": "BIL",
+      "comment": "收费项目；一行代表一条收费项目记录",
+      "columns": 27
+    },
+    {
+      "physical": "RHN_VIS_CLIN_DOC_VER",
+      "logical": "vis.clinical_document_version",
+      "domain": "VIS",
+      "comment": "临床文书版本；一行代表一条临床文书版本记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_VIS_CLIN_DOC",
+      "logical": "vis.clinical_document",
+      "domain": "VIS",
+      "comment": "临床文书；一行代表一条临床文书记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_BD_CODE_SYSTEM",
+      "logical": "bd.code_system",
+      "domain": "BD",
+      "comment": "编码体系；一行代表一条编码体系记录",
+      "columns": 21
+    },
+    {
+      "physical": "RHN_BD_CONCEPT_ALIAS",
+      "logical": "bd.concept_alias",
+      "domain": "BD",
+      "comment": "概念别名；一行代表一条概念别名记录",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_BD_CONCEPT_MAP",
+      "logical": "bd.concept_mapping",
+      "domain": "BD",
+      "comment": "概念映射；一行代表一条概念映射记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_BD_CONCEPT",
+      "logical": "bd.concept",
+      "domain": "BD",
+      "comment": "概念；一行代表一条概念记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_HPL_COND",
+      "logical": "hpl.condition",
+      "domain": "HPL",
+      "comment": "健康问题；一行代表一条健康问题记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_SYS_CFG_DEF",
+      "logical": "sys.configuration_definition",
+      "domain": "SYS",
+      "comment": "配置定义；一行代表一条配置定义记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_SYS_CFG_REV",
+      "logical": "sys.configuration_revision",
+      "domain": "SYS",
+      "comment": "配置修订；一行代表一条配置修订记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_VIS_CRIT_VAL_ALERT_EVT",
+      "logical": "vis.critical_value_alert_event",
+      "domain": "VIS",
+      "comment": "危急值值预警事件；一行代表一条危急值值预警事件记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_VIS_CRIT_VAL_ALERT",
+      "logical": "vis.critical_value_alert",
+      "domain": "VIS",
+      "comment": "危急值值预警；一行代表一条危急值值预警记录",
+      "columns": 30
+    },
+    {
+      "physical": "RHN_AUD_CRYPTO_EVID",
+      "logical": "aud.cryptographic_evidence",
+      "domain": "AUD",
+      "comment": "密码学证据；一行代表一条密码学证据记录",
+      "columns": 32
+    },
+    {
+      "physical": "RHN_SYS_DEPT_CAP",
+      "logical": "sys.department_capability",
+      "domain": "SYS",
+      "comment": "科室能力；一行代表一条科室能力记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SYS_DEPT_CONTACT",
+      "logical": "sys.department_contact",
+      "domain": "SYS",
+      "comment": "科室联系方式；一行代表一条科室联系方式记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_SYS_DEPT_REL",
+      "logical": "sys.department_relation",
+      "domain": "SYS",
+      "comment": "科室关系；一行代表一条科室关系记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SYS_DEPT_RESP",
+      "logical": "sys.department_responsibility",
+      "domain": "SYS",
+      "comment": "科室职责；一行代表一条科室职责记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SYS_DEPT",
+      "logical": "sys.department",
+      "domain": "SYS",
+      "comment": "科室；一行代表一条科室记录",
+      "columns": 21
+    },
+    {
+      "physical": "RHN_EX_DIAG_EXEC_TASK",
+      "logical": "ex.diagnostic_execution_task",
+      "domain": "EX",
+      "comment": "诊疗执行任务；一行代表一条诊疗执行任务记录",
+      "columns": 29
+    },
+    {
+      "physical": "RHN_EX_DIAG_REPORT_RESULT",
+      "logical": "ex.diagnostic_report_result",
+      "domain": "EX",
+      "comment": "诊疗报告结果；一行代表一条诊疗报告结果记录",
+      "columns": 4
+    },
+    {
+      "physical": "RHN_EX_DIAG_REPORT",
+      "logical": "ex.diagnostic_report",
+      "domain": "EX",
+      "comment": "诊疗报告；一行代表一条诊疗报告记录",
+      "columns": 25
+    },
+    {
+      "physical": "RHN_BD_DICT_ATTR_DEF",
+      "logical": "bd.dictionary_attribute_definition",
+      "domain": "BD",
+      "comment": "字典属性定义；一行代表一条字典属性定义记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_BD_DICT_CAT",
+      "logical": "bd.dictionary_category",
+      "domain": "BD",
+      "comment": "字典分类；一行代表一条字典分类记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_BD_DICT_CHG",
+      "logical": "bd.dictionary_change",
+      "domain": "BD",
+      "comment": "字典变更；一行代表一条字典变更记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_BD_DICT_DEF",
+      "logical": "bd.dictionary_definition",
+      "domain": "BD",
+      "comment": "字典定义；一行代表一条字典定义记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_BD_DICT_ITEM_ATTR_VAL",
+      "logical": "bd.dictionary_item_attribute_value",
+      "domain": "BD",
+      "comment": "字典项目属性值；一行代表一条字典项目属性值记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_BD_DICT_ITEM",
+      "logical": "bd.dictionary_item",
+      "domain": "BD",
+      "comment": "字典项目；一行代表一条字典项目记录",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_HPL_DISEASE_MGMT_MEMBER",
+      "logical": "hpl.disease_management_member",
+      "domain": "HPL",
+      "comment": "疾病管理成员；一行代表一条疾病管理成员记录",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_HPL_DISEASE_MGMT_PROG",
+      "logical": "hpl.disease_management_program",
+      "domain": "HPL",
+      "comment": "疾病管理方案；一行代表一条疾病管理方案记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_HPL_DISEASE_MGMT_RULE",
+      "logical": "hpl.disease_management_rule",
+      "domain": "HPL",
+      "comment": "疾病管理规则；一行代表一条疾病管理规则记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_SUP_DISP_ROUTE",
+      "logical": "sup.dispense_route",
+      "domain": "SUP",
+      "comment": "发药途径；一行代表一条发药途径记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_SUP_DISP_TASK_LINE",
+      "logical": "sup.dispense_task_line",
+      "domain": "SUP",
+      "comment": "发药任务明细；一行代表一条发药任务明细记录",
+      "columns": 25
+    },
+    {
+      "physical": "RHN_SUP_DISP_TASK",
+      "logical": "sup.dispense_task",
+      "domain": "SUP",
+      "comment": "发药任务；一行代表一条发药任务记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_SYS_EMPL",
+      "logical": "sys.employment",
+      "domain": "SYS",
+      "comment": "任职；一行代表一条任职记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_VIS_ENC_COMP_CHECK",
+      "logical": "vis.encounter_completion_check",
+      "domain": "VIS",
+      "comment": "就诊完成核查；一行代表一条就诊完成核查记录",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_VIS_ENC_COMP_ISSUE",
+      "logical": "vis.encounter_completion_issue",
+      "domain": "VIS",
+      "comment": "就诊完成问题；一行代表一条就诊完成问题记录",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_VIS_ENC_DIAG",
+      "logical": "vis.encounter_diagnosis",
+      "domain": "VIS",
+      "comment": "就诊诊断；一行代表一条就诊诊断记录",
+      "columns": 25
+    },
+    {
+      "physical": "RHN_VIS_ENC_DIAG_REV",
+      "logical": "vis.encounter_diagnosis_revision",
+      "domain": "VIS",
+      "comment": "就诊诊断修订；一行代表一条就诊诊断修订记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_VIS_ENC_IDENT_CHECK",
+      "logical": "vis.encounter_identity_check",
+      "domain": "VIS",
+      "comment": "就诊身份核查；一行代表一条就诊身份核查记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_VIS_ENC_LOC_HIST",
+      "logical": "vis.encounter_location_history",
+      "domain": "VIS",
+      "comment": "就诊位置历史；一行代表一条就诊位置历史记录",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_VIS_ENC_STATUS_EVT",
+      "logical": "vis.encounter_status_event",
+      "domain": "VIS",
+      "comment": "就诊状态事件；一行代表一条就诊状态事件记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_VIS_ENC_WORK_SESSION",
+      "logical": "vis.encounter_work_session",
+      "domain": "VIS",
+      "comment": "就诊工作会话；一行代表一条就诊工作会话记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_VIS_ENC",
+      "logical": "vis.encounter",
+      "domain": "VIS",
+      "comment": "就诊；一行代表一条就诊记录",
+      "columns": 27
+    },
+    {
+      "physical": "RHN_INT_EVT_CONSUME",
+      "logical": "int.event_consumption",
+      "domain": "INT",
+      "comment": "事件消耗；一行代表一条事件消耗记录",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_EX_EXAM_ATTACH_ITEM",
+      "logical": "ex.examination_attachment_item",
+      "domain": "EX",
+      "comment": "检查附件项目；一行代表一条检查附件项目记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_BD_EXAM_SVC",
+      "logical": "bd.examination_service",
+      "domain": "BD",
+      "comment": "检查服务；一行代表一条检查服务记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_INT_EXT_MSG",
+      "logical": "int.external_message",
+      "domain": "INT",
+      "comment": "外部消息；一行代表一条外部消息记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_SUP_GOOD_RCPT_LINE",
+      "logical": "sup.goods_receipt_line",
+      "domain": "SUP",
+      "comment": "到货票据明细；一行代表一条到货票据明细记录",
+      "columns": 20
+    },
+    {
+      "physical": "RHN_SUP_GOOD_RCPT",
+      "logical": "sup.goods_receipt",
+      "domain": "SUP",
+      "comment": "到货票据；一行代表一条到货票据记录",
+      "columns": 22
+    },
+    {
+      "physical": "RHN_BD_GRID_ADDR_NODE",
+      "logical": "bd.grid_address_node",
+      "domain": "BD",
+      "comment": "网格地址节点；一行代表一条网格地址节点记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_VIS_HEALTH_EVT",
+      "logical": "vis.health_event",
+      "domain": "VIS",
+      "comment": "健康事件；一行代表一条健康事件记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_AUD_IAM_AUTH_EVT",
+      "logical": "aud.iam_authorization_event",
+      "domain": "AUD",
+      "comment": "身份权限授权事件；一行代表一条身份权限授权事件记录",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_INT_IDEMP_RECORD",
+      "logical": "int.idempotency_record",
+      "domain": "INT",
+      "comment": "幂等记录；一行代表一条幂等记录记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_VIS_INP_BED_DAY_FACT",
+      "logical": "vis.inpatient_bed_day_fact",
+      "domain": "VIS",
+      "comment": "住院床位日事实；一行代表一条住院床位日事实记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_VIS_INP_BED_OCCUP",
+      "logical": "vis.inpatient_bed_occupancy",
+      "domain": "VIS",
+      "comment": "住院床位占用；一行代表一条住院床位占用记录",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_VIS_INP_BED_PROF",
+      "logical": "vis.inpatient_bed_profile",
+      "domain": "VIS",
+      "comment": "住院床位档案；一行代表一条住院床位档案记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_VIS_INP_CHART_EVT",
+      "logical": "vis.inpatient_chart_event",
+      "domain": "VIS",
+      "comment": "住院病历事件；一行代表一条住院病历事件记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_VIS_INP_EPISODE_DETAIL",
+      "logical": "vis.inpatient_episode_detail",
+      "domain": "VIS",
+      "comment": "住院周期明细；一行代表一条住院周期明细记录",
+      "columns": 21
+    },
+    {
+      "physical": "RHN_VIS_INP_EVT",
+      "logical": "vis.inpatient_event",
+      "domain": "VIS",
+      "comment": "住院事件；一行代表一条住院事件记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SUP_INP_MED_CONSUME",
+      "logical": "sup.inpatient_med_consumption",
+      "domain": "SUP",
+      "comment": "住院用药消耗；一行代表一条住院用药消耗记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_SUP_INP_MED_SUPPLY_BATCH",
+      "logical": "sup.inpatient_med_supply_batch",
+      "domain": "SUP",
+      "comment": "住院用药供应批次；一行代表一条住院用药供应批次记录",
+      "columns": 31
+    },
+    {
+      "physical": "RHN_SUP_INP_MED_SUPPLY_GEN_RUN",
+      "logical": "sup.inpatient_med_supply_gen_run",
+      "domain": "SUP",
+      "comment": "住院用药供应生成运行；一行代表一条住院用药供应生成运行记录",
+      "columns": 28
+    },
+    {
+      "physical": "RHN_SUP_INP_MED_SUPPLY_LINE",
+      "logical": "sup.inpatient_med_supply_line",
+      "domain": "SUP",
+      "comment": "住院用药供应明细；一行代表一条住院用药供应明细记录",
+      "columns": 27
+    },
+    {
+      "physical": "RHN_SUP_INP_MED_SUPPLY_TASK",
+      "logical": "sup.inpatient_med_supply_task",
+      "domain": "SUP",
+      "comment": "住院用药供应任务；一行代表一条住院用药供应任务记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_VIS_INP_NURS_RECORD",
+      "logical": "vis.inpatient_nursing_record",
+      "domain": "VIS",
+      "comment": "住院护理记录；一行代表一条住院护理记录记录",
+      "columns": 22
+    },
+    {
+      "physical": "RHN_VIS_INP_OBS_GRP",
+      "logical": "vis.inpatient_observation_group",
+      "domain": "VIS",
+      "comment": "住院观察分组；一行代表一条住院观察分组记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_VIS_INP_OBS",
+      "logical": "vis.inpatient_observation",
+      "domain": "VIS",
+      "comment": "住院观察；一行代表一条住院观察记录",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_EX_INP_ORDER_EVT",
+      "logical": "ex.inpatient_order_event",
+      "domain": "EX",
+      "comment": "住院医嘱事件；一行代表一条住院医嘱事件记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_EX_INP_ORDER_TASK",
+      "logical": "ex.inpatient_order_task",
+      "domain": "EX",
+      "comment": "住院医嘱任务；一行代表一条住院医嘱任务记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_EX_INP_ORDER_WF",
+      "logical": "ex.inpatient_order_workflow",
+      "domain": "EX",
+      "comment": "住院医嘱流程；一行代表一条住院医嘱流程记录",
+      "columns": 20
+    },
+    {
+      "physical": "RHN_VIS_INP_SHIFT_HANDOFF_ITEM",
+      "logical": "vis.inpatient_shift_handoff_item",
+      "domain": "VIS",
+      "comment": "住院班次交接项目；一行代表一条住院班次交接项目记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_VIS_INP_SHIFT_HANDOFF_SIGN",
+      "logical": "vis.inpatient_shift_handoff_signature",
+      "domain": "VIS",
+      "comment": "住院班次交接签名；一行代表一条住院班次交接签名记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_VIS_INP_SHIFT_HANDOFF",
+      "logical": "vis.inpatient_shift_handoff",
+      "domain": "VIS",
+      "comment": "住院班次交接；一行代表一条住院班次交接记录",
+      "columns": 21
+    },
+    {
+      "physical": "RHN_INS_CLAIM_LINE",
+      "logical": "ins.insurance_claim_line",
+      "domain": "INS",
+      "comment": "医保理赔明细；一行代表一条医保理赔明细记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_INS_CLAIM_RESP",
+      "logical": "ins.insurance_claim_response",
+      "domain": "INS",
+      "comment": "医保理赔响应；一行代表一条医保理赔响应记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_INS_CLAIM",
+      "logical": "ins.insurance_claim",
+      "domain": "INS",
+      "comment": "医保理赔；一行代表一条医保理赔记录",
+      "columns": 36
+    },
+    {
+      "physical": "RHN_SUP_INV_BAL",
+      "logical": "sup.inventory_balance",
+      "domain": "SUP",
+      "comment": "库存余额；一行代表一条库存余额记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_SUP_INV_DOC_EVT",
+      "logical": "sup.inventory_document_event",
+      "domain": "SUP",
+      "comment": "库存文书事件；一行代表一条库存文书事件记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SUP_INV_OPEN_PKG",
+      "logical": "sup.inventory_open_package",
+      "domain": "SUP",
+      "comment": "库存拆零包装；一行代表一条库存拆零包装记录",
+      "columns": 22
+    },
+    {
+      "physical": "RHN_SUP_INV_PERIOD_BAL_SNAP",
+      "logical": "sup.inventory_period_balance_snapshot",
+      "domain": "SUP",
+      "comment": "库存期间余额快照；一行代表一条库存期间余额快照记录",
+      "columns": 21
+    },
+    {
+      "physical": "RHN_SUP_INV_PERIOD_BAL_VAL",
+      "logical": "sup.inventory_period_balance_value",
+      "domain": "SUP",
+      "comment": "库存期间余额值；一行代表一条库存期间余额值记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_SUP_INV_PERIOD_CLOSE_RUN",
+      "logical": "sup.inventory_period_close_run",
+      "domain": "SUP",
+      "comment": "库存期间日结运行；一行代表一条库存期间日结运行记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_SUP_INV_PERIOD_CLOSE_TOTAL",
+      "logical": "sup.inventory_period_close_total",
+      "domain": "SUP",
+      "comment": "库存期间日结总计；一行代表一条库存期间日结总计记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SUP_INV_PERIOD",
+      "logical": "sup.inventory_period",
+      "domain": "SUP",
+      "comment": "库存期间；一行代表一条库存期间记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_SUP_INV_PRICE_ADJ_DETAIL",
+      "logical": "sup.inventory_price_adjustment_detail",
+      "domain": "SUP",
+      "comment": "库存价格调价明细；一行代表一条库存价格调价明细记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_SUP_INV_PRICE_ADJ_LINE",
+      "logical": "sup.inventory_price_adjustment_line",
+      "domain": "SUP",
+      "comment": "库存价格调价明细；一行代表一条库存价格调价明细记录",
+      "columns": 24
+    },
+    {
+      "physical": "RHN_SUP_INV_PRICE_ADJ",
+      "logical": "sup.inventory_price_adjustment",
+      "domain": "SUP",
+      "comment": "库存价格调价；一行代表一条库存价格调价记录",
+      "columns": 36
+    },
+    {
+      "physical": "RHN_SUP_INV_RECON_LINE",
+      "logical": "sup.inventory_reconciliation_line",
+      "domain": "SUP",
+      "comment": "库存核对明细；一行代表一条库存核对明细记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_SUP_INV_RECON_RUN",
+      "logical": "sup.inventory_reconciliation_run",
+      "domain": "SUP",
+      "comment": "库存核对运行；一行代表一条库存核对运行记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SUP_INV_RESV",
+      "logical": "sup.inventory_reservation",
+      "domain": "SUP",
+      "comment": "库存预留；一行代表一条库存预留记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_SUP_INV_SPLIT_EVT",
+      "logical": "sup.inventory_split_event",
+      "domain": "SUP",
+      "comment": "库存拆分事件；一行代表一条库存拆分事件记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_SUP_INV_TRACE_CODE",
+      "logical": "sup.inventory_trace_code",
+      "domain": "SUP",
+      "comment": "库存追溯编码；一行代表一条库存追溯编码记录",
+      "columns": 27
+    },
+    {
+      "physical": "RHN_SUP_INV_TRACE_EVT",
+      "logical": "sup.inventory_trace_event",
+      "domain": "SUP",
+      "comment": "库存追溯事件；一行代表一条库存追溯事件记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_SUP_INV_TXN_LINE",
+      "logical": "sup.inventory_transaction_line",
+      "domain": "SUP",
+      "comment": "库存流水明细；一行代表一条库存流水明细记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_SUP_INV_TXN",
+      "logical": "sup.inventory_transaction",
+      "domain": "SUP",
+      "comment": "库存流水；一行代表一条库存流水记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SUP_INV_VALUAT_ENTRY",
+      "logical": "sup.inventory_valuation_entry",
+      "domain": "SUP",
+      "comment": "库存计价分录；一行代表一条库存计价分录记录",
+      "columns": 27
+    },
+    {
+      "physical": "RHN_BIL_INVOICE_CAT_SUM",
+      "logical": "bil.invoice_category_summary",
+      "domain": "BIL",
+      "comment": "发票分类汇总；一行代表一条发票分类汇总记录",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_BIL_INVOICE_LINE",
+      "logical": "bil.invoice_line",
+      "domain": "BIL",
+      "comment": "发票明细；一行代表一条发票明细记录",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_BIL_INVOICE",
+      "logical": "bil.invoice",
+      "domain": "BIL",
+      "comment": "发票；一行代表一条发票记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_BD_ITEM_ALIAS",
+      "logical": "bd.item_alias",
+      "domain": "BD",
+      "comment": "项目别名；一行代表一条项目别名记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_BD_ITEM_ATTR_CHG",
+      "logical": "bd.item_attribute_change",
+      "domain": "BD",
+      "comment": "项目属性变更；一行代表一条项目属性变更记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_BD_ITEM_ATTR_DEF",
+      "logical": "bd.item_attribute_definition",
+      "domain": "BD",
+      "comment": "项目属性定义；一行代表一条项目属性定义记录",
+      "columns": 27
+    },
+    {
+      "physical": "RHN_BD_ITEM_ATTR_OVRD",
+      "logical": "bd.item_attribute_override",
+      "domain": "BD",
+      "comment": "项目属性覆盖；一行代表一条项目属性覆盖记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_BD_ITEM_ATTR_SUBJECT",
+      "logical": "bd.item_attribute_subject",
+      "domain": "BD",
+      "comment": "项目属性主体；一行代表一条项目属性主体记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_BD_ITEM_ATTR_VAL",
+      "logical": "bd.item_attribute_value",
+      "domain": "BD",
+      "comment": "项目属性值；一行代表一条项目属性值记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_BD_ITEM_GRP_MEMBER",
+      "logical": "bd.item_group_member",
+      "domain": "BD",
+      "comment": "项目分组成员；一行代表一条项目分组成员记录",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_BD_ITEM_GRP",
+      "logical": "bd.item_group",
+      "domain": "BD",
+      "comment": "项目分组；一行代表一条项目分组记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_BD_ITEM_MASTER",
+      "logical": "bd.item_master",
+      "domain": "BD",
+      "comment": "项目主数据；一行代表一条项目主数据记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_BD_ITEM_PKG",
+      "logical": "bd.item_package",
+      "domain": "BD",
+      "comment": "项目包装；一行代表一条项目包装记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_BD_ITEM_TERM_MAP",
+      "logical": "bd.item_term_mapping",
+      "domain": "BD",
+      "comment": "项目术语映射；一行代表一条项目术语映射记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_BD_ITEM_TYPE_ATTR",
+      "logical": "bd.item_type_attribute",
+      "domain": "BD",
+      "comment": "项目类型属性；一行代表一条项目类型属性记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_BD_ITEM_TYPE",
+      "logical": "bd.item_type",
+      "domain": "BD",
+      "comment": "项目类型；一行代表一条项目类型记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_EX_LAB_SVC_SPEC",
+      "logical": "ex.laboratory_service_specimen",
+      "domain": "EX",
+      "comment": "检验服务标本；一行代表一条检验服务标本记录",
+      "columns": 25
+    },
+    {
+      "physical": "RHN_BD_LAB_SVC",
+      "logical": "bd.laboratory_service",
+      "domain": "BD",
+      "comment": "检验服务；一行代表一条检验服务记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_BIL_LEDGER_ENTRY",
+      "logical": "bil.ledger_entry",
+      "domain": "BIL",
+      "comment": "台账分录；一行代表一条台账分录记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_SYS_MGMT_MOD",
+      "logical": "sys.management_module",
+      "domain": "SYS",
+      "comment": "管理模块；一行代表一条管理模块记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_BD_MFR",
+      "logical": "bd.manufacturer",
+      "domain": "BD",
+      "comment": "生产厂商；一行代表一条生产厂商记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_BD_IMPORT_BATCH",
+      "logical": "bd.master_data_import_batch",
+      "domain": "BD",
+      "comment": "主数据数据导入批次；一行代表一条主数据数据导入批次记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_BD_IMPORT_ROW",
+      "logical": "bd.master_data_import_row",
+      "domain": "BD",
+      "comment": "主数据数据导入行；一行代表一条主数据数据导入行记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_SUP_MED_DISP_LINE",
+      "logical": "sup.medication_dispense_line",
+      "domain": "SUP",
+      "comment": "药品发药明细；一行代表一条药品发药明细记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SUP_MED_DISP",
+      "logical": "sup.medication_dispense",
+      "domain": "SUP",
+      "comment": "药品发药；一行代表一条药品发药记录",
+      "columns": 22
+    },
+    {
+      "physical": "RHN_BD_MED_HERBAL",
+      "logical": "bd.medication_herbal",
+      "domain": "BD",
+      "comment": "药品中药；一行代表一条药品中药记录",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_BD_MED_PRODUCT",
+      "logical": "bd.medication_product",
+      "domain": "BD",
+      "comment": "药品产品；一行代表一条药品产品记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_EX_MED_REQ",
+      "logical": "ex.medication_request",
+      "domain": "EX",
+      "comment": "药品请求；一行代表一条药品请求记录",
+      "columns": 42
+    },
+    {
+      "physical": "RHN_BD_MED_ROUTE_PROF",
+      "logical": "bd.medication_route_profile",
+      "domain": "BD",
+      "comment": "药品途径档案；一行代表一条药品途径档案记录",
+      "columns": 2
+    },
+    {
+      "physical": "RHN_BD_MED_VACCINE",
+      "logical": "bd.medication_vaccine",
+      "domain": "BD",
+      "comment": "药品疫苗；一行代表一条药品疫苗记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_BD_MED_WESTERN",
+      "logical": "bd.medication_western",
+      "domain": "BD",
+      "comment": "药品西药；一行代表一条药品西药记录",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_BD_MED",
+      "logical": "bd.medication",
+      "domain": "BD",
+      "comment": "药品；一行代表一条药品记录",
+      "columns": 42
+    },
+    {
+      "physical": "RHN_VIS_OBS",
+      "logical": "vis.observation",
+      "domain": "VIS",
+      "comment": "观察；一行代表一条观察记录",
+      "columns": 25
+    },
+    {
+      "physical": "RHN_BD_ORDER_FREQ",
+      "logical": "bd.order_frequency",
+      "domain": "BD",
+      "comment": "医嘱频次；一行代表一条医嘱频次记录",
+      "columns": 28
+    },
+    {
+      "physical": "RHN_BD_ORDER_FREQ_CFG",
+      "logical": "bd.order_frequency_config",
+      "domain": "BD",
+      "comment": "医嘱频次配置；一行代表一条医嘱频次配置记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_SYS_ORG_ADDR",
+      "logical": "sys.organization_address",
+      "domain": "SYS",
+      "comment": "机构地址；一行代表一条机构地址记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SYS_ORG_CAP",
+      "logical": "sys.organization_capability",
+      "domain": "SYS",
+      "comment": "机构能力；一行代表一条机构能力记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_BD_ORG_CATALOG_ITEM",
+      "logical": "bd.organization_catalog_item",
+      "domain": "BD",
+      "comment": "机构目录项目；一行代表一条机构目录项目记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_BD_ORG_CONCEPT",
+      "logical": "bd.organization_concept",
+      "domain": "BD",
+      "comment": "机构概念；一行代表一条机构概念记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_SYS_ORG_CONTACT",
+      "logical": "sys.organization_contact",
+      "domain": "SYS",
+      "comment": "机构联系方式；一行代表一条机构联系方式记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_SYS_ORG_IDENT",
+      "logical": "sys.organization_identifier",
+      "domain": "SYS",
+      "comment": "机构标识；一行代表一条机构标识记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_SYS_ORG_REL",
+      "logical": "sys.organization_relation",
+      "domain": "SYS",
+      "comment": "机构关系；一行代表一条机构关系记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SYS_ORG_RESP",
+      "logical": "sys.organization_responsibility",
+      "domain": "SYS",
+      "comment": "机构职责；一行代表一条机构职责记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SYS_ORG",
+      "logical": "sys.organization",
+      "domain": "SYS",
+      "comment": "机构；一行代表一条机构记录",
+      "columns": 24
+    },
+    {
+      "physical": "RHN_INT_OUTBOX_EVT",
+      "logical": "int.outbox_event",
+      "domain": "INT",
+      "comment": "发件箱事件；一行代表一条发件箱事件记录",
+      "columns": 24
+    },
+    {
+      "physical": "RHN_META_OP_NOTE_FORM_VER",
+      "logical": "meta.outpatient_note_form_version",
+      "domain": "META",
+      "comment": "门诊备注表单版本；一行代表一条门诊备注表单版本记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_META_OP_NOTE_TMPL",
+      "logical": "meta.outpatient_note_template",
+      "domain": "META",
+      "comment": "门诊备注模板；一行代表一条门诊备注模板记录",
+      "columns": 21
+    },
+    {
+      "physical": "RHN_META_OP_PLAN_DIAG",
+      "logical": "meta.outpatient_plan_diagnosis",
+      "domain": "META",
+      "comment": "门诊方案诊断；一行代表一条门诊方案诊断记录",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_META_OP_PLAN_MED",
+      "logical": "meta.outpatient_plan_medication",
+      "domain": "META",
+      "comment": "门诊方案药品；一行代表一条门诊方案药品记录",
+      "columns": 26
+    },
+    {
+      "physical": "RHN_META_OP_PLAN_SVC",
+      "logical": "meta.outpatient_plan_service",
+      "domain": "META",
+      "comment": "门诊方案服务；一行代表一条门诊方案服务记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_META_OP_PLAN_TMPL",
+      "logical": "meta.outpatient_plan_template",
+      "domain": "META",
+      "comment": "门诊方案模板；一行代表一条门诊方案模板记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_EX_OP_REFER_EVT",
+      "logical": "ex.outpatient_referral_event",
+      "domain": "EX",
+      "comment": "门诊转诊事件；一行代表一条门诊转诊事件记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_EX_OP_REFER_REQ",
+      "logical": "ex.outpatient_referral_request",
+      "domain": "EX",
+      "comment": "门诊转诊请求；一行代表一条门诊转诊请求记录",
+      "columns": 26
+    },
+    {
+      "physical": "RHN_SYS_PARAM_CAT",
+      "logical": "sys.parameter_category",
+      "domain": "SYS",
+      "comment": "参数分类；一行代表一条参数分类记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_SYS_PARAM_CHG",
+      "logical": "sys.parameter_change",
+      "domain": "SYS",
+      "comment": "参数变更；一行代表一条参数变更记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_SYS_PARAM_DEF",
+      "logical": "sys.parameter_definition",
+      "domain": "SYS",
+      "comment": "参数定义；一行代表一条参数定义记录",
+      "columns": 28
+    },
+    {
+      "physical": "RHN_SYS_PARAM_VAL",
+      "logical": "sys.parameter_value",
+      "domain": "SYS",
+      "comment": "参数值；一行代表一条参数值记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_BIL_PAT_ACCT",
+      "logical": "bil.patient_account",
+      "domain": "BIL",
+      "comment": "患者账户；一行代表一条患者账户记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_SC_PAT_REG",
+      "logical": "sc.patient_registration",
+      "domain": "SC",
+      "comment": "患者挂号；一行代表一条患者挂号记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_BIL_PAY_EVT",
+      "logical": "bil.payment_event",
+      "domain": "BIL",
+      "comment": "支付事件；一行代表一条支付事件记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_BIL_PAY_ORDER",
+      "logical": "bil.payment_order",
+      "domain": "BIL",
+      "comment": "支付医嘱；一行代表一条支付医嘱记录",
+      "columns": 29
+    },
+    {
+      "physical": "RHN_BIL_PAY",
+      "logical": "bil.payment",
+      "domain": "BIL",
+      "comment": "支付；一行代表一条支付记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_SUP_PHARM_FULFILL_AUTH",
+      "logical": "sup.pharmacy_fulfillment_authorization",
+      "domain": "SUP",
+      "comment": "药房履约授权；一行代表一条药房履约授权记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_SUP_PHARM_REVIEW",
+      "logical": "sup.pharmacy_review",
+      "domain": "SUP",
+      "comment": "药房审核；一行代表一条药房审核记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_SYS_PORTAL_NOTIFY",
+      "logical": "sys.portal_notification",
+      "domain": "SYS",
+      "comment": "门户通知；一行代表一条门户通知记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_SYS_PORTAL_USER_WKSPACE",
+      "logical": "sys.portal_user_workspace",
+      "domain": "SYS",
+      "comment": "门户用户工作台；一行代表一条门户用户工作台记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SYS_POS",
+      "logical": "sys.position",
+      "domain": "SYS",
+      "comment": "岗位；一行代表一条岗位记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_SYS_PRACT",
+      "logical": "sys.practitioner",
+      "domain": "SYS",
+      "comment": "医务人员；一行代表一条医务人员记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_ANL_PRES_METRIC_SAMPLE",
+      "logical": "anl.presence_metric_sample",
+      "domain": "ANL",
+      "comment": "在线状态指标样本；一行代表一条在线状态指标样本记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SYS_PRINT_JOB",
+      "logical": "sys.print_job",
+      "domain": "SYS",
+      "comment": "打印作业；一行代表一条打印作业记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SYS_PRINT_OUTPUT",
+      "logical": "sys.print_output",
+      "domain": "SYS",
+      "comment": "打印输出；一行代表一条打印输出记录",
+      "columns": 26
+    },
+    {
+      "physical": "RHN_META_PRINT_TASK_DEF",
+      "logical": "meta.print_task_definition",
+      "domain": "META",
+      "comment": "标准打印任务定义；一行代表一个业务模块稳定依赖的打印任务",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_META_PRINT_IMPL",
+      "logical": "meta.print_implementation",
+      "domain": "META",
+      "comment": "打印实现注册；一行代表一个内部模板或受控外部报表实现",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_META_PRINT_IMPL_BIND",
+      "logical": "meta.print_implementation_binding",
+      "domain": "META",
+      "comment": "打印实现绑定；一行代表一条平台、租户、机构或科室级解析规则",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_META_PRINT_TMPL_VER",
+      "logical": "meta.print_template_version",
+      "domain": "META",
+      "comment": "打印模板版本；一行代表一条打印模板版本记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_META_PRINT_DOC_DEF",
+      "logical": "meta.print_document_definition",
+      "domain": "META",
+      "comment": "打印单据定义；一行代表一个可打印的业务单据类型",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_META_PRINT_MEDIA",
+      "logical": "meta.print_media_profile",
+      "domain": "META",
+      "comment": "打印介质档案；一行代表一种可绑定模板的纸张或标签方案",
+      "columns": 24
+    },
+    {
+      "physical": "RHN_META_PRINT_DRAFT",
+      "logical": "meta.print_template_draft",
+      "domain": "META",
+      "comment": "打印模板草稿；一行代表一份可编辑或待审核的模板内容",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_META_PRINT_TMPL",
+      "logical": "meta.print_template",
+      "domain": "META",
+      "comment": "打印模板；一行代表一条打印模板记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_SUP_PURCH_ORDER_LINE",
+      "logical": "sup.purchase_order_line",
+      "domain": "SUP",
+      "comment": "采购医嘱明细；一行代表一条采购医嘱明细记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SUP_PURCH_ORDER",
+      "logical": "sup.purchase_order",
+      "domain": "SUP",
+      "comment": "采购医嘱；一行代表一条采购医嘱记录",
+      "columns": 21
+    },
+    {
+      "physical": "RHN_SC_SVC_QUEUE",
+      "logical": "sc.service_queue",
+      "domain": "SC",
+      "comment": "服务队列；一行代表一个可独立编号和调度的服务队列",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_SC_QUEUE_COUNT",
+      "logical": "sc.queue_counter",
+      "domain": "SC",
+      "comment": "队列计数器；一行代表一个服务队列在一个业务日期的发号进度",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_SC_QUEUE_TICKET_EVT",
+      "logical": "sc.queue_ticket_event",
+      "domain": "SC",
+      "comment": "排队号票事件；一行代表一次不可变的号票业务动作",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_SC_QUEUE_TICKET",
+      "logical": "sc.queue_ticket",
+      "domain": "SC",
+      "comment": "排队号票；一行代表一名患者一次进入一个服务队列",
+      "columns": 24
+    },
+    {
+      "physical": "RHN_BIL_RCPT_EVT",
+      "logical": "bil.receipt_event",
+      "domain": "BIL",
+      "comment": "票据事件；一行代表一条票据事件记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_BIL_RCPT",
+      "logical": "bil.receipt",
+      "domain": "BIL",
+      "comment": "票据；一行代表一条票据记录",
+      "columns": 27
+    },
+    {
+      "physical": "RHN_BIL_RECON_BATCH",
+      "logical": "bil.reconciliation_batch",
+      "domain": "BIL",
+      "comment": "核对批次；一行代表一条核对批次记录",
+      "columns": 24
+    },
+    {
+      "physical": "RHN_BIL_RECON_ITEM_EVT",
+      "logical": "bil.reconciliation_item_event",
+      "domain": "BIL",
+      "comment": "核对项目事件；一行代表一条核对项目事件记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_BIL_RECON_ITEM",
+      "logical": "bil.reconciliation_item",
+      "domain": "BIL",
+      "comment": "核对项目；一行代表一条核对项目记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_BIL_REG_BIL_INTENT",
+      "logical": "bil.registration_billing_intent",
+      "domain": "BIL",
+      "comment": "挂号计费意图；一行代表一条挂号计费意图记录",
+      "columns": 34
+    },
+    {
+      "physical": "RHN_EX_REQ_GRP",
+      "logical": "ex.request_group",
+      "domain": "EX",
+      "comment": "请求分组；一行代表一条请求分组记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_PI_PAT_ADDR",
+      "logical": "pi.resident_address",
+      "domain": "PI",
+      "comment": "患者地址；一行代表一条患者地址记录",
+      "columns": 20
+    },
+    {
+      "physical": "RHN_INS_PAT_COVER",
+      "logical": "ins.resident_coverage",
+      "domain": "INS",
+      "comment": "患者保障；一行代表一条患者保障记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_PI_PAT_DEMO_PROF",
+      "logical": "pi.resident_demographic_profile",
+      "domain": "PI",
+      "comment": "患者人口学档案；一行代表一条患者人口学档案记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_PI_PAT_EMPL",
+      "logical": "pi.resident_employment",
+      "domain": "PI",
+      "comment": "患者任职；一行代表一条患者任职记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_PI_PAT_IDENT",
+      "logical": "pi.resident_identifier",
+      "domain": "PI",
+      "comment": "患者标识；一行代表一条患者标识记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_PI_PAT_MATCH_CAND",
+      "logical": "pi.resident_match_candidate",
+      "domain": "PI",
+      "comment": "患者匹配候选；一行代表一条患者匹配候选记录",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_PI_PAT_MERGE_HIST",
+      "logical": "pi.resident_merge_history",
+      "domain": "PI",
+      "comment": "患者合并历史；一行代表一条患者合并历史记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_PI_PAT_RELATED_PERSON",
+      "logical": "pi.resident_related_person",
+      "domain": "PI",
+      "comment": "患者关联人员；一行代表一条患者关联人员记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_PI_PAT_SRC_RECORD",
+      "logical": "pi.resident_source_record",
+      "domain": "PI",
+      "comment": "患者来源记录；一行代表一条患者来源记录记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_PI_PAT_SPLIT_HIST",
+      "logical": "pi.resident_split_history",
+      "domain": "PI",
+      "comment": "患者拆分历史；一行代表一条患者拆分历史记录",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_PI_PAT",
+      "logical": "pi.resident",
+      "domain": "PI",
+      "comment": "患者；一行代表一条患者记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_SYS_ROLE_PERM_ASSIGN",
+      "logical": "sys.role_permission_assignment",
+      "domain": "SYS",
+      "comment": "角色权限任职；一行代表一条角色权限任职记录",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_SC_SCHED_EXCEPT",
+      "logical": "sc.schedule_exception",
+      "domain": "SC",
+      "comment": "排班例外；一行代表一条排班例外记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_SC_SCHED_GEN_RUN",
+      "logical": "sc.schedule_generation_run",
+      "domain": "SC",
+      "comment": "排班生成运行；一行代表一条排班生成运行记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_SC_SCHED_SLOT_HOLD",
+      "logical": "sc.schedule_slot_hold",
+      "domain": "SC",
+      "comment": "排班号源占用；一行代表一条排班号源占用记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SC_SCHED_SLOT_POOL",
+      "logical": "sc.schedule_slot_pool",
+      "domain": "SC",
+      "comment": "排班号源池；一行代表一条排班号源池记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_SC_SCHED_TMPL_PERIOD",
+      "logical": "sc.schedule_template_period",
+      "domain": "SC",
+      "comment": "排班模板期间；一行代表一条排班模板期间记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_SC_SCHED_TMPL",
+      "logical": "sc.schedule_template",
+      "domain": "SC",
+      "comment": "排班模板；一行代表一条排班模板记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_BD_SVC_ITEM",
+      "logical": "bd.service_item",
+      "domain": "BD",
+      "comment": "服务项目；一行代表一条服务项目记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_VIS_SVC_LOC",
+      "logical": "vis.service_location",
+      "domain": "VIS",
+      "comment": "服务位置；一行代表一条服务位置记录",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_EX_SVC_REQ",
+      "logical": "ex.service_request",
+      "domain": "EX",
+      "comment": "服务请求；一行代表一条服务请求记录",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_SYS_SVC_RSRC",
+      "logical": "sys.service_resource",
+      "domain": "SYS",
+      "comment": "服务资源；一行代表一条服务资源记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_SC_SVC_SCHED_EVT",
+      "logical": "sc.service_schedule_event",
+      "domain": "SC",
+      "comment": "服务排班事件；一行代表一条服务排班事件记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SC_SVC_SCHED",
+      "logical": "sc.service_schedule",
+      "domain": "SC",
+      "comment": "服务排班；一行代表一条服务排班记录",
+      "columns": 32
+    },
+    {
+      "physical": "RHN_BD_SVC_VAR",
+      "logical": "bd.service_variant",
+      "domain": "BD",
+      "comment": "服务变体；一行代表一条服务变体记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_BIL_STL_CAT_SUM",
+      "logical": "bil.settlement_category_summary",
+      "domain": "BIL",
+      "comment": "结算分类汇总；一行代表一条结算分类汇总记录",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_BIL_STL_EVT",
+      "logical": "bil.settlement_event",
+      "domain": "BIL",
+      "comment": "结算事件；一行代表一条结算事件记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_BIL_STL_LINE",
+      "logical": "bil.settlement_line",
+      "domain": "BIL",
+      "comment": "结算明细；一行代表一条结算明细记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_BIL_STL_TENDER",
+      "logical": "bil.settlement_tender",
+      "domain": "BIL",
+      "comment": "结算收款方式；一行代表一条结算收款方式记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_BIL_STL",
+      "logical": "bil.settlement",
+      "domain": "BIL",
+      "comment": "结算；一行代表一条结算记录",
+      "columns": 29
+    },
+    {
+      "physical": "RHN_EX_SKIN_TEST_EVT",
+      "logical": "ex.skin_test_event",
+      "domain": "EX",
+      "comment": "皮试检测事件；一行代表一条皮试检测事件记录",
+      "columns": 43
+    },
+    {
+      "physical": "RHN_SC_SLOT_EVT",
+      "logical": "sc.slot_event",
+      "domain": "SC",
+      "comment": "号源事件；一行代表一条号源事件记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_SYS_STAFF_ASSIGN",
+      "logical": "sys.staff_assignment",
+      "domain": "SYS",
+      "comment": "员工任职；一行代表一条员工任职记录",
+      "columns": 19
+    },
+    {
+      "physical": "RHN_SUP_STOCK_BIN",
+      "logical": "sup.stock_bin",
+      "domain": "SUP",
+      "comment": "库存库位；一行代表一条库存库位记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_SUP_STOCK_COUNT_LINE",
+      "logical": "sup.stock_count_line",
+      "domain": "SUP",
+      "comment": "库存盘点明细；一行代表一条库存盘点明细记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_SUP_STOCK_COUNT",
+      "logical": "sup.stock_count",
+      "domain": "SUP",
+      "comment": "库存盘点；一行代表一条库存盘点记录",
+      "columns": 27
+    },
+    {
+      "physical": "RHN_SUP_STOCK_ITEM",
+      "logical": "sup.stock_item",
+      "domain": "SUP",
+      "comment": "库存项目；一行代表一条库存项目记录",
+      "columns": 21
+    },
+    {
+      "physical": "RHN_SUP_STOCK_LOT",
+      "logical": "sup.stock_lot",
+      "domain": "SUP",
+      "comment": "库存批号；一行代表一条库存批号记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_SUP_STOCK_REQ_ALLOC",
+      "logical": "sup.stock_requisition_allocation",
+      "domain": "SUP",
+      "comment": "库存请领分配；一行代表一条库存请领分配记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_SUP_STOCK_REQ_LINE",
+      "logical": "sup.stock_requisition_line",
+      "domain": "SUP",
+      "comment": "库存请领明细；一行代表一条库存请领明细记录",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_SUP_STOCK_REQ",
+      "logical": "sup.stock_requisition",
+      "domain": "SUP",
+      "comment": "库存请领；一行代表一条库存请领记录",
+      "columns": 24
+    },
+    {
+      "physical": "RHN_SUP_STOCK_RETURN_LINE",
+      "logical": "sup.stock_return_line",
+      "domain": "SUP",
+      "comment": "库存退回明细；一行代表一条库存退回明细记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_SUP_STOCK_RETURN",
+      "logical": "sup.stock_return",
+      "domain": "SUP",
+      "comment": "库存退回；一行代表一条库存退回记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_SUP_STOCK_SITE",
+      "logical": "sup.stock_site",
+      "domain": "SUP",
+      "comment": "库存库房；一行代表一条库存库房记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_SUP_STOCK_XFER_ALLOC",
+      "logical": "sup.stock_transfer_allocation",
+      "domain": "SUP",
+      "comment": "库存调拨分配；一行代表一条库存调拨分配记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SUP_STOCK_XFER_LINE",
+      "logical": "sup.stock_transfer_line",
+      "domain": "SUP",
+      "comment": "库存调拨明细；一行代表一条库存调拨明细记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_SUP_STOCK_XFER",
+      "logical": "sup.stock_transfer",
+      "domain": "SUP",
+      "comment": "库存调拨；一行代表一条库存调拨记录",
+      "columns": 26
+    },
+    {
+      "physical": "RHN_SUP_SUPPL_SUPPLY_ITEM",
+      "logical": "sup.supplier_supply_item",
+      "domain": "SUP",
+      "comment": "供应商供应项目；一行代表一条供应商供应项目记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_SUP_SUPPL",
+      "logical": "sup.supplier",
+      "domain": "SUP",
+      "comment": "供应商；一行代表一条供应商记录",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_BD_SUPPLY_ITEM",
+      "logical": "bd.supply_item",
+      "domain": "BD",
+      "comment": "供应项目；一行代表一条供应项目记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_SYS_ANN",
+      "logical": "sys.system_announcement",
+      "domain": "SYS",
+      "comment": "体系公告；一行代表一条体系公告记录",
+      "columns": 22
+    },
+    {
+      "physical": "RHN_SYS_TNT",
+      "logical": "sys.tenant",
+      "domain": "SYS",
+      "comment": "租户；一行代表一条租户记录",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_EX_TREAT_EXEC_ITEM",
+      "logical": "ex.treatment_execution_item",
+      "domain": "EX",
+      "comment": "治疗执行项目；一行代表一条治疗执行项目记录",
+      "columns": 26
+    },
+    {
+      "physical": "RHN_EX_TREAT_EXEC_TASK",
+      "logical": "ex.treatment_execution_task",
+      "domain": "EX",
+      "comment": "治疗执行任务；一行代表一条治疗执行任务记录",
+      "columns": 24
+    },
+    {
+      "physical": "RHN_BD_UNIT_CONV",
+      "logical": "bd.unit_conversion",
+      "domain": "BD",
+      "comment": "单位换算；一行代表一条单位换算记录",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_BD_UNIT_DEF",
+      "logical": "bd.unit_definition",
+      "domain": "BD",
+      "comment": "单位定义；一行代表一条单位定义记录",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_SYS_USER_ACCT",
+      "logical": "sys.user_account",
+      "domain": "SYS",
+      "comment": "用户账户；一行代表一条用户账户记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_SYS_USER_ROLE_ASSIGN",
+      "logical": "sys.user_role_assignment",
+      "domain": "SYS",
+      "comment": "用户角色任职；一行代表一条用户角色任职记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_BD_VAL_SET_MEMBER",
+      "logical": "bd.value_set_member",
+      "domain": "BD",
+      "comment": "值集成员；一行代表一条值集成员记录",
+      "columns": 5
+    },
+    {
+      "physical": "RHN_BD_VAL_SET",
+      "logical": "bd.value_set",
+      "domain": "BD",
+      "comment": "值集；一行代表一条值集记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SUP_WARD_DELIV",
+      "logical": "sup.ward_delivery",
+      "domain": "SUP",
+      "comment": "病区配送；一行代表一条病区配送记录",
+      "columns": 23
+    },
+    {
+      "physical": "RHN_SUP_WARD_DELIV_EVT",
+      "logical": "sup.ward_delivery_event",
+      "domain": "SUP",
+      "comment": "病区配送事件；一行代表一条病区配送事件记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SUP_WARD_DELIV_LINE",
+      "logical": "sup.ward_delivery_line",
+      "domain": "SUP",
+      "comment": "病区配送明细；一行代表一条病区配送明细记录",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_SUP_WARD_MED_RETURN_EVT",
+      "logical": "sup.ward_med_return_event",
+      "domain": "SUP",
+      "comment": "病区用药退回事件；一行代表一条病区用药退回事件记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_SUP_WARD_MED_RETURN_LINE",
+      "logical": "sup.ward_med_return_line",
+      "domain": "SUP",
+      "comment": "病区用药退回明细；一行代表一条病区用药退回明细记录",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_SUP_WARD_MED_RETURN_REQ",
+      "logical": "sup.ward_med_return_request",
+      "domain": "SUP",
+      "comment": "病区用药退回请求；一行代表一条病区用药退回请求记录",
+      "columns": 21
+    },
+    {
+      "physical": "RHN_SYS_WORK_TASK_HIST",
+      "logical": "sys.work_task_history",
+      "domain": "SYS",
+      "comment": "工作任务历史；一行代表一条工作任务历史记录",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SYS_WORK_TASK",
+      "logical": "sys.work_task",
+      "domain": "SYS",
+      "comment": "工作任务；一行代表一条工作任务记录",
+      "columns": 26
+    },
+    {
+      "physical": "RHN_META_PRINT_DEVICE",
+      "logical": "meta.print_device",
+      "domain": "META",
+      "comment": "打印设备；一行代表一个浏览器或本地打印桥输出端点",
+      "columns": 17
+    },
+    {
+      "physical": "RHN_META_PRINT_DEV_BIND",
+      "logical": "meta.print_device_binding",
+      "domain": "META",
+      "comment": "打印设备绑定；一行代表科室单据和介质到默认设备的路由",
+      "columns": 14
+    },
+    {
+      "physical": "RHN_SYS_PRINT_BATCH",
+      "logical": "sys.print_batch",
+      "domain": "SYS",
+      "comment": "打印批次；一行代表一次经过对账的批量打印请求",
+      "columns": 26
+    },
+    {
+      "physical": "RHN_SYS_PRINT_BATCH_ITEM",
+      "logical": "sys.print_batch_item",
+      "domain": "SYS",
+      "comment": "打印批次明细；一行代表一个纳入或排除的业务来源",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_SYS_PRINT_DELIVERY",
+      "logical": "sys.print_delivery",
+      "domain": "SYS",
+      "comment": "打印投递；一行代表批次输出向浏览器或本地桥的一次投递",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_AN_AUDIT_EVT",
+      "logical": "an.audit_evt",
+      "domain": "AN",
+      "comment": "一行代表分析审计事件",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_AN_CATALOG_VER",
+      "logical": "an.catalog_ver",
+      "domain": "AN",
+      "comment": "一行代表分析目录的一个版本",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_AN_DRAFT_VER",
+      "logical": "an.draft_ver",
+      "domain": "AN",
+      "comment": "一行代表分析草稿的一个版本",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_AN_RUN",
+      "logical": "an.run",
+      "domain": "AN",
+      "comment": "一行代表一次分析运行",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_BD_ALLERGEN",
+      "logical": "bd.allergen",
+      "domain": "BD",
+      "comment": "一行代表一个受控过敏原概念",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_BD_CLASS_CONCEPT",
+      "logical": "bd.class_concept",
+      "domain": "BD",
+      "comment": "一行代表分类体系中的一个概念",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_BD_CLASS_SYSTEM",
+      "logical": "bd.class_system",
+      "domain": "BD",
+      "comment": "一行代表一个药品分类体系",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_BD_MED_ALLERGEN_MAP",
+      "logical": "bd.med_allergen_map",
+      "domain": "BD",
+      "comment": "一行代表一条药品与过敏原关联",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_BD_MED_CLASS_MAP",
+      "logical": "bd.med_class_map",
+      "domain": "BD",
+      "comment": "一行代表一条药品与分类概念关联",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_OP_TRIAGE_REC",
+      "logical": "op.triage_rec",
+      "domain": "OP",
+      "comment": "一行代表一次预检分诊",
+      "columns": 46
+    },
+    {
+      "physical": "RHN_SUP_RX_INV_FREEZE",
+      "logical": "sup.rx_inv_freeze",
+      "domain": "SUP",
+      "comment": "一行代表一条处方库存冻结明细",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_AUD_MED_RULE",
+      "logical": "aud.quality_rule_definition",
+      "domain": "AUD",
+      "comment": "合理用药规则定义；一行代表一条平台级规则定义",
+      "columns": 4
+    },
+    {
+      "physical": "RHN_AUD_MED_RULE_VER",
+      "logical": "aud.quality_rule_version",
+      "domain": "AUD",
+      "comment": "合理用药规则版本；一行代表一条不可变规则版本及证据",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_AUD_MED_EVAL",
+      "logical": "aud.quality_evaluation",
+      "domain": "AUD",
+      "comment": "合理用药评价；一行代表一次完整处方的旁路安全评价",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_AUD_MED_FINDING",
+      "logical": "aud.quality_finding",
+      "domain": "AUD",
+      "comment": "合理用药风险发现；一行代表某次评价中一条规则的风险发现",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_AUD_MED_OVERRIDE",
+      "logical": "aud.quality_override",
+      "domain": "AUD",
+      "comment": "合理用药风险覆盖记录；一行代表用户对一个风险发现的覆盖理由",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_AUD_MED_CAND",
+      "logical": "aud.medication_rule_candidate",
+      "domain": "AUD",
+      "comment": "合理用药候选规则，一行代表一次不可变的 AI 生成版本",
+      "columns": 4
+    },
+    {
+      "physical": "RHN_AUD_MED_TRIAL",
+      "logical": "aud.medication_rule_trial",
+      "domain": "AUD",
+      "comment": "合理用药试跑，一行代表一次模拟或旁路执行",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_BD_CLIN_SEM_VER",
+      "logical": "bd.clinical_semantic_version",
+      "domain": "BD",
+      "comment": "临床语义版本；一行代表一次不可变概念版本或显示信息变更记录",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_BD_MED_STD_SOURCE",
+      "logical": "bd.medication_standard_source",
+      "domain": "BD",
+      "comment": "药品标准来源关联，一行代表一个租户内特定目录版本的标准规格与药品基本信息的关联。",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_AUD_MED_GOV",
+      "logical": "aud.medication_rule_governance",
+      "domain": "AUD",
+      "comment": "合理用药规则治理，一行代表一个租户内一条规则的审核、部署及审计状态",
+      "columns": 5
+    },
+    {
+      "physical": "RHN_AUD_MED_GOV_RUN",
+      "logical": "aud.medication_rule_governance_run",
+      "domain": "AUD",
+      "comment": "合理用药规则运行记录，一行代表已部署规则版本对一张处方的一次自动评价",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_BD_SEARCH_ENTRY",
+      "logical": "bd.search_entry",
+      "domain": "BD",
+      "comment": "基础数据检索条目；一行代表一个标准名称、别名、商品名或机构本地名称的检索投影。",
+      "columns": 20
+    },
+    {
+      "physical": "RHN_BD_STD_REVIEW",
+      "logical": "bd.standard_catalog_review",
+      "domain": "BD",
+      "comment": "标准目录来源核验事件，一行代表一个租户对特定目录及来源文件版本的一次不可变核验操作",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_AUD_MED_KNOW_DRAFT",
+      "logical": "aud.medication_knowledge_draft",
+      "domain": "AUD",
+      "comment": "合理用药知识草稿版本，一行代表一个租户下一条知识草稿的一次不可变保存版本",
+      "columns": 5
+    },
+    {
+      "physical": "RHN_AUD_KNOW_EXTRACT",
+      "logical": "aud.medication_knowledge_extraction",
+      "domain": "AUD",
+      "comment": "合理用药 AI 知识抽取记录，一行代表一次基于来源原文的不可变抽取结果，不代表临床审核或发布",
+      "columns": 3
+    },
+    {
+      "physical": "RHN_AUD_KNOW_REPLAY",
+      "logical": "aud.medication_knowledge_replay",
+      "domain": "AUD",
+      "comment": "合理用药知识处方回放记录，一行代表一个固定知识版本对一次历史审查输入的不可变回放结果",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_AUD_KNOW_RULE",
+      "logical": "aud.medication_knowledge_rule",
+      "domain": "AUD",
+      "comment": "知识衍生规则候选，一行代表一条知识规则的一次不可变编译版本，尚不代表审核或发布",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_AUD_KNOW_SUITE",
+      "logical": "aud.medication_knowledge_suite",
+      "domain": "AUD",
+      "comment": "人工编写的知识候选合成验证样例，一行代表一组不可变样例版本",
+      "columns": 4
+    },
+    {
+      "physical": "RHN_AUD_KNOW_TEST",
+      "logical": "aud.medication_knowledge_test",
+      "domain": "AUD",
+      "comment": "知识规则候选的合成样例执行审计，一行代表一次固定样例版本验证",
+      "columns": 5
+    },
+    {
+      "physical": "RHN_AUD_KNOW_REVIEW",
+      "logical": "aud.medication_knowledge_review",
+      "domain": "AUD",
+      "comment": "知识规则候选审核留痕，一行代表一次提交、撤回、退回或批准事件",
+      "columns": 4
+    },
+    {
+      "physical": "RHN_AUD_KNOW_INTAKE",
+      "logical": "aud.medication_rule_intake",
+      "domain": "AUD",
+      "comment": "合理用药需求分析记录，一行代表一次不可变的意图分类与澄清分析，不代表药学证据或执行规则",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_AUD_KNOW_FEEDBACK",
+      "logical": "aud.medication_knowledge_feedback",
+      "domain": "AUD",
+      "comment": "合理用药旁路研判记录，一行代表对一次观察追加或撤回的人工意见，不改写运行结果或发布状态",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_AUD_KNOW_RELEASE",
+      "logical": "aud.medication_knowledge_release",
+      "domain": "AUD",
+      "comment": "知识规则正式发布材料，一行代表一次显式启用或回退形成的固定验收记录",
+      "columns": 5
+    },
+    {
+      "physical": "RHN_BD_STD_EDITION",
+      "logical": "bd.standard_catalog_edition",
+      "domain": "BD",
+      "comment": "标准参考目录登记，一行代表一个租户保存的不可变候选版次，不改变当前运行目录",
+      "columns": 8
+    }
+  ]
+}

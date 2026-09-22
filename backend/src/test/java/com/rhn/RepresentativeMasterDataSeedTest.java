@@ -36,14 +36,14 @@ class RepresentativeMasterDataSeedTest extends RhnIntegrationTestSupport {
                 join RHN_BD_MED_PRODUCT product on product.ID_MED = medication.ID_MED
                 join RHN_BD_ITEM_PKG pkg on pkg.ID_CATALOG_ITEM = product.ID_CATALOG_ITEM
                 where medication.SD_MED_TYPE = 'WESTERN'
-                  and pkg.PACKAGE_SPEC not like concat(medication.PREPARATION_SPEC, '%')
+                  and pkg.PACKAGE_SPEC not like concat(medication.PREP_SPEC, '%')
                 """, Integer.class));
         assertEquals(6, count("RHN_SUP_STOCK_ITEM", "ID_STOCK_ITEM", 362387871001201L, 362387871001206L));
         assertEquals(6, count("RHN_SUP_INV_BAL", "ID_INV_BAL", 362387871001221L, 362387871001226L));
         assertEquals(0, jdbc.queryForObject("""
                 select count(*) from RHN_SUP_INV_BAL
                 where ID_INV_BAL between 362387871001221 and 362387871001226
-                  and QTY_AVAILABLE <= 0
+                  and QTY_AVAIL <= 0
                 """, Integer.class));
 
         Integer diseaseConcepts = jdbc.queryForObject("select count(*) from RHN_BD_CONCEPT", Integer.class);

@@ -26,12 +26,12 @@ class AnalyticsPilotTest extends RhnIntegrationTestSupport {
     private Timestamp time(String value){return Timestamp.from(OffsetDateTime.parse(value).toInstant());}
     private void registration(long tenant,long dept,String when,String status) {
         long id=GlobalIds.next();
-        jdbc.update("insert into RHN_SC_PAT_REG (ID_PAT_REG,ID_TNT,ID_PAT,ID_ORG,ID_DEPT,ID_ENC,CD_REG_NO,CD_IDEMP,SD_REG_SRC,SD_VISIT_TYPE,SD_STATUS,DT_REGISTERED,ID_USER_REGISTERED) values (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        jdbc.update("insert into RHN_SC_PAT_REG (ID_PAT_REG,ID_TNT,ID_PAT,ID_ORG,ID_DEPT,ID_ENC,CD_REG_NO,CD_IDEMP,SD_REG_SRC,SD_VISIT_TYPE,SD_STATUS,DT_REGD,ID_USER_REGD) values (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 id,tenant,362387869790213L,Long.valueOf(ORGANIZATION),dept,id,"P"+id,"P"+id,"DIRECT","INITIAL",status,time(when),jdbc.queryForObject("select min(ID_USER) from RHN_SYS_USER_ACCT where ID_TNT = ?", Long.class, tenant));
     }
     private void encounter(String when,String status,String kind) {
         long id=GlobalIds.next();
-        jdbc.update("insert into RHN_VIS_ENC (ID_ENC,ID_TNT,ID_PAT,CD_ENC_NO,ID_ORG,ID_DEPT,SD_STATUS,DT_REGISTERED,DT_COMPLETED,SD_ENC_CLASS) values (?,?,?,?,?,?,?,?,?,?)",
+        jdbc.update("insert into RHN_VIS_ENC (ID_ENC,ID_TNT,ID_PAT,CD_ENC_NO,ID_ORG,ID_DEPT,SD_STATUS,DT_REGD,DT_CMPLD,SD_ENC_CLASS) values (?,?,?,?,?,?,?,?,?,?)",
                 id,Long.valueOf(TENANT),362387869790213L,"P"+id,Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),status,time(when),time(when),kind);
     }
     @Test

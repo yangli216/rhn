@@ -18,8 +18,8 @@ public class QueueTicketEvent {
     @Column(name = "SD_STATUS_FROM") private String statusFrom;
     @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
-    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCRD", nullable = false) private Long occurredBy;
     @Column(name = "ID_SVC_LOC") private Long serviceLocationId;
     @Column(name = "DES_QUEUE_TICKET_EVT") private String description;
 

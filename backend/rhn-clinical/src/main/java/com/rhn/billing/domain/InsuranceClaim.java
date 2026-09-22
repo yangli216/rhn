@@ -24,7 +24,7 @@ public class InsuranceClaim {
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "SD_CLAIM_TYPE", nullable = false) private String claimType;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "SD_CURRENT_OPERATION", nullable = false) private String currentOperation;
+    @Column(name = "SD_CURRENT_OPER", nullable = false) private String currentOperation;
     @Column(name = "CD_REGION", nullable = false) private String regionCode;
     @Column(name = "CD_INS_TYPE", nullable = false) private String insuranceTypeCode;
     @Column(name = "NA_PAYER_SNAP", nullable = false) private String payerNameSnapshot;
@@ -38,13 +38,13 @@ public class InsuranceClaim {
     @Column(name = "CD_EXT_STL_NO") private String externalSettlementNo;
     @Column(name = "AMT_GROSS", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
     @Column(name = "AMT_INS_FUND", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceFundAmount;
-    @Column(name = "AMT_PERSONAL_ACCT", nullable = false, precision = 24, scale = 6) private BigDecimal personalAccountAmount;
+    @Column(name = "AMT_PERS_ACCT", nullable = false, precision = 24, scale = 6) private BigDecimal personalAccountAmount;
     @Column(name = "AMT_PAT_CASH", nullable = false, precision = 24, scale = 6) private BigDecimal patientCashAmount;
     @Column(name = "AMT_OTHER_FUND", nullable = false, precision = 24, scale = 6) private BigDecimal otherFundAmount;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
-    @Column(name = "ID_CORRELATION") private String correlationId;
-    @Column(name = "DES_REVERSAL_REASON") private String reversalReason;
-    @Column(name = "DT_REVERSED") private Instant reversedAt;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
+    @Column(name = "ID_CORR") private String correlationId;
+    @Column(name = "DES_RVRSL_REASON") private String reversalReason;
+    @Column(name = "DT_RVRSD") private Instant reversedAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;

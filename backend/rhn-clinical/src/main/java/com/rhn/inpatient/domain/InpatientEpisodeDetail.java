@@ -10,25 +10,25 @@ import jakarta.persistence.Table;
 public class InpatientEpisodeDetail {
     @Id @Column(name = "ID_CARE_EPISODE") private Long episodeId;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
-    @Column(name = "CD_ADMISSION_TYPE") private String admissionTypeCode;
-    @Column(name = "CD_ADMISSION_SRC") private String admissionSourceCode;
-    @Column(name = "ID_SVC_LOC_ADMISSION") private Long admissionLocationId;
-    @Column(name = "DES_ADMISSION_REASON") private String admissionReason;
-    @Column(name = "CD_ADMISSION_METHOD") private String admissionMethodCode;
+    @Column(name = "CD_ADM_TYPE") private String admissionTypeCode;
+    @Column(name = "CD_ADM_SRC") private String admissionSourceCode;
+    @Column(name = "ID_SVC_LOC_ADM") private Long admissionLocationId;
+    @Column(name = "DES_ADM_REASON") private String admissionReason;
+    @Column(name = "CD_ADM_METHOD") private String admissionMethodCode;
     @Column(name = "CD_COND") private String conditionCode;
     @Column(name = "CD_PAY_METHOD") private String paymentMethodCode;
     @Column(name = "NA_REFER_ORG") private String referralOrganizationName;
-    @Column(name = "NA_EMERGENCY_CONTACT") private String emergencyContactName;
-    @Column(name = "EMERGENCY_CONTACT_RELATIONSHIP") private String emergencyContactRelationship;
-    @Column(name = "EMERGENCY_CONTACT_PHONE") private String emergencyContactPhone;
-    @Column(name = "DES_ADMISSION_NOTE") private String admissionNote;
-    @Column(name = "CD_DISCHARGE_DISPOSITION") private String dischargeDispositionCode;
-    @Column(name = "ID_SVC_LOC_DISCHARGE") private Long dischargeLocationId;
-    @Column(name = "DES_DISCHARGE_NOTE") private String dischargeNote;
+    @Column(name = "NA_EMERG_CONTACT") private String emergencyContactName;
+    @Column(name = "EMERG_CONTACT_RELSHIP") private String emergencyContactRelationship;
+    @Column(name = "EMERG_CONTACT_PHONE") private String emergencyContactPhone;
+    @Column(name = "DES_ADM_NOTE") private String admissionNote;
+    @Column(name = "CD_DISCH_DISPOS") private String dischargeDispositionCode;
+    @Column(name = "ID_SVC_LOC_DISCH") private Long dischargeLocationId;
+    @Column(name = "DES_DISCH_NOTE") private String dischargeNote;
     @Column(name = "CD_NURS_LEVEL") private String nursingLevelCode;
     @Column(name = "CD_DIET") private String dietCode;
     @Column(name = "CD_BED_SNAP") private String bedNoSnapshot;
-    @Column(name = "ID_RESPONSIBLE_NURSE") private Long responsibleNurseId;
+    @Column(name = "ID_RSPNSBL_NURSE") private Long responsibleNurseId;
 
     protected InpatientEpisodeDetail() {
     }

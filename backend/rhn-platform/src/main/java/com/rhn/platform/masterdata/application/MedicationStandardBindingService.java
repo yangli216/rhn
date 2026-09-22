@@ -45,10 +45,10 @@ public class MedicationStandardBindingService {
         var reference = standards.reference(context.tenantId(), medication.id());
         var candidates = catalog.identityCandidates(medication.code(), medication.name(), medication.aliasName()).stream().map(spec -> {
             var issues = standards.identityIssues(medication, spec);
-            var owner = sources.findByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCode(context.tenantId(),
+            var owner = sources.findFirstByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCodeOrderByMedicationIdAsc(context.tenantId(),
                     identity.catalogId(), identity.catalogVersion(), spec.path("id").asString()).map(s -> s.medicationId()).orElse(null);
             return new Candidate(spec, issues, owner, context.hasAuthority("MASTER_DATA.MANAGE")
-                    && "ACTIVE".equals(medication.status()) && "UNMAPPED".equals(reference.status()) && issues.isEmpty() && owner == null);
+                    && "ACTIVE".equals(medication.status()) && "UNMAPPED".equals(reference.status()) && issues.isEmpty());
         }).sorted(Comparator.comparing(Candidate::canBind).reversed().thenComparing(c -> c.specification().path("id").asString())).toList();
         var bindings = sources.findByTenantIdAndMedicationId(context.tenantId(), medication.id()).stream()
                 .map(s -> new Binding(s.catalogCode(), s.catalogVersion(), s.entryCode(), s.specificationCode(), s.sourceHash())).toList();
@@ -72,10 +72,10 @@ public class MedicationStandardBindingService {
         var before = preview(medication);
         if (!"UNMAPPED".equals(before.reference().status())) throw conflict("STANDARD_BINDING_EXISTS", "已有标准关联不能直接覆盖；当前入口仅支持未关联药品");
         if (before.candidates().stream().noneMatch(c -> c.canBind() && c.specification().path("id").asString().equals(input.specificationId())))
-            throw conflict("STANDARD_BINDING_NOT_ELIGIBLE", "所选规格身份不一致、已被其他药品使用或药品已停用，请刷新核对");
+            throw conflict("STANDARD_BINDING_NOT_ELIGIBLE", "所选规格身份不一致或药品已停用，请刷新核对");
         semantics.captureMedication(medication);
-        try { standards.link(context.tenantId(), medicationId, input.specificationId(), context.subjectId()); }
-        catch (DataIntegrityViolationException concurrent) { throw conflict("STANDARD_BINDING_CONCURRENT", "该标准规格已被其他药品关联，请刷新核对"); }
+        try { standards.linkExisting(context.tenantId(), medicationId, input.specificationId(), context.subjectId()); }
+        catch (DataIntegrityViolationException concurrent) { throw conflict("STANDARD_BINDING_CONCURRENT", "该本地药品关联已变化，请刷新核对"); }
         var after = standards.reference(context.tenantId(), medicationId);
         if (!after.linked()) throw conflict("STANDARD_BINDING_NOT_ELIGIBLE", "关联校验未通过，请重新核对药品身份");
         var audit = new LinkedHashMap<String, Object>();

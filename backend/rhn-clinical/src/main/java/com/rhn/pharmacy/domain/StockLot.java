@@ -19,9 +19,9 @@ public class StockLot {
     @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
     @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
     @Column(name = "CD_LOT_NO", nullable = false) private String lotNo;
-    @Column(name = "DA_PRODUCTION") private LocalDate productionDate;
+    @Column(name = "DA_PROD") private LocalDate productionDate;
     @Column(name = "DA_EXPIRY") private LocalDate expiryDate;
-    @Column(name = "CD_APPROVAL_SNAP") private String approvalCodeSnapshot;
+    @Column(name = "CD_APRVL_SNAP") private String approvalCodeSnapshot;
     @Column(name = "NA_MFR_SNAP") private String manufacturerNameSnapshot;
     @Column(name = "SD_QUALITY_STATUS", nullable = false) private String qualityStatus;
     @Column(name = "DT_QUALITY", nullable = false) private Instant qualityAt;

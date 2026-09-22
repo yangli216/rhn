@@ -82,8 +82,8 @@ public class InventoryReconciliationApplicationService {
         String runNo = "REC" + RUN_TIME.format(started) + GlobalIds.randomSuffix(6);
         jdbc.update("""
                 insert into RHN_SUP_INV_RECON_RUN
-                (ID_INV_RECON_RUN, ID_TNT, ID_ORG, ID_STOCK_SITE, CD_RUN_NO, SD_RUN_TYPE, SD_STATUS, DA_BUSINESS,
-                 DT_STARTED, ID_USER_RUN, QTY_DIMENSION, QTY_ISSUE)
+                (ID_INV_RECON_RUN, ID_TNT, ID_ORG, ID_STOCK_SITE, CD_RUN_NO, SD_RUN_TYPE, SD_STATUS, DA_BIZ,
+                 DT_STARTED, ID_USER_RUN, QTY_DIM, QTY_ISSUE)
                 values (?, ?, ?, ?, ?, ?, 'RUNNING', ?, ?, ?, 0, 0)
                 """, runId, tenantId, organizationId, siteId, runNo, runType,
                 new SqlParameterValue(Types.DATE, java.sql.Date.valueOf(businessDate)),
@@ -101,27 +101,27 @@ public class InventoryReconciliationApplicationService {
                 ), reservation_totals as (
                     select ID_TNT as tenant_id, ID_STOCK_SITE as stock_site_id, ID_STOCK_BIN as stock_bin_id,
                            ID_STOCK_ITEM as stock_item_id, ID_STOCK_LOT as stock_lot_id,
-                           sum(QTY_RESERVED - QTY_CONSUMED) as quantity from RHN_SUP_INV_RESV
+                           sum(QTY_RESVD - QTY_CNSMD) as quantity from RHN_SUP_INV_RESV
                     where ID_TNT = ? and ID_STOCK_SITE = ? and SD_STATUS in ('ACTIVE', 'PARTIAL')
                     group by ID_TNT, ID_STOCK_SITE, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT
                 ), open_package_totals as (
                     select ID_TNT as tenant_id, ID_STOCK_SITE as stock_site_id, ID_STOCK_BIN as stock_bin_id,
                            ID_STOCK_ITEM as stock_item_id, ID_STOCK_LOT as stock_lot_id,
-                           sum(QTY_REMAINING_BASE) as quantity from RHN_SUP_INV_OPEN_PKG
+                           sum(QTY_REM_BASE) as quantity from RHN_SUP_INV_OPEN_PKG
                     where ID_TNT = ? and ID_STOCK_SITE = ? and SD_STATUS = 'OPEN'
                     group by ID_TNT, ID_STOCK_SITE, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT
                 ), trace_totals as (
                     select ID_TNT as tenant_id, ID_STOCK_SITE as stock_site_id, ID_STOCK_BIN as stock_bin_id,
                            ID_STOCK_ITEM as stock_item_id, ID_STOCK_LOT as stock_lot_id,
-                           sum(QTY_REMAINING_BASE) as quantity from RHN_SUP_INV_TRACE_CODE
+                           sum(QTY_REM_BASE) as quantity from RHN_SUP_INV_TRACE_CODE
                     where ID_TNT = ? and ID_STOCK_SITE = ?
                       and SD_STATUS in ('AVAILABLE', 'OPENED', 'PARTIALLY_ISSUED')
                     group by ID_TNT, ID_STOCK_SITE, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT
                 )
                 select b.ID_STOCK_BIN as stock_bin_id, b.ID_STOCK_ITEM as stock_item_id, b.ID_STOCK_LOT as stock_lot_id, b.SD_STOCK_STATUS as stock_status,
                        b.QTY_ON_HAND as quantity_on_hand, coalesce(l.quantity, 0) as ledger_quantity,
-                       b.QTY_RESERVED as quantity_reserved, coalesce(r.quantity, 0) as reservation_quantity,
-                       coalesce(p.quantity, 0) as open_quantity, i.FG_TRACE_REQUIRED as trace_required,
+                       b.QTY_RESVD as quantity_reserved, coalesce(r.quantity, 0) as reservation_quantity,
+                       coalesce(p.quantity, 0) as open_quantity, i.FG_TRACE_RQD as trace_required,
                        coalesce(t.quantity, 0) as trace_quantity from RHN_SUP_INV_BAL b
                 join RHN_SUP_STOCK_ITEM i on i.ID_TNT = b.ID_TNT and i.ID_STOCK_ITEM = b.ID_STOCK_ITEM
                 left join ledger_totals l
@@ -158,8 +158,8 @@ public class InventoryReconciliationApplicationService {
         for (Issue issue : issues) insertLine(tenantId, runId, issue);
         String status = issues.isEmpty() ? "PASSED" : "ISSUES"; Instant completed = Instant.now();
         jdbc.update("""
-                update RHN_SUP_INV_RECON_RUN set SD_STATUS = ?, DT_COMPLETED = ?,
-                       QTY_DIMENSION = ?, QTY_ISSUE = ? where ID_TNT = ? and ID_INV_RECON_RUN = ?
+                update RHN_SUP_INV_RECON_RUN set SD_STATUS = ?, DT_CMPLD = ?,
+                       QTY_DIM = ?, QTY_ISSUE = ? where ID_TNT = ? and ID_INV_RECON_RUN = ?
                 """, status, new SqlParameterValue(Types.TIMESTAMP, Timestamp.from(completed)),
                 balances.size(), issues.size(), tenantId, runId);
         return load(tenantId, runId);
@@ -174,8 +174,8 @@ public class InventoryReconciliationApplicationService {
         jdbc.update("""
                 insert into RHN_SUP_INV_RECON_LINE
                 (ID_INV_RECON_LINE, ID_TNT, ID_INV_RECON_RUN, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT,
-                 SD_STOCK_STATUS, SD_ISSUE_TYPE, QTY_EXPECTED, QTY_ACTUAL, QTY_DIFFERENCE,
-                 SD_SEVERITY, DES_INV_RECON_LINE)
+                 SD_STOCK_STATUS, SD_ISSUE_TYPE, QTY_EXPCTD, QTY_ACTUAL, QTY_DIFF,
+                 SD_SEV, DES_INV_RECON_LINE)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, GlobalIds.next(), tenantId, runId, issue.dimension().binId(), issue.dimension().itemId(),
                 issue.dimension().lotId(), issue.dimension().status(), issue.type(), issue.expected(), issue.actual(),
@@ -184,9 +184,9 @@ public class InventoryReconciliationApplicationService {
 
     private ReconciliationRunView load(Long tenantId, Long id) {
         List<ReconciliationRunView> runs = jdbc.query("""
-                select ID_INV_RECON_RUN as id, ID_STOCK_SITE as stock_site_id, CD_RUN_NO as run_no, SD_RUN_TYPE as run_type, SD_STATUS as status, DA_BUSINESS as business_date, DT_STARTED as started_at,
-                       DT_COMPLETED as completed_at, ID_USER_RUN as run_by,
-                       QTY_DIMENSION as dimension_count, QTY_ISSUE as issue_count
+                select ID_INV_RECON_RUN as id, ID_STOCK_SITE as stock_site_id, CD_RUN_NO as run_no, SD_RUN_TYPE as run_type, SD_STATUS as status, DA_BIZ as business_date, DT_STARTED as started_at,
+                       DT_CMPLD as completed_at, ID_USER_RUN as run_by,
+                       QTY_DIM as dimension_count, QTY_ISSUE as issue_count
                   from RHN_SUP_INV_RECON_RUN where ID_TNT = ? and ID_INV_RECON_RUN = ?
                 """, (rs, row) -> new ReconciliationRunView(rs.getLong("id"), rs.getLong("stock_site_id"),
                 rs.getString("run_no"), rs.getString("run_type"), rs.getString("status"),
@@ -199,13 +199,13 @@ public class InventoryReconciliationApplicationService {
     private List<ReconciliationLineView> lines(Long tenantId, Long runId) {
         return jdbc.query("""
                 select ID_INV_RECON_LINE as id, ID_STOCK_BIN as stock_bin_id, ID_STOCK_ITEM as stock_item_id, ID_STOCK_LOT as stock_lot_id, SD_STOCK_STATUS as stock_status, SD_ISSUE_TYPE as issue_type,
-                       QTY_EXPECTED as expected_quantity, QTY_ACTUAL as actual_quantity, QTY_DIFFERENCE as difference_quantity,
-                       SD_VALUAT_BASIS as valuation_basis, CD_CURRENCY as currency_code,
-                       AMT_EXPECTED as expected_amount, AMT_ACTUAL as actual_amount,
-                       AMT_DIFFERENCE as difference_amount,
-                       SD_SEVERITY as severity, DES_INV_RECON_LINE as description
+                       QTY_EXPCTD as expected_quantity, QTY_ACTUAL as actual_quantity, QTY_DIFF as difference_quantity,
+                       SD_VALUAT_BASIS as valuation_basis, CD_CCY as currency_code,
+                       AMT_EXPCTD as expected_amount, AMT_ACTUAL as actual_amount,
+                       AMT_DIFF as difference_amount,
+                       SD_SEV as severity, DES_INV_RECON_LINE as description
                   from RHN_SUP_INV_RECON_LINE where ID_TNT = ? and ID_INV_RECON_RUN = ?
-                order by case SD_SEVERITY when 'ERROR' then 0 else 1 end, SD_ISSUE_TYPE, ID_INV_RECON_LINE
+                order by case SD_SEV when 'ERROR' then 0 else 1 end, SD_ISSUE_TYPE, ID_INV_RECON_LINE
                 """, (rs, row) -> new ReconciliationLineView(rs.getLong("id"), nullableLong(rs, "stock_bin_id"),
                 nullableLong(rs, "stock_item_id"), nullableLong(rs, "stock_lot_id"), rs.getString("stock_status"),
                 rs.getString("issue_type"), rs.getBigDecimal("expected_quantity"), rs.getBigDecimal("actual_quantity"),

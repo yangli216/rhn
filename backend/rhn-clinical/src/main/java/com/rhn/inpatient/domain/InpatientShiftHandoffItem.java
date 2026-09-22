@@ -18,7 +18,7 @@ public class InpatientShiftHandoffItem {
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "NA_PAT_SNAP", nullable = false) private String residentNameSnapshot;
     @Column(name = "CD_BED_SNAP") private String bedNoSnapshot;
-    @Column(name = "DES_SITUATION", nullable = false) private String situation;
+    @Column(name = "DES_SITUAT", nullable = false) private String situation;
     @Lob @Column(name = "JSON_PENDING_ACTIONS", nullable = false) private String pendingActionsJson;
     @Lob @Column(name = "JSON_RISK_FLAGS", nullable = false) private String riskFlagsJson;
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;

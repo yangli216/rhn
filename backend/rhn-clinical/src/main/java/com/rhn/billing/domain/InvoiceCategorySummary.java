@@ -16,7 +16,7 @@ public class InvoiceCategorySummary {
     @Column(name = "ID_INVOICE", nullable = false) private Long invoiceId;
     @Column(name = "CD_CAT", nullable = false) private String categoryCode;
     @Column(name = "NA_CAT_SNAP") private String categoryNameSnapshot;
-    @Column(name = "AMT_CATEGORY", nullable = false, precision = 24, scale = 6) private BigDecimal amount;
+    @Column(name = "AMT_CAT", nullable = false, precision = 24, scale = 6) private BigDecimal amount;
 
     protected InvoiceCategorySummary() {}
 

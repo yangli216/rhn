@@ -76,12 +76,12 @@ public class IdentityAccessAdministrationService {
         ExecutionContext context = current();
         if (!context.hasWorkContext()) {
             return jdbc.query("""
-                    select ID_USER as id, CD_USERNAME, SD_STATUS as status from RHN_SYS_USER_ACCT where ID_TNT = ? order by CD_USERNAME
+                    select ID_USER as id, CD_USRNM as username, SD_STATUS as status from RHN_SYS_USER_ACCT where ID_TNT = ? order by CD_USRNM
                     """, (result, index) -> new UserView(result.getLong("id"), result.getString("username"),
                     result.getString("status")), context.tenantId());
         }
         return jdbc.query("""
-                select distinct account.ID_USER as id, account.CD_USERNAME, account.SD_STATUS as status from RHN_SYS_USER_ACCT account
+                select distinct account.ID_USER as id, account.CD_USRNM as username, account.SD_STATUS as status from RHN_SYS_USER_ACCT account
                   join RHN_SYS_EMPL employment
                     on employment.ID_TNT = account.ID_TNT
                    and employment.ID_PRACT = account.ID_PRACT
@@ -95,7 +95,7 @@ public class IdentityAccessAdministrationService {
                    and (employment.DA_LEAVE is null or employment.DA_LEAVE >= current_date)
                    and assignment.DA_VALID_FROM <= current_date
                    and (assignment.DA_VALID_TO is null or assignment.DA_VALID_TO >= current_date)
-                 order by account.CD_USERNAME
+                 order by account.CD_USRNM
                 """, (result, index) -> new UserView(result.getLong("id"), result.getString("username"),
                 result.getString("status")), context.tenantId(), context.organizationId(), context.departmentId());
     }
@@ -115,7 +115,7 @@ public class IdentityAccessAdministrationService {
             parameters.add(context.departmentId());
         }
         return jdbc.query("""
-                select assignment.ID_USER_ROLE_ASSIGN as id, assignment.ID_USER as user_id, account.CD_USERNAME as username, assignment.ID_ACC_ROLE as role_id,
+                select assignment.ID_USER_ROLE_ASSIGN as id, assignment.ID_USER as user_id, account.CD_USRNM as username, assignment.ID_ACC_ROLE as role_id,
                        role.CD_ACC_ROLE as role_code, role.NA_ACC_ROLE as role_name,
                        assignment.ID_ORG as organization_id, organization.NA_ORG as organization_name,
                        assignment.ID_DEPT as department_id, department.NA_DEPT as department_name,
@@ -410,7 +410,7 @@ public class IdentityAccessAdministrationService {
     private void event(ExecutionContext context, String eventType, String targetType, Long targetId, String details) {
         jdbc.update("""
                 insert into RHN_AUD_IAM_AUTH_EVT
-                    (ID_IAM_AUTH_EVT, ID_TNT, SD_EVT_TYPE, SD_TARGET_TYPE, ID_TARGET, ID_USER_ACTOR, JSON_DETAIL, DT_OCCURRED)
+                    (ID_IAM_AUTH_EVT, ID_TNT, SD_EVT_TYPE, SD_TARGET_TYPE, ID_TARGET, ID_USER_ACTOR, JSON_DETAIL, DT_OCCRD)
                 values (?, ?, ?, ?, ?, ?, ?, ?)
                 """, GlobalIds.next(), context.tenantId(), eventType, targetType, targetId,
                 context.subjectId(), details, sqlTimestamp(Instant.now()));

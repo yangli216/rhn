@@ -31,7 +31,7 @@ class OrderDocumentInfoIntegrationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(put(path.replace(encounter, other)).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                 .content(update(1, "I10", false, null)))
                 .andExpect(status().isNotFound());
-        jdbc.update("update RHN_EX_REQ_GRP set SD_STATUS = 'ACTIVE', DT_SUBMITTED = CURRENT_TIMESTAMP, ID_USER_SUBMITTED = ID_USER_AUTHORED where ID_REQ_GRP = ?", rx.path("id").asLong());
+        jdbc.update("update RHN_EX_REQ_GRP set SD_STATUS = 'ACTIVE', DT_SUBMTD = CURRENT_TIMESTAMP, ID_USER_SUBMTD = ID_USER_AUTHRD where ID_REQ_GRP = ?", rx.path("id").asLong());
         mockMvc.perform(put(path).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                 .content(update(1, "I10", false, null)))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PRESCRIPTION_STATE_INVALID"));

@@ -180,7 +180,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -289,7 +289,7 @@
       },
       {
         "logical": "provider_code",
-        "physical": "CD_PROVIDER",
+        "physical": "CD_PRVDR",
         "comment": "提供方编码"
       },
       {
@@ -305,7 +305,7 @@
       },
       {
         "logical": "knowledge_version",
-        "physical": "CD_KNOWLEDGE_VER",
+        "physical": "CD_KNOW_VER",
         "comment": "knowledge版本",
         "previousPhysical": "KNOWLEDGE_VERSION"
       },
@@ -316,7 +316,7 @@
       },
       {
         "logical": "generated_at",
-        "physical": "DT_GENERATED",
+        "physical": "DT_GEND",
         "comment": "生成时间"
       },
       {
@@ -326,22 +326,22 @@
       },
       {
         "logical": "invalidated_at",
-        "physical": "DT_INVALIDATED",
+        "physical": "DT_INVLDD",
         "comment": "invalidated时间"
       },
       {
         "logical": "invalidation_reason",
-        "physical": "DES_INVALIDATION_REASON",
+        "physical": "DES_INVLDN_REASON",
         "comment": "invalidation原因"
       },
       {
         "logical": "requested_practitioner_id",
-        "physical": "ID_PRACT_REQUESTED",
+        "physical": "ID_PRACT_REQD",
         "comment": "申请医务人员标识"
       },
       {
         "logical": "requested_user_id",
-        "physical": "ID_USER_REQUESTED",
+        "physical": "ID_USER_REQD",
         "comment": "申请用户标识"
       },
       {
@@ -386,7 +386,7 @@
       },
       {
         "logical": "assertion_type",
-        "physical": "SD_ASSERTION_TYPE",
+        "physical": "SD_ASSERT_TYPE",
         "comment": "assertion类型"
       },
       {
@@ -401,45 +401,45 @@
       },
       {
         "logical": "verification_status",
-        "physical": "SD_VERIFICATION_STATUS",
+        "physical": "SD_VRFCTN_STATUS",
         "comment": "验证状态"
       },
       {
         "logical": "criticality_code",
-        "physical": "CD_CRITICALITY",
+        "physical": "CD_CRITCL",
         "comment": "criticality编码"
       },
       {
         "logical": "reaction_severity",
-        "physical": "SD_REACTION_SEVERITY",
+        "physical": "SD_REACT_SEV",
         "comment": "reaction严重程度",
         "previousPhysical": "REACTION_SEVERITY"
       },
       {
         "logical": "information_source",
-        "physical": "SD_INFORMATION_SRC",
+        "physical": "SD_INFO_SRC",
         "comment": "information来源",
         "previousPhysical": "INFORMATION_SOURCE"
       },
       {
         "logical": "substance_code_system_uri",
-        "physical": "CD_SUBSTANCE_CODE_SYS_URI",
+        "physical": "CD_SUBST_CODE_SYS_URI",
         "comment": "物质编码体系URI",
         "previousPhysical": "SUBSTANCE_CODE_SYSTEM_URI"
       },
       {
         "logical": "substance_code",
-        "physical": "CD_SUBSTANCE",
+        "physical": "CD_SUBST",
         "comment": "物质编码"
       },
       {
         "logical": "substance_display",
-        "physical": "NA_SUBSTANCE",
+        "physical": "NA_SUBST",
         "comment": "物质显示"
       },
       {
         "logical": "reaction_text",
-        "physical": "DES_REACTION",
+        "physical": "DES_REACT",
         "comment": "reaction文本",
         "previousPhysical": "REACTION_TEXT"
       },
@@ -450,47 +450,47 @@
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "记录时间"
       },
       {
         "logical": "recorder_practitioner_id",
-        "physical": "ID_PRACT_RECORDER",
+        "physical": "ID_PRACT_RECDR",
         "comment": "记录人医务人员标识"
       },
       {
         "logical": "recorder_user_id",
-        "physical": "ID_USER_RECORDER",
+        "physical": "ID_USER_RECDR",
         "comment": "记录人用户标识"
       },
       {
         "logical": "verified_at",
-        "physical": "DT_VERIFIED",
+        "physical": "DT_VRFD",
         "comment": "已验证时间"
       },
       {
         "logical": "verifier_practitioner_id",
-        "physical": "ID_PRACT_VERIFIER",
+        "physical": "ID_PRACT_VRFR",
         "comment": "verifier医务人员标识"
       },
       {
         "logical": "inactivated_at",
-        "physical": "DT_INACTIVATED",
+        "physical": "DT_INACTD",
         "comment": "inactivated时间"
       },
       {
         "logical": "inactivated_by",
-        "physical": "ID_USER_INACTIVATED",
+        "physical": "ID_USER_INACTD",
         "comment": "inactivated人标识"
       },
       {
         "logical": "inactivation_reason",
-        "physical": "DES_INACTIVATION_REASON",
+        "physical": "DES_INACTN_REASON",
         "comment": "inactivation原因"
       },
       {
         "logical": "id_allergen",
-        "physical": "ID_ALLERGEN",
+        "physical": "ID_ALRGN",
         "comment": "录入时选择的受控过敏原术语；为空表示自由文本"
       },
       {
@@ -564,7 +564,7 @@
       },
       {
         "logical": "replacement_appointment_id",
-        "physical": "ID_APPT_REPLACEMENT",
+        "physical": "ID_APPT_RPLCMNT",
         "comment": "replacement预约标识"
       },
       {
@@ -591,12 +591,12 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "occurred_by",
-        "physical": "ID_USER_OCCURRED",
+        "physical": "ID_USER_OCCRD",
         "comment": "发生人标识"
       },
       {
@@ -696,7 +696,7 @@
       },
       {
         "logical": "confirmed_at",
-        "physical": "DT_CONFIRMED",
+        "physical": "DT_CNFRMD",
         "comment": "确认时间"
       },
       {
@@ -727,17 +727,17 @@
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
         "logical": "cancellation_reason",
-        "physical": "DES_CANCELLATION_REASON",
+        "physical": "DES_CNCLN_REASON",
         "comment": "cancellation原因"
       },
       {
         "logical": "rescheduled_from_id",
-        "physical": "ID_APPT_RESCHEDULED_FROM",
+        "physical": "ID_APPT_RESCHD_FROM",
         "comment": "rescheduled原标识"
       },
       {
@@ -805,12 +805,12 @@
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -953,7 +953,7 @@
       },
       {
         "logical": "priority_code",
-        "physical": "CD_PRIORITY",
+        "physical": "CD_PRI",
         "comment": "优先级编码"
       },
       {
@@ -980,17 +980,17 @@
       },
       {
         "logical": "business_date",
-        "physical": "DA_BUSINESS",
+        "physical": "DA_BIZ",
         "comment": "业务日期"
       },
       {
         "logical": "authored_at",
-        "physical": "DT_AUTHORED",
+        "physical": "DT_AUTHRD",
         "comment": "开立时间"
       },
       {
         "logical": "authored_by",
-        "physical": "ID_USER_AUTHORED",
+        "physical": "ID_USER_AUTHRD",
         "comment": "开立人标识"
       },
       {
@@ -1001,12 +1001,12 @@
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
         "logical": "cancelled_by",
-        "physical": "ID_USER_CANCELLED",
+        "physical": "ID_USER_CNCLD",
         "comment": "取消人标识"
       },
       {
@@ -1041,12 +1041,12 @@
       },
       {
         "logical": "adoption_id",
-        "physical": "ID_ORG_CATALOG_ITEM_ADOPTION",
+        "physical": "ID_ORG_CATALOG_ITEM_ADOPT",
         "comment": "采用标识"
       },
       {
         "logical": "adoption_revision",
-        "physical": "SN_ADOPTION_VER",
+        "physical": "SN_ADOPT_VER",
         "comment": "采用修订",
         "previousPhysical": "ADOPTION_REVISION"
       },
@@ -1078,7 +1078,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -1094,7 +1094,7 @@
       },
       {
         "logical": "item_attribute_resolved_at",
-        "physical": "DT_ITEM_ATTR_RESOLVED",
+        "physical": "DT_ITEM_ATTR_RSLVD",
         "comment": "项目属性已解决时间"
       },
       {
@@ -1186,7 +1186,7 @@
       },
       {
         "logical": "result_description",
-        "physical": "DES_RESULT_DESCRIPTION",
+        "physical": "DES_RESULT_DESCR",
         "comment": "结果说明"
       },
       {
@@ -1212,7 +1212,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -1287,7 +1287,7 @@
       },
       {
         "logical": "priority",
-        "physical": "SD_PRIORITY",
+        "physical": "SD_PRI",
         "comment": "优先级",
         "previousPhysical": "PRIORITY"
       },
@@ -1313,7 +1313,7 @@
       },
       {
         "logical": "escalation_rule_code",
-        "physical": "CD_ESCALATION_RULE",
+        "physical": "CD_ESCLN_RULE",
         "comment": "升级规则编码"
       },
       {
@@ -1399,7 +1399,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -1443,7 +1443,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       }
     ]
@@ -1493,7 +1493,7 @@
       },
       {
         "logical": "expected_amount",
-        "physical": "AMT_EXPECTED",
+        "physical": "AMT_EXPCTD",
         "comment": "预期金额"
       },
       {
@@ -1503,12 +1503,12 @@
       },
       {
         "logical": "difference_amount",
-        "physical": "AMT_DIFFERENCE",
+        "physical": "AMT_DIFF",
         "comment": "差额金额"
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       }
     ]
@@ -1547,7 +1547,7 @@
       },
       {
         "logical": "reverses_close_id",
-        "physical": "ID_CASHIER_CLOSE_REVERSES",
+        "physical": "ID_CASHIER_CLOSE_RVRS",
         "comment": "冲正日结标识"
       },
       {
@@ -1562,7 +1562,7 @@
       },
       {
         "logical": "terminal_code",
-        "physical": "CD_TERMINAL",
+        "physical": "CD_TRMNL",
         "comment": "终端编码"
       },
       {
@@ -1588,7 +1588,7 @@
       },
       {
         "logical": "expected_amount",
-        "physical": "AMT_EXPECTED",
+        "physical": "AMT_EXPCTD",
         "comment": "预期金额"
       },
       {
@@ -1598,17 +1598,17 @@
       },
       {
         "logical": "difference_amount",
-        "physical": "AMT_DIFFERENCE",
+        "physical": "AMT_DIFF",
         "comment": "差额金额"
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
         "logical": "difference_reason",
-        "physical": "DES_DIFFERENCE_REASON",
+        "physical": "DES_DIFF_REASON",
         "comment": "差额原因"
       },
       {
@@ -1623,12 +1623,12 @@
       },
       {
         "logical": "confirmed_by",
-        "physical": "ID_USER_CONFIRMED",
+        "physical": "ID_USER_CNFRMD",
         "comment": "确认人标识"
       },
       {
         "logical": "confirmed_at",
-        "physical": "DT_CONFIRMED",
+        "physical": "DT_CNFRMD",
         "comment": "确认时间"
       },
       {
@@ -1756,7 +1756,7 @@
       },
       {
         "logical": "operation_type",
-        "physical": "SD_OPERATION_TYPE",
+        "physical": "SD_OPER_TYPE",
         "comment": "业务操作类型"
       },
       {
@@ -1776,7 +1776,7 @@
       },
       {
         "logical": "business_date",
-        "physical": "DA_BUSINESS",
+        "physical": "DA_BIZ",
         "comment": "业务日期"
       },
       {
@@ -1792,7 +1792,7 @@
       },
       {
         "logical": "succeeded_rows",
-        "physical": "QTY_SUCCEEDED_ROW",
+        "physical": "QTY_SUCCDD_ROW",
         "comment": "succeeded行数",
         "previousPhysical": "SUCCEEDED_ROWS"
       },
@@ -1869,12 +1869,12 @@
       },
       {
         "logical": "orderable",
-        "physical": "FG_ORDERABLE",
+        "physical": "FG_ORDRBL",
         "comment": "是否orderable"
       },
       {
         "logical": "chargeable",
-        "physical": "FG_CHARGEABLE",
+        "physical": "FG_CHGBL",
         "comment": "是否chargeable"
       },
       {
@@ -1979,7 +1979,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -2029,7 +2029,7 @@
       },
       {
         "logical": "replaces_price_id",
-        "physical": "ID_CATALOG_PRICE_REPLACES",
+        "physical": "ID_CATALOG_PRICE_RPLCS",
         "comment": "替代价格标识"
       }
     ]
@@ -2083,7 +2083,7 @@
       },
       {
         "logical": "quantity",
-        "physical": "QTY_COMPONENT",
+        "physical": "QTY_COMP",
         "comment": "数量",
         "previousPhysical": "QTY_QUANTITY"
       },
@@ -2104,7 +2104,7 @@
       },
       {
         "logical": "amount",
-        "physical": "AMT_COMPONENT",
+        "physical": "AMT_COMP",
         "comment": "金额",
         "previousPhysical": "AMT_AMOUNT"
       }
@@ -2200,7 +2200,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -2231,7 +2231,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
@@ -2241,7 +2241,7 @@
       },
       {
         "logical": "reverses_charge_item_id",
-        "physical": "ID_CHARGE_ITEM_REVERSES",
+        "physical": "ID_CHARGE_ITEM_RVRS",
         "comment": "冲正收费项目标识"
       },
       {
@@ -2334,7 +2334,7 @@
       },
       {
         "logical": "content_digest_algorithm",
-        "physical": "CONTENT_DIGEST_ALGORITHM",
+        "physical": "CONTENT_DIGEST_ALGO",
         "comment": "内容摘要算法"
       },
       {
@@ -2345,7 +2345,7 @@
       },
       {
         "logical": "integrity_evidence_id",
-        "physical": "ID_CRYPTO_EVID_INTEGRITY",
+        "physical": "ID_CRYPTO_EVID_INTGR",
         "comment": "integrity证据标识"
       },
       {
@@ -2435,7 +2435,7 @@
       },
       {
         "logical": "instance_key",
-        "physical": "CD_INSTANCE_KEY",
+        "physical": "CD_INST_KEY",
         "comment": "instance键",
         "previousPhysical": "INSTANCE_KEY"
       }
@@ -2475,7 +2475,7 @@
       },
       {
         "logical": "canonical_uri",
-        "physical": "CD_CANONICAL_URI",
+        "physical": "CD_CANON_URI",
         "comment": "规范URI",
         "previousPhysical": "CANONICAL_URI"
       },
@@ -2491,12 +2491,12 @@
       },
       {
         "logical": "effective_from",
-        "physical": "DA_EFFECTIVE_FROM",
+        "physical": "DA_EFF_FROM",
         "comment": "生效开始日期"
       },
       {
         "logical": "effective_to",
-        "physical": "DA_EFFECTIVE_TO",
+        "physical": "DA_EFF_TO",
         "comment": "生效结束日期"
       },
       {
@@ -2511,7 +2511,7 @@
       },
       {
         "logical": "publisher",
-        "physical": "PUBLISHER",
+        "physical": "PUBLSHR",
         "comment": "发布方"
       },
       {
@@ -2536,7 +2536,7 @@
       },
       {
         "logical": "authority_type",
-        "physical": "SD_AUTHORITY_TYPE",
+        "physical": "SD_AUTHRTY_TYPE",
         "comment": "授权机构类型"
       },
       {
@@ -2632,7 +2632,7 @@
       },
       {
         "logical": "equivalence",
-        "physical": "SD_EQUIVALENCE",
+        "physical": "SD_EQUIV",
         "comment": "等价关系",
         "previousPhysical": "EQUIVALENCE"
       },
@@ -2698,12 +2698,12 @@
       },
       {
         "logical": "effective_from",
-        "physical": "DA_EFFECTIVE_FROM",
+        "physical": "DA_EFF_FROM",
         "comment": "生效开始日期"
       },
       {
         "logical": "effective_to",
-        "physical": "DA_EFFECTIVE_TO",
+        "physical": "DA_EFF_TO",
         "comment": "生效结束日期"
       },
       {
@@ -2743,7 +2743,7 @@
       },
       {
         "logical": "replacement_concept_id",
-        "physical": "ID_CONCEPT_REPLACEMENT",
+        "physical": "ID_CONCEPT_RPLCMNT",
         "comment": "replacement概念标识"
       },
       {
@@ -2824,7 +2824,7 @@
       },
       {
         "logical": "verification_status",
-        "physical": "SD_VERIFICATION_STATUS",
+        "physical": "SD_VRFCTN_STATUS",
         "comment": "验证状态"
       },
       {
@@ -2834,22 +2834,22 @@
       },
       {
         "logical": "abatement_at",
-        "physical": "DT_ABATEMENT",
+        "physical": "DT_ABATE",
         "comment": "abatement时间"
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "记录时间"
       },
       {
         "logical": "recorder_practitioner_id",
-        "physical": "ID_PRACT_RECORDER",
+        "physical": "ID_PRACT_RECDR",
         "comment": "记录人医务人员标识"
       },
       {
         "logical": "recorder_user_id",
-        "physical": "ID_USER_RECORDER",
+        "physical": "ID_USER_RECDR",
         "comment": "记录人用户标识"
       }
     ]
@@ -2914,7 +2914,7 @@
       },
       {
         "logical": "inheritance_enabled",
-        "physical": "FG_INHERITANCE",
+        "physical": "FG_INHRT",
         "comment": "是否inheritanceenabled"
       },
       {
@@ -2969,12 +2969,12 @@
       },
       {
         "logical": "effective_from",
-        "physical": "DT_EFFECTIVE_FROM",
+        "physical": "DT_EFF_FROM",
         "comment": "生效开始日期"
       },
       {
         "logical": "effective_to",
-        "physical": "DT_EFFECTIVE_TO",
+        "physical": "DT_EFF_TO",
         "comment": "生效结束日期"
       },
       {
@@ -3063,12 +3063,12 @@
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -3132,12 +3132,12 @@
       },
       {
         "logical": "recipient_user_id",
-        "physical": "ID_USER_RECIPIENT",
+        "physical": "ID_USER_RCPNT",
         "comment": "recipient用户标识"
       },
       {
         "logical": "severity",
-        "physical": "SD_SEVERITY",
+        "physical": "SD_SEV",
         "comment": "严重程度",
         "previousPhysical": "SEVERITY"
       },
@@ -3175,27 +3175,27 @@
       },
       {
         "logical": "detected_at",
-        "physical": "DT_DETECTED",
+        "physical": "DT_DTCTD",
         "comment": "detected时间"
       },
       {
         "logical": "acknowledge_deadline_at",
-        "physical": "DT_ACKNOWLEDGE_DEADLINE",
+        "physical": "DT_ACK_DDLN",
         "comment": "acknowledgedeadline时间"
       },
       {
         "logical": "acknowledged_by",
-        "physical": "ID_USER_ACKNOWLEDGED",
+        "physical": "ID_USER_ACKD",
         "comment": "acknowledged人标识"
       },
       {
         "logical": "acknowledged_at",
-        "physical": "DT_ACKNOWLEDGED",
+        "physical": "DT_ACKD",
         "comment": "acknowledged时间"
       },
       {
         "logical": "acknowledge_note",
-        "physical": "DES_ACKNOWLEDGE_NOTE",
+        "physical": "DES_ACK_NOTE",
         "comment": "acknowledge备注"
       },
       {
@@ -3210,7 +3210,7 @@
       },
       {
         "logical": "disposition_code",
-        "physical": "CD_DISPOSITION",
+        "physical": "CD_DISPOS",
         "comment": "处置方式编码"
       },
       {
@@ -3220,12 +3220,12 @@
       },
       {
         "logical": "superseded_by_report_id",
-        "physical": "ID_DIAG_REPORT_SUPERSEDED",
+        "physical": "ID_DIAG_REPORT_SPRSDD",
         "comment": "supersededby报告标识"
       },
       {
         "logical": "escalation_level",
-        "physical": "SD_ESCALATION_LEVEL",
+        "physical": "SD_ESCLN_LEVEL",
         "comment": "升级等级",
         "previousPhysical": "ESCALATION_LEVEL"
       },
@@ -3270,18 +3270,18 @@
       },
       {
         "logical": "operation_code",
-        "physical": "CD_OPERATION",
+        "physical": "CD_OPER",
         "comment": "业务操作编码"
       },
       {
         "logical": "protection_profile",
-        "physical": "SD_PROTECTION_PROF",
+        "physical": "SD_PROT_PROF",
         "comment": "保护档案",
         "previousPhysical": "PROTECTION_PROFILE"
       },
       {
         "logical": "protection_purpose",
-        "physical": "SD_PROTECTION_PURPOSE",
+        "physical": "SD_PROT_PURPOSE",
         "comment": "保护用途",
         "previousPhysical": "PROTECTION_PURPOSE"
       },
@@ -3293,7 +3293,7 @@
       },
       {
         "logical": "content_digest_algorithm",
-        "physical": "CONTENT_DIGEST_ALGORITHM",
+        "physical": "CONTENT_DIGEST_ALGO",
         "comment": "内容摘要算法"
       },
       {
@@ -3304,50 +3304,50 @@
       },
       {
         "logical": "statement_version",
-        "physical": "SN_STATEMENT_VER",
+        "physical": "SN_STMT_VER",
         "comment": "声明版本",
         "previousPhysical": "STATEMENT_VERSION"
       },
       {
         "logical": "statement_json",
-        "physical": "JSON_STATEMENT",
+        "physical": "JSON_STMT",
         "comment": "声明JSON"
       },
       {
         "logical": "statement_digest_algorithm",
-        "physical": "STATEMENT_DIGEST_ALGORITHM",
+        "physical": "STMT_DIGEST_ALGO",
         "comment": "声明摘要算法"
       },
       {
         "logical": "statement_digest",
-        "physical": "HASH_STATEMENT",
+        "physical": "HASH_STMT",
         "comment": "声明摘要",
         "previousPhysical": "STATEMENT_DIGEST"
       },
       {
         "logical": "previous_evidence_id",
-        "physical": "ID_CRYPTO_EVID_PREVIOUS",
+        "physical": "ID_CRYPTO_EVID_PREV",
         "comment": "上一证据标识"
       },
       {
         "logical": "provider_code",
-        "physical": "CD_PROVIDER",
+        "physical": "CD_PRVDR",
         "comment": "提供方编码"
       },
       {
         "logical": "provider_assurance",
-        "physical": "PROVIDER_ASSURANCE",
+        "physical": "PRVDR_ASSUR",
         "comment": "提供方可信等级"
       },
       {
         "logical": "signature_algorithm",
-        "physical": "SD_SIGN_ALGORITHM",
+        "physical": "SD_SIGN_ALGO",
         "comment": "签名算法",
         "previousPhysical": "SIGNATURE_ALGORITHM"
       },
       {
         "logical": "signature_value",
-        "physical": "SIGNATURE_VALUE",
+        "physical": "SIGNTR_VALUE",
         "comment": "签名值"
       },
       {
@@ -3372,19 +3372,19 @@
       },
       {
         "logical": "verification_material",
-        "physical": "DES_VERIFICATION_MATERIAL",
+        "physical": "DES_VRFCTN_MATL",
         "comment": "验证material",
         "previousPhysical": "VERIFICATION_MATERIAL"
       },
       {
         "logical": "certificate_serial",
-        "physical": "CD_CERTIFICATE_SERIAL",
+        "physical": "CD_CERT_SERIAL",
         "comment": "证书序列号",
         "previousPhysical": "CERTIFICATE_SERIAL"
       },
       {
         "logical": "certificate_issuer",
-        "physical": "CERTIFICATE_ISSUER",
+        "physical": "CERT_ISSUER",
         "comment": "证书签发方"
       },
       {
@@ -3394,22 +3394,22 @@
       },
       {
         "logical": "timestamp_authority",
-        "physical": "TIMESTAMP_AUTHORITY",
+        "physical": "TS_AUTHRTY",
         "comment": "时间戳授权机构"
       },
       {
         "logical": "timestamp_token",
-        "physical": "TIMESTAMP_TOKEN",
+        "physical": "TS_TOKEN",
         "comment": "时间戳令牌"
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "记录时间"
       }
     ]
@@ -3443,7 +3443,7 @@
       },
       {
         "logical": "qualification_basis_code",
-        "physical": "CD_QUALIFICATION_BASIS",
+        "physical": "CD_QUALIF_BASIS",
         "comment": "qualification依据编码"
       },
       {
@@ -3626,7 +3626,7 @@
       },
       {
         "logical": "external_responsible_name",
-        "physical": "NA_EXT_RESPONSIBLE",
+        "physical": "NA_EXT_RSPNSBL",
         "comment": "外部responsible名称"
       },
       {
@@ -3715,7 +3715,7 @@
       },
       {
         "logical": "department_property",
-        "physical": "SD_DEPT_PROPERTY",
+        "physical": "SD_DEPT_PROP",
         "comment": "科室property",
         "previousPhysical": "DEPARTMENT_PROPERTY"
       },
@@ -3870,12 +3870,12 @@
       },
       {
         "logical": "collected_at",
-        "physical": "DT_COLLECTED",
+        "physical": "DT_COLLD",
         "comment": "collected时间"
       },
       {
         "logical": "collected_by",
-        "physical": "ID_USER_COLLECTED",
+        "physical": "ID_USER_COLLD",
         "comment": "collected人标识"
       },
       {
@@ -3885,7 +3885,7 @@
       },
       {
         "logical": "collection_note",
-        "physical": "DES_COLLECTION_NOTE",
+        "physical": "DES_COLL_NOTE",
         "comment": "collection备注"
       },
       {
@@ -3900,12 +3900,12 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
         "logical": "completed_by",
-        "physical": "ID_USER_COMPLETED",
+        "physical": "ID_USER_CMPLD",
         "comment": "完成人标识"
       },
       {
@@ -3915,7 +3915,7 @@
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
@@ -3988,7 +3988,7 @@
       },
       {
         "logical": "endpoint_code",
-        "physical": "CD_ENDPOINT",
+        "physical": "CD_ENDPT",
         "comment": "endpoint编码"
       },
       {
@@ -4004,7 +4004,7 @@
       },
       {
         "logical": "replaces_report_id",
-        "physical": "ID_DIAG_REPORT_REPLACES",
+        "physical": "ID_DIAG_REPORT_RPLCS",
         "comment": "替代报告标识"
       },
       {
@@ -4034,12 +4034,12 @@
       },
       {
         "logical": "received_at",
-        "physical": "DT_RECEIVED",
+        "physical": "DT_RECVD",
         "comment": "接收时间"
       },
       {
         "logical": "conclusion",
-        "physical": "DES_CONCLUSION",
+        "physical": "DES_CONCL",
         "comment": "结论",
         "previousPhysical": "CONCLUSION"
       },
@@ -4055,7 +4055,7 @@
       },
       {
         "logical": "content_digest_algorithm",
-        "physical": "CONTENT_DIGEST_ALGORITHM",
+        "physical": "CONTENT_DIGEST_ALGO",
         "comment": "内容摘要算法"
       },
       {
@@ -4135,13 +4135,13 @@
       },
       {
         "logical": "cardinality",
-        "physical": "SD_CARDINALITY",
+        "physical": "SD_CARDNL",
         "comment": "基数",
         "previousPhysical": "CARDINALITY"
       },
       {
         "logical": "reference_dictionary_id",
-        "physical": "ID_DICT_DEF_REFERENCE_DICT",
+        "physical": "ID_DICT_DEF_REF_DICT",
         "comment": "参考字典标识"
       },
       {
@@ -4163,12 +4163,12 @@
       },
       {
         "logical": "required_value",
-        "physical": "FG_REQUIRED_VAL",
+        "physical": "FG_RQD_VAL",
         "comment": "是否应需值"
       },
       {
         "logical": "searchable",
-        "physical": "FG_SEARCHABLE",
+        "physical": "FG_SRCHBL",
         "comment": "是否searchable"
       },
       {
@@ -4538,12 +4538,12 @@
       },
       {
         "logical": "datetime_value",
-        "physical": "DT_DATETIME_VAL",
+        "physical": "DT_DTTM_VAL",
         "comment": "datetime值"
       },
       {
         "logical": "reference_item_id",
-        "physical": "ID_DICT_ITEM_REFERENCE",
+        "physical": "ID_DICT_ITEM_REF",
         "comment": "参考项目标识"
       },
       {
@@ -4651,12 +4651,12 @@
       },
       {
         "logical": "effective_from",
-        "physical": "DA_EFFECTIVE_FROM",
+        "physical": "DA_EFF_FROM",
         "comment": "生效开始日期"
       },
       {
         "logical": "effective_to",
-        "physical": "DA_EFFECTIVE_TO",
+        "physical": "DA_EFF_TO",
         "comment": "生效结束日期"
       },
       {
@@ -4671,7 +4671,7 @@
       },
       {
         "logical": "inclusion_mode",
-        "physical": "SD_INCLUSION_MODE",
+        "physical": "SD_INCL_MODE",
         "comment": "inclusion模式"
       }
     ]
@@ -4736,7 +4736,7 @@
       },
       {
         "logical": "report_deadline_hours",
-        "physical": "QTY_REPORT_DEADLINE_HOURS",
+        "physical": "QTY_REPORT_DDLN_HOURS",
         "comment": "报告deadlinehours",
         "previousPhysical": "REPORT_DEADLINE_HOURS"
       },
@@ -4747,12 +4747,12 @@
       },
       {
         "logical": "effective_from",
-        "physical": "DA_EFFECTIVE_FROM",
+        "physical": "DA_EFF_FROM",
         "comment": "生效开始日期"
       },
       {
         "logical": "effective_to",
-        "physical": "DA_EFFECTIVE_TO",
+        "physical": "DA_EFF_TO",
         "comment": "生效结束日期"
       },
       {
@@ -4786,7 +4786,7 @@
       },
       {
         "logical": "inclusion_mode",
-        "physical": "SD_INCLUSION_MODE",
+        "physical": "SD_INCL_MODE",
         "comment": "inclusion模式"
       },
       {
@@ -4978,7 +4978,7 @@
       },
       {
         "logical": "requested_quantity",
-        "physical": "QTY_REQUESTED",
+        "physical": "QTY_REQD",
         "comment": "申请数量"
       },
       {
@@ -4988,12 +4988,12 @@
       },
       {
         "logical": "dispensed_quantity",
-        "physical": "QTY_DISPENSED",
+        "physical": "QTY_DSPNSD",
         "comment": "dispensed数量"
       },
       {
         "logical": "returned_quantity",
-        "physical": "QTY_RETURNED",
+        "physical": "QTY_RETD",
         "comment": "returned数量"
       },
       {
@@ -5003,7 +5003,7 @@
       },
       {
         "logical": "base_quantity_factor",
-        "physical": "BASE_QUANTITY_FACTOR",
+        "physical": "BASE_QTY_FACTOR",
         "comment": "基础数量换算系数"
       },
       {
@@ -5013,7 +5013,7 @@
       },
       {
         "logical": "trace_required",
-        "physical": "FG_TRACE_REQUIRED",
+        "physical": "FG_TRACE_RQD",
         "comment": "是否追溯应需"
       },
       {
@@ -5033,7 +5033,7 @@
       },
       {
         "logical": "package_spec_snapshot",
-        "physical": "PACKAGE_SPEC_SNAPSHOT",
+        "physical": "PACKAGE_SPEC_SNAP",
         "comment": "包装规格快照"
       },
       {
@@ -5123,7 +5123,7 @@
       },
       {
         "logical": "priority",
-        "physical": "SD_PRIORITY",
+        "physical": "SD_PRI",
         "comment": "优先级",
         "previousPhysical": "PRIORITY"
       },
@@ -5149,7 +5149,7 @@
       },
       {
         "logical": "assigned_practitioner_id",
-        "physical": "ID_ASSIGNED_PRACT",
+        "physical": "ID_ASGND_PRACT",
         "comment": "assigned医务人员标识"
       },
       {
@@ -5169,7 +5169,7 @@
       },
       {
         "logical": "pick_description",
-        "physical": "DES_PICK_DESCRIPTION",
+        "physical": "DES_PICK_DESCR",
         "comment": "pick说明"
       }
     ]
@@ -5282,7 +5282,7 @@
       },
       {
         "logical": "expected_revision",
-        "physical": "SN_EXPECTED_VER",
+        "physical": "SN_EXPCTD_VER",
         "comment": "预期修订",
         "previousPhysical": "EXPECTED_REVISION"
       },
@@ -5343,7 +5343,7 @@
       },
       {
         "logical": "severity",
-        "physical": "SD_SEVERITY",
+        "physical": "SD_SEV",
         "comment": "严重程度",
         "previousPhysical": "SEVERITY"
       },
@@ -5393,7 +5393,7 @@
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "记录时间"
       },
       {
@@ -5403,12 +5403,12 @@
       },
       {
         "logical": "business_version_no",
-        "physical": "CD_BUSINESS_VER_NO",
+        "physical": "CD_BIZ_VER_NO",
         "comment": "业务版本编号"
       },
       {
         "logical": "verification_status",
-        "physical": "SD_VERIFICATION_STATUS",
+        "physical": "SD_VRFCTN_STATUS",
         "comment": "验证状态"
       },
       {
@@ -5449,7 +5449,7 @@
       },
       {
         "logical": "code_system_version_snapshot",
-        "physical": "CODE_SYSTEM_VERSION_SNAPSHOT",
+        "physical": "CODE_SYSTEM_VERSION_SNAP",
         "comment": "编码体系版本快照"
       },
       {
@@ -5520,7 +5520,7 @@
       },
       {
         "logical": "business_version_no",
-        "physical": "CD_BUSINESS_VER_NO",
+        "physical": "CD_BIZ_VER_NO",
         "comment": "业务版本编号"
       },
       {
@@ -5536,7 +5536,7 @@
       },
       {
         "logical": "verification_status",
-        "physical": "SD_VERIFICATION_STATUS",
+        "physical": "SD_VRFCTN_STATUS",
         "comment": "验证状态"
       },
       {
@@ -5579,7 +5579,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
@@ -5600,7 +5600,7 @@
       },
       {
         "logical": "code_system_version_snapshot",
-        "physical": "CODE_SYSTEM_VERSION_SNAPSHOT",
+        "physical": "CODE_SYSTEM_VERSION_SNAP",
         "comment": "编码体系版本快照"
       },
       {
@@ -5650,7 +5650,7 @@
       },
       {
         "logical": "check_scenario",
-        "physical": "SD_CHECK_SCENARIO",
+        "physical": "SD_CHECK_SCEN",
         "comment": "核查scenario",
         "previousPhysical": "CHECK_SCENARIO"
       },
@@ -5678,7 +5678,7 @@
       },
       {
         "logical": "terminal_code",
-        "physical": "CD_TERMINAL",
+        "physical": "CD_TRMNL",
         "comment": "终端编码"
       },
       {
@@ -5688,7 +5688,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -5785,7 +5785,7 @@
       },
       {
         "logical": "expected_revision",
-        "physical": "SN_EXPECTED_VER",
+        "physical": "SN_EXPCTD_VER",
         "comment": "预期修订",
         "previousPhysical": "EXPECTED_REVISION"
       },
@@ -5821,7 +5821,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ],
@@ -5866,7 +5866,7 @@
       },
       {
         "logical": "terminal_code",
-        "physical": "CD_TERMINAL",
+        "physical": "CD_TRMNL",
         "comment": "终端编码"
       },
       {
@@ -5881,7 +5881,7 @@
       },
       {
         "logical": "heartbeat_at",
-        "physical": "DT_HEARTBEAT",
+        "physical": "DT_HRTBT",
         "comment": "heartbeat时间"
       },
       {
@@ -5935,7 +5935,7 @@
       },
       {
         "logical": "clinician_id",
-        "physical": "ID_CLINICIAN",
+        "physical": "ID_CLNCN",
         "comment": "clinician标识"
       },
       {
@@ -5945,23 +5945,23 @@
       },
       {
         "logical": "chief_complaint",
-        "physical": "DES_CHIEF_COMPLAINT",
+        "physical": "DES_CHIEF_CMPLNT",
         "comment": "主诉求",
         "previousPhysical": "CHIEF_COMPLAINT"
       },
       {
         "logical": "systolic",
-        "physical": "SYSTOLIC",
+        "physical": "SBP",
         "comment": "收缩压"
       },
       {
         "logical": "diastolic",
-        "physical": "DIASTOLIC",
+        "physical": "DBP",
         "comment": "舒张压"
       },
       {
         "logical": "registered_at",
-        "physical": "DT_REGISTERED",
+        "physical": "DT_REGD",
         "comment": "registered时间"
       },
       {
@@ -5971,7 +5971,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
@@ -6007,22 +6007,22 @@
       },
       {
         "logical": "termination_code",
-        "physical": "CD_TERMINATION",
+        "physical": "CD_TRMN",
         "comment": "termination编码"
       },
       {
         "logical": "termination_reason",
-        "physical": "DES_TERMINATION_REASON",
+        "physical": "DES_TRMN_REASON",
         "comment": "termination原因"
       },
       {
         "logical": "terminated_at",
-        "physical": "DT_TERMINATED",
+        "physical": "DT_TRMND",
         "comment": "terminated时间"
       },
       {
         "logical": "terminated_by",
-        "physical": "ID_USER_TERMINATED",
+        "physical": "ID_USER_TRMND",
         "comment": "terminated人标识"
       },
       {
@@ -6062,7 +6062,7 @@
       },
       {
         "logical": "consumer_name",
-        "physical": "NA_CONSUMER",
+        "physical": "NA_CNSMR",
         "comment": "consumer名称"
       },
       {
@@ -6077,7 +6077,7 @@
       },
       {
         "logical": "processed_at",
-        "physical": "DT_PROCESSED",
+        "physical": "DT_PROCSD",
         "comment": "processed时间"
       },
       {
@@ -6138,12 +6138,12 @@
       },
       {
         "logical": "required_attachment",
-        "physical": "FG_REQUIRED_ATTACH",
+        "physical": "FG_RQD_ATTACH",
         "comment": "是否应需附件"
       },
       {
         "logical": "separately_chargeable",
-        "physical": "FG_SEPARATELY_CHARGEABLE",
+        "physical": "FG_SEPRLY_CHGBL",
         "comment": "是否separatelychargeable"
       },
       {
@@ -6207,7 +6207,7 @@
       },
       {
         "logical": "body_site_required",
-        "physical": "FG_BODY_SITE_REQUIRED",
+        "physical": "FG_BODY_SITE_RQD",
         "comment": "是否身体部位库房应需"
       },
       {
@@ -6223,7 +6223,7 @@
       },
       {
         "logical": "preparation_description",
-        "physical": "DES_PREPARATION_DESCRIPTION",
+        "physical": "DES_PREP_DESCR",
         "comment": "制剂说明"
       },
       {
@@ -6258,7 +6258,7 @@
       },
       {
         "logical": "included_site_count",
-        "physical": "QTY_INCLUDED_SITE",
+        "physical": "QTY_INCLD_SITE",
         "comment": "included库房盘点",
         "previousPhysical": "INCLUDED_SITE_COUNT"
       },
@@ -6282,7 +6282,7 @@
       },
       {
         "logical": "max_chargeable_site_count",
-        "physical": "QTY_MAX_CHARGEABLE_SITE",
+        "physical": "QTY_MAX_CHGBL_SITE",
         "comment": "最大chargeable库房盘点",
         "previousPhysical": "MAX_CHARGEABLE_SITE_COUNT"
       }
@@ -6322,12 +6322,12 @@
       },
       {
         "logical": "endpoint_code",
-        "physical": "CD_ENDPOINT",
+        "physical": "CD_ENDPT",
         "comment": "endpoint编码"
       },
       {
         "logical": "direction",
-        "physical": "SD_DIRECTION",
+        "physical": "SD_DIR",
         "comment": "方向",
         "previousPhysical": "DIRECTION"
       },
@@ -6338,12 +6338,12 @@
       },
       {
         "logical": "business_message_id",
-        "physical": "ID_BUSINESS_MSG",
+        "physical": "ID_BIZ_MSG",
         "comment": "业务消息标识"
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       },
       {
@@ -6358,7 +6358,7 @@
       },
       {
         "logical": "payload_digest_algorithm",
-        "physical": "PAYLOAD_DIGEST_ALGORITHM",
+        "physical": "PAYLOAD_DIGEST_ALGO",
         "comment": "载荷摘要算法"
       },
       {
@@ -6397,12 +6397,12 @@
       },
       {
         "logical": "received_at",
-        "physical": "DT_RECEIVED",
+        "physical": "DT_RECVD",
         "comment": "接收时间"
       },
       {
         "logical": "processed_at",
-        "physical": "DT_PROCESSED",
+        "physical": "DT_PROCSD",
         "comment": "processed时间"
       },
       {
@@ -6467,7 +6467,7 @@
       },
       {
         "logical": "destination_bin_id",
-        "physical": "ID_STOCK_BIN_DESTINATION",
+        "physical": "ID_STOCK_BIN_DEST",
         "comment": "目标库位标识"
       },
       {
@@ -6477,7 +6477,7 @@
       },
       {
         "logical": "production_date",
-        "physical": "DA_PRODUCTION",
+        "physical": "DA_PROD",
         "comment": "生产日期"
       },
       {
@@ -6487,17 +6487,17 @@
       },
       {
         "logical": "delivered_quantity",
-        "physical": "QTY_DELIVERED",
+        "physical": "QTY_DELIVD",
         "comment": "delivered数量"
       },
       {
         "logical": "accepted_quantity",
-        "physical": "QTY_ACCEPTED",
+        "physical": "QTY_ACPTD",
         "comment": "接受数量"
       },
       {
         "logical": "rejected_quantity",
-        "physical": "QTY_REJECTED",
+        "physical": "QTY_REJCTD",
         "comment": "rejected数量"
       },
       {
@@ -6513,7 +6513,7 @@
       },
       {
         "logical": "rejection_reason",
-        "physical": "DES_REJECTION_REASON",
+        "physical": "DES_REJCTN_REASON",
         "comment": "rejection原因"
       },
       {
@@ -6592,22 +6592,22 @@
       },
       {
         "logical": "received_at",
-        "physical": "DT_RECEIVED",
+        "physical": "DT_RECVD",
         "comment": "接收时间"
       },
       {
         "logical": "received_by",
-        "physical": "ID_USER_RECEIVED",
+        "physical": "ID_USER_RECVD",
         "comment": "接收人标识"
       },
       {
         "logical": "inspected_at",
-        "physical": "DT_INSPECTED",
+        "physical": "DT_INSPTD",
         "comment": "inspected时间"
       },
       {
         "logical": "inspected_by",
-        "physical": "ID_USER_INSPECTED",
+        "physical": "ID_USER_INSPTD",
         "comment": "inspected人标识"
       },
       {
@@ -6781,17 +6781,17 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "记录时间"
       },
       {
         "logical": "recorded_by",
-        "physical": "ID_USER_RECORDED",
+        "physical": "ID_USER_RECDD",
         "comment": "记录人标识"
       },
       {
@@ -6812,7 +6812,7 @@
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       }
     ]
@@ -6861,7 +6861,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -6885,7 +6885,7 @@
       },
       {
         "logical": "operation_code",
-        "physical": "CD_OPERATION",
+        "physical": "CD_OPER",
         "comment": "业务操作编码"
       },
       {
@@ -6935,7 +6935,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
@@ -6984,7 +6984,7 @@
       },
       {
         "logical": "business_date",
-        "physical": "DA_BUSINESS",
+        "physical": "DA_BIZ",
         "comment": "业务日期"
       },
       {
@@ -7092,13 +7092,13 @@
       },
       {
         "logical": "gender_restriction",
-        "physical": "SD_GENDER_RESTRICTION",
+        "physical": "SD_GENDER_RSTRCT",
         "comment": "性别限制",
         "previousPhysical": "GENDER_RESTRICTION"
       },
       {
         "logical": "operational_status",
-        "physical": "SD_OPERATIONAL_STATUS",
+        "physical": "SD_OPERAT_STATUS",
         "comment": "operational状态"
       },
       {
@@ -7108,7 +7108,7 @@
       },
       {
         "logical": "responsible_nurse_id",
-        "physical": "ID_RESPONSIBLE_NURSE",
+        "physical": "ID_RSPNSBL_NURSE",
         "comment": "responsiblenurse标识"
       },
       {
@@ -7204,17 +7204,17 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "recorded_by",
-        "physical": "ID_USER_RECORDED",
+        "physical": "ID_USER_RECDD",
         "comment": "记录人标识"
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "记录时间"
       }
     ]
@@ -7238,37 +7238,37 @@
       },
       {
         "logical": "admission_type_code",
-        "physical": "CD_ADMISSION_TYPE",
+        "physical": "CD_ADM_TYPE",
         "comment": "入院类型编码"
       },
       {
         "logical": "admission_source_code",
-        "physical": "CD_ADMISSION_SRC",
+        "physical": "CD_ADM_SRC",
         "comment": "入院来源编码"
       },
       {
         "logical": "admission_location_id",
-        "physical": "ID_SVC_LOC_ADMISSION",
+        "physical": "ID_SVC_LOC_ADM",
         "comment": "入院位置标识"
       },
       {
         "logical": "admission_reason",
-        "physical": "DES_ADMISSION_REASON",
+        "physical": "DES_ADM_REASON",
         "comment": "入院原因"
       },
       {
         "logical": "discharge_disposition_code",
-        "physical": "CD_DISCHARGE_DISPOSITION",
+        "physical": "CD_DISCH_DISPOS",
         "comment": "discharge处置方式编码"
       },
       {
         "logical": "discharge_location_id",
-        "physical": "ID_SVC_LOC_DISCHARGE",
+        "physical": "ID_SVC_LOC_DISCH",
         "comment": "discharge位置标识"
       },
       {
         "logical": "discharge_note",
-        "physical": "DES_DISCHARGE_NOTE",
+        "physical": "DES_DISCH_NOTE",
         "comment": "discharge备注"
       },
       {
@@ -7288,12 +7288,12 @@
       },
       {
         "logical": "responsible_nurse_id",
-        "physical": "ID_RESPONSIBLE_NURSE",
+        "physical": "ID_RSPNSBL_NURSE",
         "comment": "responsiblenurse标识"
       },
       {
         "logical": "admission_method_code",
-        "physical": "CD_ADMISSION_METHOD",
+        "physical": "CD_ADM_METHOD",
         "comment": "入院方法编码"
       },
       {
@@ -7313,22 +7313,22 @@
       },
       {
         "logical": "emergency_contact_name",
-        "physical": "NA_EMERGENCY_CONTACT",
+        "physical": "NA_EMERG_CONTACT",
         "comment": "emergency联系方式名称"
       },
       {
         "logical": "emergency_contact_relationship",
-        "physical": "EMERGENCY_CONTACT_RELATIONSHIP",
+        "physical": "EMERG_CONTACT_RELSHIP",
         "comment": "emergency联系方式relationship"
       },
       {
         "logical": "emergency_contact_phone",
-        "physical": "EMERGENCY_CONTACT_PHONE",
+        "physical": "EMERG_CONTACT_PHONE",
         "comment": "emergency联系方式电话"
       },
       {
         "logical": "admission_note",
-        "physical": "DES_ADMISSION_NOTE",
+        "physical": "DES_ADM_NOTE",
         "comment": "入院备注"
       }
     ]
@@ -7404,7 +7404,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -7433,7 +7433,7 @@
       },
       {
         "logical": "consumer_type",
-        "physical": "SD_CONSUMER_TYPE",
+        "physical": "SD_CNSMR_TYPE",
         "comment": "consumer类型"
       },
       {
@@ -7458,7 +7458,7 @@
       },
       {
         "logical": "consumed_quantity",
-        "physical": "QTY_CONSUMED",
+        "physical": "QTY_CNSMD",
         "comment": "消耗数量"
       },
       {
@@ -7468,7 +7468,7 @@
       },
       {
         "logical": "consumed_base_quantity",
-        "physical": "QTY_CONSUMED_BASE",
+        "physical": "QTY_CNSMD_BASE",
         "comment": "消耗基础数量"
       },
       {
@@ -7483,12 +7483,12 @@
       },
       {
         "logical": "consumed_at",
-        "physical": "DT_CONSUMED",
+        "physical": "DT_CNSMD",
         "comment": "消耗时间"
       },
       {
         "logical": "consumed_by",
-        "physical": "ID_USER_CONSUMED",
+        "physical": "ID_USER_CNSMD",
         "comment": "消耗人标识"
       }
     ]
@@ -7602,22 +7602,22 @@
       },
       {
         "logical": "submitted_at",
-        "physical": "DT_SUBMITTED",
+        "physical": "DT_SUBMTD",
         "comment": "提交时间"
       },
       {
         "logical": "submitted_by",
-        "physical": "ID_USER_SUBMITTED",
+        "physical": "ID_USER_SUBMTD",
         "comment": "提交人标识"
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
         "logical": "cancelled_by",
-        "physical": "ID_USER_CANCELLED",
+        "physical": "ID_USER_CNCLD",
         "comment": "取消人标识"
       },
       {
@@ -7709,7 +7709,7 @@
       },
       {
         "logical": "business_date",
-        "physical": "DA_BUSINESS",
+        "physical": "DA_BIZ",
         "comment": "业务日期"
       },
       {
@@ -7793,7 +7793,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
@@ -7878,17 +7878,17 @@
       },
       {
         "logical": "requested_quantity",
-        "physical": "QTY_REQUESTED",
+        "physical": "QTY_REQD",
         "comment": "申请数量"
       },
       {
         "logical": "quantity_unit_code",
-        "physical": "CD_QUANTITY_UNIT",
+        "physical": "CD_QTY_UNIT",
         "comment": "数量单位编码"
       },
       {
         "logical": "requested_base_quantity",
-        "physical": "QTY_REQUESTED_BASE",
+        "physical": "QTY_REQD_BASE",
         "comment": "申请基础数量"
       },
       {
@@ -7898,7 +7898,7 @@
       },
       {
         "logical": "occurrence_count",
-        "physical": "QTY_OCCURRENCE",
+        "physical": "QTY_OCC",
         "comment": "occurrence盘点",
         "previousPhysical": "OCCURRENCE_COUNT"
       },
@@ -7924,12 +7924,12 @@
       },
       {
         "logical": "submitted_at",
-        "physical": "DT_SUBMITTED",
+        "physical": "DT_SUBMTD",
         "comment": "提交时间"
       },
       {
         "logical": "submitted_by",
-        "physical": "ID_USER_SUBMITTED",
+        "physical": "ID_USER_SUBMTD",
         "comment": "提交人标识"
       },
       {
@@ -7944,12 +7944,12 @@
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
         "logical": "cancelled_by",
-        "physical": "ID_USER_CANCELLED",
+        "physical": "ID_USER_CNCLD",
         "comment": "取消人标识"
       },
       {
@@ -7998,22 +7998,22 @@
       },
       {
         "logical": "scheduled_at",
-        "physical": "DT_SCHEDULED",
+        "physical": "DT_SCHEDD",
         "comment": "scheduled时间"
       },
       {
         "logical": "required_quantity",
-        "physical": "QTY_REQUIRED",
+        "physical": "QTY_RQD",
         "comment": "应需数量"
       },
       {
         "logical": "quantity_unit_code",
-        "physical": "CD_QUANTITY_UNIT",
+        "physical": "CD_QTY_UNIT",
         "comment": "数量单位编码"
       },
       {
         "logical": "required_base_quantity",
-        "physical": "QTY_REQUIRED_BASE",
+        "physical": "QTY_RQD_BASE",
         "comment": "应需基础数量"
       },
       {
@@ -8043,12 +8043,12 @@
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
         "logical": "cancelled_by",
-        "physical": "ID_USER_CANCELLED",
+        "physical": "ID_USER_CNCLD",
         "comment": "取消人标识"
       },
       {
@@ -8102,7 +8102,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
@@ -8138,27 +8138,27 @@
       },
       {
         "logical": "recorded_by_subject_id",
-        "physical": "ID_RECORDED_BY_SUBJECT",
+        "physical": "ID_RECDD_BY_SUBJECT",
         "comment": "记录by主体标识"
       },
       {
         "logical": "recorded_by_practitioner_id",
-        "physical": "ID_RECORDED_BY_PRACT",
+        "physical": "ID_RECDD_BY_PRACT",
         "comment": "记录by医务人员标识"
       },
       {
         "logical": "recorder_name",
-        "physical": "NA_RECORDER",
+        "physical": "NA_RECDR",
         "comment": "记录人名称"
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "记录时间"
       },
       {
         "logical": "content_digest_algorithm",
-        "physical": "CONTENT_DIGEST_ALGORITHM",
+        "physical": "CONTENT_DIGEST_ALGO",
         "comment": "内容摘要算法"
       },
       {
@@ -8169,12 +8169,12 @@
       },
       {
         "logical": "integrity_evidence_id",
-        "physical": "ID_CRYPTO_EVID_INTEGRITY",
+        "physical": "ID_CRYPTO_EVID_INTGR",
         "comment": "integrity证据标识"
       },
       {
         "logical": "assessment_json",
-        "physical": "JSON_ASSESSMENT",
+        "physical": "JSON_ASSMT",
         "comment": "评估JSON"
       }
     ]
@@ -8208,7 +8208,7 @@
       },
       {
         "logical": "measured_at",
-        "physical": "DT_MEASURED",
+        "physical": "DT_MEASD",
         "comment": "measured时间"
       },
       {
@@ -8228,12 +8228,12 @@
       },
       {
         "logical": "recorded_by",
-        "physical": "ID_USER_RECORDED",
+        "physical": "ID_USER_RECDD",
         "comment": "记录人标识"
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "记录时间"
       }
     ]
@@ -8267,7 +8267,7 @@
       },
       {
         "logical": "observed_at",
-        "physical": "DT_OBSERVED",
+        "physical": "DT_OBSD",
         "comment": "observed时间"
       },
       {
@@ -8360,7 +8360,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -8394,12 +8394,12 @@
       },
       {
         "logical": "occurrence_no",
-        "physical": "CD_OCCURRENCE_NO",
+        "physical": "CD_OCC_NO",
         "comment": "occurrence编号"
       },
       {
         "logical": "scheduled_at",
-        "physical": "DT_SCHEDULED",
+        "physical": "DT_SCHEDD",
         "comment": "scheduled时间"
       },
       {
@@ -8419,17 +8419,17 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
         "logical": "completed_by",
-        "physical": "ID_USER_COMPLETED",
+        "physical": "ID_USER_CMPLD",
         "comment": "完成人标识"
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
@@ -8488,7 +8488,7 @@
       },
       {
         "logical": "duration_type",
-        "physical": "SD_DURATION_TYPE",
+        "physical": "SD_DUR_TYPE",
         "comment": "时长类型"
       },
       {
@@ -8498,7 +8498,7 @@
       },
       {
         "logical": "authored_practitioner_id",
-        "physical": "ID_AUTHORED_PRACT",
+        "physical": "ID_AUTHRD_PRACT",
         "comment": "开立医务人员标识"
       },
       {
@@ -8513,12 +8513,12 @@
       },
       {
         "logical": "verified_by",
-        "physical": "ID_USER_VERIFIED",
+        "physical": "ID_USER_VRFD",
         "comment": "已验证人标识"
       },
       {
         "logical": "verified_at",
-        "physical": "DT_VERIFIED",
+        "physical": "DT_VRFD",
         "comment": "已验证时间"
       },
       {
@@ -8554,7 +8554,7 @@
       },
       {
         "logical": "medication_quantity_unit",
-        "physical": "MEDICATION_QUANTITY_UNIT",
+        "physical": "MED_QTY_UNIT",
         "comment": "药品数量单位"
       },
       {
@@ -8565,7 +8565,7 @@
       },
       {
         "logical": "medication_base_unit",
-        "physical": "MEDICATION_BASE_UNIT",
+        "physical": "MED_BASE_UNIT",
         "comment": "药品基础单位"
       }
     ]
@@ -8619,7 +8619,7 @@
       },
       {
         "logical": "situation",
-        "physical": "DES_SITUATION",
+        "physical": "DES_SITUAT",
         "comment": "情况",
         "previousPhysical": "SITUATION"
       },
@@ -8811,7 +8811,7 @@
       },
       {
         "logical": "content_digest_algorithm",
-        "physical": "CONTENT_DIGEST_ALGORITHM",
+        "physical": "CONTENT_DIGEST_ALGO",
         "comment": "内容摘要算法"
       },
       {
@@ -8822,7 +8822,7 @@
       },
       {
         "logical": "integrity_evidence_id",
-        "physical": "ID_CRYPTO_EVID_INTEGRITY",
+        "physical": "ID_CRYPTO_EVID_INTGR",
         "comment": "integrity证据标识"
       }
     ]
@@ -8897,12 +8897,12 @@
       },
       {
         "logical": "approved_amount",
-        "physical": "AMT_APPROVED",
+        "physical": "AMT_APRVD",
         "comment": "审批金额"
       },
       {
         "logical": "rejection_code",
-        "physical": "CD_REJECTION",
+        "physical": "CD_REJCTN",
         "comment": "rejection编码"
       },
       {
@@ -8954,7 +8954,7 @@
       },
       {
         "logical": "operation",
-        "physical": "SD_OPERATION",
+        "physical": "SD_OPER",
         "comment": "业务操作",
         "previousPhysical": "OPERATION"
       },
@@ -8975,7 +8975,7 @@
       },
       {
         "logical": "personal_account_amount",
-        "physical": "AMT_PERSONAL_ACCT",
+        "physical": "AMT_PERS_ACCT",
         "comment": "personal账户金额"
       },
       {
@@ -9000,7 +9000,7 @@
       },
       {
         "logical": "responded_at",
-        "physical": "DT_RESPONDED",
+        "physical": "DT_RSPND",
         "comment": "responded时间"
       }
     ],
@@ -9065,7 +9065,7 @@
       },
       {
         "logical": "current_operation",
-        "physical": "SD_CURRENT_OPERATION",
+        "physical": "SD_CURRENT_OPER",
         "comment": "current业务操作",
         "previousPhysical": "CURRENT_OPERATION"
       },
@@ -9137,7 +9137,7 @@
       },
       {
         "logical": "personal_account_amount",
-        "physical": "AMT_PERSONAL_ACCT",
+        "physical": "AMT_PERS_ACCT",
         "comment": "personal账户金额"
       },
       {
@@ -9152,12 +9152,12 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       },
       {
@@ -9187,12 +9187,12 @@
       },
       {
         "logical": "reversal_reason",
-        "physical": "DES_REVERSAL_REASON",
+        "physical": "DES_RVRSL_REASON",
         "comment": "reversal原因"
       },
       {
         "logical": "reversed_at",
-        "physical": "DT_REVERSED",
+        "physical": "DT_RVRSD",
         "comment": "reversed时间"
       }
     ]
@@ -9256,7 +9256,7 @@
       },
       {
         "logical": "quantity_reserved",
-        "physical": "QTY_RESERVED",
+        "physical": "QTY_RESVD",
         "comment": "数量reserved"
       },
       {
@@ -9266,7 +9266,7 @@
       },
       {
         "logical": "quantity_available",
-        "physical": "QTY_AVAILABLE",
+        "physical": "QTY_AVAIL",
         "comment": "数量available"
       },
       {
@@ -9277,7 +9277,7 @@
       },
       {
         "logical": "projected_at",
-        "physical": "DT_PROJECTED",
+        "physical": "DT_PROJD",
         "comment": "projected时间"
       }
     ]
@@ -9341,17 +9341,17 @@
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "occurred_by",
-        "physical": "ID_USER_OCCURRED",
+        "physical": "ID_USER_OCCRD",
         "comment": "发生人标识"
       }
     ]
@@ -9440,7 +9440,7 @@
       },
       {
         "logical": "remaining_base_quantity",
-        "physical": "QTY_REMAINING_BASE",
+        "physical": "QTY_REM_BASE",
         "comment": "remaining基础数量"
       },
       {
@@ -9556,7 +9556,7 @@
       },
       {
         "logical": "movement_quantity",
-        "physical": "QTY_MOVEMENT",
+        "physical": "QTY_MVMT",
         "comment": "movement数量"
       },
       {
@@ -9572,7 +9572,7 @@
       },
       {
         "logical": "quantity_difference",
-        "physical": "QTY_DIFFERENCE",
+        "physical": "QTY_DIFF",
         "comment": "数量差额"
       },
       {
@@ -9622,7 +9622,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -9645,7 +9645,7 @@
       },
       {
         "logical": "movement_amount",
-        "physical": "AMT_MOVEMENT",
+        "physical": "AMT_MVMT",
         "comment": "movement金额"
       },
       {
@@ -9655,7 +9655,7 @@
       },
       {
         "logical": "rounding_adjustment_amount",
-        "physical": "AMT_ROUNDING_ADJ",
+        "physical": "AMT_RND_ADJ",
         "comment": "舍入调价金额"
       },
       {
@@ -9672,7 +9672,7 @@
       },
       {
         "logical": "value_difference",
-        "physical": "AMT_VAL_DIFFERENCE",
+        "physical": "AMT_VAL_DIFF",
         "comment": "值差额",
         "previousPhysical": "VALUE_DIFFERENCE"
       },
@@ -9727,7 +9727,7 @@
       },
       {
         "logical": "previous_period_id",
-        "physical": "ID_INV_PERIOD_PREVIOUS",
+        "physical": "ID_INV_PERIOD_PREV",
         "comment": "上一期间标识"
       },
       {
@@ -9757,13 +9757,13 @@
       },
       {
         "logical": "dimension_count",
-        "physical": "QTY_DIMENSION",
+        "physical": "QTY_DIM",
         "comment": "维度盘点",
         "previousPhysical": "DIMENSION_COUNT"
       },
       {
         "logical": "difference_count",
-        "physical": "QTY_DIFFERENCE",
+        "physical": "QTY_DIFF",
         "comment": "差额盘点",
         "previousPhysical": "DIFFERENCE_COUNT"
       },
@@ -9779,12 +9779,12 @@
       },
       {
         "logical": "validated_at",
-        "physical": "DT_VALIDATED",
+        "physical": "DT_VLDTD",
         "comment": "validated时间"
       },
       {
         "logical": "validated_by",
-        "physical": "ID_USER_VALIDATED",
+        "physical": "ID_USER_VLDTD",
         "comment": "validated人标识"
       },
       {
@@ -9799,7 +9799,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
@@ -9844,7 +9844,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -9855,7 +9855,7 @@
       },
       {
         "logical": "movement_amount",
-        "physical": "AMT_MOVEMENT",
+        "physical": "AMT_MVMT",
         "comment": "movement金额"
       },
       {
@@ -9865,7 +9865,7 @@
       },
       {
         "logical": "rounding_adjustment_amount",
-        "physical": "AMT_ROUNDING_ADJ",
+        "physical": "AMT_RND_ADJ",
         "comment": "舍入调价金额"
       },
       {
@@ -9882,7 +9882,7 @@
       },
       {
         "logical": "value_difference",
-        "physical": "AMT_VAL_DIFFERENCE",
+        "physical": "AMT_VAL_DIFF",
         "comment": "值差额",
         "previousPhysical": "VALUE_DIFFERENCE"
       },
@@ -9968,7 +9968,7 @@
       },
       {
         "logical": "previous_period_id",
-        "physical": "ID_INV_PERIOD_PREVIOUS",
+        "physical": "ID_INV_PERIOD_PREV",
         "comment": "上一期间标识"
       },
       {
@@ -10063,7 +10063,7 @@
       },
       {
         "logical": "rounding_amount",
-        "physical": "AMT_ROUNDING",
+        "physical": "AMT_RND",
         "comment": "舍入金额"
       },
       {
@@ -10193,7 +10193,7 @@
       },
       {
         "logical": "rounding_amount",
-        "physical": "AMT_ROUNDING",
+        "physical": "AMT_RND",
         "comment": "舍入金额"
       },
       {
@@ -10258,7 +10258,7 @@
       },
       {
         "logical": "reversal_of_id",
-        "physical": "ID_INV_PRICE_ADJ_REVERSAL_OF",
+        "physical": "ID_INV_PRICE_ADJ_RVRSL_OF",
         "comment": "reversal时点标识"
       },
       {
@@ -10288,12 +10288,12 @@
       },
       {
         "logical": "business_date",
-        "physical": "DA_BUSINESS",
+        "physical": "DA_BIZ",
         "comment": "业务日期"
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -10356,22 +10356,22 @@
       },
       {
         "logical": "submitted_at",
-        "physical": "DT_SUBMITTED",
+        "physical": "DT_SUBMTD",
         "comment": "提交时间"
       },
       {
         "logical": "submitted_by",
-        "physical": "ID_USER_SUBMITTED",
+        "physical": "ID_USER_SUBMTD",
         "comment": "提交人标识"
       },
       {
         "logical": "approved_at",
-        "physical": "DT_APPROVED",
+        "physical": "DT_APRVD",
         "comment": "审批时间"
       },
       {
         "logical": "approved_by",
-        "physical": "ID_USER_APPROVED",
+        "physical": "ID_USER_APRVD",
         "comment": "审批人标识"
       },
       {
@@ -10386,22 +10386,22 @@
       },
       {
         "logical": "reversed_at",
-        "physical": "DT_REVERSED",
+        "physical": "DT_RVRSD",
         "comment": "reversed时间"
       },
       {
         "logical": "reversed_by",
-        "physical": "ID_USER_REVERSED",
+        "physical": "ID_USER_RVRSD",
         "comment": "reversed人标识"
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
         "logical": "cancelled_by",
-        "physical": "ID_USER_CANCELLED",
+        "physical": "ID_USER_CNCLD",
         "comment": "取消人标识"
       }
     ]
@@ -10455,7 +10455,7 @@
       },
       {
         "logical": "expected_quantity",
-        "physical": "QTY_EXPECTED",
+        "physical": "QTY_EXPCTD",
         "comment": "预期数量"
       },
       {
@@ -10465,12 +10465,12 @@
       },
       {
         "logical": "difference_quantity",
-        "physical": "QTY_DIFFERENCE",
+        "physical": "QTY_DIFF",
         "comment": "差额数量"
       },
       {
         "logical": "severity",
-        "physical": "SD_SEVERITY",
+        "physical": "SD_SEV",
         "comment": "严重程度",
         "previousPhysical": "SEVERITY"
       },
@@ -10487,12 +10487,12 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
         "logical": "expected_amount",
-        "physical": "AMT_EXPECTED",
+        "physical": "AMT_EXPCTD",
         "comment": "预期金额"
       },
       {
@@ -10502,7 +10502,7 @@
       },
       {
         "logical": "difference_amount",
-        "physical": "AMT_DIFFERENCE",
+        "physical": "AMT_DIFF",
         "comment": "差额金额"
       }
     ]
@@ -10551,7 +10551,7 @@
       },
       {
         "logical": "business_date",
-        "physical": "DA_BUSINESS",
+        "physical": "DA_BIZ",
         "comment": "业务日期"
       },
       {
@@ -10561,7 +10561,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
@@ -10571,7 +10571,7 @@
       },
       {
         "logical": "dimension_count",
-        "physical": "QTY_DIMENSION",
+        "physical": "QTY_DIM",
         "comment": "维度盘点",
         "previousPhysical": "DIMENSION_COUNT"
       },
@@ -10647,12 +10647,12 @@
       },
       {
         "logical": "quantity_reserved",
-        "physical": "QTY_RESERVED",
+        "physical": "QTY_RESVD",
         "comment": "数量reserved"
       },
       {
         "logical": "quantity_consumed",
-        "physical": "QTY_CONSUMED",
+        "physical": "QTY_CNSMD",
         "comment": "数量消耗"
       },
       {
@@ -10677,22 +10677,22 @@
       },
       {
         "logical": "consumed_at",
-        "physical": "DT_CONSUMED",
+        "physical": "DT_CNSMD",
         "comment": "消耗时间"
       },
       {
         "logical": "consumed_by",
-        "physical": "ID_USER_CONSUMED",
+        "physical": "ID_USER_CNSMD",
         "comment": "消耗人标识"
       },
       {
         "logical": "released_at",
-        "physical": "DT_RELEASED",
+        "physical": "DT_RLSD",
         "comment": "released时间"
       },
       {
         "logical": "released_by",
-        "physical": "ID_USER_RELEASED",
+        "physical": "ID_USER_RLSD",
         "comment": "released人标识"
       },
       {
@@ -10761,12 +10761,12 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "occurred_by",
-        "physical": "ID_USER_OCCURRED",
+        "physical": "ID_USER_OCCRD",
         "comment": "发生人标识"
       },
       {
@@ -10836,7 +10836,7 @@
       },
       {
         "logical": "normalized_code",
-        "physical": "CD_NORMALIZED",
+        "physical": "CD_NORM",
         "comment": "标准化编码"
       },
       {
@@ -10886,7 +10886,7 @@
       },
       {
         "logical": "received_at",
-        "physical": "DT_RECEIVED",
+        "physical": "DT_RECVD",
         "comment": "接收时间"
       },
       {
@@ -10916,7 +10916,7 @@
       },
       {
         "logical": "remaining_base_quantity",
-        "physical": "QTY_REMAINING_BASE",
+        "physical": "QTY_REM_BASE",
         "comment": "remaining基础数量"
       }
     ]
@@ -11005,12 +11005,12 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "occurred_by",
-        "physical": "ID_USER_OCCURRED",
+        "physical": "ID_USER_OCCRD",
         "comment": "发生人标识"
       },
       {
@@ -11084,17 +11084,17 @@
       },
       {
         "logical": "operation_quantity",
-        "physical": "QTY_OPERATION",
+        "physical": "QTY_OPER",
         "comment": "业务操作数量"
       },
       {
         "logical": "operation_unit_code",
-        "physical": "CD_OPERATION_UNIT",
+        "physical": "CD_OPER_UNIT",
         "comment": "业务操作单位编码"
       },
       {
         "logical": "base_quantity_factor",
-        "physical": "BASE_QUANTITY_FACTOR",
+        "physical": "BASE_QTY_FACTOR",
         "comment": "基础数量换算系数"
       },
       {
@@ -11139,7 +11139,7 @@
       },
       {
         "logical": "reverses_transaction_id",
-        "physical": "ID_INV_TXN_REVERSES",
+        "physical": "ID_INV_TXN_RVRS",
         "comment": "冲正流水标识"
       },
       {
@@ -11169,7 +11169,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
@@ -11274,7 +11274,7 @@
       },
       {
         "logical": "reverses_entry_id",
-        "physical": "ID_INV_VALUAT_ENTRY_REVERSES",
+        "physical": "ID_INV_VALUAT_ENTRY_RVRS",
         "comment": "冲正分录标识"
       },
       {
@@ -11313,12 +11313,12 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
@@ -11372,7 +11372,7 @@
       },
       {
         "logical": "amount",
-        "physical": "AMT_CATEGORY",
+        "physical": "AMT_CAT",
         "comment": "金额",
         "previousPhysical": "AMT_AMOUNT"
       }
@@ -11457,7 +11457,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -11467,7 +11467,7 @@
       },
       {
         "logical": "discount_amount",
-        "physical": "AMT_DISCOUNT",
+        "physical": "AMT_DISC",
         "comment": "discount金额"
       },
       {
@@ -11487,12 +11487,12 @@
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
         "logical": "cancellation_reason",
-        "physical": "DES_CANCELLATION_REASON",
+        "physical": "DES_CNCLN_REASON",
         "comment": "cancellation原因"
       },
       {
@@ -11551,7 +11551,7 @@
       },
       {
         "logical": "mnemonic_code",
-        "physical": "CD_MNEMONIC",
+        "physical": "CD_MNEM",
         "comment": "mnemonic编码"
       },
       {
@@ -11720,7 +11720,7 @@
       },
       {
         "logical": "cardinality",
-        "physical": "SD_CARDINALITY",
+        "physical": "SD_CARDNL",
         "comment": "基数",
         "previousPhysical": "CARDINALITY"
       },
@@ -11746,7 +11746,7 @@
       },
       {
         "logical": "variability",
-        "physical": "SD_VARIABILITY",
+        "physical": "SD_VARBLTY",
         "comment": "可变性",
         "previousPhysical": "VARIABILITY"
       },
@@ -11774,17 +11774,17 @@
       },
       {
         "logical": "projection_field",
-        "physical": "PROJECTION_FIELD",
+        "physical": "PROJ_FIELD",
         "comment": "投影字段"
       },
       {
         "logical": "validation_rule_id",
-        "physical": "ID_VALIDATION_RULE",
+        "physical": "ID_VLDN_RULE",
         "comment": "validation规则标识"
       },
       {
         "logical": "sensitivity",
-        "physical": "SENSITIVITY",
+        "physical": "SENS",
         "comment": "敏感级别"
       },
       {
@@ -12105,12 +12105,12 @@
       },
       {
         "logical": "required_member",
-        "physical": "FG_REQUIRED_MEMBER",
+        "physical": "FG_RQD_MEMBER",
         "comment": "是否应需成员"
       },
       {
         "logical": "member_description",
-        "physical": "DES_MEMBER_DESCRIPTION",
+        "physical": "DES_MEMBER_DESCR",
         "comment": "成员说明"
       }
     ]
@@ -12412,7 +12412,7 @@
       },
       {
         "logical": "equivalence",
-        "physical": "SD_EQUIVALENCE",
+        "physical": "SD_EQUIV",
         "comment": "等价关系",
         "previousPhysical": "EQUIVALENCE"
       },
@@ -12423,7 +12423,7 @@
       },
       {
         "logical": "limitation",
-        "physical": "DES_LIMITATION",
+        "physical": "DES_LIMIT",
         "comment": "限制",
         "previousPhysical": "LIMITATION"
       },
@@ -12444,7 +12444,7 @@
       },
       {
         "logical": "replaces_mapping_id",
-        "physical": "ID_ITEM_TERM_MAP_REPLACES",
+        "physical": "ID_ITEM_TERM_MAP_RPLCS",
         "comment": "替代映射标识"
       },
       {
@@ -12499,7 +12499,7 @@
       },
       {
         "logical": "required_value",
-        "physical": "FG_REQUIRED_VAL",
+        "physical": "FG_RQD_VAL",
         "comment": "是否应需值"
       },
       {
@@ -12536,12 +12536,12 @@
       },
       {
         "logical": "required_condition_json",
-        "physical": "JSON_REQUIRED_COND",
+        "physical": "JSON_RQD_COND",
         "comment": "应需健康问题JSON"
       },
       {
         "logical": "searchable",
-        "physical": "FG_SEARCHABLE",
+        "physical": "FG_SRCHBL",
         "comment": "是否searchable"
       },
       {
@@ -12695,7 +12695,7 @@
       },
       {
         "logical": "container_item_id",
-        "physical": "ID_DICT_ITEM_CONTAINER",
+        "physical": "ID_DICT_ITEM_CONTNR",
         "comment": "container项目标识"
       },
       {
@@ -12705,7 +12705,7 @@
       },
       {
         "logical": "minimum_quantity_unit",
-        "physical": "MINIMUM_QUANTITY_UNIT",
+        "physical": "MINIMUM_QTY_UNIT",
         "comment": "minimum数量单位"
       },
       {
@@ -12715,7 +12715,7 @@
       },
       {
         "logical": "required_specimen",
-        "physical": "FG_REQUIRED_SPEC",
+        "physical": "FG_RQD_SPEC",
         "comment": "是否应需标本"
       },
       {
@@ -12725,7 +12725,7 @@
       },
       {
         "logical": "collection_description",
-        "physical": "DES_COLLECTION_DESCRIPTION",
+        "physical": "DES_COLL_DESCR",
         "comment": "collection说明"
       },
       {
@@ -12792,7 +12792,7 @@
       },
       {
         "logical": "included_tube_count",
-        "physical": "QTY_INCLUDED_TUBE",
+        "physical": "QTY_INCLD_TUBE",
         "comment": "included试管盘点",
         "previousPhysical": "INCLUDED_TUBE_COUNT"
       },
@@ -12828,18 +12828,18 @@
       },
       {
         "logical": "report_duration",
-        "physical": "QTY_REPORT_DURATION",
+        "physical": "QTY_REPORT_DUR",
         "comment": "报告时长",
         "previousPhysical": "REPORT_DURATION"
       },
       {
         "logical": "report_duration_unit",
-        "physical": "REPORT_DURATION_UNIT",
+        "physical": "REPORT_DUR_UNIT",
         "comment": "报告时长单位"
       },
       {
         "logical": "fasting_required",
-        "physical": "FG_FASTING_REQUIRED",
+        "physical": "FG_FASTING_RQD",
         "comment": "是否fasting应需"
       },
       {
@@ -12849,7 +12849,7 @@
       },
       {
         "logical": "collection_description",
-        "physical": "DES_COLLECTION_DESCRIPTION",
+        "physical": "DES_COLL_DESCR",
         "comment": "collection说明"
       },
       {
@@ -12908,7 +12908,7 @@
       },
       {
         "logical": "direction",
-        "physical": "SD_DIRECTION",
+        "physical": "SD_DIR",
         "comment": "方向",
         "previousPhysical": "DIRECTION"
       },
@@ -12920,7 +12920,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -12940,22 +12940,22 @@
       },
       {
         "logical": "reverses_ledger_entry_id",
-        "physical": "ID_LEDGER_ENTRY_REVERSES",
+        "physical": "ID_LEDGER_ENTRY_RVRS",
         "comment": "冲正台账分录标识"
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "记录时间"
       },
       {
         "logical": "recorded_by",
-        "physical": "ID_USER_RECORDED",
+        "physical": "ID_USER_RECDD",
         "comment": "记录人标识"
       },
       {
@@ -13089,7 +13089,7 @@
       },
       {
         "logical": "production_place",
-        "physical": "PRODUCTION_PLACE",
+        "physical": "PROD_PLACE",
         "comment": "生产place"
       },
       {
@@ -13198,7 +13198,7 @@
       },
       {
         "logical": "imported_rows",
-        "physical": "QTY_IMPORTED_ROW",
+        "physical": "QTY_IMPRTD_ROW",
         "comment": "imported行数",
         "previousPhysical": "IMPORTED_ROWS"
       },
@@ -13278,7 +13278,7 @@
       },
       {
         "logical": "normalized_json",
-        "physical": "JSON_NORMALIZED",
+        "physical": "JSON_NORM",
         "comment": "标准化JSON"
       },
       {
@@ -13343,7 +13343,7 @@
       },
       {
         "logical": "original_dispense_line_id",
-        "physical": "ID_MED_DISP_LINE_ORIGINAL",
+        "physical": "ID_MED_DISP_LINE_ORIG",
         "comment": "原发药明细标识"
       },
       {
@@ -13373,7 +13373,7 @@
       },
       {
         "logical": "quantity_dispensed",
-        "physical": "QTY_DISPENSED",
+        "physical": "QTY_DSPNSD",
         "comment": "数量dispensed"
       },
       {
@@ -13383,7 +13383,7 @@
       },
       {
         "logical": "base_quantity_factor",
-        "physical": "BASE_QUANTITY_FACTOR",
+        "physical": "BASE_QTY_FACTOR",
         "comment": "基础数量换算系数"
       }
     ]
@@ -13428,7 +13428,7 @@
       },
       {
         "logical": "original_dispense_id",
-        "physical": "ID_MED_DISP_ORIGINAL",
+        "physical": "ID_MED_DISP_ORIG",
         "comment": "原发药标识"
       },
       {
@@ -13443,22 +13443,22 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "dispenser_practitioner_id",
-        "physical": "ID_DISPENSER_PRACT",
+        "physical": "ID_DSPNSR_PRACT",
         "comment": "dispenser医务人员标识"
       },
       {
         "logical": "dispenser_user_id",
-        "physical": "ID_DISPENSER_USER",
+        "physical": "ID_DSPNSR_USER",
         "comment": "dispenser用户标识"
       },
       {
         "logical": "dispenser_assignment_id",
-        "physical": "ID_DISPENSER_ASSIGN",
+        "physical": "ID_DSPNSR_ASSIGN",
         "comment": "dispenser任职标识"
       },
       {
@@ -13483,12 +13483,12 @@
       },
       {
         "logical": "operation_quantity",
-        "physical": "QTY_OPERATION",
+        "physical": "QTY_OPER",
         "comment": "业务操作数量"
       },
       {
         "logical": "operation_unit_code",
-        "physical": "CD_OPERATION_UNIT",
+        "physical": "CD_OPER_UNIT",
         "comment": "业务操作单位编码"
       },
       {
@@ -13529,12 +13529,12 @@
       },
       {
         "logical": "medicinal_part_item_id",
-        "physical": "ID_DICT_ITEM_MEDICINAL_PART",
+        "physical": "ID_DICT_ITEM_MEDCNL_PART",
         "comment": "medicinalpart项目标识"
       },
       {
         "logical": "processing_method",
-        "physical": "SD_PROCESSING_METHOD",
+        "physical": "SD_PROCSG_METHOD",
         "comment": "processing方法",
         "previousPhysical": "PROCESSING_METHOD"
       },
@@ -13545,22 +13545,22 @@
       },
       {
         "logical": "flavor_description",
-        "physical": "DES_FLAVOR_DESCRIPTION",
+        "physical": "DES_FLAVOR_DESCR",
         "comment": "flavor说明"
       },
       {
         "logical": "meridian_description",
-        "physical": "DES_MERIDIAN_DESCRIPTION",
+        "physical": "DES_MERID_DESCR",
         "comment": "meridian说明"
       },
       {
         "logical": "decoction_description",
-        "physical": "DES_DECOCTION_DESCRIPTION",
+        "physical": "DES_DECOCT_DESCR",
         "comment": "decoction说明"
       },
       {
         "logical": "separate_decoction",
-        "physical": "FG_SEPARATE_DECOCTION",
+        "physical": "FG_SEPR_DECOCT",
         "comment": "是否separatedecoction"
       }
     ]
@@ -13599,17 +13599,17 @@
       },
       {
         "logical": "approval_code",
-        "physical": "CD_APPROVAL",
+        "physical": "CD_APRVL",
         "comment": "审批编码"
       },
       {
         "logical": "approval_from",
-        "physical": "DA_APPROVAL_FROM",
+        "physical": "DA_APRVL_FROM",
         "comment": "审批开始日期"
       },
       {
         "logical": "approval_to",
-        "physical": "DA_APPROVAL_TO",
+        "physical": "DA_APRVL_TO",
         "comment": "审批结束日期"
       },
       {
@@ -13639,7 +13639,7 @@
       },
       {
         "logical": "production_place",
-        "physical": "PRODUCTION_PLACE",
+        "physical": "PROD_PLACE",
         "comment": "生产place"
       },
       {
@@ -13659,7 +13659,7 @@
       },
       {
         "logical": "trace_split_required",
-        "physical": "FG_TRACE_SPLIT_REQUIRED",
+        "physical": "FG_TRACE_SPLIT_RQD",
         "comment": "是否追溯拆分应需"
       },
       {
@@ -13675,13 +13675,13 @@
       },
       {
         "logical": "indication",
-        "physical": "DES_INDICATION",
+        "physical": "DES_INDIC",
         "comment": "适应症",
         "previousPhysical": "INDICATION"
       },
       {
         "logical": "instruction",
-        "physical": "DES_INSTRUCTION",
+        "physical": "DES_INSTR",
         "comment": "用法",
         "previousPhysical": "INSTRUCTION"
       },
@@ -13737,13 +13737,13 @@
       },
       {
         "logical": "duration_value",
-        "physical": "QTY_DURATION_VAL",
+        "physical": "QTY_DUR_VAL",
         "comment": "时长值",
         "previousPhysical": "DURATION_VALUE"
       },
       {
         "logical": "duration_unit",
-        "physical": "DURATION_UNIT",
+        "physical": "DUR_UNIT",
         "comment": "时长单位"
       },
       {
@@ -13769,7 +13769,7 @@
       },
       {
         "logical": "package_factor_snapshot",
-        "physical": "PACKAGE_FACTOR_SNAPSHOT",
+        "physical": "PACKAGE_FACTOR_SNAP",
         "comment": "包装换算系数快照"
       },
       {
@@ -13779,27 +13779,27 @@
       },
       {
         "logical": "package_spec_snapshot",
-        "physical": "PACKAGE_SPEC_SNAPSHOT",
+        "physical": "PACKAGE_SPEC_SNAP",
         "comment": "包装规格快照"
       },
       {
         "logical": "price_quantity_snapshot",
-        "physical": "PRICE_QUANTITY_SNAP",
+        "physical": "PRICE_QTY_SNAP",
         "comment": "价格数量快照"
       },
       {
         "logical": "substitution_allowed",
-        "physical": "FG_SUBSTITUTION",
+        "physical": "FG_SUBSTN",
         "comment": "是否substitution允许"
       },
       {
         "logical": "self_provided",
-        "physical": "FG_SELF_PROVIDED",
+        "physical": "FG_SELF_PRVDD",
         "comment": "是否selfprovided"
       },
       {
         "logical": "medication_instruction",
-        "physical": "DES_MED_INSTRUCTION",
+        "physical": "DES_MED_INSTR",
         "comment": "药品用法",
         "previousPhysical": "MEDICATION_INSTRUCTION"
       },
@@ -13820,38 +13820,38 @@
       },
       {
         "logical": "dose_form_snapshot",
-        "physical": "DOSE_FORM_SNAPSHOT",
+        "physical": "DOSE_FORM_SNAP",
         "comment": "剂量表单快照"
       },
       {
         "logical": "preparation_spec_snapshot",
-        "physical": "PREPARATION_SPEC_SNAPSHOT",
+        "physical": "PREP_SPEC_SNAP",
         "comment": "制剂规格快照"
       },
       {
         "logical": "preparation_unit_snapshot",
-        "physical": "PREPARATION_UNIT_SNAPSHOT",
+        "physical": "PREP_UNIT_SNAP",
         "comment": "制剂单位快照"
       },
       {
         "logical": "skin_test_required_snapshot",
-        "physical": "FG_SKIN_TEST_REQUIRED_SNAP",
+        "physical": "FG_SKIN_TEST_RQD_SNAP",
         "comment": "是否皮试检测应需快照"
       },
       {
         "logical": "antimicrobial_snapshot",
-        "physical": "FG_ANTIMICROBIAL_SNAP",
+        "physical": "FG_ANTIMIC_SNAP",
         "comment": "是否抗菌药物快照"
       },
       {
         "logical": "antimicrobial_level_snapshot",
-        "physical": "SD_ANTIMICROBIAL_LEVEL_SNAP",
+        "physical": "SD_ANTIMIC_LEVEL_SNAP",
         "comment": "抗菌药物等级快照",
         "previousPhysical": "ANTIMICROBIAL_LEVEL_SNAPSHOT"
       },
       {
         "logical": "medication_snapshot",
-        "physical": "MEDICATION_SNAPSHOT",
+        "physical": "MED_SNAP",
         "comment": "药品快照"
       },
       {
@@ -13871,7 +13871,7 @@
       },
       {
         "logical": "frequency_rule_snapshot",
-        "physical": "FREQUENCY_RULE_SNAPSHOT",
+        "physical": "FREQ_RULE_SNAP",
         "comment": "频次规则快照"
       },
       {
@@ -13891,7 +13891,7 @@
       },
       {
         "logical": "route_resolution_status",
-        "physical": "SD_ROUTE_RESOLUTION_STATUS",
+        "physical": "SD_ROUTE_RSLN_STATUS",
         "comment": "途径处理结果状态"
       },
       {
@@ -13911,7 +13911,7 @@
       },
       {
         "logical": "id_exempt_evidence_event",
-        "physical": "ID_EXEMPT_EVIDENCE_EVENT",
+        "physical": "ID_EXEMPT_EVID_EVENT",
         "comment": "引用的免试依据皮试事件标识"
       }
     ]
@@ -13982,30 +13982,30 @@
       },
       {
         "logical": "recommended_route",
-        "physical": "SD_RECOMMENDED_ROUTE",
+        "physical": "SD_RECMD_ROUTE",
         "comment": "recommended途径",
         "previousPhysical": "RECOMMENDED_ROUTE"
       },
       {
         "logical": "cold_chain_required",
-        "physical": "FG_COLD_CHAIN_REQUIRED",
+        "physical": "FG_COLD_CHAIN_RQD",
         "comment": "是否coldchain应需"
       },
       {
         "logical": "min_temperature",
-        "physical": "QTY_MIN_TEMPERATURE",
+        "physical": "QTY_MIN_TEMP",
         "comment": "最小温度",
         "previousPhysical": "MIN_TEMPERATURE"
       },
       {
         "logical": "max_temperature",
-        "physical": "QTY_MAX_TEMPERATURE",
+        "physical": "QTY_MAX_TEMP",
         "comment": "最大温度",
         "previousPhysical": "MAX_TEMPERATURE"
       },
       {
         "logical": "immunization_schedule",
-        "physical": "IMMUNIZATION_SCHEDULE",
+        "physical": "IMMUN_SCHED",
         "comment": "immunization排班"
       }
     ]
@@ -14029,23 +14029,23 @@
       },
       {
         "logical": "active_ingredient",
-        "physical": "ACTIVE_INGREDIENT",
+        "physical": "ACTIVE_INGR",
         "comment": "有效ingredient"
       },
       {
         "logical": "therapeutic_class",
-        "physical": "SD_THERAPEUTIC_CLASS",
+        "physical": "SD_THERAP_CLASS",
         "comment": "治疗class",
         "previousPhysical": "THERAPEUTIC_CLASS"
       },
       {
         "logical": "biologic",
-        "physical": "FG_BIOLOGIC",
+        "physical": "FG_BIOL",
         "comment": "是否biologic"
       },
       {
         "logical": "biosimilar",
-        "physical": "FG_BIOSIMILAR",
+        "physical": "FG_BIOSIM",
         "comment": "是否biosimilar"
       }
     ]
@@ -14102,23 +14102,23 @@
       },
       {
         "logical": "preparation_spec",
-        "physical": "PREPARATION_SPEC",
+        "physical": "PREP_SPEC",
         "comment": "制剂规格"
       },
       {
         "logical": "preparation_unit",
-        "physical": "PREPARATION_UNIT",
+        "physical": "PREP_UNIT",
         "comment": "制剂单位"
       },
       {
         "logical": "strength_value",
-        "physical": "QTY_STRENGTH_VAL",
+        "physical": "QTY_STRNTH_VAL",
         "comment": "strength值",
         "previousPhysical": "STRENGTH_VALUE"
       },
       {
         "logical": "strength_unit",
-        "physical": "STRENGTH_UNIT",
+        "physical": "STRNTH_UNIT",
         "comment": "strength单位"
       },
       {
@@ -14128,28 +14128,28 @@
       },
       {
         "logical": "prescription_drug",
-        "physical": "FG_PRESCRIPTION_DRUG",
+        "physical": "FG_RX_DRUG",
         "comment": "是否prescriptiondrug"
       },
       {
         "logical": "essential_drug",
-        "physical": "FG_ESSENTIAL_DRUG",
+        "physical": "FG_ESSNTL_DRUG",
         "comment": "是否essentialdrug"
       },
       {
         "logical": "antimicrobial",
-        "physical": "FG_ANTIMICROBIAL",
+        "physical": "FG_ANTIMIC",
         "comment": "是否抗菌药物"
       },
       {
         "logical": "antimicrobial_level",
-        "physical": "SD_ANTIMICROBIAL_LEVEL",
+        "physical": "SD_ANTIMIC_LEVEL",
         "comment": "抗菌药物等级",
         "previousPhysical": "ANTIMICROBIAL_LEVEL"
       },
       {
         "logical": "skin_test_required",
-        "physical": "FG_SKIN_TEST_REQUIRED",
+        "physical": "FG_SKIN_TEST_RQD",
         "comment": "是否皮试检测应需"
       },
       {
@@ -14170,7 +14170,7 @@
       },
       {
         "logical": "default_frequency",
-        "physical": "DEFAULT_FREQUENCY",
+        "physical": "DEFAULT_FREQ",
         "comment": "默认频次"
       },
       {
@@ -14230,22 +14230,22 @@
       },
       {
         "logical": "fg_antimicrobial_outpatient",
-        "physical": "FG_ANTIMICROBIAL_OUTPATIENT",
+        "physical": "FG_ANTIMIC_OP",
         "comment": "抗菌药是否允许门诊常规开立"
       },
       {
         "logical": "fg_antimicrobial_consult",
-        "physical": "FG_ANTIMICROBIAL_CONSULT",
+        "physical": "FG_ANTIMIC_CONSULT",
         "comment": "抗菌药是否要求会诊或审批"
       },
       {
         "logical": "fg_antimicrobial_emergency",
-        "physical": "FG_ANTIMICROBIAL_EMERGENCY",
+        "physical": "FG_ANTIMIC_EMERG",
         "comment": "抗菌药是否允许紧急使用后补审批"
       },
       {
         "logical": "qty_antimicrobial_max_days",
-        "physical": "QTY_ANTIMICROBIAL_MAX_DAYS",
+        "physical": "QTY_ANTIMIC_MAX_DAYS",
         "comment": "抗菌药门诊疗程上限天数"
       },
       {
@@ -14255,7 +14255,7 @@
       },
       {
         "logical": "sd_skin_test_solution_mode",
-        "physical": "SD_SKIN_TEST_SOLUTION_MODE",
+        "physical": "SD_SKIN_TEST_SOLN_MODE",
         "comment": "药品默认皮试液配置方式"
       },
       {
@@ -14270,7 +14270,7 @@
       },
       {
         "logical": "des_skin_test_instruction",
-        "physical": "DES_SKIN_TEST_INSTRUCTION",
+        "physical": "DES_SKIN_TEST_INSTR",
         "comment": "皮试液配制与执行说明"
       }
     ],
@@ -14336,7 +14336,7 @@
       },
       {
         "logical": "effective_at",
-        "physical": "DT_EFFECTIVE",
+        "physical": "DT_EFF",
         "comment": "生效时间"
       },
       {
@@ -14361,7 +14361,7 @@
       },
       {
         "logical": "value_datetime",
-        "physical": "DT_VAL_DATETIME",
+        "physical": "DT_VAL_DTTM",
         "comment": "值datetime"
       },
       {
@@ -14371,27 +14371,27 @@
       },
       {
         "logical": "reference_range_low",
-        "physical": "REFERENCE_RANGE_LOW",
+        "physical": "REF_RANGE_LOW",
         "comment": "参考范围下限"
       },
       {
         "logical": "reference_range_high",
-        "physical": "REFERENCE_RANGE_HIGH",
+        "physical": "REF_RANGE_HIGH",
         "comment": "参考范围上限"
       },
       {
         "logical": "interpretation_code",
-        "physical": "CD_INTERPRETATION",
+        "physical": "CD_INTERP",
         "comment": "interpretation编码"
       },
       {
         "logical": "performer_code",
-        "physical": "CD_PERFORMER",
+        "physical": "CD_PRFRMR",
         "comment": "执行人编码"
       },
       {
         "logical": "performer_name",
-        "physical": "NA_PERFORMER",
+        "physical": "NA_PRFRMR",
         "comment": "执行人名称"
       },
       {
@@ -14482,42 +14482,42 @@
       },
       {
         "logical": "default_execution_times",
-        "physical": "DEFAULT_EXECUTION_TIMES",
+        "physical": "DEFAULT_EXEC_TIMES",
         "comment": "默认执行times"
       },
       {
         "logical": "outpatient_applicable",
-        "physical": "FG_OP_APPLICABLE",
+        "physical": "FG_OP_APPL",
         "comment": "是否门诊适用"
       },
       {
         "logical": "inpatient_applicable",
-        "physical": "FG_INP_APPLICABLE",
+        "physical": "FG_INP_APPL",
         "comment": "是否住院适用"
       },
       {
         "logical": "emergency_applicable",
-        "physical": "FG_EMERGENCY_APPLICABLE",
+        "physical": "FG_EMERG_APPL",
         "comment": "是否emergency适用"
       },
       {
         "logical": "medication_applicable",
-        "physical": "FG_MED_APPLICABLE",
+        "physical": "FG_MED_APPL",
         "comment": "是否药品适用"
       },
       {
         "logical": "treatment_applicable",
-        "physical": "FG_TREAT_APPLICABLE",
+        "physical": "FG_TREAT_APPL",
         "comment": "是否治疗适用"
       },
       {
         "logical": "nursing_applicable",
-        "physical": "FG_NURS_APPLICABLE",
+        "physical": "FG_NURS_APPL",
         "comment": "是否护理适用"
       },
       {
         "logical": "automatic_task_generation",
-        "physical": "FG_AUTOMATIC_TASK_GEN",
+        "physical": "FG_AUTO_TASK_GEN",
         "comment": "是否automatic任务生成"
       },
       {
@@ -14617,7 +14617,7 @@
       },
       {
         "logical": "execution_times",
-        "physical": "EXECUTION_TIMES",
+        "physical": "EXEC_TIMES",
         "comment": "执行times"
       },
       {
@@ -14702,7 +14702,7 @@
       },
       {
         "logical": "province_code",
-        "physical": "CD_PROVINCE",
+        "physical": "CD_PROV",
         "comment": "province编码"
       },
       {
@@ -14712,7 +14712,7 @@
       },
       {
         "logical": "district_code",
-        "physical": "CD_DISTRICT",
+        "physical": "CD_DIST",
         "comment": "district编码"
       },
       {
@@ -14772,7 +14772,7 @@
       },
       {
         "logical": "qualification_basis_code",
-        "physical": "CD_QUALIFICATION_BASIS",
+        "physical": "CD_QUALIF_BASIS",
         "comment": "qualification依据编码"
       },
       {
@@ -14852,22 +14852,22 @@
       },
       {
         "logical": "orderable",
-        "physical": "FG_ORDERABLE",
+        "physical": "FG_ORDRBL",
         "comment": "是否orderable"
       },
       {
         "logical": "executable",
-        "physical": "FG_EXECUTABLE",
+        "physical": "FG_EXECBL",
         "comment": "是否executable"
       },
       {
         "logical": "chargeable",
-        "physical": "FG_CHARGEABLE",
+        "physical": "FG_CHGBL",
         "comment": "是否chargeable"
       },
       {
         "logical": "purchasable",
-        "physical": "FG_PURCHASABLE",
+        "physical": "FG_PURCHBL",
         "comment": "是否purchasable"
       },
       {
@@ -14877,12 +14877,12 @@
       },
       {
         "logical": "dispensable",
-        "physical": "FG_DISPENSABLE",
+        "physical": "FG_DISPBL",
         "comment": "是否dispensable"
       },
       {
         "logical": "returnable",
-        "physical": "FG_RETURNABLE",
+        "physical": "FG_RETBL",
         "comment": "是否returnable"
       },
       {
@@ -14922,7 +14922,7 @@
       },
       {
         "logical": "replaces_adoption_id",
-        "physical": "ID_ORG_CATALOG_ITEM_REPLACED",
+        "physical": "ID_ORG_CATALOG_ITEM_RPLCD",
         "comment": "替代采用标识",
         "previousPhysical": "ID_ORG_CATALOG_ITEM_REPLACES_ADOPTION"
       }
@@ -14972,12 +14972,12 @@
       },
       {
         "logical": "selectable",
-        "physical": "FG_SELECTABLE",
+        "physical": "FG_SELBL",
         "comment": "是否selectable"
       },
       {
         "logical": "frequent",
-        "physical": "FG_FREQUENT",
+        "physical": "FG_FREQNT",
         "comment": "是否frequent"
       },
       {
@@ -15146,12 +15146,12 @@
       },
       {
         "logical": "verified_at",
-        "physical": "DT_VERIFIED",
+        "physical": "DT_VRFD",
         "comment": "已验证时间"
       },
       {
         "logical": "verified_by",
-        "physical": "ID_USER_VERIFIED",
+        "physical": "ID_USER_VRFD",
         "comment": "已验证人标识"
       },
       {
@@ -15249,7 +15249,7 @@
       },
       {
         "logical": "external_responsible_name",
-        "physical": "NA_EXT_RESPONSIBLE",
+        "physical": "NA_EXT_RSPNSBL",
         "comment": "外部responsible名称"
       },
       {
@@ -15378,7 +15378,7 @@
       },
       {
         "logical": "organization_property",
-        "physical": "SD_ORG_PROPERTY",
+        "physical": "SD_ORG_PROP",
         "comment": "机构property",
         "previousPhysical": "ORGANIZATION_PROPERTY"
       },
@@ -15394,7 +15394,7 @@
       },
       {
         "logical": "timezone_code",
-        "physical": "CD_TIMEZONE",
+        "physical": "CD_TZ",
         "comment": "时区编码"
       },
       {
@@ -15444,17 +15444,17 @@
       },
       {
         "logical": "aggregate_type",
-        "physical": "SD_AGGREGATE_TYPE",
+        "physical": "SD_AGG_TYPE",
         "comment": "aggregate类型"
       },
       {
         "logical": "aggregate_id",
-        "physical": "ID_AGGREGATE",
+        "physical": "ID_AGG",
         "comment": "aggregate标识"
       },
       {
         "logical": "aggregate_version",
-        "physical": "SN_AGGREGATE_VER",
+        "physical": "SN_AGG_VER",
         "comment": "aggregate版本",
         "previousPhysical": "AGGREGATE_VERSION"
       },
@@ -15465,12 +15465,12 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "记录时间"
       },
       {
@@ -15486,12 +15486,12 @@
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       },
       {
         "logical": "causation_id",
-        "physical": "ID_CAUSATION",
+        "physical": "ID_CAUS",
         "comment": "causation标识"
       },
       {
@@ -15507,7 +15507,7 @@
       },
       {
         "logical": "publication_status",
-        "physical": "SD_PUBLICATION_STATUS",
+        "physical": "SD_PUBLCN_STATUS",
         "comment": "publication状态"
       },
       {
@@ -15583,7 +15583,7 @@
       },
       {
         "logical": "specialty_code",
-        "physical": "CD_SPECIALTY",
+        "physical": "CD_SPECLTY",
         "comment": "specialty编码"
       },
       {
@@ -15673,7 +15673,7 @@
       },
       {
         "logical": "specialty_code",
-        "physical": "CD_SPECIALTY",
+        "physical": "CD_SPECLTY",
         "comment": "specialty编码"
       },
       {
@@ -15849,7 +15849,7 @@
       },
       {
         "logical": "preparation_spec",
-        "physical": "PREPARATION_SPEC",
+        "physical": "PREP_SPEC",
         "comment": "制剂规格"
       },
       {
@@ -15880,13 +15880,13 @@
       },
       {
         "logical": "duration_value",
-        "physical": "QTY_DURATION_VAL",
+        "physical": "QTY_DUR_VAL",
         "comment": "时长值",
         "previousPhysical": "DURATION_VALUE"
       },
       {
         "logical": "duration_unit",
-        "physical": "DURATION_UNIT",
+        "physical": "DUR_UNIT",
         "comment": "时长单位"
       },
       {
@@ -15902,17 +15902,17 @@
       },
       {
         "logical": "substitution_allowed",
-        "physical": "FG_SUBSTITUTION",
+        "physical": "FG_SUBSTN",
         "comment": "是否substitution允许"
       },
       {
         "logical": "self_provided",
-        "physical": "FG_SELF_PROVIDED",
+        "physical": "FG_SELF_PRVDD",
         "comment": "是否selfprovided"
       },
       {
         "logical": "medication_instruction",
-        "physical": "DES_MED_INSTRUCTION",
+        "physical": "DES_MED_INSTR",
         "comment": "药品用法",
         "previousPhysical": "MEDICATION_INSTRUCTION"
       },
@@ -15923,7 +15923,7 @@
       },
       {
         "logical": "pricing_required",
-        "physical": "FG_PRICING_REQUIRED",
+        "physical": "FG_PRICING_RQD",
         "comment": "是否pricing应需"
       },
       {
@@ -16000,7 +16000,7 @@
       },
       {
         "logical": "pricing_required",
-        "physical": "FG_PRICING_REQUIRED",
+        "physical": "FG_PRICING_RQD",
         "comment": "是否pricing应需"
       },
       {
@@ -16011,7 +16011,7 @@
       },
       {
         "logical": "clinical_description",
-        "physical": "DES_CLIN_DESCRIPTION",
+        "physical": "DES_CLIN_DESCR",
         "comment": "临床说明"
       }
     ]
@@ -16167,7 +16167,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -16247,7 +16247,7 @@
       },
       {
         "logical": "expected_at",
-        "physical": "DT_EXPECTED",
+        "physical": "DT_EXPCTD",
         "comment": "预期时间"
       },
       {
@@ -16267,32 +16267,32 @@
       },
       {
         "logical": "requested_by",
-        "physical": "ID_USER_REQUESTED",
+        "physical": "ID_USER_REQD",
         "comment": "申请人标识"
       },
       {
         "logical": "requested_at",
-        "physical": "DT_REQUESTED",
+        "physical": "DT_REQD",
         "comment": "申请时间"
       },
       {
         "logical": "accepted_by",
-        "physical": "ID_USER_ACCEPTED",
+        "physical": "ID_USER_ACPTD",
         "comment": "接受人标识"
       },
       {
         "logical": "accepted_at",
-        "physical": "DT_ACCEPTED",
+        "physical": "DT_ACPTD",
         "comment": "接受时间"
       },
       {
         "logical": "completed_by",
-        "physical": "ID_USER_COMPLETED",
+        "physical": "ID_USER_CMPLD",
         "comment": "完成人标识"
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
@@ -16303,7 +16303,7 @@
       },
       {
         "logical": "rejection_reason",
-        "physical": "DES_REJECTION_REASON",
+        "physical": "DES_REJCTN_REASON",
         "comment": "rejection原因"
       },
       {
@@ -16535,7 +16535,7 @@
       },
       {
         "logical": "inheritance_enabled",
-        "physical": "FG_INHERITANCE",
+        "physical": "FG_INHRT",
         "comment": "是否inheritanceenabled"
       },
       {
@@ -16545,12 +16545,12 @@
       },
       {
         "logical": "nullable_value",
-        "physical": "FG_NULLABLE_VAL",
+        "physical": "FG_NULLBL_VAL",
         "comment": "是否nullable值"
       },
       {
         "logical": "sensitivity",
-        "physical": "SENSITIVITY",
+        "physical": "SENS",
         "comment": "敏感级别"
       },
       {
@@ -16601,7 +16601,7 @@
       },
       {
         "logical": "sd_dependency_behavior",
-        "physical": "SD_DEPENDENCY_BEHAVIOR",
+        "physical": "SD_DEPNCY_BEHAV",
         "comment": "未满足依赖时的行为策略：DISABLE_AND_SUPPRESS 或 HIDE"
       }
     ]
@@ -16640,7 +16640,7 @@
       },
       {
         "logical": "scope_reference",
-        "physical": "SCOPE_REFERENCE",
+        "physical": "SCOPE_REF",
         "comment": "范围参考"
       },
       {
@@ -16744,7 +16744,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -16845,12 +16845,12 @@
       },
       {
         "logical": "registered_at",
-        "physical": "DT_REGISTERED",
+        "physical": "DT_REGD",
         "comment": "registered时间"
       },
       {
         "logical": "registered_by",
-        "physical": "ID_USER_REGISTERED",
+        "physical": "ID_USER_REGD",
         "comment": "registered人标识"
       },
       {
@@ -16860,7 +16860,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       }
     ],
@@ -16942,7 +16942,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -16981,7 +16981,7 @@
       },
       {
         "logical": "original_payment_id",
-        "physical": "ID_PAY_ORIGINAL",
+        "physical": "ID_PAY_ORIG",
         "comment": "原支付标识"
       },
       {
@@ -16997,7 +16997,7 @@
       },
       {
         "logical": "business_scene",
-        "physical": "SD_BUSINESS_SCENE",
+        "physical": "SD_BIZ_SCENE",
         "comment": "业务场景",
         "previousPhysical": "BUSINESS_SCENE"
       },
@@ -17028,22 +17028,22 @@
       },
       {
         "logical": "requested_amount",
-        "physical": "AMT_REQUESTED",
+        "physical": "AMT_REQD",
         "comment": "申请金额"
       },
       {
         "logical": "captured_amount",
-        "physical": "AMT_CAPTURED",
+        "physical": "AMT_CAPTD",
         "comment": "captured金额"
       },
       {
         "logical": "refunded_amount",
-        "physical": "AMT_REFUNDED",
+        "physical": "AMT_RFNDD",
         "comment": "refunded金额"
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -17053,12 +17053,12 @@
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       },
       {
         "logical": "terminal_code",
-        "physical": "CD_TERMINAL",
+        "physical": "CD_TRMNL",
         "comment": "终端编码"
       },
       {
@@ -17159,7 +17159,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -17174,7 +17174,7 @@
       },
       {
         "logical": "reverses_payment_id",
-        "physical": "ID_PAY_REVERSES",
+        "physical": "ID_PAY_RVRS",
         "comment": "冲正支付标识"
       },
       {
@@ -17351,22 +17351,22 @@
       },
       {
         "logical": "pharmacist_practitioner_id",
-        "physical": "ID_PHARMACIST_PRACT",
+        "physical": "ID_PHMCST_PRACT",
         "comment": "pharmacist医务人员标识"
       },
       {
         "logical": "reviewer_user_id",
-        "physical": "ID_REVIEWER_USER",
+        "physical": "ID_RVWR_USER",
         "comment": "reviewer用户标识"
       },
       {
         "logical": "reviewer_assignment_id",
-        "physical": "ID_REVIEWER_ASSIGN",
+        "physical": "ID_RVWR_ASSIGN",
         "comment": "reviewer任职标识"
       },
       {
         "logical": "reviewed_at",
-        "physical": "DT_REVIEWED",
+        "physical": "DT_RVWD",
         "comment": "reviewed时间"
       }
     ]
@@ -17400,7 +17400,7 @@
       },
       {
         "logical": "recipient_user_id",
-        "physical": "ID_USER_RECIPIENT",
+        "physical": "ID_USER_RCPNT",
         "comment": "recipient用户标识"
       },
       {
@@ -17410,7 +17410,7 @@
       },
       {
         "logical": "severity",
-        "physical": "SD_SEVERITY",
+        "physical": "SD_SEV",
         "comment": "严重程度",
         "previousPhysical": "SEVERITY"
       },
@@ -17462,7 +17462,7 @@
       },
       {
         "logical": "archived_at",
-        "physical": "DT_ARCHIVED",
+        "physical": "DT_ARCHD",
         "comment": "archived时间"
       },
       {
@@ -17506,7 +17506,7 @@
       },
       {
         "logical": "favorites_json",
-        "physical": "JSON_FAVORITES",
+        "physical": "JSON_FAVS",
         "comment": "收藏JSON"
       },
       {
@@ -17565,7 +17565,7 @@
       },
       {
         "logical": "duty_description",
-        "physical": "DES_DUTY_DESCRIPTION",
+        "physical": "DES_DUTY_DESCR",
         "comment": "duty说明"
       },
       {
@@ -17727,19 +17727,19 @@
       },
       {
         "logical": "online_contexts",
-        "physical": "QTY_ONLINE_CONTEXTS",
+        "physical": "QTY_ONLINE_CTXS",
         "comment": "在线上下文数",
         "previousPhysical": "ONLINE_CONTEXTS"
       },
       {
         "logical": "connections",
-        "physical": "QTY_CONNECTIONS",
+        "physical": "QTY_CONNS",
         "comment": "连接数",
         "previousPhysical": "CONNECTIONS"
       },
       {
         "logical": "instances",
-        "physical": "QTY_INSTANCES",
+        "physical": "QTY_INSTS",
         "comment": "实例数",
         "previousPhysical": "INSTANCES"
       },
@@ -17774,7 +17774,7 @@
       },
       {
         "logical": "original_job_id",
-        "physical": "ID_PRINT_JOB_ORIGINAL",
+        "physical": "ID_PRINT_JOB_ORIG",
         "comment": "原作业标识"
       },
       {
@@ -17795,17 +17795,17 @@
       },
       {
         "logical": "requested_at",
-        "physical": "DT_REQUESTED",
+        "physical": "DT_REQD",
         "comment": "申请时间"
       },
       {
         "logical": "requested_by",
-        "physical": "ID_USER_REQUESTED",
+        "physical": "ID_USER_REQD",
         "comment": "申请人标识"
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       }
     ]
@@ -17906,7 +17906,7 @@
       },
       {
         "logical": "content_digest_algorithm",
-        "physical": "CONTENT_DIGEST_ALGORITHM",
+        "physical": "CONTENT_DIGEST_ALGO",
         "comment": "内容摘要算法"
       },
       {
@@ -17917,12 +17917,12 @@
       },
       {
         "logical": "generated_at",
-        "physical": "DT_GENERATED",
+        "physical": "DT_GEND",
         "comment": "生成时间"
       },
       {
         "logical": "generated_by",
-        "physical": "ID_USER_GENERATED",
+        "physical": "ID_USER_GEND",
         "comment": "生成人标识"
       },
       {
@@ -17981,7 +17981,7 @@
       },
       {
         "logical": "category",
-        "physical": "SD_CATEGORY",
+        "physical": "SD_CAT",
         "comment": "打印任务分类"
       },
       {
@@ -17991,7 +17991,7 @@
       },
       {
         "logical": "data_provider_code",
-        "physical": "CD_DATA_PROVIDER",
+        "physical": "CD_DATA_PRVDR",
         "comment": "数据提供器编码"
       },
       {
@@ -18006,7 +18006,7 @@
       },
       {
         "logical": "purposes_json",
-        "physical": "JSON_PURPOSES",
+        "physical": "JSON_PURPS",
         "comment": "允许的打印用途集合"
       },
       {
@@ -18075,7 +18075,7 @@
       },
       {
         "logical": "renderer_type",
-        "physical": "SD_RENDERER",
+        "physical": "SD_RNDR",
         "comment": "渲染器类型"
       },
       {
@@ -18184,7 +18184,7 @@
       },
       {
         "logical": "fallback_policy",
-        "physical": "SD_FALLBACK",
+        "physical": "SD_FALBK",
         "comment": "回退策略"
       },
       {
@@ -18269,7 +18269,7 @@
       },
       {
         "logical": "content_digest_algorithm",
-        "physical": "CONTENT_DIGEST_ALGORITHM",
+        "physical": "CONTENT_DIGEST_ALGO",
         "comment": "内容摘要算法"
       },
       {
@@ -18413,7 +18413,7 @@
       },
       {
         "logical": "orientation",
-        "physical": "SD_ORIENTATION",
+        "physical": "SD_ORIENT",
         "comment": "打印方向"
       },
       {
@@ -18438,12 +18438,12 @@
       },
       {
         "logical": "horizontal_gap_mm",
-        "physical": "GAP_HORIZONTAL_MM",
+        "physical": "GAP_HORIZ_MM",
         "comment": "水平间隔毫米"
       },
       {
         "logical": "vertical_gap_mm",
-        "physical": "GAP_VERTICAL_MM",
+        "physical": "GAP_VERT_MM",
         "comment": "垂直间隔毫米"
       },
       {
@@ -18706,7 +18706,7 @@
       },
       {
         "logical": "received_quantity",
-        "physical": "QTY_RECEIVED",
+        "physical": "QTY_RECVD",
         "comment": "接收数量"
       },
       {
@@ -18790,32 +18790,32 @@
       },
       {
         "logical": "expected_date",
-        "physical": "DA_EXPECTED",
+        "physical": "DA_EXPCTD",
         "comment": "预期日期"
       },
       {
         "logical": "submitted_at",
-        "physical": "DT_SUBMITTED",
+        "physical": "DT_SUBMTD",
         "comment": "提交时间"
       },
       {
         "logical": "submitted_by",
-        "physical": "ID_USER_SUBMITTED",
+        "physical": "ID_USER_SUBMTD",
         "comment": "提交人标识"
       },
       {
         "logical": "approved_at",
-        "physical": "DT_APPROVED",
+        "physical": "DT_APRVD",
         "comment": "审批时间"
       },
       {
         "logical": "approved_by",
-        "physical": "ID_USER_APPROVED",
+        "physical": "ID_USER_APRVD",
         "comment": "审批人标识"
       },
       {
         "logical": "approval_reason",
-        "physical": "DES_APPROVAL_REASON",
+        "physical": "DES_APRVL_REASON",
         "comment": "审批原因"
       },
       {
@@ -18958,7 +18958,7 @@
       },
       {
         "logical": "business_date",
-        "physical": "DA_BUSINESS",
+        "physical": "DA_BIZ",
         "comment": "业务日期"
       },
       {
@@ -19015,12 +19015,12 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "occurred_by",
-        "physical": "ID_USER_OCCURRED",
+        "physical": "ID_USER_OCCRD",
         "comment": "发生人标识"
       },
       {
@@ -19089,7 +19089,7 @@
       },
       {
         "logical": "business_date",
-        "physical": "DA_BUSINESS",
+        "physical": "DA_BIZ",
         "comment": "业务日期"
       },
       {
@@ -19099,12 +19099,12 @@
       },
       {
         "logical": "sequence_no",
-        "physical": "SN_SEQUENCE",
+        "physical": "SN_SEQ",
         "comment": "队内原始序号"
       },
       {
         "logical": "priority",
-        "physical": "SN_PRIORITY",
+        "physical": "SN_PRI",
         "comment": "调度优先级"
       },
       {
@@ -19134,7 +19134,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "结束时间"
       },
       {
@@ -19230,7 +19230,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
@@ -19269,7 +19269,7 @@
       },
       {
         "logical": "reverses_receipt_id",
-        "physical": "ID_RCPT_REVERSES",
+        "physical": "ID_RCPT_RVRS",
         "comment": "冲正票据标识"
       },
       {
@@ -19294,7 +19294,7 @@
       },
       {
         "logical": "fiscal_authority_code",
-        "physical": "CD_FISCAL_AUTHORITY",
+        "physical": "CD_FISCAL_AUTHRTY",
         "comment": "fiscal授权机构编码"
       },
       {
@@ -19309,12 +19309,12 @@
       },
       {
         "logical": "verification_code",
-        "physical": "CD_VERIFICATION",
+        "physical": "CD_VRFCTN",
         "comment": "验证编码"
       },
       {
         "logical": "controlled_object_reference",
-        "physical": "CONTROLLED_OBJECT_REFERENCE",
+        "physical": "CTRLD_OBJECT_REF",
         "comment": "受控对象参考"
       },
       {
@@ -19324,7 +19324,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -19340,13 +19340,13 @@
       },
       {
         "logical": "payer_identity_digest",
-        "physical": "HASH_PAYER_IDENTITY",
+        "physical": "HASH_PAYER_IDTY",
         "comment": "付款方身份摘要",
         "previousPhysical": "PAYER_IDENTITY_DIGEST"
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       },
       {
@@ -19455,7 +19455,7 @@
       },
       {
         "logical": "business_date",
-        "physical": "DA_BUSINESS",
+        "physical": "DA_BIZ",
         "comment": "业务日期"
       },
       {
@@ -19472,7 +19472,7 @@
       },
       {
         "logical": "difference_count",
-        "physical": "QTY_DIFFERENCE",
+        "physical": "QTY_DIFF",
         "comment": "差额盘点",
         "previousPhysical": "DIFFERENCE_COUNT"
       },
@@ -19488,12 +19488,12 @@
       },
       {
         "logical": "difference_amount",
-        "physical": "AMT_DIFFERENCE",
+        "physical": "AMT_DIFF",
         "comment": "差额金额"
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -19508,12 +19508,12 @@
       },
       {
         "logical": "completed_by",
-        "physical": "ID_USER_COMPLETED",
+        "physical": "ID_USER_CMPLD",
         "comment": "完成人标识"
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       }
     ]
@@ -19574,7 +19574,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -19649,12 +19649,12 @@
       },
       {
         "logical": "difference_amount",
-        "physical": "AMT_DIFFERENCE",
+        "physical": "AMT_DIFF",
         "comment": "差额金额"
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -19664,17 +19664,17 @@
       },
       {
         "logical": "resolved_by",
-        "physical": "ID_USER_RESOLVED",
+        "physical": "ID_USER_RSLVD",
         "comment": "已解决人标识"
       },
       {
         "logical": "resolved_at",
-        "physical": "DT_RESOLVED",
+        "physical": "DT_RSLVD",
         "comment": "已解决时间"
       },
       {
         "logical": "resolution",
-        "physical": "DES_RESOLUTION",
+        "physical": "DES_RSLN",
         "comment": "处理结果",
         "previousPhysical": "RESOLUTION"
       }
@@ -19780,7 +19780,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
@@ -19800,7 +19800,7 @@
       },
       {
         "logical": "completion_attempts",
-        "physical": "QTY_COMP_ATTEMPTS",
+        "physical": "QTY_COMP_ATMPTS",
         "comment": "完成attempts",
         "previousPhysical": "COMPLETION_ATTEMPTS"
       },
@@ -19831,7 +19831,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
@@ -19927,32 +19927,32 @@
       },
       {
         "logical": "authored_at",
-        "physical": "DT_AUTHORED",
+        "physical": "DT_AUTHRD",
         "comment": "开立时间"
       },
       {
         "logical": "authored_by",
-        "physical": "ID_USER_AUTHORED",
+        "physical": "ID_USER_AUTHRD",
         "comment": "开立人标识"
       },
       {
         "logical": "submitted_at",
-        "physical": "DT_SUBMITTED",
+        "physical": "DT_SUBMTD",
         "comment": "提交时间"
       },
       {
         "logical": "submitted_by",
-        "physical": "ID_USER_SUBMITTED",
+        "physical": "ID_USER_SUBMTD",
         "comment": "提交人标识"
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
         "logical": "cancelled_by",
-        "physical": "ID_USER_CANCELLED",
+        "physical": "ID_USER_CNCLD",
         "comment": "取消人标识"
       },
       {
@@ -20021,7 +20021,7 @@
       },
       {
         "logical": "province_code",
-        "physical": "CD_PROVINCE",
+        "physical": "CD_PROV",
         "comment": "province编码"
       },
       {
@@ -20031,7 +20031,7 @@
       },
       {
         "logical": "district_code",
-        "physical": "CD_DISTRICT",
+        "physical": "CD_DIST",
         "comment": "district编码"
       },
       {
@@ -20092,7 +20092,7 @@
       },
       {
         "logical": "community_code",
-        "physical": "CD_COMMUNITY",
+        "physical": "CD_COMM",
         "comment": "community编码"
       }
     ]
@@ -20200,12 +20200,12 @@
       },
       {
         "logical": "nationality_code",
-        "physical": "CD_NATIONALITY",
+        "physical": "CD_NATLTY",
         "comment": "nationality编码"
       },
       {
         "logical": "ethnicity_code",
-        "physical": "CD_ETHNICITY",
+        "physical": "CD_ETHNIC",
         "comment": "ethnicity编码"
       },
       {
@@ -20215,12 +20215,12 @@
       },
       {
         "logical": "education_code",
-        "physical": "CD_EDUCATION",
+        "physical": "CD_EDUC",
         "comment": "education编码"
       },
       {
         "logical": "occupation_code",
-        "physical": "CD_OCCUPATION",
+        "physical": "CD_OCCUPN",
         "comment": "occupation编码"
       },
       {
@@ -20245,7 +20245,7 @@
       },
       {
         "logical": "residency_type_code",
-        "physical": "CD_RESIDENCY_TYPE",
+        "physical": "CD_RESDNCY_TYPE",
         "comment": "residency类型编码"
       }
     ]
@@ -20279,12 +20279,12 @@
       },
       {
         "logical": "employer_name",
-        "physical": "NA_EMPLOYER",
+        "physical": "NA_EMPLYR",
         "comment": "employer名称"
       },
       {
         "logical": "occupation_code",
-        "physical": "CD_OCCUPATION",
+        "physical": "CD_OCCUPN",
         "comment": "occupation编码"
       },
       {
@@ -20382,7 +20382,7 @@
       },
       {
         "logical": "normalized_value",
-        "physical": "NORMALIZED_VALUE",
+        "physical": "NORM_VALUE",
         "comment": "标准化值"
       },
       {
@@ -20456,18 +20456,18 @@
       },
       {
         "logical": "decision",
-        "physical": "SD_DECISION",
+        "physical": "SD_DCSN",
         "comment": "决定",
         "previousPhysical": "DECISION"
       },
       {
         "logical": "reviewed_by",
-        "physical": "ID_USER_REVIEWED",
+        "physical": "ID_USER_RVWD",
         "comment": "reviewed人标识"
       },
       {
         "logical": "reviewed_at",
-        "physical": "DT_REVIEWED",
+        "physical": "DT_RVWD",
         "comment": "reviewed时间"
       }
     ]
@@ -20491,7 +20491,7 @@
       },
       {
         "logical": "surviving_resident_id",
-        "physical": "ID_PAT_SURVIVING",
+        "physical": "ID_PAT_SURV",
         "comment": "surviving患者标识"
       },
       {
@@ -20501,7 +20501,7 @@
       },
       {
         "logical": "moved_identifier_ids",
-        "physical": "MOVED_IDENTIFIER_IDS",
+        "physical": "MOVED_IDENT_IDS",
         "comment": "moved标识ids"
       },
       {
@@ -20565,7 +20565,7 @@
       },
       {
         "logical": "relationship_code",
-        "physical": "CD_RELATIONSHIP",
+        "physical": "CD_RELSHIP",
         "comment": "relationship编码"
       },
       {
@@ -20582,12 +20582,12 @@
       },
       {
         "logical": "guardian_flag",
-        "physical": "FG_GUARDIAN_FLAG",
+        "physical": "FG_GUARD_FLAG",
         "comment": "是否guardianflag"
       },
       {
         "logical": "emergency_contact_flag",
-        "physical": "FG_EMERGENCY_CONTACT_FLAG",
+        "physical": "FG_EMERG_CONTACT_FLAG",
         "comment": "是否emergency联系方式flag"
       },
       {
@@ -20726,12 +20726,12 @@
       },
       {
         "logical": "restored_resident_id",
-        "physical": "ID_PAT_RESTORED",
+        "physical": "ID_PAT_RSTRD",
         "comment": "restored患者标识"
       },
       {
         "logical": "restored_identifier_ids",
-        "physical": "RESTORED_IDENTIFIER_IDS",
+        "physical": "RSTRD_IDENT_IDS",
         "comment": "restored标识ids"
       },
       {
@@ -20780,7 +20780,7 @@
       },
       {
         "logical": "national_id",
-        "physical": "ID_NATIONAL",
+        "physical": "ID_NATL",
         "comment": "national标识"
       },
       {
@@ -20832,12 +20832,12 @@
       },
       {
         "logical": "deceased",
-        "physical": "FG_DECEASED",
+        "physical": "FG_DCD",
         "comment": "是否deceased"
       },
       {
         "logical": "deceased_at",
-        "physical": "DT_DECEASED",
+        "physical": "DT_DCD",
         "comment": "deceased时间"
       },
       {
@@ -20942,7 +20942,7 @@
       },
       {
         "logical": "capacity",
-        "physical": "QTY_CAPACITY",
+        "physical": "QTY_CAPCTY",
         "comment": "容量",
         "previousPhysical": "CAPACITY"
       },
@@ -21023,7 +21023,7 @@
       },
       {
         "logical": "generated_count",
-        "physical": "QTY_GENERATED",
+        "physical": "QTY_GEND",
         "comment": "生成盘点",
         "previousPhysical": "GENERATED_COUNT"
       },
@@ -21045,7 +21045,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
@@ -21055,7 +21055,7 @@
       },
       {
         "logical": "triggered_by",
-        "physical": "ID_USER_TRIGGERED",
+        "physical": "ID_USER_TRIGD",
         "comment": "triggered人标识"
       }
     ]
@@ -21130,7 +21130,7 @@
       },
       {
         "logical": "consumed_registration_id",
-        "physical": "ID_PAT_REG_CONSUMED",
+        "physical": "ID_PAT_REG_CNSMD",
         "comment": "消耗挂号标识"
       }
     ]
@@ -21191,7 +21191,7 @@
       },
       {
         "logical": "occupied_count",
-        "physical": "QTY_OCCUPIED",
+        "physical": "QTY_OCCPD",
         "comment": "occupied盘点",
         "previousPhysical": "OCCUPIED_COUNT"
       },
@@ -21266,7 +21266,7 @@
       },
       {
         "logical": "default_capacity",
-        "physical": "QTY_DEFAULT_CAPACITY",
+        "physical": "QTY_DEFAULT_CAPCTY",
         "comment": "默认容量",
         "previousPhysical": "DEFAULT_CAPACITY"
       },
@@ -21333,7 +21333,7 @@
       },
       {
         "logical": "timezone_code",
-        "physical": "CD_TIMEZONE",
+        "physical": "CD_TZ",
         "comment": "时区编码"
       },
       {
@@ -21408,12 +21408,12 @@
       },
       {
         "logical": "medical_technology",
-        "physical": "FG_MEDICAL_TECHNOLOGY",
+        "physical": "FG_MEDICAL_TECH",
         "comment": "是否medicaltechnology"
       },
       {
         "logical": "combination_item",
-        "physical": "FG_COMBINATION_ITEM",
+        "physical": "FG_COMB_ITEM",
         "comment": "是否combination项目"
       },
       {
@@ -21433,12 +21433,12 @@
       },
       {
         "logical": "accounting_category",
-        "physical": "SD_ACCOUNTING_CAT",
+        "physical": "SD_ACCTG_CAT",
         "comment": "accounting分类"
       },
       {
         "logical": "duplicate_rule",
-        "physical": "SD_DUPLICATE_RULE",
+        "physical": "SD_DUP_RULE",
         "comment": "duplicate规则",
         "previousPhysical": "DUPLICATE_RULE"
       },
@@ -21461,17 +21461,17 @@
       },
       {
         "logical": "mutual_recognition_code",
-        "physical": "CD_MUTUAL_RECOGNITION",
+        "physical": "CD_MUTUAL_RECOG",
         "comment": "mutualrecognition编码"
       },
       {
         "logical": "pregnancy_alert",
-        "physical": "FG_PREGNANCY_ALERT",
+        "physical": "FG_PREG_ALERT",
         "comment": "是否pregnancy预警"
       },
       {
         "logical": "attention",
-        "physical": "DES_ATTENTION",
+        "physical": "DES_ATTN",
         "comment": "注意事项",
         "previousPhysical": "ATTENTION"
       },
@@ -21602,7 +21602,7 @@
       },
       {
         "logical": "clinical_description",
-        "physical": "DES_CLIN_DESCRIPTION",
+        "physical": "DES_CLIN_DESCR",
         "comment": "临床说明"
       },
       {
@@ -21783,7 +21783,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
@@ -21910,7 +21910,7 @@
       },
       {
         "logical": "timezone_code",
-        "physical": "CD_TIMEZONE",
+        "physical": "CD_TZ",
         "comment": "时区编码"
       },
       {
@@ -21930,7 +21930,7 @@
       },
       {
         "logical": "total_capacity",
-        "physical": "QTY_TOTAL_CAPACITY",
+        "physical": "QTY_TOTAL_CAPCTY",
         "comment": "总计容量",
         "previousPhysical": "TOTAL_CAPACITY"
       },
@@ -22011,12 +22011,12 @@
       },
       {
         "logical": "body_site_required",
-        "physical": "FG_BODY_SITE_REQUIRED",
+        "physical": "FG_BODY_SITE_RQD",
         "comment": "是否身体部位库房应需"
       },
       {
         "logical": "mutual_recognition_code",
-        "physical": "CD_MUTUAL_RECOGNITION",
+        "physical": "CD_MUTUAL_RECOG",
         "comment": "mutualrecognition编码"
       },
       {
@@ -22161,7 +22161,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -22215,7 +22215,7 @@
       },
       {
         "logical": "discount_amount",
-        "physical": "AMT_DISCOUNT",
+        "physical": "AMT_DISC",
         "comment": "discount金额"
       },
       {
@@ -22300,7 +22300,7 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       }
     ]
@@ -22334,7 +22334,7 @@
       },
       {
         "logical": "reverses_settlement_id",
-        "physical": "ID_STL_REVERSES",
+        "physical": "ID_STL_RVRS",
         "comment": "冲正结算标识"
       },
       {
@@ -22365,7 +22365,7 @@
       },
       {
         "logical": "terminal_scene",
-        "physical": "SD_TERMINAL_SCENE",
+        "physical": "SD_TRMNL_SCENE",
         "comment": "终端场景",
         "previousPhysical": "TERMINAL_SCENE"
       },
@@ -22381,7 +22381,7 @@
       },
       {
         "logical": "discount_amount",
-        "physical": "AMT_DISCOUNT",
+        "physical": "AMT_DISC",
         "comment": "discount金额"
       },
       {
@@ -22401,7 +22401,7 @@
       },
       {
         "logical": "rounding_amount",
-        "physical": "AMT_ROUNDING",
+        "physical": "AMT_RND",
         "comment": "舍入金额"
       },
       {
@@ -22411,12 +22411,12 @@
       },
       {
         "logical": "currency_code",
-        "physical": "CD_CURRENCY",
+        "physical": "CD_CCY",
         "comment": "币种编码"
       },
       {
         "logical": "terminal_code",
-        "physical": "CD_TERMINAL",
+        "physical": "CD_TRMNL",
         "comment": "终端编码"
       },
       {
@@ -22431,12 +22431,12 @@
       },
       {
         "logical": "finalized_by",
-        "physical": "ID_USER_FINALIZED",
+        "physical": "ID_USER_FNLZD",
         "comment": "finalized人标识"
       },
       {
         "logical": "finalized_at",
-        "physical": "DT_FINALIZED",
+        "physical": "DT_FNLZD",
         "comment": "finalized时间"
       },
       {
@@ -22541,17 +22541,17 @@
       },
       {
         "logical": "original_solution",
-        "physical": "FG_ORIGINAL_SOLUTION",
+        "physical": "FG_ORIG_SOLN",
         "comment": "是否原solution"
       },
       {
         "logical": "solution_catalog_item_id",
-        "physical": "ID_CATALOG_ITEM_SOLUTION",
+        "physical": "ID_CATALOG_ITEM_SOLN",
         "comment": "solution目录项目标识"
       },
       {
         "logical": "solution_name_snapshot",
-        "physical": "NA_SOLUTION_SNAP",
+        "physical": "NA_SOLN_SNAP",
         "comment": "solution名称快照"
       },
       {
@@ -22566,12 +22566,12 @@
       },
       {
         "logical": "concentration",
-        "physical": "CONCENTRATION",
+        "physical": "CONC",
         "comment": "浓度"
       },
       {
         "logical": "concentration_unit",
-        "physical": "CONCENTRATION_UNIT",
+        "physical": "CONC_UNIT",
         "comment": "浓度单位"
       },
       {
@@ -22581,7 +22581,7 @@
       },
       {
         "logical": "verification_method",
-        "physical": "SD_VERIFICATION_METHOD",
+        "physical": "SD_VRFCTN_METHOD",
         "comment": "验证方法",
         "previousPhysical": "VERIFICATION_METHOD"
       },
@@ -22598,7 +22598,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
@@ -22609,19 +22609,19 @@
       },
       {
         "logical": "wheal_diameter_mm",
-        "physical": "QTY_WHEAL_DIAMETER_MM",
+        "physical": "QTY_WHEAL_DIAM_MM",
         "comment": "风团直径毫米",
         "previousPhysical": "WHEAL_DIAMETER_MM"
       },
       {
         "logical": "flare_diameter_mm",
-        "physical": "QTY_FLARE_DIAMETER_MM",
+        "physical": "QTY_FLARE_DIAM_MM",
         "comment": "红斑直径毫米",
         "previousPhysical": "FLARE_DIAMETER_MM"
       },
       {
         "logical": "reaction_description",
-        "physical": "DES_REACTION_DESCRIPTION",
+        "physical": "DES_REACT_DESCR",
         "comment": "reaction说明"
       },
       {
@@ -22631,12 +22631,12 @@
       },
       {
         "logical": "performed_by_user_id",
-        "physical": "ID_USER_PERFORMED",
+        "physical": "ID_USER_PRFRMD",
         "comment": "performedby用户标识"
       },
       {
         "logical": "performed_by_practitioner_id",
-        "physical": "ID_PRACT_PERFORMED",
+        "physical": "ID_PRACT_PRFRMD",
         "comment": "performedby医务人员标识"
       },
       {
@@ -22651,12 +22651,12 @@
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
         "logical": "cancelled_by",
-        "physical": "ID_USER_CANCELLED",
+        "physical": "ID_USER_CNCLD",
         "comment": "取消人标识"
       },
       {
@@ -22671,22 +22671,22 @@
       },
       {
         "logical": "id_user_verified",
-        "physical": "ID_USER_VERIFIED",
+        "physical": "ID_USER_VRFD",
         "comment": "复核护士用户标识"
       },
       {
         "logical": "id_pract_verified",
-        "physical": "ID_PRACT_VERIFIED",
+        "physical": "ID_PRACT_VRFD",
         "comment": "复核护士医护人员标识"
       },
       {
         "logical": "na_pract_verified",
-        "physical": "NA_PRACT_VERIFIED",
+        "physical": "NA_PRACT_VRFD",
         "comment": "复核护士姓名"
       },
       {
         "logical": "dt_verified",
-        "physical": "DT_VERIFIED",
+        "physical": "DT_VRFD",
         "comment": "双人复核时间"
       }
     ]
@@ -22725,7 +22725,7 @@
       },
       {
         "logical": "sequence_no",
-        "physical": "SN_SEQUENCE",
+        "physical": "SN_SEQ",
         "comment": "序号编号"
       },
       {
@@ -22742,7 +22742,7 @@
       },
       {
         "logical": "occupied_delta",
-        "physical": "QTY_OCCUPIED_DELTA",
+        "physical": "QTY_OCCPD_DELTA",
         "comment": "occupied变动量",
         "previousPhysical": "OCCUPIED_DELTA"
       },
@@ -22764,7 +22764,7 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
@@ -22818,7 +22818,7 @@
       },
       {
         "logical": "specialty_code",
-        "physical": "CD_SPECIALTY",
+        "physical": "CD_SPECLTY",
         "comment": "specialty编码"
       },
       {
@@ -22828,7 +22828,7 @@
       },
       {
         "logical": "workload_percent",
-        "physical": "WORKLOAD_PERCENT",
+        "physical": "WKLOAD_PERCENT",
         "comment": "工作量百分比"
       },
       {
@@ -23043,7 +23043,7 @@
       },
       {
         "logical": "variance_quantity",
-        "physical": "QTY_VARIANCE",
+        "physical": "QTY_VARNC",
         "comment": "variance数量"
       },
       {
@@ -23064,7 +23064,7 @@
       },
       {
         "logical": "variance_reason",
-        "physical": "DES_VARIANCE_REASON",
+        "physical": "DES_VARNC_REASON",
         "comment": "variance原因"
       }
     ]
@@ -23143,22 +23143,22 @@
       },
       {
         "logical": "submitted_at",
-        "physical": "DT_SUBMITTED",
+        "physical": "DT_SUBMTD",
         "comment": "提交时间"
       },
       {
         "logical": "submitted_by",
-        "physical": "ID_USER_SUBMITTED",
+        "physical": "ID_USER_SUBMTD",
         "comment": "提交人标识"
       },
       {
         "logical": "approved_at",
-        "physical": "DT_APPROVED",
+        "physical": "DT_APRVD",
         "comment": "审批时间"
       },
       {
         "logical": "approved_by",
-        "physical": "ID_USER_APPROVED",
+        "physical": "ID_USER_APRVD",
         "comment": "审批人标识"
       },
       {
@@ -23263,17 +23263,17 @@
       },
       {
         "logical": "negative_allowed",
-        "physical": "FG_NEGATIVE",
+        "physical": "FG_NEG",
         "comment": "是否negative允许"
       },
       {
         "logical": "lot_required",
-        "physical": "FG_LOT_REQUIRED",
+        "physical": "FG_LOT_RQD",
         "comment": "是否批号应需"
       },
       {
         "logical": "trace_required",
-        "physical": "FG_TRACE_REQUIRED",
+        "physical": "FG_TRACE_RQD",
         "comment": "是否追溯应需"
       },
       {
@@ -23288,7 +23288,7 @@
       },
       {
         "logical": "controlled",
-        "physical": "FG_CONTROLLED",
+        "physical": "FG_CTRLD",
         "comment": "是否受控"
       },
       {
@@ -23368,7 +23368,7 @@
       },
       {
         "logical": "production_date",
-        "physical": "DA_PRODUCTION",
+        "physical": "DA_PROD",
         "comment": "生产日期"
       },
       {
@@ -23378,7 +23378,7 @@
       },
       {
         "logical": "approval_code_snapshot",
-        "physical": "CD_APPROVAL_SNAP",
+        "physical": "CD_APRVL_SNAP",
         "comment": "审批编码快照"
       },
       {
@@ -23459,7 +23459,7 @@
       },
       {
         "logical": "allocated_quantity",
-        "physical": "QTY_ALLOCATED",
+        "physical": "QTY_ALLOCD",
         "comment": "allocated数量"
       },
       {
@@ -23526,12 +23526,12 @@
       },
       {
         "logical": "requested_quantity",
-        "physical": "QTY_REQUESTED",
+        "physical": "QTY_REQD",
         "comment": "申请数量"
       },
       {
         "logical": "approved_quantity",
-        "physical": "QTY_APPROVED",
+        "physical": "QTY_APRVD",
         "comment": "审批数量"
       },
       {
@@ -23593,12 +23593,12 @@
       },
       {
         "logical": "requesting_department_id",
-        "physical": "ID_DEPT_REQUESTING",
+        "physical": "ID_DEPT_REQNG",
         "comment": "requesting科室标识"
       },
       {
         "logical": "destination_site_id",
-        "physical": "ID_STOCK_SITE_DESTINATION",
+        "physical": "ID_STOCK_SITE_DEST",
         "comment": "目标库房标识"
       },
       {
@@ -23619,22 +23619,22 @@
       },
       {
         "logical": "requested_at",
-        "physical": "DT_REQUESTED",
+        "physical": "DT_REQD",
         "comment": "申请时间"
       },
       {
         "logical": "requested_by",
-        "physical": "ID_USER_REQUESTED",
+        "physical": "ID_USER_REQD",
         "comment": "申请人标识"
       },
       {
         "logical": "approved_at",
-        "physical": "DT_APPROVED",
+        "physical": "DT_APRVD",
         "comment": "审批时间"
       },
       {
         "logical": "approved_by",
-        "physical": "ID_USER_APPROVED",
+        "physical": "ID_USER_APRVD",
         "comment": "审批人标识"
       },
       {
@@ -23715,7 +23715,7 @@
       },
       {
         "logical": "original_dispense_line_id",
-        "physical": "ID_MED_DISP_LINE_ORIGINAL",
+        "physical": "ID_MED_DISP_LINE_ORIG",
         "comment": "原发药明细标识"
       },
       {
@@ -23745,12 +23745,12 @@
       },
       {
         "logical": "quantity_requested",
-        "physical": "QTY_REQUESTED",
+        "physical": "QTY_REQD",
         "comment": "数量申请"
       },
       {
         "logical": "quantity_accepted",
-        "physical": "QTY_ACCEPTED",
+        "physical": "QTY_ACPTD",
         "comment": "数量接受"
       },
       {
@@ -23760,18 +23760,18 @@
       },
       {
         "logical": "base_quantity_factor",
-        "physical": "BASE_QUANTITY_FACTOR",
+        "physical": "BASE_QTY_FACTOR",
         "comment": "基础数量换算系数"
       },
       {
         "logical": "disposition",
-        "physical": "SD_DISPOSITION",
+        "physical": "SD_DISPOS",
         "comment": "处置方式",
         "previousPhysical": "DISPOSITION"
       },
       {
         "logical": "exception_description",
-        "physical": "DES_EXCEPT_DESCRIPTION",
+        "physical": "DES_EXCEPT_DESCR",
         "comment": "例外说明"
       }
     ]
@@ -23810,7 +23810,7 @@
       },
       {
         "logical": "original_dispense_id",
-        "physical": "ID_MED_DISP_ORIGINAL",
+        "physical": "ID_MED_DISP_ORIG",
         "comment": "原发药标识"
       },
       {
@@ -23840,22 +23840,22 @@
       },
       {
         "logical": "requested_at",
-        "physical": "DT_REQUESTED",
+        "physical": "DT_REQD",
         "comment": "申请时间"
       },
       {
         "logical": "requested_by",
-        "physical": "ID_USER_REQUESTED",
+        "physical": "ID_USER_REQD",
         "comment": "申请人标识"
       },
       {
         "logical": "confirmed_at",
-        "physical": "DT_CONFIRMED",
+        "physical": "DT_CNFRMD",
         "comment": "确认时间"
       },
       {
         "logical": "confirmed_by",
-        "physical": "ID_USER_CONFIRMED",
+        "physical": "ID_USER_CNFRMD",
         "comment": "确认人标识"
       },
       {
@@ -23984,7 +23984,7 @@
       },
       {
         "logical": "destination_bin_id",
-        "physical": "ID_STOCK_BIN_DESTINATION",
+        "physical": "ID_STOCK_BIN_DEST",
         "comment": "目标库位标识"
       },
       {
@@ -23999,12 +23999,12 @@
       },
       {
         "logical": "dispatched_quantity",
-        "physical": "QTY_DISPATCHED",
+        "physical": "QTY_DSPTD",
         "comment": "发出数量"
       },
       {
         "logical": "received_quantity",
-        "physical": "QTY_RECEIVED",
+        "physical": "QTY_RECVD",
         "comment": "接收数量"
       },
       {
@@ -24068,27 +24068,27 @@
       },
       {
         "logical": "destination_stock_item_id",
-        "physical": "ID_STOCK_ITEM_DESTINATION",
+        "physical": "ID_STOCK_ITEM_DEST",
         "comment": "目标库存项目标识"
       },
       {
         "logical": "requested_quantity",
-        "physical": "QTY_REQUESTED",
+        "physical": "QTY_REQD",
         "comment": "申请数量"
       },
       {
         "logical": "approved_quantity",
-        "physical": "QTY_APPROVED",
+        "physical": "QTY_APRVD",
         "comment": "审批数量"
       },
       {
         "logical": "dispatched_quantity",
-        "physical": "QTY_DISPATCHED",
+        "physical": "QTY_DSPTD",
         "comment": "发出数量"
       },
       {
         "logical": "received_quantity",
-        "physical": "QTY_RECEIVED",
+        "physical": "QTY_RECVD",
         "comment": "接收数量"
       },
       {
@@ -24108,22 +24108,22 @@
       },
       {
         "logical": "discrepancy_reason",
-        "physical": "DES_DISCREPANCY_REASON",
+        "physical": "DES_DSCRPN_REASON",
         "comment": "差异原因"
       },
       {
         "logical": "requested_operation_quantity",
-        "physical": "QTY_REQUESTED_OPERATION",
+        "physical": "QTY_REQD_OPER",
         "comment": "申请业务操作数量"
       },
       {
         "logical": "operation_unit_code",
-        "physical": "CD_OPERATION_UNIT",
+        "physical": "CD_OPER_UNIT",
         "comment": "业务操作单位编码"
       },
       {
         "logical": "base_quantity_factor",
-        "physical": "BASE_QUANTITY_FACTOR",
+        "physical": "BASE_QTY_FACTOR",
         "comment": "基础数量换算系数"
       }
     ]
@@ -24162,7 +24162,7 @@
       },
       {
         "logical": "destination_site_id",
-        "physical": "ID_STOCK_SITE_DESTINATION",
+        "physical": "ID_STOCK_SITE_DEST",
         "comment": "目标库房标识"
       },
       {
@@ -24182,42 +24182,42 @@
       },
       {
         "logical": "requested_at",
-        "physical": "DT_REQUESTED",
+        "physical": "DT_REQD",
         "comment": "申请时间"
       },
       {
         "logical": "requested_by",
-        "physical": "ID_USER_REQUESTED",
+        "physical": "ID_USER_REQD",
         "comment": "申请人标识"
       },
       {
         "logical": "approved_at",
-        "physical": "DT_APPROVED",
+        "physical": "DT_APRVD",
         "comment": "审批时间"
       },
       {
         "logical": "approved_by",
-        "physical": "ID_USER_APPROVED",
+        "physical": "ID_USER_APRVD",
         "comment": "审批人标识"
       },
       {
         "logical": "dispatched_at",
-        "physical": "DT_DISPATCHED",
+        "physical": "DT_DSPTD",
         "comment": "发出时间"
       },
       {
         "logical": "dispatched_by",
-        "physical": "ID_USER_DISPATCHED",
+        "physical": "ID_USER_DSPTD",
         "comment": "发出人标识"
       },
       {
         "logical": "received_at",
-        "physical": "DT_RECEIVED",
+        "physical": "DT_RECVD",
         "comment": "接收时间"
       },
       {
         "logical": "received_by",
-        "physical": "ID_USER_RECEIVED",
+        "physical": "ID_USER_RECVD",
         "comment": "接收人标识"
       },
       {
@@ -24232,7 +24232,7 @@
       },
       {
         "logical": "outbound_transaction_id",
-        "physical": "ID_INV_TXN_OUTBOUND",
+        "physical": "ID_INV_TXN_OUTBND",
         "comment": "outbound流水标识"
       },
       {
@@ -24306,7 +24306,7 @@
       },
       {
         "logical": "agreement_price",
-        "physical": "PRICE_AGREEMENT",
+        "physical": "PRICE_AGRMT",
         "comment": "agreement单价"
       },
       {
@@ -24496,7 +24496,7 @@
       },
       {
         "logical": "material_type",
-        "physical": "SD_MATERIAL_TYPE",
+        "physical": "SD_MATL_TYPE",
         "comment": "material类型"
       },
       {
@@ -24517,7 +24517,7 @@
       },
       {
         "logical": "intervention",
-        "physical": "FG_INTERVENTION",
+        "physical": "FG_INTRVN",
         "comment": "是否intervention"
       },
       {
@@ -24542,7 +24542,7 @@
       },
       {
         "logical": "registrant_name",
-        "physical": "NA_REGISTRANT",
+        "physical": "NA_REGSTR",
         "comment": "registrant名称"
       },
       {
@@ -24562,17 +24562,17 @@
       },
       {
         "logical": "structure_description",
-        "physical": "DES_STRUCTURE_DESCRIPTION",
+        "physical": "DES_STRUCT_DESCR",
         "comment": "structure说明"
       },
       {
         "logical": "scope_description",
-        "physical": "DES_SCOPE_DESCRIPTION",
+        "physical": "DES_SCOPE_DESCR",
         "comment": "范围说明"
       },
       {
         "logical": "instruction",
-        "physical": "DES_INSTRUCTION",
+        "physical": "DES_INSTR",
         "comment": "用法",
         "previousPhysical": "INSTRUCTION"
       }
@@ -24622,7 +24622,7 @@
       },
       {
         "logical": "priority",
-        "physical": "SD_PRIORITY",
+        "physical": "SD_PRI",
         "comment": "优先级",
         "previousPhysical": "PRIORITY"
       },
@@ -24679,12 +24679,12 @@
       },
       {
         "logical": "withdrawn_by",
-        "physical": "ID_USER_WITHDRAWN",
+        "physical": "ID_USER_WDRWN",
         "comment": "withdrawn人标识"
       },
       {
         "logical": "withdrawn_at",
-        "physical": "DT_WITHDRAWN",
+        "physical": "DT_WDRWN",
         "comment": "withdrawn时间"
       },
       {
@@ -24726,7 +24726,7 @@
       },
       {
         "logical": "timezone_code",
-        "physical": "CD_TIMEZONE",
+        "physical": "CD_TZ",
         "comment": "时区编码"
       },
       {
@@ -24827,23 +24827,23 @@
       },
       {
         "logical": "duration_value",
-        "physical": "QTY_DURATION_VAL",
+        "physical": "QTY_DUR_VAL",
         "comment": "时长值",
         "previousPhysical": "DURATION_VALUE"
       },
       {
         "logical": "duration_unit",
-        "physical": "DURATION_UNIT",
+        "physical": "DUR_UNIT",
         "comment": "时长单位"
       },
       {
         "logical": "skin_test_required",
-        "physical": "FG_SKIN_TEST_REQUIRED",
+        "physical": "FG_SKIN_TEST_RQD",
         "comment": "是否皮试检测应需"
       },
       {
         "logical": "settlement_required",
-        "physical": "FG_STL_REQUIRED",
+        "physical": "FG_STL_RQD",
         "comment": "是否结算应需"
       },
       {
@@ -24853,7 +24853,7 @@
       },
       {
         "logical": "fulfillment_required",
-        "physical": "FG_FULFILL_REQUIRED",
+        "physical": "FG_FULFILL_RQD",
         "comment": "是否履约应需"
       },
       {
@@ -24868,7 +24868,7 @@
       },
       {
         "logical": "cancelled_at",
-        "physical": "DT_CANCELLED",
+        "physical": "DT_CNCLD",
         "comment": "取消时间"
       },
       {
@@ -24888,7 +24888,7 @@
       },
       {
         "logical": "frequency_rule_snapshot",
-        "physical": "FREQUENCY_RULE_SNAPSHOT",
+        "physical": "FREQ_RULE_SNAP",
         "comment": "频次规则快照"
       }
     ]
@@ -24972,7 +24972,7 @@
       },
       {
         "logical": "verification_method",
-        "physical": "SD_VERIFICATION_METHOD",
+        "physical": "SD_VRFCTN_METHOD",
         "comment": "验证方法",
         "previousPhysical": "VERIFICATION_METHOD"
       },
@@ -24989,12 +24989,12 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
         "logical": "completed_by",
-        "physical": "ID_USER_COMPLETED",
+        "physical": "ID_USER_CMPLD",
         "comment": "完成人标识"
       },
       {
@@ -25009,12 +25009,12 @@
       },
       {
         "logical": "adverse_reaction",
-        "physical": "FG_ADVERSE_REACTION",
+        "physical": "FG_ADVERSE_REACT",
         "comment": "是否adversereaction"
       },
       {
         "logical": "adverse_reaction_detail",
-        "physical": "DES_ADVERSE_REACTION_DETAIL",
+        "physical": "DES_ADVERSE_REACT_DETAIL",
         "comment": "adversereaction明细"
       },
       {
@@ -25152,7 +25152,7 @@
       },
       {
         "logical": "dimension",
-        "physical": "DIMENSION",
+        "physical": "DIM",
         "comment": "维度"
       },
       {
@@ -25212,13 +25212,13 @@
       },
       {
         "logical": "username",
-        "physical": "CD_USERNAME",
+        "physical": "CD_USRNM",
         "comment": "用户名",
         "previousPhysical": "USERNAME"
       },
       {
         "logical": "password_hash",
-        "physical": "HASH_PASSWORD",
+        "physical": "HASH_PWD",
         "comment": "password摘要"
       },
       {
@@ -25228,7 +25228,7 @@
       },
       {
         "logical": "password_changed_at",
-        "physical": "DT_PASSWORD_CHANGED",
+        "physical": "DT_PWD_CHANGED",
         "comment": "password变更时间"
       },
       {
@@ -25395,12 +25395,12 @@
       },
       {
         "logical": "effective_from",
-        "physical": "DA_EFFECTIVE_FROM",
+        "physical": "DA_EFF_FROM",
         "comment": "生效开始日期"
       },
       {
         "logical": "effective_to",
-        "physical": "DA_EFFECTIVE_TO",
+        "physical": "DA_EFF_TO",
         "comment": "生效结束日期"
       },
       {
@@ -25479,27 +25479,27 @@
       },
       {
         "logical": "dispatched_at",
-        "physical": "DT_DISPATCHED",
+        "physical": "DT_DSPTD",
         "comment": "发出时间"
       },
       {
         "logical": "dispatched_by",
-        "physical": "ID_USER_DISPATCHED",
+        "physical": "ID_USER_DSPTD",
         "comment": "发出人标识"
       },
       {
         "logical": "dispatch_note",
-        "physical": "DES_DISPATCH_NOTE",
+        "physical": "DES_DSPT_NOTE",
         "comment": "dispatch备注"
       },
       {
         "logical": "received_at",
-        "physical": "DT_RECEIVED",
+        "physical": "DT_RECVD",
         "comment": "接收时间"
       },
       {
         "logical": "received_by",
-        "physical": "ID_USER_RECEIVED",
+        "physical": "ID_USER_RECVD",
         "comment": "接收人标识"
       },
       {
@@ -25509,27 +25509,27 @@
       },
       {
         "logical": "discrepancy_note",
-        "physical": "DES_DISCREPANCY_NOTE",
+        "physical": "DES_DSCRPN_NOTE",
         "comment": "差异备注"
       },
       {
         "logical": "resolved_at",
-        "physical": "DT_RESOLVED",
+        "physical": "DT_RSLVD",
         "comment": "已解决时间"
       },
       {
         "logical": "resolved_by",
-        "physical": "ID_USER_RESOLVED",
+        "physical": "ID_USER_RSLVD",
         "comment": "已解决人标识"
       },
       {
         "logical": "resolution_code",
-        "physical": "CD_RESOLUTION",
+        "physical": "CD_RSLN",
         "comment": "处理结果编码"
       },
       {
         "logical": "resolution_note",
-        "physical": "DES_RESOLUTION_NOTE",
+        "physical": "DES_RSLN_NOTE",
         "comment": "处理结果备注"
       }
     ]
@@ -25578,12 +25578,12 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "occurred_by",
-        "physical": "ID_USER_OCCURRED",
+        "physical": "ID_USER_OCCRD",
         "comment": "发生人标识"
       },
       {
@@ -25642,12 +25642,12 @@
       },
       {
         "logical": "expected_quantity",
-        "physical": "QTY_EXPECTED",
+        "physical": "QTY_EXPCTD",
         "comment": "预期数量"
       },
       {
         "logical": "received_quantity",
-        "physical": "QTY_RECEIVED",
+        "physical": "QTY_RECVD",
         "comment": "接收数量"
       },
       {
@@ -25662,12 +25662,12 @@
       },
       {
         "logical": "discrepancy_code",
-        "physical": "CD_DISCREPANCY",
+        "physical": "CD_DSCRPN",
         "comment": "差异编码"
       },
       {
         "logical": "discrepancy_note",
-        "physical": "DES_DISCREPANCY_NOTE",
+        "physical": "DES_DSCRPN_NOTE",
         "comment": "差异备注"
       }
     ]
@@ -25721,12 +25721,12 @@
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       },
       {
         "logical": "occurred_by",
-        "physical": "ID_USER_OCCURRED",
+        "physical": "ID_USER_OCCRD",
         "comment": "发生人标识"
       },
       {
@@ -25765,12 +25765,12 @@
       },
       {
         "logical": "original_dispense_id",
-        "physical": "ID_MED_DISP_ORIGINAL",
+        "physical": "ID_MED_DISP_ORIG",
         "comment": "原发药标识"
       },
       {
         "logical": "original_dispense_line_id",
-        "physical": "ID_MED_DISP_LINE_ORIGINAL",
+        "physical": "ID_MED_DISP_LINE_ORIG",
         "comment": "原发药明细标识"
       },
       {
@@ -25785,7 +25785,7 @@
       },
       {
         "logical": "requested_quantity",
-        "physical": "QTY_REQUESTED",
+        "physical": "QTY_REQD",
         "comment": "申请数量"
       },
       {
@@ -25795,7 +25795,7 @@
       },
       {
         "logical": "requested_base_quantity",
-        "physical": "QTY_REQUESTED_BASE",
+        "physical": "QTY_REQD_BASE",
         "comment": "申请基础数量"
       },
       {
@@ -25805,7 +25805,7 @@
       },
       {
         "logical": "disposition",
-        "physical": "SD_DISPOSITION",
+        "physical": "SD_DISPOS",
         "comment": "处置方式",
         "previousPhysical": "DISPOSITION"
       },
@@ -25880,12 +25880,12 @@
       },
       {
         "logical": "requested_at",
-        "physical": "DT_REQUESTED",
+        "physical": "DT_REQD",
         "comment": "申请时间"
       },
       {
         "logical": "requested_by",
-        "physical": "ID_USER_REQUESTED",
+        "physical": "ID_USER_REQD",
         "comment": "申请人标识"
       },
       {
@@ -25905,27 +25905,27 @@
       },
       {
         "logical": "handover_note",
-        "physical": "DES_HANDOVER_NOTE",
+        "physical": "DES_HNDOVR_NOTE",
         "comment": "handover备注"
       },
       {
         "logical": "received_at",
-        "physical": "DT_RECEIVED",
+        "physical": "DT_RECVD",
         "comment": "接收时间"
       },
       {
         "logical": "received_by",
-        "physical": "ID_USER_RECEIVED",
+        "physical": "ID_USER_RECVD",
         "comment": "接收人标识"
       },
       {
         "logical": "processor_practitioner_id",
-        "physical": "ID_PROCESSOR_PRACT",
+        "physical": "ID_PROCSR_PRACT",
         "comment": "processor医务人员标识"
       },
       {
         "logical": "processor_assignment_id",
-        "physical": "ID_PROCESSOR_ASSIGN",
+        "physical": "ID_PROCSR_ASSIGN",
         "comment": "processor任职标识"
       },
       {
@@ -25986,12 +25986,12 @@
       },
       {
         "logical": "correlation_id",
-        "physical": "ID_CORRELATION",
+        "physical": "ID_CORR",
         "comment": "关联标识"
       },
       {
         "logical": "occurred_at",
-        "physical": "DT_OCCURRED",
+        "physical": "DT_OCCRD",
         "comment": "发生时间"
       }
     ]
@@ -26040,7 +26040,7 @@
       },
       {
         "logical": "priority",
-        "physical": "SD_PRIORITY",
+        "physical": "SD_PRI",
         "comment": "优先级",
         "previousPhysical": "PRIORITY"
       },
@@ -26051,12 +26051,12 @@
       },
       {
         "logical": "assignee_type",
-        "physical": "SD_ASSIGNEE_TYPE",
+        "physical": "SD_ASGNEE_TYPE",
         "comment": "受理人类型"
       },
       {
         "logical": "assignee_id",
-        "physical": "ID_USER_ASSIGNEE",
+        "physical": "ID_USER_ASGNEE",
         "comment": "受理人标识"
       },
       {
@@ -26107,12 +26107,12 @@
       },
       {
         "logical": "completed_by",
-        "physical": "ID_USER_COMPLETED",
+        "physical": "ID_USER_CMPLD",
         "comment": "完成人标识"
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "完成时间"
       },
       {
@@ -26196,7 +26196,7 @@
       },
       {
         "logical": "capabilities_json",
-        "physical": "JSON_CAPABILITIES",
+        "physical": "JSON_CAPS",
         "comment": "设备能力JSON"
       },
       {
@@ -26369,17 +26369,17 @@
       },
       {
         "logical": "business_date",
-        "physical": "DA_BUSINESS",
+        "physical": "DA_BIZ",
         "comment": "业务日期"
       },
       {
         "logical": "selection_json",
-        "physical": "JSON_SELECTION",
+        "physical": "JSON_SELCTN",
         "comment": "选择条件快照JSON"
       },
       {
         "logical": "layout_strategy",
-        "physical": "SD_LAYOUT_STRATEGY",
+        "physical": "SD_LAYOUT_STRAT",
         "comment": "批量组版策略"
       },
       {
@@ -26389,7 +26389,7 @@
       },
       {
         "logical": "idempotency_id",
-        "physical": "ID_IDEMPOTENCY",
+        "physical": "ID_IDEMP",
         "comment": "请求幂等键"
       },
       {
@@ -26399,17 +26399,17 @@
       },
       {
         "logical": "selected_count",
-        "physical": "QTY_SELECTED",
+        "physical": "QTY_SELCTD",
         "comment": "选择来源数"
       },
       {
         "logical": "included_count",
-        "physical": "QTY_INCLUDED",
+        "physical": "QTY_INCLD",
         "comment": "纳入卡片数"
       },
       {
         "logical": "excluded_count",
-        "physical": "QTY_EXCLUDED",
+        "physical": "QTY_EXCLD",
         "comment": "排除来源数"
       },
       {
@@ -26508,7 +26508,7 @@
       },
       {
         "logical": "snapshot_json",
-        "physical": "JSON_SNAPSHOT",
+        "physical": "JSON_SNAP",
         "comment": "不可变打印快照JSON"
       },
       {
@@ -26557,7 +26557,7 @@
     "columns": [
       {
         "logical": "id",
-        "physical": "ID_PRINT_DELIVERY",
+        "physical": "ID_PRINT_DELIV",
         "comment": "打印投递主键"
       },
       {
@@ -26622,7 +26622,7 @@
       },
       {
         "logical": "confirmed_at",
-        "physical": "DT_CONFIRMED",
+        "physical": "DT_CNFRMD",
         "comment": "设备确认时间"
       },
       {
@@ -26700,7 +26700,7 @@
       },
       {
         "logical": "json_definition",
-        "physical": "JSON_DEFINITION",
+        "physical": "JSON_DEF",
         "comment": "目录定义 JSON"
       },
       {
@@ -26808,7 +26808,7 @@
       },
       {
         "logical": "sd_delivery",
-        "physical": "SD_DELIVERY",
+        "physical": "SD_DELIV",
         "comment": "结果交付状态"
       }
     ]
@@ -26822,7 +26822,7 @@
     "columns": [
       {
         "logical": "id_allergen",
-        "physical": "ID_ALLERGEN",
+        "physical": "ID_ALRGN",
         "comment": "过敏原标识"
       },
       {
@@ -26852,12 +26852,12 @@
       },
       {
         "logical": "cd_allergen",
-        "physical": "CD_ALLERGEN",
+        "physical": "CD_ALRGN",
         "comment": "过敏原代码"
       },
       {
         "logical": "na_allergen",
-        "physical": "NA_ALLERGEN",
+        "physical": "NA_ALRGN",
         "comment": "过敏原名称"
       },
       {
@@ -26984,7 +26984,7 @@
     "columns": [
       {
         "logical": "id_med_allergen_map",
-        "physical": "ID_MED_ALLERGEN_MAP",
+        "physical": "ID_MED_ALRGN_MAP",
         "comment": "药品过敏原映射标识"
       },
       {
@@ -26999,12 +26999,12 @@
       },
       {
         "logical": "id_allergen",
-        "physical": "ID_ALLERGEN",
+        "physical": "ID_ALRGN",
         "comment": "过敏原标识"
       },
       {
         "logical": "sd_relation_type",
-        "physical": "SD_RELATION_TYPE",
+        "physical": "SD_REL_TYPE",
         "comment": "关系类型"
       },
       {
@@ -27053,7 +27053,7 @@
       },
       {
         "logical": "source_reference",
-        "physical": "SOURCE_REFERENCE",
+        "physical": "SOURCE_REF",
         "comment": "来源依据"
       }
     ]
@@ -27082,7 +27082,7 @@
       },
       {
         "logical": "id_resident",
-        "physical": "ID_RESIDENT",
+        "physical": "ID_RESDNT",
         "comment": "居民标识"
       },
       {
@@ -27157,17 +27157,17 @@
       },
       {
         "logical": "sd_companion_type",
-        "physical": "SD_COMPANION_TYPE",
+        "physical": "SD_CMPNON_TYPE",
         "comment": "陪同人类型"
       },
       {
         "logical": "des_chief_complaint",
-        "physical": "DES_CHIEF_COMPLAINT",
+        "physical": "DES_CHIEF_CMPLNT",
         "comment": "主诉"
       },
       {
         "logical": "txt_symptoms",
-        "physical": "TXT_SYMPTOMS",
+        "physical": "TXT_SYMPT",
         "comment": "症状描述"
       },
       {
@@ -27212,7 +27212,7 @@
       },
       {
         "logical": "sd_consciousness",
-        "physical": "SD_CONSCIOUSNESS",
+        "physical": "SD_CNSC",
         "comment": "意识状态"
       },
       {
@@ -27222,7 +27222,7 @@
       },
       {
         "logical": "txt_epidemic",
-        "physical": "TXT_EPIDEMIC",
+        "physical": "TXT_EPID",
         "comment": "流行病学史"
       },
       {
@@ -27267,7 +27267,7 @@
       },
       {
         "logical": "sd_disposition",
-        "physical": "SD_DISPOSITION",
+        "physical": "SD_DISPOS",
         "comment": "处置方式"
       },
       {
@@ -27371,12 +27371,12 @@
       },
       {
         "logical": "dt_released",
-        "physical": "DT_RELEASED",
+        "physical": "DT_RLSD",
         "comment": "释放时间"
       },
       {
         "logical": "id_user_released",
-        "physical": "ID_USER_RELEASED",
+        "physical": "ID_USER_RLSD",
         "comment": "释放用户标识"
       },
       {
@@ -27405,7 +27405,7 @@
       },
       {
         "logical": "category",
-        "physical": "CD_CATEGORY",
+        "physical": "CD_CAT",
         "comment": "规则分类"
       },
       {
@@ -27444,7 +27444,7 @@
       },
       {
         "logical": "implementation",
-        "physical": "CD_IMPLEMENTATION",
+        "physical": "CD_IMPL",
         "comment": "强类型执行定义版本"
       },
       {
@@ -27454,32 +27454,32 @@
       },
       {
         "logical": "severity",
-        "physical": "SD_SEVERITY",
+        "physical": "SD_SEV",
         "comment": "风险严重程度"
       },
       {
         "logical": "decision",
-        "physical": "SD_DECISION",
+        "physical": "SD_DCSN",
         "comment": "执行动作"
       },
       {
         "logical": "override_policy",
-        "physical": "SD_OVERRIDE_POLICY",
+        "physical": "SD_OVRD_POLICY",
         "comment": "覆盖策略"
       },
       {
         "logical": "effective_from",
-        "physical": "DT_EFFECTIVE_FROM",
+        "physical": "DT_EFF_FROM",
         "comment": "生效时间"
       },
       {
         "logical": "effective_to",
-        "physical": "DT_EFFECTIVE_TO",
+        "physical": "DT_EFF_TO",
         "comment": "失效时间"
       },
       {
         "logical": "evidence",
-        "physical": "JSON_EVIDENCE",
+        "physical": "JSON_EVID",
         "comment": "不可变来源证据快照"
       }
     ]
@@ -27503,7 +27503,7 @@
       },
       {
         "logical": "prescription_id",
-        "physical": "ID_PRESCRIPTION",
+        "physical": "ID_RX",
         "comment": "目标处方标识"
       },
       {
@@ -27553,7 +27553,7 @@
       },
       {
         "logical": "decision",
-        "physical": "SD_DECISION",
+        "physical": "SD_DCSN",
         "comment": "聚合执行动作"
       },
       {
@@ -27573,7 +27573,7 @@
       },
       {
         "logical": "completed_at",
-        "physical": "DT_COMPLETED",
+        "physical": "DT_CMPLD",
         "comment": "评价完成时间"
       },
       {
@@ -27612,12 +27612,12 @@
       },
       {
         "logical": "severity",
-        "physical": "SD_SEVERITY",
+        "physical": "SD_SEV",
         "comment": "风险严重程度"
       },
       {
         "logical": "decision",
-        "physical": "SD_DECISION",
+        "physical": "SD_DCSN",
         "comment": "执行动作"
       },
       {
@@ -27632,12 +27632,12 @@
       },
       {
         "logical": "evidence",
-        "physical": "JSON_EVIDENCE",
+        "physical": "JSON_EVID",
         "comment": "证据快照"
       },
       {
         "logical": "override_policy",
-        "physical": "SD_OVERRIDE_POLICY",
+        "physical": "SD_OVRD_POLICY",
         "comment": "覆盖策略"
       },
       {
@@ -27656,7 +27656,7 @@
     "columns": [
       {
         "logical": "id",
-        "physical": "ID_OVERRIDE",
+        "physical": "ID_OVRD",
         "comment": "覆盖记录标识"
       },
       {
@@ -27803,22 +27803,22 @@
       },
       {
         "logical": "snapshot",
-        "physical": "JSON_SNAPSHOT",
+        "physical": "JSON_SNAP",
         "comment": "不可变资料快照"
       },
       {
         "logical": "recorded_at",
-        "physical": "DT_RECORDED",
+        "physical": "DT_RECDD",
         "comment": "版本记录时间"
       },
       {
         "logical": "recorded_by",
-        "physical": "ID_USER_RECORDED",
+        "physical": "ID_USER_RECDD",
         "comment": "记录人标识"
       },
       {
         "logical": "identity_key",
-        "physical": "CD_IDENTITY_KEY",
+        "physical": "CD_IDTY_KEY",
         "comment": "成分去重身份键；其他版本记录为空"
       }
     ]
@@ -27879,6 +27879,11 @@
         "logical": "created_by",
         "physical": "ID_USER_CREATED",
         "comment": "关联建立人员标识"
+      },
+      {
+        "logical": "binding_claim",
+        "physical": "CD_BINDING_CLAIM",
+        "comment": "标准绑定声明；CANONICAL 约束新建标准药品，EXISTING:本地标识保留共享标准身份的历史本地记录"
       }
     ]
   },
@@ -27950,12 +27955,12 @@
       },
       {
         "logical": "decision",
-        "physical": "SD_DECISION",
+        "physical": "SD_DCSN",
         "comment": "评价结论"
       },
       {
         "logical": "prescription_id",
-        "physical": "ID_PRESCRIPTION",
+        "physical": "ID_RX",
         "comment": "处方标识"
       },
       {
@@ -27980,7 +27985,7 @@
       },
       {
         "logical": "deployment_id",
-        "physical": "ID_DEPLOYMENT",
+        "physical": "ID_DEPLOY",
         "comment": "冻结发布记录标识"
       },
       {
@@ -28059,7 +28064,7 @@
       },
       {
         "logical": "mnemonic_code",
-        "physical": "CD_MNEMONIC",
+        "physical": "CD_MNEM",
         "comment": "人工或导入助记码"
       },
       {
@@ -28123,7 +28128,7 @@
       },
       {
         "logical": "identity_hash",
-        "physical": "HASH_IDENTITY",
+        "physical": "HASH_IDTY",
         "comment": "目录标识、版本、内容指纹及来源文件指纹的组合哈希"
       },
       {
@@ -28152,7 +28157,7 @@
       },
       {
         "logical": "knowledge_id",
-        "physical": "ID_KNOWLEDGE",
+        "physical": "ID_KNOW",
         "comment": "知识草稿标识，各版本共用"
       },
       {
@@ -28215,7 +28220,7 @@
       },
       {
         "logical": "knowledge_id",
-        "physical": "ID_KNOWLEDGE",
+        "physical": "ID_KNOW",
         "comment": "知识草稿标识"
       },
       {
@@ -28259,7 +28264,7 @@
       },
       {
         "logical": "knowledge_id",
-        "physical": "ID_KNOWLEDGE",
+        "physical": "ID_KNOW",
         "comment": "来源知识标识及规则版本链标识"
       },
       {
@@ -28269,12 +28274,12 @@
       },
       {
         "logical": "knowledge_version",
-        "physical": "NO_KNOWLEDGE_VERSION",
+        "physical": "NO_KNOW_VERSION",
         "comment": "本次编译锁定的知识版本号"
       },
       {
         "logical": "compiler_version",
-        "physical": "CD_COMPILER_VER",
+        "physical": "CD_CMPLR_VER",
         "comment": "结构化规则编译器版本"
       },
       {
@@ -28410,7 +28415,7 @@
       },
       {
         "logical": "feedback_id",
-        "physical": "ID_FEEDBACK",
+        "physical": "ID_FDBK",
         "comment": "改进需求引用的固定研判事件标识"
       },
       {
@@ -28444,7 +28449,7 @@
       },
       {
         "logical": "id",
-        "physical": "ID_FEEDBACK",
+        "physical": "ID_FDBK",
         "comment": "不可变研判事件标识"
       },
       {
@@ -28454,7 +28459,7 @@
       },
       {
         "logical": "deployment_id",
-        "physical": "ID_DEPLOYMENT",
+        "physical": "ID_DEPLOY",
         "comment": "冻结发布记录标识"
       },
       {
@@ -28469,12 +28474,12 @@
       },
       {
         "logical": "revision",
-        "physical": "NO_REVISION",
+        "physical": "NO_REV",
         "comment": "本次观察研判事件序号"
       },
       {
         "logical": "operation",
-        "physical": "SD_OPERATION",
+        "physical": "SD_OPER",
         "comment": "研判操作：追加意见或撤回"
       },
       {
@@ -28513,7 +28518,7 @@
       },
       {
         "logical": "deployment_id",
-        "physical": "ID_DEPLOYMENT",
+        "physical": "ID_DEPLOY",
         "comment": "本次正式部署标识"
       },
       {
@@ -28567,12 +28572,12 @@
       },
       {
         "logical": "metadata",
-        "physical": "JSON_METADATA",
+        "physical": "JSON_META",
         "comment": "独立登记摘要，列表读取不加载完整目录包"
       },
       {
         "logical": "metadata_hash",
-        "physical": "HASH_METADATA",
+        "physical": "HASH_META",
         "comment": "登记摘要的规范化 SHA256 指纹"
       }
     ]

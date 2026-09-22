@@ -1,0 +1,703 @@
+{
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "tables": [
+    {
+      "legacy": "op_triage_rec",
+      "logical": "op.triage_rec",
+      "physical": "RHN_OP_TRIAGE_REC",
+      "domain": "OP",
+      "comment": "一行代表一次预检分诊",
+      "columns": [
+        {
+          "physical": "ID_TRIAGE_REC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "预检分诊记录标识",
+          "logical": "id_triage_rec",
+          "catalogComment": "预检分诊记录标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "id_tnt",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "机构标识",
+          "logical": "id_org",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_RESDNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "居民标识",
+          "logical": "id_resident",
+          "catalogComment": "居民标识"
+        },
+        {
+          "physical": "ID_ENC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "就诊标识",
+          "logical": "id_enc",
+          "catalogComment": "就诊标识"
+        },
+        {
+          "physical": "ID_PAT_REG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "挂号标识",
+          "logical": "id_pat_reg",
+          "catalogComment": "挂号标识"
+        },
+        {
+          "physical": "CD_TRIAGE_NO",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "分诊编号",
+          "logical": "cd_triage_no",
+          "catalogComment": "分诊编号"
+        },
+        {
+          "physical": "DT_TRIAGE",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "分诊时间",
+          "logical": "dt_triage",
+          "catalogComment": "分诊时间"
+        },
+        {
+          "physical": "ID_TRIAGE_NURSE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "分诊护士标识",
+          "logical": "id_triage_nurse",
+          "catalogComment": "分诊护士标识"
+        },
+        {
+          "physical": "NA_TRIAGE_NURSE",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "分诊护士姓名",
+          "logical": "na_triage_nurse",
+          "catalogComment": "分诊护士姓名"
+        },
+        {
+          "physical": "NA_PATIENT",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "患者姓名",
+          "logical": "na_patient",
+          "catalogComment": "患者姓名"
+        },
+        {
+          "physical": "SD_GENDER",
+          "type": "CHARACTER VARYING",
+          "size": 20,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "性别代码",
+          "logical": "sd_gender",
+          "catalogComment": "性别代码"
+        },
+        {
+          "physical": "AGE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "年龄",
+          "logical": "age",
+          "catalogComment": "年龄"
+        },
+        {
+          "physical": "DT_BIRTH",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "出生日期",
+          "logical": "dt_birth",
+          "catalogComment": "出生日期"
+        },
+        {
+          "physical": "NO_PHONE",
+          "type": "CHARACTER VARYING",
+          "size": 30,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "联系电话",
+          "logical": "no_phone",
+          "catalogComment": "联系电话"
+        },
+        {
+          "physical": "NO_ID_CARD",
+          "type": "CHARACTER VARYING",
+          "size": 30,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "身份证件号码",
+          "logical": "no_id_card",
+          "catalogComment": "身份证件号码"
+        },
+        {
+          "physical": "NO_HEALTH_RECORD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "健康档案编号",
+          "logical": "no_health_record",
+          "catalogComment": "健康档案编号"
+        },
+        {
+          "physical": "SD_ARRIVAL_METHOD",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": "'WALK_IN'",
+          "ordinal": 18,
+          "comment": "来院方式",
+          "logical": "sd_arrival_method",
+          "catalogComment": "来院方式"
+        },
+        {
+          "physical": "SD_CMPNON_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": "'NONE'",
+          "ordinal": 19,
+          "comment": "陪同人类型",
+          "logical": "sd_companion_type",
+          "catalogComment": "陪同人类型"
+        },
+        {
+          "physical": "DES_CHIEF_CMPLNT",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "主诉",
+          "logical": "des_chief_complaint",
+          "catalogComment": "主诉"
+        },
+        {
+          "physical": "TXT_SYMPT",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "症状描述",
+          "logical": "txt_symptoms",
+          "catalogComment": "症状描述"
+        },
+        {
+          "physical": "VAL_TEMP",
+          "type": "NUMERIC",
+          "size": 4,
+          "scale": 1,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "体温",
+          "logical": "val_temp",
+          "catalogComment": "体温"
+        },
+        {
+          "physical": "VAL_PULSE",
+          "type": "NUMERIC",
+          "size": 4,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "脉搏",
+          "logical": "val_pulse",
+          "catalogComment": "脉搏"
+        },
+        {
+          "physical": "VAL_RESP",
+          "type": "NUMERIC",
+          "size": 4,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "呼吸频率",
+          "logical": "val_resp",
+          "catalogComment": "呼吸频率"
+        },
+        {
+          "physical": "VAL_SBP",
+          "type": "NUMERIC",
+          "size": 4,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 25,
+          "comment": "收缩压",
+          "logical": "val_sbp",
+          "catalogComment": "收缩压"
+        },
+        {
+          "physical": "VAL_DBP",
+          "type": "NUMERIC",
+          "size": 4,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "舒张压",
+          "logical": "val_dbp",
+          "catalogComment": "舒张压"
+        },
+        {
+          "physical": "VAL_SPO2",
+          "type": "NUMERIC",
+          "size": 4,
+          "scale": 1,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 27,
+          "comment": "血氧饱和度",
+          "logical": "val_spo2",
+          "catalogComment": "血氧饱和度"
+        },
+        {
+          "physical": "VAL_GLUCOSE",
+          "type": "NUMERIC",
+          "size": 4,
+          "scale": 1,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 28,
+          "comment": "血糖",
+          "logical": "val_glucose",
+          "catalogComment": "血糖"
+        },
+        {
+          "physical": "VAL_PAIN",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 29,
+          "comment": "疼痛评分",
+          "logical": "val_pain",
+          "catalogComment": "疼痛评分"
+        },
+        {
+          "physical": "SD_CNSC",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": "'ALERT'",
+          "ordinal": 30,
+          "comment": "意识状态",
+          "logical": "sd_consciousness",
+          "catalogComment": "意识状态"
+        },
+        {
+          "physical": "FG_FEVER",
+          "type": "SMALLINT",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 31,
+          "comment": "是否发热",
+          "logical": "fg_fever",
+          "catalogComment": "是否发热"
+        },
+        {
+          "physical": "TXT_EPID",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 32,
+          "comment": "流行病学史",
+          "logical": "txt_epidemic",
+          "catalogComment": "流行病学史"
+        },
+        {
+          "physical": "TXT_RISK_TAGS",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 33,
+          "comment": "风险标签",
+          "logical": "txt_risk_tags",
+          "catalogComment": "风险标签"
+        },
+        {
+          "physical": "SD_TRIAGE_LEVEL",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'LEVEL_4_NON_URGENT'",
+          "ordinal": 34,
+          "comment": "分诊级别",
+          "logical": "sd_triage_level",
+          "catalogComment": "分诊级别"
+        },
+        {
+          "physical": "DES_TRIAGE_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 35,
+          "comment": "分诊依据",
+          "logical": "des_triage_reason",
+          "catalogComment": "分诊依据"
+        },
+        {
+          "physical": "ID_TARGET_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 36,
+          "comment": "目标科室标识",
+          "logical": "id_target_dept",
+          "catalogComment": "目标科室标识"
+        },
+        {
+          "physical": "NA_TARGET_DEPT",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 37,
+          "comment": "目标科室名称",
+          "logical": "na_target_dept",
+          "catalogComment": "目标科室名称"
+        },
+        {
+          "physical": "ID_TARGET_DOC",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 38,
+          "comment": "目标医生标识",
+          "logical": "id_target_doc",
+          "catalogComment": "目标医生标识"
+        },
+        {
+          "physical": "NA_TARGET_DOC",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 39,
+          "comment": "目标医生姓名",
+          "logical": "na_target_doc",
+          "catalogComment": "目标医生姓名"
+        },
+        {
+          "physical": "SD_GREEN_CHANNEL",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": "'NONE'",
+          "ordinal": 40,
+          "comment": "绿色通道状态",
+          "logical": "sd_green_channel",
+          "catalogComment": "绿色通道状态"
+        },
+        {
+          "physical": "SD_DISPOS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": "'WAITING_QUEUE'",
+          "ordinal": 41,
+          "comment": "处置方式",
+          "logical": "sd_disposition",
+          "catalogComment": "处置方式"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'RECORDED'",
+          "ordinal": 42,
+          "comment": "状态",
+          "logical": "sd_status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "TXT_NOTES",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 43,
+          "comment": "备注",
+          "logical": "txt_notes",
+          "catalogComment": "备注"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 44,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 45,
+          "comment": "创建时间",
+          "logical": "dt_created",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 46,
+          "comment": "更新时间",
+          "logical": "dt_updated",
+          "catalogComment": "更新时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TRIAGE_REC"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_OP_TRIAGE_NO",
+          "columns": [
+            "ID_TNT",
+            "CD_TRIAGE_NO"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IDX_OP_TRIAGE_DATE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_TRIAGE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_OP_TRIAGE_ENC",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ENC",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_OP_TRIAGE_LEVEL",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_TRIAGE_LEVEL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_OP_TRIAGE_RESIDENT",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RESDNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_19B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TRIAGE_REC",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_OP_TRIAGE_NO_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_TRIAGE_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "一行代表一次预检分诊",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/triage/OutpatientTriageRecord.java",
+          "line": 15
+        }
+      ]
+    }
+  ],
+  "relations": []
+}

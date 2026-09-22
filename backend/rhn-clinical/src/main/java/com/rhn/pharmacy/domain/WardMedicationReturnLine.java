@@ -15,16 +15,16 @@ public class WardMedicationReturnLine {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_WARD_MED_RETURN_REQ", nullable = false) private Long returnRequestId;
     @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
-    @Column(name = "ID_MED_DISP_ORIGINAL", nullable = false) private Long originalDispenseId;
-    @Column(name = "ID_MED_DISP_LINE_ORIGINAL", nullable = false) private Long originalDispenseLineId;
+    @Column(name = "ID_MED_DISP_ORIG", nullable = false) private Long originalDispenseId;
+    @Column(name = "ID_MED_DISP_LINE_ORIG", nullable = false) private Long originalDispenseLineId;
     @Column(name = "ID_DISP_TASK_LINE", nullable = false) private Long dispenseTaskLineId;
     @Column(name = "NA_MED_SNAP", nullable = false) private String medicationNameSnapshot;
-    @Column(name = "QTY_REQUESTED", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
+    @Column(name = "QTY_REQD", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
     @Column(name = "CD_UNIT", nullable = false) private String unitCode;
-    @Column(name = "QTY_REQUESTED_BASE", nullable = false, precision = 28, scale = 8)
+    @Column(name = "QTY_REQD_BASE", nullable = false, precision = 28, scale = 8)
     private BigDecimal requestedBaseQuantity;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
-    @Column(name = "SD_DISPOSITION") private String disposition;
+    @Column(name = "SD_DISPOS") private String disposition;
     @Column(name = "ID_STOCK_RETURN") private Long stockReturnId;
     @Column(name = "ID_MED_DISP_RETURN") private Long returnDispenseId;
 

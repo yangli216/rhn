@@ -4,6 +4,9 @@ import { expect, it, vi } from 'vitest'
 import type { RhnApi } from '../../shared/rhnApi'
 import type { OntologyGraphDto, CopilotSuggestResponse, SemanticExecutionResult } from '../../shared/api/semanticOntologyApi'
 import { SemanticWorkbench } from './SemanticWorkbench'
+import { saveDevelopmentSemanticProposal } from '../../shared/api/developmentSchemaApi'
+
+vi.mock('../../shared/api/developmentSchemaApi', () => ({ saveDevelopmentSemanticProposal: vi.fn().mockResolvedValue({ id: 'saved-proposal' }) }))
 
 const mockGraph: OntologyGraphDto = {
   domain: 'outpatient',
@@ -133,6 +136,22 @@ function setup() {
   return { api, ontologyGraph, copilotSuggest, executeV2, onBack }
 }
 
+it('searches and selects semantic entities that have no physical table mapping', async () => {
+  const user = userEvent.setup()
+  const { api, ontologyGraph } = setup()
+  ontologyGraph.mockResolvedValue({ ...mockGraph, nodes: [...mockGraph.nodes,
+    { ...mockGraph.nodes[1], id: 'PRESCRIPTION', entityCode: 'PRESCRIPTION', label: '处方', table: null },
+  ] })
+  render(<SemanticWorkbench api={api} />)
+  await screen.findByText(/业务实体数据关系网/)
+  const search = screen.getByRole('searchbox', { name: '搜索实体或表名' })
+  await user.type(search, '不存在的表')
+  expect(screen.queryByText('处方')).not.toBeInTheDocument()
+  await user.clear(search)
+  await user.click(screen.getByRole('button', { name: /处方/ }))
+  expect(screen.getAllByText('尚未映射物理表').length).toBeGreaterThan(0)
+})
+
 it('renders three-pane PC layout with ontology graph statistics and entities', async () => {
   const { api, onBack } = setup()
   render(<SemanticWorkbench api={api} onBack={onBack} />)
@@ -194,7 +213,16 @@ it('supports AI Copilot human-machine co-construction suggestion', async () => {
   expect(copilotSuggest).toHaveBeenCalled()
 
   // 点击确认采纳
-  const confirmBtn = screen.getByRole('button', { name: '确认采纳此项规则 (加入待发布资产队列)' })
+  const confirmBtn = screen.getByRole('button', { name: '保存至开发评审队列' })
   await user.click(confirmBtn)
-  expect(screen.getByText('✓ 专家已确认标记')).toBeInTheDocument()
+  expect(await screen.findByText('已保存至开发评审队列（尚未发布）')).toBeInTheDocument()
+  expect(saveDevelopmentSemanticProposal).toHaveBeenCalledWith(expect.objectContaining({ entity: 'DEPARTMENT', prompt: '遇到科室统计，只保留产生诊疗费用的科室' }))
+})
+
+it('shows real relationship conditions and links to physical schema governance', async () => {
+  const { api } = setup()
+  render(<SemanticWorkbench api={api} />)
+  expect(await screen.findByRole('region', { name: '业务实体关系图' })).toBeInTheDocument()
+  expect(screen.getByText('DEPT_ID = ID')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: '表结构、设计规范与共建评审' })).toHaveAttribute('href', '/schema-workbench.html?entity=DEPARTMENT')
 })

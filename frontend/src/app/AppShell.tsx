@@ -1,3 +1,5 @@
+import { FontSizeControl } from '../shared/ui/FontSizeControl'
+import { useFontSizePreference } from '../shared/preferences/useFontSizePreference'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
@@ -464,6 +466,7 @@ async function loadAuthenticatedState(api: RhnApi, session: Session): Promise<Au
 }
 
 export function AppShell() {
+  useFontSizePreference()
   const [authenticated, setAuthenticated] = useState<AuthenticatedState | null>(null)
   const [restoringSession, setRestoringSession] = useState(true)
   const [loginError, setLoginError] = useState('')
@@ -847,7 +850,9 @@ export function AppShell() {
             openCollapsedDirectoryId={collapsedDirectory?.node.id}
             onHover={handleCollapsedNavigationHover} onHoverEnd={handleCollapsedNavigationHoverEnd} />
         </nav>
-        <div className="sidebar-foot"><span className="status-dot" /><div><strong>Foundation 1.2</strong><span>工作门户底座</span></div></div>
+        <div className="sidebar-foot"><span className="status-dot" /><div><strong>Foundation 1.2</strong><span>工作门户底座</span>
+          {import.meta.env.DEV && <a href="/schema-workbench.html">表结构与业务语义工作台</a>}
+        </div></div>
       </aside>
 
       {collapsedNavigation && hoveredNavigation && !collapsedDirectory && hoveredNavigation.node.to && createPortal(
@@ -1297,6 +1302,8 @@ function UserAccountMenu({ session, activeContexts, activeContextType, themeColo
         </div>
       </div>
 
+      <div className="account-panel__font-section"><FontSizeControl /></div>
+
       <div className="account-panel__theme-section">
         <div className="account-panel__section-label"><span>系统主色调</span><small>自由切换</small></div>
         <div className="account-panel__theme-grid" role="radiogroup" aria-label="系统主色调选择">
@@ -1536,11 +1543,29 @@ function WorkspaceTabs({ tabs, activeTabId, onActivate, onClose, onManage }: {
   onManage: (action: WorkspaceTabAction, targetTabId?: string) => void
 }) {
   const [managementOpen, setManagementOpen] = useState(false)
+  const [managementPosition, setManagementPosition] = useState<{ x: number; y: number } | null>(null)
   const [contextMenu, setContextMenu] = useState<{ tabId: string; x: number; y: number } | null>(null)
   const managementRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const toggleManagement = () => {
+    if (managementOpen) {
+      setManagementOpen(false)
+      return
+    }
+    const rect = managementRef.current?.getBoundingClientRect()
+    if (rect) {
+      const menuWidth = 190
+      const margin = 8
+      setManagementPosition({
+        x: Math.max(margin, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - margin)),
+        y: rect.bottom + 4,
+      })
+      setManagementOpen(true)
+    }
+  }
 
   const checkScroll = useCallback(() => {
     const el = trackRef.current
@@ -1579,8 +1604,24 @@ function WorkspaceTabs({ tabs, activeTabId, onActivate, onClose, onManage }: {
 
   useEffect(() => {
     if (!managementOpen) return
+    const updatePosition = () => {
+      const rect = managementRef.current?.getBoundingClientRect()
+      if (rect) {
+        const menuWidth = 190
+        const margin = 8
+        setManagementPosition({
+          x: Math.max(margin, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - margin)),
+          y: rect.bottom + 4,
+        })
+      }
+    }
     const closeOnPointerDown = (event: PointerEvent) => {
-      if (!managementRef.current?.contains(event.target as Node)) setManagementOpen(false)
+      if (
+        !managementRef.current?.contains(event.target as Node) &&
+        !(event.target as Element).closest?.('#workspace-tab-management-menu')
+      ) {
+        setManagementOpen(false)
+      }
     }
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
@@ -1590,9 +1631,13 @@ function WorkspaceTabs({ tabs, activeTabId, onActivate, onClose, onManage }: {
     }
     document.addEventListener('pointerdown', closeOnPointerDown)
     document.addEventListener('keydown', closeOnEscape)
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
     return () => {
       document.removeEventListener('pointerdown', closeOnPointerDown)
       document.removeEventListener('keydown', closeOnEscape)
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
     }
   }, [managementOpen])
 
@@ -1709,12 +1754,13 @@ function WorkspaceTabs({ tabs, activeTabId, onActivate, onClose, onManage }: {
     <div className="workspace-tabs__management" ref={managementRef}>
       <IconButton className="workspace-tabs__management-trigger" icon="chevron-down"
         label="管理标签页" aria-haspopup="menu" aria-expanded={managementOpen}
-        aria-controls="workspace-tab-management-menu" onClick={() => setManagementOpen((open) => !open)} />
-      {managementOpen && <WorkspaceTabManagementMenu id="workspace-tab-management-menu"
-        className="workspace-tabs__management-menu" tabs={tabs} targetTabId={activeTabId}
-        onAction={(action) => runManagementAction(action)}
-        onActivate={(path) => { setManagementOpen(false); onActivate(path) }} />}
+        aria-controls="workspace-tab-management-menu" onClick={toggleManagement} />
     </div>
+    {managementOpen && managementPosition && createPortal(<WorkspaceTabManagementMenu id="workspace-tab-management-menu"
+      className="workspace-tab-context-menu" tabs={tabs} targetTabId={activeTabId}
+      style={{ left: managementPosition.x, top: managementPosition.y }}
+      onAction={(action) => runManagementAction(action)}
+      onActivate={(path) => { setManagementOpen(false); onActivate(path) }} />, document.body)}
     {contextMenu && createPortal(<WorkspaceTabManagementMenu id="workspace-tab-context-menu"
       className="workspace-tab-context-menu" tabs={tabs} targetTabId={contextMenu.tabId}
       style={{ left: contextMenu.x, top: contextMenu.y }}

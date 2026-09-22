@@ -20,7 +20,7 @@ public class Tenant {
     private String code;
     @Column(name = "NA_TNT", nullable = false)
     private String name;
-    @Column(name = "CD_TIMEZONE", nullable = false)
+    @Column(name = "CD_TZ", nullable = false)
     private String timezoneCode;
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_STATUS", nullable = false)

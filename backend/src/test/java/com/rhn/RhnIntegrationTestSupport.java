@@ -85,7 +85,7 @@ abstract class RhnIntegrationTestSupport {
             }
         }
         var eligible = specs.stream().filter(spec -> spec.path("doseForm").asString().equals(body.path("sdDoseForm").asString()))
-                .filter(spec -> medicationSources.findByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCode(Long.valueOf(TENANT),
+                .filter(spec -> medicationSources.findFirstByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCodeOrderByMedicationIdAsc(Long.valueOf(TENANT),
                     summary.path("catalogId").asString(), summary.path("catalogVersion").asString(), spec.path("id").asString()).isEmpty()).toList();
         var spec = eligible.stream().filter(v -> v.path("specification").asString().replace(" ", "")
                 .equalsIgnoreCase(body.path("preparationSpec").asString().replace(" ", ""))).findFirst()

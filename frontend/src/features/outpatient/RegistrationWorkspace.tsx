@@ -14,7 +14,7 @@ import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../sha
 import { CashierPanel } from '../../shared/billing/CashierPanel'
 import { CashPaymentCalculator, getCashPresets } from '../../shared/billing/CashPaymentCalculator'
 import { PaymentMethodSelector, DEFAULT_FALLBACK_PAYMENT_METHODS } from '../../shared/billing/PaymentMethodSelector'
-import { Alert, Button, Dialog, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
+import { Alert, Button, DataTable, Dialog, SearchField, tableCellClass, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
   PatientIdentitySearch, type PatientIntakeChannel, type PatientIntakeMeta, Select, StatusBadge } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
@@ -936,7 +936,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     item.status === 'WAITING' && item.registrationStatus !== 'CANCELLED').length
 
   return <>
-    <PageHeader eyebrow="门诊医疗 · 窗口业务" title="门诊挂号"
+    <PageHeader compact eyebrow="门诊医疗 · 窗口业务" title="门诊挂号"
       description="检索居民、选择今日排班并确认挂号；成功后自动生成候诊号并进入接诊队列。"
       actions={<><Button variant="secondary" onClick={() => setShowQuickCreate(true)}><Icon name="add" />快速建档 (F2)</Button>
         <Button variant="secondary" onClick={() => onNavigate('/outpatient/triage')}>预检分诊</Button>
@@ -1297,9 +1297,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
           <PanelHead title="全院选科与今日出诊号源" meta={`${displayedSchedules.length} 个班次 · 剩余 ${remainingSlots} 个号源`} />
           <div className="registration-dept-filter-bar">
             <div className="registration-filter-search-row">
-              <input ref={deptSearchInputRef} className="registration-dept-search" type="search"
+              <SearchField inputRef={deptSearchInputRef} className="registration-dept-search" label="科室或医生"
                 placeholder="输入科室/医生名称或拼音 (Alt+K 如: NK、EK、李医生、王专家)"
-                value={deptSearch} onChange={(e) => setDeptSearch(e.target.value)}
+                value={deptSearch} onChange={setDeptSearch}
                 onKeyDown={(e) => {
                   if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                     if (displayedSchedules.length > 0) {
@@ -1351,27 +1351,27 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 }} />
               <div className="registration-type-segmented">
                 {CLINIC_TYPE_OPTIONS.map((opt) => (
-                  <button key={opt.key} type="button"
-                    className={`registration-type-btn ${selectedClinicType === opt.key ? 'is-active' : ''}`}
+                  <Button size="sm" key={opt.key} type="button"
+                    variant={selectedClinicType === opt.key ? 'secondary' : 'text'} aria-pressed={selectedClinicType === opt.key}
                     onClick={() => setSelectedClinicType(opt.key)}>
                     {opt.icon && <Icon name={opt.icon} />}
                     {opt.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
             <div className="registration-dept-tabs">
-              {DEPT_CATEGORIES.map((cat) => <button key={cat.key} type="button"
-                className={`registration-dept-pill ${selectedCategory === cat.key ? 'is-active' : ''}`}
-                onClick={() => setSelectedCategory(cat.key)}>{cat.label}</button>)}
+              {DEPT_CATEGORIES.map((cat) => <Button size="sm" key={cat.key} type="button"
+                variant={selectedCategory === cat.key ? 'secondary' : 'text'} aria-pressed={selectedCategory === cat.key}
+                onClick={() => setSelectedCategory(cat.key)}>{cat.label}</Button>)}
               <div className="registration-daypart-pills">
                 {DAYPART_OPTIONS.map((dp) => (
-                  <button key={dp.key} type="button"
-                    className={`registration-daypart-pill ${selectedDayPart === dp.key ? 'is-active' : ''}`}
+                  <Button size="sm" key={dp.key} type="button"
+                    variant={selectedDayPart === dp.key ? 'secondary' : 'text'} aria-pressed={selectedDayPart === dp.key}
                     onClick={() => {
                       setDayPartManuallyChanged(true)
                       setSelectedDayPart(dp.key as 'ALL' | 'MORNING' | 'AFTERNOON')
-                    }}>{dp.label}</button>
+                    }}>{dp.label}</Button>
                 ))}
               </div>
             </div>
@@ -1508,7 +1508,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table className="registration-history-table">
+              <DataTable compact aria-label="今日挂号记录">
                 <thead>
                   <tr>
                     <th>候诊序号</th>
@@ -1518,8 +1518,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                     <th>科室 / 医生</th>
                     <th>就诊时段</th>
                     <th>挂号时间</th>
-                    <th>当前状态</th>
-                    <th style={{ textAlign: 'right' }}>操作</th>
+                    <th className={tableCellClass('status')}>当前状态</th>
+                    <th className={tableCellClass('actions')}>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1532,8 +1532,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                       <td>{item.serviceName} · {item.practitionerName || '普通门诊'}</td>
                       <td>{item.sdDayPartText || '当日'}</td>
                       <td>{clock(item.registeredAt)}</td>
-                      <td><StatusBadge tone={statusTone(item)}>{statusLabel(item, receptionStatuses.data)}</StatusBadge></td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className={tableCellClass('status')}><StatusBadge tone={statusTone(item)}>{statusLabel(item, receptionStatuses.data)}</StatusBadge></td>
+                      <td className={tableCellClass('actions')}>
                         <div style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>
                           <Button size="sm" variant="text" onClick={() => { setActiveReceiptItem(item); setShowReceiptModal(true) }}>
                             补打凭条
@@ -1549,7 +1549,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </DataTable>
             </div>
           )}
         </div>

@@ -19,7 +19,7 @@ public class Manufacturer {
     @Column(name = "NA_MFR", nullable = false) private String name;
     @Column(name = "NA_SHORT") private String shortName;
     @Column(name = "SD_MFR_TYPE", nullable = false) private String manufacturerType;
-    @Column(name = "PRODUCTION_PLACE") private String productionPlace;
+    @Column(name = "PROD_PLACE") private String productionPlace;
     @Column(name = "CD_COUNTRY") private String countryCode;
     @Column(name = "DES_ADDR") private String address;
     @Column(name = "SD_STATUS", nullable = false) private String status;

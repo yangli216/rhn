@@ -23,7 +23,7 @@ public class PrintImplementationBinding {
     @Column(name = "SD_PURPOSE", nullable = false) private String purpose;
     @Column(name = "ID_PRINT_IMPL", nullable = false) private Long implementationId;
     @Column(name = "SD_SCOPE", nullable = false) private String scopeType;
-    @Column(name = "SD_FALLBACK", nullable = false) private String fallbackPolicy;
+    @Column(name = "SD_FALBK", nullable = false) private String fallbackPolicy;
     @Column(name = "DT_VALID_FROM", nullable = false) private Instant validFrom;
     @Column(name = "DT_VALID_TO") private Instant validTo;
     @Column(name = "SD_STATUS", nullable = false) private String status;

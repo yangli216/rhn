@@ -100,8 +100,8 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
                 {"expectedRevision":0,"outcomeCode":"NOT_AVAILABLE","commandCode":"IP-CONS-SKIP-3"}
                 """, 200);
         assertEquals(1, count("select count(*) from RHN_SUP_INP_MED_CONSUME where ID_CARE_REQ = ?", requestId));
-        assertDecimal("2", "select QTY_DISPENSED as dispensed_quantity from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK_LINE = ?", facts.taskLineId());
-        assertDecimal("1", "select QTY_RETURNED as returned_quantity from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK_LINE = ?", facts.taskLineId());
+        assertDecimal("2", "select QTY_DSPNSD as dispensed_quantity from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK_LINE = ?", facts.taskLineId());
+        assertDecimal("1", "select QTY_RETD as returned_quantity from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK_LINE = ?", facts.taskLineId());
     }
 
     private PharmacyFacts seedPartialDispenseWithReturn(long requestId, long encounterId) throws Exception {
@@ -141,7 +141,7 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
                 """, binId, Long.parseLong(TENANT), siteId, now, ACTOR);
         jdbc.update("""
                 insert into RHN_SUP_STOCK_LOT (ID_STOCK_LOT, REVISION, ID_TNT, ID_CATALOG_ITEM, ID_ITEM_PKG, CD_LOT_NO,
-                    DA_PRODUCTION, DA_EXPIRY, CD_APPROVAL_SNAP, NA_MFR_SNAP,
+                    DA_PROD, DA_EXPIRY, CD_APRVL_SNAP, NA_MFR_SNAP,
                     SD_QUALITY_STATUS, DT_QUALITY, ID_QUALITY_USER, SD_STATUS, DT_CREATED, ID_USER_CREATED)
                 values (?,0,?,?,?,'IP-CONS-LOT',?,?,null,null,'QUALIFIED',?,?,'ACTIVE',?,?)
                 """, lotId, Long.parseLong(TENANT), Long.parseLong(PRODUCT), Long.parseLong(PACKAGE),
@@ -160,17 +160,17 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
                 BigDecimal.ONE, BigDecimal.ONE);
         jdbc.update("""
                 insert into RHN_SUP_DISP_TASK (ID_DISP_TASK, REVISION, ID_TNT, ID_PAT, ID_ENC, ID_STOCK_SITE,
-                    ID_PHARM_REVIEW_LATEST, CD_TASK_NO, SD_TASK_TYPE, SD_PRIORITY, SD_STATUS, DT_CREATED, DT_DUE, DT_PICKED,
-                    ID_ASSIGNED_PRACT, DES_DISP_TASK)
+                    ID_PHARM_REVIEW_LATEST, CD_TASK_NO, SD_TASK_TYPE, SD_PRI, SD_STATUS, DT_CREATED, DT_DUE, DT_PICKED,
+                    ID_ASGND_PRACT, DES_DISP_TASK)
                 values (?,0,?,?,?,?,null,'IP-CONS-DT','INPATIENT','ROUTINE','PARTIALLY_RETURNED',?,null,?, ?,null)
                 """, taskId, Long.parseLong(TENANT), Long.parseLong(RESIDENT), encounterId, siteId,
                 now, now, ACTOR);
         jdbc.update("""
                 insert into RHN_SUP_DISP_TASK_LINE (ID_DISP_TASK_LINE, ID_TNT, ID_DISP_TASK, ID_CARE_REQ,
                     SD_FULFILL_SRC_TYPE, ID_FULFILL_SRC, SN_SORT, ID_STOCK_ITEM,
-                    ID_ITEM_PKG, QTY_REQUESTED, QTY_PLANNED, QTY_DISPENSED, QTY_RETURNED,
-                    CD_DISP_UNIT, BASE_QUANTITY_FACTOR, FG_SPLIT, FG_TRACE_REQUIRED, SD_STATUS,
-                    CD_PRODUCT_SNAP, NA_PRODUCT_SNAP, PACKAGE_SPEC_SNAPSHOT,
+                    ID_ITEM_PKG, QTY_REQD, QTY_PLANNED, QTY_DSPNSD, QTY_RETD,
+                    CD_DISP_UNIT, BASE_QTY_FACTOR, FG_SPLIT, FG_TRACE_RQD, SD_STATUS,
+                    CD_PRODUCT_SNAP, NA_PRODUCT_SNAP, PACKAGE_SPEC_SNAP,
                     JSON_ITEM_ATTR_SNAP, HASH_ITEM_ATTR, DT_CREATED, ID_USER_CREATED)
                 values (?,?,?,?,'MEDICATION_REQUEST',?,1,?,?,3,3,2,1,'粒',1,true,false,'PARTIAL',
                     'MED-AMOX-025','阿莫西林胶囊 0.25g','24粒/盒','{}',?, ?,?)
@@ -188,17 +188,17 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
         jdbc.update("""
                 insert into RHN_SUP_WARD_DELIV (ID_WARD_DELIV, REVISION, ID_TNT, ID_ORG, ID_STOCK_SITE,
                     ID_DEPT_NURS_UNIT, CD_DELIV_NO, SD_STATUS, NA_STOCK_SITE_SNAP,
-                    NA_NURS_UNIT_SNAP, DT_CREATED, ID_USER_CREATED, DT_DISPATCHED, ID_USER_DISPATCHED,
-                    DES_DISPATCH_NOTE, DT_RECEIVED, ID_USER_RECEIVED, DES_RCPT_NOTE, DES_DISCREPANCY_NOTE,
-                    DT_RESOLVED, ID_USER_RESOLVED, CD_RESOLUTION, DES_RESOLUTION_NOTE)
+                    NA_NURS_UNIT_SNAP, DT_CREATED, ID_USER_CREATED, DT_DSPTD, ID_USER_DSPTD,
+                    DES_DSPT_NOTE, DT_RECVD, ID_USER_RECVD, DES_RCPT_NOTE, DES_DSCRPN_NOTE,
+                    DT_RSLVD, ID_USER_RSLVD, CD_RSLN, DES_RSLN_NOTE)
                 values (?,0,?,?,?,?,'IP-CONS-DELIVERY','RECEIVED','住院药房','综合病区',?,?,?, ?,null,
                     ?,?,null,null,null,null,null,null)
                 """, deliveryId, Long.parseLong(TENANT), Long.parseLong(ORGANIZATION), siteId,
                 Long.parseLong(DEPARTMENT), now, ACTOR, now, ACTOR, now, ACTOR);
         jdbc.update("""
                 insert into RHN_SUP_WARD_DELIV_LINE (ID_WARD_DELIV_LINE, ID_TNT, ID_WARD_DELIV, ID_MED_DISP, ID_PAT,
-                    ID_ENC, NA_PAT_SNAP, NA_MED_SNAP, QTY_EXPECTED,
-                    QTY_RECEIVED, CD_UNIT, SD_STATUS, CD_DISCREPANCY, DES_DISCREPANCY_NOTE)
+                    ID_ENC, NA_PAT_SNAP, NA_MED_SNAP, QTY_EXPCTD,
+                    QTY_RECVD, CD_UNIT, SD_STATUS, CD_DSCRPN, DES_DSCRPN_NOTE)
                 values (?,?,?,?,?,?,'核销测试患者','阿莫西林胶囊 0.25g',2,2,'粒','MATCHED',null,null)
                 """, deliveryLineId, Long.parseLong(TENANT), deliveryId, dispenseId,
                 Long.parseLong(RESIDENT), encounterId);
@@ -207,9 +207,9 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
 
     private void insertTransaction(long id, long periodId, String code, String type, Instant occurredAt) {
         jdbc.update("""
-                insert into RHN_SUP_INV_TXN (ID_INV_TXN, ID_TNT, ID_INV_PERIOD, ID_INV_TXN_REVERSES,
+                insert into RHN_SUP_INV_TXN (ID_INV_TXN, ID_TNT, ID_INV_PERIOD, ID_INV_TXN_RVRS,
                     CD_TXN_NO, CD_REQ, SD_TXN_TYPE, SD_SRC_TYPE, CD_SRC,
-                    DT_OCCURRED, DT_POSTED, ID_USER_POSTED, DES_INV_TXN)
+                    DT_OCCRD, DT_POSTED, ID_USER_POSTED, DES_INV_TXN)
                 values (?,?,?,null,?,?,?,'TEST',?,?,?, ?,null)
                 """, id, Long.parseLong(TENANT), periodId, code, code, type, code, occurredAt, occurredAt, ACTOR);
     }
@@ -220,7 +220,7 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
         jdbc.update("""
                 insert into RHN_SUP_INV_TXN_LINE (ID_INV_TXN_LINE, ID_TNT, ID_INV_TXN, SN_SORT,
                     ID_STOCK_SITE, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT, ID_ITEM_PKG, SD_STOCK_STATUS,
-                    QTY_OPERATION, CD_OPERATION_UNIT, BASE_QUANTITY_FACTOR, QTY_DELTA,
+                    QTY_OPER, CD_OPER_UNIT, BASE_QTY_FACTOR, QTY_DELTA,
                     PRICE_UNIT_COST, AMT_DELTA)
                 values (?,?,?,1,?,?,?,?,?,'AVAILABLE',?,'粒',1,?,1,?)
                 """, id, Long.parseLong(TENANT), transactionId, siteId, binId, stockItemId, lotId,
@@ -230,12 +230,12 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
     private void insertDispense(long id, long taskId, long encounterId, long siteId, Long originalId,
                                 String no, String type, BigDecimal quantity, Instant occurredAt) {
         jdbc.update("""
-                insert into RHN_SUP_MED_DISP (ID_MED_DISP, ID_TNT, ID_DISP_TASK, ID_PAT, ID_ENC, ID_STOCK_SITE,
-                    ID_MED_DISP_ORIGINAL, CD_DISP_NO, SD_DISP_TYPE, DT_OCCURRED, ID_DISPENSER_PRACT,
-                    ID_DISPENSER_USER, ID_DISPENSER_ASSIGN, ID_CHECKER_PRACT, ID_CHECKER_USER,
-                    ID_CHECKER_ASSIGN, DT_CHECKED, QTY_OPERATION, CD_OPERATION_UNIT, DES_MED_DISP)
-                values (?,?,?,?,?,?,?,?,?,?,?, ?,?,null,null,null,null,?,'粒',null)
-                """, id, Long.parseLong(TENANT), taskId, Long.parseLong(RESIDENT), encounterId, siteId,
+                insert into RHN_SUP_MED_DISP (ID_MED_DISP, ID_TNT, ID_ORG, ID_DEPT, ID_DISP_TASK, ID_PAT, ID_ENC, ID_STOCK_SITE,
+                    ID_MED_DISP_ORIG, CD_DISP_NO, SD_DISP_TYPE, DT_OCCRD, ID_DSPNSR_PRACT,
+                    ID_DSPNSR_USER, ID_DSPNSR_ASSIGN, ID_CHECKER_PRACT, ID_CHECKER_USER,
+                    ID_CHECKER_ASSIGN, DT_CHECKED, QTY_OPER, CD_OPER_UNIT, DES_MED_DISP)
+                values (?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?,null,null,null,null,?,'粒',null)
+                """, id, Long.parseLong(TENANT), Long.parseLong(ORGANIZATION), Long.parseLong(DEPARTMENT), taskId, Long.parseLong(RESIDENT), encounterId, siteId,
                 originalId, no, type, occurredAt, ACTOR, ACTOR, ACTOR, quantity);
     }
 
@@ -244,8 +244,8 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
                                     BigDecimal quantity) {
         jdbc.update("""
                 insert into RHN_SUP_MED_DISP_LINE (ID_MED_DISP_LINE, ID_TNT, ID_MED_DISP, ID_DISP_TASK_LINE,
-                    ID_MED_DISP_LINE_ORIGINAL, SN_SORT, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT,
-                    ID_INV_TXN_LINE, QTY_DISPENSED, CD_DISP_UNIT, BASE_QUANTITY_FACTOR)
+                    ID_MED_DISP_LINE_ORIG, SN_SORT, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT,
+                    ID_INV_TXN_LINE, QTY_DSPNSD, CD_DISP_UNIT, BASE_QTY_FACTOR)
                 values (?,?,?,?,?,1,?,?,?,?,?,'粒',1)
                 """, id, Long.parseLong(TENANT), dispenseId, taskLineId, originalLineId,
                 binId, stockItemId, lotId, transactionLineId, quantity);

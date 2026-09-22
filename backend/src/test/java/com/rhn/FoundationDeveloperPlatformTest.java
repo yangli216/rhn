@@ -282,7 +282,7 @@ class FoundationDeveloperPlatformTest extends RhnIntegrationTestSupport {
         Instant now = Instant.now();
         jdbcTemplate.update("""
                 insert into RHN_SYS_USER_ACCT
-                    (ID_USER, ID_TNT, CD_USERNAME, HASH_PASSWORD, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
+                    (ID_USER, ID_TNT, CD_USRNM, HASH_PWD, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
                 values (?, cast(? as bigint), 'iam-doctor', '{noop}secret', 'ACTIVE', ?, ?, 0)
                 """, userId, TENANT, now, now);
         jdbcTemplate.update("""

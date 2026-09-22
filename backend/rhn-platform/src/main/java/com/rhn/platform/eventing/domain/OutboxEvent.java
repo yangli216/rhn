@@ -26,32 +26,32 @@ public class OutboxEvent {
     private String eventType;
     @Column(name = "SN_EVT_VER", nullable = false)
     private int eventVersion;
-    @Column(name = "SD_AGGREGATE_TYPE", nullable = false)
+    @Column(name = "SD_AGG_TYPE", nullable = false)
     private String aggregateType;
-    @Column(name = "ID_AGGREGATE", nullable = false)
+    @Column(name = "ID_AGG", nullable = false)
     private Long aggregateId;
-    @Column(name = "SN_AGGREGATE_VER", nullable = false)
+    @Column(name = "SN_AGG_VER", nullable = false)
     private long aggregateVersion;
     @Column(name = "ID_SUBJECT")
     private Long subjectId;
-    @Column(name = "DT_OCCURRED", nullable = false)
+    @Column(name = "DT_OCCRD", nullable = false)
     private Instant occurredAt;
-    @Column(name = "DT_RECORDED", nullable = false)
+    @Column(name = "DT_RECDD", nullable = false)
     private Instant recordedAt;
     @Column(name = "CD_ACTOR", nullable = false)
     private String actor;
     @Column(name = "SOURCE", nullable = false)
     private String source;
-    @Column(name = "ID_CORRELATION", nullable = false)
+    @Column(name = "ID_CORR", nullable = false)
     private String correlationId;
-    @Column(name = "ID_CAUSATION")
+    @Column(name = "ID_CAUS")
     private Long causationId;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "JSON_PAYLOAD", nullable = false)
     private String payloadJson;
     @Column(name = "SN_SCHEMA_VER", nullable = false)
     private int schemaVersion;
-    @Column(name = "SD_PUBLICATION_STATUS", nullable = false)
+    @Column(name = "SD_PUBLCN_STATUS", nullable = false)
     private String publicationStatus;
     @Column(name = "DT_PUBLISD")
     private Instant publishedAt;

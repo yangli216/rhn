@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -114,6 +114,10 @@ describe('RegistrationQueryWorkspace', () => {
     expect(await screen.findByText('REG001')).toBeInTheDocument()
     expect(screen.getByText('REG002')).toBeInTheDocument()
     expect(screen.getByText('共 2 条记录')).toBeInTheDocument()
+    const statusSummary = screen.getByLabelText('挂号状态汇总')
+    expect(statusSummary).toBeInTheDocument()
+    expect(within(statusSummary).getByText('候诊中')).toBeInTheDocument()
+    expect(within(statusSummary).getByText('已诊毕 / 已取消')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026-08-28' } })
     fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '2026-08-28' } })

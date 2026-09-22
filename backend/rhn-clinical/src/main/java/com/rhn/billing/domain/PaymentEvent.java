@@ -25,7 +25,7 @@ public class PaymentEvent {
     @Column(name = "CD_ERROR") private String errorCode;
     @Column(name = "DES_ERROR_MSG") private String errorMessage;
     @Column(name = "ID_ACTOR") private Long actorId;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
 
     protected PaymentEvent() {}
 

@@ -22,7 +22,7 @@ public class ClinicalPrintBatchItem {
     @Column(name = "ID_ENC") private Long encounterId;
     @Column(name = "CD_GROUP_KEY", nullable = false) private String groupKey;
     @Column(name = "ID_ITEM_KEY", nullable = false) private String itemKey;
-    @Lob @Column(name = "JSON_SNAPSHOT") private String snapshotJson;
+    @Lob @Column(name = "JSON_SNAP") private String snapshotJson;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "CD_EXCLUDE_REASON") private String exclusionCode;
     @Column(name = "DES_EXCLUDE_REASON") private String exclusionReason;

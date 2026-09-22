@@ -114,7 +114,7 @@ class QueryPlanValidatorTest {
         PlannedTimeRange invalidTimeRange = new PlannedTimeRange(
             plan.primaryEntity(),
             plan.primaryAlias(),
-            "DT_OCCURRED",
+            "DT_OCCRD",
             "CUSTOM",
             LocalDate.of(2026, 9, 30),
             LocalDate.of(2026, 9, 1) // 结束早于开始

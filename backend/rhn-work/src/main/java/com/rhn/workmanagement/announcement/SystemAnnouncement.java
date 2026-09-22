@@ -21,7 +21,7 @@ class SystemAnnouncement {
     @Column(name = "ID_ORG") private Long organizationId;
     @Column(name = "ID_DEPT") private Long departmentId;
     @Column(name = "SD_CAT", nullable = false) private String category;
-    @Column(name = "SD_PRIORITY", nullable = false) private String priority;
+    @Column(name = "SD_PRI", nullable = false) private String priority;
     @Column(name = "NA_TITLE", nullable = false) private String title;
     @Column(name = "DES_SUM", nullable = false) private String summary;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "DES_CONTENT", nullable = false) private String content;
@@ -32,8 +32,8 @@ class SystemAnnouncement {
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "ID_USER_PUBLISD") private Long publishedBy;
     @Column(name = "DT_PUBLISD") private Instant publishedAt;
-    @Column(name = "ID_USER_WITHDRAWN") private Long withdrawnBy;
-    @Column(name = "DT_WITHDRAWN") private Instant withdrawnAt;
+    @Column(name = "ID_USER_WDRWN") private Long withdrawnBy;
+    @Column(name = "DT_WDRWN") private Instant withdrawnAt;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 

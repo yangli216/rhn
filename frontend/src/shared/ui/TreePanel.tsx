@@ -28,6 +28,9 @@ export interface TreePanelProps {
   nodes: TreePanelNode[]
   selectedId?: string
   rootLabel?: string
+  rootMeta?: string
+  headingLevel?: 2 | 3
+  searchLabel?: string
   searchPlaceholder?: string
   emptyText?: string
   busy?: boolean
@@ -45,6 +48,9 @@ export function TreePanel({
   nodes,
   selectedId,
   rootLabel = '全部',
+  rootMeta,
+  headingLevel = 3,
+  searchLabel = '搜索树节点',
   searchPlaceholder = '搜索名称或编码',
   emptyText = '暂无树节点',
   busy = false,
@@ -171,9 +177,10 @@ export function TreePanel({
   }
 
   const hasResults = visibleRows.length > 0
+  const Heading = headingLevel === 2 ? 'h2' : 'h3'
   return <section className={`ui-tree-panel ${sortMode ? 'is-sorting' : ''}`} aria-label={title}>
     <header className="ui-tree-panel__head">
-      <h3>{title}</h3>
+      <Heading>{title}</Heading>
       <div className="ui-tree-panel__actions" aria-label={`${title}操作`}>
         {onAdd && <TreeAction label="新增节点" disabled={busy} onClick={() => onAdd(selectedId)}><IconPlus /></TreeAction>}
         {onEdit && <TreeAction label="编辑节点" disabled={busy || !selectedId} onClick={() => selectedId && onEdit(selectedId)}><IconEdit /></TreeAction>}
@@ -183,8 +190,8 @@ export function TreePanel({
       </div>
     </header>
     <label className="ui-tree-panel__search">
-      <span className="visually-hidden">搜索树节点</span><IconSearch aria-hidden="true" />
-      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={searchPlaceholder} />
+      <span className="visually-hidden">{searchLabel}</span><IconSearch aria-hidden="true" />
+      <input aria-label={searchLabel} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={searchPlaceholder} />
       {query && <button type="button" onClick={() => setQuery('')}>清空</button>}
     </label>
     {sortMode && <p className="ui-tree-panel__sort-hint">拖动节点调整层级和顺序；键盘可使用 Alt + 方向键。</p>}
@@ -197,7 +204,7 @@ export function TreePanel({
         <span className="ui-tree-panel__indent" aria-hidden="true" />
         <span className="ui-tree-panel__chevron is-open"><IconChevronRight /></span>
         <IconFolderOpen className="ui-tree-panel__node-icon" aria-hidden="true" />
-        <span className="ui-tree-panel__label"><strong>{rootLabel}</strong><small>{nodes.length} 项</small></span>
+        <span className="ui-tree-panel__label"><strong>{rootLabel}</strong><small>{rootMeta ?? `${nodes.length} 项`}</small></span>
       </div>
       {hasResults && visibleRows.map(({ node, depth }) => {
         const children = childrenByParent.get(node.id) ?? []

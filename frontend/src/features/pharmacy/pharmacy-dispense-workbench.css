@@ -287,7 +287,7 @@
   height: 100%;
   max-height: none;
   overflow: auto;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
 }
 
 .pharmacy-query-table__head,

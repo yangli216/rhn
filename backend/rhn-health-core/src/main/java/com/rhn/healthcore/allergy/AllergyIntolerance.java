@@ -22,27 +22,27 @@ class AllergyIntolerance {
     @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC") private Long encounterId;
-    @Column(name = "ID_ALLERGEN") private Long allergenId;
-    @Column(name = "SD_ASSERTION_TYPE", nullable = false) private String assertionType;
+    @Column(name = "ID_ALRGN") private Long allergenId;
+    @Column(name = "SD_ASSERT_TYPE", nullable = false) private String assertionType;
     @Column(name = "CD_CAT") private String categoryCode;
     @Column(name = "SD_CLIN_STATUS", nullable = false) private String clinicalStatus;
-    @Column(name = "SD_VERIFICATION_STATUS", nullable = false) private String verificationStatus;
-    @Column(name = "CD_CRITICALITY") private String criticalityCode;
-    @Column(name = "SD_REACTION_SEVERITY") private String reactionSeverity;
-    @Column(name = "SD_INFORMATION_SRC", nullable = false) private String informationSource;
-    @Column(name = "CD_SUBSTANCE_CODE_SYS_URI") private String substanceCodeSystemUri;
-    @Column(name = "CD_SUBSTANCE") private String substanceCode;
-    @Column(name = "NA_SUBSTANCE") private String substanceDisplay;
-    @Column(name = "DES_REACTION") private String reactionText;
+    @Column(name = "SD_VRFCTN_STATUS", nullable = false) private String verificationStatus;
+    @Column(name = "CD_CRITCL") private String criticalityCode;
+    @Column(name = "SD_REACT_SEV") private String reactionSeverity;
+    @Column(name = "SD_INFO_SRC", nullable = false) private String informationSource;
+    @Column(name = "CD_SUBST_CODE_SYS_URI") private String substanceCodeSystemUri;
+    @Column(name = "CD_SUBST") private String substanceCode;
+    @Column(name = "NA_SUBST") private String substanceDisplay;
+    @Column(name = "DES_REACT") private String reactionText;
     @Column(name = "DT_ONSET") private Instant onsetAt;
-    @Column(name = "DT_RECORDED", nullable = false) private Instant recordedAt;
-    @Column(name = "ID_PRACT_RECORDER") private Long recorderPractitionerId;
-    @Column(name = "ID_USER_RECORDER", nullable = false) private Long recorderUserId;
-    @Column(name = "DT_VERIFIED") private Instant verifiedAt;
-    @Column(name = "ID_PRACT_VERIFIER") private Long verifierPractitionerId;
-    @Column(name = "DT_INACTIVATED") private Instant inactivatedAt;
-    @Column(name = "ID_USER_INACTIVATED") private Long inactivatedBy;
-    @Column(name = "DES_INACTIVATION_REASON") private String inactivationReason;
+    @Column(name = "DT_RECDD", nullable = false) private Instant recordedAt;
+    @Column(name = "ID_PRACT_RECDR") private Long recorderPractitionerId;
+    @Column(name = "ID_USER_RECDR", nullable = false) private Long recorderUserId;
+    @Column(name = "DT_VRFD") private Instant verifiedAt;
+    @Column(name = "ID_PRACT_VRFR") private Long verifierPractitionerId;
+    @Column(name = "DT_INACTD") private Instant inactivatedAt;
+    @Column(name = "ID_USER_INACTD") private Long inactivatedBy;
+    @Column(name = "DES_INACTN_REASON") private String inactivationReason;
 
     protected AllergyIntolerance() {}
 

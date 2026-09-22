@@ -17,14 +17,14 @@ public class CatalogChangeBatch {
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "SD_BATCH_TYPE", nullable = false) private String batchType;
-    @Column(name = "SD_OPERATION_TYPE", nullable = false) private String operationType;
+    @Column(name = "SD_OPER_TYPE", nullable = false) private String operationType;
     @Column(name = "ID_ORG") private Long organizationId;
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
     @Column(name = "HASH_REQ", nullable = false) private String requestHash;
-    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
+    @Column(name = "DA_BIZ", nullable = false) private LocalDate businessDate;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "QTY_TOTAL_ROW", nullable = false) private int totalRows;
-    @Column(name = "QTY_SUCCEEDED_ROW", nullable = false) private int succeededRows;
+    @Column(name = "QTY_SUCCDD_ROW", nullable = false) private int succeededRows;
     @Column(name = "QTY_FAILED_ROW", nullable = false) private int failedRows;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;

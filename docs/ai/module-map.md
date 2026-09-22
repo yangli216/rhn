@@ -5,6 +5,8 @@
 
 | 用例 | 前端入口 | 后端入口，相对各模块 src/main/java/com/rhn | 验证入口 |
 | --- | --- | --- | --- |
+| 表结构、设计规范、业务语义与人机共建 | [数据库协作入口](../database/README.md)、`/schema-workbench.html`；开发端 `src/dev/schema-workbench/`；统计端 `features/analytics/SemanticWorkbench.tsx` | 开发采集与文件服务：`scripts/schema-workbench/`；统计资产：rhn-analytics 的 `semantic/outpatient-ontology.v1.yaml` | `cd frontend && npm run schema:test && npm run schema:check`；UI 用 `npm run check`；统计资产变化追加 semantic 模块测试 |
+| 新增页面、布局、基础组件与 UI 一致性 | [前端开发入口](frontend-ui.md)、[组件目录](../../frontend/src/shared/ui/README.md)、[可运行页面模板](../../frontend/src/shared/ui/templates/README.md) | 仅 UI 改动无需读取后端；涉及业务按下列领域继续定位 | `cd frontend && npm run check`；模板及门禁变更见前端入口 |
 | 门诊病历、诊断、草稿保存 | [record/README](../../frontend/src/features/outpatient/record/README.md)、DoctorWorkstation.tsx | rhn-clinical/outpatient/encounter/EncounterService.java | `./scripts/verify-scope.sh outpatient-draft` |
 | 频次、医嘱行编辑／分组、AI 医嘱草稿 | [frequencySemantics](../../frontend/src/shared/clinical/frequencySemantics.ts)、[orders/README](../../frontend/src/features/outpatient/orders/README.md) | rhn-platform/platform/masterdata/api/ClinicalFrequencySemantics.java；application/OrderFrequencyService.java | `./scripts/verify-scope.sh frequency`；涉及工作站集成用 `round1` |
 | 药房审方、发药、退药 | features/pharmacy/PharmacyWorkspace.tsx、medicationDisplay.ts | rhn-clinical/pharmacy/application/PharmacyApplicationService.java、DispenseApplicationService.java | PharmacyWorkspace.test.tsx；业务链路需另外选相关后端测试 |

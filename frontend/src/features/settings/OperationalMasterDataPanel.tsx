@@ -497,12 +497,12 @@ function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEd
 
 function tubeDotColor(containerName: string, groupCode: string) {
   const text = `${containerName} ${groupCode}`.toUpperCase()
-  if (text.includes('促凝') || text.includes('BIOCHEM') || text.includes('黄')) return '#eab308'
-  if (text.includes('EDTA') || text.includes('HEMATOLOGY') || text.includes('紫')) return '#a855f7'
-  if (text.includes('枸橼酸') || text.includes('COAGULATION') || text.includes('蓝')) return '#0ea5e9'
-  if (text.includes('氟化钠') || text.includes('GLUCOSE') || text.includes('灰')) return '#64748b'
-  if (text.includes('干燥') || text.includes('IMMUNO') || text.includes('红')) return '#ef4444'
-  return '#3b82f6'
+  if (text.includes('促凝') || text.includes('BIOCHEM') || text.includes('黄')) return 'var(--color-specimen-cap-yellow)'
+  if (text.includes('EDTA') || text.includes('HEMATOLOGY') || text.includes('紫')) return 'var(--color-specimen-cap-purple)'
+  if (text.includes('枸橼酸') || text.includes('COAGULATION') || text.includes('蓝')) return 'var(--color-specimen-cap-blue)'
+  if (text.includes('氟化钠') || text.includes('GLUCOSE') || text.includes('灰')) return 'var(--color-specimen-cap-gray)'
+  if (text.includes('干燥') || text.includes('IMMUNO') || text.includes('红')) return 'var(--color-specimen-cap-red)'
+  return 'var(--color-specimen-cap-default)'
 }
 
 function sitePricingDetail(ex: NonNullable<ClinicalConfiguration['examination']>) {
@@ -1427,7 +1427,7 @@ const TUBE_PRESET_TEMPLATES: TubePresetTemplate[] = [
   {
     id: 'biochem_serum',
     name: '黄色促凝管 · 生化共管',
-    color: '#eab308',
+    color: 'var(--color-specimen-cap-yellow)',
     specimenKeyword: '血清',
     containerKeyword: '促凝',
     tubeGroupCode: 'BIOCHEM_SERUM',
@@ -1441,7 +1441,7 @@ const TUBE_PRESET_TEMPLATES: TubePresetTemplate[] = [
   {
     id: 'edta_blood',
     name: '紫色EDTA管 · 血常规专管',
-    color: '#a855f7',
+    color: 'var(--color-specimen-cap-purple)',
     specimenKeyword: '全血',
     containerKeyword: 'EDTA',
     tubeGroupCode: 'EDTA_HEMATOLOGY',
@@ -1455,7 +1455,7 @@ const TUBE_PRESET_TEMPLATES: TubePresetTemplate[] = [
   {
     id: 'citrate_coag',
     name: '蓝色枸橼酸钠 · 凝血专管',
-    color: '#0ea5e9',
+    color: 'var(--color-specimen-cap-blue)',
     specimenKeyword: '血浆',
     containerKeyword: '枸橼酸',
     tubeGroupCode: 'CITRATE_COAGULATION',
@@ -1469,7 +1469,7 @@ const TUBE_PRESET_TEMPLATES: TubePresetTemplate[] = [
   {
     id: 'glucose_lactate',
     name: '灰色氟化钠 · 血糖生化',
-    color: '#64748b',
+    color: 'var(--color-specimen-cap-gray)',
     specimenKeyword: '血浆',
     containerKeyword: '氟化钠',
     tubeGroupCode: 'GLUCOSE_LACTATE',
@@ -1483,7 +1483,7 @@ const TUBE_PRESET_TEMPLATES: TubePresetTemplate[] = [
   {
     id: 'immuno_serum',
     name: '红色干燥管 · 免疫发光',
-    color: '#ef4444',
+    color: 'var(--color-specimen-cap-red)',
     specimenKeyword: '血清',
     containerKeyword: '干燥',
     tubeGroupCode: 'IMMUNO_SERUM',
@@ -1497,7 +1497,7 @@ const TUBE_PRESET_TEMPLATES: TubePresetTemplate[] = [
   {
     id: 'urine_routine',
     name: '尿杯/试管 · 尿液常规',
-    color: '#f59e0b',
+    color: 'var(--color-specimen-cap-orange)',
     specimenKeyword: '尿',
     containerKeyword: '尿',
     tubeGroupCode: 'URINE_ROUTINE',

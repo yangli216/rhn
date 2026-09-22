@@ -19,16 +19,16 @@ public class InsuranceClaimResponse {
     @Column(name = "ID_EXT_MSG") private Long externalMessageId;
     @Column(name = "CD_RESP_NO", nullable = false) private String responseNo;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
-    @Column(name = "SD_OPERATION", nullable = false) private String operation;
+    @Column(name = "SD_OPER", nullable = false) private String operation;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "CD_EXT_STL_NO") private String externalSettlementNo;
     @Column(name = "AMT_INS_FUND", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceFundAmount;
-    @Column(name = "AMT_PERSONAL_ACCT", nullable = false, precision = 24, scale = 6) private BigDecimal personalAccountAmount;
+    @Column(name = "AMT_PERS_ACCT", nullable = false, precision = 24, scale = 6) private BigDecimal personalAccountAmount;
     @Column(name = "AMT_PAT_CASH", nullable = false, precision = 24, scale = 6) private BigDecimal patientCashAmount;
     @Column(name = "AMT_OTHER_FUND", nullable = false, precision = 24, scale = 6) private BigDecimal otherFundAmount;
     @Column(name = "CD_ERROR") private String errorCode;
     @Column(name = "DES_ERROR_MSG") private String errorMessage;
-    @Column(name = "DT_RESPONDED", nullable = false) private Instant respondedAt;
+    @Column(name = "DT_RSPND", nullable = false) private Instant respondedAt;
 
     protected InsuranceClaimResponse() {}
     public InsuranceClaimResponse(Long tenantId, Long claimId, Long externalMessageId, String commandCode,

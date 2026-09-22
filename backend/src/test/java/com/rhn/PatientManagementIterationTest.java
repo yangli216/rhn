@@ -145,7 +145,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                         .value("REGISTERED"));
 
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select QTY_OCCUPIED from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?", Integer.class,
+                "select QTY_OCCPD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?", Integer.class,
                 Long.valueOf(scheduleId)));
         assertEquals(1, jdbcTemplate.queryForObject(
                 "select count(*) from RHN_SC_APPT where ID_APPT = ?", Integer.class,

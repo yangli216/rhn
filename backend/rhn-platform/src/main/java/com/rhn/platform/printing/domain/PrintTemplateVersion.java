@@ -19,7 +19,7 @@ public class PrintTemplateVersion {
     @Column(name = "ID_PRINT_MEDIA") private Long mediaProfileId;
     @Column(name = "JSON_LAYOUT_SCHEMA", nullable = false) private String layoutSchema;
     @Lob @Column(name = "JSON_CONFIG", nullable = false) private String configJson;
-    @Column(name = "CONTENT_DIGEST_ALGORITHM", nullable = false) private String contentDigestAlgorithm;
+    @Column(name = "CONTENT_DIGEST_ALGO", nullable = false) private String contentDigestAlgorithm;
     @Column(name = "HASH_CONTENT", nullable = false) private String contentDigest;
     @Column(name = "DT_PUBLISD", nullable = false) private Instant publishedAt;
     @Column(name = "ID_USER_PUBLISD") private Long publishedBy;

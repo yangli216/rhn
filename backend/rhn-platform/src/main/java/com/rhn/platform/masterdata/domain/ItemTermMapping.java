@@ -19,13 +19,13 @@ public class ItemTermMapping {
     @Column(name = "ID_ITEM_ATTR_SUBJECT", nullable = false) private Long attributeSubjectId;
     @Column(name = "ID_CONCEPT", nullable = false) private Long conceptId;
     @Column(name = "SD_MAP_TYPE", nullable = false) private String mappingType;
-    @Column(name = "SD_EQUIVALENCE", nullable = false) private String equivalence;
+    @Column(name = "SD_EQUIV", nullable = false) private String equivalence;
     @Column(name = "FG_PRIMARY_MAP", nullable = false) private boolean primaryMapping;
-    @Column(name = "DES_LIMITATION") private String limitation;
+    @Column(name = "DES_LIMIT") private String limitation;
     @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
     @Column(name = "DA_VALID_TO") private LocalDate validTo;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "ID_ITEM_TERM_MAP_REPLACES") private Long replacesMappingId;
+    @Column(name = "ID_ITEM_TERM_MAP_RPLCS") private Long replacesMappingId;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;

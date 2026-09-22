@@ -70,6 +70,8 @@ class SkinTestApplicationServiceTest {
         var item = service.worklist(null, null, null).getFirst();
 
         assertThat(item.status()).isEqualTo("PENDING");
+        assertThat(item.gender()).isEqualTo("FEMALE");
+        assertThat(item.birthDate()).isEqualTo(LocalDate.of(1990, 1, 1));
         assertThat(item.configuredSolutionMode()).isEqualTo("DILUTED_SOLUTION");
         assertThat(item.settlementRequiredBeforeStart()).isFalse();
         assertThat(item.dispenseRequiredBeforeStart()).isFalse();

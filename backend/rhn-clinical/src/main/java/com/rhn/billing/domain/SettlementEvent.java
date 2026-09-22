@@ -21,7 +21,7 @@ public class SettlementEvent {
     @Column(name = "ID_ACTOR") private Long actorId;
     @Column(name = "CD_ERROR") private String errorCode;
     @Column(name = "DES_ERROR_MSG") private String errorMessage;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
 
     protected SettlementEvent() {}
     public SettlementEvent(Long tenantId, Long settlementId, String eventType, String statusFrom,

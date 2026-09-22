@@ -19,7 +19,7 @@ public class SettlementLine {
     @Column(name = "SN_LINE", nullable = false) private int lineNo;
     @Column(name = "QTY_SETTLED", nullable = false, precision = 28, scale = 8) private BigDecimal settledQuantity;
     @Column(name = "AMT_GROSS", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
-    @Column(name = "AMT_DISCOUNT", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
+    @Column(name = "AMT_DISC", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
     @Column(name = "AMT_INS", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceAmount;
     @Column(name = "AMT_PAT", nullable = false, precision = 24, scale = 6) private BigDecimal patientAmount;
     @Column(name = "AMT_OTHER", nullable = false, precision = 24, scale = 6) private BigDecimal otherAmount;

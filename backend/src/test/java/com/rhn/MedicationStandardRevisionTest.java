@@ -59,7 +59,7 @@ class MedicationStandardRevisionTest extends RhnIntegrationTestSupport {
         assertThat(result.eligibleSpecificationIds()).doesNotContain(SPEC);
         assertThatThrownBy(()->revisions.review(MED,review(pending.latest().id(),"APPLY"))).hasMessageContaining("修订记录已变化");
     }
-    @Test void stale_source_links_medication_and_occupied_target_cannot_be_applied() {
+    @Test void changed_links_medication_or_target_dependencies_require_rechecking_the_proposal() {
         var input=submit();sources.saveAndFlush(new MedicationStandardSource(TENANT_ID,MED,"OTHER","1","E","S","hash",7L));
         assertThatThrownBy(()->revisions.submit(MED,input)).hasMessageContaining("已有标准关联已变化");
         var pending=revisions.submit(MED,submit());context(TENANT_ID,8L,true);
@@ -68,8 +68,8 @@ class MedicationStandardRevisionTest extends RhnIntegrationTestSupport {
         assertThatThrownBy(()->revisions.review(MED,review(pending.latest().id(),"APPLY"))).hasMessageContaining("药品档案已变化");
         revisions.review(MED,review(pending.latest().id(),"REJECT"));context(TENANT_ID,7L,true);
         var retry=revisions.submit(MED,submit());context(TENANT_ID,8L,true);var identity=retry.binding().identity();
-        sources.saveAndFlush(new MedicationStandardSource(TENANT_ID,362387869795201L,identity.catalogId(),identity.catalogVersion(),"E",SPEC,identity.contentHash(),8L));
-        assertThatThrownBy(()->revisions.review(MED,review(retry.latest().id(),"APPLY"))).hasMessageContaining("目标规格");
+        sources.saveAndFlush(new MedicationStandardSource(TENANT_ID,362387869795201L,identity.catalogId(),identity.catalogVersion(),retry.latest().proposal().target().path("entryId").asString(),SPEC,identity.contentHash(),8L));
+        assertThatThrownBy(()->revisions.review(MED,review(retry.latest().id(),"APPLY"))).hasMessageContaining("影响清单已变化");
         assertThat(revisions.preview(MED,0).currentLinks()).hasSize(2);assertThat(revisions.preview(MED,0).latest().status()).isEqualTo("SUBMITTED");
     }
     @Test void rejection_and_cancellation_keep_the_proposal_immutable_and_allow_resubmission() {
@@ -180,17 +180,17 @@ class MedicationStandardRevisionTest extends RhnIntegrationTestSupport {
         var pending=revisions.submit(MED,submit());var stored=history.latest(TENANT_ID,"STANDARD_REVISION",MED.toString()).orElseThrow();
         var legacy=(tools.jackson.databind.node.ObjectNode)codec.readTree(stored.snapshot());
         ((tools.jackson.databind.node.ObjectNode)legacy.path("proposal")).remove("impact");
-        jdbc.update("update RHN_BD_CLIN_SEM_VER set JSON_SNAPSHOT=? where ID_CLIN_SEM_VER=?",codec.write(legacy),stored.revision());
+        jdbc.update("update RHN_BD_CLIN_SEM_VER set JSON_SNAP=? where ID_CLIN_SEM_VER=?",codec.write(legacy),stored.revision());
         context(TENANT_ID,8L,true);
         Long firstEvent=pending.latest().id();
         assertThat(revisions.preview(MED,0).allowedActions()).containsExactly("REJECT");
         assertThatThrownBy(()->revisions.review(MED,review(firstEvent,"APPLY"))).hasMessageContaining("没有有效的冻结影响清单");
         revisions.review(MED,review(pending.latest().id(),"REJECT"));
-        assertThat(jdbc.queryForObject("select JSON_SNAPSHOT from RHN_BD_CLIN_SEM_VER where ID_CLIN_SEM_VER=?",String.class,stored.revision())).isEqualTo(codec.write(legacy));
+        assertThat(jdbc.queryForObject("select JSON_SNAP from RHN_BD_CLIN_SEM_VER where ID_CLIN_SEM_VER=?",String.class,stored.revision())).isEqualTo(codec.write(legacy));
         context(TENANT_ID,7L,true);pending=revisions.submit(MED,submit());stored=history.latest(TENANT_ID,"STANDARD_REVISION",MED.toString()).orElseThrow();
         var corrupt=(tools.jackson.databind.node.ObjectNode)codec.readTree(stored.snapshot());
         ((tools.jackson.databind.node.ObjectNode)corrupt.at("/proposal/impact")).put("fingerprint","tampered");
-        jdbc.update("update RHN_BD_CLIN_SEM_VER set JSON_SNAPSHOT=? where ID_CLIN_SEM_VER=?",codec.write(corrupt),stored.revision());
+        jdbc.update("update RHN_BD_CLIN_SEM_VER set JSON_SNAP=? where ID_CLIN_SEM_VER=?",codec.write(corrupt),stored.revision());
         context(TENANT_ID,8L,true);assertThat(revisions.preview(MED,0).allowedActions()).containsExactly("REJECT");
     }
     @Test void concurrent_reviews_apply_only_once_and_history_is_paginated() throws Exception {

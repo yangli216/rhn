@@ -26,8 +26,8 @@ public class MedicationProduct {
     @Column(name = "NA_CATALOG_ITEM", nullable = false) private String name;
     @Column(name = "SD_ITEM_TYPE", nullable = false) private String itemType;
     @Column(name = "CD_UNIT") private String unitCode;
-    @Column(name = "FG_ORDERABLE", nullable = false) private boolean orderable;
-    @Column(name = "FG_CHARGEABLE", nullable = false) private boolean chargeable;
+    @Column(name = "FG_ORDRBL", nullable = false) private boolean orderable;
+    @Column(name = "FG_CHGBL", nullable = false) private boolean chargeable;
     @Column(name = "FG_STOCKED", nullable = false) private boolean stocked;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
@@ -41,24 +41,24 @@ public class MedicationProduct {
     @Column(name = "ID_MED", table = "RHN_BD_MED_PRODUCT", nullable = false) private Long medicationId;
     @Column(name = "ID_MFR", table = "RHN_BD_MED_PRODUCT", nullable = false) private Long manufacturerId;
     @Column(name = "NA_TRADE", table = "RHN_BD_MED_PRODUCT") private String tradeName;
-    @Column(name = "CD_APPROVAL", table = "RHN_BD_MED_PRODUCT") private String approvalCode;
+    @Column(name = "CD_APRVL", table = "RHN_BD_MED_PRODUCT") private String approvalCode;
     @Column(name = "CD_TRACE", table = "RHN_BD_MED_PRODUCT") private String traceCode;
-    @Column(name = "DA_APPROVAL_FROM", table = "RHN_BD_MED_PRODUCT") private LocalDate approvalFrom;
-    @Column(name = "DA_APPROVAL_TO", table = "RHN_BD_MED_PRODUCT") private LocalDate approvalTo;
+    @Column(name = "DA_APRVL_FROM", table = "RHN_BD_MED_PRODUCT") private LocalDate approvalFrom;
+    @Column(name = "DA_APRVL_TO", table = "RHN_BD_MED_PRODUCT") private LocalDate approvalTo;
     @Column(name = "CD_REG", table = "RHN_BD_MED_PRODUCT") private String registrationCode;
     @Column(name = "DA_REG_FROM", table = "RHN_BD_MED_PRODUCT") private LocalDate registrationFrom;
     @Column(name = "DA_REG_TO", table = "RHN_BD_MED_PRODUCT") private LocalDate registrationTo;
     @Column(name = "CD_PURCH", table = "RHN_BD_MED_PRODUCT") private String purchaseCode;
     @Column(name = "SD_MARKET_STATUS", table = "RHN_BD_MED_PRODUCT") private String marketStatus;
-    @Column(name = "PRODUCTION_PLACE", table = "RHN_BD_MED_PRODUCT") private String productionPlace;
+    @Column(name = "PROD_PLACE", table = "RHN_BD_MED_PRODUCT") private String productionPlace;
     @Column(name = "FG_OTC", table = "RHN_BD_MED_PRODUCT", nullable = false) private boolean otc;
     @Column(name = "FG_CENTRAL_PURCH", table = "RHN_BD_MED_PRODUCT", nullable = false) private boolean centralPurchase;
     @Column(name = "FG_IMPORT", table = "RHN_BD_MED_PRODUCT", nullable = false) private boolean importAllowed;
-    @Column(name = "FG_TRACE_SPLIT_REQUIRED", table = "RHN_BD_MED_PRODUCT", nullable = false) private boolean traceSplitRequired;
+    @Column(name = "FG_TRACE_SPLIT_RQD", table = "RHN_BD_MED_PRODUCT", nullable = false) private boolean traceSplitRequired;
     @Column(name = "QTY_SHELF_LIFE_VAL", table = "RHN_BD_MED_PRODUCT") private BigDecimal shelfLifeValue;
     @Column(name = "SHELF_LIFE_UNIT", table = "RHN_BD_MED_PRODUCT") private String shelfLifeUnit;
-    @Column(name = "DES_INDICATION", table = "RHN_BD_MED_PRODUCT") private String indication;
-    @Column(name = "DES_INSTRUCTION", table = "RHN_BD_MED_PRODUCT") private String instruction;
+    @Column(name = "DES_INDIC", table = "RHN_BD_MED_PRODUCT") private String indication;
+    @Column(name = "DES_INSTR", table = "RHN_BD_MED_PRODUCT") private String instruction;
 
     protected MedicationProduct() {}
 

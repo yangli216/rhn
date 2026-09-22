@@ -152,7 +152,9 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
       </form>
       <p className="standard-medication__notice" role="note">
         来源：{summary.data?.source.title ?? '用户提供目录'}。
-        {summary.data?.source.verificationStatus === 'VERIFIED' ? '来源已完成核验；具体规格及临床知识仍须分别核对。' : '官方发布信息待核实。'}
+        {summary.data?.source.verificationStatus === 'VERIFIED' ? '来源已完成核验；具体规格及临床知识仍须分别核对。' : summary.data?.source.publicationVerificationStatus === 'VERIFIED'
+          ? <>官方发布已确认（{summary.data.source.publicationNumber}，{summary.data.source.effectiveFrom} 施行）；转录规格仍待核验。<a href={summary.data.source.officialUrl} target="_blank" rel="noreferrer">查看官方通知</a>。</>
+          : '官方发布信息待核实。'}
         当前状态：{sourceReviewStatus[summary.data?.source.verificationStatus ?? 'UNVERIFIED'] ?? '待核验'}。
         选择具体规格后可建立本院药品、配置厂家产品与价格。
         <Button variant="secondary" size="sm" onClick={() => setReviewOpen(true)}>来源核验与历史</Button>

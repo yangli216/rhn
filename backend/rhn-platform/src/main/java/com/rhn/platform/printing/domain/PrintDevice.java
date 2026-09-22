@@ -26,7 +26,7 @@ public class PrintDevice {
     @Column(name = "SD_CHANNEL", nullable = false) private String channel;
     @Column(name = "SD_OUTPUT_LANG", nullable = false) private String outputLanguage;
     @Column(name = "NA_QUEUE") private String queueName;
-    @Lob @Column(name = "JSON_CAPABILITIES", nullable = false) private String capabilitiesJson;
+    @Lob @Column(name = "JSON_CAPS", nullable = false) private String capabilitiesJson;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_LAST_SEEN") private Instant lastSeenAt;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;

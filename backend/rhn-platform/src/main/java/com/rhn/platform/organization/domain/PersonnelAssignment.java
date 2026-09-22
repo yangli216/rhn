@@ -24,9 +24,9 @@ public class PersonnelAssignment {
     @Column(name = "CD_STAFF_ASSIGN", nullable = false) private String code;
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_ASSIGN_TYPE", nullable = false) private AssignmentType assignmentType;
-    @Column(name = "CD_SPECIALTY") private String specialtyCode;
+    @Column(name = "CD_SPECLTY") private String specialtyCode;
     @Column(name = "FG_PRIMARY_ASSIGN", nullable = false) private boolean primaryAssignment;
-    @Column(name = "WORKLOAD_PERCENT") private BigDecimal workloadPercent;
+    @Column(name = "WKLOAD_PERCENT") private BigDecimal workloadPercent;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PersonnelStatus status;
     @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
     @Column(name = "DA_VALID_TO") private LocalDate validTo;

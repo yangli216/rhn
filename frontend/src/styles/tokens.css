@@ -44,23 +44,49 @@
   --color-violet-soft: #eef2ff;
   --color-overlay: rgba(15, 23, 42, 0.45);
 
+  /* Status emphasis and outlines shared by badges, warnings and data views. */
+  --color-success-strong: #065f46;
+  --color-warning-strong: #92400e;
+  --color-info-strong: #075985;
+  --color-violet-strong: #5b21b6;
+  --color-success-border: color-mix(in srgb, var(--color-success) 30%, var(--color-surface));
+  --color-warning-border: color-mix(in srgb, var(--color-warning) 30%, var(--color-surface));
+  --color-info-border: color-mix(in srgb, var(--color-info) 30%, var(--color-surface));
+  --color-danger-border: color-mix(in srgb, var(--color-danger) 30%, var(--color-surface));
+  --color-violet-border: color-mix(in srgb, var(--color-violet) 30%, var(--color-surface));
+  --color-shadow-ink: #0f172a;
+
+  /* Physical specimen cap colors are clinical identifiers, independent of theme/status. */
+  --color-specimen-cap-yellow: #eab308;
+  --color-specimen-cap-purple: #a855f7;
+  --color-specimen-cap-blue: #0ea5e9;
+  --color-specimen-cap-gray: #64748b;
+  --color-specimen-cap-red: #ef4444;
+  --color-specimen-cap-orange: #f59e0b;
+  --color-specimen-cap-default: #3b82f6;
+
   --color-sidebar-hover: rgba(255, 255, 255, 0.08);
   --color-sidebar-active: rgba(255, 255, 255, 0.15);
   --color-sidebar-border: rgba(255, 255, 255, 0.12);
 
   --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --font-size-display: 2rem;
-  --font-size-h1: 1.75rem;
-  --font-size-h2: 1.375rem;
+  --font-size-h1: 1.25rem;
+  --font-size-h2: 1.125rem;
   --font-size-h3: 1rem;
   --font-size-body: 0.875rem;
-  --font-size-table: 0.8125rem;
+  --font-size-table: 0.875rem;
   --font-size-small: 0.75rem;
+  --font-size-label: var(--font-size-body);
+  --font-size-control: var(--font-size-body);
+  --font-size-caption: var(--font-size-small);
+  --font-size-title: var(--font-size-h3);
+  --font-family-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
   --line-height-display: 1.3125;
-  --line-height-h1: 1.36;
-  --line-height-h2: 1.45;
+  --line-height-h1: 1.4;
+  --line-height-h2: 1.5;
   --line-height-h3: 1.5;
-  --line-height-body: 1.57;
+  --line-height-body: 1.6;
   --line-height-small: 1.5;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
@@ -93,11 +119,15 @@
   --shadow-hover: 0 4px 6px rgba(15, 23, 42, 0.03), 0 16px 32px -4px rgba(15, 23, 42, 0.08);
   --shadow-button: 0 4px 12px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
   --shadow-modal: 0 20px 50px -8px rgba(15, 23, 42, 0.22), 0 0 1px rgba(15, 23, 42, 0.08);
+  --shadow-focus: 0 0 0 2px var(--color-focus-ring);
+  --shadow-selection-marker: inset 3px 0 0 var(--color-brand-primary);
+  --shadow-inset: inset 0 1px 2px color-mix(in srgb, var(--color-shadow-ink) 8%, transparent);
 
   --control-height-sm: 2rem;
   --control-height-md: 2.5rem;
   --control-height-lg: 3rem;
   --target-size-min: 2.5rem;
+  --panel-header-min-height: 2.25rem;
 
   --motion-fast: 120ms;
   --motion-normal: 180ms;
@@ -117,7 +147,27 @@
   --layout-sidebar-collapsed-width: 4.5rem;
   --layout-topbar-height: 2.75rem;
   --layout-content-max: 100%;
-  --layout-page-gutter: 1.5rem;
+  --layout-page-gutter: var(--space-6);
+  --layout-workspace-gutter: var(--space-4);
+  --layout-panel-gap: var(--space-2);
+  --layout-section-gap: var(--space-3);
+}
+
+/* Screen preference only: printed clinical documents retain their original scale. */
+@media screen {
+  :root[data-font-size="large"] {
+    --font-size-display: 2.25rem;
+    --font-size-h1: 1.5rem;
+    --font-size-h2: 1.375rem;
+    --font-size-h3: 1.25rem;
+    --font-size-body: 1rem;
+    --font-size-table: 1rem;
+    --font-size-small: 0.875rem;
+    --control-height-sm: 2.25rem;
+    --control-height-md: 2.75rem;
+    --control-height-lg: 3.25rem;
+    --panel-header-min-height: 2.5rem;
+  }
 }
 
 /* 主题 1：松石翡翠 (Emerald Jade) */

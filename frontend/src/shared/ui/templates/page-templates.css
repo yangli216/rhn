@@ -1,0 +1,51 @@
+.ui-page-template {
+  container-type: inline-size;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-panel-gap);
+  overflow: hidden;
+  --page-header-gap: 0px;
+}
+
+.ui-page-template > .ui-page-header { flex: none; margin: 0; }
+.ui-page-template > :not(.ui-page-template__master-detail, .ui-page-template__workbench, .ui-page-template__results, .ui-page-template__form) { flex-shrink: 0; }
+.ui-page-template__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); flex: none; }
+.ui-page-template__toolbar > .ui-search-field { flex: 1; min-width: 16rem; }
+.ui-page-template__results { flex: 1; min-height: 0; }
+.ui-page-template__master-detail { flex: 1 1 0%; min-height: 0; grid-template-columns: clamp(17rem, 22%, 21rem) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.ui-page-template__pane-frame { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.ui-page-template__pane-header, .ui-page-template__pane-footer { flex: none; min-width: 0; }
+.ui-page-template__pane-header { padding: var(--space-2) var(--space-3); }
+.ui-page-template__pane-header > .ui-panel__head:first-child { margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) var(--space-2); }
+.ui-page-template__pane-header > .ui-search-field { margin-top: var(--space-2); }
+.ui-page-template__pane-footer > .ui-pagination { flex-wrap: wrap; gap: var(--space-2); justify-content: space-between; padding-inline: var(--space-3); }
+.ui-page-template__pane-body { flex: 1 1 0%; min-width: 0; min-height: 0; overflow: auto; padding: var(--space-2) var(--space-3); scrollbar-gutter: auto; overscroll-behavior: contain; overflow-wrap: anywhere; }
+.ui-page-template__pane-body.is-content-scroll { display: flex; flex-direction: column; overflow: hidden; scrollbar-gutter: auto; }
+.ui-page-template__pane { min-width: 0; min-height: 0; padding: var(--space-2) var(--space-3); overflow: auto; overflow-wrap: anywhere; }
+.ui-page-template__workbench { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(15rem, 0.28fr) minmax(0, 1fr); gap: var(--layout-panel-gap); }
+.ui-page-template__clinical { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.55fr); gap: var(--layout-panel-gap); }
+
+.ui-page-template__form { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ui-page-template__form-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: var(--layout-section-gap); }
+.ui-page-template__form-body > .ui-panel { padding: var(--space-2) var(--space-3); }
+/* First heading owns its padding; do not stack the panel's padding above it. */
+.ui-page-template__pane > .ui-panel__head:first-child,
+.ui-page-template__form-body > .ui-panel > .ui-panel__head:first-child {
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) var(--space-2);
+}
+.ui-page-template__fields > .ui-field,
+.ui-page-template__form-body > .ui-panel > .ui-field { margin-block: var(--space-2); }
+.ui-page-template__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-5); }
+.ui-page-template__fields:has(> :nth-child(3)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ui-page-template__footer { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: var(--space-3); flex: none; padding: var(--space-3) 0; }
+
+/* PC 内容区较窄时，辅助区接在主作业之后；共享同一个正文滚动区。 */
+@container (max-width: 70rem) {
+  .ui-page-template__clinical { display: flex; flex-direction: column; overflow: auto; gap: var(--layout-panel-gap); }
+  .ui-page-template__clinical > .ui-page-template__pane { overflow: visible; flex: none; }
+  .ui-page-template__fields, .ui-page-template__fields:has(> :nth-child(3)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

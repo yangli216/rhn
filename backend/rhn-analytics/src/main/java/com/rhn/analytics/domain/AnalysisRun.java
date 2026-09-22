@@ -20,7 +20,7 @@ public class AnalysisRun {
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Version @Column(name = "REVISION", nullable = false) private long revision;
     @Column(name = "SD_STATE", nullable = false, length = 24) private String state = "QUEUED";
-    @Column(name = "SD_DELIVERY", nullable = false, length = 24) private String deliveryState = "UNAVAILABLE";
+    @Column(name = "SD_DELIV", nullable = false, length = 24) private String deliveryState = "UNAVAILABLE";
 
     protected AnalysisRun() {}
 

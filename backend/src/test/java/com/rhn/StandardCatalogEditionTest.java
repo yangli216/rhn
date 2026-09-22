@@ -95,7 +95,7 @@ class StandardCatalogEditionTest extends RhnIntegrationTestSupport {
         new TransactionTemplate(manager).executeWithoutResult(tx->{save("rollback");tx.setRollbackOnly();});assertThat(editions.list(0).totalElements()).isEqualTo(2);
         jdbc.update("update RHN_BD_STD_EDITION set HASH_EDITION=? where ID_TNT=? and ID_STD_EDITION=?","bad",T,d.edition().id());assertThatThrownBy(()->editions.content(d.edition().id())).hasMessageContaining("指纹不一致");
         // Summary paging reads its independently protected metadata, not potentially huge catalog blobs.
-        assertThat(editions.list(0).content()).hasSize(2);jdbc.update("update RHN_BD_STD_EDITION set HASH_METADATA=? where ID_TNT=? and ID_STD_EDITION=?","bad",T,d.edition().id());assertThatThrownBy(()->editions.list(0)).hasMessageContaining("摘要与指纹");
+        assertThat(editions.list(0).content()).hasSize(2);jdbc.update("update RHN_BD_STD_EDITION set HASH_META=? where ID_TNT=? and ID_STD_EDITION=?","bad",T,d.edition().id());assertThatThrownBy(()->editions.list(0)).hasMessageContaining("摘要与指纹");
         mockMvc.perform(get(ROOT).header("X-Tenant-Id",TENANT)).andExpect(status().isUnauthorized());
         mockMvc.perform(get(ROOT).with(rhnWorkContext()).param("page","-1")).andExpect(status().isBadRequest());
     }

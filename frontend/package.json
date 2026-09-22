@@ -6,10 +6,16 @@
   "scripts": {
     "dev": "vite --config vite.config.ts",
     "build": "tsc -b && vite build --config vite.config.ts",
-    "check": "npm run ui:check && npm run test && npm run build",
+    "check": "npm run ui:check && npm run schema:test && npm run test && npm run build",
     "test": "vitest run",
-    "ui:check": "node scripts/check-ui-standards.mjs",
+    "ui:check": "npm run ui:policy:test && node scripts/check-ui-standards.mjs",
+    "ui:policy": "node scripts/check-ui-policy.mjs",
+    "ui:policy:test": "node --test scripts/ui-policy.node-test.mjs",
     "api:generate": "openapi-typescript ../docs/api/openapi.json -o src/shared/api/generated.ts",
+    "schema:refresh": "node ../scripts/schema-workbench/cli.mjs refresh",
+    "schema:context": "node ../scripts/schema-workbench/cli.mjs context",
+    "schema:check": "node ../scripts/schema-workbench/cli.mjs check",
+    "schema:test": "node --test ../scripts/schema-workbench/*.test.mjs",
     "preview": "vite preview --config vite.config.ts"
   },
   "dependencies": {
@@ -32,6 +38,7 @@
     "@vitejs/plugin-react": "^6.0.0",
     "jsdom": "^29.1.1",
     "openapi-typescript": "^7.13.0",
+    "postcss": "8.5.26",
     "typescript": "^5.9.0",
     "vite": "^8.2.0",
     "vitest": "^4.1.11"

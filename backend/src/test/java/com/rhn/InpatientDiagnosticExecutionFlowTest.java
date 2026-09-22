@@ -51,7 +51,7 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
         postJson("/api/inpatient/orders/" + requestId + "/verify",
                 command(1, "IP-DX-VERIFY"), 200);
         assertEquals(1, count("select count(*) from RHN_EX_DIAG_EXEC_TASK where ID_CARE_REQ = ?", requestId));
-        assertEquals(1, count("select count(*) from RHN_INT_OUTBOX_EVT where ID_AGGREGATE = ? "
+        assertEquals(1, count("select count(*) from RHN_INT_OUTBOX_EVT where ID_AGG = ? "
                 + "and SD_EVT_TYPE = 'INPATIENT_SERVICE_REQUEST_ACTIVATED'", requestId));
         assertEquals(jdbcTemplate.queryForObject("select ID_DEPT_DEFAULT as default_department_id from RHN_BD_ORG_CATALOG_ITEM "
                         + "where ID_TNT = ? and ID_ORG = ? and ID_CATALOG_ITEM = ? and SD_STATUS = 'ACTIVE'",

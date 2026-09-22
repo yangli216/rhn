@@ -32,9 +32,9 @@ public class StandardMedicationOnboardingService {
         var context = contexts.requireCurrent();
         var spec = catalog.specification(specificationId);
         var summary = catalog.summary();
-        var mapped = sources.findByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCode(context.tenantId(),
+        var mapped = sources.findAllByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCodeOrderByMedicationIdAsc(context.tenantId(),
                 summary.path("catalogId").asString(), summary.path("catalogVersion").asString(), specificationId);
-        if (mapped.isPresent()) return List.of(master.medication(mapped.get().medicationId(), organizationId));
+        if (!mapped.isEmpty()) return mapped.stream().map(s -> master.medication(s.medicationId(), organizationId)).toList();
         var entry = catalog.detail(spec.path("entryId").asString());
         String legacyPrefix = entry.path("legacyCode").asString() + "-";
         // Offer legacy and manually created equivalents for explicit reuse; never infer equivalence from name alone.
@@ -42,8 +42,9 @@ public class StandardMedicationOnboardingService {
                 .filter(m -> m.code().equals(specificationId)
                     || (m.code().equals(entry.path("legacyCode").asString()) || m.code().startsWith(legacyPrefix) || normalize(m.name()).equals(normalize(entry.path("name").asString())))
                         && Objects.equals(m.medicationType(), entry.path("medicationType").asString())
-                        && Objects.equals(m.doseForm(), spec.path("doseForm").asString())
+                        && standards.doseFormMatches(m.name(), m.doseForm(), spec)
                         && normalize(m.preparationSpec()).equals(normalize(spec.path("specification").asString())))
+                .filter(m -> catalog.qualifierIdentityIssues(m.name(), spec).isEmpty())
                 .map(m -> master.medication(m.id(), organizationId)).toList();
     }
 
@@ -60,7 +61,7 @@ public class StandardMedicationOnboardingService {
             throw badRequest("MEDICATION_REVISION_REQUIRED", "请刷新药品版本后重试");
         standards.validateSpecification(specificationId, command);
         command = command.withStandardSpecification(specificationId);
-        if (medicationId != null) standards.link(context.tenantId(), medicationId, specificationId, context.subjectId());
+        if (medicationId != null) standards.linkExisting(context.tenantId(), medicationId, specificationId, context.subjectId());
         var saved = medicationId == null ? master.createMedication(command, organizationId)
                 : master.updateMedication(medicationId, expectedRevision, command, organizationId);
         standards.link(context.tenantId(), saved.id(), specificationId, context.subjectId());

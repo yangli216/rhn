@@ -56,7 +56,7 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
                                 org.hamcrest.Matchers.containsString("未满18周岁"),
                                 org.hamcrest.Matchers.containsString("左氧氟沙星")))));
 
-        assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_PRESCRIPTION=?",
+        assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_RX=?",
                 Integer.class, prescriptionId)).isEqualTo(1);
     }
 
@@ -93,10 +93,10 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
         JsonNode input = json(saved);
         assertThat(input.path("schemaVersion").asString()).isEqualTo("qmed-prescription-v2");
         assertThat(input.at("/medications/0/semanticStatus").asString()).isEqualTo("VERSIONED_PARTIAL");
-        String frozen = jdbc.queryForObject("select MEDICATION_SNAPSHOT from RHN_EX_MED_REQ where ID_CARE_REQ=?", String.class, firstId);
+        String frozen = jdbc.queryForObject("select MED_SNAP from RHN_EX_MED_REQ where ID_CARE_REQ=?", String.class, firstId);
         String originalName = jdbc.queryForObject("select NA_MED from RHN_BD_MED where ID_MED=?", String.class, MEDICATION);
         try {
-            jdbc.update("update RHN_BD_MED set NA_MED = ?, QTY_STRENGTH_VAL=99 where ID_MED=?", "修改后的药品名称", MEDICATION);
+            jdbc.update("update RHN_BD_MED set NA_MED = ?, QTY_STRNTH_VAL=99 where ID_MED=?", "修改后的药品名称", MEDICATION);
             JsonNode again = evaluate(path);
             assertThat(again.path("inputHash")).isEqualTo(warn.path("inputHash"));
             assertThat(again.path("decision")).isEqualTo(warn.path("decision"));
@@ -112,11 +112,11 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
                     .andExpect(jsonPath("$.input.facts.date").isNotEmpty())
                     .andExpect(jsonPath("$.input.items[0].medicationName").value(originalName));
             assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL",Integer.class)).isEqualTo(auditCount);
-            assertThat(jdbc.queryForObject("select MEDICATION_SNAPSHOT from RHN_EX_MED_REQ where ID_CARE_REQ=?", String.class, firstId)).isEqualTo(frozen);
+            assertThat(jdbc.queryForObject("select MED_SNAP from RHN_EX_MED_REQ where ID_CARE_REQ=?", String.class, firstId)).isEqualTo(frozen);
             mockMvc.perform(get(path+"/"+warn.path("evaluationId").asString()).with(rhnWorkContext()))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.inputHash").value(warn.path("inputHash").asString()));
         } finally {
-            jdbc.update("update RHN_BD_MED set NA_MED=?, QTY_STRENGTH_VAL=5 where ID_MED=?", originalName, MEDICATION);
+            jdbc.update("update RHN_BD_MED set NA_MED=?, QTY_STRNTH_VAL=5 where ID_MED=?", originalName, MEDICATION);
         }
         assertThat(jdbc.queryForObject("select SD_STATUS from RHN_EX_CARE_REQ where ID_CARE_REQ=?", String.class, firstId)).isEqualTo("DRAFT");
         assertThat(jdbc.queryForObject("select count(*) from RHN_SUP_RX_INV_FREEZE where ID_RX=?", Integer.class, prescription)).isZero();

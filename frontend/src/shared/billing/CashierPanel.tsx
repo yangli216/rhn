@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Icon } from '../ui'
+import { PanelHead } from '../ui'
 
 export interface CashierPanelProps {
   title: string
@@ -21,13 +21,7 @@ export function CashierPanel({
   className = '',
 }: CashierPanelProps) {
   return <aside className={`cashier-panel ${className}`}>
-    <header className="cashier-panel__head">
-      <span className="cashier-panel__icon"><Icon name="billing" /></span>
-      <div>
-        <h2>{title}</h2>
-        {meta && <span>{meta}</span>}
-      </div>
-    </header>
+    <PanelHead className="cashier-panel__head" title={title} meta={meta} />
     <div className="cashier-panel__amount">
       <span>{amountLabel}</span>
       <strong>{amount}</strong>

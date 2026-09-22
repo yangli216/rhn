@@ -1,0 +1,314 @@
+{
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "tables": [
+    {
+      "logical": "anl.presence_metric_sample",
+      "legacy": "presence_metric_samples",
+      "physical": "RHN_ANL_PRES_METRIC_SAMPLE",
+      "domain": "ANL",
+      "comment": "在线状态指标样本；一行代表一条在线状态指标样本记录",
+      "columns": [
+        {
+          "physical": "ID_PRES_METRIC_SAMPLE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "在线状态指标样本主键",
+          "logical": "id",
+          "catalogComment": "在线状态指标样本主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "SD_SCOPE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "范围类型",
+          "logical": "scope_type",
+          "catalogComment": "范围类型"
+        },
+        {
+          "physical": "CD_SCOPE_KEY",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "范围键",
+          "logical": "scope_key",
+          "catalogComment": "范围键"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "DT_BUCKET",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "bucket时间",
+          "logical": "bucket_at",
+          "catalogComment": "bucket时间"
+        },
+        {
+          "physical": "QTY_ONLINE_USER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "在线用户数",
+          "logical": "online_users",
+          "catalogComment": "在线用户数"
+        },
+        {
+          "physical": "QTY_ACTIVE_USER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "有效用户数",
+          "logical": "active_users",
+          "catalogComment": "有效用户数"
+        },
+        {
+          "physical": "QTY_ONLINE_CTXS",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "在线上下文数",
+          "logical": "online_contexts",
+          "catalogComment": "在线上下文数"
+        },
+        {
+          "physical": "QTY_CONNS",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "连接数",
+          "logical": "connections",
+          "catalogComment": "连接数"
+        },
+        {
+          "physical": "QTY_INSTS",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "实例数",
+          "logical": "instances",
+          "catalogComment": "实例数"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRES_METRIC_SAMPLE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_ANL_PRES_METRI_PRESENCE_MET",
+          "columns": [
+            "ID_TNT",
+            "CD_SCOPE_KEY",
+            "DT_BUCKET"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_ANL_PRES_METRI_SYS_TNT_PRES_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_ANL_PRES_METRI_PRESENCE_ME",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_SCOPE_KEY",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_BUCKET",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_ANL_PRES_METRI_PRESENCE__1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "DT_BUCKET",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRES_METRIC_SAMPLE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_ANL_PRES_METRI_PRESENCE_MET_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_SCOPE_KEY",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_BUCKET",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_ANL_PRES_METRI_PRESENCE_M_1",
+          "expression": "(\"qty_online_user\" >= CAST(0 AS BIGINT))\n    AND (\"qty_active_user\" >= CAST(0 AS BIGINT))\n    AND (\"qty_online_ctxs\" >= CAST(0 AS BIGINT))\n    AND (\"qty_conns\" >= CAST(0 AS BIGINT))\n    AND (\"qty_insts\" >= CAST(0 AS BIGINT))"
+        },
+        {
+          "name": "CK_ANL_PRES_METRI_PRESENCE_MET",
+          "expression": "\"sd_scope_type\" IN('TENANT', 'ORGANIZATION', 'DEPARTMENT')"
+        }
+      ],
+      "catalogComment": "在线状态指标样本；一行代表一条在线状态指标样本记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/realtime/application/PresenceMetricSample.java",
+          "line": 12
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "FK_ANL_PRES_METRI_SYS_TNT_PRES",
+      "sourceTable": "RHN_ANL_PRES_METRIC_SAMPLE",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    }
+  ]
+}

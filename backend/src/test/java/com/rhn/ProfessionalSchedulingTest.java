@@ -23,7 +23,7 @@ class ProfessionalSchedulingTest extends RhnIntegrationTestSupport {
     void creates_timed_professional_template_with_closed_and_override_exceptions_idempotently() throws Exception {
         jdbc.update("""
                 insert into RHN_SYS_PARAM_VAL (
-                    ID_PARAM_VAL, ID_PARAM_DEF, ID_TNT, SD_SCOPE_TYPE, ID_SCOPE, SCOPE_REFERENCE, CD_SCOPE,
+                    ID_PARAM_VAL, ID_PARAM_DEF, ID_TNT, SD_SCOPE_TYPE, ID_SCOPE, SCOPE_REF, CD_SCOPE,
                     SD_VAL_MODE, JSON_VAL, SECRET_REF, FG_ACTIVE, REVISION,
                     DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED
                 ) values (?, 362387869795020, ?, 'DEPARTMENT', ?, null, ?,

@@ -25,7 +25,7 @@ public class SearchEntry {
     @Column(name = "NA_SEARCH", nullable = false) private String searchName;
     @Column(name = "CD_PINYIN") private String pinyinCode;
     @Column(name = "CD_WUBI") private String wubiCode;
-    @Column(name = "CD_MNEMONIC") private String mnemonicCode;
+    @Column(name = "CD_MNEM") private String mnemonicCode;
     @Column(name = "FG_PRIMARY", nullable = false) private boolean primary;
     @Column(name = "CD_GEN_VER") private String generatorVersion;
     @Column(name = "SD_STATUS", nullable = false) private String status;

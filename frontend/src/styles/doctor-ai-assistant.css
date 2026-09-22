@@ -91,48 +91,48 @@
   font-weight: 600 !important;
   cursor: pointer !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  background: linear-gradient(135deg, #ffffff 0%, color-mix(in srgb, var(--color-brand-soft) 40%, white) 100%) !important;
+  background: linear-gradient(135deg, var(--color-surface) 0%, color-mix(in srgb, var(--color-brand-soft) 40%, white) 100%);
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border)) !important;
-  color: var(--color-brand-strong, #0284c7) !important;
-  box-shadow: 0 1px 3px rgba(14, 165, 233, 0.12) !important;
+  color: var(--color-brand-strong);
+  box-shadow: var(--shadow-sm);
 }
 .doctor-ai-voice-btn .ui-icon {
   width: 0.95rem !important;
   height: 0.95rem !important;
-  color: var(--color-brand-primary, #0ea5e9) !important;
+  color: var(--color-brand-primary);
   transition: transform 0.2s ease !important;
 }
 .doctor-ai-voice-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-soft) 60%, white) 0%, #e0f2fe 100%) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-soft) 60%, white) 0%, var(--color-info-soft) 100%);
   border-color: var(--color-brand-primary) !important;
   color: var(--color-brand-strong) !important;
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(14, 165, 233, 0.22) !important;
+  box-shadow: var(--shadow-hover);
 }
 .doctor-ai-voice-btn:hover:not(:disabled) .ui-icon {
   transform: scale(1.15);
 }
 .doctor-ai-voice-btn.is-listening {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-  border-color: #b91c1c !important;
-  color: #ffffff !important;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+  background: linear-gradient(135deg, var(--color-danger) 0%, var(--color-danger) 100%);
+  border-color: var(--color-danger-strong);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-focus);
   animation: voice-listen-glow 1.5s infinite alternate ease-in-out !important;
 }
 .doctor-ai-voice-btn.is-listening .ui-icon {
-  color: #ffffff !important;
+  color: var(--color-text-inverse);
 }
 
 @keyframes voice-listen-glow {
-  0% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3); }
-  100% { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0); }
+  0% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-danger) 30%, transparent); }
+  100% { box-shadow: 0 0 0 7px transparent; }
 }
 
 .doctor-ai-voice-pulse {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--color-surface);
   animation: pulse-blink 0.9s infinite alternate ease-in-out;
   flex-shrink: 0;
 }
@@ -149,19 +149,19 @@
   padding: 0.32rem 0.75rem;
   margin-bottom: 0.4rem;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, #ef4444 8%, var(--color-surface));
-  border: 1px dashed color-mix(in srgb, #ef4444 35%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+  border: 1px dashed color-mix(in srgb, var(--color-danger) 35%, transparent);
   font-size: var(--font-size-small);
   animation: fadeIn 0.2s ease;
 }
 .doctor-ai-interim-live .doctor-ai-voice-pulse {
-  background: #ef4444;
+  background: var(--color-danger);
 }
 .doctor-ai-interim-live__tag {
   font-weight: 600;
-  color: #dc2626;
+  color: var(--color-danger);
   white-space: nowrap;
-  font-size: 0.8rem;
+  font-size: var(--font-size-body);
 }
 .doctor-ai-interim-live__text {
   color: var(--color-text-primary);
@@ -173,11 +173,11 @@
 
 /* 一体化录入卡片与紧凑排版 */
 .doctor-ai-composer-card {
-  background: var(--color-surface, #ffffff);
+  background: var(--color-surface);
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-border));
   border-radius: var(--radius-md);
   padding: var(--space-2-5, 0.625rem) var(--space-3);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 .doctor-ai-composer-card__head {
   display: flex;
@@ -249,17 +249,17 @@
   line-height: 1.4;
 }
 .doctor-ai-composer-card__hint-alert {
-  color: var(--color-warning-strong, #b45309);
+  color: var(--color-warning-strong);
   font-weight: 600;
 }
 .doctor-ai-btn--clear {
-  color: var(--color-text-tertiary) !important;
+  color: var(--color-text-secondary);
   font-size: var(--font-size-small) !important;
   padding: 0.2rem 0.5rem !important;
   border-radius: var(--radius-sm) !important;
 }
 .doctor-ai-btn--clear:hover {
-  color: var(--color-danger, #ef4444) !important;
+  color: var(--color-danger);
   background: var(--color-danger-soft) !important;
 }
 .doctor-ai-assistant__prompt .ui-field { margin: 0; }
@@ -303,7 +303,7 @@
 .doctor-ai-assistant__plans article strong, .doctor-ai-assistant__plans article small { display: block; }
 .doctor-ai-assistant__plans article small { margin-top: .15rem; overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
 .doctor-ai-assistant__disclaimer { padding: var(--space-2) var(--space-3); color: var(--color-text-secondary); background: var(--color-surface-muted); font-size: var(--font-size-small); line-height: 1.45; }
-.doctor-ai-assistant__provenance { padding: 0 var(--space-3) var(--space-2); color: var(--color-text-tertiary); background: var(--color-surface-muted); font-size: var(--font-size-small); }
+.doctor-ai-assistant__provenance { padding: 0 var(--space-3) var(--space-2); color: var(--color-text-secondary); background: var(--color-surface-muted); font-size: var(--font-size-small); }
 .doctor-ai-assistant__feedback { padding: var(--space-3); display: flex; align-items: center; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); background: var(--color-surface-subtle); border-top: 1px solid var(--color-border); }
 .doctor-ai-assistant__feedback .ui-button:first-of-type { margin-left: auto; }
 .doctor-ai-assistant__plan-reason { margin: var(--space-3) 0; padding: var(--space-2); border-radius: var(--radius-md); color: var(--color-text-secondary); background: var(--color-surface-subtle); }
@@ -342,7 +342,7 @@
 .doctor-ai-assistant__knowledge-results article { min-width: 0; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
 .doctor-ai-assistant__knowledge-title { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
 .doctor-ai-assistant__knowledge-results p { margin: var(--space-1) 0; color: var(--color-text-secondary); line-height: 1.5; white-space: pre-wrap; }
-.doctor-ai-assistant__knowledge-results small { color: var(--color-text-tertiary); }
+.doctor-ai-assistant__knowledge-results small { color: var(--color-text-secondary); }
 .doctor-ai-assistant__knowledge-results .ui-empty-state { min-height: 8rem; }
 
 /* Quiet entry points occupy a single row; clinical suggestions expand only on demand. */
@@ -387,7 +387,7 @@
   background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-surface));
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 28%, transparent);
   border-radius: 9999px;
-  box-shadow: 0 1px 3px rgba(14, 165, 233, 0.08);
+  box-shadow: var(--shadow-sm);
   user-select: none;
 }
 .doctor-ai-brand__icon {
@@ -397,67 +397,23 @@
   width: 1.25rem;
   height: 1.25rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-strong, #0284c7) 100%);
-  box-shadow: 0 2px 5px rgba(14, 165, 233, 0.35);
+  background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-strong) 100%);
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
 }
 .doctor-ai-brand__icon .ui-icon {
   width: 0.85rem;
   height: 0.85rem;
-  color: #ffffff !important;
+  color: var(--color-text-inverse);
 }
 .doctor-ai-brand__title {
   font-size: var(--font-size-body);
   font-weight: 600;
-  color: var(--color-brand-strong, #0369a1);
+  color: var(--color-brand-strong);
   letter-spacing: 0.02em;
 }
 
 /* 状态指示胶囊与呼吸灯 */
-.doctor-ai-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.15rem 0.5rem;
-  border-radius: 9999px;
-  font-size: var(--font-size-small);
-  font-weight: 500;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
-  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.04));
-  user-select: none;
-}
-.doctor-ai-status-pill.is-ready {
-  background: color-mix(in srgb, var(--color-success) 10%, var(--color-surface));
-  border-color: color-mix(in srgb, var(--color-success) 35%, transparent);
-  color: var(--color-success);
-}
-.doctor-ai-status-pill.is-stale {
-  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface));
-  border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
-  color: var(--color-warning);
-}
-.doctor-ai-status-pill.is-error {
-  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
-  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
-  color: var(--color-danger);
-}
-.doctor-ai-status-dot {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
-}
-.doctor-ai-status-pill.is-ready .doctor-ai-status-dot {
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
-  animation: doctor-ai-pulse-green 2.2s infinite ease-in-out;
-}
-@keyframes doctor-ai-pulse-green {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.25); opacity: 0.65; box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.15); }
-}
 
 /* 顶部轻量标签式操作按钮（接诊摘要、段落对照） */
 .doctor-ai-btn--chip {
@@ -472,7 +428,7 @@
   background: var(--color-surface) !important;
   border: 1px solid var(--color-border) !important;
   color: var(--color-text-secondary) !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: var(--shadow-sm);
   transition: all 0.18s ease !important;
 }
 .doctor-ai-btn--chip .ui-icon {
@@ -507,7 +463,7 @@
   cursor: pointer;
   user-select: none;
   transition: all 0.18s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 .doctor-ai-quiet__switch:hover {
   color: var(--color-text-primary);
@@ -525,13 +481,13 @@
   display: inline-block;
   width: 1.85rem;
   height: 1.05rem;
-  background: var(--color-border-strong, #cbd5e1);
+  background: var(--color-border-strong);
   border-radius: 9999px;
   transition: background-color 0.22s ease, box-shadow 0.22s ease;
   flex-shrink: 0;
 }
 .doctor-ai-quiet__switch input:checked + .doctor-ai-switch__track {
-  background: linear-gradient(90deg, var(--color-brand-primary), var(--color-brand-strong, #0284c7));
+  background: linear-gradient(90deg, var(--color-brand-primary), var(--color-brand-strong));
 }
 .doctor-ai-switch__thumb {
   position: absolute;
@@ -539,9 +495,9 @@
   left: 0.1rem;
   width: 0.85rem;
   height: 0.85rem;
-  background: #ffffff;
+  background: var(--color-surface);
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-sm);
   transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .doctor-ai-quiet__switch input:checked + .doctor-ai-switch__track .doctor-ai-switch__thumb {
@@ -565,7 +521,7 @@
   color: var(--color-text-primary) !important;
   padding: 0.2rem 0.55rem !important;
   height: auto !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: var(--shadow-sm);
   transition: all 0.18s ease !important;
 }
 .doctor-ai-btn--refresh .ui-icon {
@@ -594,10 +550,10 @@
   font-size: var(--font-size-small) !important;
   font-weight: 600 !important;
   letter-spacing: 0.02em !important;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 60%, #bae6fd 100%) !important;
-  border: 1.5px solid var(--color-brand-primary, #0ea5e9) !important;
-  color: #0369a1 !important;
-  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  background: linear-gradient(135deg, var(--color-info-soft) 0%, var(--color-info-soft) 60%, var(--color-info-border) 100%);
+  border: 1.5px solid var(--color-brand-primary);
+  color: var(--color-info-strong);
+  box-shadow: var(--shadow-inset);
   cursor: pointer !important;
   transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1) !important;
   position: relative !important;
@@ -611,9 +567,9 @@
   width: 1.3rem;
   height: 1.3rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+  background: linear-gradient(135deg, var(--color-info) 0%, var(--color-info-strong) 100%);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -621,14 +577,14 @@
 .doctor-ai-entrance-btn__mic-badge .ui-icon {
   width: 0.9rem !important;
   height: 0.9rem !important;
-  color: #ffffff !important;
+  color: var(--color-text-inverse);
 }
 
 .doctor-ai-entrance-btn__chevron {
   display: inline-flex;
   align-items: center;
   margin-left: 0.1rem;
-  color: #0284c7;
+  color: var(--color-info);
   opacity: 0.8;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
@@ -639,10 +595,10 @@
 }
 
 .doctor-ai-entrance-btn:hover {
-  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 60%, #7dd3fc 100%) !important;
-  border-color: #0284c7 !important;
-  color: #075985 !important;
-  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.42), inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+  background: linear-gradient(135deg, var(--color-info-soft) 0%, var(--color-info-border) 60%, var(--color-info-border) 100%);
+  border-color: var(--color-info);
+  color: var(--color-info-strong);
+  box-shadow: var(--shadow-inset);
   transform: translateY(-1px) !important;
 }
 
@@ -655,24 +611,24 @@
 }
 
 .doctor-ai-entrance-btn.is-active {
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
-  border-color: #0284c7 !important;
-  color: #ffffff !important;
-  box-shadow: 0 3px 12px rgba(2, 132, 199, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+  background: linear-gradient(135deg, var(--color-info) 0%, var(--color-info-strong) 100%);
+  border-color: var(--color-info);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-inset);
 }
 
 .doctor-ai-entrance-btn.is-active .doctor-ai-entrance-btn__mic-badge {
-  background: #ffffff;
-  color: #0284c7;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  background: var(--color-surface);
+  color: var(--color-info);
+  box-shadow: var(--shadow-sm);
 }
 
 .doctor-ai-entrance-btn.is-active .doctor-ai-entrance-btn__mic-badge .ui-icon {
-  color: #0284c7 !important;
+  color: var(--color-info);
 }
 
 .doctor-ai-entrance-btn.is-active .doctor-ai-entrance-btn__chevron {
-  color: #ffffff !important;
+  color: var(--color-text-inverse);
   opacity: 1;
 }
 
@@ -808,8 +764,8 @@
   padding: 2px 4px;
   background: color-mix(in srgb, var(--color-brand-soft) 48%, var(--color-surface));
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-border));
-  border-radius: var(--radius-full, 999px);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-inset);
   user-select: none;
   vertical-align: middle;
 }
@@ -828,7 +784,7 @@
   padding: 1px 8px;
   min-height: 22px;
   border: 1px solid transparent;
-  border-radius: var(--radius-full, 999px);
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
@@ -843,7 +799,7 @@
   background: var(--color-surface);
   color: var(--color-brand-primary);
   border-color: color-mix(in srgb, var(--color-brand-primary) 32%, transparent);
-  box-shadow: 0 1px 4px rgba(11, 107, 98, 0.12);
+  box-shadow: var(--shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -916,7 +872,7 @@
   align-items: center;
   justify-content: center;
   color: var(--color-text-disabled);
-  font-size: 11px;
+  font-size: var(--font-size-small);
   padding: 0 1px;
   user-select: none;
   transition: color 0.18s ease;
@@ -936,7 +892,7 @@
 
 @keyframes doctor-ai-dot-pulse {
   to {
-    box-shadow: 0 0 0 6px rgba(11, 107, 98, 0);
+    box-shadow: 0 0 0 6px transparent;
   }
 }
 
@@ -1042,7 +998,7 @@
   height: var(--control-height-sm);
   min-height: var(--control-height-sm);
   padding: 0 0.65rem 0 0.5rem;
-  border-radius: var(--radius-round, 999px);
+  border-radius: var(--radius-round);
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -1090,7 +1046,7 @@
 }
 
 .doctor-ai-copilot-pill__tag {
-  font-size: 0.72rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   padding: 0.05rem 0.35rem;
   border-radius: var(--radius-sm);
@@ -1169,7 +1125,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.22), 0 4px 12px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-modal);
   display: flex;
   flex-direction: column;
   animation: ui-popover-enter var(--motion-fast) var(--ease-standard);
@@ -1216,7 +1172,7 @@
 }
 
 .doctor-ai-copilot-popover__subtitle {
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   display: block;
   margin-top: 1px;
@@ -1286,7 +1242,7 @@
 
 .doctor-ai-insight-card__tag {
   margin-left: auto;
-  font-size: 0.72rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   padding: 0.1rem 0.4rem;
   border-radius: var(--radius-sm);
@@ -1307,7 +1263,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-1);
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
 }
 
 .doctor-ai-insight-card__label {
@@ -1350,7 +1306,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
   text-transform: uppercase;

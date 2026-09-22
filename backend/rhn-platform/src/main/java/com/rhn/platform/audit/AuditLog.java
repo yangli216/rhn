@@ -22,9 +22,9 @@ class AuditLog {
     private String requestPath;
     @Column(name = "SD_RESP_STATUS", nullable = false)
     private int responseStatus;
-    @Column(name = "ID_CORRELATION", nullable = false)
+    @Column(name = "ID_CORR", nullable = false)
     private String correlationId;
-    @Column(name = "DT_OCCURRED", nullable = false)
+    @Column(name = "DT_OCCRD", nullable = false)
     private Instant occurredAt;
 
     protected AuditLog() {

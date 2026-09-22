@@ -34,17 +34,17 @@ public class AiSuggestion {
     @Column(name = "JSON_CONTENT", nullable = false) private String contentJson;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "JSON_EVID", nullable = false) private String evidenceJson;
-    @Column(name = "CD_PROVIDER", nullable = false) private String providerCode;
+    @Column(name = "CD_PRVDR", nullable = false) private String providerCode;
     @Column(name = "CD_MODEL") private String modelCode;
     @Column(name = "CD_PROMPT_VER", nullable = false) private String promptVersion;
-    @Column(name = "CD_KNOWLEDGE_VER") private String knowledgeVersion;
+    @Column(name = "CD_KNOW_VER") private String knowledgeVersion;
     @Column(name = "DT_DATA_CUTOFF") private Instant dataCutoff;
-    @Column(name = "DT_GENERATED", nullable = false) private Instant generatedAt;
+    @Column(name = "DT_GEND", nullable = false) private Instant generatedAt;
     @Column(name = "DT_EXPIRES", nullable = false) private Instant expiresAt;
-    @Column(name = "DT_INVALIDATED") private Instant invalidatedAt;
-    @Column(name = "DES_INVALIDATION_REASON") private String invalidationReason;
-    @Column(name = "ID_PRACT_REQUESTED", nullable = false) private Long requestedPractitionerId;
-    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedUserId;
+    @Column(name = "DT_INVLDD") private Instant invalidatedAt;
+    @Column(name = "DES_INVLDN_REASON") private String invalidationReason;
+    @Column(name = "ID_PRACT_REQD", nullable = false) private Long requestedPractitionerId;
+    @Column(name = "ID_USER_REQD", nullable = false) private Long requestedUserId;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected AiSuggestion() {}

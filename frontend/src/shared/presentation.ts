@@ -17,6 +17,37 @@ export interface StatusPresentation {
   tone: SemanticTone
 }
 
+export function medicationStandardBindingStatusPresentation(status: string): StatusPresentation {
+  const labels: Record<string, StatusPresentation> = {
+    LINKED: { label: '关联一致', tone: 'success' },
+    UNMAPPED: { label: '未关联', tone: 'warning' },
+    AMBIGUOUS: { label: '关联冲突', tone: 'danger' },
+    STALE: { label: '关联版本不可用', tone: 'warning' },
+    MISMATCH: { label: '信息不一致', tone: 'danger' },
+  }
+  return labels[status] ?? { label: status, tone: 'neutral' }
+}
+
+export function medicationCandidateStatusPresentation(status: string): StatusPresentation {
+  return status === 'APPROVED_FOR_SHADOW'
+    ? { label: '已批准进入旁路监控', tone: 'success' }
+    : { label: status, tone: 'neutral' }
+}
+
+export function semanticProbeStatusPresentation(status: string): StatusPresentation {
+  return { label: status, tone: status === 'READY' ? 'success' : status === 'CLARIFY' ? 'warning' : 'danger' }
+}
+
+export function clinicalAiDraftStatusPresentation({ generating, error, current, hasSuggestion }: {
+  generating: boolean; error: boolean; current: boolean; hasSuggestion: boolean
+}): StatusPresentation {
+  if (generating) return { label: '正在共写…', tone: 'info' }
+  if (error) return { label: '整理未完成', tone: 'danger' }
+  if (current) return { label: '建议已准备好', tone: 'success' }
+  if (hasSuggestion) return { label: '资料已变化，等待更新', tone: 'warning' }
+  return { label: '待分析', tone: 'neutral' }
+}
+
 const encounterStatuses: Record<Encounter['status'], StatusPresentation> = {
   REGISTERED: { label: '已挂号', tone: 'warning' },
   IN_PROGRESS: { label: '接诊中', tone: 'info' },
@@ -138,4 +169,22 @@ export function diagnosticReportStatusPresentation(value: DiagnosticReport['stat
   if (value === 'CORRECTED') return { label: '更正报告', tone: 'success' }
   if (value === 'PRELIMINARY') return { label: '初步报告', tone: 'info' }
   return { label: '已取消', tone: 'neutral' }
+}
+export function schemaReviewPresentation(state: string) {
+  if (state === 'reviewed') return { label: '已审核', tone: 'success' as const }
+  if (state === 'rejected') return { label: '已退回', tone: 'danger' as const }
+  if (state === 'database') return { label: '数据库约束', tone: 'info' as const }
+  return { label: '待确认', tone: 'warning' as const }
+}
+
+export function schemaRelationPresentation(kind: string) {
+  if (kind === 'foreign-key') return { label: '物理外键', tone: 'info' as const }
+  if (kind === 'logical') return { label: '业务关联', tone: 'success' as const }
+  return { label: '候选关系', tone: 'warning' as const }
+}
+
+export function schemaIssuePresentation(severity: string) {
+  if (severity === 'error') return { label: '需修正', tone: 'danger' as const }
+  if (severity === 'warning') return { label: '待核对', tone: 'warning' as const }
+  return { label: '待补充', tone: 'neutral' as const }
 }

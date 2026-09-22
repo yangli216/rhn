@@ -14,13 +14,13 @@ public class InventoryTransaction {
     @Id @Column(name = "ID_INV_TXN") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_INV_PERIOD", nullable = false) private Long inventoryPeriodId;
-    @Column(name = "ID_INV_TXN_REVERSES") private Long reversesTransactionId;
+    @Column(name = "ID_INV_TXN_RVRS") private Long reversesTransactionId;
     @Column(name = "CD_TXN_NO", nullable = false) private String transactionNo;
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
     @Column(name = "SD_TXN_TYPE", nullable = false) private String transactionType;
     @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;
     @Column(name = "CD_SRC", nullable = false) private String sourceCode;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
     @Column(name = "DT_POSTED", nullable = false) private Instant postedAt;
     @Column(name = "ID_USER_POSTED", nullable = false) private Long postedBy;
     @Column(name = "DES_INV_TXN") private String description;

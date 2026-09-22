@@ -21,9 +21,9 @@ public class InventoryDocumentEvent {
     @Column(name = "SD_FROM_STATUS") private String fromStatus;
     @Column(name = "SD_TO_STATUS", nullable = false) private String toStatus;
     @Column(name = "DES_REASON") private String reason;
-    @Column(name = "ID_CORRELATION") private String correlationId;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
-    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
+    @Column(name = "ID_CORR") private String correlationId;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCRD", nullable = false) private Long occurredBy;
 
     protected InventoryDocumentEvent() {}
 

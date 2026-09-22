@@ -101,7 +101,7 @@ public class InventoryPriceAdjustmentApplicationService {
         jdbc.update("""
                 insert into RHN_SUP_INV_PRICE_ADJ
                 (ID_INV_PRICE_ADJ, ID_TNT, ID_ORG, ID_STOCK_SITE, CD_ADJ_NO, CD_REQ, HASH_REQ,
-                 SD_ADJ_TYPE, SD_PRICE_TYPE, DA_BUSINESS, CD_CURRENCY, CD_PRICE_DOC, DES_REASON,
+                 SD_ADJ_TYPE, SD_PRICE_TYPE, DA_BIZ, CD_CCY, CD_PRICE_DOC, DES_REASON,
                  SD_STATUS, QTY_LINE, AMT_TOTAL_VAL_BEFORE, AMT_TOTAL_VAL_AFTER, AMT_TOTAL_ADJ,
                  DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, 0, 0, 0, ?, ?, ?, ?)
@@ -116,7 +116,7 @@ public class InventoryPriceAdjustmentApplicationService {
                     insert into RHN_SUP_INV_PRICE_ADJ_LINE
                     (ID_INV_PRICE_ADJ_LINE, ID_TNT, ID_INV_PRICE_ADJ, SN_LINE, ID_STOCK_ITEM, ID_CATALOG_ITEM, ID_ITEM_PKG,
                      PRICE_NEW_SALE, PRICE_NEW_UNIT_COST, QTY_SNAP, AMT_VAL_BEFORE, AMT_VAL_AFTER,
-                     AMT_ADJ, AMT_ROUNDING, SD_LINE_STATUS)
+                     AMT_ADJ, AMT_RND, SD_LINE_STATUS)
                     values (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 'PENDING')
                     """, GlobalIds.next(), context.tenantId(), id, lineNo, item.id(), item.catalogItemId(),
                     item.basePackageId(), money(input.newSalePrice()), money(input.newUnitCost()));
@@ -129,7 +129,7 @@ public class InventoryPriceAdjustmentApplicationService {
         ExecutionContext context = context(); StockSite site = requireSite(context, siteId);
         return jdbc.query("""
                 select ID_INV_PRICE_ADJ as id from RHN_SUP_INV_PRICE_ADJ
-                where ID_TNT = ? and ID_STOCK_SITE = ? order by DA_BUSINESS desc, DT_CREATED desc
+                where ID_TNT = ? and ID_STOCK_SITE = ? order by DA_BIZ desc, DT_CREATED desc
                 """, (rs, row) -> rs.getLong("id"), context.tenantId(), site.id())
                 .stream().map(id -> get(context, id)).toList();
     }
@@ -153,7 +153,7 @@ public class InventoryPriceAdjustmentApplicationService {
             jdbc.update("""
                     update RHN_SUP_INV_PRICE_ADJ_LINE set ID_CATALOG_PRICE_OLD = ?, SN_OLD_CATALOG_PRICE_VER = ?,
                            PRICE_OLD_SALE = ?, PRICE_OLD_UNIT_COST = ?, QTY_SNAP = ?, AMT_VAL_BEFORE = ?,
-                           AMT_VAL_AFTER = ?, AMT_ADJ = ?, AMT_ROUNDING = ?, SD_LINE_STATUS = 'READY',
+                           AMT_VAL_AFTER = ?, AMT_ADJ = ?, AMT_RND = ?, SD_LINE_STATUS = 'READY',
                            REVISION = REVISION + 1,
                            CD_ERROR = null, DES_ERROR_MSG = null
                     where ID_TNT = ? and ID_INV_PRICE_ADJ_LINE = ? and SD_LINE_STATUS = 'PENDING'
@@ -164,7 +164,7 @@ public class InventoryPriceAdjustmentApplicationService {
         Instant now = Instant.now();
         int updated = jdbc.update("""
                 update RHN_SUP_INV_PRICE_ADJ set SD_STATUS = 'SUBMITTED', REVISION = REVISION + 1, AMT_TOTAL_VAL_BEFORE = ?,
-                       AMT_TOTAL_VAL_AFTER = ?, AMT_TOTAL_ADJ = ?, DT_SUBMITTED = ?, ID_USER_SUBMITTED = ?,
+                       AMT_TOTAL_VAL_AFTER = ?, AMT_TOTAL_ADJ = ?, DT_SUBMTD = ?, ID_USER_SUBMTD = ?,
                        DT_UPDATED = ?, ID_USER_UPDATED = ? where ID_TNT = ? and ID_INV_PRICE_ADJ = ? and SD_STATUS = 'DRAFT'
                 """, amount(totalBefore), amount(totalAfter), amount(totalAfter.subtract(totalBefore)),
                 sqlTimestamp(now), context.subjectId(), sqlTimestamp(now), context.subjectId(), context.tenantId(), id);
@@ -179,7 +179,7 @@ public class InventoryPriceAdjustmentApplicationService {
         if (!"SUBMITTED".equals(header.status())) throw conflict("PRICE_ADJUSTMENT_STATE_INVALID", "只有已提交调价单可以审核");
         Instant now = Instant.now();
         int updated = jdbc.update("""
-                update RHN_SUP_INV_PRICE_ADJ set SD_STATUS = 'APPROVED', REVISION = REVISION + 1, DT_APPROVED = ?, ID_USER_APPROVED = ?,
+                update RHN_SUP_INV_PRICE_ADJ set SD_STATUS = 'APPROVED', REVISION = REVISION + 1, DT_APRVD = ?, ID_USER_APRVD = ?,
                        DT_UPDATED = ?, ID_USER_UPDATED = ? where ID_TNT = ? and ID_INV_PRICE_ADJ = ? and SD_STATUS = 'SUBMITTED'
                 """, sqlTimestamp(now), context.subjectId(), sqlTimestamp(now), context.subjectId(), context.tenantId(), id);
         if (updated != 1) throw conflict("PRICE_ADJUSTMENT_CONCURRENT_CHANGE", "调价单已被其他用户审核");
@@ -237,7 +237,7 @@ public class InventoryPriceAdjustmentApplicationService {
                          ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT, SD_STOCK_STATUS, SD_VALUAT_BASIS,
                          SD_ENTRY_TYPE, SD_SRC_TYPE, ID_SRC, CD_SRC_NO, CD_REQ, QTY_SNAP,
                          PRICE_UNIT_PRICE_BEFORE, PRICE_UNIT_PRICE_AFTER, AMT_VAL_BEFORE, AMT_VAL_AFTER, AMT_DELTA,
-                         CD_CURRENCY, DT_OCCURRED, DT_POSTED, ID_USER_POSTED, DES_INV_VALUAT_ENTRY)
+                         CD_CCY, DT_OCCRD, DT_POSTED, ID_USER_POSTED, DES_INV_VALUAT_ENTRY)
                         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'INVENTORY_PRICE_ADJUSTMENT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, entryId, context.tenantId(), period.id(), detail.balanceId(), site.id(), detail.binId(),
                         line.itemId(), detail.lotId(), detail.stockStatus(),
@@ -278,7 +278,7 @@ public class InventoryPriceAdjustmentApplicationService {
         }
         Instant now = Instant.now();
         jdbc.update("""
-                update RHN_SUP_INV_PRICE_ADJ set SD_STATUS = 'CANCELLED', REVISION = REVISION + 1, DT_CANCELLED = ?, ID_USER_CANCELLED = ?,
+                update RHN_SUP_INV_PRICE_ADJ set SD_STATUS = 'CANCELLED', REVISION = REVISION + 1, DT_CNCLD = ?, ID_USER_CNCLD = ?,
                        DT_UPDATED = ?, ID_USER_UPDATED = ? where ID_TNT = ? and ID_INV_PRICE_ADJ = ? and SD_STATUS in ('DRAFT','SUBMITTED')
                 """, sqlTimestamp(now), context.subjectId(), sqlTimestamp(now), context.subjectId(), context.tenantId(), id);
         return get(context, id);
@@ -325,7 +325,7 @@ public class InventoryPriceAdjustmentApplicationService {
                     insert into RHN_SUP_INV_PRICE_ADJ_DETAIL
                     (ID_INV_PRICE_ADJ_DETAIL, ID_TNT, ID_INV_PRICE_ADJ_LINE, ID_INV_BAL, SN_INV_BAL_VER,
                      ID_STOCK_BIN, ID_STOCK_LOT, SD_STOCK_STATUS, QTY_SNAP, PRICE_UNIT_PRICE_BEFORE,
-                     PRICE_UNIT_PRICE_AFTER, AMT_VAL_BEFORE, AMT_VAL_AFTER, AMT_ADJ, AMT_ROUNDING, DT_CREATED)
+                     PRICE_UNIT_PRICE_AFTER, AMT_VAL_BEFORE, AMT_VAL_AFTER, AMT_ADJ, AMT_RND, DT_CREATED)
                     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
                     """, GlobalIds.next(), context.tenantId(), line.id(), balance.id(), balance.revision(),
                     balance.stockBinId(), balance.stockLotId(), balance.stockStatus(), quantity(balance.quantityOnHand()),
@@ -342,11 +342,11 @@ public class InventoryPriceAdjustmentApplicationService {
     private PriceAdjustmentView get(ExecutionContext context, Long id) {
         PriceAdjustmentView value = jdbc.query("""
                 select ID_INV_PRICE_ADJ as id, REVISION, ID_STOCK_SITE as stock_site_id, ID_INV_PERIOD as inventory_period_id, CD_ADJ_NO as adjustment_no, CD_REQ as request_code,
-                       SD_ADJ_TYPE as adjustment_type, SD_PRICE_TYPE as price_type, DA_BUSINESS as business_date, CD_CURRENCY as currency_code, CD_PRICE_DOC as price_document_code,
+                       SD_ADJ_TYPE as adjustment_type, SD_PRICE_TYPE as price_type, DA_BIZ as business_date, CD_CCY as currency_code, CD_PRICE_DOC as price_document_code,
                        DES_REASON as reason, SD_STATUS as status, QTY_LINE as line_count,
                        AMT_TOTAL_VAL_BEFORE as total_value_before, AMT_TOTAL_VAL_AFTER as total_value_after,
-                       AMT_TOTAL_ADJ as total_adjustment_amount, DT_CREATED as created_at, ID_USER_CREATED as created_by, DT_SUBMITTED as submitted_at, ID_USER_SUBMITTED as submitted_by,
-                       DT_APPROVED as approved_at, ID_USER_APPROVED as approved_by, DT_POSTED as posted_at, ID_USER_POSTED as posted_by from RHN_SUP_INV_PRICE_ADJ where ID_TNT = ? and ID_INV_PRICE_ADJ = ?
+                       AMT_TOTAL_ADJ as total_adjustment_amount, DT_CREATED as created_at, ID_USER_CREATED as created_by, DT_SUBMTD as submitted_at, ID_USER_SUBMTD as submitted_by,
+                       DT_APRVD as approved_at, ID_USER_APRVD as approved_by, DT_POSTED as posted_at, ID_USER_POSTED as posted_by from RHN_SUP_INV_PRICE_ADJ where ID_TNT = ? and ID_INV_PRICE_ADJ = ?
                 """, (rs, row) -> new PriceAdjustmentView(rs.getLong("id"), rs.getLong("revision"),
                 rs.getLong("stock_site_id"), nullableLong(rs, "inventory_period_id"),
                 rs.getString("adjustment_no"), rs.getString("request_code"), rs.getString("adjustment_type"),
@@ -370,7 +370,7 @@ public class InventoryPriceAdjustmentApplicationService {
                        PRICE_OLD_SALE as old_sale_price, PRICE_NEW_SALE as new_sale_price,
                        PRICE_OLD_UNIT_COST as old_unit_cost, PRICE_NEW_UNIT_COST as new_unit_cost,
                        QTY_SNAP as quantity_snapshot, AMT_VAL_BEFORE as value_before, AMT_VAL_AFTER as value_after,
-                       AMT_ADJ as adjustment_amount, AMT_ROUNDING as rounding_amount, SD_LINE_STATUS as line_status,
+                       AMT_ADJ as adjustment_amount, AMT_RND as rounding_amount, SD_LINE_STATUS as line_status,
                        CD_ERROR as error_code, DES_ERROR_MSG as error_message from RHN_SUP_INV_PRICE_ADJ_LINE where ID_TNT = ? and ID_INV_PRICE_ADJ = ? order by SN_LINE
                 """, (rs, row) -> new PriceAdjustmentLineView(rs.getLong("id"), rs.getLong("revision"),
                 rs.getInt("line_no"), rs.getLong("stock_item_id"), rs.getLong("catalog_item_id"),
@@ -390,7 +390,7 @@ public class InventoryPriceAdjustmentApplicationService {
                        d.QTY_SNAP as quantity_snapshot, d.PRICE_UNIT_PRICE_BEFORE as unit_price_before,
                        d.PRICE_UNIT_PRICE_AFTER as unit_price_after, d.AMT_VAL_BEFORE as value_before,
                        d.AMT_VAL_AFTER as value_after, d.AMT_ADJ as adjustment_amount,
-                       d.AMT_ROUNDING as rounding_amount, d.ID_INV_VALUAT_ENTRY as valuation_entry_id from RHN_SUP_INV_PRICE_ADJ_DETAIL d join RHN_SUP_STOCK_LOT l
+                       d.AMT_RND as rounding_amount, d.ID_INV_VALUAT_ENTRY as valuation_entry_id from RHN_SUP_INV_PRICE_ADJ_DETAIL d join RHN_SUP_STOCK_LOT l
                   on l.ID_TNT = d.ID_TNT and l.ID_STOCK_LOT = d.ID_STOCK_LOT
                 where d.ID_TNT = ? and d.ID_INV_PRICE_ADJ_LINE = ? order by d.ID_STOCK_BIN, d.ID_STOCK_LOT, d.SD_STOCK_STATUS
                 """, (rs, row) -> new PriceAdjustmentDetailView(rs.getLong("id"), rs.getLong("inventory_balance_id"),
@@ -404,7 +404,7 @@ public class InventoryPriceAdjustmentApplicationService {
     private Header requireHeader(ExecutionContext context, Long id) {
         Header value = jdbc.query("""
                 select ID_INV_PRICE_ADJ as id, ID_ORG as organization_id, ID_STOCK_SITE as stock_site_id, CD_ADJ_NO as adjustment_no, CD_REQ as request_code, SD_ADJ_TYPE as adjustment_type,
-                       SD_PRICE_TYPE as price_type, DA_BUSINESS as business_date, CD_CURRENCY as currency_code, CD_PRICE_DOC as price_document_code, DES_REASON as reason, SD_STATUS as status from RHN_SUP_INV_PRICE_ADJ where ID_TNT = ? and ID_INV_PRICE_ADJ = ?
+                       SD_PRICE_TYPE as price_type, DA_BIZ as business_date, CD_CCY as currency_code, CD_PRICE_DOC as price_document_code, DES_REASON as reason, SD_STATUS as status from RHN_SUP_INV_PRICE_ADJ where ID_TNT = ? and ID_INV_PRICE_ADJ = ?
                 """, (rs, row) -> new Header(rs.getLong("id"), rs.getLong("organization_id"),
                 rs.getLong("stock_site_id"), rs.getString("adjustment_no"), rs.getString("request_code"),
                 rs.getString("adjustment_type"), rs.getString("price_type"), rs.getObject("business_date", LocalDate.class),

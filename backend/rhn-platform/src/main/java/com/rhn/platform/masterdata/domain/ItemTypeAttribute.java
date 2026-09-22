@@ -17,15 +17,15 @@ public class ItemTypeAttribute {
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_ITEM_TYPE", nullable = false) private Long itemTypeId;
     @Column(name = "ID_ITEM_ATTR_DEF", nullable = false) private Long attributeDefinitionId;
-    @Column(name = "FG_REQUIRED_VAL", nullable = false) private boolean requiredValue;
+    @Column(name = "FG_RQD_VAL", nullable = false) private boolean requiredValue;
     @Lob @Column(name = "JSON_DEFAULT") private String defaultJson;
     @Column(name = "SD_WIDGET_TYPE", nullable = false) private String widgetType;
     @Column(name = "NA_GRP") private String groupName;
     @Column(name = "SN_GRP_SORT", nullable = false) private int groupSortOrder;
     @Column(name = "SN_ATTR_SORT", nullable = false) private int attributeSortOrder;
     @Lob @Column(name = "JSON_VISIBLE_COND") private String visibleConditionJson;
-    @Lob @Column(name = "JSON_REQUIRED_COND") private String requiredConditionJson;
-    @Column(name = "FG_SEARCHABLE", nullable = false) private boolean searchable;
+    @Lob @Column(name = "JSON_RQD_COND") private String requiredConditionJson;
+    @Column(name = "FG_SRCHBL", nullable = false) private boolean searchable;
     @Column(name = "FG_LIST_DISPLAY", nullable = false) private boolean listDisplay;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;

@@ -21,16 +21,16 @@ public class GoodsReceiptLine {
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
     @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
     @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
-    @Column(name = "ID_STOCK_BIN_DESTINATION", nullable = false) private Long destinationBinId;
+    @Column(name = "ID_STOCK_BIN_DEST", nullable = false) private Long destinationBinId;
     @Column(name = "CD_LOT_NO", nullable = false) private String lotNo;
-    @Column(name = "DA_PRODUCTION") private LocalDate productionDate;
+    @Column(name = "DA_PROD") private LocalDate productionDate;
     @Column(name = "DA_EXPIRY") private LocalDate expiryDate;
-    @Column(name = "QTY_DELIVERED", nullable = false, precision = 28, scale = 8) private BigDecimal deliveredQuantity;
-    @Column(name = "QTY_ACCEPTED", precision = 28, scale = 8) private BigDecimal acceptedQuantity;
-    @Column(name = "QTY_REJECTED", precision = 28, scale = 8) private BigDecimal rejectedQuantity;
+    @Column(name = "QTY_DELIVD", nullable = false, precision = 28, scale = 8) private BigDecimal deliveredQuantity;
+    @Column(name = "QTY_ACPTD", precision = 28, scale = 8) private BigDecimal acceptedQuantity;
+    @Column(name = "QTY_REJCTD", precision = 28, scale = 8) private BigDecimal rejectedQuantity;
     @Column(name = "PRICE_UNIT_COST", nullable = false, precision = 24, scale = 6) private BigDecimal unitCost;
     @Column(name = "SD_QUALITY_STATUS", nullable = false) private String qualityStatus;
-    @Column(name = "DES_REJECTION_REASON") private String rejectionReason;
+    @Column(name = "DES_REJCTN_REASON") private String rejectionReason;
     @Column(name = "ID_STOCK_LOT") private Long stockLotId;
     @Column(name = "ID_INV_TXN") private Long inventoryTransactionId;
 

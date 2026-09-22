@@ -19,7 +19,7 @@ public class Position {
     @Column(name = "NA_POS", nullable = false) private String name;
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_POS_TYPE", nullable = false) private PositionType positionType;
-    @Column(name = "DES_DUTY_DESCRIPTION") private String dutyDescription;
+    @Column(name = "DES_DUTY_DESCR") private String dutyDescription;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PersonnelStatus status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;

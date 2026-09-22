@@ -15,15 +15,15 @@ public class MedicationDispenseLine {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_MED_DISP", nullable = false) private Long medicationDispenseId;
     @Column(name = "ID_DISP_TASK_LINE", nullable = false) private Long taskLineId;
-    @Column(name = "ID_MED_DISP_LINE_ORIGINAL") private Long originalDispenseLineId;
+    @Column(name = "ID_MED_DISP_LINE_ORIG") private Long originalDispenseLineId;
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
     @Column(name = "ID_STOCK_BIN", nullable = false) private Long stockBinId;
     @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
     @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
     @Column(name = "ID_INV_TXN_LINE", nullable = false) private Long inventoryTransactionLineId;
-    @Column(name = "QTY_DISPENSED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDispensed;
+    @Column(name = "QTY_DSPNSD", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDispensed;
     @Column(name = "CD_DISP_UNIT", nullable = false) private String dispenseUnitCode;
-    @Column(name = "BASE_QUANTITY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
+    @Column(name = "BASE_QTY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
 
     protected MedicationDispenseLine() {}
 

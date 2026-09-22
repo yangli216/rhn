@@ -18,7 +18,7 @@ public class UnitDefinition {
     @Column(name = "CD_UNIT_DEF", nullable = false) private String code;
     @Column(name = "NA_UNIT_DEF", nullable = false) private String name;
     @Column(name = "SYMBOL") private String symbol;
-    @Column(name = "DIMENSION", nullable = false) private String dimension;
+    @Column(name = "DIM", nullable = false) private String dimension;
     @Column(name = "DECIMAL_SCALE", nullable = false) private int decimalScale;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;

@@ -20,7 +20,7 @@ public class InpatientBedDayFact {
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "ID_ENC_LOC_HIST", nullable = false) private Long locationHistoryId;
     @Column(name = "ID_BED_LOC", nullable = false) private Long bedLocationId;
-    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
+    @Column(name = "DA_BIZ", nullable = false) private LocalDate businessDate;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;

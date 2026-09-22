@@ -80,7 +80,7 @@ class QueryCompilerTest {
         assertTrue(sql.contains("LEFT JOIN RHN_EX_CARE_REQ req ON t0.ID_CARE_REQ = req.ID_CARE_REQ AND t0.ID_TNT = req.ID_TNT"), "必须关联医嘱主表并附带多租户条件: " + sql);
 
         // 3. 验证时间范围窗口半开区间绑定
-        assertTrue(sql.contains("t0.DT_OCCURRED >= :p_time_start AND t0.DT_OCCURRED < :p_time_end"), "必须为半开区间时间过滤: " + sql);
+        assertTrue(sql.contains("t0.DT_OCCRD >= :p_time_start AND t0.DT_OCCRD < :p_time_end"), "必须为半开区间时间过滤: " + sql);
         assertEquals(LocalDateTime.of(2026, 9, 1, 0, 0, 0), params.get("p_time_start"));
         assertEquals(LocalDateTime.of(2026, 9, 18, 0, 0, 0), params.get("p_time_end"));
 
@@ -145,9 +145,9 @@ class QueryCompilerTest {
         CompiledQuery compiled = compiler.compile(plan);
         String sql = compiled.sql();
 
-        assertTrue(sql.contains("TO_CHAR(t0.DT_REGISTERED, 'YYYY-MM') AS dim_MONTH"));
+        assertTrue(sql.contains("TO_CHAR(t0.DT_REGD, 'YYYY-MM') AS dim_MONTH"));
         assertTrue(sql.contains("COUNT(t0.ID_ENC) AS m_OP_REGISTER_COUNT"));
-        assertTrue(sql.contains("GROUP BY TO_CHAR(t0.DT_REGISTERED, 'YYYY-MM')"));
+        assertTrue(sql.contains("GROUP BY TO_CHAR(t0.DT_REGD, 'YYYY-MM')"));
         assertTrue(sql.contains("ORDER BY m_OP_REGISTER_COUNT ASC"));
         assertTrue(sql.contains("FETCH FIRST 20 ROWS ONLY"));
         assertEquals(20, compiled.limit());

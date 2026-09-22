@@ -18,10 +18,10 @@ public class CashierCloseLine {
     @Column(name = "CD_PAY_METHOD", nullable = false) private String paymentMethodCode;
     @Column(name = "SD_CLOSE_LINE_TYPE", nullable = false) private String closeLineType;
     @Column(name = "QTY_TXN", nullable = false) private int transactionCount;
-    @Column(name = "AMT_EXPECTED", nullable = false, precision = 24, scale = 6) private BigDecimal expectedAmount;
+    @Column(name = "AMT_EXPCTD", nullable = false, precision = 24, scale = 6) private BigDecimal expectedAmount;
     @Column(name = "AMT_ACTUAL", nullable = false, precision = 24, scale = 6) private BigDecimal actualAmount;
-    @Column(name = "AMT_DIFFERENCE", nullable = false, precision = 24, scale = 6) private BigDecimal differenceAmount;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "AMT_DIFF", nullable = false, precision = 24, scale = 6) private BigDecimal differenceAmount;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
 
     protected CashierCloseLine() {}
     public CashierCloseLine(Long tenantId, Long cashierCloseId, int lineNo, String paymentMethodCode,

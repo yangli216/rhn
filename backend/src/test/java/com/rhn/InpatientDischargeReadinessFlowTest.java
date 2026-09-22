@@ -229,8 +229,8 @@ class InpatientDischargeReadinessFlowTest extends RhnIntegrationTestSupport {
         Long deptId = jdbcTemplate.queryForObject("select ID_DEPT from RHN_VIS_ENC where ID_ENC=?", Long.class, Long.valueOf(encounterId));
         jdbcTemplate.update("""
                 insert into RHN_VIS_ENC_DIAG (
-                    ID_ENC_DIAG, ID_TNT, ID_PAT, ID_ORG, ID_DEPT, ID_ENC, SD_DIAG_STAGE, CD_ENC_DIAG, NA_DISPLAY, SD_DIAG_TYPE, DT_RECORDED,
-                    REVISION, CD_BUSINESS_VER_NO, SD_VERIFICATION_STATUS, SD_DIAG_STATUS, DT_UPDATED
+                    ID_ENC_DIAG, ID_TNT, ID_PAT, ID_ORG, ID_DEPT, ID_ENC, SD_DIAG_STAGE, CD_ENC_DIAG, NA_DISPLAY, SD_DIAG_TYPE, DT_RECDD,
+                    REVISION, CD_BIZ_VER_NO, SD_VRFCTN_STATUS, SD_DIAG_STATUS, DT_UPDATED
                 ) values (?, ?, ?, ?, ?, ?, 'ADMISSION', 'R05.900', '咳嗽', 'PRIMARY', current_timestamp,
                     0, 1, 'CONFIRMED', 'ACTIVE', current_timestamp)
                 """, com.rhn.shared.id.GlobalIds.next(), Long.valueOf(TENANT), patId, orgId, deptId, Long.valueOf(encounterId));

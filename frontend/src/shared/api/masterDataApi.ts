@@ -422,9 +422,10 @@ export interface ClinicalMedicationStandards {
 export interface MedicationStandardReadiness {
   inspectedAt: string
   scope: 'TENANT_ACTIVE_MEDICATIONS'
-  summary: { totalActive: number; referenceStatuses: Record<MedicationStandardReference['status'], number>; sourceUnverified: number; conversionUnavailable: number; matchingStatuses?: Record<string, number> }
+  summary: { totalActive: number; referenceStatuses: Record<MedicationStandardReference['status'], number>; sourceUnverified: number; conversionUnavailable: number; matchingStatuses?: Record<string, number>; clinicalConversionUnavailable?: number; concentrationAvailable?: number }
   content: { medicationId: string; code: string; name: string; preparationSpec?: string; standardReference: MedicationStandardReference;
     presentationConversionStatus: 'COMPUTABLE' | 'UNAVAILABLE' | 'NOT_ASSESSED'; conversionReasons: string[];
+    clinicalConversion?: { status: 'COMPUTABLE' | 'UNAVAILABLE' | 'NOT_ASSESSED'; inputUnit?: string; outputUnit?: string; basis?: string; unavailableReasons: string[] };
     matching?: {status: string; candidateCount: number; consistentCount: number} | null }[]
   totalElements: number; totalPages: number; page: number; size: number
 }
@@ -1709,6 +1710,7 @@ export function createMasterDataApi(client: ApiClient) {
 
 export interface StandardMedicationSource {
   title: string; claimedEdition: string; sha256: string; verificationStatus: string; note: string; verificationId?: string
+  officialUrl?: string; officialAttachmentUrl?: string; publicationNumber?: string; effectiveFrom?: string; publicationVerificationStatus?: string
 }
 export interface StandardCatalogIdentity { catalogId: string; catalogVersion: string; contentHash: string; sourceHash: string }
 export interface StandardCatalogEvidence { title: string; publisher: string; edition: string; location: string; verificationNotes: string }

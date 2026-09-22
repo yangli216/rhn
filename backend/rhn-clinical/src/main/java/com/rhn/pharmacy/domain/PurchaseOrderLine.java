@@ -20,7 +20,7 @@ public class PurchaseOrderLine {
     @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
     @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
     @Column(name = "QTY_ORDERED", nullable = false, precision = 28, scale = 8) private BigDecimal orderedQuantity;
-    @Column(name = "QTY_RECEIVED", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
+    @Column(name = "QTY_RECVD", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
     @Column(name = "PRICE_UNIT", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
     @Column(name = "TAX_RATE", precision = 9, scale = 6) private BigDecimal taxRate;
     @Column(name = "SD_LINE_STATUS", nullable = false) private String lineStatus;

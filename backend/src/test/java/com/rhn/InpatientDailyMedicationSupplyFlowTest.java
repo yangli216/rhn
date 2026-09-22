@@ -128,8 +128,8 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
         // the first task's review and reservation instead of leaving a half-prepared ward batch.
         jdbc.update("""
                 update RHN_SUP_INV_BAL
-                   set QTY_ON_HAND = 2, QTY_RESERVED = 0, QTY_FROZEN = 0,
-                       QTY_AVAILABLE = 2, REVISION = REVISION + 1
+                   set QTY_ON_HAND = 2, QTY_RESVD = 0, QTY_FROZEN = 0,
+                       QTY_AVAIL = 2, REVISION = REVISION + 1
                  where ID_TNT = ? and ID_STOCK_ITEM = ? and SD_STOCK_STATUS = 'AVAILABLE'
                 """, Long.valueOf(TENANT), Long.valueOf(INPATIENT_STOCK_ITEM));
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/review-reserve",
@@ -153,8 +153,8 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
 
         jdbc.update("""
                 update RHN_SUP_INV_BAL
-                   set QTY_ON_HAND = 240, QTY_RESERVED = 0, QTY_FROZEN = 0,
-                       QTY_AVAILABLE = 240, REVISION = REVISION + 1
+                   set QTY_ON_HAND = 240, QTY_RESVD = 0, QTY_FROZEN = 0,
+                       QTY_AVAIL = 240, REVISION = REVISION + 1
                  where ID_TNT = ? and ID_STOCK_ITEM = ? and SD_STOCK_STATUS = 'AVAILABLE'
                 """, Long.valueOf(TENANT), Long.valueOf(INPATIENT_STOCK_ITEM));
         JsonNode preparedBatch = reviewAndReserve(firstBatch.get("id").asString());

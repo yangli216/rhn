@@ -21,8 +21,8 @@ public class InventorySplitEvent {
     @Column(name = "CD_SRC_NO", nullable = false) private String sourceNo;
     @Column(name = "QTY_DELTA", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDelta;
     @Column(name = "BALANCE_AFTER", nullable = false, precision = 28, scale = 8) private BigDecimal balanceAfter;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
-    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCRD", nullable = false) private Long occurredBy;
     @Column(name = "DES_INV_SPLIT_EVT") private String description;
 
     protected InventorySplitEvent() {}

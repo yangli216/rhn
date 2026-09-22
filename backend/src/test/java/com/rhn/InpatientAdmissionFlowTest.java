@@ -158,13 +158,13 @@ class InpatientAdmissionFlowTest extends RhnIntegrationTestSupport {
         assertEquals(4, jdbcTemplate.queryForObject(
                 "select count(*) from RHN_VIS_INP_EVT where ID_TNT = ?", Integer.class, Long.valueOf(TENANT)));
         assertEquals("WHEELCHAIR", jdbcTemplate.queryForObject(
-                "select CD_ADMISSION_METHOD as admission_method_code from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
+                "select CD_ADM_METHOD as admission_method_code from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
                 String.class, Long.valueOf(episodeId)));
         assertEquals("13800000000", jdbcTemplate.queryForObject(
-                "select EMERGENCY_CONTACT_PHONE from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
+                "select EMERG_CONTACT_PHONE from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
                 String.class, Long.valueOf(episodeId)));
         assertEquals("2", jdbcTemplate.queryForObject(
-                "select EMERGENCY_CONTACT_RELATIONSHIP from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
+                "select EMERG_CONTACT_RELSHIP from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
                 String.class, Long.valueOf(episodeId)));
     }
 

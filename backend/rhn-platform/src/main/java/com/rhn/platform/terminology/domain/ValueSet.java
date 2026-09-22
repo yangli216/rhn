@@ -29,9 +29,9 @@ public class ValueSet {
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_STATUS", nullable = false)
     private TerminologyStatus status;
-    @Column(name = "DA_EFFECTIVE_FROM", nullable = false)
+    @Column(name = "DA_EFF_FROM", nullable = false)
     private LocalDate effectiveFrom;
-    @Column(name = "DA_EFFECTIVE_TO")
+    @Column(name = "DA_EFF_TO")
     private LocalDate effectiveTo;
     @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;

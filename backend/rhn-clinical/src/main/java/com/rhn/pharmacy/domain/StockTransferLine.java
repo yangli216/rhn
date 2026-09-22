@@ -17,18 +17,18 @@ public class StockTransferLine {
     @Column(name = "ID_STOCK_XFER", nullable = false) private Long stockTransferId;
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
     @Column(name = "ID_STOCK_ITEM_SRC", nullable = false) private Long sourceStockItemId;
-    @Column(name = "ID_STOCK_ITEM_DESTINATION", nullable = false) private Long destinationStockItemId;
-    @Column(name = "QTY_REQUESTED", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
-    @Column(name = "QTY_REQUESTED_OPERATION", nullable = false, precision = 28, scale = 8) private BigDecimal requestedOperationQuantity;
-    @Column(name = "CD_OPERATION_UNIT", nullable = false) private String operationUnitCode;
-    @Column(name = "BASE_QUANTITY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
-    @Column(name = "QTY_APPROVED", precision = 28, scale = 8) private BigDecimal approvedQuantity;
-    @Column(name = "QTY_DISPATCHED", nullable = false, precision = 28, scale = 8) private BigDecimal dispatchedQuantity;
-    @Column(name = "QTY_RECEIVED", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
+    @Column(name = "ID_STOCK_ITEM_DEST", nullable = false) private Long destinationStockItemId;
+    @Column(name = "QTY_REQD", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
+    @Column(name = "QTY_REQD_OPER", nullable = false, precision = 28, scale = 8) private BigDecimal requestedOperationQuantity;
+    @Column(name = "CD_OPER_UNIT", nullable = false) private String operationUnitCode;
+    @Column(name = "BASE_QTY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
+    @Column(name = "QTY_APRVD", precision = 28, scale = 8) private BigDecimal approvedQuantity;
+    @Column(name = "QTY_DSPTD", nullable = false, precision = 28, scale = 8) private BigDecimal dispatchedQuantity;
+    @Column(name = "QTY_RECVD", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
     @Column(name = "QTY_DAMAGED", nullable = false, precision = 28, scale = 8) private BigDecimal damagedQuantity;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
     @Column(name = "SD_LINE_STATUS", nullable = false) private String lineStatus;
-    @Column(name = "DES_DISCREPANCY_REASON") private String discrepancyReason;
+    @Column(name = "DES_DSCRPN_REASON") private String discrepancyReason;
     protected StockTransferLine() {}
     public StockTransferLine(Long tenantId, Long transferId, int sortOrder, Long sourceItemId, Long destinationItemId,
                              BigDecimal requestedQuantity, String baseUnitCode) {

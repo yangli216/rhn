@@ -29,8 +29,8 @@ public class InventoryTraceEvent {
     @Column(name = "DES_REASON") private String reason;
     @Column(name = "QTY_DELTA", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDelta;
     @Column(name = "BALANCE_AFTER", nullable = false, precision = 28, scale = 8) private BigDecimal balanceAfter;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
-    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCRD", nullable = false) private Long occurredBy;
 
     protected InventoryTraceEvent() {}
     public InventoryTraceEvent(Long tenantId, Long organizationId, Long traceCodeId, String eventType,

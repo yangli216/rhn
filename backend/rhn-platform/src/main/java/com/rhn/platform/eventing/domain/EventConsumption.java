@@ -13,10 +13,10 @@ import java.time.Instant;
 public class EventConsumption {
     @Id @Column(name = "ID_EVT_CONSUME") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
-    @Column(name = "NA_CONSUMER", nullable = false) private String consumerName;
+    @Column(name = "NA_CNSMR", nullable = false) private String consumerName;
     @Column(name = "ID_EVT", nullable = false) private Long eventId;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "DT_PROCESSED", nullable = false) private Instant processedAt;
+    @Column(name = "DT_PROCSD", nullable = false) private Instant processedAt;
     @Column(name = "DES_LAST_ERROR") private String lastError;
 
     protected EventConsumption() {

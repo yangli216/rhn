@@ -146,7 +146,7 @@ class MedicationKnowledgeFeedbackTest extends RhnIntegrationTestSupport {
         var first=record("DATA_ISSUE");raw.put("decision","PASS");jdbc.update("update RHN_AUD_MED_GOV_RUN set JSON_RUN=? where ID_RULE_RUN=?",json.write(raw),runId);
         assertThat(detail().allowedVerdicts()).isEmpty();assertThat(detail().gaps()).anyMatch(g->g.contains("既有研判引用"));
         assertThatThrownBy(()->record("SUPPORTED")).hasMessageContaining("相符的研判分类");
-        jdbc.update("update RHN_AUD_KNOW_FEEDBACK set HASH_EVENT='corrupt' where ID_FEEDBACK=?",first.latest().id());
+        jdbc.update("update RHN_AUD_KNOW_FEEDBACK set HASH_EVENT='corrupt' where ID_FDBK=?",first.latest().id());
         assertThatThrownBy(this::detail).hasMessageContaining("研判历史指纹");
         assertThatThrownBy(()->deployments.observations(candidate.id(),deployment.id(),0)).hasMessageContaining("研判历史指纹");
     }

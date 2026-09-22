@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.assertj.core.api.Assertions.assertThat;
 
 class StandardMedicationCatalogTest extends RhnIntegrationTestSupport {
+    @org.springframework.beans.factory.annotation.Autowired
+    com.rhn.platform.masterdata.application.StandardMedicationCatalogService catalog;
     private static final String PATH = "/api/platform/master-data/medication-standard-catalog";
 
     @Test
@@ -16,6 +18,8 @@ class StandardMedicationCatalogTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.statistics.entries").value(794))
                 .andExpect(jsonPath("$.statistics.scopeEntries").value(7))
                 .andExpect(jsonPath("$.source.verificationStatus").value("UNVERIFIED"))
+                .andExpect(jsonPath("$.source.publicationVerificationStatus").value("VERIFIED"))
+                .andExpect(jsonPath("$.source.publicationNumber").value("国卫药政发〔2026〕17号"))
                 .andExpect(jsonPath("$.statistics.orderableSpecifications").value(0));
     }
 
@@ -57,6 +61,26 @@ class StandardMedicationCatalogTest extends RhnIntegrationTestSupport {
         var detail = json(mockMvc.perform(get(PATH + "/" + id).with(rhn())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(detail.path("specifications").valueStream().filter(spec -> "4:1".equals(spec.path("specification").asString()))
                 .findFirst().orElseThrow().path("identityIssues").get(0).asString()).isEqualTo("STANDARD_SPECIFICATION_INCOMPLETE");
+    }
+
+    @Test
+    void complete_prefix_specs_survive_joined_paragraphs_but_fragments_and_later_forms_do_not() {
+        var specs = catalog.snapshot().path("specifications");
+        var valid = specs.valueStream().filter(s -> "MED-2026-T054".equals(s.path("legacyCode").asString())
+                && s.path("specification").asString().replaceAll("\\s+", "").startsWith("每丸重9g")).findFirst().orElseThrow();
+        assertThat(catalog.specificationIdentityIssues(valid)).isEmpty();
+        var joined = specs.valueStream().filter(s -> "MED-2026-T054".equals(s.path("legacyCode").asString())
+                && s.path("specification").asString().contains("颗粒剂:")).findFirst().orElseThrow();
+        assertThat(catalog.specificationIdentityIssues(joined)).contains("STANDARD_SOURCE_FORM_BLOCK_REQUIRES_REVIEW");
+        specs.valueStream().filter(s -> "MED-2026-T055".equals(s.path("legacyCode").asString())).forEach(s ->
+                assertThat(catalog.specificationIdentityIssues(s)).contains("STANDARD_COMPOSITION_FRAGMENT_REQUIRES_REVIEW"));
+    }
+
+    @Test
+    void explicit_aliases_offer_candidates_without_splitting_compound_names_or_fuzzy_matching() {
+        assertThat(catalog.identityCandidates("LOCAL", "本院名", "旧别名；头孢曲松")).isNotEmpty();
+        assertThat(catalog.identityCandidates("LOCAL", "本院名", "阿莫西林/克拉维酸")).isEmpty();
+        assertThat(catalog.identityCandidates("LOCAL", "本院名", "头孢曲松相似药")).isEmpty();
     }
 
     @Test

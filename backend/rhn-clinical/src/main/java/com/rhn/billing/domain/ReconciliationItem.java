@@ -13,10 +13,10 @@ public class ReconciliationItem {
     @Column(name = "CD_EXT_TXN_NO") private String externalTransactionNo; @Column(name = "SD_MATCH_TYPE") private String matchType;
     @Column(name = "SD_STATUS") private String status; @Column(name = "AMT_LOCAL", precision=24, scale=6) private BigDecimal localAmount;
     @Column(name = "AMT_EXT", precision=24, scale=6) private BigDecimal externalAmount;
-    @Column(name = "AMT_DIFFERENCE", precision=24, scale=6) private BigDecimal differenceAmount;
-    @Column(name = "CD_CURRENCY") private String currencyCode; @Column(name = "ID_OWNER") private Long ownerId;
-    @Column(name = "ID_USER_RESOLVED") private Long resolvedBy; @Column(name = "DT_RESOLVED") private Instant resolvedAt;
-    @Column(name = "DES_RESOLUTION") private String resolution;
+    @Column(name = "AMT_DIFF", precision=24, scale=6) private BigDecimal differenceAmount;
+    @Column(name = "CD_CCY") private String currencyCode; @Column(name = "ID_OWNER") private Long ownerId;
+    @Column(name = "ID_USER_RSLVD") private Long resolvedBy; @Column(name = "DT_RSLVD") private Instant resolvedAt;
+    @Column(name = "DES_RSLN") private String resolution;
     protected ReconciliationItem(){}
     public ReconciliationItem(Long tenant,Long batch,Long payment,String externalNo,String match,BigDecimal local,
                               BigDecimal external,String currency){id=GlobalIds.next();tenantId=tenant;reconciliationBatchId=batch;

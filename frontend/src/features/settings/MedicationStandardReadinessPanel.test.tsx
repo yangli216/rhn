@@ -23,7 +23,7 @@ it('keeps source verification separate from linked and computable, and exposes t
   const row = (await screen.findByText('示例药品')).closest('tr')!
   expect(within(row).getByText('关联一致')).toBeInTheDocument()
   expect(within(row).getByText('待核验')).toBeInTheDocument()
-  expect(within(row).getByText('可换算')).toBeInTheDocument()
+  expect(within(row).getByText('制剂→含量')).toBeInTheDocument()
   expect(screen.getByText(/不构成用药安全评分/)).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', {name: '前往标准参考目录'}))
   expect(onOpenCatalog).toHaveBeenCalledOnce()
@@ -54,8 +54,19 @@ it('groups unmapped work by actual cause and filters without changing the invent
     content: [{...data.content[0], standardReference: {status: 'UNMAPPED', issues: ['STANDARD_REFERENCE_MISSING']},
       matching: {status: 'DUPLICATE_LOCAL', candidateCount: 3, consistentCount: 1}}]})
   mount(fn)
-  await screen.findByText(/多个本地档案对应同一标准规格/)
-  await userEvent.click(screen.getByRole('button', {name: '本地重复档案待整理 · 2'}))
+  await screen.findByText(/多个历史本地档案对应同一规格/)
+  await userEvent.click(screen.getByRole('button', {name: '同规格历史档案待关联 · 2'}))
   await waitFor(() => expect(fn).toHaveBeenLastCalledWith('', 'DUPLICATE_LOCAL', 0, 20))
   expect(screen.getByText('启用药品').parentElement).toHaveTextContent('90')
+})
+
+it('recognizes a concentration even when a container conversion is undefined', async () => {
+  mount(vi.fn().mockResolvedValue({...data, summary: {...data.summary, clinicalConversionUnavailable: 0, concentrationAvailable: 1},
+    content: [{...data.content[0], presentationConversionStatus: 'UNAVAILABLE', conversionReasons: ['DOSE_CONVERSION_NOT_DEFINED'],
+      clinicalConversion: {status: 'COMPUTABLE', inputUnit: 'mL', outputUnit: 'g', basis: 'REFERENCE_MASS_PER_VOLUME', unavailableReasons: []}}]}))
+  const row = (await screen.findByText('示例药品')).closest('tr')!
+  expect(within(row).getByText('体积→含量')).toBeInTheDocument()
+  expect(within(row).queryByText('当前不支持')).not.toBeInTheDocument()
+  expect(screen.getByText('关联后含量换算待补').parentElement).toHaveTextContent('0')
+  expect(screen.getByText(/不据此推算整支、整瓶用量/)).toBeInTheDocument()
 })

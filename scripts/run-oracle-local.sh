@@ -4,6 +4,7 @@ set -euo pipefail
 rhn_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 rhn_backend_dir="$rhn_project_root/backend"
 rhn_requested_server_port="${RHN_SERVER_PORT:-${RHN_PORT:-}}"
+rhn_spring_profiles="${RHN_ORACLE_PROFILES:-oracle-local}"
 rhn_oracle_env_file="${RHN_ORACLE_ENV_FILE:-$rhn_project_root/.env.oracle.local}"
 
 if [[ -f "$rhn_oracle_env_file" ]]; then
@@ -41,7 +42,7 @@ if [[ ! -f "$rhn_runtime_artifact" ]]; then
 fi
 
 exec java -jar "$rhn_runtime_artifact" \
-  --spring.profiles.active=oracle-local \
+  --spring.profiles.active="$rhn_spring_profiles" \
   --server.port="$rhn_server_port" \
   --management.health.redis.enabled=false \
   "$@"

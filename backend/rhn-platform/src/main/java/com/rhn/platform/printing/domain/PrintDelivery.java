@@ -14,7 +14,7 @@ import java.time.Instant;
 @Entity
 @Table(name = "RHN_SYS_PRINT_DELIVERY")
 public class PrintDelivery {
-    @Id @Column(name = "ID_PRINT_DELIVERY") private Long id;
+    @Id @Column(name = "ID_PRINT_DELIV") private Long id;
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_PRINT_BATCH") private Long batchId;
@@ -27,7 +27,7 @@ public class PrintDelivery {
     @Column(name = "DES_ERROR") private String errorMessage;
     @Column(name = "DT_QUEUED") private Instant queuedAt;
     @Column(name = "DT_SENT") private Instant sentAt;
-    @Column(name = "DT_CONFIRMED") private Instant confirmedAt;
+    @Column(name = "DT_CNFRMD") private Instant confirmedAt;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
     protected PrintDelivery() {}

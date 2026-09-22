@@ -29,14 +29,14 @@ class AnalysisPageTest extends RhnIntegrationTestSupport {
       """;
     private long encounter(long dept,String kind) {
         long id=GlobalIds.next();
-        jdbc.update("insert into RHN_VIS_ENC (ID_ENC,ID_TNT,ID_PAT,CD_ENC_NO,ID_ORG,ID_DEPT,SD_STATUS,DT_REGISTERED,SD_ENC_CLASS) values (?,?,?,?,?,?,?,?,?)",id,Long.valueOf(TENANT),362387869790213L,"DP"+id,Long.valueOf(ORGANIZATION),dept,"IN_PROGRESS",Timestamp.from(Instant.parse("2030-01-01T00:00:00Z")),kind);
+        jdbc.update("insert into RHN_VIS_ENC (ID_ENC,ID_TNT,ID_PAT,CD_ENC_NO,ID_ORG,ID_DEPT,SD_STATUS,DT_REGD,SD_ENC_CLASS) values (?,?,?,?,?,?,?,?,?)",id,Long.valueOf(TENANT),362387869790213L,"DP"+id,Long.valueOf(ORGANIZATION),dept,"IN_PROGRESS",Timestamp.from(Instant.parse("2030-01-01T00:00:00Z")),kind);
         return id;
     }
     private void diagnosis(long encounter,String code,String recorded,String status,String verification) {
         Long patId = jdbc.queryForObject("select ID_PAT from RHN_VIS_ENC where ID_ENC=?", Long.class, encounter);
         Long orgId = jdbc.queryForObject("select ID_ORG from RHN_VIS_ENC where ID_ENC=?", Long.class, encounter);
         Long deptId = jdbc.queryForObject("select ID_DEPT from RHN_VIS_ENC where ID_ENC=?", Long.class, encounter);
-        jdbc.update("insert into RHN_VIS_ENC_DIAG (ID_ENC_DIAG,ID_TNT,ID_PAT,ID_ORG,ID_DEPT,ID_ENC,CD_ENC_DIAG,NA_DISPLAY,SD_DIAG_TYPE,DT_RECORDED,SD_DIAG_STATUS,SD_VERIFICATION_STATUS,SN_SORT) values (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        jdbc.update("insert into RHN_VIS_ENC_DIAG (ID_ENC_DIAG,ID_TNT,ID_PAT,ID_ORG,ID_DEPT,ID_ENC,CD_ENC_DIAG,NA_DISPLAY,SD_DIAG_TYPE,DT_RECDD,SD_DIAG_STATUS,SD_VRFCTN_STATUS,SN_SORT) values (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 GlobalIds.next(),Long.valueOf(TENANT),patId,orgId,deptId,encounter,code,"测试诊断"+code,"PRIMARY",Timestamp.from(OffsetDateTime.parse(recorded).toInstant()),status,verification,1);
     }
     @Test void diagnosis_ranking_counts_only_authorized_active_confirmed_outpatient_records_and_sorts() throws Exception {

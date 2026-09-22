@@ -42,11 +42,11 @@ class ClinicalDocumentVersion {
     private Instant signedAt;
     @Column(name = "SD_SIGN_MEANING")
     private String signatureMeaning;
-    @Column(name = "CONTENT_DIGEST_ALGORITHM")
+    @Column(name = "CONTENT_DIGEST_ALGO")
     private String contentDigestAlgorithm;
     @Column(name = "HASH_CONTENT")
     private String contentDigest;
-    @Column(name = "ID_CRYPTO_EVID_INTEGRITY")
+    @Column(name = "ID_CRYPTO_EVID_INTGR")
     private Long integrityEvidenceId;
     @Column(name = "ID_CRYPTO_EVID_SIGN")
     private Long signatureEvidenceId;

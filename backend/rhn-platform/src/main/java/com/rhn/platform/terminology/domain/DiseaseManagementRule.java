@@ -13,7 +13,7 @@ import java.util.Set;
 public class DiseaseManagementRule {
     @Id @Column(name = "ID_DISEASE_MGMT_RULE") private Long id;
     @Column(name = "ID_DISEASE_MGMT_PROG", nullable = false) private Long programId;
-    @Column(name = "SD_INCLUSION_MODE", nullable = false) private String inclusionMode;
+    @Column(name = "SD_INCL_MODE", nullable = false) private String inclusionMode;
     @Column(name = "SD_DIAG_DOMAIN") private String diagnosisDomain;
     @Column(name = "ID_CODE_SYSTEM") private Long codeSystemId;
     @Column(name = "SD_CONCEPT_TYPE") private String conceptType;

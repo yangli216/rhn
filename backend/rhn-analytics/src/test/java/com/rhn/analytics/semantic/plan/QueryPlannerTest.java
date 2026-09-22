@@ -107,7 +107,7 @@ class QueryPlannerTest {
         // 验证时间窗口
         assertNotNull(plan.timeRange());
         assertEquals("t0", plan.timeRange().tableAlias());
-        assertEquals("DT_OCCURRED", plan.timeRange().column());
+        assertEquals("DT_OCCRD", plan.timeRange().column());
         assertEquals(LocalDate.of(2026, 9, 1), plan.timeRange().startDate());
         assertEquals(LocalDate.of(2026, 9, 17), plan.timeRange().endDate());
     }
@@ -226,7 +226,7 @@ class QueryPlannerTest {
 
         assertEquals(1, plan.dimensions().size());
         assertEquals("MONTH", plan.dimensions().get(0).dimensionCode());
-        assertEquals("TO_CHAR(t0.DT_OCCURRED, 'YYYY-MM')", plan.dimensions().get(0).groupExpression());
+        assertEquals("TO_CHAR(t0.DT_OCCRD, 'YYYY-MM')", plan.dimensions().get(0).groupExpression());
 
         // 排序与限制
         assertEquals("OP_DRUG_CHARGE_AMOUNT", plan.sort().target());

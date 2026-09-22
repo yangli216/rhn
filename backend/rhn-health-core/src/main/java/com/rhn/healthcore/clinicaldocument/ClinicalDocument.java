@@ -29,7 +29,7 @@ class ClinicalDocument {
     private Long departmentId;
     @Column(name = "SD_DOC_TYPE", nullable = false)
     private String documentType;
-    @Column(name = "CD_INSTANCE_KEY", nullable = false)
+    @Column(name = "CD_INST_KEY", nullable = false)
     private String instanceKey;
     @Column(name = "NA_TITLE", nullable = false)
     private String title;

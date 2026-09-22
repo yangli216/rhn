@@ -36,17 +36,17 @@ public class RegistrationBillingIntent {
     @Column(name = "NA_COVER_PAYER_SNAP") private String coveragePayerNameSnapshot;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "AMT_FEE", nullable = false, precision = 24, scale = 6) private BigDecimal feeAmount;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
     @Column(name = "CD_ITEM_SNAP") private String itemCodeSnapshot;
     @Column(name = "NA_ITEM_SNAP") private String itemNameSnapshot;
     @Column(name = "DT_EXPIRES") private Instant expiresAt;
-    @Column(name = "QTY_COMP_ATTEMPTS", nullable = false) private int completionAttempts;
+    @Column(name = "QTY_COMP_ATMPTS", nullable = false) private int completionAttempts;
     @Column(name = "CD_LAST_ERROR") private String lastErrorCode;
     @Column(name = "DES_LAST_ERROR_MSG") private String lastErrorMessage;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
 
     protected RegistrationBillingIntent() {}
 

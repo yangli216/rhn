@@ -25,7 +25,7 @@ public class ClinicalSemanticHistory {
     public List<Version> history(Long tenant, String kind, String concept, int limit) {
         return jdbc.query("""
                 select ID_CLIN_SEM_VER, SD_CONCEPT_KIND, CD_CONCEPT, HASH_SEM_VER,
-                       SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAPSHOT, DT_RECORDED
+                       SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAP, DT_RECDD
                 from RHN_BD_CLIN_SEM_VER where ID_TNT = ? and SD_CONCEPT_KIND = ? and CD_CONCEPT = ?
                 order by ID_CLIN_SEM_VER desc fetch first ? rows only
                 """, (rs, row) -> new Version(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4),
@@ -39,7 +39,7 @@ public class ClinicalSemanticHistory {
     public List<Version> historyPage(Long tenant, String kind, String concept, int page, int size) {
         return jdbc.query("""
                 select ID_CLIN_SEM_VER, SD_CONCEPT_KIND, CD_CONCEPT, HASH_SEM_VER,
-                       SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAPSHOT, DT_RECORDED
+                       SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAP, DT_RECDD
                 from RHN_BD_CLIN_SEM_VER where ID_TNT=? and SD_CONCEPT_KIND=? and CD_CONCEPT=?
                 order by ID_CLIN_SEM_VER desc offset ? rows fetch next ? rows only
                 """, (rs, row) -> new Version(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4),
@@ -50,7 +50,7 @@ public class ClinicalSemanticHistory {
     public List<Version> eventsOfKind(Long tenant, String kind) {
         return jdbc.query("""
                 select ID_CLIN_SEM_VER, SD_CONCEPT_KIND, CD_CONCEPT, HASH_SEM_VER,
-                       SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAPSHOT, DT_RECORDED
+                       SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAP, DT_RECDD
                 from RHN_BD_CLIN_SEM_VER where ID_TNT=? and SD_CONCEPT_KIND=? order by ID_CLIN_SEM_VER desc
                 """, (rs, row) -> new Version(rs.getLong(1),rs.getString(2),rs.getString(3),rs.getString(4),
                 rs.getString(5),rs.getString(6),rs.getString(7),rs.getObject(8,OffsetDateTime.class).toInstant()), tenant,kind);
@@ -59,7 +59,7 @@ public class ClinicalSemanticHistory {
     public List<Version> ingredients(Long tenant) {
         return jdbc.query("""
                 select ID_CLIN_SEM_VER, SD_CONCEPT_KIND, CD_CONCEPT, HASH_SEM_VER,
-                       SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAPSHOT, DT_RECORDED
+                       SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAP, DT_RECDD
                 from RHN_BD_CLIN_SEM_VER where ID_TNT = ? and SD_CONCEPT_KIND = 'INGREDIENT'
                 order by ID_CLIN_SEM_VER
                 """, (rs, row) -> new Version(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4),
@@ -72,7 +72,7 @@ public class ClinicalSemanticHistory {
         jdbc.update("""
                 insert into RHN_BD_CLIN_SEM_VER
                 (ID_CLIN_SEM_VER, ID_TNT, SD_CONCEPT_KIND, CD_CONCEPT, HASH_SEM_VER,
-                 SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAPSHOT, DT_RECORDED, ID_USER_RECORDED, CD_IDENTITY_KEY)
+                 SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAP, DT_RECDD, ID_USER_RECDD, CD_IDTY_KEY)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, value.revision(), tenant, kind, concept, hash, change, source, snapshot,
                 value.recordedAt().atOffset(ZoneOffset.UTC), actor, "INGREDIENT".equals(kind) ? concept : null);

@@ -19,11 +19,11 @@ public class ChargeItemComponent {
     @Column(name = "CD_ITEM_SNAP") private String itemCodeSnapshot;
     @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
     @Column(name = "CD_BODY_SITE") private String bodySiteCode;
-    @Column(name = "QTY_COMPONENT", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
+    @Column(name = "QTY_COMP", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
     @Column(name = "CD_UNIT") private String unitCode;
     @Column(name = "UNIT_FACTOR", precision = 28, scale = 8) private BigDecimal unitFactor;
     @Column(name = "PRICE_UNIT", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
-    @Column(name = "AMT_COMPONENT", nullable = false, precision = 24, scale = 6) private BigDecimal amount;
+    @Column(name = "AMT_COMP", nullable = false, precision = 24, scale = 6) private BigDecimal amount;
 
     protected ChargeItemComponent() {}
 

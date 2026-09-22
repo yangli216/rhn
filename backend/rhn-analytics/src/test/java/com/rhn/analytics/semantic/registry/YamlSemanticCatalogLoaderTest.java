@@ -21,6 +21,11 @@ class YamlSemanticCatalogLoaderTest {
         assertEquals(7, catalog.entities().size());
         assertTrue(catalog.entities().stream().anyMatch(e -> e.code().equals("DEPARTMENT")));
         assertTrue(catalog.entities().stream().anyMatch(e -> e.code().equals("CHARGE")));
+        assertEquals("RHN_PI_PAT", catalog.entities().stream().filter(e -> e.code().equals("PATIENT")).findFirst().orElseThrow().table());
+        assertEquals("RHN_VIS_ENC", catalog.entities().stream().filter(e -> e.code().equals("ENCOUNTER")).findFirst().orElseThrow().table());
+        assertEquals(6, catalog.entities().stream().filter(e -> e.table() != null).count());
+        assertNull(catalog.entities().stream().filter(e -> e.code().equals("PRESCRIPTION")).findFirst().orElseThrow().table(),
+            "An unimplemented entity must not acquire a guessed physical table");
 
         // 验证关系
         assertEquals(9, catalog.relationships().size());
@@ -28,6 +33,8 @@ class YamlSemanticCatalogLoaderTest {
             r.from().equals("CHARGE") && r.to().equals("DEPARTMENT") && r.cardinality() == Cardinality.MANY_TO_ONE));
         assertTrue(catalog.relationships().stream().anyMatch(r ->
             r.from().equals("ENCOUNTER") && r.to().equals("DIAGNOSIS") && r.fanoutRisk()));
+        assertTrue(catalog.relationships().stream().filter(r -> r.from().equals("ORDER") && r.to().equals("DEPARTMENT"))
+            .flatMap(r -> r.conditions().stream()).anyMatch(c -> c.fromField().equals("ID_DEPT_REQ") && c.toField().equals("ID_DEPT")));
 
         // 验证维度与属性
         assertEquals(9, catalog.dimensions().size());

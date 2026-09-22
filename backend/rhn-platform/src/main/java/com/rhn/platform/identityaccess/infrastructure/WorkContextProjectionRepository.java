@@ -20,7 +20,7 @@ public class WorkContextProjectionRepository {
                 select assignment.ID_ORG as organization_id, organization.NA_ORG as organization_name,
                        assignment.ID_DEPT as department_id, department.NA_DEPT as department_name,
                        department.SD_DEPT_TYPE as department_type,
-                       department.SD_DEPT_PROPERTY as department_property,
+                       department.SD_DEPT_PROP as department_property,
                        assignment.SD_DATA_SCOPE_TYPE as data_scope_type, role.CD_ACC_ROLE as role_code from RHN_SYS_USER_ROLE_ASSIGN assignment
                   join RHN_SYS_ACC_ROLE role
                     on role.ID_TNT = assignment.ID_TNT and role.ID_ACC_ROLE = assignment.ID_ACC_ROLE
@@ -33,7 +33,7 @@ public class WorkContextProjectionRepository {
                    and assignment.DT_VALID_FROM <= current_timestamp
                    and (assignment.DT_VALID_TO is null or assignment.DT_VALID_TO > current_timestamp)
                  order by case
-                              when department.SD_DEPT_PROPERTY = 'CLINICAL' then 0
+                              when department.SD_DEPT_PROP = 'CLINICAL' then 0
                               when department.SD_DEPT_TYPE = 'MED_PHARMACY_OUTPATIENT' then 10
                               when department.SD_DEPT_TYPE = 'MED_PHARMACY_WAREHOUSE' then 20
                               when department.SD_DEPT_TYPE like 'MED_PHARMACY%' then 30

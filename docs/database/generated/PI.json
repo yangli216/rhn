@@ -1,0 +1,4393 @@
+{
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "tables": [
+    {
+      "logical": "pi.resident_address",
+      "legacy": "resident_addresses",
+      "physical": "RHN_PI_PAT_ADDR",
+      "domain": "PI",
+      "comment": "患者地址；一行代表一条患者地址记录",
+      "columns": [
+        {
+          "physical": "ID_PAT_ADDR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者地址主键",
+          "logical": "id",
+          "catalogComment": "患者地址主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "CD_USE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "用途编码",
+          "logical": "use_code",
+          "catalogComment": "用途编码"
+        },
+        {
+          "physical": "CD_PROV",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "province编码",
+          "logical": "province_code",
+          "catalogComment": "province编码"
+        },
+        {
+          "physical": "CD_CITY",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "city编码",
+          "logical": "city_code",
+          "catalogComment": "city编码"
+        },
+        {
+          "physical": "CD_DIST",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "district编码",
+          "logical": "district_code",
+          "catalogComment": "district编码"
+        },
+        {
+          "physical": "CD_STREET",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "street编码",
+          "logical": "street_code",
+          "catalogComment": "street编码"
+        },
+        {
+          "physical": "DES_ADDRESS",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "地址文本",
+          "logical": "address_text",
+          "catalogComment": "地址文本"
+        },
+        {
+          "physical": "CD_POSTAL",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "postal编码",
+          "logical": "postal_code",
+          "catalogComment": "postal编码"
+        },
+        {
+          "physical": "FG_PRIMARY_FLAG",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 12,
+          "comment": "是否主要flag",
+          "logical": "primary_flag",
+          "catalogComment": "是否主要flag"
+        },
+        {
+          "physical": "DA_VALID_FROM",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "有效开始日期",
+          "logical": "valid_from",
+          "catalogComment": "有效开始日期"
+        },
+        {
+          "physical": "DA_VALID_TO",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "有效结束日期",
+          "logical": "valid_to",
+          "catalogComment": "有效结束日期"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        },
+        {
+          "physical": "CD_COMM",
+          "type": "CHARACTER VARYING",
+          "size": 12,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "community编码",
+          "logical": "community_code",
+          "catalogComment": "community编码"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT_ADDR"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_PI_PAT_ADDR_RESIDENT_ADDRES",
+          "columns": [
+            "ID_TNT",
+            "ID_PAT_ADDR"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_PI_PAT_ADDR_PI_PAT_RESIDENT_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_PI_PAT_ADDR_RESIDENT_ADDRE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "FG_PRIMARY_FLAG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_C1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_ADDR",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_ADDR_RESIDENT_ADDRES_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_ADDR",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_PI_PAT_ADDR_RESIDENT_ADDR_1",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        },
+        {
+          "name": "CK_PI_PAT_ADDR_RESIDENT_ADDRES",
+          "expression": "(\"da_valid_to\" IS NULL)\n    OR (\"da_valid_to\" >= \"da_valid_from\")"
+        }
+      ],
+      "catalogComment": "患者地址；一行代表一条患者地址记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentProfileEntities.java",
+          "line": 107
+        }
+      ]
+    },
+    {
+      "logical": "pi.resident_demographic_profile",
+      "legacy": "resident_demographic_profiles",
+      "physical": "RHN_PI_PAT_DEMO_PROF",
+      "domain": "PI",
+      "comment": "患者人口学档案；一行代表一条患者人口学档案记录",
+      "columns": [
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_NATLTY",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "nationality编码",
+          "logical": "nationality_code",
+          "catalogComment": "nationality编码"
+        },
+        {
+          "physical": "CD_ETHNIC",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "ethnicity编码",
+          "logical": "ethnicity_code",
+          "catalogComment": "ethnicity编码"
+        },
+        {
+          "physical": "CD_MARITAL_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "marital状态编码",
+          "logical": "marital_status_code",
+          "catalogComment": "marital状态编码"
+        },
+        {
+          "physical": "CD_EDUC",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "education编码",
+          "logical": "education_code",
+          "catalogComment": "education编码"
+        },
+        {
+          "physical": "CD_OCCUPN",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "occupation编码",
+          "logical": "occupation_code",
+          "catalogComment": "occupation编码"
+        },
+        {
+          "physical": "CD_BLOOD_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "blood类型编码",
+          "logical": "blood_type_code",
+          "catalogComment": "blood类型编码"
+        },
+        {
+          "physical": "CD_RH_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "rh类型编码",
+          "logical": "rh_type_code",
+          "catalogComment": "rh类型编码"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        },
+        {
+          "physical": "CD_RESDNCY_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "residency类型编码",
+          "logical": "residency_type_code",
+          "catalogComment": "residency类型编码"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_PI_PAT_DEMO_PR_PI_PAT_RESID_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_71",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "患者人口学档案；一行代表一条患者人口学档案记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentProfileEntities.java",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "logical": "pi.resident_employment",
+      "legacy": "resident_employments",
+      "physical": "RHN_PI_PAT_EMPL",
+      "domain": "PI",
+      "comment": "患者任职；一行代表一条患者任职记录",
+      "columns": [
+        {
+          "physical": "ID_PAT_EMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者任职主键",
+          "logical": "id",
+          "catalogComment": "患者任职主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "NA_EMPLYR",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "employer名称",
+          "logical": "employer_name",
+          "catalogComment": "employer名称"
+        },
+        {
+          "physical": "CD_OCCUPN",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "occupation编码",
+          "logical": "occupation_code",
+          "catalogComment": "occupation编码"
+        },
+        {
+          "physical": "CD_PHONE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "电话",
+          "logical": "phone",
+          "catalogComment": "电话"
+        },
+        {
+          "physical": "CD_POSTAL",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "postal编码",
+          "logical": "postal_code",
+          "catalogComment": "postal编码"
+        },
+        {
+          "physical": "DES_ADDRESS",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "地址文本",
+          "logical": "address_text",
+          "catalogComment": "地址文本"
+        },
+        {
+          "physical": "FG_PRIMARY_FLAG",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 10,
+          "comment": "是否主要flag",
+          "logical": "primary_flag",
+          "catalogComment": "是否主要flag"
+        },
+        {
+          "physical": "DA_VALID_FROM",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "有效开始日期",
+          "logical": "valid_from",
+          "catalogComment": "有效开始日期"
+        },
+        {
+          "physical": "DA_VALID_TO",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "有效结束日期",
+          "logical": "valid_to",
+          "catalogComment": "有效结束日期"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT_EMPL"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_PI_PAT_EMPL_RESIDENT_EMPLOY",
+          "columns": [
+            "ID_TNT",
+            "ID_PAT_EMPL"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_PI_PAT_EMPL_PI_PAT_RESIDENT_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_PI_PAT_EMPL_RESIDENT_EMPLO",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "FG_PRIMARY_FLAG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_C1B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_EMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_EMPL_RESIDENT_EMPLOY_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_EMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_PI_PAT_EMPL_RESIDENT_EMPL_1",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        },
+        {
+          "name": "CK_PI_PAT_EMPL_RESIDENT_EMPLOY",
+          "expression": "(\"da_valid_to\" IS NULL)\n    OR (\"da_valid_to\" >= \"da_valid_from\")"
+        }
+      ],
+      "catalogComment": "患者任职；一行代表一条患者任职记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentProfileEntities.java",
+          "line": 68
+        }
+      ]
+    },
+    {
+      "logical": "pi.resident_identifier",
+      "legacy": "resident_identifiers",
+      "physical": "RHN_PI_PAT_IDENT",
+      "domain": "PI",
+      "comment": "患者标识；一行代表一条患者标识记录",
+      "columns": [
+        {
+          "physical": "ID_PAT_IDENT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者标识主键",
+          "logical": "id",
+          "catalogComment": "患者标识主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "CD_IDENT_SYS",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "标识体系",
+          "logical": "identifier_system",
+          "catalogComment": "标识体系"
+        },
+        {
+          "physical": "CD_IDENT_VAL",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "标识值",
+          "logical": "identifier_value",
+          "catalogComment": "标识值"
+        },
+        {
+          "physical": "NORM_VALUE",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "标准化值",
+          "logical": "normalized_value",
+          "catalogComment": "标准化值"
+        },
+        {
+          "physical": "SD_USE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "用途类型",
+          "logical": "use_type",
+          "catalogComment": "用途类型"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "ID_ORG_SRC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "来源机构标识",
+          "logical": "source_organization_id",
+          "catalogComment": "来源机构标识"
+        },
+        {
+          "physical": "DA_VALID_FROM",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "有效开始日期",
+          "logical": "valid_from",
+          "catalogComment": "有效开始日期"
+        },
+        {
+          "physical": "DA_VALID_TO",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "有效结束日期",
+          "logical": "valid_to",
+          "catalogComment": "有效结束日期"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT_IDENT"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_PI_PAT_IDENT_RESIDENT_IDE_1",
+          "columns": [
+            "ID_TNT",
+            "ID_PAT_IDENT"
+          ]
+        },
+        {
+          "name": "UK_PI_PAT_IDENT_RESIDENT_IDENT",
+          "columns": [
+            "ID_TNT",
+            "CD_IDENT_SYS",
+            "NORMALIZED_VALUE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_PI_PAT_IDENT_PI_PAT_IDENTIF_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_IDENT_PI_PAT_RESIDEN_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_IDENT_SYS_ORG_IDENTI_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG_SRC",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_IDENT_SYS_TNT_RESIDE_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_PI_PAT_IDENT_RESIDENT_IDEN",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_757",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_IDENT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_IDENT_RESIDENT_IDENT_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_IDENT_SYS",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NORM_VALUE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_IDENT_RESIDENT_IDE_1_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_IDENT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "患者标识；一行代表一条患者标识记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentIdentifier.java",
+          "line": 12
+        }
+      ]
+    },
+    {
+      "logical": "pi.resident_match_candidate",
+      "legacy": "resident_match_candidates",
+      "physical": "RHN_PI_PAT_MATCH_CAND",
+      "domain": "PI",
+      "comment": "患者匹配候选；一行代表一条患者匹配候选记录",
+      "columns": [
+        {
+          "physical": "ID_PAT_MATCH_CAND",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者匹配候选主键",
+          "logical": "id",
+          "catalogComment": "患者匹配候选主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT_SRC_RECORD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "来源记录标识",
+          "logical": "source_record_id",
+          "catalogComment": "来源记录标识"
+        },
+        {
+          "physical": "ID_PAT_CAND",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "候选患者标识",
+          "logical": "candidate_resident_id",
+          "catalogComment": "候选患者标识"
+        },
+        {
+          "physical": "MATCH_SCORE",
+          "type": "DECIMAL",
+          "size": 5,
+          "scale": 4,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "匹配score",
+          "logical": "match_score",
+          "catalogComment": "匹配score"
+        },
+        {
+          "physical": "JSON_REASONS",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "原因JSON",
+          "logical": "reasons_json",
+          "catalogComment": "原因JSON"
+        },
+        {
+          "physical": "SD_DCSN",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "决定",
+          "logical": "decision",
+          "catalogComment": "决定"
+        },
+        {
+          "physical": "ID_USER_RVWD",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "reviewed人标识",
+          "logical": "reviewed_by",
+          "catalogComment": "reviewed人标识"
+        },
+        {
+          "physical": "DT_RVWD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "reviewed时间",
+          "logical": "reviewed_at",
+          "catalogComment": "reviewed时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT_MATCH_CAND"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_PI_PAT_MATCH_C_MATCH_CANDID",
+          "columns": [
+            "ID_PAT_SRC_RECORD",
+            "ID_PAT_CAND"
+          ]
+        },
+        {
+          "name": "UK_PI_PAT_MATCH_C_RESIDENT_CAN",
+          "columns": [
+            "ID_TNT",
+            "ID_PAT_MATCH_CAND"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_PI_PAT_MATCH_C_PI_PAT_MATCH_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_CAND",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_MATCH_C_PI_PAT_MAT_1_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_CAND",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_MATCH_C_PI_PAT_S_MAT_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_SRC_RECORD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_MATCH_C_PI_PAT_S_M_1_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_SRC_RECORD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_MATCH_C_SYS_TNT_RESI_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_3BE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_MATCH_CAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_MATCH_C_MATCH_CANDID_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_SRC_RECORD",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_CAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_MATCH_C_RESIDENT_CAN_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_MATCH_CAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "患者匹配候选；一行代表一条患者匹配候选记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentMatchCandidate.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "pi.resident_merge_history",
+      "legacy": "resident_merge_history",
+      "physical": "RHN_PI_PAT_MERGE_HIST",
+      "domain": "PI",
+      "comment": "患者合并历史；一行代表一条患者合并历史记录",
+      "columns": [
+        {
+          "physical": "ID_PAT_MERGE_HIST",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者合并历史主键",
+          "logical": "id",
+          "catalogComment": "患者合并历史主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT_SURV",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "surviving患者标识",
+          "logical": "surviving_resident_id",
+          "catalogComment": "surviving患者标识"
+        },
+        {
+          "physical": "ID_PAT_MERGED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "合并患者标识",
+          "logical": "merged_resident_id",
+          "catalogComment": "合并患者标识"
+        },
+        {
+          "physical": "MOVED_IDENT_IDS",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "moved标识ids",
+          "logical": "moved_identifier_ids",
+          "catalogComment": "moved标识ids"
+        },
+        {
+          "physical": "MOVED_SOURCE_RECORD_IDS",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "moved来源记录ids",
+          "logical": "moved_source_record_ids",
+          "catalogComment": "moved来源记录ids"
+        },
+        {
+          "physical": "DES_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "原因",
+          "logical": "reason",
+          "catalogComment": "原因"
+        },
+        {
+          "physical": "ID_USER_MERGED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "合并人标识",
+          "logical": "merged_by",
+          "catalogComment": "合并人标识"
+        },
+        {
+          "physical": "DT_MERGED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "合并时间",
+          "logical": "merged_at",
+          "catalogComment": "合并时间"
+        },
+        {
+          "physical": "DT_SPLIT",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "拆分时间",
+          "logical": "split_at",
+          "catalogComment": "拆分时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT_MERGE_HIST"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_PI_PAT_MERGE_H_RESIDENT_MER",
+          "columns": [
+            "ID_TNT",
+            "ID_PAT_MERGE_HIST"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_PI_PAT_MERGE_H_PI_PAT_MERGE_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_SURV",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_MERGE_H_PI_PAT_MER_1_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_MERGED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_MERGE_H_PI_PAT_MER_2_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_SURV",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_MERGE_H_PI_PAT_MER_3_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_MERGED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_MERGE_H_SYS_TNT_RESI_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_PI_PAT_MERGE_H_RESIDENT_ME",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_SURV",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_MERGED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_D98C3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_MERGE_HIST",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_MERGE_H_RESIDENT_MER_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_MERGE_HIST",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "患者合并历史；一行代表一条患者合并历史记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentMergeHistory.java",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "logical": "pi.resident_related_person",
+      "legacy": "resident_related_persons",
+      "physical": "RHN_PI_PAT_RELATED_PERSON",
+      "domain": "PI",
+      "comment": "患者关联人员；一行代表一条患者关联人员记录",
+      "columns": [
+        {
+          "physical": "ID_PAT_RELATED_PERSON",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者关联人员主键",
+          "logical": "id",
+          "catalogComment": "患者关联人员主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "NA_FULL",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "full名称",
+          "logical": "full_name",
+          "catalogComment": "full名称"
+        },
+        {
+          "physical": "CD_RELSHIP",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "relationship编码",
+          "logical": "relationship_code",
+          "catalogComment": "relationship编码"
+        },
+        {
+          "physical": "CD_PHONE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "电话",
+          "logical": "phone",
+          "catalogComment": "电话"
+        },
+        {
+          "physical": "DES_ADDRESS",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "地址文本",
+          "logical": "address_text",
+          "catalogComment": "地址文本"
+        },
+        {
+          "physical": "FG_GUARD_FLAG",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 9,
+          "comment": "是否guardianflag",
+          "logical": "guardian_flag",
+          "catalogComment": "是否guardianflag"
+        },
+        {
+          "physical": "FG_EMERG_CONTACT_FLAG",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 10,
+          "comment": "是否emergency联系方式flag",
+          "logical": "emergency_contact_flag",
+          "catalogComment": "是否emergency联系方式flag"
+        },
+        {
+          "physical": "DA_VALID_FROM",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "有效开始日期",
+          "logical": "valid_from",
+          "catalogComment": "有效开始日期"
+        },
+        {
+          "physical": "DA_VALID_TO",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "有效结束日期",
+          "logical": "valid_to",
+          "catalogComment": "有效结束日期"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT_RELATED_PERSON"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_PI_PAT_RELATED_RESIDENT_REL",
+          "columns": [
+            "ID_TNT",
+            "ID_PAT_RELATED_PERSON"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_PI_PAT_RELATED_PI_PAT_RESID_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_PI_PAT_RELATED_RESIDENT_RE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_82EF",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_RELATED_PERSON",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_RELATED_RESIDENT_REL_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_RELATED_PERSON",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_PI_PAT_RELATED_RESIDENT_R_1",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        },
+        {
+          "name": "CK_PI_PAT_RELATED_RESIDENT_REL",
+          "expression": "(\"da_valid_to\" IS NULL)\n    OR (\"da_valid_to\" >= \"da_valid_from\")"
+        }
+      ],
+      "catalogComment": "患者关联人员；一行代表一条患者关联人员记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentProfileEntities.java",
+          "line": 153
+        }
+      ]
+    },
+    {
+      "logical": "pi.resident_source_record",
+      "legacy": "resident_source_records",
+      "physical": "RHN_PI_PAT_SRC_RECORD",
+      "domain": "PI",
+      "comment": "患者来源记录；一行代表一条患者来源记录记录",
+      "columns": [
+        {
+          "physical": "ID_PAT_SRC_RECORD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者来源记录主键",
+          "logical": "id",
+          "catalogComment": "患者来源记录主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG_SRC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "来源机构标识",
+          "logical": "source_organization_id",
+          "catalogComment": "来源机构标识"
+        },
+        {
+          "physical": "CD_SRC_SYS",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "来源体系",
+          "logical": "source_system",
+          "catalogComment": "来源体系"
+        },
+        {
+          "physical": "ID_SRC_RECORD",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "来源记录标识",
+          "logical": "source_record_id",
+          "catalogComment": "来源记录标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "SD_MATCH_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "匹配状态",
+          "logical": "match_status",
+          "catalogComment": "匹配状态"
+        },
+        {
+          "physical": "JSON_RAW_PAYLOAD",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "raw载荷JSON",
+          "logical": "raw_payload_json",
+          "catalogComment": "raw载荷JSON"
+        },
+        {
+          "physical": "DT_LAST_SEEN",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "lastseen时间",
+          "logical": "last_seen_at",
+          "catalogComment": "lastseen时间"
+        },
+        {
+          "physical": "ID_USER_LINKED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "linked人标识",
+          "logical": "linked_by",
+          "catalogComment": "linked人标识"
+        },
+        {
+          "physical": "DT_LINKED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "linked时间",
+          "logical": "linked_at",
+          "catalogComment": "linked时间"
+        },
+        {
+          "physical": "DES_LINK_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "link原因",
+          "logical": "link_reason",
+          "catalogComment": "link原因"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 13,
+          "comment": "乐观锁修订号",
+          "logical": "version",
+          "catalogComment": "乐观锁修订号"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT_SRC_RECORD"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_PI_PAT_SRC_REC_RESIDENT_S_1",
+          "columns": [
+            "ID_TNT",
+            "ID_PAT_SRC_RECORD"
+          ]
+        },
+        {
+          "name": "UK_PI_PAT_SRC_REC_RESIDENT_SOU",
+          "columns": [
+            "ID_TNT",
+            "CD_SRC_SYS",
+            "ID_SRC_RECORD"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_PI_PAT_SRC_REC_PI_PAT_SOURC_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_SRC_REC_PI_PAT_SOU_1_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_SRC_REC_SYS_ORG_SOUR_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG_SRC",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_SRC_REC_SYS_TNT_RESI_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_PI_PAT_SRC_REC_SOURCE_RECO",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_MATCH_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_LAST_SEEN",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_167",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_SRC_RECORD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_SRC_REC_RESIDENT_SOU_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_SRC_SYS",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_SRC_RECORD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_SRC_REC_RESIDENT_S_1_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_SRC_RECORD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "患者来源记录；一行代表一条患者来源记录记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentSourceRecord.java",
+          "line": 16
+        }
+      ]
+    },
+    {
+      "logical": "pi.resident_split_history",
+      "legacy": "resident_split_history",
+      "physical": "RHN_PI_PAT_SPLIT_HIST",
+      "domain": "PI",
+      "comment": "患者拆分历史；一行代表一条患者拆分历史记录",
+      "columns": [
+        {
+          "physical": "ID_PAT_SPLIT_HIST",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者拆分历史主键",
+          "logical": "id",
+          "catalogComment": "患者拆分历史主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT_MERGE_HIST",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "合并历史标识",
+          "logical": "merge_history_id",
+          "catalogComment": "合并历史标识"
+        },
+        {
+          "physical": "ID_PAT_RSTRD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "restored患者标识",
+          "logical": "restored_resident_id",
+          "catalogComment": "restored患者标识"
+        },
+        {
+          "physical": "RSTRD_IDENT_IDS",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "restored标识ids",
+          "logical": "restored_identifier_ids",
+          "catalogComment": "restored标识ids"
+        },
+        {
+          "physical": "DES_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "原因",
+          "logical": "reason",
+          "catalogComment": "原因"
+        },
+        {
+          "physical": "ID_USER_SPLIT",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "拆分人标识",
+          "logical": "split_by",
+          "catalogComment": "拆分人标识"
+        },
+        {
+          "physical": "DT_SPLIT",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "拆分时间",
+          "logical": "split_at",
+          "catalogComment": "拆分时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT_SPLIT_HIST"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_PI_PAT_SPLIT_H_RESIDENT_SPL",
+          "columns": [
+            "ID_TNT",
+            "ID_PAT_SPLIT_HIST"
+          ]
+        },
+        {
+          "name": "UK_PI_PAT_SPLIT_H_SPLIT_MERGE",
+          "columns": [
+            "ID_PAT_MERGE_HIST"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_PI_PAT_SPLIT_H_PI_PAT_M_S_1_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_MERGE_HIST",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_SPLIT_H_PI_PAT_SPLIT_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_RSTRD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_SPLIT_H_PI_PAT_SPL_1_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_RSTRD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_SPLIT_H_SYS_TNT_RESI_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_5B1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_SPLIT_HIST",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_SPLIT_H_RESIDENT_SPL_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_SPLIT_HIST",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_SPLIT_H_SPLIT_MERGE_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_MERGE_HIST",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "患者拆分历史；一行代表一条患者拆分历史记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentSplitHistory.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "pi.resident",
+      "legacy": "residents",
+      "physical": "RHN_PI_PAT",
+      "domain": "PI",
+      "comment": "患者；一行代表一条患者记录",
+      "columns": [
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者主键",
+          "logical": "id",
+          "catalogComment": "患者主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_HEALTH_RECORD_NO",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "健康记录编号",
+          "logical": "health_record_no",
+          "catalogComment": "健康记录编号"
+        },
+        {
+          "physical": "NA_FULL",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "full名称",
+          "logical": "full_name",
+          "catalogComment": "full名称"
+        },
+        {
+          "physical": "ID_NATL",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "national标识",
+          "logical": "national_id",
+          "catalogComment": "national标识"
+        },
+        {
+          "physical": "SD_GENDER",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "性别",
+          "logical": "gender",
+          "catalogComment": "性别"
+        },
+        {
+          "physical": "DA_BIRTH",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "birth日期",
+          "logical": "birth_date",
+          "catalogComment": "birth日期"
+        },
+        {
+          "physical": "CD_PHONE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "电话",
+          "logical": "phone",
+          "catalogComment": "电话"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'ACTIVE'",
+          "ordinal": 11,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "ID_PAT_MERGED_INTO",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "合并into标识",
+          "logical": "merged_into_id",
+          "catalogComment": "合并into标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": "CURRENT_TIMESTAMP",
+          "ordinal": 13,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 14,
+          "comment": "乐观锁修订号",
+          "logical": "version",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "FG_DCD",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 15,
+          "comment": "是否deceased",
+          "logical": "deceased",
+          "catalogComment": "是否deceased"
+        },
+        {
+          "physical": "DT_DCD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "deceased时间",
+          "logical": "deceased_at",
+          "catalogComment": "deceased时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'system'",
+          "ordinal": 17,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_PI_PAT_RESIDENT_RECORD_NO",
+          "columns": [
+            "ID_TNT",
+            "CD_HEALTH_RECORD_NO"
+          ]
+        },
+        {
+          "name": "UK_PI_PAT_RESIDENT_TENANT_ID",
+          "columns": [
+            "ID_TNT",
+            "ID_PAT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_PI_PAT_PI_PAT_RESIDENT_MERG_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_MERGED_INTO",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_PI_PAT_RESIDENT_ME_1_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_MERGED_INTO",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_PI_PAT_SYS_TNT_RESIDENT_TEN_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_PI_PAT_RESIDENT_STATUS",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NA_FULL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_PI_PAT_RESIDENT_TENANT_NAM",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "NA_FULL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_DC6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_RESIDENT_RECORD_NO_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_HEALTH_RECORD_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_PI_PAT_RESIDENT_TENANT_ID_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_PI_PAT_RESIDENT_DECEASED_TI",
+          "expression": "(\"fg_dcd\" = TRUE)\n    OR (\"dt_dcd\" IS NULL)"
+        }
+      ],
+      "catalogComment": "患者；一行代表一条患者记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-app/src/main/java/com/rhn/portal/dashboard/PortalSummaryService.java",
+          "line": 50
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/application/JpaWardMedicationSupplyCandidateDirectory.java",
+          "line": 75
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/application/JpaWardMedicationSupplyCandidateDirectory.java",
+          "line": 147
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
+          "line": 248
+        },
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/Resident.java",
+          "line": 15
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "FK_AI_SUGGEST_PI_PAT_AI_SUGGES",
+      "sourceTable": "RHN_AI_SUGGEST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_CHARGE_ITE_PI_PAT_CHARG",
+      "sourceTable": "RHN_BIL_CHARGE_ITEM",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_PAT_ACCT_PI_PAT_PAT_ACC",
+      "sourceTable": "RHN_BIL_PAT_ACCT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_REG_BIL_IN_PI_PAT_REG_B",
+      "sourceTable": "RHN_BIL_REG_BIL_INTENT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_CARE_REQ_PI_PAT_CARE_REQ",
+      "sourceTable": "RHN_EX_CARE_REQ",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_DIAG_EXEC_T_PI_PAT_DIAG_",
+      "sourceTable": "RHN_EX_DIAG_EXEC_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_DIAG_REPORT_PI_PAT_DIAGN",
+      "sourceTable": "RHN_EX_DIAG_REPORT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_OP_REFER_RE_PI_PAT_REF_R",
+      "sourceTable": "RHN_EX_OP_REFER_REQ",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_REQ_GRP_PI_PAT_REQUEST_G",
+      "sourceTable": "RHN_EX_REQ_GRP",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_SKIN_TEST_E_PI_PAT_SKIN_",
+      "sourceTable": "RHN_EX_SKIN_TEST_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_TREAT_EXEC_PI_PAT_TREAT_",
+      "sourceTable": "RHN_EX_TREAT_EXEC_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_PI_PAT_CARE_T",
+      "sourceTable": "RHN_HPL_CARE_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_COND_PI_PAT_CONDITION_R",
+      "sourceTable": "RHN_HPL_COND",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_PAT_COVER_PI_PAT_RESIDE",
+      "sourceTable": "RHN_INS_PAT_COVER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_PI_PAT_RESIDENT_MERG",
+      "sourceTable": "RHN_PI_PAT",
+      "sourceColumns": [
+        "ID_PAT_MERGED_INTO"
+      ],
+      "targetColumns": [
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_PI_PAT_RESIDENT_ME_1",
+      "sourceTable": "RHN_PI_PAT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT_MERGED_INTO"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_SYS_TNT_RESIDENT_TEN",
+      "sourceTable": "RHN_PI_PAT",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_ADDR_PI_PAT_RESIDENT",
+      "sourceTable": "RHN_PI_PAT_ADDR",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_DEMO_PR_PI_PAT_RESID",
+      "sourceTable": "RHN_PI_PAT_DEMO_PROF",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_EMPL_PI_PAT_RESIDENT",
+      "sourceTable": "RHN_PI_PAT_EMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_IDENT_PI_PAT_IDENTIF",
+      "sourceTable": "RHN_PI_PAT_IDENT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_IDENT_PI_PAT_RESIDEN",
+      "sourceTable": "RHN_PI_PAT_IDENT",
+      "sourceColumns": [
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_IDENT_SYS_ORG_IDENTI",
+      "sourceTable": "RHN_PI_PAT_IDENT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG_SRC"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_IDENT_SYS_TNT_RESIDE",
+      "sourceTable": "RHN_PI_PAT_IDENT",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_MATCH_C_PI_PAT_MATCH",
+      "sourceTable": "RHN_PI_PAT_MATCH_CAND",
+      "sourceColumns": [
+        "ID_PAT_CAND"
+      ],
+      "targetColumns": [
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_MATCH_C_PI_PAT_MAT_1",
+      "sourceTable": "RHN_PI_PAT_MATCH_CAND",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT_CAND"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_MATCH_C_PI_PAT_S_MAT",
+      "sourceTable": "RHN_PI_PAT_MATCH_CAND",
+      "sourceColumns": [
+        "ID_PAT_SRC_RECORD"
+      ],
+      "targetColumns": [
+        "ID_PAT_SRC_RECORD"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT_SRC_RECORD",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_MATCH_C_PI_PAT_S_M_1",
+      "sourceTable": "RHN_PI_PAT_MATCH_CAND",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT_SRC_RECORD"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT_SRC_RECORD"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT_SRC_RECORD",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_MATCH_C_SYS_TNT_RESI",
+      "sourceTable": "RHN_PI_PAT_MATCH_CAND",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_MERGE_H_PI_PAT_MERGE",
+      "sourceTable": "RHN_PI_PAT_MERGE_HIST",
+      "sourceColumns": [
+        "ID_PAT_SURV"
+      ],
+      "targetColumns": [
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_MERGE_H_PI_PAT_MER_1",
+      "sourceTable": "RHN_PI_PAT_MERGE_HIST",
+      "sourceColumns": [
+        "ID_PAT_MERGED"
+      ],
+      "targetColumns": [
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_MERGE_H_PI_PAT_MER_2",
+      "sourceTable": "RHN_PI_PAT_MERGE_HIST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT_SURV"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_MERGE_H_PI_PAT_MER_3",
+      "sourceTable": "RHN_PI_PAT_MERGE_HIST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT_MERGED"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_MERGE_H_SYS_TNT_RESI",
+      "sourceTable": "RHN_PI_PAT_MERGE_HIST",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_RELATED_PI_PAT_RESID",
+      "sourceTable": "RHN_PI_PAT_RELATED_PERSON",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_SPLIT_H_PI_PAT_M_SPL",
+      "sourceTable": "RHN_PI_PAT_SPLIT_HIST",
+      "sourceColumns": [
+        "ID_PAT_MERGE_HIST"
+      ],
+      "targetColumns": [
+        "ID_PAT_MERGE_HIST"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT_MERGE_HIST",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_SPLIT_H_PI_PAT_M_S_1",
+      "sourceTable": "RHN_PI_PAT_SPLIT_HIST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT_MERGE_HIST"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT_MERGE_HIST"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT_MERGE_HIST",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_SPLIT_H_PI_PAT_SPLIT",
+      "sourceTable": "RHN_PI_PAT_SPLIT_HIST",
+      "sourceColumns": [
+        "ID_PAT_RSTRD"
+      ],
+      "targetColumns": [
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_SPLIT_H_PI_PAT_SPL_1",
+      "sourceTable": "RHN_PI_PAT_SPLIT_HIST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT_RSTRD"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_SPLIT_H_SYS_TNT_RESI",
+      "sourceTable": "RHN_PI_PAT_SPLIT_HIST",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_SRC_REC_PI_PAT_SOURC",
+      "sourceTable": "RHN_PI_PAT_SRC_RECORD",
+      "sourceColumns": [
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_SRC_REC_PI_PAT_SOU_1",
+      "sourceTable": "RHN_PI_PAT_SRC_RECORD",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_SRC_REC_SYS_ORG_SOUR",
+      "sourceTable": "RHN_PI_PAT_SRC_RECORD",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG_SRC"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_PI_PAT_SRC_REC_SYS_TNT_RESI",
+      "sourceTable": "RHN_PI_PAT_SRC_RECORD",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SC_APPT_PI_PAT_APPOINTMENT_",
+      "sourceTable": "RHN_SC_APPT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SC_PAT_REG_PI_PAT_REGISTRAT",
+      "sourceTable": "RHN_SC_PAT_REG",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SC_QUEUE_TICKET_PAT",
+      "sourceTable": "RHN_SC_QUEUE_TICKET",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SC_SCHED_SLOT_PI_PAT_SLOT_H",
+      "sourceTable": "RHN_SC_SCHED_SLOT_HOLD",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SUP_DISP_TASK_PI_PAT_DISPEN",
+      "sourceTable": "RHN_SUP_DISP_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SUP_INP_MED_SU_PI_PAT_IPMSL",
+      "sourceTable": "RHN_SUP_INP_MED_SUPPLY_LINE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SUP_MED_DISP_PI_PAT_MED_DIS",
+      "sourceTable": "RHN_SUP_MED_DISP",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SUP_STOCK_RETU_PI_PAT_STOCK",
+      "sourceTable": "RHN_SUP_STOCK_RETURN",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SUP_WARD_DELIV_PI_PAT_WDL_R",
+      "sourceTable": "RHN_SUP_WARD_DELIV_LINE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SUP_WARD_MED_R_PI_PAT_WMR_R",
+      "sourceTable": "RHN_SUP_WARD_MED_RETURN_REQ",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_BATCH_ITEM_PAT",
+      "sourceTable": "RHN_SYS_PRINT_BATCH_ITEM",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_OUTP_PI_PAT_PRINT",
+      "sourceTable": "RHN_SYS_PRINT_OUTPUT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_WORK_TASK_PI_PAT_WORK_T",
+      "sourceTable": "RHN_SYS_WORK_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_ALLERGY_IN_PI_PAT_ALLER",
+      "sourceTable": "RHN_VIS_ALLERGY_INTOL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_CARE_EPISO_PI_PAT_CARE_",
+      "sourceTable": "RHN_VIS_CARE_EPISODE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_CLIN_DOC_PI_PAT_CLINICA",
+      "sourceTable": "RHN_VIS_CLIN_DOC",
+      "sourceColumns": [
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_CLIN_DOC_PI_PAT_CLINI_1",
+      "sourceTable": "RHN_VIS_CLIN_DOC",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_CRIT_VAL_A_PI_PAT_CRITI",
+      "sourceTable": "RHN_VIS_CRIT_VAL_ALERT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_ENC_PI_PAT_ENCOUNTER_RE",
+      "sourceTable": "RHN_VIS_ENC",
+      "sourceColumns": [
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_ENC_PI_PAT_ENCOUNTER__1",
+      "sourceTable": "RHN_VIS_ENC",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_ENC_DIAG_PI_PAT",
+      "sourceTable": "RHN_VIS_ENC_DIAG",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_ENC_IDENT_PI_PAT_ENC_ID",
+      "sourceTable": "RHN_VIS_ENC_IDENT_CHECK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_HEALTH_EVT_PI_PAT_HEALT",
+      "sourceTable": "RHN_VIS_HEALTH_EVT",
+      "sourceColumns": [
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_HEALTH_EVT_PI_PAT_HEA_1",
+      "sourceTable": "RHN_VIS_HEALTH_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_INP_BED_OC_PI_PAT_INP_O",
+      "sourceTable": "RHN_VIS_INP_BED_OCCUP",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_OBS_PI_PAT_OBSERVATION_",
+      "sourceTable": "RHN_VIS_OBS",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    }
+  ]
+}

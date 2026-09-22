@@ -178,7 +178,7 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
         Instant dischargedAt = Instant.now();
         jdbcTemplate.update("update RHN_VIS_CARE_EPISODE set SD_STATUS = 'DISCHARGED', DT_END = ? where ID_CARE_EPISODE = ?",
                 dischargedAt, Long.valueOf(episodeId));
-        jdbcTemplate.update("update RHN_VIS_ENC set SD_STATUS = 'COMPLETED', DT_COMPLETED = ? where ID_ENC = ?",
+        jdbcTemplate.update("update RHN_VIS_ENC set SD_STATUS = 'COMPLETED', DT_CMPLD = ? where ID_ENC = ?",
                 dischargedAt, Long.valueOf(encounterId));
         mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/nursing-records", episodeId)
                         .with(ward).contentType(MediaType.APPLICATION_JSON).content("""
@@ -204,7 +204,7 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                 Long.valueOf(TENANT)));
         assertEquals(2, jdbcTemplate.queryForObject(
                 "select count(*) from RHN_AUD_CRYPTO_EVID where SD_TARGET_TYPE = 'InpatientShiftHandoff' "
-                        + "and SD_PROTECTION_PURPOSE = 'NON_REPUDIATION'", Integer.class));
+                        + "and SD_PROT_PURPOSE = 'NON_REPUDIATION'", Integer.class));
     }
 
     private RequestPostProcessor wardContext() {

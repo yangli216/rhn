@@ -42,7 +42,6 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
   const [selectedId, setSelectedId] = useState<string>()
   const [definitionDialog, setDefinitionDialog] = useState<DefinitionDialogMode>()
   const [categoryDialog, setCategoryDialog] = useState<CategoryDialogState>()
-  const [categorySearch, setCategorySearch] = useState('')
   const [editingValue, setEditingValue] = useState<ParameterValue | null | undefined>(undefined)
   const [showChanges, setShowChanges] = useState(false)
   const [confirmDefinitionStatus, setConfirmDefinitionStatus] = useState(false)
@@ -178,15 +177,6 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
     return map
   }, [allDefinitions.data, fixedConfigType])
 
-  const filteredCategoryOptions = useMemo(() => {
-    const keyword = categorySearch.trim().toLowerCase()
-    if (!keyword) return categoryOptions
-    return categoryOptions.filter((item) =>
-      item.label.toLowerCase().includes(keyword) ||
-      item.category.code.toLowerCase().includes(keyword),
-    )
-  }, [categoryOptions, categorySearch])
-
   const currentCategoryName = useMemo(() => {
     if (!categoryFilter) return '全部参数'
     const match = categories.data?.find((c) => c.id === categoryFilter)
@@ -244,71 +234,19 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
 
     <SplitWorkspace className="parameter-workspace">
       <Panel className="parameter-category-nav">
-        <PanelHead
-          title="参数分类"
-          meta={`${categories.data?.length ?? 0} 类`}
-          actions={<Button size="sm" variant="text" onClick={() => setCategoryDialog({ mode: 'create' })}>管理分类</Button>}
-        />
-        <div className="parameter-category-nav__toolbar">
-          <SearchField
-            className="parameter-category-nav__search"
-            label="搜索分类"
-            value={categorySearch}
-            onChange={setCategorySearch}
-            placeholder="搜索分类名称"
-          />
-        </div>
-        <div className="parameter-category-nav__list" role="tablist" aria-label="参数分类导航">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!categoryFilter}
-            className={`parameter-category-item ${!categoryFilter ? 'is-active' : ''}`}
-            onClick={() => {
-              setCategoryFilter('')
-              setFeedback('')
-              setOperationError('')
-            }}
-          >
-            <span className="parameter-category-item__label">
-              <Icon name="tasks" className="parameter-category-item__icon" />
-              <span className="parameter-category-item__name">全部参数</span>
-            </span>
-            <span className="parameter-category-item__count">
-              {allDefinitions.data?.length ?? 0}
-            </span>
-          </button>
-          {filteredCategoryOptions.map((item) => {
-            const count = categoryCountMap[item.category.id] ?? 0
-            const isSelected = categoryFilter === item.category.id
-            return (
-              <button
-                key={item.category.id}
-                type="button"
-                role="tab"
-                aria-selected={isSelected}
-                className={`parameter-category-item ${isSelected ? 'is-active' : ''} ${item.depth > 0 ? 'is-sub' : ''}`}
-                style={{ paddingLeft: item.depth > 0 ? `${0.5 + item.depth * 0.75}rem` : '0.5rem' }}
-                onClick={() => {
-                  setCategoryFilter(item.category.id)
-                  setFeedback('')
-                  setOperationError('')
-                }}
-              >
-                <span className="parameter-category-item__label">
-                  {item.depth > 0 && <span className="parameter-category-item__branch" aria-hidden="true" />}
-                  <span className="parameter-category-item__name" title={item.category.name}>
-                    {item.category.name}
-                  </span>
-                  {item.category.sdParamStatus !== 'ACTIVE' && (
-                    <StatusBadge tone="neutral">已停用</StatusBadge>
-                  )}
-                </span>
-                <span className="parameter-category-item__count">{count}</span>
-              </button>
-            )
-          })}
-        </div>
+        <TreePanel title="参数分类" headingLevel={2} rootLabel="全部参数"
+          rootMeta={`${allDefinitions.data?.length ?? 0} 项参数`} searchLabel="搜索分类"
+          searchPlaceholder="搜索分类名称或编码" selectedId={categoryFilter || undefined}
+          nodes={categoryOptions.map(({ category }) => ({
+            id: category.id, parentId: category.parentId || undefined, label: category.name,
+            keywords: [category.code], inactive: category.sdParamStatus !== 'ACTIVE',
+            secondaryText: `${categoryCountMap[category.id] ?? 0} 项${category.sdParamStatus !== 'ACTIVE' ? ' · 已停用' : ''}`,
+          }))}
+          onSelect={id => {
+            setCategoryFilter(id ?? '')
+            setFeedback('')
+            setOperationError('')
+          }} />
       </Panel>
 
       <Panel className="parameter-catalog">

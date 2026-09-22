@@ -5,7 +5,7 @@ import type { ClinicalContext } from '../../app/AppShell'
 import type {
   SkinTestResult, SkinTestStatus, SkinTestWorkItem, StartSkinTestInput,
 } from '../../shared/api/treatmentApi'
-import { formatTime } from '../../shared/format'
+import { age, formatTime, genderLabel } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, BodySiteSelect, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge, UnitNumberInput } from '../../shared/ui'
@@ -241,6 +241,14 @@ export function SkinTestManagementWorkspace({ api, clinicalContext }: {
                 <div className="skin-test-queue-item__row1">
                   <div className="skin-test-queue-item__name">
                     <strong>{item.residentName}</strong>
+                    {(Boolean(item.gender) || Boolean(item.birthDate)) && (
+                      <span className="skin-test-queue-item__demographics">
+                        {[
+                          item.gender ? genderLabel(item.gender) : '',
+                          item.birthDate ? `${age(item.birthDate)}岁` : '',
+                        ].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
                     <small>{item.healthRecordNo}</small>
                   </div>
                   <StatusBadge tone={statusTone(item.status)}>{statusLabel[item.status]}</StatusBadge>
@@ -409,7 +417,21 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
   const canStart = ['PENDING', 'UNCERTAIN', 'INVALID'].includes(item.status)
   const showConfiguration = ['WAITING_SETTLEMENT', 'WAITING_DISPENSE',
     'PENDING', 'UNCERTAIN', 'INVALID'].includes(item.status)
-  const dose = [item.doseValue, item.doseUnit].filter((value) => value !== undefined && value !== '').join(' ')
+  const dose = [item.doseValue, item.doseUnit].filter((value) => value != null && value !== '').join(' ')
+
+  const executorPractitioner = practitioners.data?.find(
+    (p) => String(p.id) === String(item.readByPractitionerId || item.performedByPractitionerId),
+  )
+  const executorDisplay = executorPractitioner
+    ? `${executorPractitioner.fullName}${executorPractitioner.code ? ` (${executorPractitioner.code})` : ''}`
+    : '执行护士'
+
+  const verifierPractitioner = practitioners.data?.find(
+    (p) => String(p.id) === String(item.verifiedByPractitionerId),
+  )
+  const verifierName = item.verifiedByName || verifierPractitioner?.fullName || '已双人复核'
+  const verifierCode = verifierPractitioner?.code ? ` (${verifierPractitioner.code})` : ''
+  const verifierDisplay = `${verifierName}${verifierCode}`
 
   // Toggle clinical signs and auto-append to reaction description
   const toggleSign = (sign: string) => {
@@ -456,6 +478,14 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
           <div className="skin-test-patient-meta">
             <div className="skin-test-patient-name-row">
               <h2 className="skin-test-patient-name">{item.residentName}</h2>
+              {(Boolean(item.gender) || Boolean(item.birthDate)) && (
+                <span className="skin-test-patient-demographics">
+                  {[
+                    item.gender ? genderLabel(item.gender) : '',
+                    item.birthDate ? `${age(item.birthDate)}岁` : '',
+                  ].filter(Boolean).join(' · ')}
+                </span>
+              )}
               <span className="skin-test-id-pill" title="健康档案号">{item.healthRecordNo}</span>
               <span className="skin-test-id-pill" title="医嘱处方号">{item.requestNo}</span>
               <span className="skin-test-dept-badge">{departmentName} · 第 {item.attemptNo ?? 1} 次注射</span>
@@ -672,8 +702,8 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
           </div>
 
           <div className="skin-test-ruler-grid">
-            <FormField label="风团直径（皮丘硬结）">
-              <div className="skin-test-ruler-input-group">
+            <div className="skin-test-ruler-field">
+              <FormField label="风团直径（皮丘硬结）">
                 <UnitNumberInput
                   value={wheal}
                   unit="mm"
@@ -683,23 +713,23 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
                   placeholder="测定值"
                   onValueChange={(val) => setWheal(val)}
                 />
-                <div className="skin-test-ruler-steps">
-                  {WHEAL_STEPS.map((step) => (
-                    <button
-                      type="button"
-                      key={step}
-                      className={Number(wheal) === step ? 'is-active' : ''}
-                      onClick={() => setWheal(String(step))}
-                    >
-                      {step}
-                    </button>
-                  ))}
-                </div>
+              </FormField>
+              <div className="skin-test-ruler-steps" role="group" aria-label="风团快捷刻度">
+                {WHEAL_STEPS.map((step) => (
+                  <button
+                    type="button"
+                    key={step}
+                    className={Number(wheal) === step ? 'is-active' : ''}
+                    onClick={() => setWheal(String(step))}
+                  >
+                    {step}
+                  </button>
+                ))}
               </div>
-            </FormField>
+            </div>
 
-            <FormField label="红晕直径">
-              <div className="skin-test-ruler-input-group">
+            <div className="skin-test-ruler-field">
+              <FormField label="红晕直径">
                 <UnitNumberInput
                   value={flare}
                   unit="mm"
@@ -709,20 +739,20 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
                   placeholder="测定值"
                   onValueChange={(val) => setFlare(val)}
                 />
-                <div className="skin-test-ruler-steps">
-                  {FLARE_STEPS.map((step) => (
-                    <button
-                      type="button"
-                      key={step}
-                      className={Number(flare) === step ? 'is-active' : ''}
-                      onClick={() => setFlare(String(step))}
-                    >
-                      {step}
-                    </button>
-                  ))}
-                </div>
+              </FormField>
+              <div className="skin-test-ruler-steps" role="group" aria-label="红晕快捷刻度">
+                {FLARE_STEPS.map((step) => (
+                  <button
+                    type="button"
+                    key={step}
+                    className={Number(flare) === step ? 'is-active' : ''}
+                    onClick={() => setFlare(String(step))}
+                  >
+                    {step}
+                  </button>
+                ))}
               </div>
-            </FormField>
+            </div>
           </div>
 
           {/* Clinical Signs Checkbox Chips */}
@@ -887,16 +917,18 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
             </span>
             <h3>皮试最终结论：【{statusLabel[item.status]}】</h3>
           </div>
-          <StatusBadge tone={statusTone(item.status)}>{formatTime(item.completedAt!)}</StatusBadge>
+          <StatusBadge tone={statusTone(item.status)}>
+            {item.completedAt ? formatTime(item.completedAt) : '已完成'}
+          </StatusBadge>
         </header>
 
         <dl className="skin-test-facts">
           <div><dt>皮试方式</dt><dd>{testMethodLabel(item.testMethod)}</dd></div>
           <div><dt>部位</dt><dd>{item.bodySite || '未记录'}</dd></div>
-          <div><dt>风团直径</dt><dd>{item.whealDiameterMm === undefined ? '未记录' : `${item.whealDiameterMm} mm`}</dd></div>
-          <div><dt>红晕直径</dt><dd>{item.flareDiameterMm === undefined ? '未记录' : `${item.flareDiameterMm} mm`}</dd></div>
-          <div><dt>执行护士</dt><dd>{item.readByPractitionerId ? `工号 ${item.readByPractitionerId}` : (item.performedByPractitionerId ? `工号 ${item.performedByPractitionerId}` : '执行护士')}</dd></div>
-          <div><dt>复核护士</dt><dd>{item.verifiedByName ? `${item.verifiedByName}${item.verifiedByPractitionerId ? ` (${item.verifiedByPractitionerId})` : ''}` : '已双人复核'}{item.verifiedAt ? ` · ${formatTime(item.verifiedAt)}` : ''}</dd></div>
+          <div><dt>风团直径</dt><dd>{item.whealDiameterMm != null ? `${item.whealDiameterMm} mm` : '未记录'}</dd></div>
+          <div><dt>红晕直径</dt><dd>{item.flareDiameterMm != null ? `${item.flareDiameterMm} mm` : '未记录'}</dd></div>
+          <div><dt>执行护士</dt><dd>{executorDisplay}</dd></div>
+          <div><dt>复核护士</dt><dd>{verifierDisplay}{item.verifiedAt ? ` · ${formatTime(item.verifiedAt)}` : ''}</dd></div>
         </dl>
 
         {item.reactionDescription && (

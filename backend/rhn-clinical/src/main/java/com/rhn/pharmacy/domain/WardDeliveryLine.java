@@ -21,12 +21,12 @@ public class WardDeliveryLine {
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "NA_PAT_SNAP", nullable = false) private String residentNameSnapshot;
     @Column(name = "NA_MED_SNAP", nullable = false) private String medicationNameSnapshot;
-    @Column(name = "QTY_EXPECTED", nullable = false, precision = 28, scale = 8) private BigDecimal expectedQuantity;
-    @Column(name = "QTY_RECEIVED", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
+    @Column(name = "QTY_EXPCTD", nullable = false, precision = 28, scale = 8) private BigDecimal expectedQuantity;
+    @Column(name = "QTY_RECVD", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
     @Column(name = "CD_UNIT", nullable = false) private String unitCode;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "CD_DISCREPANCY") private String discrepancyCode;
-    @Column(name = "DES_DISCREPANCY_NOTE") private String discrepancyNote;
+    @Column(name = "CD_DSCRPN") private String discrepancyCode;
+    @Column(name = "DES_DSCRPN_NOTE") private String discrepancyNote;
 
     protected WardDeliveryLine() {}
 

@@ -25,8 +25,8 @@ public class PrescriptionInventoryFreeze {
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
-    @Column(name = "DT_RELEASED") private Instant releasedAt;
-    @Column(name = "ID_USER_RELEASED") private Long releasedBy;
+    @Column(name = "DT_RLSD") private Instant releasedAt;
+    @Column(name = "ID_USER_RLSD") private Long releasedBy;
     @Column(name = "DES_RELEASE_REASON") private String releaseReason;
 
     protected PrescriptionInventoryFreeze() {}

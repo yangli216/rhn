@@ -26,8 +26,8 @@ public class ServiceCatalogItem {
     @Column(name = "NA_CATALOG_ITEM", nullable = false) private String name;
     @Column(name = "SD_ITEM_TYPE", nullable = false) private String itemType;
     @Column(name = "CD_UNIT") private String unitCode;
-    @Column(name = "FG_ORDERABLE", nullable = false) private boolean orderable;
-    @Column(name = "FG_CHARGEABLE", nullable = false) private boolean chargeable;
+    @Column(name = "FG_ORDRBL", nullable = false) private boolean orderable;
+    @Column(name = "FG_CHGBL", nullable = false) private boolean chargeable;
     @Column(name = "FG_STOCKED", nullable = false) private boolean stocked;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
@@ -41,19 +41,19 @@ public class ServiceCatalogItem {
     @Column(name = "SD_SVC_TYPE", table = "RHN_BD_SVC_ITEM", nullable = false) private String serviceType;
     @Column(name = "SD_SVC_SUBTYPE", table = "RHN_BD_SVC_ITEM") private String serviceSubtype;
     @Column(name = "SD_USAGE_TYPE", table = "RHN_BD_SVC_ITEM", nullable = false) private String usageType;
-    @Column(name = "FG_MEDICAL_TECHNOLOGY", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean medicalTechnology;
-    @Column(name = "FG_COMBINATION_ITEM", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean combinationItem;
+    @Column(name = "FG_MEDICAL_TECH", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean medicalTechnology;
+    @Column(name = "FG_COMB_ITEM", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean combinationItem;
     @Column(name = "FG_SINGLE_ORDER", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean singleOrder;
     @Column(name = "SD_SPEC_TYPE", table = "RHN_BD_SVC_ITEM") private String specimenType;
     @Column(name = "SD_EXAM_TYPE", table = "RHN_BD_SVC_ITEM") private String examinationType;
-    @Column(name = "SD_ACCOUNTING_CAT", table = "RHN_BD_SVC_ITEM") private String accountingCategory;
-    @Column(name = "SD_DUPLICATE_RULE", table = "RHN_BD_SVC_ITEM") private String duplicateRule;
+    @Column(name = "SD_ACCTG_CAT", table = "RHN_BD_SVC_ITEM") private String accountingCategory;
+    @Column(name = "SD_DUP_RULE", table = "RHN_BD_SVC_ITEM") private String duplicateRule;
     @Column(name = "PRICE_MULTI_SITE", table = "RHN_BD_SVC_ITEM") private BigDecimal multiSitePrice;
     @Column(name = "QTY_FREE_SITE", table = "RHN_BD_SVC_ITEM") private Integer freeSiteCount;
     @Column(name = "QTY_MAX_BODY_SITE", table = "RHN_BD_SVC_ITEM") private Integer maxBodySiteCount;
-    @Column(name = "CD_MUTUAL_RECOGNITION", table = "RHN_BD_SVC_ITEM") private String mutualRecognitionCode;
-    @Column(name = "FG_PREGNANCY_ALERT", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean pregnancyAlert;
-    @Column(name = "DES_ATTENTION", table = "RHN_BD_SVC_ITEM") private String attention;
+    @Column(name = "CD_MUTUAL_RECOG", table = "RHN_BD_SVC_ITEM") private String mutualRecognitionCode;
+    @Column(name = "FG_PREG_ALERT", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean pregnancyAlert;
+    @Column(name = "DES_ATTN", table = "RHN_BD_SVC_ITEM") private String attention;
     @Column(name = "DES_EXAM_NOTE", table = "RHN_BD_SVC_ITEM") private String examinationNotes;
 
     protected ServiceCatalogItem() {}

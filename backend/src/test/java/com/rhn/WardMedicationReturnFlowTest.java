@@ -194,7 +194,7 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
         assertEquals(1, returnChargeCount);
         assertEquals(returnChargeCount, countId("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
                 + "and SD_SRC_TYPE = 'MEDICATION_RETURN'", requestId));
-        assertDecimal("1", jdbc.queryForObject("select QTY_ACCEPTED as quantity_accepted from RHN_SUP_STOCK_RETURN_LINE "
+        assertDecimal("1", jdbc.queryForObject("select QTY_ACPTD as quantity_accepted from RHN_SUP_STOCK_RETURN_LINE "
                 + "where ID_STOCK_RETURN = ?", BigDecimal.class,
                 received.at("/lines/0/stockReturnId").asLong()));
         assertEquals(1, countId("select count(*) from RHN_SUP_WARD_MED_RETURN_EVT where ID_WARD_MED_RETURN_REQ = ? "

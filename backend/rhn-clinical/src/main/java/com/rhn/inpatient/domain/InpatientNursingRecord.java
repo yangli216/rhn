@@ -20,21 +20,21 @@ public class InpatientNursingRecord {
     @Column(name = "ID_CARE_EPISODE", nullable = false) private Long episodeId;
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
     @Column(name = "SD_RECORD_TYPE", nullable = false) private String recordType;
     @Lob @Column(name = "JSON_CONTENT", nullable = false) private String contentJson;
     @Lob @Column(name = "JSON_OBS_SUM") private String observationSummaryJson;
-    @Lob @Column(name = "JSON_ASSESSMENT") private String assessmentJson;
+    @Lob @Column(name = "JSON_ASSMT") private String assessmentJson;
     @Column(name = "JSON_CONTENT_SCHEMA", nullable = false) private String contentSchema;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "HASH_REQ", nullable = false) private String requestHash;
-    @Column(name = "ID_RECORDED_BY_SUBJECT", nullable = false) private Long recordedBySubjectId;
-    @Column(name = "ID_RECORDED_BY_PRACT") private Long recordedByPractitionerId;
-    @Column(name = "NA_RECORDER", nullable = false) private String recorderName;
-    @Column(name = "DT_RECORDED", nullable = false) private Instant recordedAt;
-    @Column(name = "CONTENT_DIGEST_ALGORITHM", nullable = false) private String contentDigestAlgorithm;
+    @Column(name = "ID_RECDD_BY_SUBJECT", nullable = false) private Long recordedBySubjectId;
+    @Column(name = "ID_RECDD_BY_PRACT") private Long recordedByPractitionerId;
+    @Column(name = "NA_RECDR", nullable = false) private String recorderName;
+    @Column(name = "DT_RECDD", nullable = false) private Instant recordedAt;
+    @Column(name = "CONTENT_DIGEST_ALGO", nullable = false) private String contentDigestAlgorithm;
     @Column(name = "HASH_CONTENT", nullable = false) private String contentDigest;
-    @Column(name = "ID_CRYPTO_EVID_INTEGRITY", nullable = false) private Long integrityEvidenceId;
+    @Column(name = "ID_CRYPTO_EVID_INTGR", nullable = false) private Long integrityEvidenceId;
 
     protected InpatientNursingRecord() {
     }

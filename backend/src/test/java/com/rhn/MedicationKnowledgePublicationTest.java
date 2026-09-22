@@ -167,8 +167,8 @@ class MedicationKnowledgePublicationTest extends RhnIntegrationTestSupport {
         String encounter=clinical.encounter(),prescription=rx.path("id").asString();
         mockMvc.perform(post("/api/encounters/{e}/prescriptions/{p}/submit",encounter,prescription).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{\"expectedRevision\":"+rx.path("revision").asLong()+"}"))
                 .andExpect(status().isConflict());
-        assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_PRESCRIPTION=? and SD_MODE='ENFORCED'",Integer.class,prescription)).isEqualTo(1);
-        assertThat(safety.find(Long.valueOf(prescription),jdbc.queryForObject("select max(ID_EVAL) from RHN_AUD_MED_EVAL where ID_PRESCRIPTION=? and SD_MODE='ENFORCED'",Long.class,prescription)).orElseThrow().decision()).isEqualTo(MedicationSafetyDecision.Status.BLOCK);
+        assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_RX=? and SD_MODE='ENFORCED'",Integer.class,prescription)).isEqualTo(1);
+        assertThat(safety.find(Long.valueOf(prescription),jdbc.queryForObject("select max(ID_EVAL) from RHN_AUD_MED_EVAL where ID_RX=? and SD_MODE='ENFORCED'",Long.class,prescription)).orElseThrow().decision()).isEqualTo(MedicationSafetyDecision.Status.BLOCK);
         pauseFormal(formal);
         mockMvc.perform(post("/api/encounters/{e}/prescriptions/{p}/submit",encounter,prescription).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{\"expectedRevision\":"+rx.path("revision").asLong()+"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACTIVE"));

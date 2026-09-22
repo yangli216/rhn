@@ -32,6 +32,11 @@ function fill(name:string,value:string) { fireEvent.change(document.querySelecto
 function submit() { fireEvent.submit(document.querySelector('form')!) }
 
 describe('standard medication operational setup', () => {
+  it('preserves the source salt in the proposed medication name', () => {
+    const levamlodipine = {...entry, name: '左氨氯地平'}
+    expect(standardMedicationDraft(levamlodipine, {...spec, substanceQualifier: '苯磺酸盐'}).name).toBe('左氨氯地平（苯磺酸盐）')
+    expect(standardMedicationDraft(levamlodipine, {...spec, substanceQualifier: '马来酸盐'}).name).toBe('左氨氯地平（马来酸盐）')
+  })
   it('prefills amount per presentation but does not flatten concentration or guess directions', () => {
     expect(standardMedicationDraft(entry,spec)).toMatchObject({code:spec.id,strengthValue:5,strengthUnit:'mg',preparationUnit:'片'})
     const concentration={...spec,presentationUnit:null,strength:{...spec.strength,kind:'CONCENTRATION',denominator:{value:'2',unit:'mL'}}}

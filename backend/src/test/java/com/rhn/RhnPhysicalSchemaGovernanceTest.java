@@ -31,6 +31,8 @@ class RhnPhysicalSchemaGovernanceTest extends RhnIntegrationTestSupport {
     @Test
     void migrated_schema_exactly_matches_the_governed_physical_catalog() throws Exception {
         JsonNode catalog = objectMapper.readTree(Files.readString(mappingPath()));
+        JsonNode naming = objectMapper.readTree(Files.readString(mappingPath().getParent().getParent()
+                .resolve("database/physical-column-abbreviations.json")));
         Set<String> logicalTables = new TreeSet<>();
         Set<String> legacyTables = new TreeSet<>();
         Set<String> mappedTables = new TreeSet<>();
@@ -70,6 +72,15 @@ class RhnPhysicalSchemaGovernanceTest extends RhnIntegrationTestSupport {
                         () -> "Invalid logical column: " + logical + "." + logicalColumn);
                 assertTrue(physicalColumn.matches("^[A-Z][A-Z0-9_]*$") && physicalColumn.length() <= 30,
                         () -> "Invalid physical column: " + physical + "." + physicalColumn);
+                assertFalse(physicalColumn.contains("__") || physicalColumn.endsWith("_"),
+                        () -> "Empty physical column token: " + physical + "." + physicalColumn);
+                if (!naming.get("identifierExceptions").has(physicalColumn)) {
+                    for (String token : physicalColumn.split("_")) {
+                        assertTrue(token.length() <= naming.get("maxTokenLength").asInt(),
+                                () -> "Unabbreviated physical column: " + physical + "." + physicalColumn
+                                        + "; register the abbreviation in docs/database/physical-column-abbreviations.json");
+                    }
+                }
                 assertFalse(physicalColumn.matches("^(QTY_QUANTITY|AMT_AMOUNT|PRICE_PRICE)(_|$)"),
                         () -> "Redundant semantic column name: " + physical + "." + physicalColumn);
                 assertTrue(columnComment.matches(".*[\\p{IsHan}].*"),

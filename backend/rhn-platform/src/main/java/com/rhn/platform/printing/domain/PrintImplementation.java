@@ -18,7 +18,7 @@ public class PrintImplementation {
     @Column(name = "ID_TNT") private Long tenantId;
     @Column(name = "CD_IMPL", nullable = false) private String implementationCode;
     @Column(name = "NA_IMPL", nullable = false) private String implementationName;
-    @Column(name = "SD_RENDERER", nullable = false) private String rendererType;
+    @Column(name = "SD_RNDR", nullable = false) private String rendererType;
     @Column(name = "CD_ADAPTER", nullable = false) private String adapterCode;
     @Column(name = "ID_PRINT_TMPL") private Long templateId;
     @Column(name = "CD_PAYLOAD_SCHEMA", nullable = false) private String payloadSchema;

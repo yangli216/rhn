@@ -34,12 +34,12 @@
 .print-field-library { flex: 0 0 auto; max-height: 126px; padding: 7px 10px; border-bottom: 1px solid var(--color-border); display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; overflow: auto; background: var(--color-surface-subtle); }
 .print-field-library__heading { padding: 4px 0; display: flex; flex-direction: column; gap: 2px; }
 .print-field-library__heading strong { font-size: 12px; color: var(--color-text-primary); }
-.print-field-library__heading span { font-size: 11px; color: var(--color-text-disabled); }
+.print-field-library__heading span { font-size: var(--font-size-small); color: var(--color-text-disabled); }
 .print-field-library__groups { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .print-field-library__groups > div { min-width: 0; display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: start; gap: 4px; }
-.print-field-library__groups > div > span { padding-top: 4px; font-size: 11px; color: var(--color-text-disabled); }
+.print-field-library__groups > div > span { padding-top: 4px; font-size: var(--font-size-small); color: var(--color-text-disabled); }
 .print-field-library__groups > div > div { display: flex; flex-wrap: wrap; gap: 4px; }
-.print-field-library button { height: 25px; padding: 0 7px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: 3px; font-size: 11px; cursor: pointer; }
+.print-field-library button { height: 25px; padding: 0 7px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: 3px; font-size: var(--font-size-small); cursor: pointer; }
 .print-field-library button:hover:not(:disabled) { border-color: var(--color-brand-primary); color: var(--color-brand-primary); }
 .print-field-library button:disabled { opacity: .5; cursor: not-allowed; }
 .print-field-library button .ui-icon { width: 12px; height: 12px; }
@@ -109,7 +109,7 @@
 .print-device-row > span:nth-child(2) { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .print-device-row strong, .print-device-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .print-device-row strong { font-size: 13px; color: var(--color-text-primary); }
-.print-device-row small { font-size: 11px; color: var(--color-text-disabled); }
+.print-device-row small { font-size: var(--font-size-small); color: var(--color-text-disabled); }
 .print-device-form { padding: 16px; }
 .print-device-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
 .print-device-form .ui-field, .print-route-form .ui-field { margin-bottom: 14px; }

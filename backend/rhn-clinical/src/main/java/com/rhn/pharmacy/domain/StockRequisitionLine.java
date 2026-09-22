@@ -18,8 +18,8 @@ public class StockRequisitionLine {
     @Column(name = "ID_STOCK_REQ", nullable = false) private Long stockRequisitionId;
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
     @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
-    @Column(name = "QTY_REQUESTED", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
-    @Column(name = "QTY_APPROVED", precision = 28, scale = 8) private BigDecimal approvedQuantity;
+    @Column(name = "QTY_REQD", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
+    @Column(name = "QTY_APRVD", precision = 28, scale = 8) private BigDecimal approvedQuantity;
     @Column(name = "QTY_ISSUED", nullable = false, precision = 28, scale = 8) private BigDecimal issuedQuantity;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
     @Column(name = "SD_LINE_STATUS", nullable = false) private String lineStatus;

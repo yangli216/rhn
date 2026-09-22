@@ -33,15 +33,15 @@ public class TreatmentExecutionTask {
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_STARTED") private Instant startedAt;
     @Column(name = "ID_USER_STARTED") private Long startedBy;
-    @Column(name = "SD_VERIFICATION_METHOD") private String verificationMethod;
+    @Column(name = "SD_VRFCTN_METHOD") private String verificationMethod;
     @Column(name = "SD_EXEC_SITE") private String executionSite;
     @Column(name = "DES_START_NOTE") private String startNote;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
-    @Column(name = "ID_USER_COMPLETED") private Long completedBy;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
+    @Column(name = "ID_USER_CMPLD") private Long completedBy;
     @Column(name = "CD_RESULT") private String resultCode;
     @Column(name = "DES_COMP_NOTE") private String completionNote;
-    @Column(name = "FG_ADVERSE_REACTION", nullable = false) private boolean adverseReaction;
-    @Column(name = "DES_ADVERSE_REACTION_DETAIL") private String adverseReactionDetail;
+    @Column(name = "FG_ADVERSE_REACT", nullable = false) private boolean adverseReaction;
+    @Column(name = "DES_ADVERSE_REACT_DETAIL") private String adverseReactionDetail;
     @Column(name = "DES_EXCEPT_NOTE") private String exceptionNote;
 
     protected TreatmentExecutionTask() {}

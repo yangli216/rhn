@@ -43,6 +43,68 @@ class MedicationStandardBindingTest extends RhnIntegrationTestSupport {
         var preview = bindings.preview(MED);
         return new Bind(preview.medication().revision(), preview.identity(), SPEC, "已按原文核对存量药品身份（测试）", true);
     }
+    @Test void equal_strength_salts_require_identity_and_cannot_be_cross_bound() {
+        long med = 362387880000581L;
+        String besylate = "STD-A3832E968BCF6F87EF8919E2";
+        String maleate = "STD-6DD3DFF23EFA1E57E9117903";
+        var missing = bindings.preview(med);
+        assertThat(missing.candidates()).noneMatch(c -> c.canBind());
+        assertThat(missing.candidates()).filteredOn(c -> besylate.equals(c.specification().path("id").asString()))
+                .singleElement().satisfies(c -> assertThat(c.issues()).contains("STANDARD_REFERENCE_QUALIFIER_MISSING"));
+        jdbc.update("update RHN_BD_MED set NA_MED='苯磺酸左氨氯地平片' where ID_MED=?", med);
+        var preview = bindings.preview(med);
+        assertThat(preview.candidates()).filteredOn(c -> c.canBind()).singleElement()
+                .satisfies(c -> assertThat(c.specification().path("id").asString()).isEqualTo(besylate));
+        assertThatThrownBy(() -> bindings.bind(med, new Bind(preview.medication().revision(), preview.identity(), maleate, "错误盐型", true)))
+                .hasMessageContaining("身份不一致");
+        assertThat(bindings.bind(med, new Bind(preview.medication().revision(), preview.identity(), besylate, "核对盐型", true))
+                .reference().status()).isEqualTo("LINKED");
+        jdbc.update("update RHN_BD_MED set NA_MED='马来酸左氨氯地平片' where ID_MED=?", med);
+        assertThat(bindings.preview(med).reference().status()).isEqualTo("MISMATCH");
+    }
+
+    @Test void explicit_release_qualifier_allows_base_local_capsule_to_bind_release_capsule() {
+        long med = 362387880000588L;
+        String specification = "STD-BDCDB0DC95FA5280068B0C8C";
+        var preview = bindings.preview(med);
+        assertThat(preview.candidates()).filteredOn(c -> specification.equals(c.specification().path("id").asString()))
+                .singleElement().satisfies(candidate -> {
+                    assertThat(candidate.specification().path("doseForm").asString()).isEqualTo("EXTENDED_RELEASE_CAPSULE");
+                    assertThat(candidate.canBind()).isTrue();
+                    assertThat(candidate.issues()).doesNotContain("STANDARD_REFERENCE_FORM_MISMATCH");
+                });
+        assertThat(bindings.bind(med, new Bind(preview.medication().revision(), preview.identity(), specification,
+                "已核对药品名称中的缓释属性及标准来源原文", true)).reference().status()).isEqualTo("LINKED");
+    }
+
+    @Test void new_and_updated_medications_cannot_contradict_the_standard_salt() throws Exception {
+        String body = """
+                {"code":"SALT-TEST","name":"%s","sdMedicationType":"WESTERN","sdDoseForm":"TABLET",
+                 "preparationSpec":"2.5mg","preparationUnit":"片","sdStatus":"ACTIVE",
+                 "prescriptionDrug":true,"essentialDrug":true,"antimicrobial":false,"skinTestRequired":false,
+                 "chronicDiseaseDrug":true,"singleOrder":true,
+                 "standardSpecificationId":"STD-A3832E968BCF6F87EF8919E2"}
+                """;
+        String base = "/api/platform/master-data/medications";
+        for (String name : java.util.List.of("左氨氯地平片", "马来酸左氨氯地平片"))
+            mockMvc.perform(post(base).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body.formatted(name)))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("MEDICATION_STANDARD_QUALIFIER_MISMATCH"));
+        var created = json(mockMvc.perform(post(base).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content(body.formatted("左氨氯地平（苯磺酸盐）"))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        var changed = (tools.jackson.databind.node.ObjectNode) json(body.formatted("马来酸左氨氯地平片"));
+        changed.put("expectedRevision", created.path("revision").asLong());
+        mockMvc.perform(put(base + "/" + created.path("id").asString()).with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content(changed.toString()))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("MEDICATION_STANDARD_QUALIFIER_MISMATCH"));
+    }
+
+    @Test void standard_onboarding_only_reuses_the_matching_salt() throws Exception {
+        jdbc.update("update RHN_BD_MED set NA_MED='苯磺酸左氨氯地平片' where ID_MED=362387880000581");
+        jdbc.update("update RHN_BD_MED set NA_MED='马来酸左氨氯地平片' where ID_MED=362387880000583");
+        mockMvc.perform(get("/api/platform/master-data/medication-standard-catalog/specifications/STD-A3832E968BCF6F87EF8919E2/medications")
+                .with(rhnWorkContext())).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value("362387880000581"));
+    }
     @Test void binding_preserves_medication_fields_and_records_before_after_provenance() throws Exception {
         var original = jdbc.queryForMap("select * from RHN_BD_MED where ID_MED=?", MED);
         var preview = bindings.preview(MED);
@@ -72,7 +134,7 @@ class MedicationStandardBindingTest extends RhnIntegrationTestSupport {
     }
     @Test void mismatched_strength_and_unrelated_medication_cannot_be_forced_into_a_reference() {
         var input = input();
-        jdbc.update("update RHN_BD_MED set QTY_STRENGTH_VAL=0.5 where ID_MED=?", MED);
+        jdbc.update("update RHN_BD_MED set QTY_STRNTH_VAL=0.5 where ID_MED=?", MED);
         assertThat(bindings.preview(MED).candidates()).filteredOn(c -> SPEC.equals(c.specification().path("id").asString()))
                 .singleElement().satisfies(c -> {assertThat(c.canBind()).isFalse(); assertThat(c.issues()).contains("STANDARD_REFERENCE_STRENGTH_MISMATCH");});
         assertThatThrownBy(() -> bindings.bind(MED, input)).hasMessageContaining("身份不一致");
@@ -81,7 +143,7 @@ class MedicationStandardBindingTest extends RhnIntegrationTestSupport {
         assertThatThrownBy(() -> bindings.bind(MED, input)).hasMessageContaining("身份不一致");
     }
     @Test void differing_identity_fields_are_reported_individually_without_allowing_a_binding() {
-        jdbc.update("update RHN_BD_MED set DOSE_FORM='INJECTION', PREPARATION_UNIT='支' where ID_MED=?", MED);
+        jdbc.update("update RHN_BD_MED set DOSE_FORM='INJECTION', PREP_UNIT='支' where ID_MED=?", MED);
         assertThat(bindings.preview(MED).candidates()).filteredOn(c -> SPEC.equals(c.specification().path("id").asString()))
                 .singleElement().satisfies(candidate -> {
                     assertThat(candidate.canBind()).isFalse();
@@ -96,18 +158,18 @@ class MedicationStandardBindingTest extends RhnIntegrationTestSupport {
         String id = specification.path("id").asString();
         String text = specification.path("specification").asString();
         assertThat(text).contains(":");
-        jdbc.update("update RHN_BD_MED set CD_MED='MED-2026-W016-TEST', NA_MED=?, NA_ALIAS=null, DOSE_FORM=?, PREPARATION_SPEC=?, QTY_STRENGTH_VAL=null, STRENGTH_UNIT=null where ID_MED=?",
+        jdbc.update("update RHN_BD_MED set CD_MED='MED-2026-W016-TEST', NA_MED=?, NA_ALIAS=null, DOSE_FORM=?, PREP_SPEC=?, QTY_STRNTH_VAL=null, STRNTH_UNIT=null where ID_MED=?",
                 specification.path("name").asString(), specification.path("doseForm").asString(), text.replace(":", "∶"), MED);
         assertThat(bindings.preview(MED).candidates()).filteredOn(c -> id.equals(c.specification().path("id").asString()))
                 .singleElement().satisfies(c -> assertThat(c.canBind()).isTrue());
-        jdbc.update("update RHN_BD_MED set PREPARATION_SPEC=? where ID_MED=?", "999ml∶999g", MED);
+        jdbc.update("update RHN_BD_MED set PREP_SPEC=? where ID_MED=?", "999ml∶999g", MED);
         assertThat(bindings.preview(MED).candidates()).noneMatch(c -> c.canBind());
     }
 
     @Test void a_matching_legacy_fragment_is_not_an_eligible_standard_identity() {
         String incomplete = "STD-E5ECB24E5709FE98BDD02477";
         var specification = medicationReferences.specification(incomplete);
-        jdbc.update("update RHN_BD_MED set CD_MED=?, NA_MED=?, NA_ALIAS=null, DOSE_FORM=?, PREPARATION_SPEC=?, PREPARATION_UNIT=?, QTY_STRENGTH_VAL=null, STRENGTH_UNIT=null where ID_MED=?",
+        jdbc.update("update RHN_BD_MED set CD_MED=?, NA_MED=?, NA_ALIAS=null, DOSE_FORM=?, PREP_SPEC=?, PREP_UNIT=?, QTY_STRNTH_VAL=null, STRNTH_UNIT=null where ID_MED=?",
                 specification.path("legacyCode").asString() + "-TEST", specification.path("name").asString(),
                 specification.path("doseForm").asString(), specification.path("specification").asString(), specification.path("presentationUnit").asString(null), MED);
         assertThat(bindings.preview(MED).candidates()).filteredOn(c -> incomplete.equals(c.specification().path("id").asString()))
@@ -118,17 +180,24 @@ class MedicationStandardBindingTest extends RhnIntegrationTestSupport {
                 identity.path("contentHash").asString(), 7L));
         assertThat(bindings.preview(MED).reference().status()).isEqualTo("MISMATCH");
         assertThat(medicationReferences.specificationIdentityIssues(medicationReferences.specification("STD-354530524284FB9E2230256B")))
-                .contains("STANDARD_SOURCE_FORM_BLOCK_REQUIRES_REVIEW");
+                .contains("STANDARD_COMPOSITION_FRAGMENT_REQUIRES_REVIEW");
         assertThat(medicationReferences.specificationIdentityIssues(medicationReferences.specification(SPEC))).isEmpty();
     }
 
-    @Test void a_claimed_standard_specification_is_not_duplicated() {
+    @Test void existing_local_records_share_identity_without_merging_business_ids_or_allowing_duplicate_canonical_creation() {
         var input = input(); var catalog = medicationReferences.summary();
         Long other = jdbc.queryForObject("select min(ID_MED) from RHN_BD_MED where ID_TNT=? and ID_MED<>?", Long.class, Long.valueOf(TENANT), MED);
         medicationSources.saveAndFlush(new com.rhn.platform.masterdata.domain.MedicationStandardSource(Long.valueOf(TENANT), other,
-                catalog.path("catalogId").asString(), catalog.path("catalogVersion").asString(), "OTHER-ENTRY", SPEC, catalog.path("contentHash").asString(), 7L));
-        assertThatThrownBy(() -> bindings.bind(MED, input)).hasMessageContaining("其他药品使用");
-        assertThat(bindings.preview(MED).candidates()).noneMatch(c -> c.canBind());
+                catalog.path("catalogId").asString(), catalog.path("catalogVersion").asString(), medicationReferences.specification(SPEC).path("entryId").asString(), SPEC, catalog.path("contentHash").asString(), 7L));
+        var products = jdbc.queryForList("select ID_MED, ID_CATALOG_ITEM from RHN_BD_MED_PRODUCT where ID_MED in (?, ?)", MED, other);
+        assertThat(bindings.bind(MED, input).reference().status()).isEqualTo("LINKED");
+        assertThat(medicationSources.findAllByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCodeOrderByMedicationIdAsc(
+                Long.valueOf(TENANT), catalog.path("catalogId").asString(), catalog.path("catalogVersion").asString(), SPEC)).hasSize(2);
+        assertThat(jdbc.queryForList("select ID_MED, ID_CATALOG_ITEM from RHN_BD_MED_PRODUCT where ID_MED in (?, ?)", MED, other)).isEqualTo(products);
+        assertThatThrownBy(() -> bindings.bind(MED, input)).hasMessageContaining("不能直接覆盖");
+        assertThatThrownBy(() -> medicationSources.saveAndFlush(new com.rhn.platform.masterdata.domain.MedicationStandardSource(Long.valueOf(TENANT), MED,
+                catalog.path("catalogId").asString(), catalog.path("catalogVersion").asString(), "ENTRY", SPEC, catalog.path("contentHash").asString(), 7L)))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
     @Test void authorization_tenant_and_inactive_boundaries_are_checked_on_write() throws Exception {
         var input = input();

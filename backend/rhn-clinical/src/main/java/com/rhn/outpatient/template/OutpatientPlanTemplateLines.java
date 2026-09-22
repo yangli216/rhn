@@ -41,21 +41,21 @@ class OutpatientPlanMedication {
     @Column(name = "CD_CAT", nullable = false) private String categoryCode;
     @Column(name = "CD_MED", nullable = false) private String medicationCode;
     @Column(name = "NA_MED", nullable = false) private String medicationName;
-    @Column(name = "PREPARATION_SPEC") private String preparationSpec;
+    @Column(name = "PREP_SPEC") private String preparationSpec;
     @Column(name = "NA_PRODUCT") private String productName;
     @Column(name = "QTY_DOSE_VAL") private BigDecimal doseValue;
     @Column(name = "DOSE_UNIT") private String doseUnit;
     @Column(name = "CD_ROUTE") private String routeCode;
     @Column(name = "CD_FREQ") private String frequencyCode;
-    @Column(name = "QTY_DURATION_VAL") private BigDecimal durationValue;
-    @Column(name = "DURATION_UNIT") private String durationUnit;
+    @Column(name = "QTY_DUR_VAL") private BigDecimal durationValue;
+    @Column(name = "DUR_UNIT") private String durationUnit;
     @Column(name = "QTY_ORDERED", nullable = false) private BigDecimal quantity;
     @Column(name = "QTY_UNIT") private String quantityUnit;
-    @Column(name = "FG_SUBSTITUTION", nullable = false) private boolean substitutionAllowed;
-    @Column(name = "FG_SELF_PROVIDED", nullable = false) private boolean selfProvided;
-    @Column(name = "DES_MED_INSTRUCTION") private String medicationInstruction;
+    @Column(name = "FG_SUBSTN", nullable = false) private boolean substitutionAllowed;
+    @Column(name = "FG_SELF_PRVDD", nullable = false) private boolean selfProvided;
+    @Column(name = "DES_MED_INSTR") private String medicationInstruction;
     @Column(name = "SD_PRICE_TYPE") private String priceType;
-    @Column(name = "FG_PRICING_REQUIRED", nullable = false) private boolean pricingRequired;
+    @Column(name = "FG_PRICING_RQD", nullable = false) private boolean pricingRequired;
     @Column(name = "DES_REASON") private String reason;
 
     protected OutpatientPlanMedication() {}
@@ -103,9 +103,9 @@ class OutpatientPlanServiceLine {
     @Column(name = "QTY_ORDERED", nullable = false) private BigDecimal quantity;
     @Column(name = "CD_UNIT") private String unitCode;
     @Column(name = "SD_PRICE_TYPE") private String priceType;
-    @Column(name = "FG_PRICING_REQUIRED", nullable = false) private boolean pricingRequired;
+    @Column(name = "FG_PRICING_RQD", nullable = false) private boolean pricingRequired;
     @Column(name = "DES_REASON") private String reason;
-    @Column(name = "DES_CLIN_DESCRIPTION") private String clinicalDescription;
+    @Column(name = "DES_CLIN_DESCR") private String clinicalDescription;
 
     protected OutpatientPlanServiceLine() {}
     OutpatientPlanServiceLine(Long tenantId, Long templateId, int lineNo, Long catalogItemId,

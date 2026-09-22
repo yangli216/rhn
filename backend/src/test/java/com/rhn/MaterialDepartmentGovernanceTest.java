@@ -58,13 +58,13 @@ class MaterialDepartmentGovernanceTest extends RhnIntegrationTestSupport {
     @DisplayName("既有药学管理与仓储科室的属性已规范订正为 PHARMACY")
     void existing_pharmacy_and_drug_warehouse_properties_standardized() {
         String pharmacyDeptProp = jdbc.queryForObject(
-                "select SD_DEPT_PROPERTY from RHN_SYS_DEPT where CD_DEPT = 'PHARMACY_DEPT'",
+                "select SD_DEPT_PROP from RHN_SYS_DEPT where CD_DEPT = 'PHARMACY_DEPT'",
                 String.class
         );
         assertEquals("PHARMACY", pharmacyDeptProp, "药学部属性应为 PHARMACY");
 
         String drugWarehouseProp = jdbc.queryForObject(
-                "select SD_DEPT_PROPERTY from RHN_SYS_DEPT where CD_DEPT = 'DRUG_WAREHOUSE'",
+                "select SD_DEPT_PROP from RHN_SYS_DEPT where CD_DEPT = 'DRUG_WAREHOUSE'",
                 String.class
         );
         assertEquals("PHARMACY", drugWarehouseProp, "药库属性应为 PHARMACY");

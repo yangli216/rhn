@@ -23,7 +23,7 @@ public class MasterDataImportBatch {
     @Column(name = "QTY_TOTAL_ROW", nullable = false) private int totalRows;
     @Column(name = "QTY_READY_ROW", nullable = false) private int readyRows;
     @Column(name = "QTY_INVALID_ROW", nullable = false) private int invalidRows;
-    @Column(name = "QTY_IMPORTED_ROW", nullable = false) private int importedRows;
+    @Column(name = "QTY_IMPRTD_ROW", nullable = false) private int importedRows;
     @Column(name = "QTY_FAILED_ROW", nullable = false) private int failedRows;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;

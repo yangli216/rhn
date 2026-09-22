@@ -19,8 +19,8 @@ class WorkTaskHistory {
     @Column(name = "SD_TO_STATUS", nullable = false) private String toStatus;
     @Column(name = "ID_USER_ACTOR") private Long actorId;
     @Column(name = "DES_COMMENT") private String comment;
-    @Column(name = "ID_CORRELATION", nullable = false) private String correlationId;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_CORR", nullable = false) private String correlationId;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
 
     protected WorkTaskHistory() {
     }

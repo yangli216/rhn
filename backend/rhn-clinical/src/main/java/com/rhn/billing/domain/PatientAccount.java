@@ -20,7 +20,7 @@ public class PatientAccount {
     @Column(name = "ID_ORG", nullable = false) private Long organizationId;
     @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "SD_ACCT_TYPE", nullable = false) private String accountType;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_OPENED", nullable = false) private Instant openedAt;
     @Column(name = "DT_CLOSED") private Instant closedAt;

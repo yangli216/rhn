@@ -18,8 +18,8 @@ public class WardDeliveryEvent {
     @Column(name = "SD_FROM_STATUS") private String fromStatus;
     @Column(name = "SD_TO_STATUS", nullable = false) private String toStatus;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
-    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCRD", nullable = false) private Long occurredBy;
     @Column(name = "DES_NOTE") private String note;
 
     protected WardDeliveryEvent() {}

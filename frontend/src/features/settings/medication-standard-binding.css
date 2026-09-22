@@ -1,12 +1,27 @@
-.standard-binding__workspace { display: grid; grid-template-columns: minmax(260px, .7fr) minmax(520px, 1.5fr); gap: 24px; margin-top: 16px; }
-.standard-binding__workspace > section { min-width: 0; }
-.standard-binding__workspace dl > div { display: grid; grid-template-columns: 90px 1fr; gap: 12px; padding: 8px 0; }
-.standard-binding__workspace dt, .standard-binding__workspace small { color: var(--color-text-secondary); }
-.standard-binding__workspace dd { margin: 0; }
-.standard-binding__workspace small { display: block; margin-top: 4px; font-size: 12px; overflow-wrap: anywhere; }
-.standard-binding__workspace table { width: 100%; border-collapse: collapse; }
-.standard-binding__workspace th, .standard-binding__workspace td { padding: 10px; text-align: left; border-bottom: 1px solid var(--color-border); }
-.standard-binding__workspace .ui-table-scroll { max-height: 330px; overflow: auto; }
-.standard-binding__workspace article { padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; margin: 12px 0; overflow-wrap: anywhere; }
-.standard-binding__workspace textarea { width: 100%; resize: vertical; }
-.standard-binding__confirm { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
+.standard-binding { width: min(72rem, calc(100vw - 4rem)); }
+.standard-binding__body { display: grid; gap: var(--layout-section-gap); }
+.standard-binding__body > section { min-width: 0; }
+.standard-binding__body p { margin: var(--space-2) 0; }
+.standard-binding__facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--layout-panel-gap); margin: var(--space-2) 0 0; }
+.standard-binding__facts dt, .standard-binding__secondary { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.standard-binding__facts dd { margin: var(--space-1) 0 0; overflow-wrap: anywhere; }
+.standard-binding__choices { display: grid; gap: var(--layout-panel-gap); }
+.standard-binding__choice { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.standard-binding__choice:has(input:checked) { border-color: var(--color-primary); }
+.standard-binding__choice input, .standard-binding__confirm input { flex-shrink: 0; margin-top: var(--space-1); }
+.standard-binding__choice > span { min-width: 0; overflow-wrap: anywhere; }
+.standard-binding__line { display: block; margin-top: var(--space-1); }
+.standard-binding__notice { padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow-wrap: anywhere; }
+.standard-binding__source { white-space: pre-wrap; }
+.standard-binding__details { margin-top: var(--space-2); overflow-wrap: anywhere; }
+.standard-binding__details summary { cursor: pointer; }
+.standard-binding__excluded { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-6); }
+.standard-binding__excluded-item { min-width: 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow-wrap: anywhere; }
+.standard-binding__comparison { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin-top: var(--space-2); font-size: var(--font-size-small); }
+.standard-binding__comparison span { color: var(--color-text-secondary); }
+.standard-binding__body textarea { width: 100%; resize: vertical; }
+.standard-binding__confirm { display: flex; align-items: flex-start; gap: var(--space-2); margin-top: var(--space-2); }
+.standard-binding__qualification { color: var(--color-text-secondary); }
+.standard-binding__resolution { padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.standard-binding__resolution-item + .standard-binding__resolution-item { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
+.standard-binding__resolution-item p { max-width: 58rem; }

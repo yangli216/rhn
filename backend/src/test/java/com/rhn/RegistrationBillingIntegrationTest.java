@@ -82,7 +82,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
 
         assertEquals(0, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
-        assertEquals(1, jdbc.queryForObject("select QTY_OCCUPIED from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
+        assertEquals(1, jdbc.queryForObject("select QTY_OCCPD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
         assertEquals("CONSUMED", jdbc.queryForObject("select SD_STATUS as status from RHN_SC_SCHED_SLOT_HOLD where ID_SCHED_SLOT_HOLD = ?",
                 String.class, Long.valueOf(holdId)));
@@ -480,7 +480,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 "select q.SD_STATUS as status from RHN_SC_QUEUE_TICKET q join RHN_SC_PAT_REG r " +
                         "on r.ID_TNT = q.ID_TNT and q.SD_SOURCE_TYPE = 'PAT_REG' and r.ID_PAT_REG = q.ID_SOURCE " +
                         "where r.ID_ENC = ?", String.class, Long.valueOf(encounterId)));
-        assertEquals(0, jdbc.queryForObject("select QTY_OCCUPIED from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
+        assertEquals(0, jdbc.queryForObject("select QTY_OCCPD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
         assertEquals(1, jdbc.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM " +
                         "where SD_SRC_TYPE = 'REGISTRATION_REVERSAL' and ID_SRC = ?",
@@ -488,7 +488,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         assertEquals(1, jdbc.queryForObject("select count(*) from RHN_BIL_PAY_ORDER " +
                         "where ID_PAT_ACCT = ? and SD_ORDER_TYPE = 'REFUND'",
                 Integer.class, completed.get("patientAccountId").asLong()));
-        BigDecimal balance = jdbc.queryForObject("select coalesce(sum(case when SD_DIRECTION = 'DEBIT' then AMT_ENTRY " +
+        BigDecimal balance = jdbc.queryForObject("select coalesce(sum(case when SD_DIR = 'DEBIT' then AMT_ENTRY " +
                         "else -AMT_ENTRY end), 0) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ?",
                 BigDecimal.class, completed.get("patientAccountId").asLong());
         assertEquals(0, balance.compareTo(BigDecimal.ZERO));
@@ -666,7 +666,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.tenderedAmount").value(10.0))
                 .andExpect(jsonPath("$.outstandingAmount").value(0.0))
                 .andExpect(jsonPath("$.tenders.length()").value(3));
-        BigDecimal balance = jdbc.queryForObject("select coalesce(sum(case when SD_DIRECTION = 'DEBIT' then AMT_ENTRY " +
+        BigDecimal balance = jdbc.queryForObject("select coalesce(sum(case when SD_DIR = 'DEBIT' then AMT_ENTRY " +
                         "else -AMT_ENTRY end), 0) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ?", BigDecimal.class,
                 intent.get("patientAccountId").asLong());
         assertEquals(0, balance.compareTo(BigDecimal.ZERO));
@@ -699,13 +699,13 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.tenderedAmount").value(3.0))
                 .andExpect(jsonPath("$.outstandingAmount").value(7.0))
                 .andExpect(jsonPath("$.tenders.length()").value(5));
-        balance = jdbc.queryForObject("select coalesce(sum(case when SD_DIRECTION = 'DEBIT' then AMT_ENTRY " +
+        balance = jdbc.queryForObject("select coalesce(sum(case when SD_DIR = 'DEBIT' then AMT_ENTRY " +
                         "else -AMT_ENTRY end), 0) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ?", BigDecimal.class,
                 intent.get("patientAccountId").asLong());
         assertEquals(0, balance.compareTo(new BigDecimal("7.000000")));
         assertEquals(2, jdbc.queryForObject("select count(*) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ? " +
-                        "and ID_CLAIM_RESP is not null and SD_DIRECTION = 'DEBIT' " +
-                        "and ID_LEDGER_ENTRY_REVERSES is not null",
+                        "and ID_CLAIM_RESP is not null and SD_DIR = 'DEBIT' " +
+                        "and ID_LEDGER_ENTRY_RVRS is not null",
                 Integer.class, intent.get("patientAccountId").asLong()));
     }
 

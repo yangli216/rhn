@@ -25,12 +25,12 @@ class Condition {
     @Column(name = "CD_COND", nullable = false) private String conditionCode;
     @Column(name = "NA_COND", nullable = false) private String conditionName;
     @Column(name = "SD_CLIN_STATUS", nullable = false) private String clinicalStatus;
-    @Column(name = "SD_VERIFICATION_STATUS", nullable = false) private String verificationStatus;
+    @Column(name = "SD_VRFCTN_STATUS", nullable = false) private String verificationStatus;
     @Column(name = "DT_ONSET") private Instant onsetAt;
-    @Column(name = "DT_ABATEMENT") private Instant abatementAt;
-    @Column(name = "DT_RECORDED", nullable = false) private Instant recordedAt;
-    @Column(name = "ID_PRACT_RECORDER", nullable = false) private Long recorderPractitionerId;
-    @Column(name = "ID_USER_RECORDER", nullable = false) private Long recorderUserId;
+    @Column(name = "DT_ABATE") private Instant abatementAt;
+    @Column(name = "DT_RECDD", nullable = false) private Instant recordedAt;
+    @Column(name = "ID_PRACT_RECDR", nullable = false) private Long recorderPractitionerId;
+    @Column(name = "ID_USER_RECDR", nullable = false) private Long recorderUserId;
 
     protected Condition() {
     }

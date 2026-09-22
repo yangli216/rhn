@@ -11,7 +11,7 @@ import { SettlementPaymentPanel, type SettlementModeCode,
 import { CashierPanel } from '../../shared/billing/CashierPanel'
 import { AggregatedPaymentModal } from '../../shared/billing/AggregatedPaymentModal'
 import { FiscalReceiptModal } from '../../shared/billing/FiscalReceiptModal'
-import { Alert, Button, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
+import { Alert, Button, DataTable, SearchField, tableCellClass, PanelHead, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
 import { Icon } from '../../shared/ui/Icon'
 import { age, genderLabel } from '../../shared/format'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
@@ -666,7 +666,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     + allCurrentReceipts.length
 
   return <div className="billing-page">
-    <PageHeader eyebrow="收费管理" title="收费结算" description="处理费用核对、结算和患者收款。" />
+    <PageHeader compact eyebrow="收费管理" title="收费结算" description="处理费用核对、结算和患者收款。" />
     {error && <Alert>{errorMessage(error)}</Alert>}
     {scanNotice && <Alert tone={scanNotice.tone} onDismiss={() => setScanNotice(null)}>{scanNotice.text}</Alert>}
     {worklist.isPending ? <LoadingState label="正在加载收费队列…" /> : <div className="billing-workspace-scroll">
@@ -678,11 +678,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
         }}
         action={
           <Button
-            size="sm"
-            variant="secondary"
+            variant="text"
             onClick={() => void refresh()}
             busy={worklist.isPending}
-            className="billing-queue-refresh-btn"
             title="刷新待收费列表"
             aria-label="刷新待收费列表"
           >
@@ -734,10 +732,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           ) : (
             <div className="billing-patient-lookup-bar">
               <div className="billing-patient-lookup__control">
-                <Icon name="search" />
-                <input ref={searchInputRef} type="search" value={patientLookup}
+                <SearchField inputRef={searchInputRef} label="患者检索" value={patientLookup}
                   placeholder="输入姓名 / 就诊卡号 / 医保码快速检索并按回车确认 (F1)"
-                  onChange={(event) => setPatientLookup(event.target.value)}
+                  onChange={setPatientLookup}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter') return
                     const code = patientLookup.trim().toLowerCase()
@@ -748,9 +745,6 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                       setEncounterId(match.encounterId)
                     }
                   }} />
-                {patientLookup && <button type="button" aria-label="清空患者检索" onClick={() => setPatientLookup('')}>
-                  <Icon name="close" />
-                </button>}
               </div>
               <div className="billing-patient-placeholder">
                 <Icon name="residents" />
@@ -762,14 +756,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
 
         <div className="billing-workbench">
       <Panel className="billing-statement">
-        <header className="billing-section-head">
-          <div className="billing-section-head__title">
-            <h2>费用明细与单据</h2>
-            {statement.data && (
-              <span>共 {documentGroups.length} 张单据 · {statement.data.charges.length} 项收费</span>
-            )}
-          </div>
-          <div className="billing-section-head__actions">
+        <PanelHead title="费用明细与单据"
+          meta={statement.data && `共 ${documentGroups.length} 张单据 · ${statement.data.charges.length} 项收费`}
+          actions={<div className="billing-section-head__actions billing-selection-toolbar">
             {selected?.status === 'PENDING_CHARGE' && (
               <Button size="sm" onClick={() => synchronize.mutate()} busy={synchronize.isPending}>同步计费</Button>
             )}
@@ -793,8 +782,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                 </span>
               </div>
             )}
-          </div>
-        </header>
+          </div>} />
         {!selected ? (
           <EmptyState icon="billing" title="请选择待收费患者" copy="在左侧待收费列表中选择患者后查看费用明细及办理结算。" />
         ) : !selected.accountId ? (
@@ -855,29 +843,28 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                           <span className="billing-doc-card__amount">
                             小计 <strong>{money(group.totalAmount, currency)}</strong>
                           </span>
-                          <button
-                            type="button"
-                            className="billing-doc-card__collapse-btn"
+                          <Button variant="text"
+                            aria-expanded={!isCollapsed}
                             onClick={() => toggleDocCollapse(group.id)}
                             aria-label={isCollapsed ? '展开单据明细' : '折叠单据明细'}
                           >
                             <Icon name={isCollapsed ? 'chevron-down' : 'chevron-up'} />
-                          </button>
+                          </Button>
                         </div>
                       </header>
 
                       {!isCollapsed && (
                         <div className="billing-doc-card__body">
-                          <table className="billing-table billing-table--compact">
+                          <DataTable compact aria-label="单据费用明细">
                             <thead>
                               <tr>
-                                <th style={{ width: '2.5rem' }}></th>
+                                <th className={tableCellClass('control')} aria-label="选择项目"></th>
                                 <th>项目名称</th>
-                                <th>数量</th>
-                                <th>单价</th>
-                                <th>金额</th>
+                                <th className={tableCellClass('numeric')}>数量</th>
+                                <th className={tableCellClass('numeric')}>单价</th>
+                                <th className={tableCellClass('numeric')}>金额</th>
                                 <th>开单时间</th>
-                                <th>结算状态</th>
+                                <th className={tableCellClass('status')}>结算状态</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -886,7 +873,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                                 const isSelected = selectedChargeIds.has(charge.id)
                                 return (
                                   <tr key={charge.id} className={isSelected && !isInvoiced ? 'is-selected' : ''}>
-                                    <td>
+                                    <td className={tableCellClass('control')}>
                                       {!isInvoiced ? (
                                         <input
                                           type="checkbox"
@@ -915,13 +902,13 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                                         )}
                                       </div>
                                     </td>
-                                    <td>{charge.quantity} {formatUnit(charge.unitCode, charge.unitName)}</td>
-                                    <td>{money(charge.unitPrice, charge.currencyCode)}</td>
-                                    <td className={charge.totalAmount < 0 ? 'is-negative' : ''}>
+                                    <td className={tableCellClass('numeric')}>{charge.quantity} {formatUnit(charge.unitCode, charge.unitName)}</td>
+                                    <td className={tableCellClass('numeric')}>{money(charge.unitPrice, charge.currencyCode)}</td>
+                                    <td className={tableCellClass('numeric')}>
                                       {money(charge.totalAmount, charge.currencyCode)}
                                     </td>
                                     <td>{new Date(charge.occurredAt).toLocaleString('zh-CN')}</td>
-                                    <td>
+                                    <td className={tableCellClass('status')}>
                                       {isInvoiced ? (
                                         <StatusBadge tone="success">已结</StatusBadge>
                                       ) : (
@@ -932,7 +919,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                                 )
                               })}
                             </tbody>
-                          </table>
+                          </DataTable>
                         </div>
                       )}
                     </div>

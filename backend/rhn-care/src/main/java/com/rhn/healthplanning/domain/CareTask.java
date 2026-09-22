@@ -26,12 +26,12 @@ public class CareTask {
     @Column(name = "CD_TASK", nullable = false) private String taskCode;
     @Enumerated(EnumType.STRING) @Column(name = "SD_TASK_TYPE", nullable = false) private CareTaskType taskType;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private CareTaskStatus status;
-    @Enumerated(EnumType.STRING) @Column(name = "SD_PRIORITY", nullable = false) private CareTaskPriority priority;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_PRI", nullable = false) private CareTaskPriority priority;
     @Column(name = "ID_PRACT_OWNER") private Long ownerPractitionerId;
     @Column(name = "ID_ORG_OWNER") private Long ownerOrganizationId;
     @Column(name = "ID_DEPT_OWNER") private Long ownerDepartmentId;
     @Column(name = "DT_DUE") private Instant dueAt;
-    @Column(name = "CD_ESCALATION_RULE") private String escalationRuleCode;
+    @Column(name = "CD_ESCLN_RULE") private String escalationRuleCode;
     @Column(name = "NA_TITLE", nullable = false) private String title;
     @Column(name = "DES_CARE_TASK") private String description;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;

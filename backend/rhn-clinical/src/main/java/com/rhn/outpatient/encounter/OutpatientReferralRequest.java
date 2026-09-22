@@ -31,19 +31,19 @@ class OutpatientReferralRequest {
     @Column(name = "SD_URGENCY", nullable = false) private ReferralUrgency urgency;
     @Column(name = "DES_REFER_REASON", nullable = false) private String referralReason;
     @Column(name = "DES_CLIN_SUM", nullable = false) private String clinicalSummary;
-    @Column(name = "DT_EXPECTED") private Instant expectedAt;
+    @Column(name = "DT_EXPCTD") private Instant expectedAt;
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_STATUS", nullable = false) private ReferralStatus status;
     @Column(name = "ID_PAT_REG_TARGET") private Long targetRegistrationId;
     @Column(name = "ID_ENC_TARGET") private Long targetEncounterId;
-    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedBy;
-    @Column(name = "DT_REQUESTED", nullable = false) private Instant requestedAt;
-    @Column(name = "ID_USER_ACCEPTED") private Long acceptedBy;
-    @Column(name = "DT_ACCEPTED") private Instant acceptedAt;
-    @Column(name = "ID_USER_COMPLETED") private Long completedBy;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "ID_USER_REQD", nullable = false) private Long requestedBy;
+    @Column(name = "DT_REQD", nullable = false) private Instant requestedAt;
+    @Column(name = "ID_USER_ACPTD") private Long acceptedBy;
+    @Column(name = "DT_ACPTD") private Instant acceptedAt;
+    @Column(name = "ID_USER_CMPLD") private Long completedBy;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
     @Column(name = "DES_OUTCOME") private String outcomeText;
-    @Column(name = "DES_REJECTION_REASON") private String rejectionReason;
+    @Column(name = "DES_REJCTN_REASON") private String rejectionReason;
     @Column(name = "CD_CREATE_COMMAND", nullable = false) private String createCommandCode;
 
     protected OutpatientReferralRequest() {}

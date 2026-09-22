@@ -158,7 +158,7 @@ class MedicationKnowledgeDeploymentTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACTIVE")).andExpect(jsonPath("$.safetyEvaluation.mode").value("SHADOW"))
                 .andExpect(jsonPath("$.safetyEvaluation.decision").value("BLOCK"));
         assertThat(deployments.observations(c.id(),d.id(),0).counts()).containsEntry("MATCH",1L);
-        assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_PRESCRIPTION=? and SD_MODE='ENFORCED'",Integer.class,prescription)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_RX=? and SD_MODE='ENFORCED'",Integer.class,prescription)).isZero();
     }
 
     @Test void concurrent_deployments_cannot_overwrite_the_same_governance_revision() throws Exception {

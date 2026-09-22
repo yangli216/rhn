@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -131,6 +131,11 @@ describe('EncounterQueryWorkspace', () => {
     expect(screen.getByText('王芳')).toBeInTheDocument()
     expect(screen.getByText('急性上呼吸道感染')).toBeInTheDocument()
     expect(screen.getByText('共 2 条 · 全科医疗科')).toBeInTheDocument()
+    const statusSummary = screen.getByLabelText('就诊状态汇总')
+    expect(statusSummary).toBeInTheDocument()
+    expect(within(statusSummary).getByText('接诊中 / 暂挂')).toBeInTheDocument()
+    expect(within(statusSummary).getByText('已诊毕 / 已转科')).toBeInTheDocument()
+    expect(within(statusSummary).getByText('已终止 / 已取消')).toBeInTheDocument()
 
     // 改变日期范围触发接口查询
     fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026-09-20' } })

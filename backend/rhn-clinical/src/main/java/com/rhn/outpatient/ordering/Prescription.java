@@ -27,12 +27,12 @@ class Prescription {
     @Column(name = "ID_DEPT_EXEC", nullable = false) private Long performerDepartmentId;
     @Column(name = "ID_ORG_REQ", nullable = false) private Long requestingOrganizationId;
     @Column(name = "ID_DEPT_REQ", nullable = false) private Long requestingDepartmentId;
-    @Column(name = "DT_AUTHORED", nullable = false) private Instant authoredAt;
-    @Column(name = "ID_USER_AUTHORED", nullable = false) private Long authoredBy;
-    @Column(name = "DT_SUBMITTED") private Instant submittedAt;
-    @Column(name = "ID_USER_SUBMITTED") private Long submittedBy;
-    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
-    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DT_AUTHRD", nullable = false) private Instant authoredAt;
+    @Column(name = "ID_USER_AUTHRD", nullable = false) private Long authoredBy;
+    @Column(name = "DT_SUBMTD") private Instant submittedAt;
+    @Column(name = "ID_USER_SUBMTD") private Long submittedBy;
+    @Column(name = "DT_CNCLD") private Instant cancelledAt;
+    @Column(name = "ID_USER_CNCLD") private Long cancelledBy;
     @Column(name = "DES_CANCEL_REASON") private String cancelReason;
     @Column(name = "DES_NOTE") private String note;
 

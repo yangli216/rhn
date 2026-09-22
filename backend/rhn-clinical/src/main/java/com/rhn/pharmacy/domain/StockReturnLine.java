@@ -14,18 +14,18 @@ public class StockReturnLine {
     @Id @Column(name = "ID_STOCK_RETURN_LINE") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_STOCK_RETURN", nullable = false) private Long stockReturnId;
-    @Column(name = "ID_MED_DISP_LINE_ORIGINAL", nullable = false) private Long originalDispenseLineId;
+    @Column(name = "ID_MED_DISP_LINE_ORIG", nullable = false) private Long originalDispenseLineId;
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
     @Column(name = "ID_STOCK_BIN", nullable = false) private Long stockBinId;
     @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
     @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
     @Column(name = "ID_INV_TXN_LINE", nullable = false) private Long inventoryTransactionLineId;
-    @Column(name = "QTY_REQUESTED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityRequested;
-    @Column(name = "QTY_ACCEPTED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityAccepted;
+    @Column(name = "QTY_REQD", nullable = false, precision = 28, scale = 8) private BigDecimal quantityRequested;
+    @Column(name = "QTY_ACPTD", nullable = false, precision = 28, scale = 8) private BigDecimal quantityAccepted;
     @Column(name = "CD_RETURN_UNIT", nullable = false) private String returnUnitCode;
-    @Column(name = "BASE_QUANTITY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
-    @Column(name = "SD_DISPOSITION", nullable = false) private String disposition;
-    @Column(name = "DES_EXCEPT_DESCRIPTION") private String exceptionDescription;
+    @Column(name = "BASE_QTY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
+    @Column(name = "SD_DISPOS", nullable = false) private String disposition;
+    @Column(name = "DES_EXCEPT_DESCR") private String exceptionDescription;
 
     protected StockReturnLine() {}
 

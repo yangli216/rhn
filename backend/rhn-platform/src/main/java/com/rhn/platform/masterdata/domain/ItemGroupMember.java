@@ -18,8 +18,8 @@ public class ItemGroupMember {
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
     @Column(name = "QTY_MEMBER", nullable = false) private BigDecimal quantity;
     @Column(name = "CD_UNIT") private String unitCode;
-    @Column(name = "FG_REQUIRED_MEMBER", nullable = false) private boolean requiredMember;
-    @Column(name = "DES_MEMBER_DESCRIPTION") private String memberDescription;
+    @Column(name = "FG_RQD_MEMBER", nullable = false) private boolean requiredMember;
+    @Column(name = "DES_MEMBER_DESCR") private String memberDescription;
 
     protected ItemGroupMember() {}
 

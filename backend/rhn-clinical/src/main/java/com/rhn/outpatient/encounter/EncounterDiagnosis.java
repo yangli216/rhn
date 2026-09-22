@@ -39,7 +39,7 @@ class EncounterDiagnosis {
     private String display;
     @Column(name = "CD_CODE_SYS_SNAP")
     private String codeSystemCodeSnapshot;
-    @Column(name = "CODE_SYSTEM_VERSION_SNAPSHOT")
+    @Column(name = "CODE_SYSTEM_VERSION_SNAP")
     private String codeSystemVersionSnapshot;
     @Column(name = "SD_DIAG_DOMAIN", nullable = false)
     private String diagnosisDomain;
@@ -52,11 +52,11 @@ class EncounterDiagnosis {
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_DIAG_TYPE", nullable = false)
     private DiagnosisType diagnosisType;
-    @Column(name = "DT_RECORDED", nullable = false)
+    @Column(name = "DT_RECDD", nullable = false)
     private Instant recordedAt;
-    @Column(name = "CD_BUSINESS_VER_NO", nullable = false)
+    @Column(name = "CD_BIZ_VER_NO", nullable = false)
     private int businessVersionNo;
-    @Column(name = "SD_VERIFICATION_STATUS", nullable = false)
+    @Column(name = "SD_VRFCTN_STATUS", nullable = false)
     private String verificationStatus;
     @Column(name = "SD_DIAG_STATUS", nullable = false)
     private String diagnosisStatus;

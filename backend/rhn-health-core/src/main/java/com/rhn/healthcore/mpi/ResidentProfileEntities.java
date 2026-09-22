@@ -19,12 +19,12 @@ final class ResidentProfileEntities {
 class ResidentDemographicProfile {
     @Id @Column(name = "ID_PAT") private Long residentId;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
-    @Column(name = "CD_NATIONALITY") private String nationalityCode;
-    @Column(name = "CD_ETHNICITY") private String ethnicityCode;
-    @Column(name = "CD_RESIDENCY_TYPE") private String residencyTypeCode;
+    @Column(name = "CD_NATLTY") private String nationalityCode;
+    @Column(name = "CD_ETHNIC") private String ethnicityCode;
+    @Column(name = "CD_RESDNCY_TYPE") private String residencyTypeCode;
     @Column(name = "CD_MARITAL_STATUS") private String maritalStatusCode;
-    @Column(name = "CD_EDUCATION") private String educationCode;
-    @Column(name = "CD_OCCUPATION") private String occupationCode;
+    @Column(name = "CD_EDUC") private String educationCode;
+    @Column(name = "CD_OCCUPN") private String occupationCode;
     @Column(name = "CD_BLOOD_TYPE") private String bloodTypeCode;
     @Column(name = "CD_RH_TYPE") private String rhTypeCode;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
@@ -71,8 +71,8 @@ class ResidentEmployment {
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
-    @Column(name = "NA_EMPLOYER", nullable = false) private String employerName;
-    @Column(name = "CD_OCCUPATION") private String occupationCode;
+    @Column(name = "NA_EMPLYR", nullable = false) private String employerName;
+    @Column(name = "CD_OCCUPN") private String occupationCode;
     @Column(name = "CD_PHONE") private String phone;
     @Column(name = "CD_POSTAL") private String postalCode;
     @Column(name = "DES_ADDRESS") private String addressText;
@@ -111,11 +111,11 @@ class ResidentAddress {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "CD_USE", nullable = false) private String useCode;
-    @Column(name = "CD_PROVINCE") private String provinceCode;
+    @Column(name = "CD_PROV") private String provinceCode;
     @Column(name = "CD_CITY") private String cityCode;
-    @Column(name = "CD_DISTRICT") private String districtCode;
+    @Column(name = "CD_DIST") private String districtCode;
     @Column(name = "CD_STREET") private String streetCode;
-    @Column(name = "CD_COMMUNITY") private String communityCode;
+    @Column(name = "CD_COMM") private String communityCode;
     @Column(name = "DES_ADDRESS", nullable = false) private String addressText;
     @Column(name = "CD_POSTAL") private String postalCode;
     @Column(name = "FG_PRIMARY_FLAG", nullable = false) private boolean primary;
@@ -157,11 +157,11 @@ class ResidentRelatedPerson {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "NA_FULL", nullable = false) private String fullName;
-    @Column(name = "CD_RELATIONSHIP", nullable = false) private String relationshipCode;
+    @Column(name = "CD_RELSHIP", nullable = false) private String relationshipCode;
     @Column(name = "CD_PHONE") private String phone;
     @Column(name = "DES_ADDRESS") private String addressText;
-    @Column(name = "FG_GUARDIAN_FLAG", nullable = false) private boolean guardian;
-    @Column(name = "FG_EMERGENCY_CONTACT_FLAG", nullable = false) private boolean emergencyContact;
+    @Column(name = "FG_GUARD_FLAG", nullable = false) private boolean guardian;
+    @Column(name = "FG_EMERG_CONTACT_FLAG", nullable = false) private boolean emergencyContact;
     @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
     @Column(name = "DA_VALID_TO") private LocalDate validTo;
     @Column(name = "SD_STATUS", nullable = false) private String status;

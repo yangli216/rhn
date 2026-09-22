@@ -115,7 +115,7 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
 
         jdbc.update("update RHN_SC_SVC_SCHED set DA_SVC = ? where ID_SVC_SCHED = ?",
                 LocalDate.now(), Long.valueOf(scheduleId));
-        jdbc.update("update RHN_BD_CATALOG_ITEM set FG_CHARGEABLE = false where ID_CATALOG_ITEM = ?", 362387869795104L);
+        jdbc.update("update RHN_BD_CATALOG_ITEM set FG_CHGBL = false where ID_CATALOG_ITEM = ?", 362387869795104L);
         JsonNode completed = json(mockMvc.perform(post("/api/billing/registration-intents")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s",
@@ -168,7 +168,7 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
 
     private void assertPool(String scheduleId, int occupied) {
         assertEquals(occupied, jdbc.queryForObject(
-                "select QTY_OCCUPIED from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
+                "select QTY_OCCPD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
     }
 }

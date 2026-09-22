@@ -19,10 +19,10 @@ public class PharmacyReview {
     @Column(name = "SD_RESULT", nullable = false) private String result;
     @Column(name = "CD_REASON") private String reasonCode;
     @Column(name = "DES_PHARM_REVIEW") private String description;
-    @Column(name = "ID_PHARMACIST_PRACT", nullable = false) private Long pharmacistPractitionerId;
-    @Column(name = "ID_REVIEWER_USER", nullable = false) private Long reviewerUserId;
-    @Column(name = "ID_REVIEWER_ASSIGN", nullable = false) private Long reviewerAssignmentId;
-    @Column(name = "DT_REVIEWED", nullable = false) private Instant reviewedAt;
+    @Column(name = "ID_PHMCST_PRACT", nullable = false) private Long pharmacistPractitionerId;
+    @Column(name = "ID_RVWR_USER", nullable = false) private Long reviewerUserId;
+    @Column(name = "ID_RVWR_ASSIGN", nullable = false) private Long reviewerAssignmentId;
+    @Column(name = "DT_RVWD", nullable = false) private Instant reviewedAt;
 
     protected PharmacyReview() {}
 

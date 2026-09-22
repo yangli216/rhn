@@ -16,10 +16,10 @@ public class InpatientBedProfile {
     @Version @Column(name = "REVISION", nullable = false) private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "SD_BED_TYPE", nullable = false) private String bedType;
-    @Column(name = "SD_GENDER_RESTRICTION", nullable = false) private String genderRestriction;
-    @Column(name = "SD_OPERATIONAL_STATUS", nullable = false) private String operationalStatus;
+    @Column(name = "SD_GENDER_RSTRCT", nullable = false) private String genderRestriction;
+    @Column(name = "SD_OPERAT_STATUS", nullable = false) private String operationalStatus;
     @Column(name = "CD_NURS_GRP") private String nursingGroupCode;
-    @Column(name = "ID_RESPONSIBLE_NURSE") private Long responsibleNurseId;
+    @Column(name = "ID_RSPNSBL_NURSE") private Long responsibleNurseId;
     @Column(name = "PRICE_BED_DAY") private BigDecimal dailyBedRate;
     @Column(name = "ID_CATALOG_ITEM_CHARGE") private Long chargeCatalogItemId;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;

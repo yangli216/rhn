@@ -27,23 +27,23 @@ public class InpatientMedicationSupplyLine {
     @Column(name = "NA_PAT_SNAP", nullable = false) private String residentNameSnapshot;
     @Column(name = "CD_MED_SNAP", nullable = false) private String medicationCodeSnapshot;
     @Column(name = "NA_MED_SNAP", nullable = false) private String medicationNameSnapshot;
-    @Column(name = "QTY_REQUESTED", nullable = false, precision = 28, scale = 8)
+    @Column(name = "QTY_REQD", nullable = false, precision = 28, scale = 8)
     private BigDecimal requestedQuantity;
-    @Column(name = "CD_QUANTITY_UNIT", nullable = false) private String quantityUnitCode;
-    @Column(name = "QTY_REQUESTED_BASE", nullable = false, precision = 28, scale = 8)
+    @Column(name = "CD_QTY_UNIT", nullable = false) private String quantityUnitCode;
+    @Column(name = "QTY_REQD_BASE", nullable = false, precision = 28, scale = 8)
     private BigDecimal requestedBaseQuantity;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
-    @Column(name = "QTY_OCCURRENCE", nullable = false) private int occurrenceCount;
+    @Column(name = "QTY_OCC", nullable = false) private int occurrenceCount;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "ID_DISP_TASK_LINE") private Long dispenseTaskLineId;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;
-    @Column(name = "DT_SUBMITTED") private Instant submittedAt;
-    @Column(name = "ID_USER_SUBMITTED") private Long submittedBy;
+    @Column(name = "DT_SUBMTD") private Instant submittedAt;
+    @Column(name = "ID_USER_SUBMTD") private Long submittedBy;
     @Column(name = "DT_TAKEN") private Instant takenAt;
     @Column(name = "ID_USER_TAKEN") private Long takenBy;
-    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
-    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DT_CNCLD") private Instant cancelledAt;
+    @Column(name = "ID_USER_CNCLD") private Long cancelledBy;
     @Column(name = "DES_CANCEL_REASON") private String cancelReason;
 
     protected InpatientMedicationSupplyLine() {

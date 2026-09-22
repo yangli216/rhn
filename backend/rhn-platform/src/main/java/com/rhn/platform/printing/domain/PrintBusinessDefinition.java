@@ -16,12 +16,12 @@ public class PrintBusinessDefinition {
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "CD_TASK", nullable = false) private String taskCode;
     @Column(name = "NA_TASK", nullable = false) private String taskName;
-    @Column(name = "SD_CATEGORY", nullable = false) private String category;
+    @Column(name = "SD_CAT", nullable = false) private String category;
     @Column(name = "SD_SOURCE_TYPE", nullable = false) private String sourceType;
-    @Column(name = "CD_DATA_PROVIDER", nullable = false) private String dataProviderCode;
+    @Column(name = "CD_DATA_PRVDR", nullable = false) private String dataProviderCode;
     @Column(name = "CD_PAYLOAD_SCHEMA", nullable = false) private String payloadSchema;
     @Column(name = "SN_SCHEMA_VER", nullable = false) private int schemaVersion;
-    @Lob @Column(name = "JSON_PURPOSES", nullable = false) private String purposesJson;
+    @Lob @Column(name = "JSON_PURPS", nullable = false) private String purposesJson;
     @Column(name = "FG_BATCH", nullable = false) private boolean batchSupported;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;

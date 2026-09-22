@@ -195,14 +195,14 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.taskStatus").value("READY_TO_DISPENSE"));
 
-        jdbcTemplate.update("update RHN_SUP_STOCK_ITEM set FG_CONTROLLED = true, SD_CONTROL_LEVEL = 'LEVEL_1' "
+        jdbcTemplate.update("update RHN_SUP_STOCK_ITEM set FG_CTRLD = true, SD_CONTROL_LEVEL = 'LEVEL_1' "
                 + "where ID_TNT = ? and ID_STOCK_ITEM = ?", Long.valueOf(TENANT), Long.valueOf(fixture.stockItemId()));
         mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/dispenses", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(dispenseBody("DSP-SPECIAL-" + suffix, "1", pharmacist)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("SPECIAL_MEDICATION_DUAL_CONFIRMATION_REQUIRED"));
-        jdbcTemplate.update("update RHN_SUP_STOCK_ITEM set FG_CONTROLLED = false, SD_CONTROL_LEVEL = null "
+        jdbcTemplate.update("update RHN_SUP_STOCK_ITEM set FG_CTRLD = false, SD_CONTROL_LEVEL = null "
                 + "where ID_TNT = ? and ID_STOCK_ITEM = ?", Long.valueOf(TENANT), Long.valueOf(fixture.stockItemId()));
 
         String firstCode = "DSP-1-" + suffix;

@@ -21,7 +21,7 @@ class OutpatientNoteTemplate {
     @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "SD_SCOPE_TYPE", nullable = false) private String scopeType;
     @Column(name = "ID_OWNER", nullable = false) private Long ownerId;
-    @Column(name = "CD_SPECIALTY", nullable = false) private String specialtyCode;
+    @Column(name = "CD_SPECLTY", nullable = false) private String specialtyCode;
     @Column(name = "SD_DOC_TYPE", nullable = false) private String documentType;
     @Column(name = "JSON_CONTENT_SCHEMA", nullable = false) private String contentSchema;
     @Column(name = "NA_TMPL", nullable = false) private String name;

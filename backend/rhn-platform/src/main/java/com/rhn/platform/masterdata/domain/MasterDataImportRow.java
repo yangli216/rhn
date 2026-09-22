@@ -20,7 +20,7 @@ public class MasterDataImportRow {
     @Column(name = "CD_ROW_NUMBER", nullable = false) private int rowNumber;
     @Column(name = "CD_SRC_KEY") private String sourceKey;
     @Lob @Column(name = "JSON_SRC", nullable = false) private String sourceJson;
-    @Lob @Column(name = "JSON_NORMALIZED") private String normalizedJson;
+    @Lob @Column(name = "JSON_NORM") private String normalizedJson;
     @Lob @Column(name = "JSON_ERRORS", nullable = false) private String errorsJson;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "ID_TARGET") private Long targetId;

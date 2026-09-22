@@ -38,16 +38,16 @@ public class ConfigurationDefinition {
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_SCOPE", nullable = false) private String scopeJson;
     @Enumerated(EnumType.STRING) @Column(name = "SD_PARAM_CAT", nullable = false, length = 24)
     private ConfigurationCategory category;
-    @Column(name = "FG_INHERITANCE", nullable = false) private boolean inheritanceEnabled;
+    @Column(name = "FG_INHRT", nullable = false) private boolean inheritanceEnabled;
     @Column(name = "FG_CACHE", nullable = false) private boolean cacheEnabled;
-    @Column(name = "FG_NULLABLE_VAL", nullable = false) private boolean nullableValue;
-    @Enumerated(EnumType.STRING) @Column(name = "SENSITIVITY", nullable = false, length = 24)
+    @Column(name = "FG_NULLBL_VAL", nullable = false) private boolean nullableValue;
+    @Enumerated(EnumType.STRING) @Column(name = "SENS", nullable = false, length = 24)
     private ConfigurationSensitivity sensitivity;
     @Enumerated(EnumType.STRING) @Column(name = "SD_DISPLAY_POLICY", nullable = false, length = 24)
     private ConfigurationDisplayPolicy displayPolicy;
     @Column(name = "CD_DEPENDS_ON_KEY", length = 160) private String dependsOnKey;
     @Column(name = "EXPR_DEPENDS_ON_VAL", length = 500) private String dependsOnValue;
-    @Enumerated(EnumType.STRING) @Column(name = "SD_DEPENDENCY_BEHAVIOR", length = 32)
+    @Enumerated(EnumType.STRING) @Column(name = "SD_DEPNCY_BEHAV", length = 32)
     private ConfigurationDependencyBehavior dependencyBehavior;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false, length = 16) private ConfigurationStatus status;
     @Version @Column(name = "REVISION", nullable = false) private Long revision;

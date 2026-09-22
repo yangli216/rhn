@@ -70,7 +70,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
         String registrationId = encounter.get("registrationId").asString();
         LocalDate queriedDate = LocalDate.now(BUSINESS_ZONE).minusDays(2);
         Instant nextDayStart = queriedDate.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
-        jdbcTemplate.update("update RHN_SC_PAT_REG set DT_REGISTERED = ? where ID_PAT_REG = ?",
+        jdbcTemplate.update("update RHN_SC_PAT_REG set DT_REGD = ? where ID_PAT_REG = ?",
                 nextDayStart, Long.valueOf(registrationId));
 
         JsonNode firstDay = queue(queriedDate);
@@ -246,7 +246,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
         String regId2 = enc2.get("registrationId").asString();
 
         Instant tenMinutesAgo = Instant.now().minusSeconds(600);
-        jdbcTemplate.update("update RHN_SC_PAT_REG set DT_REGISTERED = ? where ID_PAT_REG = ?",
+        jdbcTemplate.update("update RHN_SC_PAT_REG set DT_REGD = ? where ID_PAT_REG = ?",
                 tenMinutesAgo, Long.valueOf(regId1));
 
         JsonNode pageResp = json(mockMvc.perform(get("/api/outpatient/reception/page").with(rhnWorkContext())

@@ -20,7 +20,7 @@ class OutpatientReferralEvent {
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "ID_ACTOR", nullable = false) private Long actorId;
     @Column(name = "DES_REASON") private String reason;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
 
     protected OutpatientReferralEvent() {}
 

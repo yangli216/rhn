@@ -69,7 +69,7 @@ class AnalyticsFoundationTest extends RhnIntegrationTestSupport {
         assertThrows(DataIntegrityViolationException.class, () -> drafts.save(new AnalysisDraftVersion(301L, draft.draftId(), 1, 401L, catalog.id(), "{}", now)));
         assertNotNull(catalogs.save(new AnalyticsCatalogVersion(302L, catalog.code(), 1, "{}", now)).id());
         assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("update RHN_AN_RUN set SD_STATE = 'COMPLETED' where ID_RUN = ?", run.id()));
-        assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("update RHN_AN_RUN set SD_DELIVERY = 'READY' where ID_RUN = ?", run.id()));
+        assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("update RHN_AN_RUN set SD_DELIV = 'READY' where ID_RUN = ?", run.id()));
         assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("delete from RHN_AN_DRAFT_VER where ID_DRAFT_VER = ?", draft.id()));
     }
 

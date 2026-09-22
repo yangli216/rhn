@@ -20,12 +20,12 @@ class ResidentMergeHistory {
     @Column(name = "ID_PAT_MERGE_HIST") private Long id;
     @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "ID_PAT_SURVIVING", nullable = false)
+    @Column(name = "ID_PAT_SURV", nullable = false)
     private Long survivingResidentId;
     @Column(name = "ID_PAT_MERGED", nullable = false)
     private Long mergedResidentId;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "MOVED_IDENTIFIER_IDS", nullable = false)
+    @Column(name = "MOVED_IDENT_IDS", nullable = false)
     private String movedIdentifierIds;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "MOVED_SOURCE_RECORD_IDS", nullable = false)

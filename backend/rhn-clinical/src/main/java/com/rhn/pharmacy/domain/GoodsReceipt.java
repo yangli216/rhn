@@ -23,10 +23,10 @@ public class GoodsReceipt {
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
     @Column(name = "CD_DELIV_NOTE_NO") private String deliveryNoteNo;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "DT_RECEIVED", nullable = false) private Instant receivedAt;
-    @Column(name = "ID_USER_RECEIVED", nullable = false) private Long receivedBy;
-    @Column(name = "DT_INSPECTED") private Instant inspectedAt;
-    @Column(name = "ID_USER_INSPECTED") private Long inspectedBy;
+    @Column(name = "DT_RECVD", nullable = false) private Instant receivedAt;
+    @Column(name = "ID_USER_RECVD", nullable = false) private Long receivedBy;
+    @Column(name = "DT_INSPTD") private Instant inspectedAt;
+    @Column(name = "ID_USER_INSPTD") private Long inspectedBy;
     @Column(name = "DT_POSTED") private Instant postedAt;
     @Column(name = "ID_USER_POSTED") private Long postedBy;
     @Column(name = "DES_GOOD_RCPT") private String description;

@@ -21,11 +21,11 @@ public class InpatientEncounter {
     @Column(name = "ID_CARE_EPISODE") private Long episodeId;
     @Column(name = "ID_SVC_LOC") private Long serviceLocationId;
     @Column(name = "SD_ENC_CLASS", nullable = false) private String encounterClass;
-    @Column(name = "ID_CLINICIAN") private String clinicianId;
+    @Column(name = "ID_CLNCN") private String clinicianId;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "DT_REGISTERED", nullable = false) private Instant registeredAt;
+    @Column(name = "DT_REGD", nullable = false) private Instant registeredAt;
     @Column(name = "DT_STARTED") private Instant startedAt;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
     @Version @Column(name = "REVISION", nullable = false) private long version;
 
     protected InpatientEncounter() {

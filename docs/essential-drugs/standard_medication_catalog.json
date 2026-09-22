@@ -8,10 +8,16 @@
     "sha256": "93dce79a72c7593ab5ebb1d0996ab24b4be801f56dc1c4e6697df14b55ea39a2",
     "claimedEdition": "2026",
     "verificationStatus": "UNVERIFIED",
-    "officialUrl": null,
-    "publicationNumber": null,
-    "effectiveFrom": null,
-    "note": "依据用户提供文件整理；标题年份不代表已核实官方发布。"
+    "officialUrl": "https://www.gov.cn/zhengce/zhengceku/202607/content_7074868.htm",
+    "publicationNumber": "国卫药政发〔2026〕17号",
+    "effectiveFrom": "2026-09-01",
+    "note": "已核对官方发布通知及附件；当前条目由用户提供的 Word 转录，规格转录与临床知识仍须分别核验。",
+    "officialAttachmentUrl": "https://www.gov.cn/zhengce/zhengceku/202607/P020260709781823352041.pdf",
+    "officialAttachmentSha256": "25671de0d85d12e409d79764d48865522e03122d8e9c1b0957a7ad1c8bf97e8e",
+    "publicationDate": "2026-07-09",
+    "publicationVerificationStatus": "VERIFIED",
+    "publicationCheckedOn": "2026-09-22",
+    "publicationVerificationScope": "官方通知和附件存在、标题、文号及施行日期已核对；不等同于全部转录条目与临床知识已审核。"
   },
   "scopeNote": "中药饮片按原文范围说明收录，未伪造具体饮片品种。",
   "entries": [

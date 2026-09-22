@@ -24,6 +24,15 @@ class IdentityAccessAuthorizationTest extends RhnIntegrationTestSupport {
     JdbcTemplate jdbc;
 
     @Test
+    void renamed_username_column_keeps_the_user_list_contract_and_context_requirement() throws Exception {
+        mockMvc.perform(get("/api/platform/iam/users").with(rhn()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/platform/iam/users").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].username").isNotEmpty());
+    }
+
+    @Test
     void role_permission_and_scoped_user_assignment_form_an_audited_management_loop() throws Exception {
         String roleBody = mockMvc.perform(post("/api/platform/iam/roles").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)

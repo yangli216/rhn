@@ -707,7 +707,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                         <strong>{formatQuantity(line.deliveredQuantity)} {itm?.packageUnitName || '盒'}</strong>
                       </td>
                       <td className={tableCellClass('numeric')}>
-                        <span style={{ color: '#059669', fontWeight: 600 }}>{formatQuantity(line.acceptedQuantity ?? line.deliveredQuantity)}</span>
+                        <span className="warehouse-accepted-quantity">{formatQuantity(line.acceptedQuantity ?? line.deliveredQuantity)}</span>
                         {Boolean(line.rejectedQuantity && line.rejectedQuantity > 0) && (
                           <small style={{ color: 'var(--color-danger)' }}>
                             拒收 {line.rejectedQuantity} ({line.rejectionReason || '破损'})
@@ -730,7 +730,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
               <div>共 <strong>{receipt.lines.length}</strong> 批次</div>
               <div className="warehouse-detail-footer__metrics">
                 <span>实收总数：<strong>{formatQuantity(totalDelivered)}</strong></span>
-                <span>合格总数：<strong style={{ color: '#059669' }}>{formatQuantity(totalAccepted || totalDelivered)}</strong></span>
+                <span>合格总数：<strong className="warehouse-accepted-quantity">{formatQuantity(totalAccepted || totalDelivered)}</strong></span>
                 {totalRejected > 0 && <span>拒收总数：<strong style={{ color: 'var(--color-danger)' }}>{formatQuantity(totalRejected)}</strong></span>}
                 <span>入库采购总额：<strong>{formatMoney(totalCost)}</strong></span>
               </div>

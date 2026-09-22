@@ -20,10 +20,10 @@ class ResidentSplitHistory {
     private Long tenantId;
     @Column(name = "ID_PAT_MERGE_HIST", nullable = false)
     private Long mergeHistoryId;
-    @Column(name = "ID_PAT_RESTORED", nullable = false)
+    @Column(name = "ID_PAT_RSTRD", nullable = false)
     private Long restoredResidentId;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "RESTORED_IDENTIFIER_IDS", nullable = false)
+    @Column(name = "RSTRD_IDENT_IDS", nullable = false)
     private String restoredIdentifierIds;
     @Column(name = "DES_REASON", nullable = false)
     private String reason;

@@ -21,8 +21,8 @@ public class ExaminationAttachmentItem {
     @Column(name = "SD_TRIGGER_TYPE", nullable = false) private String triggerType;
     @Column(name = "QTY_BASIS", nullable = false) private String quantityBasis;
     @Column(name = "QTY_ATTACH", nullable = false) private BigDecimal quantity;
-    @Column(name = "FG_REQUIRED_ATTACH", nullable = false) private boolean requiredAttachment;
-    @Column(name = "FG_SEPARATELY_CHARGEABLE", nullable = false) private boolean separatelyChargeable;
+    @Column(name = "FG_RQD_ATTACH", nullable = false) private boolean requiredAttachment;
+    @Column(name = "FG_SEPRLY_CHGBL", nullable = false) private boolean separatelyChargeable;
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
     @Column(name = "DES_EXAM_ATTACH_ITEM") private String description;
     @Column(name = "SD_STATUS", nullable = false) private String status;

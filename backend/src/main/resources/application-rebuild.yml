@@ -1,0 +1,22 @@
+spring:
+  config:
+    activate:
+      on-profile: rebuild
+  datasource:
+    url: ${RHN_REBUILD_H2_URL:jdbc:h2:file:./.runtime/rebuild/rhn;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    username: ${RHN_REBUILD_DB_USER:sa}
+    password: ${RHN_REBUILD_DB_PASSWORD:}
+  flyway:
+    locations: classpath:db/rebuild/postgresql,classpath:db/rebuild/local,classpath:db/rebuild/h2
+
+rhn:
+  id:
+    allow-default-node: true
+  security:
+    dev-user-enabled: true
+  crypto:
+    active-provider: development-jca
+    enforce-compliance: false
+  presence:
+    store: memory
+

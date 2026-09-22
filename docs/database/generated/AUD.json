@@ -1,0 +1,5122 @@
+{
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "tables": [
+    {
+      "logical": "aud.audit_log",
+      "legacy": "audit_logs",
+      "physical": "RHN_AUD_LOG",
+      "domain": "AUD",
+      "comment": "审计日志；一行代表一条审计日志记录",
+      "columns": [
+        {
+          "physical": "ID_AUD_LOG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "审计日志主键",
+          "logical": "id",
+          "catalogComment": "审计日志主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_ACTOR",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "操作人",
+          "logical": "actor",
+          "catalogComment": "操作人"
+        },
+        {
+          "physical": "SD_HTTP_METHOD",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "http方法",
+          "logical": "http_method",
+          "catalogComment": "http方法"
+        },
+        {
+          "physical": "REQUEST_PATH",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "请求路径",
+          "logical": "request_path",
+          "catalogComment": "请求路径"
+        },
+        {
+          "physical": "SD_RESP_STATUS",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "响应状态",
+          "logical": "response_status",
+          "catalogComment": "响应状态"
+        },
+        {
+          "physical": "ID_CORR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "关联标识",
+          "logical": "correlation_id",
+          "catalogComment": "关联标识"
+        },
+        {
+          "physical": "DT_OCCRD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "发生时间",
+          "logical": "occurred_at",
+          "catalogComment": "发生时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_AUD_LOG"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_AUD_LOG_SYS_TNT_AUDIT_LOG_T_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AUD_LOG_AUDIT_TENANT_TIME",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_OCCRD",
+              "direction": "D"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_AUD_LOG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "审计日志；一行代表一条审计日志记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/audit/AuditLog.java",
+          "line": 11
+        }
+      ]
+    },
+    {
+      "logical": "aud.cryptographic_evidence",
+      "legacy": "cryptographic_evidence",
+      "physical": "RHN_AUD_CRYPTO_EVID",
+      "domain": "AUD",
+      "comment": "密码学证据；一行代表一条密码学证据记录",
+      "columns": [
+        {
+          "physical": "ID_CRYPTO_EVID",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "密码学证据主键",
+          "logical": "id",
+          "catalogComment": "密码学证据主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "SD_TARGET_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "target类型",
+          "logical": "target_type",
+          "catalogComment": "target类型"
+        },
+        {
+          "physical": "ID_TARGET",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "target标识",
+          "logical": "target_id",
+          "catalogComment": "target标识"
+        },
+        {
+          "physical": "CD_TARGET_VER_NO",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "target版本编号",
+          "logical": "target_version_no",
+          "catalogComment": "target版本编号"
+        },
+        {
+          "physical": "CD_OPER",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "业务操作编码",
+          "logical": "operation_code",
+          "catalogComment": "业务操作编码"
+        },
+        {
+          "physical": "SD_PROT_PROF",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "保护档案",
+          "logical": "protection_profile",
+          "catalogComment": "保护档案"
+        },
+        {
+          "physical": "SD_PROT_PURPOSE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "保护用途",
+          "logical": "protection_purpose",
+          "catalogComment": "保护用途"
+        },
+        {
+          "physical": "JSON_CONTENT_SCHEMA",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "内容模式定义",
+          "logical": "content_schema",
+          "catalogComment": "内容模式定义"
+        },
+        {
+          "physical": "CONTENT_DIGEST_ALGO",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "内容摘要算法",
+          "logical": "content_digest_algorithm",
+          "catalogComment": "内容摘要算法"
+        },
+        {
+          "physical": "HASH_CONTENT",
+          "type": "CHARACTER VARYING",
+          "size": 512,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "内容摘要",
+          "logical": "content_digest",
+          "catalogComment": "内容摘要"
+        },
+        {
+          "physical": "SN_STMT_VER",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "声明版本",
+          "logical": "statement_version",
+          "catalogComment": "声明版本"
+        },
+        {
+          "physical": "JSON_STMT",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "声明JSON",
+          "logical": "statement_json",
+          "catalogComment": "声明JSON"
+        },
+        {
+          "physical": "STMT_DIGEST_ALGO",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "声明摘要算法",
+          "logical": "statement_digest_algorithm",
+          "catalogComment": "声明摘要算法"
+        },
+        {
+          "physical": "HASH_STMT",
+          "type": "CHARACTER VARYING",
+          "size": 512,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "声明摘要",
+          "logical": "statement_digest",
+          "catalogComment": "声明摘要"
+        },
+        {
+          "physical": "ID_CRYPTO_EVID_PREV",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "上一证据标识",
+          "logical": "previous_evidence_id",
+          "catalogComment": "上一证据标识"
+        },
+        {
+          "physical": "CD_PRVDR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "提供方编码",
+          "logical": "provider_code",
+          "catalogComment": "提供方编码"
+        },
+        {
+          "physical": "PRVDR_ASSUR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "提供方可信等级",
+          "logical": "provider_assurance",
+          "catalogComment": "提供方可信等级"
+        },
+        {
+          "physical": "SD_SIGN_ALGO",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "签名算法",
+          "logical": "signature_algorithm",
+          "catalogComment": "签名算法"
+        },
+        {
+          "physical": "SIGNTR_VALUE",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "签名值",
+          "logical": "signature_value",
+          "catalogComment": "签名值"
+        },
+        {
+          "physical": "ID_KEY",
+          "type": "CHARACTER VARYING",
+          "size": 256,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "键标识",
+          "logical": "key_id",
+          "catalogComment": "键标识"
+        },
+        {
+          "physical": "SD_SIGNER_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "签署人类型",
+          "logical": "signer_type",
+          "catalogComment": "签署人类型"
+        },
+        {
+          "physical": "ID_SIGNER_SUBJECT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "签署人主体标识",
+          "logical": "signer_subject_id",
+          "catalogComment": "签署人主体标识"
+        },
+        {
+          "physical": "NA_SIGNER",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "签署人名称",
+          "logical": "signer_name",
+          "catalogComment": "签署人名称"
+        },
+        {
+          "physical": "DES_VRFCTN_MATL",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 25,
+          "comment": "验证material",
+          "logical": "verification_material",
+          "catalogComment": "验证material"
+        },
+        {
+          "physical": "CD_CERT_SERIAL",
+          "type": "CHARACTER VARYING",
+          "size": 256,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "证书序列号",
+          "logical": "certificate_serial",
+          "catalogComment": "证书序列号"
+        },
+        {
+          "physical": "CERT_ISSUER",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 27,
+          "comment": "证书签发方",
+          "logical": "certificate_issuer",
+          "catalogComment": "证书签发方"
+        },
+        {
+          "physical": "DT_SIGNED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 28,
+          "comment": "签署时间",
+          "logical": "signed_at",
+          "catalogComment": "签署时间"
+        },
+        {
+          "physical": "TS_AUTHRTY",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 29,
+          "comment": "时间戳授权机构",
+          "logical": "timestamp_authority",
+          "catalogComment": "时间戳授权机构"
+        },
+        {
+          "physical": "TS_TOKEN",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 30,
+          "comment": "时间戳令牌",
+          "logical": "timestamp_token",
+          "catalogComment": "时间戳令牌"
+        },
+        {
+          "physical": "ID_CORR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 31,
+          "comment": "关联标识",
+          "logical": "correlation_id",
+          "catalogComment": "关联标识"
+        },
+        {
+          "physical": "DT_RECDD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 32,
+          "comment": "记录时间",
+          "logical": "recorded_at",
+          "catalogComment": "记录时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_CRYPTO_EVID"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_AUD_CRYPTO_EVI_CRYPTO_EVIDE",
+          "columns": [
+            "ID_TNT",
+            "ID_CRYPTO_EVID"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_AUD_CRYPTO_EVI_AUD_CRYP_CRY_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CRYPTO_EVID_PREV",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AUD_CRYPTO_EVI_SYS_TNT_CRYP_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AUD_CRYPTO_EVI_CRYPTO_EVID",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_TARGET_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_TARGET",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_RECDD",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "ID_CRYPTO_EVID",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AUD_CRYPTO_EVI_CRYPTO_EV_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_SIGNER_SUBJECT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_SIGNED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AUD_CRYPTO_EVI_CRYPTO_EV_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "CD_PRVDR",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KEY",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_SIGNED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_AA19",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CRYPTO_EVID",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_AUD_CRYPTO_EVI_CRYPTO_EVIDE_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CRYPTO_EVID",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_AUD_CRYPTO_EVI_CRYPTO_EVI_1",
+          "expression": "\"sd_signer_type\" IN('PERSON', 'ORGANIZATION', 'SYSTEM')"
+        },
+        {
+          "name": "CK_AUD_CRYPTO_EVI_CRYPTO_EVIDE",
+          "expression": "\"sd_prot_purpose\" IN('INTEGRITY', 'NON_REPUDIATION')"
+        }
+      ],
+      "catalogComment": "密码学证据；一行代表一条密码学证据记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/cryptography/domain/CryptographicEvidence.java",
+          "line": 16
+        }
+      ]
+    },
+    {
+      "logical": "aud.iam_authorization_event",
+      "legacy": "iam_authorization_events",
+      "physical": "RHN_AUD_IAM_AUTH_EVT",
+      "domain": "AUD",
+      "comment": "身份权限授权事件；一行代表一条身份权限授权事件记录",
+      "columns": [
+        {
+          "physical": "ID_IAM_AUTH_EVT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "身份权限授权事件主键",
+          "logical": "id",
+          "catalogComment": "身份权限授权事件主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "SD_EVT_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "事件类型",
+          "logical": "event_type",
+          "catalogComment": "事件类型"
+        },
+        {
+          "physical": "SD_TARGET_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "target类型",
+          "logical": "target_type",
+          "catalogComment": "target类型"
+        },
+        {
+          "physical": "ID_TARGET",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "target标识",
+          "logical": "target_id",
+          "catalogComment": "target标识"
+        },
+        {
+          "physical": "ID_USER_ACTOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "操作人标识",
+          "logical": "actor_id",
+          "catalogComment": "操作人标识"
+        },
+        {
+          "physical": "JSON_DETAIL",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "详情JSON",
+          "logical": "details_json",
+          "catalogComment": "详情JSON"
+        },
+        {
+          "physical": "DT_OCCRD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "发生时间",
+          "logical": "occurred_at",
+          "catalogComment": "发生时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_IAM_AUTH_EVT"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_AUD_IAM_AUTH_E_SYS_TNT_IAM__INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AUD_IAM_AUTH_E_SYS_USER_IAM_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_ACTOR",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AUD_IAM_AUTH_E_IAM_EVENT_T",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_TARGET_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_TARGET",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_OCCRD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_IAM_AUTH_EVT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "身份权限授权事件；一行代表一条身份权限授权事件记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 412
+        }
+      ]
+    },
+    {
+      "logical": "aud.quality_rule_definition",
+      "legacy": "quality_rule_definition",
+      "physical": "RHN_AUD_MED_RULE",
+      "domain": "AUD",
+      "comment": "合理用药规则定义；一行代表一条平台级规则定义",
+      "columns": [
+        {
+          "physical": "ID_RULE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "规则标识",
+          "logical": "id",
+          "catalogComment": "规则标识"
+        },
+        {
+          "physical": "CD_RULE",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "稳定规则编码",
+          "logical": "code",
+          "catalogComment": "稳定规则编码"
+        },
+        {
+          "physical": "CD_CAT",
+          "type": "CHARACTER VARYING",
+          "size": 60,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "规则分类",
+          "logical": "category",
+          "catalogComment": "规则分类"
+        },
+        {
+          "physical": "NA_RULE",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "规则名称",
+          "logical": "title",
+          "catalogComment": "规则名称"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RULE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_QMED_RULE_CODE",
+          "columns": [
+            "CD_RULE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RULE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_QMED_RULE_CODE_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "CD_RULE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "合理用药规则定义；一行代表一条平台级规则定义",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 42
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 43
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleRegistry.java",
+          "line": 26
+        }
+      ]
+    },
+    {
+      "logical": "aud.quality_rule_version",
+      "legacy": "quality_rule_version",
+      "physical": "RHN_AUD_MED_RULE_VER",
+      "domain": "AUD",
+      "comment": "合理用药规则版本；一行代表一条不可变规则版本及证据",
+      "columns": [
+        {
+          "physical": "ID_RULE_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "规则版本标识",
+          "logical": "id",
+          "catalogComment": "规则版本标识"
+        },
+        {
+          "physical": "ID_RULE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "规则定义标识",
+          "logical": "rule_id",
+          "catalogComment": "规则定义标识"
+        },
+        {
+          "physical": "NO_VERSION",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "不可变规则版本号",
+          "logical": "version",
+          "catalogComment": "不可变规则版本号"
+        },
+        {
+          "physical": "CD_RULE_SET_VER",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "规则集版本",
+          "logical": "rule_set_version",
+          "catalogComment": "规则集版本"
+        },
+        {
+          "physical": "CD_IMPL",
+          "type": "CHARACTER VARYING",
+          "size": 150,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "强类型执行定义版本",
+          "logical": "implementation",
+          "catalogComment": "强类型执行定义版本"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "发布状态",
+          "logical": "status",
+          "catalogComment": "发布状态"
+        },
+        {
+          "physical": "SD_SEV",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "风险严重程度",
+          "logical": "severity",
+          "catalogComment": "风险严重程度"
+        },
+        {
+          "physical": "SD_DCSN",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "执行动作",
+          "logical": "decision",
+          "catalogComment": "执行动作"
+        },
+        {
+          "physical": "SD_OVRD_POLICY",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "覆盖策略",
+          "logical": "override_policy",
+          "catalogComment": "覆盖策略"
+        },
+        {
+          "physical": "DT_EFF_FROM",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "生效时间",
+          "logical": "effective_from",
+          "catalogComment": "生效时间"
+        },
+        {
+          "physical": "DT_EFF_TO",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "失效时间",
+          "logical": "effective_to",
+          "catalogComment": "失效时间"
+        },
+        {
+          "physical": "JSON_EVID",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "不可变来源证据快照",
+          "logical": "evidence",
+          "catalogComment": "不可变来源证据快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RULE_VER"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_QMED_RULE_VERSION",
+          "columns": [
+            "ID_RULE",
+            "NO_VERSION"
+          ]
+        },
+        {
+          "name": "UQ_QMED_SET_RULE",
+          "columns": [
+            "CD_RULE_SET_VER",
+            "ID_RULE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_QMED_VER_RULE_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RULE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_44A8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RULE_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_QMED_RULE_VERSION_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RULE",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "NO_VERSION",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_QMED_SET_RULE_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "CD_RULE_SET_VER",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RULE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_QMED_DECISION_1",
+          "expression": "\"sd_dcsn\" IN('PASS', 'WARN', 'REQUIRE_OVERRIDE', 'BLOCK', 'UNAVAILABLE')"
+        },
+        {
+          "name": "CK_QMED_OVERRIDE_1",
+          "expression": "\"sd_ovrd_policy\" IN('NOT_ALLOWED', 'ACKNOWLEDGE', 'REASON_REQUIRED')"
+        },
+        {
+          "name": "CK_QMED_RULE_PERIOD",
+          "expression": "(\"dt_eff_to\" IS NULL)\n    OR (\"dt_eff_to\" > \"dt_eff_from\")"
+        },
+        {
+          "name": "CK_QMED_RULE_STATUS",
+          "expression": "\"sd_status\" IN('DRAFT', 'VALIDATED', 'APPROVED', 'SHADOW', 'PUBLISHED', 'RETIRED')"
+        },
+        {
+          "name": "CK_QMED_RULE_VERSION",
+          "expression": "\"no_version\" > 0"
+        },
+        {
+          "name": "CK_QMED_SEVERITY_1",
+          "expression": "\"sd_sev\" IN('INFO', 'LOW', 'MODERATE', 'HIGH', 'CRITICAL')"
+        }
+      ],
+      "catalogComment": "合理用药规则版本；一行代表一条不可变规则版本及证据",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 39
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 46
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleRegistry.java",
+          "line": 26
+        }
+      ]
+    },
+    {
+      "logical": "aud.quality_evaluation",
+      "legacy": "quality_evaluation",
+      "physical": "RHN_AUD_MED_EVAL",
+      "domain": "AUD",
+      "comment": "合理用药评价；一行代表一次完整处方的旁路安全评价",
+      "columns": [
+        {
+          "physical": "ID_EVAL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "评价标识",
+          "logical": "id",
+          "catalogComment": "评价标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RX",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "目标处方标识",
+          "logical": "prescription_id",
+          "catalogComment": "目标处方标识"
+        },
+        {
+          "physical": "NO_TARGET_REV",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "处方乐观锁版本",
+          "logical": "target_revision",
+          "catalogComment": "处方乐观锁版本"
+        },
+        {
+          "physical": "ID_ENC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "就诊标识",
+          "logical": "encounter_id",
+          "catalogComment": "就诊标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "居民标识",
+          "logical": "resident_id",
+          "catalogComment": "居民标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "CD_INPUT_HASH",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "完整输入的哈希值",
+          "logical": "input_hash",
+          "catalogComment": "完整输入的哈希值"
+        },
+        {
+          "physical": "CD_RULE_SET_VER",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "规则集版本",
+          "logical": "rule_set_version",
+          "catalogComment": "规则集版本"
+        },
+        {
+          "physical": "CD_ENGINE_VER",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "引擎版本",
+          "logical": "engine_version",
+          "catalogComment": "引擎版本"
+        },
+        {
+          "physical": "SD_MODE",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "评价模式",
+          "logical": "mode",
+          "catalogComment": "评价模式"
+        },
+        {
+          "physical": "SD_DCSN",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "聚合执行动作",
+          "logical": "decision",
+          "catalogComment": "聚合执行动作"
+        },
+        {
+          "physical": "JSON_INPUT",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "完整处方输入快照",
+          "logical": "input",
+          "catalogComment": "完整处方输入快照"
+        },
+        {
+          "physical": "JSON_RESULT",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "评价结果与每条规则执行记录",
+          "logical": "result",
+          "catalogComment": "评价结果与每条规则执行记录"
+        },
+        {
+          "physical": "DT_STARTED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "评价开始时间",
+          "logical": "started_at",
+          "catalogComment": "评价开始时间"
+        },
+        {
+          "physical": "DT_CMPLD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "评价完成时间",
+          "logical": "completed_at",
+          "catalogComment": "评价完成时间"
+        },
+        {
+          "physical": "ID_USER_ACTOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "发起用户标识",
+          "logical": "actor_id",
+          "catalogComment": "发起用户标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_EVAL"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_QMED_EVAL_TENANT",
+          "columns": [
+            "ID_TNT",
+            "ID_EVAL"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IX_QMED_EVAL_TARGET",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RX",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_STARTED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_B6B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_EVAL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_QMED_EVAL_TENANT_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EVAL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_QMED_DECISION_2",
+          "expression": "\"sd_dcsn\" IN('PASS', 'WARN', 'REQUIRE_OVERRIDE', 'BLOCK', 'UNAVAILABLE')"
+        },
+        {
+          "name": "CK_QMED_EVAL_IDS",
+          "expression": "(\"id_eval\" > CAST(0 AS BIGINT))\n    AND (\"id_tnt\" > CAST(0 AS BIGINT))\n    AND (\"id_rx\" > CAST(0 AS BIGINT))"
+        },
+        {
+          "name": "CK_QMED_EVAL_MODE",
+          "expression": "\"sd_mode\" IN('SHADOW', 'ENFORCED')"
+        },
+        {
+          "name": "CK_QMED_EVAL_REV",
+          "expression": "\"no_target_rev\" >= CAST(0 AS BIGINT)"
+        }
+      ],
+      "catalogComment": "合理用药评价；一行代表一次完整处方的旁路安全评价",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
+          "line": 32
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
+          "line": 57
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
+          "line": 69
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeReplayStore.java",
+          "line": 22
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeReplayStore.java",
+          "line": 28
+        }
+      ]
+    },
+    {
+      "logical": "aud.quality_finding",
+      "legacy": "quality_finding",
+      "physical": "RHN_AUD_MED_FINDING",
+      "domain": "AUD",
+      "comment": "合理用药风险发现；一行代表某次评价中一条规则的风险发现",
+      "columns": [
+        {
+          "physical": "ID_FINDING",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "风险发现标识",
+          "logical": "id",
+          "catalogComment": "风险发现标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_EVAL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "评价标识",
+          "logical": "evaluation_id",
+          "catalogComment": "评价标识"
+        },
+        {
+          "physical": "ID_RULE_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "实际执行规则版本标识",
+          "logical": "rule_version_id",
+          "catalogComment": "实际执行规则版本标识"
+        },
+        {
+          "physical": "SD_SEV",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "风险严重程度",
+          "logical": "severity",
+          "catalogComment": "风险严重程度"
+        },
+        {
+          "physical": "SD_DCSN",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "执行动作",
+          "logical": "decision",
+          "catalogComment": "执行动作"
+        },
+        {
+          "physical": "DES_MESSAGE",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "风险说明",
+          "logical": "message",
+          "catalogComment": "风险说明"
+        },
+        {
+          "physical": "JSON_REQUEST_IDS",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "涉及药品请求标识列表",
+          "logical": "request_ids",
+          "catalogComment": "涉及药品请求标识列表"
+        },
+        {
+          "physical": "JSON_EVID",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "证据快照",
+          "logical": "evidence",
+          "catalogComment": "证据快照"
+        },
+        {
+          "physical": "SD_OVRD_POLICY",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "覆盖策略",
+          "logical": "override_policy",
+          "catalogComment": "覆盖策略"
+        },
+        {
+          "physical": "DES_ACTION",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "建议处理方式",
+          "logical": "suggested_action",
+          "catalogComment": "建议处理方式"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_FINDING"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_QMED_FIND_TENANT",
+          "columns": [
+            "ID_TNT",
+            "ID_EVAL",
+            "ID_FINDING"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_QMED_FIND_EVAL_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EVAL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_QMED_FIND_RULE_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RULE_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_QMED_FIND_RULE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RULE_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_26",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_FINDING",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_QMED_FIND_TENANT_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EVAL",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_FINDING",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_QMED_DECISION_3",
+          "expression": "\"sd_dcsn\" IN('PASS', 'WARN', 'REQUIRE_OVERRIDE', 'BLOCK', 'UNAVAILABLE')"
+        },
+        {
+          "name": "CK_QMED_OVERRIDE_3",
+          "expression": "\"sd_ovrd_policy\" IN('NOT_ALLOWED', 'ACKNOWLEDGE', 'REASON_REQUIRED')"
+        },
+        {
+          "name": "CK_QMED_SEVERITY_3",
+          "expression": "\"sd_sev\" IN('INFO', 'LOW', 'MODERATE', 'HIGH', 'CRITICAL')"
+        }
+      ],
+      "catalogComment": "合理用药风险发现；一行代表某次评价中一条规则的风险发现",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
+          "line": 44
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
+          "line": 68
+        }
+      ]
+    },
+    {
+      "logical": "aud.quality_override",
+      "legacy": "quality_override",
+      "physical": "RHN_AUD_MED_OVERRIDE",
+      "domain": "AUD",
+      "comment": "合理用药风险覆盖记录；一行代表用户对一个风险发现的覆盖理由",
+      "columns": [
+        {
+          "physical": "ID_OVRD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "覆盖记录标识",
+          "logical": "id",
+          "catalogComment": "覆盖记录标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_EVAL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "评价标识",
+          "logical": "evaluation_id",
+          "catalogComment": "评价标识"
+        },
+        {
+          "physical": "ID_FINDING",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "风险发现标识",
+          "logical": "finding_id",
+          "catalogComment": "风险发现标识"
+        },
+        {
+          "physical": "ID_USER_ACTOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "覆盖用户标识",
+          "logical": "actor_id",
+          "catalogComment": "覆盖用户标识"
+        },
+        {
+          "physical": "DES_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "覆盖理由",
+          "logical": "reason",
+          "catalogComment": "覆盖理由"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "覆盖时间",
+          "logical": "created_at",
+          "catalogComment": "覆盖时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_OVRD"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_QMED_OVERRIDE_ACTOR",
+          "columns": [
+            "ID_TNT",
+            "ID_EVAL",
+            "ID_FINDING",
+            "ID_USER_ACTOR"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_QMED_OVERRIDE_FIND_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EVAL",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_FINDING",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_F65",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_OVRD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_QMED_OVERRIDE_ACTOR_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EVAL",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_FINDING",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_USER_ACTOR",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_QMED_OVERRIDE_REASON",
+          "expression": "(TRIM(\"des_reason\") IS NOT NULL)\n    AND (CHAR_LENGTH(TRIM(\"des_reason\")) > 0)"
+        }
+      ],
+      "catalogComment": "合理用药风险覆盖记录；一行代表用户对一个风险发现的覆盖理由",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": []
+    },
+    {
+      "logical": "aud.medication_rule_candidate",
+      "legacy": "medication_rule_candidates",
+      "physical": "RHN_AUD_MED_CAND",
+      "domain": "AUD",
+      "comment": "合理用药候选规则，一行代表一次不可变的 AI 生成版本",
+      "columns": [
+        {
+          "physical": "ID_CAND",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "候选规则标识",
+          "logical": "candidate_id",
+          "catalogComment": "候选规则标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_USER_ACTOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "创建用户标识",
+          "logical": "actor_user_id",
+          "catalogComment": "创建用户标识"
+        },
+        {
+          "physical": "JSON_CONTENT",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "规则定义、来源、模型和药品主数据快照",
+          "logical": "content_json",
+          "catalogComment": "规则定义、来源、模型和药品主数据快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_CAND"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_QMED_CAND_TNT",
+          "columns": [
+            "ID_TNT",
+            "ID_CAND"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_B6B2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_QMED_CAND_TNT_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "合理用药候选规则，一行代表一次不可变的 AI 生成版本",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationWorkbenchStore.java",
+          "line": 15
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationWorkbenchStore.java",
+          "line": 19
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationWorkbenchStore.java",
+          "line": 28
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationWorkbenchStore.java",
+          "line": 38
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationWorkbenchStore.java",
+          "line": 42
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationWorkbenchStore.java",
+          "line": 47
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_rule_trial",
+      "legacy": "medication_rule_trials",
+      "physical": "RHN_AUD_MED_TRIAL",
+      "domain": "AUD",
+      "comment": "合理用药试跑，一行代表一次模拟或旁路执行",
+      "columns": [
+        {
+          "physical": "ID_TRIAL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "试跑标识",
+          "logical": "trial_id",
+          "catalogComment": "试跑标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_CAND",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "候选规则标识",
+          "logical": "candidate_id",
+          "catalogComment": "候选规则标识"
+        },
+        {
+          "physical": "ID_USER_ACTOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "操作用户标识",
+          "logical": "actor_user_id",
+          "catalogComment": "操作用户标识"
+        },
+        {
+          "physical": "JSON_INPUT",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "完整试跑输入快照",
+          "logical": "input_json",
+          "catalogComment": "完整试跑输入快照"
+        },
+        {
+          "physical": "JSON_RESULT",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "试跑结果快照",
+          "logical": "result_json",
+          "catalogComment": "试跑结果快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TRIAL"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_QMED_TRIAL_CAND_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CAND",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_QMED_TRIAL_CAND",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CAND",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_TRIAL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_208",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TRIAL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "合理用药试跑，一行代表一次模拟或旁路执行",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationWorkbenchStore.java",
+          "line": 51
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationWorkbenchStore.java",
+          "line": 55
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_rule_governance",
+      "legacy": "medication_rule_governance",
+      "physical": "RHN_AUD_MED_GOV",
+      "domain": "AUD",
+      "comment": "合理用药规则治理，一行代表一个租户内一条规则的审核、部署及审计状态",
+      "columns": [
+        {
+          "physical": "ID_RULE_GOV",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "规则治理标识",
+          "logical": "id",
+          "catalogComment": "规则治理标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_RULE_KEY",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "稳定规则键",
+          "logical": "rule_key",
+          "catalogComment": "稳定规则键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "JSON_STATE",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "审核、部署及操作历史快照",
+          "logical": "state",
+          "catalogComment": "审核、部署及操作历史快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RULE_GOV"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_MED_GOV_KEY",
+          "columns": [
+            "ID_TNT",
+            "CD_RULE_KEY"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_DC",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RULE_GOV",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_MED_GOV_KEY_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_RULE_KEY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "合理用药规则治理，一行代表一个租户内一条规则的审核、部署及审计状态",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 21
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 28
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 31
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_rule_governance_run",
+      "legacy": "medication_rule_governance_run",
+      "physical": "RHN_AUD_MED_GOV_RUN",
+      "domain": "AUD",
+      "comment": "合理用药规则运行记录，一行代表已部署规则版本对一张处方的一次自动评价",
+      "columns": [
+        {
+          "physical": "ID_RULE_RUN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "运行记录标识",
+          "logical": "id",
+          "catalogComment": "运行记录标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_RULE_KEY",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "稳定规则键",
+          "logical": "rule_key",
+          "catalogComment": "稳定规则键"
+        },
+        {
+          "physical": "CD_VERSION",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "规则版本键",
+          "logical": "version_code",
+          "catalogComment": "规则版本键"
+        },
+        {
+          "physical": "SD_MODE",
+          "type": "CHARACTER VARYING",
+          "size": 20,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "旁路或正式运行模式",
+          "logical": "mode",
+          "catalogComment": "旁路或正式运行模式"
+        },
+        {
+          "physical": "SD_DCSN",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "评价结论",
+          "logical": "decision",
+          "catalogComment": "评价结论"
+        },
+        {
+          "physical": "ID_RX",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "处方标识",
+          "logical": "prescription_id",
+          "catalogComment": "处方标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "评价时间",
+          "logical": "created_at",
+          "catalogComment": "评价时间"
+        },
+        {
+          "physical": "JSON_RUN",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "发布版本及评价事实快照",
+          "logical": "run",
+          "catalogComment": "发布版本及评价事实快照"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "评价事实所属机构",
+          "logical": "organization_id",
+          "catalogComment": "评价事实所属机构"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "评价事实所属科室",
+          "logical": "department_id",
+          "catalogComment": "评价事实所属科室"
+        },
+        {
+          "physical": "ID_DEPLOY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "冻结发布记录标识",
+          "logical": "deployment_id",
+          "catalogComment": "冻结发布记录标识"
+        },
+        {
+          "physical": "SD_OUTCOME",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "知识规则结果：命中、未命中、不适用或不可评价",
+          "logical": "outcome",
+          "catalogComment": "知识规则结果：命中、未命中、不适用或不可评价"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RULE_RUN"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_MED_RUN_TNT",
+          "columns": [
+            "ID_TNT",
+            "ID_RULE_RUN"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IX_MED_GOV_RUN_KEY",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_RULE_KEY",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_VERSION",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_MED_RUN_SCOPE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_DEPLOY",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_AF2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RULE_RUN",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_MED_RUN_TNT_INDEX_6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RULE_RUN",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "合理用药规则运行记录，一行代表已部署规则版本对一张处方的一次自动评价",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 56
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 63
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 68
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 72
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 75
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 79
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleGovernanceStore.java",
+          "line": 84
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_knowledge_draft",
+      "legacy": "medication_knowledge_draft",
+      "physical": "RHN_AUD_MED_KNOW_DRAFT",
+      "domain": "AUD",
+      "comment": "合理用药知识草稿版本，一行代表一个租户下一条知识草稿的一次不可变保存版本",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_KNOW",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "知识草稿标识，各版本共用",
+          "logical": "knowledge_id",
+          "catalogComment": "知识草稿标识，各版本共用"
+        },
+        {
+          "physical": "NO_VERSION",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "该知识草稿的递增版本号",
+          "logical": "version",
+          "catalogComment": "该知识草稿的递增版本号"
+        },
+        {
+          "physical": "JSON_VERSION",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "不可变草稿版本快照，含来源原文、标准身份、条件、结构校验及操作者",
+          "logical": "snapshot",
+          "catalogComment": "不可变草稿版本快照，含来源原文、标准身份、条件、结构校验及操作者"
+        },
+        {
+          "physical": "ID_INTAKE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "本知识版本关联的需求分析标识，不作为药学证据",
+          "logical": "intake_id",
+          "catalogComment": "本知识版本关联的需求分析标识，不作为药学证据"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_KNOW",
+        "NO_VERSION"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_KNOW_DRAFT_INTAKE_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_INTAKE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_F27",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KNOW",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NO_VERSION",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "合理用药知识草稿版本，一行代表一个租户下一条知识草稿的一次不可变保存版本",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeDraftStore.java",
+          "line": 15
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeDraftStore.java",
+          "line": 20
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeDraftStore.java",
+          "line": 21
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeDraftStore.java",
+          "line": 26
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeDraftStore.java",
+          "line": 30
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeDraftStore.java",
+          "line": 33
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeDraftStore.java",
+          "line": 35
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeDraftStore.java",
+          "line": 39
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeDraftStore.java",
+          "line": 42
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeRuleStore.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_knowledge_extraction",
+      "legacy": "medication_knowledge_extraction",
+      "physical": "RHN_AUD_KNOW_EXTRACT",
+      "domain": "AUD",
+      "comment": "合理用药 AI 知识抽取记录，一行代表一次基于来源原文的不可变抽取结果，不代表临床审核或发布",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_EXTRACT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "知识抽取记录标识",
+          "logical": "extraction_id",
+          "catalogComment": "知识抽取记录标识"
+        },
+        {
+          "physical": "JSON_RUN",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "原文、模型与提示版本、引用定位、标准候选、缺口及操作者快照",
+          "logical": "snapshot",
+          "catalogComment": "原文、模型与提示版本、引用定位、标准候选、缺口及操作者快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_EXTRACT"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_A7B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EXTRACT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "合理用药 AI 知识抽取记录，一行代表一次基于来源原文的不可变抽取结果，不代表临床审核或发布",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeExtractionStore.java",
+          "line": 15
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeExtractionStore.java",
+          "line": 18
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeExtractionStore.java",
+          "line": 22
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_knowledge_replay",
+      "legacy": "medication_knowledge_replay",
+      "physical": "RHN_AUD_KNOW_REPLAY",
+      "domain": "AUD",
+      "comment": "合理用药知识处方回放记录，一行代表一个固定知识版本对一次历史审查输入的不可变回放结果",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_REPLAY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "知识回放记录标识",
+          "logical": "replay_id",
+          "catalogComment": "知识回放记录标识"
+        },
+        {
+          "physical": "ID_KNOW",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "知识草稿标识",
+          "logical": "knowledge_id",
+          "catalogComment": "知识草稿标识"
+        },
+        {
+          "physical": "NO_VERSION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "本次回放使用的知识版本号",
+          "logical": "version",
+          "catalogComment": "本次回放使用的知识版本号"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "原评价所属机构标识",
+          "logical": "organization_id",
+          "catalogComment": "原评价所属机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "原评价所属科室标识",
+          "logical": "department_id",
+          "catalogComment": "原评价所属科室标识"
+        },
+        {
+          "physical": "JSON_RUN",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "固定知识、原评价来源、最小处方事实、缺口、结果、指纹及操作者快照",
+          "logical": "snapshot",
+          "catalogComment": "固定知识、原评价来源、最小处方事实、缺口、结果、指纹及操作者快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_REPLAY"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "IX_KNOW_REPLAY_SCOPE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_KNOW",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "ID_REPLAY",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_4C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_REPLAY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "合理用药知识处方回放记录，一行代表一个固定知识版本对一次历史审查输入的不可变回放结果",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeReplayStore.java",
+          "line": 32
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeReplayStore.java",
+          "line": 36
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeReplayStore.java",
+          "line": 40
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_knowledge_rule",
+      "legacy": "medication_knowledge_rule",
+      "physical": "RHN_AUD_KNOW_RULE",
+      "domain": "AUD",
+      "comment": "知识衍生规则候选，一行代表一条知识规则的一次不可变编译版本，尚不代表审核或发布",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_KNOW_RULE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "知识规则候选版本标识",
+          "logical": "knowledge_rule_id",
+          "catalogComment": "知识规则候选版本标识"
+        },
+        {
+          "physical": "ID_KNOW",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "来源知识标识及规则版本链标识",
+          "logical": "knowledge_id",
+          "catalogComment": "来源知识标识及规则版本链标识"
+        },
+        {
+          "physical": "NO_VERSION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "该知识规则的递增候选版本号",
+          "logical": "version",
+          "catalogComment": "该知识规则的递增候选版本号"
+        },
+        {
+          "physical": "NO_KNOW_VERSION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "本次编译锁定的知识版本号",
+          "logical": "knowledge_version",
+          "catalogComment": "本次编译锁定的知识版本号"
+        },
+        {
+          "physical": "CD_CMPLR_VER",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "结构化规则编译器版本",
+          "logical": "compiler_version",
+          "catalogComment": "结构化规则编译器版本"
+        },
+        {
+          "physical": "JSON_CONTENT",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "知识及标准来源、结构化规则、指纹、合成测试及生成操作者快照",
+          "logical": "snapshot",
+          "catalogComment": "知识及标准来源、结构化规则、指纹、合成测试及生成操作者快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_KNOW_RULE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_KNOW_RULE_SOURCE",
+          "columns": [
+            "ID_TNT",
+            "ID_KNOWLEDGE",
+            "NO_KNOWLEDGE_VERSION",
+            "CD_COMPILER_VER"
+          ]
+        },
+        {
+          "name": "UK_KNOW_RULE_VERSION",
+          "columns": [
+            "ID_TNT",
+            "ID_KNOWLEDGE",
+            "NO_VERSION"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_C9",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KNOW_RULE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_KNOW_RULE_SOURCE_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KNOW",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NO_KNOW_VERSION",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "CD_CMPLR_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_KNOW_RULE_VERSION_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KNOW",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NO_VERSION",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "知识衍生规则候选，一行代表一条知识规则的一次不可变编译版本，尚不代表审核或发布",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeRuleStore.java",
+          "line": 16
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeRuleStore.java",
+          "line": 17
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeRuleStore.java",
+          "line": 18
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeRuleStore.java",
+          "line": 20
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_knowledge_suite",
+      "legacy": "medication_knowledge_suite",
+      "physical": "RHN_AUD_KNOW_SUITE",
+      "domain": "AUD",
+      "comment": "人工编写的知识候选合成验证样例，一行代表一组不可变样例版本",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_KNOW_RULE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "固定知识规则候选版本标识",
+          "logical": "candidate_id",
+          "catalogComment": "固定知识规则候选版本标识"
+        },
+        {
+          "physical": "NO_VERSION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "样例递增版本号",
+          "logical": "version",
+          "catalogComment": "样例递增版本号"
+        },
+        {
+          "physical": "JSON_SUITE",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "人工定义的事实、预期结果与依据及候选指纹和作者快照",
+          "logical": "snapshot",
+          "catalogComment": "人工定义的事实、预期结果与依据及候选指纹和作者快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_KNOW_RULE",
+        "NO_VERSION"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_86A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KNOW_RULE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NO_VERSION",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "人工编写的知识候选合成验证样例，一行代表一组不可变样例版本",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 16
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 23
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 24
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 25
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 27
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 28
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_knowledge_test",
+      "legacy": "medication_knowledge_test",
+      "physical": "RHN_AUD_KNOW_TEST",
+      "domain": "AUD",
+      "comment": "知识规则候选的合成样例执行审计，一行代表一次固定样例版本验证",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_KNOW_TEST",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "验证执行标识",
+          "logical": "run_id",
+          "catalogComment": "验证执行标识"
+        },
+        {
+          "physical": "ID_KNOW_RULE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "固定知识规则候选版本标识",
+          "logical": "candidate_id",
+          "catalogComment": "固定知识规则候选版本标识"
+        },
+        {
+          "physical": "NO_SUITE_VERSION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "本次执行的样例版本号",
+          "logical": "suite_version",
+          "catalogComment": "本次执行的样例版本号"
+        },
+        {
+          "physical": "JSON_RUN",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "样例输入及预期、实际命中医嘱、差异、指纹和执行者快照",
+          "logical": "snapshot",
+          "catalogComment": "样例输入及预期、实际命中医嘱、差异、指纹和执行者快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_KNOW_TEST"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "IX_AUD_KNOW_TEST_RULE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KNOW_RULE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_KNOW_TEST",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_C9A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KNOW_TEST",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "知识规则候选的合成样例执行审计，一行代表一次固定样例版本验证",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 19
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 33
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 34
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 36
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeTestStore.java",
+          "line": 37
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_knowledge_review",
+      "legacy": "medication_knowledge_review",
+      "physical": "RHN_AUD_KNOW_REVIEW",
+      "domain": "AUD",
+      "comment": "知识规则候选审核留痕，一行代表一次提交、撤回、退回或批准事件",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_KNOW_REVIEW",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "不可变审核事件标识",
+          "logical": "review_id",
+          "catalogComment": "不可变审核事件标识"
+        },
+        {
+          "physical": "ID_KNOW_RULE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "固定知识规则候选版本标识",
+          "logical": "candidate_id",
+          "catalogComment": "固定知识规则候选版本标识"
+        },
+        {
+          "physical": "JSON_REVIEW",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "提交或审核时冻结的知识、验证、指纹、策略、核验意见及操作者快照",
+          "logical": "snapshot",
+          "catalogComment": "提交或审核时冻结的知识、验证、指纹、策略、核验意见及操作者快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_KNOW_REVIEW"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "IX_AUD_KNOW_REVIEW_RULE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KNOW_RULE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_KNOW_REVIEW",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_4C1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KNOW_REVIEW",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "知识规则候选审核留痕，一行代表一次提交、撤回、退回或批准事件",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeReviewStore.java",
+          "line": 14
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeReviewStore.java",
+          "line": 15
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeReviewStore.java",
+          "line": 17
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeReviewStore.java",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_rule_intake",
+      "legacy": "medication_rule_intake",
+      "physical": "RHN_AUD_KNOW_INTAKE",
+      "domain": "AUD",
+      "comment": "合理用药需求分析记录，一行代表一次不可变的意图分类与澄清分析，不代表药学证据或执行规则",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_INTAKE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "需求分析标识",
+          "logical": "id",
+          "catalogComment": "需求分析标识"
+        },
+        {
+          "physical": "JSON_RUN",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "需求、澄清来源、能力范围、引用定位、模型与提示版本及分析结果快照",
+          "logical": "run",
+          "catalogComment": "需求、澄清来源、能力范围、引用定位、模型与提示版本及分析结果快照"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "关联研判所属机构，普通需求为空",
+          "logical": "organization_id",
+          "catalogComment": "关联研判所属机构，普通需求为空"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "关联研判所属科室，普通需求为空",
+          "logical": "department_id",
+          "catalogComment": "关联研判所属科室，普通需求为空"
+        },
+        {
+          "physical": "ID_FDBK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "改进需求引用的固定研判事件标识",
+          "logical": "feedback_id",
+          "catalogComment": "改进需求引用的固定研判事件标识"
+        },
+        {
+          "physical": "JSON_ORIGIN",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "业务反馈意见、相关规则提示及来源知识身份，不包含完整处方或患者资料",
+          "logical": "feedback_origin",
+          "catalogComment": "业务反馈意见、相关规则提示及来源知识身份，不包含完整处方或患者资料"
+        },
+        {
+          "physical": "HASH_ORIGIN",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "固定研判来源原始 JSON 的 SHA256 指纹",
+          "logical": "feedback_origin_hash",
+          "catalogComment": "固定研判来源原始 JSON 的 SHA256 指纹"
+        },
+        {
+          "physical": "ID_PHARM_REVIEW",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "知识改进引用的已保存药师审方结论",
+          "logical": "pharmacy_review_id",
+          "catalogComment": "知识改进引用的已保存药师审方结论"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_INTAKE"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_INTAKE_FEEDBACK_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_FDBK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_INTAKE_PHARM_REVIEW_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PHARM_REVIEW",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_INTAKE_FEEDBACK_SCOPE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_FDBK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_INTAKE_PHARM_SCOPE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_PHARM_REVIEW",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_33B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_INTAKE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_INTAKE_FEEDBACK_SCOPE",
+          "expression": "((\"id_fdbk\" IS NULL)\n    AND (\"id_pharm_review\" IS NULL)\n    AND (\"id_org\" IS NULL)\n    AND (\"id_dept\" IS NULL)\n    AND (\"hash_origin\" IS NULL))\n    OR ((\"id_org\" IS NOT NULL)\n    AND (\"id_dept\" IS NOT NULL)\n    AND (\"hash_origin\" IS NOT NULL)\n    AND (((\"id_fdbk\" IS NOT NULL)\n    AND (\"id_pharm_review\" IS NULL))\n    OR ((\"id_fdbk\" IS NULL)\n    AND (\"id_pharm_review\" IS NOT NULL))))"
+        }
+      ],
+      "catalogComment": "合理用药需求分析记录，一行代表一次不可变的意图分类与澄清分析，不代表药学证据或执行规则",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 17
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 20
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 25
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 40
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 44
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 45
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 50
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 51
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 55
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 56
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_knowledge_feedback",
+      "legacy": "medication_knowledge_feedback",
+      "physical": "RHN_AUD_KNOW_FEEDBACK",
+      "domain": "AUD",
+      "comment": "合理用药旁路研判记录，一行代表对一次观察追加或撤回的人工意见，不改写运行结果或发布状态",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_FDBK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "不可变研判事件标识",
+          "logical": "id",
+          "catalogComment": "不可变研判事件标识"
+        },
+        {
+          "physical": "ID_RULE_RUN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "旁路运行观察标识",
+          "logical": "run_id",
+          "catalogComment": "旁路运行观察标识"
+        },
+        {
+          "physical": "ID_DEPLOY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "冻结发布记录标识",
+          "logical": "deployment_id",
+          "catalogComment": "冻结发布记录标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "观察所属机构",
+          "logical": "organization_id",
+          "catalogComment": "观察所属机构"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "观察所属科室",
+          "logical": "department_id",
+          "catalogComment": "观察所属科室"
+        },
+        {
+          "physical": "NO_REV",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "本次观察研判事件序号",
+          "logical": "revision",
+          "catalogComment": "本次观察研判事件序号"
+        },
+        {
+          "physical": "SD_OPER",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "研判操作：追加意见或撤回",
+          "logical": "operation",
+          "catalogComment": "研判操作：追加意见或撤回"
+        },
+        {
+          "physical": "SD_VERDICT",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "人工研判分类，撤回时为空",
+          "logical": "verdict",
+          "catalogComment": "人工研判分类，撤回时为空"
+        },
+        {
+          "physical": "JSON_EVENT",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "运行与规则版本指纹、人工意见、依据、建议及操作者快照",
+          "logical": "event",
+          "catalogComment": "运行与规则版本指纹、人工意见、依据、建议及操作者快照"
+        },
+        {
+          "physical": "HASH_EVENT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "研判事件原始快照的 SHA256 指纹",
+          "logical": "event_hash",
+          "catalogComment": "研判事件原始快照的 SHA256 指纹"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_FDBK"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_KNOW_FEEDBACK_REV",
+          "columns": [
+            "ID_TNT",
+            "ID_RULE_RUN",
+            "NO_REVISION"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_KNOW_FEEDBACK_RUN_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RULE_RUN",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_KNOW_FEEDBACK_SCOPE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_DEPLOY",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_B0",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_FDBK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_KNOW_FEEDBACK_REV_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RULE_RUN",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NO_REV",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_KNOW_FEEDBACK_OP",
+          "expression": "\"sd_oper\" IN('RECORD', 'WITHDRAW')"
+        }
+      ],
+      "catalogComment": "合理用药旁路研判记录，一行代表对一次观察追加或撤回的人工意见，不改写运行结果或发布状态",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeFeedbackStore.java",
+          "line": 36
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeFeedbackStore.java",
+          "line": 38
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeFeedbackStore.java",
+          "line": 39
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeFeedbackStore.java",
+          "line": 45
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeFeedbackStore.java",
+          "line": 49
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeFeedbackStore.java",
+          "line": 52
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeFeedbackStore.java",
+          "line": 59
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 49
+        }
+      ]
+    },
+    {
+      "logical": "aud.medication_knowledge_release",
+      "legacy": "medication_knowledge_release",
+      "physical": "RHN_AUD_KNOW_RELEASE",
+      "domain": "AUD",
+      "comment": "知识规则正式发布材料，一行代表一次显式启用或回退形成的固定验收记录",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_KNOW_RELEASE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "独立正式发布材料标识",
+          "logical": "id",
+          "catalogComment": "独立正式发布材料标识"
+        },
+        {
+          "physical": "ID_DEPLOY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "本次正式部署标识",
+          "logical": "deployment_id",
+          "catalogComment": "本次正式部署标识"
+        },
+        {
+          "physical": "JSON_RELEASE",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "冻结审批、旁路观察与研判、验收说明、回退方案及启用人",
+          "logical": "release",
+          "catalogComment": "冻结审批、旁路观察与研判、验收说明、回退方案及启用人"
+        },
+        {
+          "physical": "HASH_RELEASE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "不可变正式发布材料原始 JSON 的 SHA256 指纹",
+          "logical": "release_hash",
+          "catalogComment": "不可变正式发布材料原始 JSON 的 SHA256 指纹"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_KNOW_RELEASE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UQ_KNOW_RELEASE_DEPLOY",
+          "columns": [
+            "ID_TNT",
+            "ID_DEPLOYMENT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_368",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_KNOW_RELEASE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UQ_KNOW_RELEASE_DEPLOY_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DEPLOY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "知识规则正式发布材料，一行代表一次显式启用或回退形成的固定验收记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgePublicationStore.java",
+          "line": 17
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgePublicationStore.java",
+          "line": 21
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "FK_AUD_CRYPTO_EVI_AUD_CRYP_CRY",
+      "sourceTable": "RHN_AUD_CRYPTO_EVID",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID_PREV"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_CRYPTO_EVID",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_CRYPTO_EVI_SYS_TNT_CRYP",
+      "sourceTable": "RHN_AUD_CRYPTO_EVID",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_IAM_AUTH_E_SYS_TNT_IAM_",
+      "sourceTable": "RHN_AUD_IAM_AUTH_EVT",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_IAM_AUTH_E_SYS_USER_IAM",
+      "sourceTable": "RHN_AUD_IAM_AUTH_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER_ACTOR"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_KNOW_FEEDBACK_RUN",
+      "sourceTable": "RHN_AUD_KNOW_FEEDBACK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_RULE_RUN"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_RULE_RUN"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_MED_GOV_RUN",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INTAKE_FEEDBACK",
+      "sourceTable": "RHN_AUD_KNOW_INTAKE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_FDBK"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_FDBK"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_KNOW_FEEDBACK",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INTAKE_PHARM_REVIEW",
+      "sourceTable": "RHN_AUD_KNOW_INTAKE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PHARM_REVIEW"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PHARM_REVIEW"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SUP_PHARM_REVIEW",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_LOG_SYS_TNT_AUDIT_LOG_T",
+      "sourceTable": "RHN_AUD_LOG",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_QMED_FIND_EVAL",
+      "sourceTable": "RHN_AUD_MED_FINDING",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_EVAL"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_EVAL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_MED_EVAL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_QMED_FIND_RULE",
+      "sourceTable": "RHN_AUD_MED_FINDING",
+      "sourceColumns": [
+        "ID_RULE_VER"
+      ],
+      "targetColumns": [
+        "ID_RULE_VER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_MED_RULE_VER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_KNOW_DRAFT_INTAKE",
+      "sourceTable": "RHN_AUD_MED_KNOW_DRAFT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_INTAKE"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_INTAKE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_KNOW_INTAKE",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_QMED_OVERRIDE_FIND",
+      "sourceTable": "RHN_AUD_MED_OVERRIDE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_EVAL",
+        "ID_FINDING"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_EVAL",
+        "ID_FINDING"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_MED_FINDING",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_QMED_VER_RULE",
+      "sourceTable": "RHN_AUD_MED_RULE_VER",
+      "sourceColumns": [
+        "ID_RULE"
+      ],
+      "targetColumns": [
+        "ID_RULE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_MED_RULE",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_QMED_TRIAL_CAND",
+      "sourceTable": "RHN_AUD_MED_TRIAL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CAND"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CAND"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_MED_CAND",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_CLIN_DOC_V_AUD_CRYP_DOC",
+      "sourceTable": "RHN_VIS_CLIN_DOC_VER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID_INTGR"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_CRYPTO_EVID",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_CLIN_DOC_V_AUD_CRYP_D_1",
+      "sourceTable": "RHN_VIS_CLIN_DOC_VER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID_SIGN"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_CRYPTO_EVID",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_INP_NURS_R_AUD_CRYP_INR",
+      "sourceTable": "RHN_VIS_INP_NURS_RECORD",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID_INTGR"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_CRYPTO_EVID",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_INP_SHIFT_AUD_CRYP_ISH_",
+      "sourceTable": "RHN_VIS_INP_SHIFT_HANDOFF",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID_INTGR"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_CRYPTO_EVID",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_VIS_INP_SHIFT_AUD_CRYP_ISHS",
+      "sourceTable": "RHN_VIS_INP_SHIFT_HANDOFF_SIGN",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID_SIGN"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_CRYPTO_EVID",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    }
+  ]
+}

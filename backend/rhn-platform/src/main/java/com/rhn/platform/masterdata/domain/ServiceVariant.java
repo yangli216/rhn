@@ -20,8 +20,8 @@ public class ServiceVariant {
     @Column(name = "CD_SVC_VAR", nullable = false) private String code;
     @Column(name = "NA_SVC_VAR", nullable = false) private String name;
     @Column(name = "SD_METHOD_TYPE") private String methodType;
-    @Column(name = "FG_BODY_SITE_REQUIRED", nullable = false) private boolean bodySiteRequired;
-    @Column(name = "CD_MUTUAL_RECOGNITION") private String mutualRecognitionCode;
+    @Column(name = "FG_BODY_SITE_RQD", nullable = false) private boolean bodySiteRequired;
+    @Column(name = "CD_MUTUAL_RECOG") private String mutualRecognitionCode;
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;

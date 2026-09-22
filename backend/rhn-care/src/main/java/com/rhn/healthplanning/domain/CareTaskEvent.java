@@ -21,12 +21,12 @@ public class CareTaskEvent {
     @Column(name = "ID_PRACT_ACTOR") private Long actorPractitionerId;
     @Column(name = "ID_USER_ACTOR") private Long actorUserId;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
-    @Column(name = "DES_RESULT_DESCRIPTION") private String resultDescription;
+    @Column(name = "DES_RESULT_DESCR") private String resultDescription;
     @Column(name = "CD_RULE") private String ruleCode;
     @Column(name = "CD_RULE_VER") private String ruleVersion;
     @Lob @Column(name = "JSON_EVID") private String evidenceJson;
     @Column(name = "HASH_EVID") private String evidenceHash;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
 
     protected CareTaskEvent() {
     }

@@ -313,12 +313,12 @@ describe('ParameterManagement Dependency & Suppression', () => {
 
     // 验证左侧分类导航面板头部与选项存在
     expect(await screen.findByRole('heading', { level: 2, name: '参数分类' })).toBeInTheDocument()
-    const allTab = await screen.findByRole('tab', { name: /全部参数/ })
+    const allTab = await screen.findByRole('treeitem', { name: /全部参数/ })
     expect(allTab).toBeInTheDocument()
     expect(allTab).toHaveAttribute('aria-selected', 'true')
 
     // 验证具体分类“临床AI”项存在且不包含技术编码
-    const aiCategoryTab = await screen.findByRole('tab', { name: /临床AI/ })
+    const aiCategoryTab = await screen.findByRole('treeitem', { name: /临床AI/ })
     expect(aiCategoryTab).toBeInTheDocument()
     expect(aiCategoryTab).toHaveTextContent('临床AI')
     expect(aiCategoryTab).not.toHaveTextContent('AI_CLINICAL')
@@ -331,6 +331,19 @@ describe('ParameterManagement Dependency & Suppression', () => {
       expect(definitionsFn).toHaveBeenCalledWith('', 'cat-ai', '', '')
     })
     expect(aiCategoryTab).toHaveAttribute('aria-selected', 'true')
+
+    // 分类仍可按编码搜索，但界面不重复展示技术编码。
+    await user.type(screen.getByRole('textbox', { name: '搜索分类' }), 'AI_CLINICAL')
+    expect(screen.getByRole('treeitem', { name: /临床AI/ })).toBeInTheDocument()
+    await user.clear(screen.getByRole('textbox', { name: '搜索分类' }))
+
+    // 共享树的 Home/Enter 可恢复全部参数，与点击根节点具有相同业务结果。
+    aiCategoryTab.focus()
+    await user.keyboard('{Home}')
+    await waitFor(() => expect(allTab).toHaveFocus())
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(definitionsFn).toHaveBeenLastCalledWith('', '', '', ''))
+    expect(allTab).toHaveAttribute('aria-selected', 'true')
   })
 
   it('locks configuration category and customizes header when fixedConfigType="BUSINESS"', async () => {

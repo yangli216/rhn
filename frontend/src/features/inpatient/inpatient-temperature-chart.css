@@ -11,7 +11,7 @@
 .inpatient-temperature-legend i { width: 1.25rem; height: .15rem; border-radius: var(--radius-round); background: var(--color-info); }
 .inpatient-temperature-legend i.is-pulse { background: var(--color-danger); }
 .inpatient-temperature-legend i.is-cooling { height: .5rem; border: 1px dashed var(--color-info); background: transparent; }
-.inpatient-temperature-svg-wrap { overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); scrollbar-gutter: stable; }
+.inpatient-temperature-svg-wrap { overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); scrollbar-gutter: auto; }
 .inpatient-temperature-svg-wrap:focus-visible { outline: 3px solid var(--color-focus-ring); outline-offset: 2px; }
 .inpatient-temperature-svg-wrap svg { min-width: 70rem; display: block; }
 .temperature-chart-surface { fill: var(--color-surface); }

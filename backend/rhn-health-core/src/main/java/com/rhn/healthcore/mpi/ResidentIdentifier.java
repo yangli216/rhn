@@ -21,7 +21,7 @@ class ResidentIdentifier {
     private String identifierSystem;
     @Column(name = "CD_IDENT_VAL", nullable = false)
     private String identifierValue;
-    @Column(name = "NORMALIZED_VALUE", nullable = false)
+    @Column(name = "NORM_VALUE", nullable = false)
     private String normalizedValue;
     @Column(name = "SD_USE_TYPE", nullable = false)
     private String useType;

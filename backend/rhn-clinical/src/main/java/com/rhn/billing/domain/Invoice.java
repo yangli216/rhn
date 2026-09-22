@@ -20,14 +20,14 @@ public class Invoice {
     @Column(name = "CD_INVOICE_NO", nullable = false) private String invoiceNo;
     @Column(name = "SD_INVOICE_TYPE", nullable = false) private String invoiceType;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
     @Column(name = "AMT_GROSS", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
-    @Column(name = "AMT_DISCOUNT", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
+    @Column(name = "AMT_DISC", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
     @Column(name = "AMT_NET", nullable = false, precision = 24, scale = 6) private BigDecimal netAmount;
     @Column(name = "DT_ISSUED", nullable = false) private Instant issuedAt;
     @Column(name = "ID_USER_ISSUED", nullable = false) private Long issuedBy;
-    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
-    @Column(name = "DES_CANCELLATION_REASON") private String cancellationReason;
+    @Column(name = "DT_CNCLD") private Instant cancelledAt;
+    @Column(name = "DES_CNCLN_REASON") private String cancellationReason;
 
     protected Invoice() {}
 

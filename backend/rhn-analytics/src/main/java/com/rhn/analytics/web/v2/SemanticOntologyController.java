@@ -151,7 +151,7 @@ public class SemanticOntologyController {
                 attributes:
                   - code: "is_emergency"
                     name: "是否急诊科室"
-                    physicalColumn: "FG_EMERGENCY"
+                    physicalColumn: "FG_EMERG"
                     valueAliases:
                       TRUE: ["急诊", "发热门诊", "急救"]
                       FALSE: ["普通门诊", "专家门诊"]
@@ -162,7 +162,7 @@ public class SemanticOntologyController {
                 yamlDiff,
                 Map.of(
                     "suggestedAttributeCode", "is_emergency",
-                    "suggestedColumn", "FG_EMERGENCY",
+                    "suggestedColumn", "FG_EMERG",
                     "suggestedAliases", List.of("急诊", "发热门诊", "急救")
                 )
             );

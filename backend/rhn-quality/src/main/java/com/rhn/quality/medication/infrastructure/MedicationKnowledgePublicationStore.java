@@ -14,11 +14,11 @@ public class MedicationKnowledgePublicationStore {
     public MedicationKnowledgePublicationStore(JdbcTemplate jdbc,JsonCodec json) {this.jdbc=jdbc;this.json=json;}
     public void append(Authorization value) {
         String raw=json.write(value);
-        jdbc.update("insert into RHN_AUD_KNOW_RELEASE (ID_TNT,ID_KNOW_RELEASE,ID_DEPLOYMENT,JSON_RELEASE,HASH_RELEASE) values (?,?,?,?,?)",value.tenantId(),value.id(),value.deploymentId(),raw,hash(raw));
+        jdbc.update("insert into RHN_AUD_KNOW_RELEASE (ID_TNT,ID_KNOW_RELEASE,ID_DEPLOY,JSON_RELEASE,HASH_RELEASE) values (?,?,?,?,?)",value.tenantId(),value.id(),value.deploymentId(),raw,hash(raw));
     }
     public Authorization require(Long tenant,Long id) {
         if(id==null)throw conflict("QMED_PUBLICATION_MISSING","正式发布缺少独立启用记录");
-        return jdbc.query("select ID_DEPLOYMENT,JSON_RELEASE,HASH_RELEASE from RHN_AUD_KNOW_RELEASE where ID_TNT=? and ID_KNOW_RELEASE=?",(r,n)->{
+        return jdbc.query("select ID_DEPLOY,JSON_RELEASE,HASH_RELEASE from RHN_AUD_KNOW_RELEASE where ID_TNT=? and ID_KNOW_RELEASE=?",(r,n)->{
             String raw=r.getString(2);
             if(!Objects.equals(hash(raw),r.getString(3)))throw conflict("QMED_PUBLICATION_INTEGRITY","正式发布材料指纹不一致");
             var value=json.read(raw,Authorization.class);

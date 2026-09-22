@@ -16,7 +16,7 @@ public class InpatientObservation {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_INP_OBS_GRP", nullable = false) private Long observationGroupId;
     @Column(name = "CD_OBS", nullable = false) private String observationCode;
-    @Column(name = "DT_OBSERVED", nullable = false) private Instant observedAt;
+    @Column(name = "DT_OBSD", nullable = false) private Instant observedAt;
     @Column(name = "CD_VAL_NUMBER", nullable = false) private BigDecimal valueNumber;
     @Column(name = "CD_UNIT", nullable = false) private String unitCode;
     @Column(name = "CD_BODY_SITE") private String bodySiteCode;

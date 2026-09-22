@@ -33,9 +33,9 @@ public class DictionaryAttributeDefinition {
     @Column(name = "SD_DATA_TYPE", nullable = false, length = 32)
     private DictionaryAttributeDataType dataType;
     @Enumerated(EnumType.STRING)
-    @Column(name = "SD_CARDINALITY", nullable = false, length = 16)
+    @Column(name = "SD_CARDNL", nullable = false, length = 16)
     private DictionaryAttributeCardinality cardinality;
-    @Column(name = "ID_DICT_DEF_REFERENCE_DICT")
+    @Column(name = "ID_DICT_DEF_REF_DICT")
     private Long referenceDictionaryId;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "JSON_SCHEMA", nullable = false)
@@ -46,9 +46,9 @@ public class DictionaryAttributeDefinition {
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_OVRD_POLICY", nullable = false, length = 32)
     private DictionaryAttributeOverridePolicy overridePolicy;
-    @Column(name = "FG_REQUIRED_VAL", nullable = false)
+    @Column(name = "FG_RQD_VAL", nullable = false)
     private boolean requiredValue;
-    @Column(name = "FG_SEARCHABLE", nullable = false)
+    @Column(name = "FG_SRCHBL", nullable = false)
     private boolean searchable;
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_STATUS", nullable = false, length = 32)

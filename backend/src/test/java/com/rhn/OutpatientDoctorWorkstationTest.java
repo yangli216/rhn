@@ -57,7 +57,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
         assertEquals(2, count("RHN_VIS_ENC_DIAG", encounterId));
         assertEquals(2, jdbcTemplate.queryForObject("select count(*) from RHN_VIS_ENC_DIAG where ID_ENC=? and SD_DIAG_STATUS='ACTIVE'", Integer.class, Long.valueOf(encounterId)));
         assertEquals(3, count("RHN_VIS_ENC_DIAG_REV", encounterId));
-        assertEquals(2, jdbcTemplate.queryForObject("select CD_BUSINESS_VER_NO as business_version_no from RHN_VIS_ENC_DIAG where ID_ENC=? and CD_ENC_DIAG='I10'", Integer.class, Long.valueOf(encounterId)));
+        assertEquals(2, jdbcTemplate.queryForObject("select CD_BIZ_VER_NO as business_version_no from RHN_VIS_ENC_DIAG where ID_ENC=? and CD_ENC_DIAG='I10'", Integer.class, Long.valueOf(encounterId)));
         assertEquals("WHO.BD.CS.ICD10", jdbcTemplate.queryForObject(
                 "select CD_CODE_SYS_SNAP as code_system_code_snapshot from RHN_VIS_ENC_DIAG where ID_ENC=? and CD_ENC_DIAG='I10'",
                 String.class, Long.valueOf(encounterId)));

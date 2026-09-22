@@ -32,9 +32,9 @@ public class InpatientShiftHandoff {
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
     @Column(name = "JSON_CONTENT_SCHEMA", nullable = false) private String contentSchema;
-    @Column(name = "CONTENT_DIGEST_ALGORITHM", nullable = false) private String contentDigestAlgorithm;
+    @Column(name = "CONTENT_DIGEST_ALGO", nullable = false) private String contentDigestAlgorithm;
     @Column(name = "HASH_CONTENT", nullable = false) private String contentDigest;
-    @Column(name = "ID_CRYPTO_EVID_INTEGRITY", nullable = false) private Long integrityEvidenceId;
+    @Column(name = "ID_CRYPTO_EVID_INTGR", nullable = false) private Long integrityEvidenceId;
 
     protected InpatientShiftHandoff() {
     }

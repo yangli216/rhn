@@ -19,23 +19,23 @@ public class CashierClose {
     @Column(name = "ID_ORG", nullable = false) private Long organizationId;
     @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_CASHIER_USER", nullable = false) private Long cashierUserId;
-    @Column(name = "ID_CASHIER_CLOSE_REVERSES") private Long reversesCloseId;
+    @Column(name = "ID_CASHIER_CLOSE_RVRS") private Long reversesCloseId;
     @Column(name = "CD_CLOSE_NO", nullable = false) private String closeNo;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
-    @Column(name = "CD_TERMINAL", nullable = false) private String terminalCode;
+    @Column(name = "CD_TRMNL", nullable = false) private String terminalCode;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_RANGE_FROM", nullable = false) private Instant rangeFrom;
     @Column(name = "DT_RANGE_TO", nullable = false) private Instant rangeTo;
     @Column(name = "QTY_TXN", nullable = false) private int transactionCount;
-    @Column(name = "AMT_EXPECTED", nullable = false, precision = 24, scale = 6) private BigDecimal expectedAmount;
+    @Column(name = "AMT_EXPCTD", nullable = false, precision = 24, scale = 6) private BigDecimal expectedAmount;
     @Column(name = "AMT_ACTUAL", nullable = false, precision = 24, scale = 6) private BigDecimal actualAmount;
-    @Column(name = "AMT_DIFFERENCE", nullable = false, precision = 24, scale = 6) private BigDecimal differenceAmount;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
-    @Column(name = "DES_DIFFERENCE_REASON") private String differenceReason;
+    @Column(name = "AMT_DIFF", nullable = false, precision = 24, scale = 6) private BigDecimal differenceAmount;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
+    @Column(name = "DES_DIFF_REASON") private String differenceReason;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
-    @Column(name = "ID_USER_CONFIRMED") private Long confirmedBy;
-    @Column(name = "DT_CONFIRMED") private Instant confirmedAt;
+    @Column(name = "ID_USER_CNFRMD") private Long confirmedBy;
+    @Column(name = "DT_CNFRMD") private Instant confirmedAt;
 
     protected CashierClose() {}
 

@@ -19,13 +19,13 @@ public class PrintMediaProfile {
     @Column(name = "SD_MEDIA_KIND", nullable = false) private String mediaKind;
     @Column(name = "WIDTH_MM", nullable = false) private BigDecimal widthMm;
     @Column(name = "HEIGHT_MM") private BigDecimal heightMm;
-    @Column(name = "SD_ORIENTATION", nullable = false) private String orientation;
+    @Column(name = "SD_ORIENT", nullable = false) private String orientation;
     @Column(name = "MARGIN_TOP_MM", nullable = false) private BigDecimal marginTopMm;
     @Column(name = "MARGIN_RIGHT_MM", nullable = false) private BigDecimal marginRightMm;
     @Column(name = "MARGIN_BOTTOM_MM", nullable = false) private BigDecimal marginBottomMm;
     @Column(name = "MARGIN_LEFT_MM", nullable = false) private BigDecimal marginLeftMm;
-    @Column(name = "GAP_HORIZONTAL_MM", nullable = false) private BigDecimal horizontalGapMm;
-    @Column(name = "GAP_VERTICAL_MM", nullable = false) private BigDecimal verticalGapMm;
+    @Column(name = "GAP_HORIZ_MM", nullable = false) private BigDecimal horizontalGapMm;
+    @Column(name = "GAP_VERT_MM", nullable = false) private BigDecimal verticalGapMm;
     @Column(name = "QTY_COLUMNS", nullable = false) private int columns;
     @Column(name = "QTY_ROWS", nullable = false) private int rows;
     @Column(name = "QTY_DPI", nullable = false) private int dpi;

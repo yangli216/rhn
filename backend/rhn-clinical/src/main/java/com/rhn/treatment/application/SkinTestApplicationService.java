@@ -190,7 +190,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         String gateMessage = Set.of("WAITING_SETTLEMENT", "WAITING_DISPENSE").contains(status)
                 ? gate.message() : null;
         return new SkinTestWorkItemView(request.id(), request.revision(), request.requestNo(), request.residentId(),
-                resident.fullName(), resident.healthRecordNo(), request.encounterId(),
+                resident.fullName(), resident.healthRecordNo(), resident.gender(), resident.birthDate(), request.encounterId(),
                 request.performerOrganizationId(), request.performerDepartmentId(), request.medicationId(),
                 request.medicationCode(), request.medicationName(), request.itemName(), request.routeCode(),
                 request.doseValue(), request.doseUnit(), configuration.testMethod(),

@@ -5,6 +5,7 @@ import type { PageMetric, PageResult, PageSeries, PageSpec, PageTemplate, SavedP
 import { Alert, Button, Dialog, Icon, LoadingState, Select, Pagination } from '../../shared/ui'
 import { AnalysisPlanEditor, PlanChanges, dimensionNames, periodNames } from './AnalysisPlanEditor'
 import { SemanticWorkbench } from './SemanticWorkbench'
+import { SYSTEM_PRESET_PAGES, isPresetPage } from './analyticsPresets'
 import './dynamic-analysis.css'
 
 export const pageTemplates: {code:PageTemplate;name:string;description:string;icon:'tasks'|'roadmap'}[] = [
@@ -19,7 +20,19 @@ const dimensions=dimensionNames
 const periods=periodNames
 const number=(v:number)=>new Intl.NumberFormat('zh-CN',{maximumFractionDigits:2}).format(v)
 const templateName=(code:PageTemplate)=>pageTemplates.find(t=>t.code===code)?.name??(code==='CUSTOM'?'AI 组合页面':code)
-const queryKey=(spec:PageSpec)=>JSON.stringify({...spec,title:''})
+function normalizeSpecForCompare(s:PageSpec){
+  return {
+    template:s.template,
+    dimension:s.dimension,
+    scope:s.scope,
+    period:{kind:s.period?.kind,startDate:s.period?.startDate||null,endDate:s.period?.endDate||null},
+    limit:s.limit??10,
+    metrics:s.metrics??[],
+    measures:s.measures?.map(m=>({code:m.code,field:m.field,aggregate:m.aggregate,filters:(m.filters??[]).map(f=>({field:f.field,operator:f.operator,values:f.values}))}))??null,
+    widgets:s.widgets??null,
+  }
+}
+const queryKey=(spec:PageSpec)=>JSON.stringify(normalizeSpecForCompare(spec))
 
 export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
   const [editingId,setEditingId]=useState<string|null>(null)
@@ -30,7 +43,7 @@ export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
   const [renameTitle,setRenameTitle]=useState('')
   const [versions,setVersions]=useState<SavedPage[]>([])
   const [managementError,setManagementError]=useState('')
-  const [viewMode, setViewMode] = useState<'library' | 'ontology'>('library')
+  const [viewMode, setViewMode] = useState<'library' | 'ontology'>(() => new URLSearchParams(window.location.search).get('view') === 'ontology' ? 'ontology' : 'library')
   const [saved,setSaved]=useState<SavedPage[]>([])
   const [catalog,setCatalog]=useState<PageMetric[]>([])
   const [sources,setSources]=useState<SourceCatalog[]>([])
@@ -60,14 +73,18 @@ export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
   useEffect(()=>{if(chatScroll.current)chatScroll.current.scrollTop=chatScroll.current.scrollHeight},[history,reply,showAssistant])
   const epoch=useRef(0)
   const selection=useRef(0)
-  useEffect(()=>{const current=++epoch.current;setManagement(null);setManagementBusy(false);setEditingId(null);setLibraryPage(0);setLibraryState('active');setLoading(true);setSaved([]);setReply('');setActiveId(null);setCreating(true);setSpec(null);setResult(null);setAi(null);setCatalog([]);setSources([]);setError('');setBusy('');setHistory([]);setFollowup('');setBaseline(null);setUnresolved(false);setCopying(false);setRequirement('');setGeneratedRequirement('')
+  useEffect(()=>{const current=++epoch.current;setManagement(null);setManagementBusy(false);setEditingId(null);setLibraryPage(0);setLibraryState('active');setLoading(true);setSaved([]);setReply('');setActiveId(null);setCreating(false);setSpec(null);setResult(null);setAi(null);setCatalog([]);setSources([]);setError('');setBusy('');setHistory([]);setFollowup('');setBaseline(null);setUnresolved(false);setCopying(false);setRequirement('');setGeneratedRequirement('')
     const originalSelection=selection.current
     api.analytics.pageSources().then(v=>{if(current===epoch.current)setSources(v)}).catch(e=>{if(current===epoch.current)setError(errorMessage(e))})
     api.analytics.pageCatalog().then(v=>{if(current===epoch.current)setCatalog(v)}).catch(e=>{if(current===epoch.current)setError(errorMessage(e))})
     api.analytics.aiStatus().then(v=>{if(current===epoch.current)setAi(v)}).catch(()=>{if(current===epoch.current)setAi({available:false,model:null,message:'AI 状态暂时不可用，请稍后重试。'})})
     api.analytics.savedPages(true).then(items=>{if(current!==epoch.current)return;setSaved(items)
       if(selection.current!==originalSelection)return
-      const active=items.find(item=>!item.archived);if(active)void open(active);else if(items.length){setLibraryState('archived');void open(items[0])}else setCreating(true)
+      const active=items.find(item=>!item.archived);
+      if(active) void open(active);
+      else if(items.length){setLibraryState('archived');void open(items[0])}
+      else if(SYSTEM_PRESET_PAGES.length){void open(SYSTEM_PRESET_PAGES[0])}
+      else setCreating(false)
     }).catch(e=>{if(current===epoch.current)setError(errorMessage(e))}).finally(()=>{if(current===epoch.current)setLoading(false)})
     return ()=>{epoch.current++;selection.current++}
   },[api])
@@ -146,8 +163,52 @@ export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
   }
   function chooseTemplate(value:PageTemplate){resetDiscussion();setTemplate(value);setSpec(null);setResult(null);setReply('')}
   const saveDisabled=!result||Boolean(busy)||stale||requirementChanged||unresolved||Boolean(followup.trim())||!spec?.title.trim()
-  function returnToLibrary(){setLeave(false);if(saved.length){const item=saved.find(s=>s.id===activeId)??saved.find(s=>!s.archived)??saved[0];setLibraryState(item.archived?'archived':'active');void open(item)}else {resetDiscussion();setCreating(false);setSpec(null);setResult(null)} }
-  const activeSaved=saved.find(item=>item.id===activeId)
+  function returnToLibrary(){
+    setLeave(false)
+    if(saved.length){
+      const item=saved.find(s=>s.id===activeId)??saved.find(s=>!s.archived)??saved[0]
+      setLibraryState(item.archived?'archived':'active')
+      void open(item)
+    } else if(SYSTEM_PRESET_PAGES.length){
+      const preset=SYSTEM_PRESET_PAGES.find(s=>s.id===activeId)??SYSTEM_PRESET_PAGES[0]
+      setLibraryState('active')
+      void open(preset)
+    } else {
+      resetDiscussion()
+      setCreating(false)
+      setSpec(null)
+      setResult(null)
+    }
+  }
+  function hasUnsavedChanges(): boolean {
+    if (busy === 'generate' || busy === 'save') return true
+    if (followup.trim().length > 0) return true
+    if (history.length > 0) return true
+    if (!baseline) {
+      return Boolean(requirement.trim().length > 0 || spec !== null)
+    }
+    if (!spec) return false
+    if (copying) {
+      const initialCopyTitle = (baseline.title.slice(0, 74) + '（调整）').trim()
+      const titleChanged = spec.title.trim() !== initialCopyTitle
+      const contentChanged = queryKey(spec) !== queryKey(baseline)
+      return titleChanged || contentChanged
+    }
+    const titleChanged = spec.title.trim() !== baseline.title.trim()
+    const contentChanged = queryKey(spec) !== queryKey(baseline)
+    return titleChanged || contentChanged
+  }
+  function requestLeave() {
+    if (hasUnsavedChanges()) {
+      setLeave(true)
+    } else {
+      returnToLibrary()
+    }
+  }
+  const isCurrentPreset=isPresetPage(activeId)
+  const activePreset=SYSTEM_PRESET_PAGES.find(item=>item.id===activeId)
+  const activeSaved=saved.find(item=>item.id===activeId)??activePreset
+  const filteredPresets=SYSTEM_PRESET_PAGES.filter(item=>item.spec.title.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()))
   const filteredSaved=saved.filter(item=>(libraryState==='archived'?Boolean(item.archived):!item.archived)&&item.spec.title.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()))
   const totalLibraryPages=Math.max(1,Math.ceil(filteredSaved.length/10))
   const currentLibraryPage=Math.min(libraryPage,totalLibraryPages-1)
@@ -167,26 +228,51 @@ export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
   }
 
   return <section className={`da-root ${creating?'is-editing':''}`} aria-label="动态统计分析功能库">
-    <header className="da-header"><div className="da-heading"><h1>{creating?(editingId?'编辑统计分析':copying?'调整统计分析':'新建统计分析'):'智能统计分析'}</h1><span>{creating?(spec?'编辑与预览':'选择形式，描述业务需求'):'我的统计功能'}</span></div><div className="da-toolbar">
+    <header className="da-header"><div className="da-heading"><h1>{creating?(editingId?'编辑统计分析':copying?'调整统计分析':'新建统计分析'):'智能统计分析'}</h1>{creating&&<span>{spec?'编辑与预览':'选择形式，描述业务需求'}</span>}</div><div className="da-toolbar">
       <Button variant="secondary" size="sm" disabled={creating&&Boolean(spec||requirement.trim())} onClick={() => setViewMode('ontology')} aria-label="打开业务实体数据关系网工作台">
         <Icon name="roadmap" /> 业务实体数据关系网
       </Button>
-      {creating&&<Button variant="text" size="sm" disabled={busy==='save'} onClick={()=>setLeave(true)}>返回功能库</Button>}
+      {creating&&<Button variant="text" size="sm" disabled={busy==='save'} onClick={requestLeave}>返回功能库</Button>}
       {!creating&&<Button size="sm" onClick={fresh}><Icon name="add"/>新建统计分析</Button>}
       {creating&&spec&&<>{sourceHelp}<Button variant="text" size="sm" aria-pressed={showAssistant} onClick={()=>setShowAssistant(v=>!v)}>{showAssistant?'收起 AI':'AI 助手'}</Button><Button variant="secondary" size="sm" disabled={Boolean(busy)||!baseline} onClick={restore}>撤销所有调整</Button><Button size="sm" onClick={()=>void save()} busy={busy==='save'} disabled={saveDisabled}>{editingId?'保存新版本':copying?'确认并另存为新功能':'确认并固化'}</Button></>}
     </div></header>
     {error&&<Alert duration={null} onDismiss={()=>setError('')}>{error}</Alert>}
     <div className={`da-layout ${creating?(spec?(showAssistant?'da-layout--editing':'da-layout--new'):'da-layout--new'):''}`}>
-      {!creating&&<>      <aside className="da-library"><h2>已固化统计功能</h2>
+      {!creating&&<>      <aside className="da-library">
+        <div className="da-library-head">
+          <h2>已固化统计功能</h2>
+          <Button variant="text" size="sm" disabled={Boolean(busy)||managementBusy} onClick={()=>void refreshLibrary()}>刷新</Button>
+        </div>
         <Select aria-label="功能状态" value={libraryState} clearable={false} searchable={false}
           options={[{value:'active',label:'使用中'},{value:'archived',label:'已归档'}]}
           onChange={value=>{setLibraryState(value);setLibraryPage(0)}} />
-        <Button variant="text" size="sm" disabled={Boolean(busy)||managementBusy} onClick={()=>void refreshLibrary()}>刷新功能库</Button><input type="search" aria-label="查找已固化功能" placeholder="按名称查找" value={filter} onChange={e=>{setFilter(e.target.value);setLibraryPage(0)}}/>
+        <input type="search" aria-label="查找已固化功能" placeholder="按名称查找" value={filter} onChange={e=>{setFilter(e.target.value);setLibraryPage(0)}}/>
         {loading&&<LoadingState label="正在加载功能库"/>}
-        <nav aria-label="已固化统计功能列表">{filteredSaved.slice(currentLibraryPage*10,(currentLibraryPage+1)*10).map(item=><button type="button" key={item.id} disabled={busy==='save'} onClick={()=>void open(item)} aria-current={!creating&&activeId===item.id?'page':undefined} className={!creating&&activeId===item.id?'is-active':''}><Icon name="roadmap"/><span><strong>{item.spec.title}</strong><small>{templateName(item.spec.template)} · {item.spec.metrics.length} 个指标 · V{item.version??1}{item.archived?' · 已归档':''}</small></span></button>)}</nav>
-        {!loading&&!saved.length&&<p>确认生成结果后，统计功能会保存在这里。</p>}
-        {!loading&&saved.length>0&&!filteredSaved.length&&<p>没有匹配的功能</p>}
-        <Pagination page={currentLibraryPage} totalPages={totalLibraryPages} total={filteredSaved.length} onChange={setLibraryPage} label="功能库分页" />
+        {[
+          ...(libraryState==='active'&&filteredPresets.length>0?[{
+            key:'presets',
+            title:'系统预置功能',
+            ariaLabel:'系统预置统计功能列表',
+            items:filteredPresets.map(item=>({item,subtitle:templateName(item.spec.template)})),
+            empty:null,
+            pagination:null,
+          }]:[]),
+          {
+            key:'saved',
+            title:`${libraryState==='active'?'我的固化功能':'已归档功能'} (${filteredSaved.length})`,
+            ariaLabel:'已固化统计功能列表',
+            items:filteredSaved.slice(currentLibraryPage*10,(currentLibraryPage+1)*10).map(item=>({item,subtitle:`${templateName(item.spec.template)} · V${item.version??1}${item.archived?' · 已归档':''}`})),
+            empty:!loading&&!saved.length&&libraryState==='active'?<p>确认生成结果后，个性化统计功能会保存在这里。</p>:(!loading&&(saved.length>0||libraryState==='archived')&&!filteredSaved.length?<p>没有匹配的功能</p>:null),
+            pagination:filteredSaved.length>10?<Pagination page={currentLibraryPage} totalPages={totalLibraryPages} total={filteredSaved.length} onChange={setLibraryPage} label="功能库分页" />:null,
+          },
+        ].map(group=>(
+          <div key={group.key} className="da-library-group">
+            <h3 className="da-library-group-title">{group.title}</h3>
+            <nav aria-label={group.ariaLabel}>{group.items.map(({item,subtitle})=><button type="button" key={item.id} disabled={busy==='save'} onClick={()=>void open(item)} aria-current={!creating&&activeId===item.id?'page':undefined} className={!creating&&activeId===item.id?'is-active':''}><Icon name="roadmap"/><span><strong>{item.spec.title}</strong><small>{subtitle}</small></span></button>)}</nav>
+            {group.empty}
+            {group.pagination}
+          </div>
+        ))}
         <div className="da-library-note">展示模板在新建时选择。已固化功能每次打开查询最新数据，按当前账号权限运行。</div>
       </aside>
 </>}
@@ -199,13 +285,17 @@ export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
           </section>
         </div>}
         {!creating&&!spec&&<div className="da-empty">选择左侧功能查看，或点击“新建统计分析”。</div>}
-        {spec&&<section className="da-generated" aria-label="生成的业务分析页面"><header className="da-page-title"><div>{creating?<input aria-label="功能名称" value={spec.title} disabled={Boolean(busy)} maxLength={80} onChange={e=>setSpec({...spec,title:e.target.value})}/>:<h2>{spec.title}</h2>}<small>{templateName(spec.template)} · {dimensions[spec.dimension]} · {spec.metrics.length} 个指标{creating?' · 未保存':''}</small></div>{!creating&&<div className="da-management-actions">
-            <span>V{activeSaved?.version??1}{activeSaved?.archived?' · 已归档':''}</span>
-            {!activeSaved?.archived&&<><Button size="sm" variant="secondary" disabled={Boolean(busy)} onClick={editSaved}>编辑原功能</Button>
-              <Button size="sm" variant="text" disabled={Boolean(busy)} onClick={()=>void manage('rename')}>重命名</Button>
-              <Button size="sm" variant="secondary" disabled={Boolean(busy)||!result} onClick={adjustSaved}>基于此功能调整</Button></>}
-            <Button size="sm" variant="text" disabled={Boolean(busy)} onClick={()=>void manage('history')}>历史版本</Button>
-            <Button size="sm" variant="text" disabled={Boolean(busy)} onClick={()=>void manage('archive')}>{activeSaved?.archived?'恢复功能':'归档功能'}</Button>
+        {spec&&<section className="da-generated" aria-label="生成的业务分析页面"><header className="da-page-title"><div>{creating?<input aria-label="功能名称" value={spec.title} disabled={Boolean(busy)} maxLength={80} onChange={e=>setSpec({...spec,title:e.target.value})}/>:<h2>{spec.title}</h2>}<small>{templateName(spec.template)} · {dimensions[spec.dimension]}{creating?' · 未保存':''}</small></div>{!creating&&<div className="da-management-actions">
+            {isCurrentPreset ? (
+              <span className="da-badge-preset">系统预置</span>
+            ) : (
+              <span>V{activeSaved?.version??1}{activeSaved?.archived?' · 已归档':''}</span>
+            )}
+            {!activeSaved?.archived&&!isCurrentPreset&&<><Button size="sm" variant="secondary" disabled={Boolean(busy)} onClick={editSaved}>编辑原功能</Button>
+              <Button size="sm" variant="text" disabled={Boolean(busy)} onClick={()=>void manage('rename')}>重命名</Button></>}
+            {!activeSaved?.archived&&<Button size="sm" variant="secondary" disabled={Boolean(busy)||!result} onClick={adjustSaved}>基于此功能调整</Button>}
+            {!isCurrentPreset&&<><Button size="sm" variant="text" disabled={Boolean(busy)} onClick={()=>void manage('history')}>历史版本</Button>
+              <Button size="sm" variant="text" disabled={Boolean(busy)} onClick={()=>void manage('archive')}>{activeSaved?.archived?'恢复功能':'归档功能'}</Button></>}
           </div>}</header>
           <div className="da-workspace-tabs" role="tablist" aria-label="分析工作区">{([['preview','结果预览'],...(spec.template!=='LIST'?[['data','数据明细']]:[]),...(creating?[['config','计算配置'],['changes','变更对照']]:[])] as const).map(([key,label])=><button type="button" role="tab" id={`da-tab-${key}`} aria-selected={panel===key} aria-controls={`da-panel-${key}`} tabIndex={panel===key?0:-1} key={key} onClick={()=>setPanel(key as typeof panel)} onKeyDown={e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const tabs=[...e.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]')];const index=tabs.indexOf(e.currentTarget);const next=tabs[(index+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];next.focus();next.click()}}}>{label}</button>)}</div>
                     <div className="da-filters"><label>统计日期<Select aria-label="统计日期" disabled={Boolean(busy)} value={spec.period.kind} clearable={false} searchable={false} onChange={value=>setSpec({...spec,period:{kind:value as PageSpec['period']['kind'],startDate:result?.startDate,endDate:result?.endDate}})} options={Object.entries(periods).map(([value,label])=>({value,label}))}/></label>
@@ -214,7 +304,7 @@ export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
             {spec.template==='RANKING'&&<label>显示前几项<input aria-label="排行项数" type="number" min={1} max={100} disabled={Boolean(busy)} value={spec.limit} onChange={e=>setSpec({...spec,limit:Number(e.target.value)})}/></label>}
             <Button onClick={()=>void run()} busy={busy==='query'} disabled={Boolean(busy)||requirementChanged||unresolved||Boolean(activeSaved?.archived)}>{creating?'更新预览':'查询'}</Button>
           </div>
-          {(stale||requirementChanged)&&<p role="status" className="da-stale">{requirementChanged?'需求已修改，请重新生成页面预览。':'查询条件已修改，下方仍为上次结果，请更新预览后确认。'}</p>}
+          {(stale||requirementChanged)&&<p role="status" className="da-stale">{requirementChanged?'需求已修改，请重新生成页面预览。':creating?'查询条件已修改，下方仍为上次结果，请更新预览后确认。':'查询条件已修改，请点击“查询”获取最新数据。'}</p>}
 
           {unresolved&&<p role="status" className="da-stale">{busy==='generate'?'AI 正在更新方案，下方保留上次结果。':'本轮要求尚未解决，请先补充说明或撤销调整。'}</p>}
           {followup.trim()&&!unresolved&&<p className="da-stale">补充要求尚未发送，发送或清空后可保存。</p>}

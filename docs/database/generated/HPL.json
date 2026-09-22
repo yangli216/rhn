@@ -1,0 +1,2643 @@
+{
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "tables": [
+    {
+      "logical": "hpl.care_task_event",
+      "legacy": "care_task_events",
+      "physical": "RHN_HPL_CARE_TASK_EVT",
+      "domain": "HPL",
+      "comment": "照护任务事件；一行代表一条照护任务事件记录",
+      "columns": [
+        {
+          "physical": "ID_CARE_TASK_EVT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "照护任务事件主键",
+          "logical": "id",
+          "catalogComment": "照护任务事件主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_CARE_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "照护任务标识",
+          "logical": "care_task_id",
+          "catalogComment": "照护任务标识"
+        },
+        {
+          "physical": "SD_EVT_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "事件类型",
+          "logical": "event_type",
+          "catalogComment": "事件类型"
+        },
+        {
+          "physical": "SD_STATUS_FROM",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "状态原",
+          "logical": "status_from",
+          "catalogComment": "状态原"
+        },
+        {
+          "physical": "SD_STATUS_TO",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "状态目标",
+          "logical": "status_to",
+          "catalogComment": "状态目标"
+        },
+        {
+          "physical": "ID_PRACT_ACTOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "操作人医务人员标识",
+          "logical": "actor_practitioner_id",
+          "catalogComment": "操作人医务人员标识"
+        },
+        {
+          "physical": "ID_USER_ACTOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "操作人用户标识",
+          "logical": "actor_user_id",
+          "catalogComment": "操作人用户标识"
+        },
+        {
+          "physical": "CD_COMMAND",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "命令编码",
+          "logical": "command_code",
+          "catalogComment": "命令编码"
+        },
+        {
+          "physical": "DES_RESULT_DESCR",
+          "type": "CHARACTER VARYING",
+          "size": 2000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "结果说明",
+          "logical": "result_description",
+          "catalogComment": "结果说明"
+        },
+        {
+          "physical": "CD_RULE",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "规则编码",
+          "logical": "rule_code",
+          "catalogComment": "规则编码"
+        },
+        {
+          "physical": "CD_RULE_VER",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "规则版本",
+          "logical": "rule_version",
+          "catalogComment": "规则版本"
+        },
+        {
+          "physical": "JSON_EVID",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "证据JSON",
+          "logical": "evidence_json",
+          "catalogComment": "证据JSON"
+        },
+        {
+          "physical": "HASH_EVID",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "证据摘要",
+          "logical": "evidence_hash",
+          "catalogComment": "证据摘要"
+        },
+        {
+          "physical": "DT_OCCRD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "发生时间",
+          "logical": "occurred_at",
+          "catalogComment": "发生时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_CARE_TASK_EVT"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_HPL_CARE_TASK_CARE_TASK_EVE",
+          "columns": [
+            "ID_TNT",
+            "ID_CARE_TASK",
+            "CD_COMMAND"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_HPL_CARE_TASK_HPL_CARE_CARE_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CARE_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_SYS_PRAC_CA_2_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PRACT_ACTOR",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_SYS_TNT_CAR_1_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_SYS_USER_CA_1_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_ACTOR",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_HPL_CARE_TASK_CARE_TASK_EV",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CARE_TASK",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_OCCRD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_HPL_CARE_TASK_CARE_TASK__1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_RULE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_RULE_VER",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_OCCRD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_2CBA",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CARE_TASK_EVT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_HPL_CARE_TASK_CARE_TASK_EVE_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CARE_TASK",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_COMMAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_HPL_CARE_TASK_CARE_TASK_E_1",
+          "expression": "(\"id_pract_actor\" IS NOT NULL)\n    OR (\"id_user_actor\" IS NOT NULL)"
+        },
+        {
+          "name": "CK_HPL_CARE_TASK_CARE_TASK_E_2",
+          "expression": "((\"json_evid\" IS NULL)\n    AND (\"hash_evid\" IS NULL))\n    OR ((\"json_evid\" IS NOT NULL)\n    AND (\"hash_evid\" IS NOT NULL)\n    AND (\"cd_rule\" IS NOT NULL)\n    AND (\"cd_rule_ver\" IS NOT NULL))"
+        },
+        {
+          "name": "CK_HPL_CARE_TASK_CARE_TASK_EVE",
+          "expression": "\"sd_status_to\" IN('PLANNED', 'READY', 'IN_PROGRESS', 'WAITING_EXTERNAL', 'COMPLETED', 'CANCELLED', 'OVERDUE', 'ESCALATED')"
+        }
+      ],
+      "catalogComment": "照护任务事件；一行代表一条照护任务事件记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-care/src/main/java/com/rhn/healthplanning/domain/CareTaskEvent.java",
+          "line": 13
+        }
+      ]
+    },
+    {
+      "logical": "hpl.care_task",
+      "legacy": "care_tasks",
+      "physical": "RHN_HPL_CARE_TASK",
+      "domain": "HPL",
+      "comment": "照护任务；一行代表一条照护任务记录",
+      "columns": [
+        {
+          "physical": "ID_CARE_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "照护任务主键",
+          "logical": "id",
+          "catalogComment": "照护任务主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "ID_ENC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "就诊标识",
+          "logical": "encounter_id",
+          "catalogComment": "就诊标识"
+        },
+        {
+          "physical": "ID_CARE_PLAN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "照护方案标识",
+          "logical": "care_plan_id",
+          "catalogComment": "照护方案标识"
+        },
+        {
+          "physical": "ID_CARE_REQ",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "请求标识",
+          "logical": "request_id",
+          "catalogComment": "请求标识"
+        },
+        {
+          "physical": "ID_REPORT_EVT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "报告事件标识",
+          "logical": "report_event_id",
+          "catalogComment": "报告事件标识"
+        },
+        {
+          "physical": "ID_COND",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "健康问题标识",
+          "logical": "condition_id",
+          "catalogComment": "健康问题标识"
+        },
+        {
+          "physical": "CD_TASK",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "任务编码",
+          "logical": "task_code",
+          "catalogComment": "任务编码"
+        },
+        {
+          "physical": "SD_TASK_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "任务类型",
+          "logical": "task_type",
+          "catalogComment": "任务类型"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "SD_PRI",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "优先级",
+          "logical": "priority",
+          "catalogComment": "优先级"
+        },
+        {
+          "physical": "ID_PRACT_OWNER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "责任方医务人员标识",
+          "logical": "owner_practitioner_id",
+          "catalogComment": "责任方医务人员标识"
+        },
+        {
+          "physical": "ID_ORG_OWNER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "责任方机构标识",
+          "logical": "owner_organization_id",
+          "catalogComment": "责任方机构标识"
+        },
+        {
+          "physical": "ID_DEPT_OWNER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "责任方科室标识",
+          "logical": "owner_department_id",
+          "catalogComment": "责任方科室标识"
+        },
+        {
+          "physical": "DT_DUE",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "到期时间",
+          "logical": "due_at",
+          "catalogComment": "到期时间"
+        },
+        {
+          "physical": "CD_ESCLN_RULE",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "升级规则编码",
+          "logical": "escalation_rule_code",
+          "catalogComment": "升级规则编码"
+        },
+        {
+          "physical": "NA_TITLE",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "标题",
+          "logical": "title",
+          "catalogComment": "标题"
+        },
+        {
+          "physical": "DES_CARE_TASK",
+          "type": "CHARACTER VARYING",
+          "size": 2000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "说明",
+          "logical": "description",
+          "catalogComment": "说明"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_PRACT_CREATOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "creator医务人员标识",
+          "logical": "creator_practitioner_id",
+          "catalogComment": "creator医务人员标识"
+        },
+        {
+          "physical": "ID_USER_CREATOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "creator用户标识",
+          "logical": "creator_user_id",
+          "catalogComment": "creator用户标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_CARE_TASK"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_HPL_CARE_TASK_CARE_TASK_COD",
+          "columns": [
+            "ID_TNT",
+            "CD_TASK"
+          ]
+        },
+        {
+          "name": "UK_HPL_CARE_TASK_CARE_TASK_TEN",
+          "columns": [
+            "ID_TNT",
+            "ID_CARE_TASK"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_HPL_CARE_TASK_HPL_COND_CARE_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_COND",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_PI_PAT_CARE_T_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_SYS_DEPT_CARE_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG_OWNER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT_OWNER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_SYS_ORG_CARE__INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG_OWNER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_SYS_PRAC_CARE_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PRACT_OWNER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_SYS_PRAC_CA_1_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PRACT_CREATOR",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_SYS_TNT_CARE__INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_SYS_USER_CARE_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_CREATOR",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_CARE_TASK_VIS_ENC_CARE__INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ENC",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_HPL_CARE_TASK_CARE_TASK_EN",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ENC",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_HPL_CARE_TASK_CARE_TASK_QU",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG_OWNER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT_OWNER",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "DT_DUE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_HPL_CARE_TASK_CARE_TASK_RE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_TASK_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "DT_DUE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_AA",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CARE_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_HPL_CARE_TASK_CARE_TASK_COD_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_HPL_CARE_TASK_CARE_TASK_TEN_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CARE_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_HPL_CARE_TASK_CARE_TASK_OWN",
+          "expression": "(\"id_dept_owner\" IS NULL)\n    OR (\"id_org_owner\" IS NOT NULL)"
+        },
+        {
+          "name": "CK_HPL_CARE_TASK_CARE_TASK_PRI",
+          "expression": "\"sd_pri\" IN('LOW', 'NORMAL', 'HIGH', 'URGENT')"
+        },
+        {
+          "name": "CK_HPL_CARE_TASK_CARE_TASK_STA",
+          "expression": "\"sd_status\" IN('PLANNED', 'READY', 'IN_PROGRESS', 'WAITING_EXTERNAL', 'COMPLETED', 'CANCELLED', 'OVERDUE', 'ESCALATED')"
+        },
+        {
+          "name": "CK_HPL_CARE_TASK_CARE_TASK_TYP",
+          "expression": "\"sd_task_type\" IN('FOLLOWUP', 'RECHECK', 'REFERRAL_RETURN', 'PUBLIC_HEALTH_REPORT', 'EDUCATION', 'PATIENT_COMMUNICATION', 'CRITICAL_VALUE')"
+        }
+      ],
+      "catalogComment": "照护任务；一行代表一条照护任务记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-care/src/main/java/com/rhn/healthplanning/domain/CareTask.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "hpl.condition",
+      "legacy": "conditions",
+      "physical": "RHN_HPL_COND",
+      "domain": "HPL",
+      "comment": "健康问题；一行代表一条健康问题记录",
+      "columns": [
+        {
+          "physical": "ID_COND",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "健康问题主键",
+          "logical": "id",
+          "catalogComment": "健康问题主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "ID_CONCEPT_TERM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "术语标识",
+          "logical": "term_id",
+          "catalogComment": "术语标识"
+        },
+        {
+          "physical": "CD_COND_KEY",
+          "type": "CHARACTER VARYING",
+          "size": 240,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "健康问题键",
+          "logical": "condition_key",
+          "catalogComment": "健康问题键"
+        },
+        {
+          "physical": "CODE_SYSTEM_URI",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "编码体系URI",
+          "logical": "code_system_uri",
+          "catalogComment": "编码体系URI"
+        },
+        {
+          "physical": "CD_CODE_RELEASE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "编码release",
+          "logical": "code_release",
+          "catalogComment": "编码release"
+        },
+        {
+          "physical": "CD_COND",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "健康问题编码",
+          "logical": "condition_code",
+          "catalogComment": "健康问题编码"
+        },
+        {
+          "physical": "NA_COND",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "健康问题名称",
+          "logical": "condition_name",
+          "catalogComment": "健康问题名称"
+        },
+        {
+          "physical": "SD_CLIN_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "临床状态",
+          "logical": "clinical_status",
+          "catalogComment": "临床状态"
+        },
+        {
+          "physical": "SD_VRFCTN_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "验证状态",
+          "logical": "verification_status",
+          "catalogComment": "验证状态"
+        },
+        {
+          "physical": "DT_ONSET",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "onset时间",
+          "logical": "onset_at",
+          "catalogComment": "onset时间"
+        },
+        {
+          "physical": "DT_ABATE",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "abatement时间",
+          "logical": "abatement_at",
+          "catalogComment": "abatement时间"
+        },
+        {
+          "physical": "DT_RECDD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "记录时间",
+          "logical": "recorded_at",
+          "catalogComment": "记录时间"
+        },
+        {
+          "physical": "ID_PRACT_RECDR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "记录人医务人员标识",
+          "logical": "recorder_practitioner_id",
+          "catalogComment": "记录人医务人员标识"
+        },
+        {
+          "physical": "ID_USER_RECDR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "记录人用户标识",
+          "logical": "recorder_user_id",
+          "catalogComment": "记录人用户标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_COND"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_HPL_COND_CONDITION_KEY",
+          "columns": [
+            "ID_TNT",
+            "CD_COND_KEY"
+          ]
+        },
+        {
+          "name": "UK_HPL_COND_CONDITION_TENANT_I",
+          "columns": [
+            "ID_TNT",
+            "ID_COND"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_HPL_COND_BD_CONCE_CONDITION_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CONCEPT_TERM",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_COND_PI_PAT_CONDITION_R_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_COND_SYS_PRAC_CONDITION_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PRACT_RECDR",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_COND_SYS_TNT_CONDITION__INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_COND_SYS_USER_CONDITION_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_RECDR",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_HPL_COND_CONDITION_CODE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_COND",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_VRFCTN_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SD_CLIN_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_HPL_COND_CONDITION_RESIDEN",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_CLIN_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_RECDD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_FCE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_COND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_HPL_COND_CONDITION_KEY_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_COND_KEY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_HPL_COND_CONDITION_TENANT_I_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_COND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_HPL_COND_CONDITION_CLINICAL",
+          "expression": "\"sd_clin_status\" IN('ACTIVE', 'RECURRENCE', 'RELAPSE', 'INACTIVE', 'REMISSION', 'RESOLVED')"
+        },
+        {
+          "name": "CK_HPL_COND_CONDITION_PERIOD",
+          "expression": "(\"dt_abate\" IS NULL)\n    OR (\"dt_onset\" IS NULL)\n    OR (\"dt_abate\" >= \"dt_onset\")"
+        },
+        {
+          "name": "CK_HPL_COND_CONDITION_VERIFICA",
+          "expression": "\"sd_vrfctn_status\" IN('UNCONFIRMED', 'SUSPECTED', 'PROVISIONAL', 'DIFFERENTIAL', 'CONFIRMED', 'REFUTED', 'ENTERED_IN_ERROR')"
+        }
+      ],
+      "catalogComment": "健康问题；一行代表一条健康问题记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/condition/Condition.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "hpl.disease_management_member",
+      "legacy": "disease_management_members",
+      "physical": "RHN_HPL_DISEASE_MGMT_MEMBER",
+      "domain": "HPL",
+      "comment": "疾病管理成员；一行代表一条疾病管理成员记录",
+      "columns": [
+        {
+          "physical": "ID_DISEASE_MGMT_MEMBER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "疾病管理成员主键",
+          "logical": "id",
+          "catalogComment": "疾病管理成员主键"
+        },
+        {
+          "physical": "ID_DISEASE_MGMT_PROG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "方案标识",
+          "logical": "program_id",
+          "catalogComment": "方案标识"
+        },
+        {
+          "physical": "ID_CONCEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "概念标识",
+          "logical": "concept_id",
+          "catalogComment": "概念标识"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "DA_EFF_FROM",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "生效开始日期",
+          "logical": "effective_from",
+          "catalogComment": "生效开始日期"
+        },
+        {
+          "physical": "DA_EFF_TO",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "生效结束日期",
+          "logical": "effective_to",
+          "catalogComment": "生效结束日期"
+        },
+        {
+          "physical": "DES_NOTE",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "备注",
+          "logical": "note",
+          "catalogComment": "备注"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "SD_INCL_MODE",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'INCLUDE'",
+          "ordinal": 9,
+          "comment": "inclusion模式",
+          "logical": "inclusion_mode",
+          "catalogComment": "inclusion模式"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_DISEASE_MGMT_MEMBER"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_HPL_DISEASE_MG_DISEASE_MANA",
+          "columns": [
+            "ID_DISEASE_MGMT_PROG",
+            "ID_CONCEPT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_HPL_DISEASE_MG_BD_CONCE_DIS_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CONCEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_DISEASE_MG_HPL_DISE_DIS_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DISEASE_MGMT_PROG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_HPL_DISEASE_MG_DISEASE_MAN",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CONCEPT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DA_EFF_FROM",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DA_EFF_TO",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_C7E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DISEASE_MGMT_MEMBER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_HPL_DISEASE_MG_DISEASE_MANA_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DISEASE_MGMT_PROG",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CONCEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_HPL_DISEASE_MG_DISEASE_MANA",
+          "expression": "\"sd_incl_mode\" IN('INCLUDE', 'EXCLUDE')"
+        }
+      ],
+      "catalogComment": "疾病管理成员；一行代表一条疾病管理成员记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/terminology/domain/DiseaseManagementMember.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "hpl.disease_management_program",
+      "legacy": "disease_management_programs",
+      "physical": "RHN_HPL_DISEASE_MGMT_PROG",
+      "domain": "HPL",
+      "comment": "疾病管理方案；一行代表一条疾病管理方案记录",
+      "columns": [
+        {
+          "physical": "ID_DISEASE_MGMT_PROG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "疾病管理方案主键",
+          "logical": "id",
+          "catalogComment": "疾病管理方案主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "SD_SCOPE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "范围类型",
+          "logical": "scope_type",
+          "catalogComment": "范围类型"
+        },
+        {
+          "physical": "ID_SCOPE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "范围标识",
+          "logical": "scope_id",
+          "catalogComment": "范围标识"
+        },
+        {
+          "physical": "CD_DISEASE_MGMT_PROG",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "编码",
+          "logical": "code",
+          "catalogComment": "编码"
+        },
+        {
+          "physical": "NA_DISEASE_MGMT_PROG",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "名称",
+          "logical": "name",
+          "catalogComment": "名称"
+        },
+        {
+          "physical": "SD_MGMT_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "管理类型",
+          "logical": "management_type",
+          "catalogComment": "管理类型"
+        },
+        {
+          "physical": "SD_TRIGGER_ACTION",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "触发操作",
+          "logical": "trigger_action",
+          "catalogComment": "触发操作"
+        },
+        {
+          "physical": "DES_DISEASE_MGMT_PROG",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "说明",
+          "logical": "description",
+          "catalogComment": "说明"
+        },
+        {
+          "physical": "SD_REPORT_CARD_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "报告card类型",
+          "logical": "report_card_type",
+          "catalogComment": "报告card类型"
+        },
+        {
+          "physical": "QTY_REPORT_DDLN_HOURS",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "报告deadlinehours",
+          "logical": "report_deadline_hours",
+          "catalogComment": "报告deadlinehours"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "DA_EFF_FROM",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "生效开始日期",
+          "logical": "effective_from",
+          "catalogComment": "生效开始日期"
+        },
+        {
+          "physical": "DA_EFF_TO",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "生效结束日期",
+          "logical": "effective_to",
+          "catalogComment": "生效结束日期"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_DISEASE_MGMT_PROG"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_HPL_DISEASE_MG_DISEASE_MA_1",
+          "columns": [
+            "SD_SCOPE_TYPE",
+            "ID_SCOPE",
+            "CD_DISEASE_MGMT_PROG"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IDX_HPL_DISEASE_MG_DISEASE_M_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "SD_SCOPE_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_SCOPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DA_EFF_FROM",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "DA_EFF_TO",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_2F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DISEASE_MGMT_PROG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_HPL_DISEASE_MG_DISEASE_MA_1_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "SD_SCOPE_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_SCOPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_DISEASE_MGMT_PROG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_HPL_DISEASE_MG_DISEASE_MA_1",
+          "expression": "\"sd_scope_type\" IN('PRODUCT', 'TENANT')"
+        },
+        {
+          "name": "CK_HPL_DISEASE_MG_DISEASE_MA_2",
+          "expression": "\"sd_mgmt_type\" IN('CHRONIC_CARE', 'DISEASE_REPORT', 'SPECIAL_REGISTRY')"
+        },
+        {
+          "name": "CK_HPL_DISEASE_MG_DISEASE_MA_3",
+          "expression": "\"sd_trigger_action\" IN('PROMPT_CONFIRMATION', 'CREATE_FOLLOW_UP_TASK', 'CREATE_REPORT_DRAFT')"
+        },
+        {
+          "name": "CK_HPL_DISEASE_MG_DISEASE_MA_4",
+          "expression": "(\"qty_report_ddln_hours\" IS NULL)\n    OR (\"qty_report_ddln_hours\" > 0)"
+        }
+      ],
+      "catalogComment": "疾病管理方案；一行代表一条疾病管理方案记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/terminology/domain/DiseaseManagementProgram.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "hpl.disease_management_rule",
+      "legacy": "disease_management_rules",
+      "physical": "RHN_HPL_DISEASE_MGMT_RULE",
+      "domain": "HPL",
+      "comment": "疾病管理规则；一行代表一条疾病管理规则记录",
+      "columns": [
+        {
+          "physical": "ID_DISEASE_MGMT_RULE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "疾病管理规则主键",
+          "logical": "id",
+          "catalogComment": "疾病管理规则主键"
+        },
+        {
+          "physical": "ID_DISEASE_MGMT_PROG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "方案标识",
+          "logical": "program_id",
+          "catalogComment": "方案标识"
+        },
+        {
+          "physical": "SD_INCL_MODE",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "inclusion模式",
+          "logical": "inclusion_mode",
+          "catalogComment": "inclusion模式"
+        },
+        {
+          "physical": "SD_DIAG_DOMAIN",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "诊断领域",
+          "logical": "diagnosis_domain",
+          "catalogComment": "诊断领域"
+        },
+        {
+          "physical": "ID_CODE_SYSTEM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "编码体系标识",
+          "logical": "code_system_id",
+          "catalogComment": "编码体系标识"
+        },
+        {
+          "physical": "SD_CONCEPT_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "概念类型",
+          "logical": "concept_type",
+          "catalogComment": "概念类型"
+        },
+        {
+          "physical": "CD_CHAPTER",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "chapter编码",
+          "logical": "chapter_code",
+          "catalogComment": "chapter编码"
+        },
+        {
+          "physical": "CD_CODE_FROM",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "编码原",
+          "logical": "code_from",
+          "catalogComment": "编码原"
+        },
+        {
+          "physical": "CD_CODE_TO",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "编码目标",
+          "logical": "code_to",
+          "catalogComment": "编码目标"
+        },
+        {
+          "physical": "DES_NOTE",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "备注",
+          "logical": "note",
+          "catalogComment": "备注"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_DISEASE_MGMT_RULE"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_HPL_DISEASE_MG_BD_CODE_DISE_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CODE_SYSTEM",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_HPL_DISEASE_MG_HPL_DISE_D_1_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DISEASE_MGMT_PROG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_HPL_DISEASE_MG_DISEASE_M_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DISEASE_MGMT_PROG",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_INCL_MODE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_2F5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DISEASE_MGMT_RULE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_HPL_DISEASE_MG_DISEASE_MA_5",
+          "expression": "\"sd_incl_mode\" IN('INCLUDE', 'EXCLUDE')"
+        },
+        {
+          "name": "CK_HPL_DISEASE_MG_DISEASE_MA_6",
+          "expression": "(\"sd_diag_domain\" IN('WESTERN_MEDICINE', 'TCM_DISEASE', 'TCM_SYNDROME'))\n    OR (\"sd_diag_domain\" IS NULL)"
+        },
+        {
+          "name": "CK_HPL_DISEASE_MG_DISEASE_MA_7",
+          "expression": "(\"sd_diag_domain\" IS NOT NULL)\n    OR (\"id_code_system\" IS NOT NULL)\n    OR (\"sd_concept_type\" IS NOT NULL)\n    OR (\"cd_chapter\" IS NOT NULL)\n    OR (\"cd_code_from\" IS NOT NULL)\n    OR (\"cd_code_to\" IS NOT NULL)"
+        }
+      ],
+      "catalogComment": "疾病管理规则；一行代表一条疾病管理规则记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/terminology/domain/DiseaseManagementRule.java",
+          "line": 12
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "FK_HPL_CARE_TASK_HPL_COND_CARE",
+      "sourceTable": "RHN_HPL_CARE_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_COND"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_COND"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_HPL_COND",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_PI_PAT_CARE_T",
+      "sourceTable": "RHN_HPL_CARE_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_SYS_DEPT_CARE",
+      "sourceTable": "RHN_HPL_CARE_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG_OWNER",
+        "ID_DEPT_OWNER"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_DEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_SYS_ORG_CARE_",
+      "sourceTable": "RHN_HPL_CARE_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG_OWNER"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_SYS_PRAC_CARE",
+      "sourceTable": "RHN_HPL_CARE_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PRACT_OWNER"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PRACT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_PRACT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_SYS_PRAC_CA_1",
+      "sourceTable": "RHN_HPL_CARE_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PRACT_CREATOR"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PRACT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_PRACT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_SYS_TNT_CARE_",
+      "sourceTable": "RHN_HPL_CARE_TASK",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_SYS_USER_CARE",
+      "sourceTable": "RHN_HPL_CARE_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER_CREATOR"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_VIS_ENC_CARE_",
+      "sourceTable": "RHN_HPL_CARE_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ENC"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ENC"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_VIS_ENC",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_HPL_CARE_CARE",
+      "sourceTable": "RHN_HPL_CARE_TASK_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CARE_TASK"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CARE_TASK"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_HPL_CARE_TASK",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_SYS_PRAC_CA_2",
+      "sourceTable": "RHN_HPL_CARE_TASK_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PRACT_ACTOR"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PRACT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_PRACT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_SYS_TNT_CAR_1",
+      "sourceTable": "RHN_HPL_CARE_TASK_EVT",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_CARE_TASK_SYS_USER_CA_1",
+      "sourceTable": "RHN_HPL_CARE_TASK_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER_ACTOR"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_COND_BD_CONCE_CONDITION",
+      "sourceTable": "RHN_HPL_COND",
+      "sourceColumns": [
+        "ID_CONCEPT_TERM"
+      ],
+      "targetColumns": [
+        "ID_CONCEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BD_CONCEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_COND_PI_PAT_CONDITION_R",
+      "sourceTable": "RHN_HPL_COND",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_COND_SYS_PRAC_CONDITION",
+      "sourceTable": "RHN_HPL_COND",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PRACT_RECDR"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PRACT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_PRACT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_COND_SYS_TNT_CONDITION_",
+      "sourceTable": "RHN_HPL_COND",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_COND_SYS_USER_CONDITION",
+      "sourceTable": "RHN_HPL_COND",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER_RECDR"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_DISEASE_MG_BD_CONCE_DIS",
+      "sourceTable": "RHN_HPL_DISEASE_MGMT_MEMBER",
+      "sourceColumns": [
+        "ID_CONCEPT"
+      ],
+      "targetColumns": [
+        "ID_CONCEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BD_CONCEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_DISEASE_MG_HPL_DISE_DIS",
+      "sourceTable": "RHN_HPL_DISEASE_MGMT_MEMBER",
+      "sourceColumns": [
+        "ID_DISEASE_MGMT_PROG"
+      ],
+      "targetColumns": [
+        "ID_DISEASE_MGMT_PROG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_HPL_DISEASE_MGMT_PROG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_DISEASE_MG_BD_CODE_DISE",
+      "sourceTable": "RHN_HPL_DISEASE_MGMT_RULE",
+      "sourceColumns": [
+        "ID_CODE_SYSTEM"
+      ],
+      "targetColumns": [
+        "ID_CODE_SYSTEM"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BD_CODE_SYSTEM",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_HPL_DISEASE_MG_HPL_DISE_D_1",
+      "sourceTable": "RHN_HPL_DISEASE_MGMT_RULE",
+      "sourceColumns": [
+        "ID_DISEASE_MGMT_PROG"
+      ],
+      "targetColumns": [
+        "ID_DISEASE_MGMT_PROG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_HPL_DISEASE_MGMT_PROG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    }
+  ]
+}

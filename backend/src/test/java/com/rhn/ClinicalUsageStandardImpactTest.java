@@ -55,7 +55,7 @@ class ClinicalUsageStandardImpactTest extends RhnIntegrationTestSupport {
         var meds=new ArrayList<>(jdbc.queryForList("select ID_MED from RHN_BD_MED where ID_TNT=? order by ID_MED fetch first 45 rows only",Long.class,T));
         Long productMed=jdbc.queryForObject("select min(ID_MED) from RHN_BD_MED_PRODUCT where ID_TNT=?",Long.class,T);
         if(!meds.contains(productMed)) meds.set(44,productMed);
-        for(var med:meds) jdbc.update("update RHN_BD_MED set ID_ORDER_FREQ_DEFAULT=?,DEFAULT_FREQUENCY=? where ID_MED=?",f.id(),f.code(),med);
+        for(var med:meds) jdbc.update("update RHN_BD_MED set ID_ORDER_FREQ_DEFAULT=?,DEFAULT_FREQ=? where ID_MED=?",f.id(),f.code(),med);
         jdbc.update("update RHN_BD_MED set SD_STATUS='INACTIVE' where ID_MED=?",meds.getFirst());
         // Older records can retain only a code, but must be labelled as default-value references.
         jdbc.update("update RHN_BD_MED set ID_ORDER_FREQ_DEFAULT=null where ID_MED=?",meds.get(1));
@@ -80,7 +80,7 @@ class ClinicalUsageStandardImpactTest extends RhnIntegrationTestSupport {
     @Test void unit_aliases_match_the_same_unit_but_never_package_counts_or_other_dimensions() {
         var meds=jdbc.queryForList("select ID_MED from RHN_BD_MED where ID_TNT=? order by ID_MED fetch first 4 rows only",Long.class,T);
         var units=List.of("毫克","mg","g","mL");
-        for(int i=0;i<meds.size();i++) jdbc.update("update RHN_BD_MED set QTY_DEFAULT_DOSE=1,DEFAULT_DOSE_UNIT=?,QTY_STRENGTH_VAL=1,STRENGTH_UNIT='片' where ID_MED=?",units.get(i),meds.get(i));
+        for(int i=0;i<meds.size();i++) jdbc.update("update RHN_BD_MED set QTY_DEFAULT_DOSE=1,DEFAULT_DOSE_UNIT=?,QTY_STRNTH_VAL=1,STRNTH_UNIT='片' where ID_MED=?",units.get(i),meds.get(i));
         var result=report("UNIT","毫克","MEDICATION",true,0,100);
         assertThat(result.scope().conceptId()).isEqualTo("UCUM:mg");
         assertThat(result.content()).extracting(r->r.id()).contains(meds.get(0).toString(),meds.get(1).toString()).doesNotContain(meds.get(2).toString(),meds.get(3).toString());
@@ -115,7 +115,7 @@ class ClinicalUsageStandardImpactTest extends RhnIntegrationTestSupport {
     }
     @Test void rule_versions_and_orphaned_releases_use_frozen_defaults_and_keep_potential_dependencies() {
         var f=frequency();Long med=362387869795201L;
-        jdbc.update("update RHN_BD_MED set ID_ORDER_FREQ_DEFAULT=?,DEFAULT_FREQUENCY=? where ID_MED=?",f.id(),f.code(),med);
+        jdbc.update("update RHN_BD_MED set ID_ORDER_FREQ_DEFAULT=?,DEFAULT_FREQ=? where ID_MED=?",f.id(),f.code(),med);
         Long root=GlobalIds.next(),child=GlobalIds.next();var old=candidate(root,null,1,med);
         candidates.append(T,7L,old);
         var now=Instant.now();var releases=List.of(
@@ -124,7 +124,7 @@ class ClinicalUsageStandardImpactTest extends RhnIntegrationTestSupport {
                 new Deployment(13L,root.toString(),1,"ENFORCED","ACTIVE","WARN",8L,9L,now.minusSeconds(120),now.minusSeconds(60),7L,now,"test",old,null),
                 new Deployment(14L,root.toString(),1,"SHADOW","PAUSED","WARN",8L,9L,now.minusSeconds(60),null,7L,now,"test",old,null));
         governance.save(T,"CANDIDATE:missing",0,new Governance(List.of(),releases,List.of()));
-        jdbc.update("update RHN_BD_MED set ID_ORDER_FREQ_DEFAULT=null,DEFAULT_FREQUENCY='OTHER' where ID_MED=?",med);
+        jdbc.update("update RHN_BD_MED set ID_ORDER_FREQ_DEFAULT=null,DEFAULT_FREQ='OTHER' where ID_MED=?",med);
         candidates.append(T,7L,candidate(child,root,2,med));
         var versions=report("FREQUENCY",f.id().toString(),"RULE_VERSION",true,0,100);
         assertThat(versions.content()).filteredOn(r->r.id().equals(root.toString())).singleElement().satisfies(r->{assertThat(r.historical()).isTrue();assertThat(r.relation()).isEqualTo("FROZEN_REFERENCE");});

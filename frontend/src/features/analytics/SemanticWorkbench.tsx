@@ -6,7 +6,9 @@ import type {
   CopilotSuggestResponse,
   SemanticExecutionResult,
 } from '../../shared/api/semanticOntologyApi'
-import { Alert, Button, Icon, LoadingState } from '../../shared/ui'
+import { Alert, Button, Icon, LoadingState, RelationshipGraph, StatusBadge } from '../../shared/ui'
+import { saveDevelopmentSemanticProposal } from '../../shared/api/developmentSchemaApi'
+import { semanticProbeStatusPresentation } from '../../shared/presentation'
 import './semantic-workbench.css'
 
 export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () => void }) {
@@ -22,6 +24,8 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
   const [copilotResult, setCopilotResult] = useState<CopilotSuggestResponse | null>(null)
   const [copilotBusy, setCopilotBusy] = useState(false)
   const [copilotConfirmed, setCopilotConfirmed] = useState(false)
+  const [proposalBusy, setProposalBusy] = useState(false)
+  const [proposalContext, setProposalContext] = useState({ entity: '', prompt: '' })
 
   // Live Semantic Probe 即时语义探针状态
   const [probeText, setProbeText] = useState('本月各科室药品费用，只显示诊疗科室')
@@ -39,7 +43,8 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
         if (active) {
           setGraph(data)
           if (data.nodes.length > 0) {
-            setSelectedEntityCode('DEPARTMENT')
+            const requested = new URLSearchParams(window.location.search).get('entity')
+            setSelectedEntityCode(data.nodes.find(node => node.id === requested)?.id ?? data.nodes.find(node => node.id === 'DEPARTMENT')?.id ?? data.nodes[0].id)
           }
         }
       })
@@ -73,6 +78,8 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
     if (!copilotPrompt.trim() || copilotBusy) return
     setCopilotBusy(true)
     setCopilotConfirmed(false)
+    setCopilotResult(null)
+    setProposalContext({ entity: selectedEntityCode, prompt: copilotPrompt.trim() })
     try {
       const res = await api.analytics.copilotSuggest({
         prompt: copilotPrompt.trim(),
@@ -86,7 +93,17 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
     }
   }
 
-  // Live Probe 执行触发
+  // 将共建建议保存到开发评审队列。
+  async function saveProposal() {
+    if (!copilotResult || proposalBusy) return
+    setProposalBusy(true)
+    try {
+      await saveDevelopmentSemanticProposal({ entity: proposalContext.entity, prompt: proposalContext.prompt,
+        rationale: copilotResult.rationale, suggestedYamlDiff: copilotResult.suggestedYamlDiff ?? '' })
+      setCopilotConfirmed(true)
+    } catch (e) { setError(errorMessage(e)) } finally { setProposalBusy(false) }
+  }
+
   async function handleRunProbe(customText?: string) {
     const textToRun = customText ?? probeText
     if (!textToRun.trim() || probeBusy) return
@@ -113,7 +130,7 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
     (n) =>
       n.label.includes(filterText.trim()) ||
       n.entityCode.toLowerCase().includes(filterText.trim().toLowerCase()) ||
-      n.table.toLowerCase().includes(filterText.trim().toLowerCase())
+      (n.table ?? '').toLowerCase().includes(filterText.trim().toLowerCase())
   ) ?? []
 
   const factNodes = filteredNodes.filter((n) => n.nodeType === 'FACT')
@@ -121,6 +138,7 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
 
   return (
     <div className="sw-root">
+      {error && <Alert tone="error" onDismiss={() => setError('')}>{error}</Alert>}
       {/* 顶部状态与工具栏 */}
       <header className="sw-header">
         <div className="sw-header-title">
@@ -135,6 +153,9 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
           <span className="sw-badge-asset">
             {graph?.statistics.assetPath ?? 'outpatient-ontology.v1.yaml'} · 随程序包发布
           </span>
+          {import.meta.env.DEV && <a href={`/schema-workbench.html?entity=${encodeURIComponent(selectedEntityCode)}`}>
+            表结构、设计规范与共建评审
+          </a>}
         </div>
 
         <div className="sw-header-stats">
@@ -210,7 +231,7 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
                   <span className="sw-node-item-name">{node.label}</span>
                   <span className="sw-node-tag tag-fact">{node.entityCode}</span>
                 </div>
-                <span className="sw-node-item-meta">{node.table}</span>
+                <span className="sw-node-item-meta">{node.table || '尚未映射物理表'}</span>
                 <div className="sw-node-item-counts">
                   <span>度量: {node.metricCount}</span>
                   <span>粒度: {node.grain}</span>
@@ -230,7 +251,7 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
                   <span className="sw-node-item-name">{node.label}</span>
                   <span className="sw-node-tag tag-dim">{node.entityCode}</span>
                 </div>
-                <span className="sw-node-item-meta">{node.table}</span>
+                <span className="sw-node-item-meta">{node.table || '尚未映射物理表'}</span>
                 <div className="sw-node-item-counts">
                   <span>属性: {node.attributes?.length ? node.attributes.join(', ') : '主键'}</span>
                 </div>
@@ -251,76 +272,12 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
                 </span>
               </div>
 
-              {/* 实体拓扑层级网络 */}
-              <div className="sw-topology-grid">
-                {/* 顶层：主数据维度实体 */}
-                <div className="sw-topology-tier">
-                  {dimNodes.map((node) => (
-                    <div
-                      key={node.id}
-                      className={`sw-card-node ${selectedEntityCode === node.id ? 'is-active' : ''}`}
-                      onClick={() => setSelectedEntityCode(node.id)}
-                    >
-                      <div className="sw-card-node-head">
-                        <span className="sw-card-node-title">{node.label}</span>
-                        <span className="sw-node-tag tag-dim">{node.id}</span>
-                      </div>
-                      <div className="sw-card-table">{node.table}</div>
-                      <div className="sw-card-details">
-                        <span>主键: {node.primaryKey}</span>
-                        <span>属性: {node.attributes?.length ?? 0}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 中层：诊疗与医嘱实体 */}
-                <div className="sw-topology-tier">
-                  {factNodes
-                    .filter((n) => n.id === 'ENCOUNTER' || n.id === 'DIAGNOSIS' || n.id === 'ORDER')
-                    .map((node) => (
-                      <div
-                        key={node.id}
-                        className={`sw-card-node ${selectedEntityCode === node.id ? 'is-active' : ''}`}
-                        onClick={() => setSelectedEntityCode(node.id)}
-                      >
-                        <div className="sw-card-node-head">
-                          <span className="sw-card-node-title">{node.label}</span>
-                          <span className="sw-node-tag tag-fact">{node.id}</span>
-                        </div>
-                        <div className="sw-card-table">{node.table}</div>
-                        <div className="sw-card-details">
-                          <span>指标: {node.metricCount}</span>
-                          <span>粒度: {node.grain}</span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-
-                {/* 底层：收费明细事实 */}
-                <div className="sw-topology-tier">
-                  {factNodes
-                    .filter((n) => n.id === 'CHARGE')
-                    .map((node) => (
-                      <div
-                        key={node.id}
-                        className={`sw-card-node ${selectedEntityCode === node.id ? 'is-active' : ''}`}
-                        onClick={() => setSelectedEntityCode(node.id)}
-                        style={{ width: '280px' }}
-                      >
-                        <div className="sw-card-node-head">
-                          <span className="sw-card-node-title">{node.label}</span>
-                          <span className="sw-node-tag tag-fact">核心计费明细</span>
-                        </div>
-                        <div className="sw-card-table">{node.table}</div>
-                        <div className="sw-card-details">
-                          <span>度量指标: {node.metricCount} 个</span>
-                          <span>支持科室、医嘱多路安全关联</span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
+              <RelationshipGraph label="业务实体关系图"
+                nodes={(graph?.nodes ?? []).map(node => ({ id: node.id, label: node.label, detail: node.table || '尚未映射物理表' }))}
+                edges={(graph?.edges ?? []).map(edge => ({ id: edge.id, source: edge.source, target: edge.target,
+                  label: `${edge.cardinality}${edge.fanoutRisk ? ' · 聚合扇出风险' : ''}`,
+                  detail: edge.conditions.map(condition => `${condition.fromField} = ${condition.toField}`).join(' AND ') }))}
+                selected={selectedEntityCode} onSelect={setSelectedEntityCode} />
             </div>
           )}
 
@@ -353,12 +310,12 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 {Object.entries(attr.valueAliases).map(([k, aliases]) => (
                                   <div key={k} style={{ fontSize: '12px' }}>
-                                    <strong style={{ color: '#0f766e' }}>{k}</strong>: {aliases.join('、')}
+                                    <strong className="sw-dimension-label">{k}</strong>: {aliases.join('、')}
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <span style={{ color: '#94a3b8' }}>基础维度值</span>
+                              <span className="sw-dimension-hint">基础维度值</span>
                             )}
                           </td>
                         </tr>
@@ -389,7 +346,7 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
               </div>
 
               <div className="sw-probe-presets">
-                <span style={{ fontSize: '12px', color: '#64748b', alignSelf: 'center' }}>快速体验场景：</span>
+                <span className="sw-probe-presets-label">快速体验场景：</span>
                 <button
                   type="button"
                   className="sw-preset-chip"
@@ -438,45 +395,26 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
                 <div className="sw-probe-result">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span
-                        className="sw-node-tag"
-                        style={{
-                          background:
-                            probeResult.status === 'READY'
-                              ? '#dcfce7'
-                              : probeResult.status === 'CLARIFY'
-                              ? '#fef3c7'
-                              : '#fee2e2',
-                          color:
-                            probeResult.status === 'READY'
-                              ? '#15803d'
-                              : probeResult.status === 'CLARIFY'
-                              ? '#b45309'
-                              : '#b91c1c',
-                          fontWeight: 600,
-                          fontSize: '11px',
-                        }}
-                      >
-                        {probeResult.status}
-                      </span>
+                      <StatusBadge tone={semanticProbeStatusPresentation(probeResult.status).tone}>
+                        {semanticProbeStatusPresentation(probeResult.status).label}
+                      </StatusBadge>
                       <strong style={{ fontSize: '13px' }}>{probeResult.explanation}</strong>
                     </div>
-                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                    <span className="sw-muted-copy">
                       耗时: {probeResult.executionTimeMs} ms
                     </span>
                   </div>
 
                   {probeResult.status === 'CLARIFY' && probeResult.clarification && (
-                    <div style={{ background: '#fffbeb', padding: '12px', borderRadius: '6px' }}>
-                      <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#92400e' }}>
+                    <div className="sw-clarification">
+                      <p className="sw-clarification__message">
                         {probeResult.clarification.message}
                       </p>
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         {probeResult.clarification.options.map((opt) => (
                           <span
                             key={opt.code}
-                            className="sw-alias-pill"
-                            style={{ background: '#fff', borderColor: '#fde68a' }}
+                            className="sw-alias-pill sw-alias-pill--clarification"
                           >
                             <strong>{opt.name}</strong>：{opt.description}
                           </span>
@@ -534,7 +472,7 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
               <div className="sw-meta-card">
                 <div className="sw-meta-row">
                   <span>物理映射表:</span>
-                  <strong>{selectedNode.table}</strong>
+                  <strong>{selectedNode.table || '尚未映射物理表'}</strong>
                 </div>
                 <div className="sw-meta-row">
                   <span>主键粒度:</span>
@@ -553,7 +491,7 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
                 <Icon name="tasks" /> 关联维度属性与字典网络
               </h4>
               {selectedDimensions.length === 0 && (
-                <p style={{ fontSize: '12px', color: '#64748b' }}>该实体暂无额外附属维度属性定义。</p>
+                <p className="sw-muted-copy">该实体暂无额外附属维度属性定义。</p>
               )}
               {selectedDimensions.map((dim) => (
                 <div key={dim.code} className="sw-attribute-card" style={{ marginBottom: '10px' }}>
@@ -592,24 +530,24 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
                 <Icon name="roadmap" /> 包含指标及默认业务规则 (Default Filters)
               </h4>
               {selectedMetrics.length === 0 && (
-                <p style={{ fontSize: '12px', color: '#64748b' }}>该实体非主要统计度量源。</p>
+                <p className="sw-muted-copy">该实体非主要统计度量源。</p>
               )}
               {selectedMetrics.map((metric) => (
                 <div key={metric.code} className="sw-metric-filter-item" style={{ marginBottom: '8px' }}>
                   <strong>{metric.name} ({metric.code})</strong>
-                  <span style={{ display: 'block', fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>
+                  <span className="sw-filter-label">
                     {metric.description}
                   </span>
                   {metric.defaultFilters.length > 0 ? (
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                       {metric.defaultFilters.map((df, i) => (
-                        <span key={i} className="sw-alias-pill" style={{ background: '#e0f2fe' }}>
+                        <span key={i} className="sw-alias-pill sw-alias-pill--filter">
                           {df.field} {df.op} {df.values.join(',')}
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <span style={{ fontSize: '11px', color: '#94a3b8' }}>无默认过滤</span>
+                    <span className="sw-filter-empty">无默认过滤</span>
                   )}
                 </div>
               ))}
@@ -618,12 +556,12 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
             {/* 人机共建规则助手 (Catalog Copilot) */}
             <div className="sw-copilot-box">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <strong style={{ fontSize: '13px', color: '#1e293b' }}>
+                <strong className="sw-detail-heading">
                   🤖 人机共建规则标注助手 (Catalog Copilot)
                 </strong>
                 <span className="sw-node-tag tag-dim">AI 辅助推断</span>
               </div>
-              <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+              <p className="sw-detail-copy">
                 输入临床科室或业务人员的自然语言反馈，AI 将逆向推断属性字典并在下方生成候选模型增量。
               </p>
               <textarea
@@ -641,15 +579,15 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
                   AI 逆向推断规则
                 </Button>
                 {copilotConfirmed && (
-                  <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>
-                    ✓ 专家已确认标记
+                  <span className="sw-success-copy">
+                    {import.meta.env.DEV ? '已保存至开发评审队列（尚未发布）' : '本次讨论已标记确认（尚未发布）'}
                   </span>
                 )}
               </div>
 
               {copilotResult && (
                 <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ fontSize: '12px', color: '#334155' }}>
+                  <div className="sw-detail-value">
                     <strong>推断理由：</strong>
                     {copilotResult.rationale}
                   </div>
@@ -660,9 +598,10 @@ export function SemanticWorkbench({ api, onBack }: { api: RhnApi; onBack?: () =>
                     <Button
                       size="sm"
                       variant="secondary"
-                      onClick={() => setCopilotConfirmed(true)}
+                      busy={proposalBusy}
+                      onClick={() => import.meta.env.DEV ? void saveProposal() : setCopilotConfirmed(true)}
                     >
-                      确认采纳此项规则 (加入待发布资产队列)
+                      {import.meta.env.DEV ? '保存至开发评审队列' : '标记本次讨论已确认'}
                     </Button>
                   )}
                 </div>

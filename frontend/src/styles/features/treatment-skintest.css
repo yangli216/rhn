@@ -90,11 +90,11 @@
 }
 
 .skin-test-stat-item small {
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-stat-item strong {
-  font-size: 0.95rem;
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
@@ -109,7 +109,7 @@
 .skin-test-stat-badge {
   padding: 0.1rem 0.45rem;
   border-radius: var(--radius-full, 9999px);
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -126,9 +126,9 @@
 
 /* 3-Column Triad Workbench Layout */
 .skin-test-workbench-triad {
-  min-width: 68rem;
+  width: 100%;
   display: grid;
-  grid-template-columns: minmax(18rem, 1.15fr) minmax(30rem, 2.25fr) minmax(17rem, 1.1fr);
+  grid-template-columns: minmax(16rem, 1.05fr) minmax(24rem, 2fr) minmax(16rem, 1.15fr);
   align-items: start;
   gap: var(--space-3);
 }
@@ -152,12 +152,12 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
 }
 
 .skin-test-section-head {
-  min-height: 3.5rem;
+  min-height: 3rem;
   padding: var(--space-2) var(--space-3);
   display: flex;
   align-items: center;
@@ -245,7 +245,7 @@
   border-radius: var(--radius-full, 9999px);
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
   font-variant-numeric: tabular-nums;
   display: inline-flex;
   align-items: center;
@@ -277,8 +277,8 @@
 }
 
 .skin-test-queue-list {
-  max-height: calc(100vh - 20rem);
-  min-height: 28rem;
+  max-height: calc(100vh - 14rem);
+  min-height: 24rem;
   padding: var(--space-2);
   overflow-y: auto;
   display: grid;
@@ -288,7 +288,7 @@
 
 .skin-test-queue-item {
   width: 100%;
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -336,7 +336,18 @@
 
 .skin-test-queue-item__name small {
   color: var(--color-text-secondary);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
+}
+
+.skin-test-queue-item__demographics {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
 }
 
 .skin-test-queue-item__med {
@@ -383,7 +394,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-time-normal {
@@ -410,27 +421,27 @@
   align-items: center;
   justify-content: space-between;
   color: var(--color-text-secondary);
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
 }
 
 /* Col 2: Core Clinical Detail */
 .skin-test-col-main {
-  min-height: 38rem;
-  padding: var(--space-4);
+  min-height: auto;
+  padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
 }
 
 /* Col 2: Integrated Clinical Cockpit */
 .skin-test-unified-cockpit {
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  padding: 0 0 var(--space-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .skin-test-cockpit-upper {
@@ -457,7 +468,7 @@
   background: var(--color-brand-soft);
   color: var(--color-brand-primary);
   font-weight: var(--font-weight-bold);
-  font-size: 1.15rem;
+  font-size: var(--font-size-h3);
 }
 
 .skin-test-patient-meta {
@@ -481,13 +492,24 @@
   line-height: 1.2;
 }
 
+.skin-test-patient-demographics {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+}
+
 .skin-test-id-pill {
   padding: 0.1rem 0.45rem;
   border-radius: var(--radius-sm);
   background: var(--color-surface-subtle);
-  border: 1px solid var(--color-border);
+  border: 0;
   color: var(--color-text-secondary);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
   font-variant-numeric: tabular-nums;
 }
 
@@ -496,7 +518,7 @@
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--color-brand-soft) 40%, var(--color-surface));
   color: var(--color-brand-primary);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
 }
 
@@ -510,17 +532,17 @@
 
 .skin-test-med-name {
   color: var(--color-text-primary);
-  font-size: 0.95rem;
+  font-size: var(--font-size-body);
 }
 
 .skin-test-med-code {
   color: var(--color-text-secondary);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-med-dosage {
   color: var(--color-text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-cockpit-gate {
@@ -531,9 +553,9 @@
 }
 
 .skin-test-gate-pill-box {
-  padding: 0.35rem 0.65rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  border: 0;
   background: var(--color-surface-subtle);
   display: flex;
   flex-direction: column;
@@ -543,7 +565,7 @@
 }
 
 .skin-test-gate-label {
-  font-size: 0.65rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   text-transform: uppercase;
 }
@@ -586,14 +608,14 @@
 }
 
 .skin-test-gate-tip {
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 
 /* Lower Protocol Strip */
 .skin-test-cockpit-protocol {
   padding-top: var(--space-2);
-  border-top: 1px dashed var(--color-border);
+  border-top: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -603,7 +625,7 @@
   margin: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: var(--radius-md);
   background: var(--color-surface-subtle);
 }
@@ -620,13 +642,13 @@
 
 .skin-test-config-strip dt {
   color: var(--color-text-secondary);
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-config-strip dd {
   margin: 0.1rem 0 0;
   overflow: hidden;
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -639,7 +661,7 @@
   padding: 0.3rem 0.6rem;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--color-brand-soft) 30%, var(--color-surface-subtle));
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 
@@ -650,20 +672,19 @@
 
 .skin-test-notice-icon {
   flex-shrink: 0;
-  font-size: 0.8rem;
+  font-size: var(--font-size-small);
 }
 
 /* Action card */
 .skin-test-action-card {
   margin-top: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  padding: var(--space-2) 0 0 0;
+  border: 0;
+  background: transparent;
 }
 
 .skin-test-action-card.is-observing {
-  border-color: color-mix(in srgb, var(--color-brand-primary) 50%, var(--color-border));
+  border: 0;
 }
 
 .skin-test-card-title {
@@ -681,7 +702,7 @@
 
 .skin-test-guide-tag {
   color: var(--color-text-secondary);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-form-grid {
@@ -712,7 +733,7 @@
   border-radius: var(--radius-full, 9999px);
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
   cursor: pointer;
   transition: all 0.12s ease;
 }
@@ -737,30 +758,31 @@
 
 /* Central Countdown Banner */
 .skin-test-timer-banner {
-  margin-bottom: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  border: 0;
+  border-left: 4px solid var(--color-border);
   background: var(--color-surface-subtle);
 }
 
 .skin-test-timer-banner.is-normal {
-  border-color: color-mix(in srgb, var(--color-brand-primary) 35%, var(--color-border));
-  background: color-mix(in srgb, var(--color-brand-soft) 30%, var(--color-surface));
+  border-left-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-soft) 40%, var(--color-surface));
 }
 
 .skin-test-timer-banner.is-neardue {
-  border-color: color-mix(in srgb, var(--color-warning) 45%, var(--color-border));
-  background: color-mix(in srgb, var(--color-warning-soft) 40%, var(--color-surface));
+  border-left-color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning-soft) 50%, var(--color-surface));
 }
 
 .skin-test-timer-banner.is-overdue {
-  border-color: var(--color-danger);
-  background: color-mix(in srgb, var(--color-danger-soft) 45%, var(--color-surface));
+  border-left-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger-soft) 50%, var(--color-surface));
   animation: skin-test-pulse 2.5s infinite;
 }
 
@@ -771,11 +793,11 @@
 
 .skin-test-timer-label {
   color: var(--color-text-secondary);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-timer-value {
-  font-size: 1.4rem;
+  font-size: var(--font-size-h2);
   font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
@@ -783,7 +805,7 @@
 
 .skin-test-timer-main small {
   color: var(--color-text-secondary);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-timer-side {
@@ -794,7 +816,7 @@
 }
 
 .skin-test-emergency-btn {
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
   box-shadow: var(--shadow-sm);
 }
@@ -819,7 +841,7 @@
 .skin-test-emergency-alert-box ol {
   margin: 0;
   padding-left: 1.25rem;
-  font-size: 0.775rem;
+  font-size: var(--font-size-small);
   line-height: 1.5;
 }
 
@@ -828,7 +850,7 @@
 }
 
 .skin-test-facts {
-  margin: var(--space-2) 0 var(--space-3);
+  margin: var(--space-1) 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
@@ -838,11 +860,11 @@
 }
 
 .skin-test-facts > div { min-width: 0; }
-.skin-test-facts dt { color: var(--color-text-secondary); font-size: 0.7rem; }
+.skin-test-facts dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .skin-test-facts dd {
   margin: 0.125rem 0 0;
   overflow: hidden;
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-medium);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -872,9 +894,10 @@
   gap: var(--space-3);
 }
 
-.skin-test-ruler-input-group {
-  display: grid;
-  gap: var(--space-1);
+.skin-test-ruler-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .skin-test-number-unit {
@@ -892,20 +915,24 @@
 
 .skin-test-ruler-steps {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .skin-test-ruler-steps button {
   flex: 1;
-  padding: 0.15rem 0;
+  min-height: var(--control-height-sm);
+  padding: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text-secondary);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition: all 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .skin-test-ruler-steps button:hover {
@@ -921,16 +948,15 @@
 }
 
 .skin-test-signs-box {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-subtle);
+  padding: var(--space-1) 0;
+  border: 0;
+  background: transparent;
   display: grid;
   gap: var(--space-2);
 }
 
 .skin-test-signs-label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
 }
@@ -947,7 +973,7 @@
   border-radius: var(--radius-full, 9999px);
   background: var(--color-surface);
   color: var(--color-text-primary);
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   cursor: pointer;
   transition: all 0.12s ease;
 }
@@ -969,7 +995,7 @@
   border: 1px solid var(--color-warning);
   background: var(--color-warning-soft);
   color: var(--color-warning-strong);
-  font-size: 0.775rem;
+  font-size: var(--font-size-small);
   line-height: 1.45;
 }
 
@@ -979,7 +1005,7 @@
 }
 
 .skin-test-result-picker-label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
 }
@@ -1039,10 +1065,10 @@
 
 /* Dual Verification Nurse Card */
 .skin-test-dual-verification-card {
-  padding: var(--space-3);
-  border: 1px dashed color-mix(in srgb, var(--color-brand-primary) 65%, var(--color-border));
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-border));
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-brand-soft) 25%, var(--color-surface));
+  background: color-mix(in srgb, var(--color-brand-soft) 30%, var(--color-surface));
   display: grid;
   gap: var(--space-2);
 }
@@ -1061,7 +1087,7 @@
 
 .skin-test-verification-header small {
   color: var(--color-text-secondary);
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-verification-seal {
@@ -1069,7 +1095,7 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-brand-primary);
   color: var(--color-brand-primary);
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
   letter-spacing: 0.05em;
 }
@@ -1094,13 +1120,13 @@
 
 /* Col 2 - Completed Summary */
 .skin-test-result-summary {
-  margin-top: var(--space-3);
-  padding: var(--space-4);
+  margin-top: var(--space-2);
+  padding: var(--space-3);
   border: 1px solid var(--color-brand-primary);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-brand-soft);
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .skin-test-result-summary.is-negative {
@@ -1128,13 +1154,14 @@
 
 .skin-test-archive-title h3 {
   margin: 0;
-  font-size: var(--font-size-h3);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
 }
 
 .skin-test-archive-badge {
-  padding: 0.15rem 0.5rem;
+  padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
@@ -1170,7 +1197,7 @@
 .skin-test-sidecar-container {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .skin-test-sidecar-tabs {
@@ -1224,7 +1251,7 @@
   border-radius: var(--radius-full, 9999px);
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1241,9 +1268,9 @@
 
 .skin-test-sidecar-card {
   padding: var(--space-3);
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-surface-subtle);
 }
 
 .skin-test-sidecar-head {
@@ -1253,7 +1280,7 @@
   gap: var(--space-2);
   margin-bottom: var(--space-2);
   padding-bottom: var(--space-1);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
 }
 
 .skin-test-sidecar-head h4 {
@@ -1266,7 +1293,7 @@
 .skin-test-sidecar-tag {
   padding: 0.1rem 0.4rem;
   border-radius: var(--radius-sm);
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -1282,7 +1309,7 @@
 
 .skin-test-sidecar-empty-text {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   line-height: 1.4;
 }
@@ -1314,15 +1341,15 @@
 }
 
 .skin-test-sidecar-allergy-list li small {
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   opacity: 0.85;
 }
 
 .skin-test-sidecar-history-list li {
   padding: var(--space-2);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-subtle);
+  border: 0;
+  background: var(--color-surface);
   display: grid;
   gap: 0.15rem;
 }
@@ -1345,14 +1372,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 
 .skin-test-spec-content {
   display: grid;
   gap: var(--space-2);
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-spec-row {
@@ -1387,13 +1414,13 @@
 .skin-test-spec-emergency-hint strong {
   display: block;
   color: var(--color-danger);
-  font-size: 0.725rem;
+  font-size: var(--font-size-small);
 }
 
 .skin-test-spec-emergency-hint p {
   margin: 0.15rem 0 0;
   color: var(--color-danger);
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   line-height: 1.35;
 }
 
@@ -1845,19 +1872,6 @@
 .parameter-feedback { margin: calc(-1 * var(--space-2)) 0 var(--space-5); }
 .parameter-workspace { display: grid; grid-template-columns: minmax(11.5rem, 14rem) minmax(20rem, 23.5rem) minmax(0, 1fr); align-items: stretch; gap: var(--space-4); min-height: 0; flex: 1; overflow: hidden; }
 .parameter-category-nav, .parameter-catalog, .parameter-detail { min-width: 0; height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-.parameter-category-nav__toolbar { padding: var(--space-2) var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); flex: none; }
-.parameter-category-nav__list { min-height: 0; flex: 1; padding: var(--space-2) var(--space-1); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
-.parameter-category-item { width: 100%; min-height: 2.125rem; padding: 0.3125rem 0.5rem; border-radius: var(--radius-md); border: 1px solid transparent; background: transparent; color: var(--color-text-primary); text-align: left; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); font-size: var(--font-size-small); }
-.parameter-category-item:hover { background: var(--color-surface-subtle); }
-.parameter-category-item.is-active { background: var(--color-brand-soft); border-color: color-mix(in srgb, var(--color-brand-primary) 25%, transparent); color: var(--color-brand-primary); font-weight: var(--font-weight-medium); }
-.parameter-category-item__label { min-width: 0; display: flex; align-items: center; gap: 0.35rem; overflow: hidden; flex: 1; }
-.parameter-category-item__branch { display: inline-block; width: 0.5rem; height: 0.55rem; border-left: 1.5px solid var(--color-border); border-bottom: 1.5px solid var(--color-border); border-bottom-left-radius: 2px; flex: none; transform: translateY(-3px); }
-.parameter-category-item.is-active .parameter-category-item__branch { border-color: var(--color-brand-primary); }
-.parameter-category-item__icon { color: var(--color-text-secondary); flex: none; width: 1rem; height: 1rem; }
-.parameter-category-item.is-active .parameter-category-item__icon { color: var(--color-brand-primary); }
-.parameter-category-item__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; }
-.parameter-category-item__count { font-size: 0.6875rem; min-width: 1.25rem; height: 1.125rem; padding: 0 0.35rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--color-surface-subtle); color: var(--color-text-secondary); font-weight: var(--font-weight-semibold); flex: none; }
-.parameter-category-item.is-active .parameter-category-item__count { background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent); color: var(--color-brand-primary); }
 .parameter-catalog { position: static; }
 .parameter-filters { padding: var(--space-3); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); flex: none; }
 .parameter-filters__search { grid-column: 1 / -1; }
@@ -1977,7 +1991,7 @@
 .disease-management-member-toolbar { display: grid; grid-template-columns: minmax(20rem, 1fr) 12rem auto; align-items: end; gap: var(--space-3); }
 .disease-management-member-toolbar .ui-field { margin: 0; }
 .disease-management-member-toolbar > span { min-height: var(--control-height-md); display: flex; align-items: center; color: var(--color-text-secondary); white-space: nowrap; }
-.disease-management-member-list { max-height: 34rem; margin-top: var(--space-4); overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); scrollbar-gutter: stable; }
+.disease-management-member-list { max-height: 34rem; margin-top: var(--space-4); overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); scrollbar-gutter: auto; }
 .disease-management-member-list > label { min-width: 0; padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; }
 .disease-management-member-list > label:has(input:checked) { border-color: var(--color-brand-primary); background: var(--color-brand-soft); }
 .disease-management-member-list input { width: 1rem; height: 1rem; accent-color: var(--color-brand-primary); }
@@ -1990,14 +2004,14 @@
 .disease-scope-section__head h3 { font-size: var(--font-size-body); }
 .disease-scope-section__head p, .disease-scope-section__head > span { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .disease-scope-section > .ui-alert { margin: var(--space-4); }
-.disease-rule-list { max-height: 25rem; overflow: auto; padding: var(--space-3); display: grid; gap: var(--space-3); scrollbar-gutter: stable; }
+.disease-rule-list { max-height: 25rem; overflow: auto; padding: var(--space-3); display: grid; gap: var(--space-3); scrollbar-gutter: auto; }
 .disease-rule-card { padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .disease-rule-card__title { min-height: 2rem; display: flex; align-items: center; gap: var(--space-2); }
 .disease-rule-card__title .ui-button { margin-left: auto; }
 .disease-rule-grid { margin-top: var(--space-3); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
 .disease-rule-grid .ui-field { min-width: 0; margin: 0; }
 .disease-rule-grid select, .disease-rule-grid input { width: 100%; }
-.disease-exception-list { max-height: 15rem; overflow: auto; padding: var(--space-3); display: grid; gap: var(--space-2); border-bottom: 1px solid var(--color-border); scrollbar-gutter: stable; }
+.disease-exception-list { max-height: 15rem; overflow: auto; padding: var(--space-3); display: grid; gap: var(--space-2); border-bottom: 1px solid var(--color-border); scrollbar-gutter: auto; }
 .disease-exception-list > div, .disease-search-results > div:not(.disease-search-pagination) { min-width: 0; padding: var(--space-2) var(--space-3); display: grid; grid-template-columns: minmax(14rem, 1fr) 8rem 8rem auto; align-items: center; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .disease-exception-list strong, .disease-exception-list small, .disease-search-results strong, .disease-search-results small { display: block; }
 .disease-exception-list small, .disease-search-results small, .disease-exception-list code, .disease-search-results code { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
@@ -2013,7 +2027,7 @@
   .master-data-page .master-data-tabs, .master-data-page .master-data-toolbar, .master-data-page .disease-management-mode { flex: none; }
   .master-data-page .master-data-body { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .master-data-page .master-data-body > .ui-table-shell { min-height: 0; flex: 1; }
-  .master-data-page .master-data-body > .attribute-config-center { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  .master-data-page .master-data-body > .attribute-config-center { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: auto; }
   .master-data-page .master-data-body > .operational-master-data { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .master-data-page .master-data-body > .clinical-medication-standards,
   .master-data-page .master-data-body > .medication-readiness { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }

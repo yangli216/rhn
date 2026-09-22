@@ -24,16 +24,16 @@ public class WardMedicationReturnRequest {
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "DT_REQUESTED", nullable = false) private Instant requestedAt;
-    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedBy;
+    @Column(name = "DT_REQD", nullable = false) private Instant requestedAt;
+    @Column(name = "ID_USER_REQD", nullable = false) private Long requestedBy;
     @Column(name = "DES_REQ_NOTE") private String requestNote;
     @Column(name = "DT_HANDED_OVER") private Instant handedOverAt;
     @Column(name = "ID_USER_HANDED_OVER") private Long handedOverBy;
-    @Column(name = "DES_HANDOVER_NOTE") private String handoverNote;
-    @Column(name = "DT_RECEIVED") private Instant receivedAt;
-    @Column(name = "ID_USER_RECEIVED") private Long receivedBy;
-    @Column(name = "ID_PROCESSOR_PRACT") private Long processorPractitionerId;
-    @Column(name = "ID_PROCESSOR_ASSIGN") private Long processorAssignmentId;
+    @Column(name = "DES_HNDOVR_NOTE") private String handoverNote;
+    @Column(name = "DT_RECVD") private Instant receivedAt;
+    @Column(name = "ID_USER_RECVD") private Long receivedBy;
+    @Column(name = "ID_PROCSR_PRACT") private Long processorPractitionerId;
+    @Column(name = "ID_PROCSR_ASSIGN") private Long processorAssignmentId;
     @Column(name = "DES_RCPT_NOTE") private String receiptNote;
 
     protected WardMedicationReturnRequest() {

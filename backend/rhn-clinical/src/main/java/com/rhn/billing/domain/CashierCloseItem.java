@@ -17,7 +17,7 @@ public class CashierCloseItem {
     @Column(name = "ID_PAY", nullable = false) private Long paymentId;
     @Column(name = "CD_ITEM_NO", nullable = false) private int itemNo;
     @Column(name = "AMT_ITEM", nullable = false, precision = 24, scale = 6) private BigDecimal itemAmount;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
 
     protected CashierCloseItem() {}
     public CashierCloseItem(Long tenantId, Long cashierCloseId, Long paymentId, int itemNo,

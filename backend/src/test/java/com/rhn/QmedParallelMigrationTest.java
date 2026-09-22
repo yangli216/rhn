@@ -48,7 +48,7 @@ class QmedParallelMigrationTest {
         merged.migrate();
         assertEquals(0, merged.migrate().migrationsExecuted);
         try (var connection = DriverManager.getConnection(url, "sa", ""); var sql = connection.createStatement()) {
-            try (var row = sql.executeQuery("select JSON_SNAPSHOT from RHN_BD_CLIN_SEM_VER where ID_CLIN_SEM_VER=1")) {
+            try (var row = sql.executeQuery("select JSON_SNAP from RHN_BD_CLIN_SEM_VER where ID_CLIN_SEM_VER=1")) {
                 assertTrue(row.next());
                 assertEquals("{\"saved\":true}", row.getString(1));
             }

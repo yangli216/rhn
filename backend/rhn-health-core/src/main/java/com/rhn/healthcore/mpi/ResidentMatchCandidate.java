@@ -26,11 +26,11 @@ class ResidentMatchCandidate {
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "JSON_REASONS", nullable = false)
     private String reasonsJson;
-    @Column(name = "SD_DECISION", nullable = false)
+    @Column(name = "SD_DCSN", nullable = false)
     private String decision;
-    @Column(name = "ID_USER_REVIEWED")
+    @Column(name = "ID_USER_RVWD")
     private String reviewedBy;
-    @Column(name = "DT_REVIEWED")
+    @Column(name = "DT_RVWD")
     private Instant reviewedAt;
 
     protected ResidentMatchCandidate() {

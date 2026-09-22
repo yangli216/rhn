@@ -17,13 +17,13 @@ public class UserAccount {
     private Long tenantId;
     @Column(name = "ID_PRACT")
     private Long practitionerId;
-    @Column(name = "CD_USERNAME", nullable = false)
+    @Column(name = "CD_USRNM", nullable = false)
     private String username;
-    @Column(name = "HASH_PASSWORD", nullable = false)
+    @Column(name = "HASH_PWD", nullable = false)
     private String passwordHash;
     @Column(name = "SD_STATUS", nullable = false)
     private String status;
-    @Column(name = "DT_PASSWORD_CHANGED")
+    @Column(name = "DT_PWD_CHANGED")
     private Instant passwordChangedAt;
     @Column(name = "DT_LAST_LOGIN")
     private Instant lastLoginAt;

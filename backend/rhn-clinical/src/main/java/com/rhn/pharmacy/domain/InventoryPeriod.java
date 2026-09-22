@@ -17,7 +17,7 @@ public class InventoryPeriod {
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
-    @Column(name = "ID_INV_PERIOD_PREVIOUS") private Long previousPeriodId;
+    @Column(name = "ID_INV_PERIOD_PREV") private Long previousPeriodId;
     @Column(name = "ID_INV_PERIOD_CLOSE_RUN_CLOSE") private Long closingRunId;
     @Column(name = "CD_PERIOD", nullable = false) private String periodCode;
     @Column(name = "DA_PERIOD_FROM", nullable = false) private LocalDate periodFrom;

@@ -29,12 +29,12 @@ public class InpatientCareRequest {
     @Column(name = "ID_DEPT_EXEC", nullable = false) private Long performerDepartmentId;
     @Column(name = "ID_ORG_REQ", nullable = false) private Long requestingOrganizationId;
     @Column(name = "ID_DEPT_REQ", nullable = false) private Long requestingDepartmentId;
-    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
-    @Column(name = "DT_AUTHORED", nullable = false) private Instant authoredAt;
-    @Column(name = "ID_USER_AUTHORED", nullable = false) private Long authoredBy;
+    @Column(name = "DA_BIZ", nullable = false) private LocalDate businessDate;
+    @Column(name = "DT_AUTHRD", nullable = false) private Instant authoredAt;
+    @Column(name = "ID_USER_AUTHRD", nullable = false) private Long authoredBy;
     @Column(name = "DES_REASON") private String reasonText;
-    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
-    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DT_CNCLD") private Instant cancelledAt;
+    @Column(name = "ID_USER_CNCLD") private Long cancelledBy;
     @Column(name = "DES_CANCEL_REASON") private String cancelReason;
     @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
     @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
@@ -44,7 +44,7 @@ public class InpatientCareRequest {
     @Column(name = "SD_PRICE_TYPE") private String priceType;
     @Column(name = "PRICE_UNIT") private BigDecimal unitPrice;
     @Column(name = "AMT_TOTAL") private BigDecimal totalAmount;
-    @Column(name = "CD_CURRENCY") private String currencyCode;
+    @Column(name = "CD_CCY") private String currencyCode;
 
     protected InpatientCareRequest() {
     }

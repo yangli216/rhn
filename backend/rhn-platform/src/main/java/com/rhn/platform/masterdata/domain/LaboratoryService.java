@@ -16,11 +16,11 @@ public class LaboratoryService {
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "SD_LAB_METHOD") private String laboratoryMethod;
-    @Column(name = "QTY_REPORT_DURATION") private BigDecimal reportDuration;
-    @Column(name = "REPORT_DURATION_UNIT") private String reportDurationUnit;
-    @Column(name = "FG_FASTING_REQUIRED", nullable = false) private boolean fastingRequired;
+    @Column(name = "QTY_REPORT_DUR") private BigDecimal reportDuration;
+    @Column(name = "REPORT_DUR_UNIT") private String reportDurationUnit;
+    @Column(name = "FG_FASTING_RQD", nullable = false) private boolean fastingRequired;
     @Column(name = "FG_POINT_OF_CARE", nullable = false) private boolean pointOfCare;
-    @Column(name = "DES_COLLECTION_DESCRIPTION") private String collectionDescription;
+    @Column(name = "DES_COLL_DESCR") private String collectionDescription;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;

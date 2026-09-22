@@ -20,12 +20,12 @@ public class StockItem {
     @Column(name = "ID_ITEM_PKG_BASE", nullable = false) private Long basePackageId;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
     @Column(name = "SD_ISSUE_POLICY", nullable = false) private String issuePolicy;
-    @Column(name = "FG_NEGATIVE", nullable = false) private boolean negativeAllowed;
-    @Column(name = "FG_LOT_REQUIRED", nullable = false) private boolean lotRequired;
-    @Column(name = "FG_TRACE_REQUIRED", nullable = false) private boolean traceRequired;
+    @Column(name = "FG_NEG", nullable = false) private boolean negativeAllowed;
+    @Column(name = "FG_LOT_RQD", nullable = false) private boolean lotRequired;
+    @Column(name = "FG_TRACE_RQD", nullable = false) private boolean traceRequired;
     @Column(name = "FG_SPLIT", nullable = false) private boolean splitAllowed;
     @Column(name = "FG_COLD_CHAIN", nullable = false) private boolean coldChain;
-    @Column(name = "FG_CONTROLLED", nullable = false) private boolean controlled;
+    @Column(name = "FG_CTRLD", nullable = false) private boolean controlled;
     @Column(name = "SD_CONTROL_LEVEL") private String controlLevel;
     @Column(name = "FG_HIGH_ALERT", nullable = false) private boolean highAlert;
     @Column(name = "SD_STATUS", nullable = false) private String status;

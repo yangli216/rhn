@@ -39,28 +39,28 @@ class Encounter {
     private String visitType;
     @Column(name = "SD_ENC_CLASS", nullable = false)
     private String encounterClass;
-    @Column(name = "ID_CLINICIAN")
+    @Column(name = "ID_CLNCN")
     private String clinicianId;
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_STATUS", nullable = false)
     private EncounterStatus status;
-    @Column(name = "DES_CHIEF_COMPLAINT")
+    @Column(name = "DES_CHIEF_CMPLNT")
     private String chiefComplaint;
-    @Column(name = "SYSTOLIC") private Integer systolic;
-    @Column(name = "DIASTOLIC") private Integer diastolic;
-    @Column(name = "DT_REGISTERED", nullable = false)
+    @Column(name = "SBP") private Integer systolic;
+    @Column(name = "DBP") private Integer diastolic;
+    @Column(name = "DT_REGD", nullable = false)
     private Instant registeredAt;
     @Column(name = "DT_STARTED")
     private Instant startedAt;
-    @Column(name = "DT_COMPLETED")
+    @Column(name = "DT_CMPLD")
     private Instant completedAt;
-    @Column(name = "CD_TERMINATION")
+    @Column(name = "CD_TRMN")
     private String terminationCode;
-    @Column(name = "DES_TERMINATION_REASON")
+    @Column(name = "DES_TRMN_REASON")
     private String terminationReason;
-    @Column(name = "DT_TERMINATED")
+    @Column(name = "DT_TRMND")
     private Instant terminatedAt;
-    @Column(name = "ID_USER_TERMINATED")
+    @Column(name = "ID_USER_TRMND")
     private Long terminatedBy;
     @Version
     @Column(name = "REVISION") private long version;

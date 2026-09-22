@@ -39,10 +39,10 @@ public class InpatientMedicationSupplyBatch {
     @Column(name = "CD_CANCEL_COMMAND") private String cancelCommandCode;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;
-    @Column(name = "DT_SUBMITTED") private Instant submittedAt;
-    @Column(name = "ID_USER_SUBMITTED") private Long submittedBy;
-    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
-    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DT_SUBMTD") private Instant submittedAt;
+    @Column(name = "ID_USER_SUBMTD") private Long submittedBy;
+    @Column(name = "DT_CNCLD") private Instant cancelledAt;
+    @Column(name = "ID_USER_CNCLD") private Long cancelledBy;
     @Column(name = "DES_CANCEL_REASON") private String cancelReason;
     @Column(name = "DT_CLOSED") private Instant closedAt;
     @Column(name = "ID_USER_CLOSED") private Long closedBy;

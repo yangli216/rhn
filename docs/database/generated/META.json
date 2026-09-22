@@ -1,0 +1,6408 @@
+{
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "tables": [
+    {
+      "logical": "meta.outpatient_note_form_version",
+      "legacy": "outpatient_note_form_versions",
+      "physical": "RHN_META_OP_NOTE_FORM_VER",
+      "domain": "META",
+      "comment": "门诊备注表单版本；一行代表一条门诊备注表单版本记录",
+      "columns": [
+        {
+          "physical": "ID_OP_NOTE_FORM_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "门诊备注表单版本主键",
+          "logical": "id",
+          "catalogComment": "门诊备注表单版本主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "CD_FORM",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "表单编码",
+          "logical": "form_code",
+          "catalogComment": "表单编码"
+        },
+        {
+          "physical": "CD_VER_NUMBER",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "版本编号",
+          "logical": "version_number",
+          "catalogComment": "版本编号"
+        },
+        {
+          "physical": "CD_SPECLTY",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "specialty编码",
+          "logical": "specialty_code",
+          "catalogComment": "specialty编码"
+        },
+        {
+          "physical": "NA_FORM",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "表单名称",
+          "logical": "form_name",
+          "catalogComment": "表单名称"
+        },
+        {
+          "physical": "DES_OP_NOTE_FORM_VER",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "说明",
+          "logical": "description",
+          "catalogComment": "说明"
+        },
+        {
+          "physical": "JSON_DEF_SCHEMA",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "定义模式定义",
+          "logical": "definition_schema",
+          "catalogComment": "定义模式定义"
+        },
+        {
+          "physical": "JSON_DEF",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "定义JSON",
+          "logical": "definition_json",
+          "catalogComment": "定义JSON"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "ID_USER_PUBLISD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "发布人标识",
+          "logical": "published_by",
+          "catalogComment": "发布人标识"
+        },
+        {
+          "physical": "DT_PUBLISD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "发布时间",
+          "logical": "published_at",
+          "catalogComment": "发布时间"
+        },
+        {
+          "physical": "DT_RETIRED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "retired时间",
+          "logical": "retired_at",
+          "catalogComment": "retired时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_OP_NOTE_FORM_VER"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_OP_NOTE_F_ONFV_FORM_VE",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "ID_DEPT",
+            "CD_FORM",
+            "CD_VER_NUMBER"
+          ]
+        },
+        {
+          "name": "UK_META_OP_NOTE_F_ONFV_TENANT_",
+          "columns": [
+            "ID_TNT",
+            "ID_OP_NOTE_FORM_VER"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_OP_NOTE_F_SYS_DEPT_ONF_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_NOTE_F_SYS_ORG_ONFV_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_NOTE_F_SYS_TNT_ONFV_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_NOTE_F_SYS_USER_ONF_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_PUBLISD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_META_OP_NOTE_F_ONFV_VISIBL",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "CD_SPECLTY",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 6,
+              "name": "CD_FORM",
+              "direction": "A"
+            },
+            {
+              "position": 7,
+              "name": "CD_VER_NUMBER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_2EF",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_OP_NOTE_FORM_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_OP_NOTE_F_ONFV_FORM_VE_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "CD_FORM",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "CD_VER_NUMBER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_OP_NOTE_F_ONFV_TENANT__INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_OP_NOTE_FORM_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_OP_NOTE_F_ONFV_STATUS",
+          "expression": "\"sd_status\" IN('PUBLISHED', 'RETIRED')"
+        },
+        {
+          "name": "CK_META_OP_NOTE_F_ONFV_VERSION",
+          "expression": "\"cd_ver_number\" > 0"
+        }
+      ],
+      "catalogComment": "门诊备注表单版本；一行代表一条门诊备注表单版本记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientNoteFormVersion.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "meta.outpatient_note_template",
+      "legacy": "outpatient_note_templates",
+      "physical": "RHN_META_OP_NOTE_TMPL",
+      "domain": "META",
+      "comment": "门诊备注模板；一行代表一条门诊备注模板记录",
+      "columns": [
+        {
+          "physical": "ID_OP_NOTE_TMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "门诊备注模板主键",
+          "logical": "id",
+          "catalogComment": "门诊备注模板主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "SD_SCOPE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "范围类型",
+          "logical": "scope_type",
+          "catalogComment": "范围类型"
+        },
+        {
+          "physical": "ID_OWNER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "责任方标识",
+          "logical": "owner_id",
+          "catalogComment": "责任方标识"
+        },
+        {
+          "physical": "CD_SPECLTY",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "specialty编码",
+          "logical": "specialty_code",
+          "catalogComment": "specialty编码"
+        },
+        {
+          "physical": "SD_DOC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "文书类型",
+          "logical": "document_type",
+          "catalogComment": "文书类型"
+        },
+        {
+          "physical": "JSON_CONTENT_SCHEMA",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "内容模式定义",
+          "logical": "content_schema",
+          "catalogComment": "内容模式定义"
+        },
+        {
+          "physical": "NA_TMPL",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "模板名称",
+          "logical": "template_name",
+          "catalogComment": "模板名称"
+        },
+        {
+          "physical": "DES_OP_NOTE_TMPL",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "说明",
+          "logical": "description",
+          "catalogComment": "说明"
+        },
+        {
+          "physical": "JSON_CONTENT",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "内容JSON",
+          "logical": "content_json",
+          "catalogComment": "内容JSON"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "SN_SORT",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 15,
+          "comment": "排序医嘱",
+          "logical": "sort_order",
+          "catalogComment": "排序医嘱"
+        },
+        {
+          "physical": "QTY_USE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 16,
+          "comment": "用途盘点",
+          "logical": "use_count",
+          "catalogComment": "用途盘点"
+        },
+        {
+          "physical": "DT_LAST_USED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "lastused时间",
+          "logical": "last_used_at",
+          "catalogComment": "lastused时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_OP_NOTE_TMPL"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_OP_NOTE_T_ONT_OWNER_NA",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "SD_SCOPE_TYPE",
+            "ID_OWNER",
+            "CD_SPECIALTY",
+            "SD_DOC_TYPE",
+            "NA_TMPL"
+          ]
+        },
+        {
+          "name": "UK_META_OP_NOTE_T_ONT_TENANT_I",
+          "columns": [
+            "ID_TNT",
+            "ID_OP_NOTE_TMPL"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_OP_NOTE_T_SYS_DEPT_ONT_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_NOTE_T_SYS_ORG_ONT__INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_NOTE_T_SYS_TNT_ONT__INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_NOTE_T_SYS_USER_ONT_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_NOTE_T_SYS_USER_O_1_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_UPDATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_META_OP_NOTE_T_ONT_VISIBLE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "CD_SPECLTY",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "SD_DOC_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 6,
+              "name": "SD_SCOPE_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 7,
+              "name": "ID_OWNER",
+              "direction": "A"
+            },
+            {
+              "position": 8,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 9,
+              "name": "SN_SORT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_C8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_OP_NOTE_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_OP_NOTE_T_ONT_OWNER_NA_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_SCOPE_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_OWNER",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "CD_SPECLTY",
+              "direction": "A"
+            },
+            {
+              "position": 6,
+              "name": "SD_DOC_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 7,
+              "name": "NA_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_OP_NOTE_T_ONT_TENANT_I_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_OP_NOTE_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_OP_NOTE_T_ONT_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        },
+        {
+          "name": "CK_META_OP_NOTE_TMPL_ONT_SCOPE",
+          "expression": "\"sd_scope_type\" IN('PERSONAL', 'DEPARTMENT')"
+        }
+      ],
+      "catalogComment": "门诊备注模板；一行代表一条门诊备注模板记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientNoteTemplate.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "meta.outpatient_plan_diagnosis",
+      "legacy": "outpatient_plan_diagnoses",
+      "physical": "RHN_META_OP_PLAN_DIAG",
+      "domain": "META",
+      "comment": "门诊方案诊断；一行代表一条门诊方案诊断记录",
+      "columns": [
+        {
+          "physical": "ID_OP_PLAN_DIAG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "门诊方案诊断主键",
+          "logical": "id",
+          "catalogComment": "门诊方案诊断主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_OP_PLAN_TMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "模板标识",
+          "logical": "template_id",
+          "catalogComment": "模板标识"
+        },
+        {
+          "physical": "SN_LINE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "明细编号",
+          "logical": "line_no",
+          "catalogComment": "明细编号"
+        },
+        {
+          "physical": "CD_DIAG",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "诊断编码",
+          "logical": "diagnosis_code",
+          "catalogComment": "诊断编码"
+        },
+        {
+          "physical": "NA_DIAG",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "诊断名称",
+          "logical": "diagnosis_name",
+          "catalogComment": "诊断名称"
+        },
+        {
+          "physical": "SD_DIAG_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "诊断类型",
+          "logical": "diagnosis_type",
+          "catalogComment": "诊断类型"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_OP_PLAN_DIAG"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_OP_PLAN_DIAG_OPD_LINE",
+          "columns": [
+            "ID_TNT",
+            "ID_OP_PLAN_TMPL",
+            "SN_LINE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_OP_PLAN_D_META_OP_OPD__INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_OP_PLAN_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_CB",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_OP_PLAN_DIAG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_OP_PLAN_DIAG_OPD_LINE_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_OP_PLAN_TMPL",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SN_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_OP_PLAN_DIAG_OPD_TYPE",
+          "expression": "\"sd_diag_type\" IN('PRIMARY', 'SECONDARY')"
+        }
+      ],
+      "catalogComment": "门诊方案诊断；一行代表一条门诊方案诊断记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplateLines.java",
+          "line": 12
+        }
+      ]
+    },
+    {
+      "logical": "meta.outpatient_plan_medication",
+      "legacy": "outpatient_plan_medications",
+      "physical": "RHN_META_OP_PLAN_MED",
+      "domain": "META",
+      "comment": "门诊方案药品；一行代表一条门诊方案药品记录",
+      "columns": [
+        {
+          "physical": "ID_OP_PLAN_MED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "门诊方案药品主键",
+          "logical": "id",
+          "catalogComment": "门诊方案药品主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_OP_PLAN_TMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "模板标识",
+          "logical": "template_id",
+          "catalogComment": "模板标识"
+        },
+        {
+          "physical": "SN_LINE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "明细编号",
+          "logical": "line_no",
+          "catalogComment": "明细编号"
+        },
+        {
+          "physical": "ID_MED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "药品标识",
+          "logical": "medication_id",
+          "catalogComment": "药品标识"
+        },
+        {
+          "physical": "ID_CATALOG_ITEM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "目录项目标识",
+          "logical": "catalog_item_id",
+          "catalogComment": "目录项目标识"
+        },
+        {
+          "physical": "ID_PKG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "包装标识",
+          "logical": "package_id",
+          "catalogComment": "包装标识"
+        },
+        {
+          "physical": "CD_CAT",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "分类编码",
+          "logical": "category_code",
+          "catalogComment": "分类编码"
+        },
+        {
+          "physical": "CD_MED",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "药品编码",
+          "logical": "medication_code",
+          "catalogComment": "药品编码"
+        },
+        {
+          "physical": "NA_MED",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "药品名称",
+          "logical": "medication_name",
+          "catalogComment": "药品名称"
+        },
+        {
+          "physical": "PREP_SPEC",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "制剂规格",
+          "logical": "preparation_spec",
+          "catalogComment": "制剂规格"
+        },
+        {
+          "physical": "NA_PRODUCT",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "产品名称",
+          "logical": "product_name",
+          "catalogComment": "产品名称"
+        },
+        {
+          "physical": "QTY_DOSE_VAL",
+          "type": "DECIMAL",
+          "size": 18,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "剂量值",
+          "logical": "dose_value",
+          "catalogComment": "剂量值"
+        },
+        {
+          "physical": "DOSE_UNIT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "剂量单位",
+          "logical": "dose_unit",
+          "catalogComment": "剂量单位"
+        },
+        {
+          "physical": "CD_ROUTE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "途径编码",
+          "logical": "route_code",
+          "catalogComment": "途径编码"
+        },
+        {
+          "physical": "CD_FREQ",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "频次编码",
+          "logical": "frequency_code",
+          "catalogComment": "频次编码"
+        },
+        {
+          "physical": "QTY_DUR_VAL",
+          "type": "DECIMAL",
+          "size": 18,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "时长值",
+          "logical": "duration_value",
+          "catalogComment": "时长值"
+        },
+        {
+          "physical": "DUR_UNIT",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "时长单位",
+          "logical": "duration_unit",
+          "catalogComment": "时长单位"
+        },
+        {
+          "physical": "QTY_ORDERED",
+          "type": "DECIMAL",
+          "size": 18,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "数量",
+          "logical": "quantity",
+          "catalogComment": "数量"
+        },
+        {
+          "physical": "QTY_UNIT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "数量单位",
+          "logical": "quantity_unit",
+          "catalogComment": "数量单位"
+        },
+        {
+          "physical": "FG_SUBSTN",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "是否substitution允许",
+          "logical": "substitution_allowed",
+          "catalogComment": "是否substitution允许"
+        },
+        {
+          "physical": "FG_SELF_PRVDD",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "是否selfprovided",
+          "logical": "self_provided",
+          "catalogComment": "是否selfprovided"
+        },
+        {
+          "physical": "DES_MED_INSTR",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "药品用法",
+          "logical": "medication_instruction",
+          "catalogComment": "药品用法"
+        },
+        {
+          "physical": "SD_PRICE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "价格类型",
+          "logical": "price_type",
+          "catalogComment": "价格类型"
+        },
+        {
+          "physical": "FG_PRICING_RQD",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 25,
+          "comment": "是否pricing应需",
+          "logical": "pricing_required",
+          "catalogComment": "是否pricing应需"
+        },
+        {
+          "physical": "DES_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "原因文本",
+          "logical": "reason_text",
+          "catalogComment": "原因文本"
+        }
+      ],
+      "previousPhysical": "RHN_META_OP_PLAN_MEDICAT",
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_OP_PLAN_MED"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_OP_PLAN_MED_OPM_LINE",
+          "columns": [
+            "ID_TNT",
+            "ID_OP_PLAN_TMPL",
+            "SN_LINE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_OP_PLAN_M_META_OP_OPM__INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_OP_PLAN_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_ED",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_OP_PLAN_MED",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_OP_PLAN_MED_OPM_LINE_INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_OP_PLAN_TMPL",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SN_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "门诊方案药品；一行代表一条门诊方案药品记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplateLines.java",
+          "line": 32
+        }
+      ]
+    },
+    {
+      "logical": "meta.outpatient_plan_service",
+      "legacy": "outpatient_plan_services",
+      "physical": "RHN_META_OP_PLAN_SVC",
+      "domain": "META",
+      "comment": "门诊方案服务；一行代表一条门诊方案服务记录",
+      "columns": [
+        {
+          "physical": "ID_OP_PLAN_SVC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "门诊方案服务主键",
+          "logical": "id",
+          "catalogComment": "门诊方案服务主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_OP_PLAN_TMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "模板标识",
+          "logical": "template_id",
+          "catalogComment": "模板标识"
+        },
+        {
+          "physical": "SN_LINE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "明细编号",
+          "logical": "line_no",
+          "catalogComment": "明细编号"
+        },
+        {
+          "physical": "ID_CATALOG_ITEM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "目录项目标识",
+          "logical": "catalog_item_id",
+          "catalogComment": "目录项目标识"
+        },
+        {
+          "physical": "CD_ITEM",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "项目编码",
+          "logical": "item_code",
+          "catalogComment": "项目编码"
+        },
+        {
+          "physical": "NA_ITEM",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "项目名称",
+          "logical": "item_name",
+          "catalogComment": "项目名称"
+        },
+        {
+          "physical": "SD_SVC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "服务类型",
+          "logical": "service_type",
+          "catalogComment": "服务类型"
+        },
+        {
+          "physical": "QTY_ORDERED",
+          "type": "DECIMAL",
+          "size": 18,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "数量",
+          "logical": "quantity",
+          "catalogComment": "数量"
+        },
+        {
+          "physical": "CD_UNIT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "单位编码",
+          "logical": "unit_code",
+          "catalogComment": "单位编码"
+        },
+        {
+          "physical": "SD_PRICE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "价格类型",
+          "logical": "price_type",
+          "catalogComment": "价格类型"
+        },
+        {
+          "physical": "FG_PRICING_RQD",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "是否pricing应需",
+          "logical": "pricing_required",
+          "catalogComment": "是否pricing应需"
+        },
+        {
+          "physical": "DES_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "原因文本",
+          "logical": "reason_text",
+          "catalogComment": "原因文本"
+        },
+        {
+          "physical": "DES_CLIN_DESCR",
+          "type": "CHARACTER VARYING",
+          "size": 2000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "临床说明",
+          "logical": "clinical_description",
+          "catalogComment": "临床说明"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_OP_PLAN_SVC"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_OP_PLAN_SVC_OPS_LINE",
+          "columns": [
+            "ID_TNT",
+            "ID_OP_PLAN_TMPL",
+            "SN_LINE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_OP_PLAN_S_META_OP_OPS__INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_OP_PLAN_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_ED5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_OP_PLAN_SVC",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_OP_PLAN_SVC_OPS_LINE_INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_OP_PLAN_TMPL",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SN_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "门诊方案服务；一行代表一条门诊方案服务记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplateLines.java",
+          "line": 93
+        }
+      ]
+    },
+    {
+      "logical": "meta.outpatient_plan_template",
+      "legacy": "outpatient_plan_templates",
+      "physical": "RHN_META_OP_PLAN_TMPL",
+      "domain": "META",
+      "comment": "门诊方案模板；一行代表一条门诊方案模板记录",
+      "columns": [
+        {
+          "physical": "ID_OP_PLAN_TMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "门诊方案模板主键",
+          "logical": "id",
+          "catalogComment": "门诊方案模板主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "SD_SCOPE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "范围类型",
+          "logical": "scope_type",
+          "catalogComment": "范围类型"
+        },
+        {
+          "physical": "ID_OWNER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "责任方标识",
+          "logical": "owner_id",
+          "catalogComment": "责任方标识"
+        },
+        {
+          "physical": "NA_TMPL",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "模板名称",
+          "logical": "template_name",
+          "catalogComment": "模板名称"
+        },
+        {
+          "physical": "DES_OP_PLAN_TMPL",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "说明",
+          "logical": "description",
+          "catalogComment": "说明"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "SN_SORT",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 11,
+          "comment": "排序医嘱",
+          "logical": "sort_order",
+          "catalogComment": "排序医嘱"
+        },
+        {
+          "physical": "QTY_USE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 12,
+          "comment": "用途盘点",
+          "logical": "use_count",
+          "catalogComment": "用途盘点"
+        },
+        {
+          "physical": "DT_LAST_USED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "lastused时间",
+          "logical": "last_used_at",
+          "catalogComment": "lastused时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_OP_PLAN_TMPL"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_OP_PLAN_T_OPT_OWNER_NA",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "SD_SCOPE_TYPE",
+            "ID_OWNER",
+            "NA_TMPL"
+          ]
+        },
+        {
+          "name": "UK_META_OP_PLAN_T_OPT_TENANT_I",
+          "columns": [
+            "ID_TNT",
+            "ID_OP_PLAN_TMPL"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_OP_PLAN_T_SYS_DEPT_OPT_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_PLAN_T_SYS_ORG_OPT__INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_PLAN_T_SYS_TNT_OPT__INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_PLAN_T_SYS_USER_OPT_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_OP_PLAN_T_SYS_USER_O_1_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_UPDATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_META_OP_PLAN_T_OPT_VISIBLE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SD_SCOPE_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "ID_OWNER",
+              "direction": "A"
+            },
+            {
+              "position": 6,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 7,
+              "name": "SN_SORT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_CBD",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_OP_PLAN_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_OP_PLAN_T_OPT_OWNER_NA_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_SCOPE_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_OWNER",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "NA_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_OP_PLAN_T_OPT_TENANT_I_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_OP_PLAN_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_OP_PLAN_T_OPT_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        },
+        {
+          "name": "CK_META_OP_PLAN_TMPL_OPT_SCOPE",
+          "expression": "\"sd_scope_type\" IN('PERSONAL', 'DEPARTMENT')"
+        }
+      ],
+      "catalogComment": "门诊方案模板；一行代表一条门诊方案模板记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplate.java",
+          "line": 13
+        }
+      ]
+    },
+    {
+      "logical": "meta.print_task_definition",
+      "legacy": "print_task_definitions",
+      "physical": "RHN_META_PRINT_TASK_DEF",
+      "domain": "META",
+      "comment": "标准打印任务定义；一行代表一个业务模块稳定依赖的打印任务",
+      "columns": [
+        {
+          "physical": "ID_PRINT_TASK_DEF",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "标准打印任务主键",
+          "logical": "id",
+          "catalogComment": "标准打印任务主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "CD_TASK",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "稳定打印任务编码",
+          "logical": "task_code",
+          "catalogComment": "稳定打印任务编码"
+        },
+        {
+          "physical": "NA_TASK",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "打印任务名称",
+          "logical": "task_name",
+          "catalogComment": "打印任务名称"
+        },
+        {
+          "physical": "SD_CAT",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "打印任务分类",
+          "logical": "category",
+          "catalogComment": "打印任务分类"
+        },
+        {
+          "physical": "SD_SOURCE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "业务数据源类型",
+          "logical": "source_type",
+          "catalogComment": "业务数据源类型"
+        },
+        {
+          "physical": "CD_DATA_PRVDR",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "数据提供器编码",
+          "logical": "data_provider_code",
+          "catalogComment": "数据提供器编码"
+        },
+        {
+          "physical": "CD_PAYLOAD_SCHEMA",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "打印数据契约编码",
+          "logical": "payload_schema_code",
+          "catalogComment": "打印数据契约编码"
+        },
+        {
+          "physical": "SN_SCHEMA_VER",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "数据契约版本号",
+          "logical": "schema_version",
+          "catalogComment": "数据契约版本号"
+        },
+        {
+          "physical": "JSON_PURPS",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "允许的打印用途集合",
+          "logical": "purposes_json",
+          "catalogComment": "允许的打印用途集合"
+        },
+        {
+          "physical": "FG_BATCH",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 11,
+          "comment": "是否支持批量打印",
+          "logical": "batch_enabled",
+          "catalogComment": "是否支持批量打印"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "任务状态",
+          "logical": "status",
+          "catalogComment": "任务状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRINT_TASK_DEF"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_PRINT_TASK_CODE",
+          "columns": [
+            "CD_TASK"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IDX_META_PRINT_TASK_STATUS",
+          "columns": [
+            {
+              "position": 1,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_CAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_E12",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_TASK_DEF",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_PRINT_TASK_CODE_INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "CD_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_PRINT_TASK_SCHEMA",
+          "expression": "\"sn_schema_ver\" > 0"
+        },
+        {
+          "name": "CK_META_PRINT_TASK_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        }
+      ],
+      "catalogComment": "标准打印任务定义；一行代表一个业务模块稳定依赖的打印任务",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintBusinessDefinition.java",
+          "line": 13
+        }
+      ]
+    },
+    {
+      "logical": "meta.print_implementation",
+      "legacy": "print_implementations",
+      "physical": "RHN_META_PRINT_IMPL",
+      "domain": "META",
+      "comment": "打印实现注册；一行代表一个内部模板或受控外部报表实现",
+      "columns": [
+        {
+          "physical": "ID_PRINT_IMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "打印实现主键",
+          "logical": "id",
+          "catalogComment": "打印实现主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "所属租户标识，为空表示平台实现",
+          "logical": "tenant_id",
+          "catalogComment": "所属租户标识，为空表示平台实现"
+        },
+        {
+          "physical": "CD_IMPL",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "打印实现编码",
+          "logical": "implementation_code",
+          "catalogComment": "打印实现编码"
+        },
+        {
+          "physical": "NA_IMPL",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "打印实现名称",
+          "logical": "implementation_name",
+          "catalogComment": "打印实现名称"
+        },
+        {
+          "physical": "SD_RNDR",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "渲染器类型",
+          "logical": "renderer_type",
+          "catalogComment": "渲染器类型"
+        },
+        {
+          "physical": "CD_ADAPTER",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "渲染适配器编码",
+          "logical": "adapter_code",
+          "catalogComment": "渲染适配器编码"
+        },
+        {
+          "physical": "ID_PRINT_TMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "内部打印模板标识",
+          "logical": "print_template_id",
+          "catalogComment": "内部打印模板标识"
+        },
+        {
+          "physical": "CD_PAYLOAD_SCHEMA",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "适用的数据契约编码",
+          "logical": "payload_schema_code",
+          "catalogComment": "适用的数据契约编码"
+        },
+        {
+          "physical": "SD_OUTPUT_FORMAT",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "输出格式",
+          "logical": "output_format",
+          "catalogComment": "输出格式"
+        },
+        {
+          "physical": "JSON_CONFIG",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "实现扩展配置",
+          "logical": "config_json",
+          "catalogComment": "实现扩展配置"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "实现状态",
+          "logical": "status",
+          "catalogComment": "实现状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRINT_IMPL"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_PRINT_IMPL_CODE",
+          "columns": [
+            "ID_TNT",
+            "CD_IMPL"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_PRINT_IMPL_TMPL_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_IMPL_TNT_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_META_PRINT_IMPL_VISIBLE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_PAYLOAD_SCHEMA",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_CA1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_IMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_PRINT_IMPL_CODE_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_IMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_PRINT_IMPL_FORMAT",
+          "expression": "\"sd_output_format\" IN('PDF', 'HTML', 'RAW')"
+        },
+        {
+          "name": "CK_META_PRINT_IMPL_RENDERER",
+          "expression": "\"sd_rndr\" IN('INTERNAL_TEMPLATE', 'EXTERNAL_REPORT', 'LEGACY_REPORT')"
+        },
+        {
+          "name": "CK_META_PRINT_IMPL_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        }
+      ],
+      "catalogComment": "打印实现注册；一行代表一个内部模板或受控外部报表实现",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintImplementation.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "meta.print_implementation_binding",
+      "legacy": "print_implementation_bindings",
+      "physical": "RHN_META_PRINT_IMPL_BIND",
+      "domain": "META",
+      "comment": "打印实现绑定；一行代表一条平台、租户、机构或科室级解析规则",
+      "columns": [
+        {
+          "physical": "ID_PRINT_IMPL_BIND",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "打印实现绑定主键",
+          "logical": "id",
+          "catalogComment": "打印实现绑定主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "ID_PRINT_TASK_DEF",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "标准打印任务标识",
+          "logical": "print_task_definition_id",
+          "catalogComment": "标准打印任务标识"
+        },
+        {
+          "physical": "SD_PURPOSE",
+          "type": "CHARACTER VARYING",
+          "size": 40,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "打印用途",
+          "logical": "purpose",
+          "catalogComment": "打印用途"
+        },
+        {
+          "physical": "ID_PRINT_IMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "打印实现标识",
+          "logical": "print_implementation_id",
+          "catalogComment": "打印实现标识"
+        },
+        {
+          "physical": "SD_SCOPE",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "覆盖范围层级",
+          "logical": "scope",
+          "catalogComment": "覆盖范围层级"
+        },
+        {
+          "physical": "SD_FALBK",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "回退策略",
+          "logical": "fallback_policy",
+          "catalogComment": "回退策略"
+        },
+        {
+          "physical": "DT_VALID_FROM",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "生效时间",
+          "logical": "valid_from",
+          "catalogComment": "生效时间"
+        },
+        {
+          "physical": "DT_VALID_TO",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "失效时间",
+          "logical": "valid_to",
+          "catalogComment": "失效时间"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "绑定状态",
+          "logical": "status",
+          "catalogComment": "绑定状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRINT_IMPL_BIND"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_META_PRINT_BIND_DEPT_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_BIND_IMPL_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_IMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_BIND_ORG_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_BIND_TASK_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_TASK_DEF",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_BIND_TNT_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_META_PRINT_IMPL_RESOLVE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_TASK_DEF",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "SD_PURPOSE",
+              "direction": "A"
+            },
+            {
+              "position": 6,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_5E1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_IMPL_BIND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_PRINT_BIND_DATES",
+          "expression": "(\"dt_valid_to\" IS NULL)\n    OR (\"dt_valid_to\" > \"dt_valid_from\")"
+        },
+        {
+          "name": "CK_META_PRINT_BIND_FALLBACK",
+          "expression": "\"sd_falbk\" IN('FAIL_CLOSED', 'PLATFORM_DEFAULT')"
+        },
+        {
+          "name": "CK_META_PRINT_BIND_OWNER",
+          "expression": "((\"sd_scope\" = 'PLATFORM')\n    AND (\"id_tnt\" IS NULL)\n    AND (\"id_org\" IS NULL)\n    AND (\"id_dept\" IS NULL))\n    OR ((\"sd_scope\" = 'TENANT')\n    AND (\"id_tnt\" IS NOT NULL)\n    AND (\"id_org\" IS NULL)\n    AND (\"id_dept\" IS NULL))\n    OR ((\"sd_scope\" = 'ORGANIZATION')\n    AND (\"id_tnt\" IS NOT NULL)\n    AND (\"id_org\" IS NOT NULL)\n    AND (\"id_dept\" IS NULL))\n    OR ((\"sd_scope\" = 'DEPARTMENT')\n    AND (\"id_tnt\" IS NOT NULL)\n    AND (\"id_org\" IS NOT NULL)\n    AND (\"id_dept\" IS NOT NULL))"
+        },
+        {
+          "name": "CK_META_PRINT_BIND_PURPOSE",
+          "expression": "\"sd_purpose\" IN('*', 'CLINICAL_USE', 'PATIENT_COPY', 'ARCHIVE_COPY')"
+        },
+        {
+          "name": "CK_META_PRINT_BIND_SCOPE",
+          "expression": "\"sd_scope\" IN('PLATFORM', 'TENANT', 'ORGANIZATION', 'DEPARTMENT')"
+        },
+        {
+          "name": "CK_META_PRINT_BIND_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        }
+      ],
+      "catalogComment": "打印实现绑定；一行代表一条平台、租户、机构或科室级解析规则",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintImplementationBinding.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "meta.print_template_version",
+      "legacy": "print_template_versions",
+      "physical": "RHN_META_PRINT_TMPL_VER",
+      "domain": "META",
+      "comment": "打印模板版本；一行代表一条打印模板版本记录",
+      "columns": [
+        {
+          "physical": "ID_PRINT_TMPL_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "打印模板版本主键",
+          "logical": "id",
+          "catalogComment": "打印模板版本主键"
+        },
+        {
+          "physical": "ID_PRINT_TMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "模板标识",
+          "logical": "template_id",
+          "catalogComment": "模板标识"
+        },
+        {
+          "physical": "CD_VER_NO",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "版本编号",
+          "logical": "version_no",
+          "catalogComment": "版本编号"
+        },
+        {
+          "physical": "JSON_LAYOUT_SCHEMA",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "布局模式定义",
+          "logical": "layout_schema",
+          "catalogComment": "布局模式定义"
+        },
+        {
+          "physical": "JSON_CONFIG",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "配置JSON",
+          "logical": "config_json",
+          "catalogComment": "配置JSON"
+        },
+        {
+          "physical": "CONTENT_DIGEST_ALGO",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "内容摘要算法",
+          "logical": "content_digest_algorithm",
+          "catalogComment": "内容摘要算法"
+        },
+        {
+          "physical": "HASH_CONTENT",
+          "type": "CHARACTER VARYING",
+          "size": 256,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "内容摘要",
+          "logical": "content_digest",
+          "catalogComment": "内容摘要"
+        },
+        {
+          "physical": "DT_PUBLISD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "发布时间",
+          "logical": "published_at",
+          "catalogComment": "发布时间"
+        },
+        {
+          "physical": "ID_USER_PUBLISD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "发布人标识",
+          "logical": "published_by",
+          "catalogComment": "发布人标识"
+        },
+        {
+          "physical": "ID_PRINT_DOC_DEF",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "打印单据定义标识",
+          "logical": "document_definition_id",
+          "catalogComment": "打印单据定义标识"
+        },
+        {
+          "physical": "ID_PRINT_MEDIA",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "打印介质标识",
+          "logical": "media_profile_id",
+          "catalogComment": "打印介质标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRINT_TMPL_VER"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_PRINT_TMP_PRINT_TEMP_1",
+          "columns": [
+            "ID_PRINT_TMPL",
+            "CD_VER_NO"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_PRINT_TMP_META_PRI_PRI_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_VER_DOC_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_DOC_DEF",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_VER_MEDIA_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_MEDIA",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_DA6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_TMPL_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_PRINT_TMP_PRINT_TEMP_1_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_TMPL",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_VER_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_PRINT_TMP_PRINT_TEMP_2",
+          "expression": "\"cd_ver_no\" > 0"
+        }
+      ],
+      "catalogComment": "打印模板版本；一行代表一条打印模板版本记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintTemplateVersion.java",
+          "line": 13
+        }
+      ]
+    },
+    {
+      "logical": "meta.print_document_definition",
+      "legacy": "print_document_definitions",
+      "physical": "RHN_META_PRINT_DOC_DEF",
+      "domain": "META",
+      "comment": "打印单据定义；一行代表一个可打印的业务单据类型",
+      "columns": [
+        {
+          "physical": "ID_PRINT_DOC_DEF",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "打印单据定义主键",
+          "logical": "id",
+          "catalogComment": "打印单据定义主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识，为空表示平台定义",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识，为空表示平台定义"
+        },
+        {
+          "physical": "CD_DOC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "单据类型编码",
+          "logical": "document_type",
+          "catalogComment": "单据类型编码"
+        },
+        {
+          "physical": "NA_DOC",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "单据名称",
+          "logical": "document_name",
+          "catalogComment": "单据名称"
+        },
+        {
+          "physical": "SD_DOC_CAT",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "单据分类",
+          "logical": "document_category",
+          "catalogComment": "单据分类"
+        },
+        {
+          "physical": "SD_LAYOUT_MODE",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "布局模式",
+          "logical": "layout_mode",
+          "catalogComment": "布局模式"
+        },
+        {
+          "physical": "JSON_DATA_SCHEMA",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "打印数据协议",
+          "logical": "data_schema",
+          "catalogComment": "打印数据协议"
+        },
+        {
+          "physical": "SD_SOURCE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "业务来源类型",
+          "logical": "source_type",
+          "catalogComment": "业务来源类型"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 10,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRINT_DOC_DEF"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_PRINT_DOC_DEF",
+          "columns": [
+            "ID_TNT",
+            "CD_DOC_TYPE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IDX_META_PRINT_DOC_RESOLVE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_DOC_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_707",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_DOC_DEF",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_PRINT_DOC_DEF_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_DOC_TYPE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_PRINT_DOC_CAT",
+          "expression": "\"sd_doc_cat\" IN('CLINICAL_DOCUMENT', 'PRESCRIPTION', 'APPLICATION', 'CARD', 'LABEL', 'LIST')"
+        },
+        {
+          "name": "CK_META_PRINT_DOC_LAYOUT",
+          "expression": "\"sd_layout_mode\" IN('FLOW', 'CANVAS')"
+        },
+        {
+          "name": "CK_META_PRINT_DOC_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        }
+      ],
+      "catalogComment": "打印单据定义；一行代表一个可打印的业务单据类型",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintDocumentDefinition.java",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "logical": "meta.print_media_profile",
+      "legacy": "print_media_profiles",
+      "physical": "RHN_META_PRINT_MEDIA",
+      "domain": "META",
+      "comment": "打印介质档案；一行代表一种可绑定模板的纸张或标签方案",
+      "columns": [
+        {
+          "physical": "ID_PRINT_MEDIA",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "打印介质主键",
+          "logical": "id",
+          "catalogComment": "打印介质主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识，为空表示平台介质",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识，为空表示平台介质"
+        },
+        {
+          "physical": "CD_MEDIA",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "介质编码",
+          "logical": "media_code",
+          "catalogComment": "介质编码"
+        },
+        {
+          "physical": "NA_MEDIA",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "介质名称",
+          "logical": "media_name",
+          "catalogComment": "介质名称"
+        },
+        {
+          "physical": "SD_MEDIA_KIND",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "介质类型",
+          "logical": "media_kind",
+          "catalogComment": "介质类型"
+        },
+        {
+          "physical": "WIDTH_MM",
+          "type": "DECIMAL",
+          "size": 8,
+          "scale": 2,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "物理宽度毫米",
+          "logical": "width_mm",
+          "catalogComment": "物理宽度毫米"
+        },
+        {
+          "physical": "HEIGHT_MM",
+          "type": "DECIMAL",
+          "size": 8,
+          "scale": 2,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "物理高度毫米，连续纸可为空",
+          "logical": "height_mm",
+          "catalogComment": "物理高度毫米，连续纸可为空"
+        },
+        {
+          "physical": "SD_ORIENT",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "打印方向",
+          "logical": "orientation",
+          "catalogComment": "打印方向"
+        },
+        {
+          "physical": "MARGIN_TOP_MM",
+          "type": "DECIMAL",
+          "size": 8,
+          "scale": 2,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 9,
+          "comment": "上边距毫米",
+          "logical": "margin_top_mm",
+          "catalogComment": "上边距毫米"
+        },
+        {
+          "physical": "MARGIN_RIGHT_MM",
+          "type": "DECIMAL",
+          "size": 8,
+          "scale": 2,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 10,
+          "comment": "右边距毫米",
+          "logical": "margin_right_mm",
+          "catalogComment": "右边距毫米"
+        },
+        {
+          "physical": "MARGIN_BOTTOM_MM",
+          "type": "DECIMAL",
+          "size": 8,
+          "scale": 2,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 11,
+          "comment": "下边距毫米",
+          "logical": "margin_bottom_mm",
+          "catalogComment": "下边距毫米"
+        },
+        {
+          "physical": "MARGIN_LEFT_MM",
+          "type": "DECIMAL",
+          "size": 8,
+          "scale": 2,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 12,
+          "comment": "左边距毫米",
+          "logical": "margin_left_mm",
+          "catalogComment": "左边距毫米"
+        },
+        {
+          "physical": "GAP_HORIZ_MM",
+          "type": "DECIMAL",
+          "size": 8,
+          "scale": 2,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 13,
+          "comment": "水平间隔毫米",
+          "logical": "horizontal_gap_mm",
+          "catalogComment": "水平间隔毫米"
+        },
+        {
+          "physical": "GAP_VERT_MM",
+          "type": "DECIMAL",
+          "size": 8,
+          "scale": 2,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 14,
+          "comment": "垂直间隔毫米",
+          "logical": "vertical_gap_mm",
+          "catalogComment": "垂直间隔毫米"
+        },
+        {
+          "physical": "QTY_COLUMNS",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "1",
+          "ordinal": 15,
+          "comment": "每页排版列数",
+          "logical": "columns",
+          "catalogComment": "每页排版列数"
+        },
+        {
+          "physical": "QTY_ROWS",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "1",
+          "ordinal": 16,
+          "comment": "每页排版行数",
+          "logical": "rows",
+          "catalogComment": "每页排版行数"
+        },
+        {
+          "physical": "QTY_DPI",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "300",
+          "ordinal": 17,
+          "comment": "输出分辨率",
+          "logical": "dpi",
+          "catalogComment": "输出分辨率"
+        },
+        {
+          "physical": "SD_SENSOR_MODE",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'NONE'",
+          "ordinal": 18,
+          "comment": "走纸传感模式",
+          "logical": "sensor_mode",
+          "catalogComment": "走纸传感模式"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 20,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRINT_MEDIA"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_PRINT_MEDIA",
+          "columns": [
+            "ID_TNT",
+            "CD_MEDIA"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IDX_META_PRINT_MEDIA_RESOLVE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_MEDIA",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_2AF",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_MEDIA",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_PRINT_MEDIA_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_MEDIA",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_PRINT_MEDIA_GRID",
+          "expression": "(\"qty_columns\" BETWEEN 1 AND 20)\n    AND (\"qty_rows\" BETWEEN 1 AND 50)\n    AND (\"qty_dpi\" BETWEEN 72 AND 1200)"
+        },
+        {
+          "name": "CK_META_PRINT_MEDIA_KIND",
+          "expression": "\"sd_media_kind\" IN('SHEET', 'CONTINUOUS', 'LABEL')"
+        },
+        {
+          "name": "CK_META_PRINT_MEDIA_ORIENT",
+          "expression": "\"sd_orient\" IN('PORTRAIT', 'LANDSCAPE')"
+        },
+        {
+          "name": "CK_META_PRINT_MEDIA_SENSOR",
+          "expression": "\"sd_sensor_mode\" IN('NONE', 'GAP', 'BLACK_MARK')"
+        },
+        {
+          "name": "CK_META_PRINT_MEDIA_SIZE",
+          "expression": "(\"width_mm\" BETWEEN 20 AND 500)\n    AND ((\"height_mm\" IS NULL)\n    OR (\"height_mm\" BETWEEN 20 AND 500))"
+        },
+        {
+          "name": "CK_META_PRINT_MEDIA_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        }
+      ],
+      "catalogComment": "打印介质档案；一行代表一种可绑定模板的纸张或标签方案",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintMediaProfile.java",
+          "line": 12
+        }
+      ]
+    },
+    {
+      "logical": "meta.print_template_draft",
+      "legacy": "print_template_drafts",
+      "physical": "RHN_META_PRINT_DRAFT",
+      "domain": "META",
+      "comment": "打印模板草稿；一行代表一份可编辑或待审核的模板内容",
+      "columns": [
+        {
+          "physical": "ID_PRINT_DRAFT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "打印模板草稿主键",
+          "logical": "id",
+          "catalogComment": "打印模板草稿主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PRINT_TMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "已关联的发布模板标识",
+          "logical": "template_id",
+          "catalogComment": "已关联的发布模板标识"
+        },
+        {
+          "physical": "ID_PRINT_DOC_DEF",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "打印单据定义标识",
+          "logical": "document_definition_id",
+          "catalogComment": "打印单据定义标识"
+        },
+        {
+          "physical": "ID_PRINT_MEDIA",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "打印介质标识",
+          "logical": "media_profile_id",
+          "catalogComment": "打印介质标识"
+        },
+        {
+          "physical": "ID_PRINT_TMPL_VER_PUBLISD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "草稿发布形成的模板版本标识",
+          "logical": "published_version_id",
+          "catalogComment": "草稿发布形成的模板版本标识"
+        },
+        {
+          "physical": "CD_TMPL",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "模板编码",
+          "logical": "template_code",
+          "catalogComment": "模板编码"
+        },
+        {
+          "physical": "NA_TMPL",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "模板名称",
+          "logical": "template_name",
+          "catalogComment": "模板名称"
+        },
+        {
+          "physical": "JSON_LAYOUT_SCHEMA",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "布局协议",
+          "logical": "layout_schema",
+          "catalogComment": "布局协议"
+        },
+        {
+          "physical": "JSON_CONFIG",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "可视化布局配置",
+          "logical": "config_json",
+          "catalogComment": "可视化布局配置"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 12,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRINT_DRAFT"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_META_PRINT_DRAFT_DOC_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_DOC_DEF",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_DRAFT_MEDIA_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_MEDIA",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_DRAFT_TMPL_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_DRAFT_VER_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_TMPL_VER_PUBLISD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_META_PRINT_DRAFT_CODE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_TMPL",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_META_PRINT_DRAFT_LIST",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_UPDATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_446",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_DRAFT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_PRINT_DRAFT_STATUS",
+          "expression": "\"sd_status\" IN('DRAFT', 'IN_REVIEW', 'PUBLISHED', 'REJECTED')"
+        }
+      ],
+      "catalogComment": "打印模板草稿；一行代表一份可编辑或待审核的模板内容",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintTemplateDraft.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "meta.print_template",
+      "legacy": "print_templates",
+      "physical": "RHN_META_PRINT_TMPL",
+      "domain": "META",
+      "comment": "打印模板；一行代表一条打印模板记录",
+      "columns": [
+        {
+          "physical": "ID_PRINT_TMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "打印模板主键",
+          "logical": "id",
+          "catalogComment": "打印模板主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_TMPL",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "模板编码",
+          "logical": "template_code",
+          "catalogComment": "模板编码"
+        },
+        {
+          "physical": "NA_TMPL",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "模板名称",
+          "logical": "template_name",
+          "catalogComment": "模板名称"
+        },
+        {
+          "physical": "SD_DOC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "文书类型",
+          "logical": "document_type",
+          "catalogComment": "文书类型"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "SN_CURRENT_VER",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "current版本",
+          "logical": "current_version",
+          "catalogComment": "current版本"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRINT_TMPL"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_PRINT_TMP_PRINT_TEMPLA",
+          "columns": [
+            "ID_TNT",
+            "CD_TMPL"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_PRINT_TMP_SYS_TNT_PRIN_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_META_PRINT_TMP_PRINT_TEMPL",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_DOC_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_UPDATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_75",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_PRINT_TMP_PRINT_TEMPLA_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_PRINT_TMP_PRINT_TEMP_1",
+          "expression": "\"sn_current_ver\" > 0"
+        },
+        {
+          "name": "CK_META_PRINT_TMP_PRINT_TEMPLA",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        }
+      ],
+      "catalogComment": "打印模板；一行代表一条打印模板记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintTemplate.java",
+          "line": 13
+        }
+      ]
+    },
+    {
+      "logical": "meta.print_device",
+      "legacy": "print_devices",
+      "physical": "RHN_META_PRINT_DEVICE",
+      "domain": "META",
+      "comment": "打印设备；一行代表一个浏览器或本地打印桥输出端点",
+      "columns": [
+        {
+          "physical": "ID_PRINT_DEVICE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "打印设备主键",
+          "logical": "id",
+          "catalogComment": "打印设备主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "CD_DEVICE",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "设备编码",
+          "logical": "device_code",
+          "catalogComment": "设备编码"
+        },
+        {
+          "physical": "NA_DEVICE",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "设备名称",
+          "logical": "device_name",
+          "catalogComment": "设备名称"
+        },
+        {
+          "physical": "SD_CHANNEL",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "投递通道",
+          "logical": "channel",
+          "catalogComment": "投递通道"
+        },
+        {
+          "physical": "SD_OUTPUT_LANG",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "输出语言",
+          "logical": "output_language",
+          "catalogComment": "输出语言"
+        },
+        {
+          "physical": "NA_QUEUE",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "系统打印队列名称",
+          "logical": "queue_name",
+          "catalogComment": "系统打印队列名称"
+        },
+        {
+          "physical": "JSON_CAPS",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "设备能力JSON",
+          "logical": "capabilities_json",
+          "catalogComment": "设备能力JSON"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "设备状态",
+          "logical": "status",
+          "catalogComment": "设备状态"
+        },
+        {
+          "physical": "DT_LAST_SEEN",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "最后心跳时间",
+          "logical": "last_seen_at",
+          "catalogComment": "最后心跳时间"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRINT_DEVICE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_PRINT_DEVICE_CODE",
+          "columns": [
+            "ID_TNT",
+            "CD_DEVICE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_PRINT_DEVICE_DEPT_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_DEVICE_ORG_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_DEVICE_TNT_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_META_PRINT_DEV_SCOPE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_D3A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_DEVICE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_PRINT_DEVICE_CODE_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_DEVICE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_PRINT_DEVICE_CHANNEL",
+          "expression": "\"sd_channel\" IN('BROWSER_PDF', 'LOCAL_BRIDGE')"
+        },
+        {
+          "name": "CK_META_PRINT_DEVICE_LANG",
+          "expression": "\"sd_output_lang\" IN('PDF', 'ZPL', 'TSPL', 'ESC_POS')"
+        },
+        {
+          "name": "CK_META_PRINT_DEVICE_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'OFFLINE', 'INACTIVE')"
+        }
+      ],
+      "catalogComment": "打印设备；一行代表一个浏览器或本地打印桥输出端点",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintDevice.java",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "logical": "meta.print_device_binding",
+      "legacy": "print_device_bindings",
+      "physical": "RHN_META_PRINT_DEV_BIND",
+      "domain": "META",
+      "comment": "打印设备绑定；一行代表科室单据和介质到默认设备的路由",
+      "columns": [
+        {
+          "physical": "ID_PRINT_DEV_BIND",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "设备绑定主键",
+          "logical": "id",
+          "catalogComment": "设备绑定主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "CD_DOC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 80,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "单据类型编码",
+          "logical": "document_type",
+          "catalogComment": "单据类型编码"
+        },
+        {
+          "physical": "ID_PRINT_MEDIA",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "打印介质标识",
+          "logical": "print_media_id",
+          "catalogComment": "打印介质标识"
+        },
+        {
+          "physical": "ID_PRINT_DEVICE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "打印设备标识",
+          "logical": "print_device_id",
+          "catalogComment": "打印设备标识"
+        },
+        {
+          "physical": "FG_DEFAULT",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "TRUE",
+          "ordinal": 9,
+          "comment": "是否默认设备",
+          "logical": "default_device",
+          "catalogComment": "是否默认设备"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRINT_DEV_BIND"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_META_PRINT_DEV_BIND",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "ID_DEPT",
+            "CD_DOC_TYPE",
+            "ID_PRINT_MEDIA"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_META_PRINT_DEV_BIND_DEPT_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_DEV_BIND_DEV_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_DEVICE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_DEV_BIND_MEDIA_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_MEDIA",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_DEV_BIND_ORG_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_META_PRINT_DEV_BIND_TNT_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_META_PRINT_BIND_RESOLVE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "CD_DOC_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_AD",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRINT_DEV_BIND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_META_PRINT_DEV_BIND_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "CD_DOC_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "ID_PRINT_MEDIA",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_META_PRINT_DEV_BIND_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        }
+      ],
+      "catalogComment": "打印设备绑定；一行代表科室单据和介质到默认设备的路由",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintDeviceBinding.java",
+          "line": 16
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "FK_META_OP_NOTE_F_SYS_DEPT_ONF",
+      "sourceTable": "RHN_META_OP_NOTE_FORM_VER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_DEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_NOTE_F_SYS_ORG_ONFV",
+      "sourceTable": "RHN_META_OP_NOTE_FORM_VER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_NOTE_F_SYS_TNT_ONFV",
+      "sourceTable": "RHN_META_OP_NOTE_FORM_VER",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_NOTE_F_SYS_USER_ONF",
+      "sourceTable": "RHN_META_OP_NOTE_FORM_VER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER_PUBLISD"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_NOTE_T_SYS_DEPT_ONT",
+      "sourceTable": "RHN_META_OP_NOTE_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_DEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_NOTE_T_SYS_ORG_ONT_",
+      "sourceTable": "RHN_META_OP_NOTE_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_NOTE_T_SYS_TNT_ONT_",
+      "sourceTable": "RHN_META_OP_NOTE_TMPL",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_NOTE_T_SYS_USER_ONT",
+      "sourceTable": "RHN_META_OP_NOTE_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER_CREATED"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_NOTE_T_SYS_USER_O_1",
+      "sourceTable": "RHN_META_OP_NOTE_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER_UPDATED"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_PLAN_D_META_OP_OPD_",
+      "sourceTable": "RHN_META_OP_PLAN_DIAG",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_OP_PLAN_TMPL"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_OP_PLAN_TMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_OP_PLAN_TMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_PLAN_M_META_OP_OPM_",
+      "sourceTable": "RHN_META_OP_PLAN_MED",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_OP_PLAN_TMPL"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_OP_PLAN_TMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_OP_PLAN_TMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_PLAN_S_META_OP_OPS_",
+      "sourceTable": "RHN_META_OP_PLAN_SVC",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_OP_PLAN_TMPL"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_OP_PLAN_TMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_OP_PLAN_TMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_PLAN_T_SYS_DEPT_OPT",
+      "sourceTable": "RHN_META_OP_PLAN_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_DEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_PLAN_T_SYS_ORG_OPT_",
+      "sourceTable": "RHN_META_OP_PLAN_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_PLAN_T_SYS_TNT_OPT_",
+      "sourceTable": "RHN_META_OP_PLAN_TMPL",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_PLAN_T_SYS_USER_OPT",
+      "sourceTable": "RHN_META_OP_PLAN_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER_CREATED"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_PLAN_T_SYS_USER_O_1",
+      "sourceTable": "RHN_META_OP_PLAN_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER_UPDATED"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DEVICE_DEPT",
+      "sourceTable": "RHN_META_PRINT_DEVICE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_DEPT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_DEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_DEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DEVICE_ORG",
+      "sourceTable": "RHN_META_PRINT_DEVICE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DEVICE_TNT",
+      "sourceTable": "RHN_META_PRINT_DEVICE",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DEV_BIND_DEPT",
+      "sourceTable": "RHN_META_PRINT_DEV_BIND",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_DEPT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_DEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_DEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DEV_BIND_DEV",
+      "sourceTable": "RHN_META_PRINT_DEV_BIND",
+      "sourceColumns": [
+        "ID_PRINT_DEVICE"
+      ],
+      "targetColumns": [
+        "ID_PRINT_DEVICE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_DEVICE",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DEV_BIND_MEDIA",
+      "sourceTable": "RHN_META_PRINT_DEV_BIND",
+      "sourceColumns": [
+        "ID_PRINT_MEDIA"
+      ],
+      "targetColumns": [
+        "ID_PRINT_MEDIA"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_MEDIA",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DEV_BIND_ORG",
+      "sourceTable": "RHN_META_PRINT_DEV_BIND",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DEV_BIND_TNT",
+      "sourceTable": "RHN_META_PRINT_DEV_BIND",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DRAFT_DOC",
+      "sourceTable": "RHN_META_PRINT_DRAFT",
+      "sourceColumns": [
+        "ID_PRINT_DOC_DEF"
+      ],
+      "targetColumns": [
+        "ID_PRINT_DOC_DEF"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_DOC_DEF",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DRAFT_MEDIA",
+      "sourceTable": "RHN_META_PRINT_DRAFT",
+      "sourceColumns": [
+        "ID_PRINT_MEDIA"
+      ],
+      "targetColumns": [
+        "ID_PRINT_MEDIA"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_MEDIA",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DRAFT_TMPL",
+      "sourceTable": "RHN_META_PRINT_DRAFT",
+      "sourceColumns": [
+        "ID_PRINT_TMPL"
+      ],
+      "targetColumns": [
+        "ID_PRINT_TMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_TMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_DRAFT_VER",
+      "sourceTable": "RHN_META_PRINT_DRAFT",
+      "sourceColumns": [
+        "ID_PRINT_TMPL_VER_PUBLISD"
+      ],
+      "targetColumns": [
+        "ID_PRINT_TMPL_VER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_TMPL_VER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_IMPL_TMPL",
+      "sourceTable": "RHN_META_PRINT_IMPL",
+      "sourceColumns": [
+        "ID_PRINT_TMPL"
+      ],
+      "targetColumns": [
+        "ID_PRINT_TMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_TMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_IMPL_TNT",
+      "sourceTable": "RHN_META_PRINT_IMPL",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_BIND_DEPT",
+      "sourceTable": "RHN_META_PRINT_IMPL_BIND",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_DEPT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_DEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_DEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_BIND_IMPL",
+      "sourceTable": "RHN_META_PRINT_IMPL_BIND",
+      "sourceColumns": [
+        "ID_PRINT_IMPL"
+      ],
+      "targetColumns": [
+        "ID_PRINT_IMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_IMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_BIND_ORG",
+      "sourceTable": "RHN_META_PRINT_IMPL_BIND",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_BIND_TASK",
+      "sourceTable": "RHN_META_PRINT_IMPL_BIND",
+      "sourceColumns": [
+        "ID_PRINT_TASK_DEF"
+      ],
+      "targetColumns": [
+        "ID_PRINT_TASK_DEF"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_TASK_DEF",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_BIND_TNT",
+      "sourceTable": "RHN_META_PRINT_IMPL_BIND",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_TMP_SYS_TNT_PRIN",
+      "sourceTable": "RHN_META_PRINT_TMPL",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_TMP_META_PRI_PRI",
+      "sourceTable": "RHN_META_PRINT_TMPL_VER",
+      "sourceColumns": [
+        "ID_PRINT_TMPL"
+      ],
+      "targetColumns": [
+        "ID_PRINT_TMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_TMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_VER_DOC",
+      "sourceTable": "RHN_META_PRINT_TMPL_VER",
+      "sourceColumns": [
+        "ID_PRINT_DOC_DEF"
+      ],
+      "targetColumns": [
+        "ID_PRINT_DOC_DEF"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_DOC_DEF",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_PRINT_VER_MEDIA",
+      "sourceTable": "RHN_META_PRINT_TMPL_VER",
+      "sourceColumns": [
+        "ID_PRINT_MEDIA"
+      ],
+      "targetColumns": [
+        "ID_PRINT_MEDIA"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_MEDIA",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_BATCH_DEVICE",
+      "sourceTable": "RHN_SYS_PRINT_BATCH",
+      "sourceColumns": [
+        "ID_PRINT_DEVICE"
+      ],
+      "targetColumns": [
+        "ID_PRINT_DEVICE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_DEVICE",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_BATCH_MEDIA",
+      "sourceTable": "RHN_SYS_PRINT_BATCH",
+      "sourceColumns": [
+        "ID_PRINT_MEDIA"
+      ],
+      "targetColumns": [
+        "ID_PRINT_MEDIA"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_MEDIA",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_BATCH_TMPL",
+      "sourceTable": "RHN_SYS_PRINT_BATCH",
+      "sourceColumns": [
+        "ID_PRINT_TMPL"
+      ],
+      "targetColumns": [
+        "ID_PRINT_TMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_TMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_BATCH_VER",
+      "sourceTable": "RHN_SYS_PRINT_BATCH",
+      "sourceColumns": [
+        "ID_PRINT_TMPL_VER"
+      ],
+      "targetColumns": [
+        "ID_PRINT_TMPL_VER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_TMPL_VER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_DELIVERY_DEVICE",
+      "sourceTable": "RHN_SYS_PRINT_DELIVERY",
+      "sourceColumns": [
+        "ID_PRINT_DEVICE"
+      ],
+      "targetColumns": [
+        "ID_PRINT_DEVICE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_DEVICE",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_OUTPUT_BIND",
+      "sourceTable": "RHN_SYS_PRINT_OUTPUT",
+      "sourceColumns": [
+        "ID_PRINT_IMPL_BIND"
+      ],
+      "targetColumns": [
+        "ID_PRINT_IMPL_BIND"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_IMPL_BIND",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_OUTPUT_IMPL",
+      "sourceTable": "RHN_SYS_PRINT_OUTPUT",
+      "sourceColumns": [
+        "ID_PRINT_IMPL"
+      ],
+      "targetColumns": [
+        "ID_PRINT_IMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_IMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_OUTPUT_TASK",
+      "sourceTable": "RHN_SYS_PRINT_OUTPUT",
+      "sourceColumns": [
+        "ID_PRINT_TASK_DEF"
+      ],
+      "targetColumns": [
+        "ID_PRINT_TASK_DEF"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_TASK_DEF",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_OUTP_META_PRI_PRI",
+      "sourceTable": "RHN_SYS_PRINT_OUTPUT",
+      "sourceColumns": [
+        "ID_PRINT_TMPL"
+      ],
+      "targetColumns": [
+        "ID_PRINT_TMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_TMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_PRINT_OUTP_META_PRI_P_1",
+      "sourceTable": "RHN_SYS_PRINT_OUTPUT",
+      "sourceColumns": [
+        "ID_PRINT_TMPL_VER"
+      ],
+      "targetColumns": [
+        "ID_PRINT_TMPL_VER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_PRINT_TMPL_VER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    }
+  ]
+}

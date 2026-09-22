@@ -22,12 +22,19 @@ jobs:
         run: |
           mkdir -p ../artifacts
           mvn --batch-mode verify 2>&1 | tee ../artifacts/backend-verify.log
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify database catalog against isolated migrations
+        run: |
+          node ../scripts/schema-workbench/cli.mjs refresh --source expected 2>&1 | tee ../artifacts/backend-schema-refresh.log
+          node ../scripts/schema-workbench/cli.mjs check 2>&1 | tee ../artifacts/backend-schema-check.log
       - name: Upload backend diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-diagnostics
-          path: artifacts/backend-verify.log
+          path: artifacts/backend-*.log
           if-no-files-found: warn
 
   frontend:
@@ -50,6 +57,9 @@ jobs:
       - name: Run frontend tests
         if: always()
         run: npm run test 2>&1 | tee ../artifacts/frontend-test.log
+      - name: Run schema collaboration tests
+        if: always()
+        run: npm run schema:test 2>&1 | tee ../artifacts/frontend-schema-test.log
       - name: Build frontend
         if: always()
         run: npm run build 2>&1 | tee ../artifacts/frontend-build.log

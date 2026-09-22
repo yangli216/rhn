@@ -20,9 +20,9 @@ class PresenceMetricSample {
     @Column(name = "DT_BUCKET", nullable = false) private Instant bucketAt;
     @Column(name = "QTY_ONLINE_USER", nullable = false) private long onlineUsers;
     @Column(name = "QTY_ACTIVE_USER", nullable = false) private long activeUsers;
-    @Column(name = "QTY_ONLINE_CONTEXTS", nullable = false) private long onlineContexts;
-    @Column(name = "QTY_CONNECTIONS", nullable = false) private long connections;
-    @Column(name = "QTY_INSTANCES", nullable = false) private long instances;
+    @Column(name = "QTY_ONLINE_CTXS", nullable = false) private long onlineContexts;
+    @Column(name = "QTY_CONNS", nullable = false) private long connections;
+    @Column(name = "QTY_INSTS", nullable = false) private long instances;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected PresenceMetricSample() {}

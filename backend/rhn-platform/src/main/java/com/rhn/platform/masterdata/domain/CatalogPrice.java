@@ -22,12 +22,12 @@ public class CatalogPrice {
     @Column(name = "ID_ITEM_PKG") private Long packageId;
     @Column(name = "SD_PRICE_TYPE", nullable = false) private String priceType;
     @Column(name = "PRICE_UNIT", nullable = false) private BigDecimal price;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
     @Column(name = "CD_PRICE_DOC") private String priceDocumentCode;
     @Column(name = "DES_PRICE_REASON") private String priceReason;
     @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
     @Column(name = "DA_VALID_TO") private LocalDate validTo;
-    @Column(name = "ID_CATALOG_PRICE_REPLACES") private Long replacesPriceId;
+    @Column(name = "ID_CATALOG_PRICE_RPLCS") private Long replacesPriceId;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;

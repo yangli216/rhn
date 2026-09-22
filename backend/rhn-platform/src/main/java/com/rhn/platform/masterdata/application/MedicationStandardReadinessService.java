@@ -29,7 +29,7 @@ public class MedicationStandardReadinessService {
     @Transactional(readOnly = true)
     public Readiness inspect(Long tenant, String query, String filter, int page, int size) {
         if (page < 0 || size < 1 || size > 100 || query == null || query.length() > 200 || filter == null
-                || !(MATCHING_STATUSES.contains(filter) || List.of("ALL", "UNMAPPED", "AMBIGUOUS", "STALE", "MISMATCH", "LINKED", "SOURCE_UNVERIFIED", "CONVERSION_UNAVAILABLE").contains(filter)))
+                || !(MATCHING_STATUSES.contains(filter) || List.of("ALL", "UNMAPPED", "AMBIGUOUS", "STALE", "MISMATCH", "LINKED", "SOURCE_UNVERIFIED", "CONVERSION_UNAVAILABLE", "CLINICAL_CONVERSION_UNAVAILABLE", "CONCENTRATION_AVAILABLE").contains(filter)))
             throw badRequest("MEDICATION_READINESS_QUERY_INVALID", "标准建设查询条件或分页参数不正确");
         // Inspect the full active tenant inventory. Search limits and page size must not change the denominator.
         var active = medications.findByTenantIdOrderByName(tenant).stream().filter(m -> "ACTIVE".equals(m.status()))
@@ -63,7 +63,8 @@ public class MedicationStandardReadinessService {
                     conversion == null ? "NOT_ASSESSED" : conversion.status(),
                     conversion == null ? reference.issues() : conversion.unavailableReasons().stream()
                             .filter(reason -> !"FREQUENCY_MISSING".equals(reason)).toList(),
-                    matching(candidates.get(m.id()), consistent.get(m.id()), claims, occupied));
+                    matching(candidates.get(m.id()), consistent.get(m.id()), claims, occupied),
+                    ClinicalMedicationStandards.conversionCapability(reference));
         }).toList();
         Map<String, Integer> statuses = new LinkedHashMap<>();
         for (String status : List.of("LINKED", "UNMAPPED", "AMBIGUOUS", "STALE", "MISMATCH"))
@@ -72,7 +73,9 @@ public class MedicationStandardReadinessService {
         MATCHING_STATUSES.forEach(status -> matchingStatuses.put(status,
                 (int) rows.stream().filter(row -> row.matching() != null && status.equals(row.matching().status())).count()));
         var summary = new Summary(rows.size(), statuses, rows.stream().filter(Item::sourceUnverified).count(),
-                rows.stream().filter(Item::conversionUnavailable).count(), matchingStatuses);
+                rows.stream().filter(Item::conversionUnavailable).count(), matchingStatuses,
+                rows.stream().filter(Item::clinicalConversionUnavailable).count(),
+                rows.stream().filter(Item::concentrationAvailable).count());
         String needle = query.strip().toLowerCase(Locale.ROOT);
         var filtered = rows.stream().filter(row -> row.matches(filter))
                 .filter(row -> (row.name() + " " + row.code() + " " + Objects.toString(row.preparationSpec(), ""))
@@ -93,16 +96,22 @@ public class MedicationStandardReadinessService {
     }
     public record Matching(String status, int candidateCount, int consistentCount) {}
     public record Summary(int totalActive, Map<String, Integer> referenceStatuses, long sourceUnverified,
-                          long conversionUnavailable, Map<String, Integer> matchingStatuses) {}
+                          long conversionUnavailable, Map<String, Integer> matchingStatuses,
+                          long clinicalConversionUnavailable, long concentrationAvailable) {}
     public record Item(Long medicationId, String code, String name, String preparationSpec,
-            MedicationStandardReference standardReference, String presentationConversionStatus, List<String> conversionReasons, Matching matching) {
+            MedicationStandardReference standardReference, String presentationConversionStatus, List<String> conversionReasons, Matching matching,
+            ClinicalMedicationStandards.ConversionCapability clinicalConversion) {
         boolean sourceUnverified() { return standardReference.linked() && !"VERIFIED".equals(standardReference.sourceVerificationStatus()); }
         boolean conversionUnavailable() { return standardReference.linked() && "UNAVAILABLE".equals(presentationConversionStatus); }
+        boolean clinicalConversionUnavailable() { return standardReference.linked() && "UNAVAILABLE".equals(clinicalConversion.status()); }
+        boolean concentrationAvailable() { return "COMPUTABLE".equals(clinicalConversion.status()) && "REFERENCE_MASS_PER_VOLUME".equals(clinicalConversion.basis()); }
         boolean matches(String filter) {
             return switch (filter) {
                 case "ALL" -> true;
                 case "SOURCE_UNVERIFIED" -> sourceUnverified();
                 case "CONVERSION_UNAVAILABLE" -> conversionUnavailable();
+                case "CLINICAL_CONVERSION_UNAVAILABLE" -> clinicalConversionUnavailable();
+                case "CONCENTRATION_AVAILABLE" -> concentrationAvailable();
                 default -> filter.equals(standardReference.status()) || matching != null && filter.equals(matching.status());
             };
         }

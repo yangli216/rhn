@@ -32,16 +32,16 @@ public class DiagnosticExecutionTask {
     @Column(name = "SD_EXAM_TYPE_SNAP") private String examinationTypeSnapshot;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
-    @Column(name = "DT_COLLECTED") private Instant collectedAt;
-    @Column(name = "ID_USER_COLLECTED") private Long collectedBy;
+    @Column(name = "DT_COLLD") private Instant collectedAt;
+    @Column(name = "ID_USER_COLLD") private Long collectedBy;
     @Column(name = "CD_SPEC_NO") private String specimenNo;
-    @Column(name = "DES_COLLECTION_NOTE") private String collectionNote;
+    @Column(name = "DES_COLL_NOTE") private String collectionNote;
     @Column(name = "DT_STARTED") private Instant startedAt;
     @Column(name = "ID_USER_STARTED") private Long startedBy;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
-    @Column(name = "ID_USER_COMPLETED") private Long completedBy;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
+    @Column(name = "ID_USER_CMPLD") private Long completedBy;
     @Column(name = "DES_COMP_NOTE") private String completionNote;
-    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "DT_CNCLD") private Instant cancelledAt;
     @Column(name = "DES_EXCEPT_NOTE") private String exceptionNote;
 
     protected DiagnosticExecutionTask() {}

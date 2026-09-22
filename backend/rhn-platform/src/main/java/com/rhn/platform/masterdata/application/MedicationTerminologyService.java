@@ -52,13 +52,13 @@ public class MedicationTerminologyService implements MedicationTerminologyDirect
         if (medicationIds.isEmpty()) return Map.of();
         var result = new LinkedHashMap<Long, List<Long>>();
         jdbc.query("""
-                select ID_MED, ID_ALLERGEN from RHN_BD_MED_ALLERGEN_MAP
+                select ID_MED, ID_ALRGN from RHN_BD_MED_ALLERGEN_MAP
                 where ID_TNT = :tenantId and ID_MED in (:medicationIds)
-                order by ID_MED, FG_PRIMARY desc, ID_ALLERGEN
+                order by ID_MED, FG_PRIMARY desc, ID_ALRGN
                 """, new MapSqlParameterSource("tenantId", tenantId).addValue("medicationIds", medicationIds),
                 (org.springframework.jdbc.core.RowCallbackHandler) rs ->
                 result.computeIfAbsent(rs.getLong("ID_MED"), ignored -> new java.util.ArrayList<>())
-                        .add(rs.getLong("ID_ALLERGEN")));
+                        .add(rs.getLong("ID_ALRGN")));
         return result;
     }
 
@@ -71,15 +71,15 @@ public class MedicationTerminologyService implements MedicationTerminologyDirect
                 .addValue("category", category == null ? null : category.toUpperCase(Locale.ROOT))
                 .addValue("keyword", keyword == null ? null : "%" + keyword.toLowerCase(Locale.ROOT) + "%");
         return jdbc.query("""
-                select ID_ALLERGEN, ID_PARENT, CD_CAT, SD_CONCEPT_TYPE, CD_CODE_SYS_URI,
-                       CD_ALLERGEN, NA_ALLERGEN, NA_ALIAS
+                select ID_ALRGN, ID_PARENT, CD_CAT, SD_CONCEPT_TYPE, CD_CODE_SYS_URI,
+                       CD_ALRGN, NA_ALRGN, NA_ALIAS
                 from RHN_BD_ALLERGEN
                 where ID_TNT = :tenantId and SD_STATUS = 'ACTIVE'
                   and (:category is null or CD_CAT = :category)
-                  and (:keyword is null or lower(CD_ALLERGEN) like :keyword
-                       or lower(NA_ALLERGEN) like :keyword or lower(coalesce(NA_ALIAS, '')) like :keyword
+                  and (:keyword is null or lower(CD_ALRGN) like :keyword
+                       or lower(NA_ALRGN) like :keyword or lower(coalesce(NA_ALIAS, '')) like :keyword
                        or lower(coalesce(CD_SEARCH, '')) like :keyword)
-                order by case SD_CONCEPT_TYPE when 'DRUG_CLASS' then 0 else 1 end, NA_ALLERGEN
+                order by case SD_CONCEPT_TYPE when 'DRUG_CLASS' then 0 else 1 end, NA_ALRGN
                 fetch first 100 rows only
                 """, parameters, (rs, rowNum) -> term(rs));
     }
@@ -88,9 +88,9 @@ public class MedicationTerminologyService implements MedicationTerminologyDirect
     @Transactional(readOnly = true)
     public Optional<AllergenTerm> findAllergen(Long tenantId, Long allergenId) {
         List<AllergenTerm> values = jdbc.query("""
-                select ID_ALLERGEN, ID_PARENT, CD_CAT, SD_CONCEPT_TYPE, CD_CODE_SYS_URI,
-                       CD_ALLERGEN, NA_ALLERGEN, NA_ALIAS
-                from RHN_BD_ALLERGEN where ID_TNT = :tenantId and ID_ALLERGEN = :allergenId and SD_STATUS = 'ACTIVE'
+                select ID_ALRGN, ID_PARENT, CD_CAT, SD_CONCEPT_TYPE, CD_CODE_SYS_URI,
+                       CD_ALRGN, NA_ALRGN, NA_ALIAS
+                from RHN_BD_ALLERGEN where ID_TNT = :tenantId and ID_ALRGN = :allergenId and SD_STATUS = 'ACTIVE'
                 """, new MapSqlParameterSource("tenantId", tenantId).addValue("allergenId", allergenId),
                 (rs, rowNum) -> term(rs));
         return values.stream().findFirst();
@@ -101,7 +101,7 @@ public class MedicationTerminologyService implements MedicationTerminologyDirect
     public boolean medicationMatchesAllergen(Long tenantId, Long medicationId, Long allergenId) {
         Integer count = jdbc.queryForObject("""
                 select count(*) from RHN_BD_MED_ALLERGEN_MAP
-                where ID_TNT = :tenantId and ID_MED = :medicationId and ID_ALLERGEN = :allergenId
+                where ID_TNT = :tenantId and ID_MED = :medicationId and ID_ALRGN = :allergenId
                 """, new MapSqlParameterSource("tenantId", tenantId).addValue("medicationId", medicationId)
                 .addValue("allergenId", allergenId), Integer.class);
         return count != null && count > 0;
@@ -109,9 +109,9 @@ public class MedicationTerminologyService implements MedicationTerminologyDirect
 
     private AllergenTerm term(java.sql.ResultSet rs) throws java.sql.SQLException {
         long parent = rs.getLong("ID_PARENT");
-        return new AllergenTerm(rs.getLong("ID_ALLERGEN"), rs.wasNull() ? null : parent,
+        return new AllergenTerm(rs.getLong("ID_ALRGN"), rs.wasNull() ? null : parent,
                 rs.getString("CD_CAT"), rs.getString("SD_CONCEPT_TYPE"), rs.getString("CD_CODE_SYS_URI"),
-                rs.getString("CD_ALLERGEN"), rs.getString("NA_ALLERGEN"), rs.getString("NA_ALIAS"));
+                rs.getString("CD_ALRGN"), rs.getString("NA_ALRGN"), rs.getString("NA_ALIAS"));
     }
 
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }

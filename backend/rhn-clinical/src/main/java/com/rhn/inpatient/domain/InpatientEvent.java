@@ -23,7 +23,7 @@ public class InpatientEvent {
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "DES_REASON") private String reason;
     @Column(name = "ID_ACTOR", nullable = false) private Long actorId;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
 
     protected InpatientEvent() {
     }

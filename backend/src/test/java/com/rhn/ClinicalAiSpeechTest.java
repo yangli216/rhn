@@ -91,7 +91,7 @@ class ClinicalAiSpeechTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("WORK_CONTEXT_REQUIRED"));
 
-        jdbcTemplate.update("update RHN_VIS_ENC set ID_CLINICIAN=? where ID_TNT=? and ID_ENC=?",
+        jdbcTemplate.update("update RHN_VIS_ENC set ID_CLNCN=? where ID_TNT=? and ID_ENC=?",
                 "another-doctor", Long.valueOf(TENANT), Long.valueOf(encounterId));
         mockMvc.perform(multipart("/api/ai/clinical-assistant/encounters/{encounterId}/transcriptions", encounterId)
                         .file(audio).with(rhnWorkContext()))

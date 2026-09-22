@@ -74,8 +74,8 @@ class EncounterRegistrationValidityIntegrationTest extends RhnIntegrationTestSup
         // 5. 模拟时间推进：将首次挂号与就诊的创建时间调整为 2 天前（已超期），但就诊状态保持 REGISTERED（未结束）
         Instant pastTwoDays = Instant.now().minus(2, ChronoUnit.DAYS);
         Timestamp pastTimestamp = Timestamp.from(pastTwoDays);
-        jdbc.update("update RHN_VIS_ENC set DT_REGISTERED = ? where ID_ENC = ?", pastTimestamp, Long.valueOf(firstEncounterId));
-        jdbc.update("update RHN_SC_PAT_REG set DT_REGISTERED = ? where ID_ENC = ?", pastTimestamp, Long.valueOf(firstEncounterId));
+        jdbc.update("update RHN_VIS_ENC set DT_REGD = ? where ID_ENC = ?", pastTimestamp, Long.valueOf(firstEncounterId));
+        jdbc.update("update RHN_SC_PAT_REG set DT_REGD = ? where ID_ENC = ?", pastTimestamp, Long.valueOf(firstEncounterId));
 
         // 6. 核心业务验证：过了效期后，即便就诊记录没有结束，挂号时也不再限制！
         String secondEncounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())

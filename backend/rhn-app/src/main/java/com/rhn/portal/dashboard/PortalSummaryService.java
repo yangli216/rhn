@@ -37,7 +37,7 @@ class PortalSummaryService {
         Timestamp today = Timestamp.from(LocalDate.now(zoneId).atStartOfDay(zoneId).toInstant());
         long registered = count("""
                 select count(*) from RHN_VIS_ENC where ID_TNT = ? and ID_ORG = ? and ID_DEPT = ?
-                 and DT_REGISTERED >= ?
+                 and DT_REGD >= ?
                 """, context.tenantId(), context.organizationId(), context.departmentId(), today);
         long inProgress = count("""
                 select count(*) from RHN_VIS_ENC where ID_TNT = ? and ID_ORG = ? and ID_DEPT = ?
@@ -45,7 +45,7 @@ class PortalSummaryService {
                 """, context.tenantId(), context.organizationId(), context.departmentId());
         long completed = count("""
                 select count(*) from RHN_VIS_ENC where ID_TNT = ? and ID_ORG = ? and ID_DEPT = ?
-                 and SD_STATUS = 'COMPLETED' and DT_COMPLETED >= ?
+                 and SD_STATUS = 'COMPLETED' and DT_CMPLD >= ?
                 """, context.tenantId(), context.organizationId(), context.departmentId(), today);
         long residents = count("select count(*) from RHN_PI_PAT where ID_TNT = ? and SD_STATUS = 'ACTIVE'",
                 context.tenantId());
@@ -60,7 +60,7 @@ class PortalSummaryService {
 
     private ZoneId organizationZone(ExecutionContext context) {
         String configured = jdbcTemplate.query("""
-                        select CD_TIMEZONE as timezone_code from RHN_SYS_ORG where ID_TNT = ? and ID_ORG = ?
+                        select CD_TZ as timezone_code from RHN_SYS_ORG where ID_TNT = ? and ID_ORG = ?
                         """, resultSet -> resultSet.next() ? resultSet.getString(1) : null,
                 context.tenantId(), context.organizationId());
         try {

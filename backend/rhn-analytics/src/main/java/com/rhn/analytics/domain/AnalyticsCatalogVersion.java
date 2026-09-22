@@ -19,7 +19,7 @@ public class AnalyticsCatalogVersion {
     @Column(name = "CD_CATALOG", nullable = false, length = 100) private String code;
     @Column(name = "NO_VERSION", nullable = false) private int catalogVersion;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "JSON_DEFINITION", nullable = false) private String definitionJson;
+    @Column(name = "JSON_DEF", nullable = false) private String definitionJson;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "SD_REVIEW", nullable = false, length = 24) private String reviewStatus = "CANDIDATE";
 

@@ -19,8 +19,8 @@ public class CriticalValueAlertEvent {
     @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
     @Column(name = "ID_USER_ACTOR") private Long actorId;
     @Column(name = "DES_NOTE") private String noteText;
-    @Column(name = "ID_CORRELATION", nullable = false) private String correlationId;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_CORR", nullable = false) private String correlationId;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
 
     protected CriticalValueAlertEvent() {}
 

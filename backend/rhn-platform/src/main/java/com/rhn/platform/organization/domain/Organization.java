@@ -29,10 +29,10 @@ public class Organization {
     @Column(name = "SD_ORG_KIND", nullable = false) private OrganizationKind organizationKind;
     @Enumerated(EnumType.STRING)
     @Column(name = "SD_ORG_TYPE", nullable = false) private OrganizationType organizationType;
-    @Column(name = "SD_ORG_PROPERTY") private String organizationProperty;
+    @Column(name = "SD_ORG_PROP") private String organizationProperty;
     @Column(name = "FG_VIRTUAL", nullable = false) private boolean virtual;
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
-    @Column(name = "CD_TIMEZONE") private String timezoneCode;
+    @Column(name = "CD_TZ") private String timezoneCode;
     @Column(name = "CD_DEPT_TYPE") private String departmentTypeCode;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private OrganizationStatus status;
     @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;

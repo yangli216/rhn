@@ -24,7 +24,7 @@ public class ParameterValue {
     @Enumerated(EnumType.STRING) @Column(name = "SD_SCOPE_TYPE", nullable = false, length = 24)
     private ConfigurationScope scopeType;
     @Column(name = "ID_SCOPE") private Long scopeId;
-    @Column(name = "SCOPE_REFERENCE", length = 128) private String scopeReference;
+    @Column(name = "SCOPE_REF", length = 128) private String scopeReference;
     @Column(name = "CD_SCOPE", nullable = false, length = 200) private String scopeCode;
     @Enumerated(EnumType.STRING) @Column(name = "SD_VAL_MODE", nullable = false, length = 24)
     private ConfigurationValueMode valueMode;

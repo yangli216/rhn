@@ -16,7 +16,7 @@ public class QueueCounter {
     @Version @Column(name = "REVISION", nullable = false) private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_SVC_QUEUE", nullable = false) private Long serviceQueueId;
-    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
+    @Column(name = "DA_BIZ", nullable = false) private LocalDate businessDate;
     @Column(name = "SN_NEXT", nullable = false) private int nextSequence;
 
     protected QueueCounter() {}

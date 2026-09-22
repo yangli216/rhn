@@ -27,16 +27,16 @@ public class InventoryReservation {
     @Column(name = "CD_RESV_GRP", nullable = false) private String reservationGroupCode;
     @Column(name = "SD_RESV_TYPE", nullable = false) private String reservationType;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "QTY_RESERVED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityReserved;
-    @Column(name = "QTY_CONSUMED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityConsumed;
+    @Column(name = "QTY_RESVD", nullable = false, precision = 28, scale = 8) private BigDecimal quantityReserved;
+    @Column(name = "QTY_CNSMD", nullable = false, precision = 28, scale = 8) private BigDecimal quantityConsumed;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_EXPIRES") private Instant expiresAt;
-    @Column(name = "DT_CONSUMED") private Instant consumedAt;
-    @Column(name = "ID_USER_CONSUMED") private Long consumedBy;
-    @Column(name = "DT_RELEASED") private Instant releasedAt;
-    @Column(name = "ID_USER_RELEASED") private Long releasedBy;
+    @Column(name = "DT_CNSMD") private Instant consumedAt;
+    @Column(name = "ID_USER_CNSMD") private Long consumedBy;
+    @Column(name = "DT_RLSD") private Instant releasedAt;
+    @Column(name = "ID_USER_RLSD") private Long releasedBy;
     @Column(name = "DES_RELEASE_REASON") private String releaseReason;
 
     protected InventoryReservation() {}

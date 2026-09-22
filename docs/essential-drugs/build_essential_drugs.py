@@ -249,6 +249,10 @@ def build_catalog(source=SOURCE):
         'scopeNote':'中药饮片按原文范围说明收录，未伪造具体饮片品种。',
         'entries':entries,'specifications':sorted(specifications,key=lambda x:(x['legacyCode'],x['doseForm'],x['specification'])),
         'issues':issues}
+    # Publication facts do not certify the transformed specifications or clinical knowledge.
+    if source_hash == '93dce79a72c7593ab5ebb1d0996ab24b4be801f56dc1c4e6697df14b55ea39a2':
+        catalog['source'].update(json.loads((HERE / 'official-publication.json').read_text()))
+        catalog['source']['note'] = '已核对官方发布通知及附件；当前条目由用户提供的 Word 转录，规格转录与临床知识仍须分别核验。'
     catalog['statistics']={'sourceRows':len(rows),'entries':len(entries),
         'westernEntries':sum(x['medicationType']=='WESTERN' for x in entries),
         'traditionalEntries':sum(x['medicationType']=='CHINESE_PATENT' for x in entries),

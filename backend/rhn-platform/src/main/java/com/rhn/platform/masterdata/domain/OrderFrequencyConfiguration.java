@@ -19,7 +19,7 @@ public class OrderFrequencyConfiguration {
     @Column(name = "ID_ORDER_FREQ", nullable = false) private Long frequencyId;
     @Column(name = "CD_LOCAL") private String localCode;
     @Column(name = "NA_LOCAL") private String localName;
-    @Column(name = "EXECUTION_TIMES") private String executionTimes;
+    @Column(name = "EXEC_TIMES") private String executionTimes;
     @Column(name = "SD_FIRST_DAY_POLICY", nullable = false) private String firstDayPolicy;
     @Column(name = "FG_ENABLED", nullable = false) private boolean enabled;
     @Column(name = "SD_STATUS", nullable = false) private String status;

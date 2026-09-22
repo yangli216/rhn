@@ -30,6 +30,7 @@ export { Select, type SelectMultipleProps, type SelectOption, type SelectProps, 
 export { DictionarySelect, type DictionarySelectProps } from './DictionarySelect'
 export { FormSelect } from './FormSelect'
 export { TreePanel, type TreePanelMove, type TreePanelNode, type TreePanelProps } from './TreePanel'
+export { RelationshipGraph, type RelationshipNode, type RelationshipEdge } from './RelationshipGraph'
 export { GridAddressInput, type GridAddressInputProps, type GridAddressValue } from './GridAddressInput'
 export { RemoteSearchSelect, type RemoteSearchOption, type RemoteSearchSelectProps } from './RemoteSearchSelect'
 export {
@@ -146,6 +147,7 @@ export function Pagination({
   onPageSizeChange,
   pageSizeOptions = [10, 20, 50],
   label = '列表分页',
+  left,
 }: {
   page: number
   totalPages: number
@@ -155,9 +157,11 @@ export function Pagination({
   onPageSizeChange?: (size: number) => void
   pageSizeOptions?: number[]
   label?: string
+  left?: ReactNode
 }) {
-  if (totalPages <= 1 && total === undefined && pageSize === undefined) return null
+  if (totalPages <= 1 && total === undefined && pageSize === undefined && !left) return null
   return <nav className="ui-pagination" aria-label={label}>
+    {left && <div className="ui-pagination__left">{left}</div>}
     {total !== undefined && <span className="ui-pagination__total">共 {total} 条记录</span>}
     {pageSize !== undefined && onPageSizeChange && (
       <label className="ui-pagination__size">

@@ -14,14 +14,14 @@ public class ReconciliationBatch {
     @Column(name = "CD_COMMAND") private String commandCode; @Column(name = "SD_RECON_TYPE") private String reconciliationType;
     @Column(name = "SD_STATUS") private String status; @Column(name = "CD_SRC") private String sourceCode;
     @Column(name = "CD_PAY_METHOD") private String paymentMethodCode; @Column(name = "CD_EXT_BATCH_NO") private String externalBatchNo;
-    @Column(name = "DA_BUSINESS") private LocalDate businessDate; @Column(name = "QTY_LOCAL") private int localCount;
-    @Column(name = "QTY_EXT") private int externalCount; @Column(name = "QTY_DIFFERENCE") private int differenceCount;
+    @Column(name = "DA_BIZ") private LocalDate businessDate; @Column(name = "QTY_LOCAL") private int localCount;
+    @Column(name = "QTY_EXT") private int externalCount; @Column(name = "QTY_DIFF") private int differenceCount;
     @Column(name = "AMT_LOCAL", precision=24, scale=6) private BigDecimal localAmount;
     @Column(name = "AMT_EXT", precision=24, scale=6) private BigDecimal externalAmount;
-    @Column(name = "AMT_DIFFERENCE", precision=24, scale=6) private BigDecimal differenceAmount;
-    @Column(name = "CD_CURRENCY") private String currencyCode; @Column(name = "ID_USER_CREATED") private Long createdBy;
-    @Column(name = "DT_CREATED") private Instant createdAt; @Column(name = "ID_USER_COMPLETED") private Long completedBy;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "AMT_DIFF", precision=24, scale=6) private BigDecimal differenceAmount;
+    @Column(name = "CD_CCY") private String currencyCode; @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_CREATED") private Instant createdAt; @Column(name = "ID_USER_CMPLD") private Long completedBy;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
     protected ReconciliationBatch() {}
     public ReconciliationBatch(Long tenantId,Long organizationId,String batchNo,String commandCode,String type,
                                String sourceCode,String method,LocalDate date,String currency,Long actor){

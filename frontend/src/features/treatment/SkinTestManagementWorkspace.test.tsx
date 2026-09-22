@@ -236,4 +236,66 @@ describe('SkinTestManagementWorkspace', () => {
     expect(completeBtn).toBeDisabled()
     expect(screen.getByText(/阴性结果必须观察满规定时长/)).toBeInTheDocument()
   })
+
+  it('displays patient demographics (gender and age) in queue item and header', async () => {
+    const itemWithDemographics: SkinTestWorkItem = {
+      ...dilutedItem,
+      gender: 'MALE',
+      birthDate: '1992-05-10',
+    }
+    renderWorkspace(itemWithDemographics)
+
+    await waitFor(() => {
+      const demoElements = screen.getAllByText(/男 · \d+岁/)
+      expect(demoElements.length).toBeGreaterThanOrEqual(2)
+    })
+  })
+
+  it('renders "未记录" instead of "null mm" when wheal and flare diameters are null', async () => {
+    const user = userEvent.setup()
+    const completedItem: SkinTestWorkItem = {
+      ...dilutedItem,
+      status: 'NEGATIVE',
+      whealDiameterMm: null as unknown as number,
+      flareDiameterMm: null as unknown as number,
+      completedAt: '2026-09-22T15:18:00Z',
+    }
+    renderWorkspace(completedItem)
+
+    await user.click(await screen.findByRole('button', { name: /已判读/ }))
+
+    await waitFor(() => {
+      expect(screen.getByText('皮试最终结论：【阴性】')).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/null mm/)).not.toBeInTheDocument()
+    const unrecordedItems = screen.getAllByText('未记录')
+    expect(unrecordedItems.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('renders nurse name and short code instead of database primary keys for executor and verifier', async () => {
+    const user = userEvent.setup()
+    const completedItem: SkinTestWorkItem = {
+      ...dilutedItem,
+      status: 'NEGATIVE',
+      readByPractitionerId: '362387869790223',
+      verifiedByPractitionerId: '362387869899015',
+      verifiedByName: '陈国华',
+      completedAt: '2026-09-22T15:18:00Z',
+      verifiedAt: '2026-09-22T15:18:00Z',
+    }
+    renderWorkspace(completedItem)
+
+    await user.click(await screen.findByRole('button', { name: /已判读/ }))
+
+    await waitFor(() => {
+      expect(screen.getByText('皮试最终结论：【阴性】')).toBeInTheDocument()
+    })
+
+    // Verified nurse should display real name
+    expect(screen.getByText(/陈国华/)).toBeInTheDocument()
+
+    // Must never leak the snowflake primary key strings to the UI
+    expect(screen.queryByText(/362387869790223/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/362387869899015/)).not.toBeInTheDocument()
+  })
 })

@@ -13,17 +13,17 @@ function setup(){
  const api={analytics:{savedPages:vi.fn().mockResolvedValue([]),pageSources:vi.fn().mockResolvedValue([]),pageCatalog:vi.fn().mockResolvedValue([]),aiStatus:vi.fn().mockResolvedValue({available:true,model:'test',message:'AI可用'}),generatePage:generate,queryPage:query,savePage:save}} as unknown as RhnApi
  return {api,generate,query,save}
 }
-it('starts with generic templates and no fixed metrics or query form',async()=>{
+it('starts in the function library page with system presets available',async()=>{
  const {api,query}=setup();render(<DynamicAnalysisLibrary api={api}/>)
- await screen.findByRole('button',{name:/排行分析/})
- expect(screen.queryByText('挂号人次')).not.toBeInTheDocument()
- expect(screen.queryByText('退号率')).not.toBeInTheDocument()
- expect(screen.queryByLabelText('统计日期')).not.toBeInTheDocument()
- expect(screen.queryByLabelText('生成的业务分析页面')).not.toBeInTheDocument()
- expect(query).not.toHaveBeenCalled()
+ await screen.findByRole('heading',{name:'已固化统计功能'})
+ expect(await screen.findByRole('button',{name:/门诊挂号按日趋势/})).toBeInTheDocument()
+ expect(screen.getByRole('button',{name:/门诊就诊科室分布/})).toBeInTheDocument()
+ expect(screen.getByRole('button',{name:/新建统计分析/})).toBeInTheDocument()
+ expect(query).toHaveBeenCalled()
 })
 it('uses selected presentation and business-only requirement to generate only relevant fields, then persists',async()=>{
  const user=userEvent.setup(),{api,generate,query,save}=setup();render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
  await user.click(await screen.findByRole('button',{name:/排行分析/}))
  await user.type(screen.getByLabelText('业务分析需求'),'本月诊断记录条数排行')
  await user.click(screen.getByRole('button',{name:'生成页面预览'}))
@@ -42,6 +42,8 @@ it('uses selected presentation and business-only requirement to generate only re
 it('keeps clarification outside generated page and never queries',async()=>{
  const user=userEvent.setup(),{api,generate,query}=setup();generate.mockResolvedValue({status:'CLARIFY',message:'是否按记录条数统计？',spec:null})
  render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
+ query.mockClear()
  await user.type(await screen.findByLabelText('业务分析需求'),'诊断数量排行')
  await user.click(screen.getByRole('button',{name:'生成页面预览'}))
  await screen.findAllByText('是否按记录条数统计？')
@@ -50,6 +52,7 @@ it('keeps clarification outside generated page and never queries',async()=>{
 })
 it('keeps setup out of the editing workspace and blocks saving an unsent change',async()=>{
  const user=userEvent.setup(),{api}=setup();render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
  await user.type(await screen.findByLabelText('业务分析需求'),'诊断记录排行')
  await user.click(screen.getByRole('button',{name:'生成页面预览'}))
  await waitFor(()=>expect(screen.getByRole('button',{name:'确认并固化'})).toBeEnabled())
@@ -70,7 +73,9 @@ it('shows field-based calculations and filters, then saves and reopens the same 
  const plan:PageSpec={...spec,title:'有效药品医嘱人数',template:'LIST',dimension:'DEPARTMENT',metrics:['M1'],measures:[{code:'M1',name:'有效药品医嘱患者人数',source:'ORDER',sourceVersion:1,aggregate:'COUNT_DISTINCT',field:'patientId',filters:[{field:'status',operator:'EQ',values:['ACTIVE']},{field:'kind',operator:'EQ',values:['MEDICATION']}]}]}
  vi.mocked(api.analytics.pageSources).mockResolvedValue([{code:'ORDER',version:1,name:'门诊医嘱',grain:'每条医嘱一行',definition:'按开立日期',relation:'医嘱到就诊',dimensions:['DEPARTMENT'],fields:[{code:'patientId',name:'有医嘱的患者',databaseType:'NUMBER',unit:'人',aggregates:['COUNT_DISTINCT'],operators:[],values:{}},{code:'status',name:'医嘱状态',databaseType:'VARCHAR',unit:'',aggregates:[],operators:['EQ'],values:{ACTIVE:'有效'}},{code:'kind',name:'医嘱类别',databaseType:'VARCHAR',unit:'',aggregates:[],operators:['EQ'],values:{MEDICATION:'药品医嘱'}}]}])
  generate.mockResolvedValue({status:'READY',message:'字段组合生成',spec:plan});query.mockResolvedValue({...result,spec:plan,series:[{...result.series[0],code:'M1',name:'有效药品医嘱患者人数',unit:'人'}]})
- render(<DynamicAnalysisLibrary api={api}/>);await user.type(await screen.findByLabelText('业务分析需求'),'有效药品医嘱患者人数')
+ render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
+ await user.type(await screen.findByLabelText('业务分析需求'),'有效药品医嘱患者人数')
  await user.click(screen.getByRole('button',{name:'生成页面预览'}))
  await user.click(await screen.findByRole('tab',{name:'计算配置'}))
  expect(screen.getByLabelText('指标1计算方式')).toHaveValue('COUNT_DISTINCT')
@@ -90,7 +95,9 @@ it('renders reversal amounts below zero with valid bar dimensions',()=>{
 
 it('replaces the progress explanation with the failure reason when generation fails',async()=>{
  const user=userEvent.setup(),{api,generate}=setup();generate.mockRejectedValue(new Error('模型格式错误'))
- render(<DynamicAnalysisLibrary api={api}/>);await user.type(await screen.findByLabelText('业务分析需求'),'门诊医嘱分析')
+ render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
+ await user.type(await screen.findByLabelText('业务分析需求'),'门诊医嘱分析')
  await user.click(screen.getByRole('button',{name:'生成页面预览'}))
  await screen.findByText('未能完成页面预览：模型格式错误')
  expect(screen.queryByText('AI 正在分析数据关系、计算方式和筛选条件…')).not.toBeInTheDocument()
@@ -100,7 +107,9 @@ it('replaces the progress explanation with the failure reason when generation fa
 it('answers clarification with history and preserves the current plan on unresolved changes',async()=>{
  const user=userEvent.setup(),{api,generate,query}=setup()
  generate.mockResolvedValueOnce({status:'CLARIFY',message:'按记录还是人数？',spec:null})
- render(<DynamicAnalysisLibrary api={api}/>);await user.type(await screen.findByLabelText('业务分析需求'),'诊断数量排行')
+ render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
+ await user.type(await screen.findByLabelText('业务分析需求'),'诊断数量排行')
  await user.click(screen.getByRole('button',{name:'生成页面预览'}))
  await user.type(await screen.findByLabelText('补充或修改要求'),'按记录')
  await user.click(screen.getByRole('button',{name:'发送补充并更新预览'}))
@@ -112,7 +121,7 @@ it('answers clarification with history and preserves the current plan on unresol
  await user.click(screen.getByRole('button',{name:'发送补充并更新预览'}))
  await screen.findAllByText('需要实际收款吗？')
  expect(generate.mock.calls.at(-1)?.[2].currentSpec).toEqual(spec)
- expect(query).toHaveBeenCalledTimes(1)
+ expect(query).toHaveBeenCalledTimes(2)
  await user.click(screen.getByRole('tab',{name:'数据明细'}))
  expect(screen.getByRole('columnheader',{name:'有效确诊记录数（条）'})).toBeInTheDocument()
  expect(screen.getByRole('button',{name:'确认并固化'})).toBeDisabled()
@@ -159,7 +168,9 @@ it('includes manually edited grouping and measure filters in the next AI request
  const plan:PageSpec={...spec,template:'LIST',dimension:'DAY',metrics:['M1'],measures:[{code:'M1',name:'医嘱条数',source:'ORDER',sourceVersion:1,aggregate:'COUNT',field:'orderId',filters:[{field:'kind',operator:'EQ',values:['MEDICATION']}]}]}
  vi.mocked(api.analytics.pageSources).mockResolvedValue([{code:'ORDER',version:1,name:'门诊医嘱',grain:'每条医嘱',definition:'开立日期',relation:'就诊',dimensions:['DAY','DEPARTMENT'],fields:[{code:'orderId',name:'医嘱',databaseType:'NUMBER',unit:'条',aggregates:['COUNT'],operators:[],values:{}},{code:'kind',name:'类别',databaseType:'VARCHAR',unit:'',aggregates:[],operators:['EQ'],values:{MEDICATION:'药品',SERVICE:'服务'}}]}])
  generate.mockResolvedValue({status:'READY',message:'医嘱统计',spec:plan});query.mockImplementation(async(s:PageSpec)=>({...result,spec:s}))
- render(<DynamicAnalysisLibrary api={api}/>);await user.type(await screen.findByLabelText('业务分析需求'),'医嘱条数')
+ render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
+ await user.type(await screen.findByLabelText('业务分析需求'),'医嘱条数')
  await user.click(screen.getByRole('button',{name:'生成页面预览'}))
  await waitFor(()=>expect(screen.getByRole('button',{name:'确认并固化'})).toBeEnabled())
  await user.click(screen.getByRole('tab',{name:'计算配置'}))
@@ -175,7 +186,9 @@ it('includes manually edited grouping and measure filters in the next AI request
 
 it('separates workspace responsibilities, supports keyboard tabs and preserves a hidden AI draft',async()=>{
  const user=userEvent.setup(),{api}=setup()
- render(<DynamicAnalysisLibrary api={api}/>);await user.type(await screen.findByLabelText('业务分析需求'),'诊断记录排行')
+ render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
+ await user.type(await screen.findByLabelText('业务分析需求'),'诊断记录排行')
  await user.click(screen.getByRole('button',{name:'生成页面预览'}))
  const preview=await screen.findByRole('tab',{name:'结果预览'})
  expect(screen.queryByRole('table')).not.toBeInTheDocument()
@@ -194,13 +207,16 @@ it('edits one metric at a time and returns to the result after updating',async()
  const m={code:'M1',name:'医嘱条数',source:'ORDER',sourceVersion:1,aggregate:'COUNT' as const,field:'orderId',filters:[]}
  const plan:PageSpec={...spec,template:'LIST',dimension:'DAY',metrics:['M1','M2'],measures:[m,{...m,code:'M2',name:'另一个指标'}]}
  generate.mockResolvedValue({status:'READY',message:'生成两个指标',spec:plan});query.mockImplementation(async(s:PageSpec)=>({...result,spec:s}))
- render(<DynamicAnalysisLibrary api={api}/>);await user.type(await screen.findByLabelText('业务分析需求'),'医嘱统计')
+ render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
+ await user.type(await screen.findByLabelText('业务分析需求'),'医嘱统计')
  await user.click(screen.getByRole('button',{name:'生成页面预览'}));await user.click(await screen.findByRole('tab',{name:'计算配置'}))
  expect(screen.getByLabelText('指标1名称')).toBeInTheDocument()
  expect(screen.queryByLabelText('指标2名称')).not.toBeInTheDocument()
  await user.click(screen.getByRole('button',{name:'2. 另一个指标'}))
  await user.clear(screen.getByLabelText('指标2名称'));await user.type(screen.getByLabelText('指标2名称'),'调整后指标')
  expect(screen.queryByLabelText('指标1名称')).not.toBeInTheDocument()
+ expect(screen.getByRole('tab',{name:'变更对照'})).toBeInTheDocument()
  await user.click(screen.getByRole('tab',{name:'变更对照'}))
  expect(screen.getByText(/调整后指标：/)).toBeInTheDocument()
  await user.click(screen.getByRole('button',{name:'更新预览'}))
@@ -210,7 +226,8 @@ it('edits one metric at a time and returns to the result after updating',async()
 it('keeps data capabilities available in the request header after clarification and in the editor',async()=>{
  const user=userEvent.setup(),{api,generate}=setup()
  generate.mockResolvedValueOnce({status:'CLARIFY',message:'记录还是人数？',spec:null})
- render(<DynamicAnalysisLibrary api={api}/>);
+ render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
  expect(await screen.findByRole('button',{name:/AI 自动识别/})).toHaveAttribute('aria-pressed','true')
  await user.type(screen.getByLabelText('业务分析需求'),'诊断数量');await user.click(screen.getByRole('button',{name:'生成页面预览'}))
  await screen.findByLabelText('补充或修改要求')
@@ -234,10 +251,28 @@ it('updates composed widget references when a metric is removed',async()=>{
  const m={code:'M1',name:'医嘱条数',source:'ORDER',sourceVersion:1,aggregate:'COUNT' as const,field:'orderId',filters:[]}
  const plan:PageSpec={...spec,template:'CUSTOM',dimension:'DAY',metrics:['M1','M2'],measures:[m,{...m,code:'M2',name:'第二指标'}],widgets:[{title:'第一项',type:'KPI',metrics:['M1']},{title:'第二项',type:'BAR',metrics:['M2']}]}
  generate.mockResolvedValue({status:'READY',message:'组合展示',spec:plan});query.mockImplementation(async(s:PageSpec)=>({...result,spec:s}))
- render(<DynamicAnalysisLibrary api={api}/>);await user.type(await screen.findByLabelText('业务分析需求'),'医嘱组合展示');await user.click(screen.getByRole('button',{name:'生成页面预览'}))
+ render(<DynamicAnalysisLibrary api={api}/>)
+ await user.click(await screen.findByRole('button',{name:/新建统计分析/}))
+ query.mockClear()
+ await user.type(await screen.findByLabelText('业务分析需求'),'医嘱组合展示');await user.click(screen.getByRole('button',{name:'生成页面预览'}))
  await user.click(await screen.findByRole('tab',{name:'计算配置'}));await user.click(screen.getByRole('button',{name:'移除指标 1'}));await user.click(screen.getByRole('button',{name:'更新预览'}))
  await waitFor(()=>expect(query).toHaveBeenCalledTimes(2));const next=query.mock.calls[1][0]
  expect(next.measures[0].name).toBe('第二指标');expect(next.widgets).toEqual([{title:'第二项',type:'BAR',metrics:['M1']}])
+})
+
+it('allows adjusting a system preset and saving as a personalized function',async()=>{
+ const user=userEvent.setup(),{api,query,save}=setup()
+ query.mockImplementation(async (s:PageSpec)=>({...result,spec:s}))
+ render(<DynamicAnalysisLibrary api={api}/>)
+ await screen.findByRole('heading',{name:'门诊挂号按日趋势'})
+ expect(screen.getByText('系统预置')).toBeInTheDocument()
+ expect(screen.queryByRole('button',{name:'编辑原功能'})).not.toBeInTheDocument()
+ await user.click(screen.getByRole('button',{name:'基于此功能调整'}))
+ expect(screen.getByDisplayValue('门诊挂号按日趋势（调整）')).toBeInTheDocument()
+ expect(screen.getByRole('tab',{name:'计算配置'})).toBeInTheDocument()
+ await user.click(screen.getByRole('button',{name:'确认并另存为新功能'}))
+ await waitFor(()=>expect(save).toHaveBeenCalledTimes(1))
+ expect(save.mock.calls[0][0].title).toBe('门诊挂号按日趋势（调整）')
 })
 
 it('updates the original function as a new version instead of saving a duplicate',async()=>{
@@ -304,4 +339,17 @@ it('opens an archive-only library and displays the complete version history',asy
  const dialog=screen.getByRole('dialog',{name:'统计功能历史版本'})
  await waitFor(()=>expect(within(dialog).getByText(/V1 · 旧名称/)).toBeInTheDocument())
  expect(query).not.toHaveBeenCalled()
+})
+it('returns to library without prompt when there are no unsaved changes',async()=>{
+  const user=userEvent.setup(),{api}=setup()
+  render(<DynamicAnalysisLibrary api={api}/>)
+  await user.click(await screen.findByRole('button',{name:'新建统计分析'}))
+  await user.click(screen.getByRole('button',{name:'返回功能库'}))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(await screen.findByRole('heading',{name:'已固化统计功能'})).toBeInTheDocument()
+  await user.click(await screen.findByRole('button',{name:'基于此功能调整'}))
+  expect(screen.getByDisplayValue(/（调整）/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button',{name:'返回功能库'}))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(await screen.findByRole('heading',{name:'已固化统计功能'})).toBeInTheDocument()
 })

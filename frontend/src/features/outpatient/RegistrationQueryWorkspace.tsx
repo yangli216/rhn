@@ -182,13 +182,6 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
       tone={cancellationResult.completed ? 'success' : 'info'}>{cancellationResult.message}
       {cancellationResult.refundStatus ? `（退款状态：${cancellationResult.refundStatus}）` : ''}</Alert>}
 
-    <section className="registration-metrics" aria-label="挂号查询摘要">
-      <div><span>查询结果</span><strong>{totalElements}</strong><small>{dateRangeLabel}</small></div>
-      <div><span>候诊中</span><strong>{waiting}</strong><small>等待医生接诊</small></div>
-      <div><span>接诊中 / 暂挂</span><strong>{active}</strong><small>仍在本次诊疗流程</small></div>
-      <div><span>已诊毕 / 已取消</span><strong>{completed} / {cancelled}</strong><small>已结束记录</small></div>
-    </section>
-
     <Panel className="registration-query-filter-panel">
       <form className="registration-query-filter-form" onSubmit={search}>
         <FormField label="挂号日期范围">
@@ -274,6 +267,24 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
           })}
         </div></div>
         <Pagination
+          left={
+            <div className="query-status-summary" aria-label="挂号状态汇总">
+              <span className="query-status-summary__item">
+                <span>候诊中</span>
+                <strong>{waiting}</strong>
+              </span>
+              <span className="query-status-summary__divider" aria-hidden="true" />
+              <span className="query-status-summary__item">
+                <span>接诊中 / 暂挂</span>
+                <strong>{active}</strong>
+              </span>
+              <span className="query-status-summary__divider" aria-hidden="true" />
+              <span className="query-status-summary__item">
+                <span>已诊毕 / 已取消</span>
+                <strong>{completed} / {cancelled}</strong>
+              </span>
+            </div>
+          }
           page={pageIndex}
           totalPages={totalPages}
           total={totalElements}

@@ -1,10 +1,12 @@
 import {
   useId,
+  useLayoutEffect,
   useRef,
   type HTMLAttributes,
   type InputHTMLAttributes,
   type KeyboardEvent,
   type ReactNode,
+  type RefObject,
   type TableHTMLAttributes,
 } from 'react'
 import { Icon } from './Icon'
@@ -86,6 +88,7 @@ export function SearchField({
   onChange,
   label,
   clearable = true,
+  inputRef: externalInputRef,
   className = '',
   ...props
 }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> & {
@@ -93,17 +96,20 @@ export function SearchField({
   onChange: (value: string) => void
   label: string
   clearable?: boolean
+  inputRef?: RefObject<HTMLInputElement | null>
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
+
+  const resolvedInputRef = externalInputRef ?? inputRef
 
   return <label className={`ui-search-field ${className}`}>
     <span className="visually-hidden">{label}</span>
     <Icon name="search" />
-    <input {...props} ref={inputRef} type="search" value={value} onChange={(event) => onChange(event.target.value)} />
+    <input {...props} ref={resolvedInputRef} aria-label={props['aria-label'] ?? label} type="search" value={value} onChange={(event) => onChange(event.target.value)} />
     {clearable && value && <button type="button" aria-label={`清空${label}`} title={`清空${label}`}
       onClick={() => {
         onChange('')
-        inputRef.current?.focus()
+        resolvedInputRef.current?.focus()
       }}><Icon name="close" /></button>}
   </label>
 }
@@ -113,15 +119,22 @@ export function SplitWorkspace({ children, className = '', ...props }:
   return <section className={`ui-split-workspace ${className}`} {...props}>{children}</section>
 }
 
-export function TableShell({ children, footer, className = '', scrollClassName = '', footerClassName = '' }: {
+export function TableShell({ children, footer, className = '', scrollClassName = '', footerClassName = '', scrollLabel, resetScrollKey }: {
   children: ReactNode
   footer?: ReactNode
   className?: string
   scrollClassName?: string
   footerClassName?: string
+  scrollLabel?: string
+  resetScrollKey?: string | number
 }) {
+  const scroll = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (scroll.current) { scroll.current.scrollTop = 0; scroll.current.scrollLeft = 0 }
+  }, [resetScrollKey])
   return <div className={`ui-table-shell ${className}`}>
-    <div className={`ui-table-scroll ${scrollClassName}`}>{children}</div>
+    <div ref={scroll} className={`ui-table-scroll ${scrollClassName}`} role={scrollLabel ? 'region' : undefined}
+      aria-label={scrollLabel} tabIndex={scrollLabel ? 0 : undefined}>{children}</div>
     {footer !== undefined && <footer className={`ui-table-footer ${footerClassName}`}>{footer}</footer>}
   </div>
 }

@@ -1,0 +1,2059 @@
+{
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "tables": [
+    {
+      "logical": "ins.insurance_claim_line",
+      "legacy": "insurance_claim_lines",
+      "physical": "RHN_INS_CLAIM_LINE",
+      "domain": "INS",
+      "comment": "医保理赔明细；一行代表一条医保理赔明细记录",
+      "columns": [
+        {
+          "physical": "ID_INS_CLAIM_LINE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "医保理赔明细主键",
+          "logical": "id",
+          "catalogComment": "医保理赔明细主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_INS_CLAIM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "理赔标识",
+          "logical": "claim_id",
+          "catalogComment": "理赔标识"
+        },
+        {
+          "physical": "ID_STL_LINE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "结算明细标识",
+          "logical": "settlement_line_id",
+          "catalogComment": "结算明细标识"
+        },
+        {
+          "physical": "SN_LINE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "明细编号",
+          "logical": "line_no",
+          "catalogComment": "明细编号"
+        },
+        {
+          "physical": "CD_ITEM",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "项目编码",
+          "logical": "item_code",
+          "catalogComment": "项目编码"
+        },
+        {
+          "physical": "CD_INS_ITEM",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "医保项目编码",
+          "logical": "insurance_item_code",
+          "catalogComment": "医保项目编码"
+        },
+        {
+          "physical": "NA_ITEM_SNAP",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "项目名称快照",
+          "logical": "item_name_snapshot",
+          "catalogComment": "项目名称快照"
+        },
+        {
+          "physical": "CD_CAT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "分类编码",
+          "logical": "category_code",
+          "catalogComment": "分类编码"
+        },
+        {
+          "physical": "QTY_CLAIM",
+          "type": "DECIMAL",
+          "size": 28,
+          "scale": 8,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "数量",
+          "logical": "quantity",
+          "catalogComment": "数量"
+        },
+        {
+          "physical": "PRICE_UNIT",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "单位单价",
+          "logical": "unit_price",
+          "catalogComment": "单位单价"
+        },
+        {
+          "physical": "AMT_CLAIMED",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "认领金额",
+          "logical": "claimed_amount",
+          "catalogComment": "认领金额"
+        },
+        {
+          "physical": "AMT_APRVD",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "审批金额",
+          "logical": "approved_amount",
+          "catalogComment": "审批金额"
+        },
+        {
+          "physical": "CD_REJCTN",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "rejection编码",
+          "logical": "rejection_code",
+          "catalogComment": "rejection编码"
+        },
+        {
+          "physical": "JSON_TRACE_ATTR",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "追溯attributesJSON",
+          "logical": "trace_attributes_json",
+          "catalogComment": "追溯attributesJSON"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_INS_CLAIM_LINE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_INS_CLAIM_LINE_INS_CLAIM__1",
+          "columns": [
+            "ID_TNT",
+            "ID_INS_CLAIM",
+            "ID_STL_LINE"
+          ]
+        },
+        {
+          "name": "UK_INS_CLAIM_LINE_INS_CLAIM_LI",
+          "columns": [
+            "ID_TNT",
+            "ID_INS_CLAIM",
+            "SN_LINE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_INS_CLAIM_LINE_BIL_STL_INS__INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_STL_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_INS_CLAIM_LINE_INS_CLAI_INS_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_INS_CLAIM",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_INS_CLAIM_LINE_SYS_TNT_INS__INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INS_CLAIM_LINE_INS_CLAIM_L",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_STL_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_3C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_INS_CLAIM_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_CLAIM_LINE_INS_CLAIM_LI_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_INS_CLAIM",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SN_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_CLAIM_LINE_INS_CLAIM__1_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_INS_CLAIM",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_STL_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_INS_CLAIM_LINE_INS_CLAIM_LI",
+          "expression": "(\"qty_claim\" <> CAST(0 AS NUMERIC(1)))\n    AND (\"amt_claimed\" > CAST(0 AS NUMERIC(1)))"
+        }
+      ],
+      "catalogComment": "医保理赔明细；一行代表一条医保理赔明细记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/InsuranceClaimLine.java",
+          "line": 12
+        }
+      ]
+    },
+    {
+      "logical": "ins.insurance_claim_response",
+      "legacy": "insurance_claim_responses",
+      "physical": "RHN_INS_CLAIM_RESP",
+      "domain": "INS",
+      "comment": "医保理赔响应；一行代表一条医保理赔响应记录",
+      "columns": [
+        {
+          "physical": "ID_CLAIM_RESP",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "医保理赔响应主键",
+          "logical": "id",
+          "catalogComment": "医保理赔响应主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_INS_CLAIM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "理赔标识",
+          "logical": "claim_id",
+          "catalogComment": "理赔标识"
+        },
+        {
+          "physical": "ID_EXT_MSG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "外部消息标识",
+          "logical": "external_message_id",
+          "catalogComment": "外部消息标识"
+        },
+        {
+          "physical": "CD_RESP_NO",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "响应编号",
+          "logical": "response_no",
+          "catalogComment": "响应编号"
+        },
+        {
+          "physical": "CD_COMMAND",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "命令编码",
+          "logical": "command_code",
+          "catalogComment": "命令编码"
+        },
+        {
+          "physical": "SD_OPER",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "业务操作",
+          "logical": "operation",
+          "catalogComment": "业务操作"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "CD_EXT_STL_NO",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "外部结算编号",
+          "logical": "external_settlement_no",
+          "catalogComment": "外部结算编号"
+        },
+        {
+          "physical": "AMT_INS_FUND",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "医保fund金额",
+          "logical": "insurance_fund_amount",
+          "catalogComment": "医保fund金额"
+        },
+        {
+          "physical": "AMT_PERS_ACCT",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "personal账户金额",
+          "logical": "personal_account_amount",
+          "catalogComment": "personal账户金额"
+        },
+        {
+          "physical": "AMT_PAT_CASH",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "患者cash金额",
+          "logical": "patient_cash_amount",
+          "catalogComment": "患者cash金额"
+        },
+        {
+          "physical": "AMT_OTHER_FUND",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "otherfund金额",
+          "logical": "other_fund_amount",
+          "catalogComment": "otherfund金额"
+        },
+        {
+          "physical": "CD_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "错误编码",
+          "logical": "error_code",
+          "catalogComment": "错误编码"
+        },
+        {
+          "physical": "DES_ERROR_MSG",
+          "type": "CHARACTER VARYING",
+          "size": 2000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "错误消息",
+          "logical": "error_message",
+          "catalogComment": "错误消息"
+        },
+        {
+          "physical": "DT_RSPND",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "responded时间",
+          "logical": "responded_at",
+          "catalogComment": "responded时间"
+        }
+      ],
+      "previousPhysical": "RHN_INS_CLAIM_RESPONS",
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_CLAIM_RESP"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_INS_CLAIM_RESP_INS_RESP_COM",
+          "columns": [
+            "ID_TNT",
+            "ID_INS_CLAIM",
+            "CD_COMMAND"
+          ]
+        },
+        {
+          "name": "UK_INS_CLAIM_RESP_INS_RESP_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_INS_CLAIM",
+            "CD_RESP_NO"
+          ]
+        },
+        {
+          "name": "UK_INS_CLAIM_RESP_INS_RESP_TEN",
+          "columns": [
+            "ID_TNT",
+            "ID_CLAIM_RESP"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_INS_CLAIM_RESP_INS_CLAI_INS_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_INS_CLAIM",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_INS_CLAIM_RESP_INT_EXT_INS__INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EXT_MSG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_INS_CLAIM_RESP_SYS_TNT_INS__INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INS_CLAIM_RESP_INS_RESP_CL",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_INS_CLAIM",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_RSPND",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_CLAIM_RESP",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INS_CLAIM_RESP_INS_RESP_ME",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EXT_MSG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_3C7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CLAIM_RESP",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_CLAIM_RESP_INS_RESP_COM_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_INS_CLAIM",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_COMMAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_CLAIM_RESP_INS_RESP_NO_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_INS_CLAIM",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_RESP_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_CLAIM_RESP_INS_RESP_TEN_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CLAIM_RESP",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_INS_CLAIM_RESP_INS_RESP_OPE",
+          "expression": "\"sd_oper\" IN('PRE_SETTLE', 'SETTLE', 'REVERSE', 'QUERY')"
+        },
+        {
+          "name": "CK_INS_CLAIM_RESP_INS_RESP_STA",
+          "expression": "\"sd_status\" IN('SUCCEEDED', 'PENDING', 'FAILED')"
+        }
+      ],
+      "catalogComment": "医保理赔响应；一行代表一条医保理赔响应记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/InsuranceClaimResponse.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "ins.insurance_claim",
+      "legacy": "insurance_claims",
+      "physical": "RHN_INS_CLAIM",
+      "domain": "INS",
+      "comment": "医保理赔；一行代表一条医保理赔记录",
+      "columns": [
+        {
+          "physical": "ID_INS_CLAIM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "医保理赔主键",
+          "logical": "id",
+          "catalogComment": "医保理赔主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_STL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "结算标识",
+          "logical": "settlement_id",
+          "catalogComment": "结算标识"
+        },
+        {
+          "physical": "ID_PAT_ACCT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "患者账户标识",
+          "logical": "patient_account_id",
+          "catalogComment": "患者账户标识"
+        },
+        {
+          "physical": "ID_PAT_COVER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "保障标识",
+          "logical": "coverage_id",
+          "catalogComment": "保障标识"
+        },
+        {
+          "physical": "CD_CLAIM_NO",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "理赔编号",
+          "logical": "claim_no",
+          "catalogComment": "理赔编号"
+        },
+        {
+          "physical": "CD_COMMAND",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "命令编码",
+          "logical": "command_code",
+          "catalogComment": "命令编码"
+        },
+        {
+          "physical": "SD_CLAIM_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "理赔类型",
+          "logical": "claim_type",
+          "catalogComment": "理赔类型"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "SD_CURRENT_OPER",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "current业务操作",
+          "logical": "current_operation",
+          "catalogComment": "current业务操作"
+        },
+        {
+          "physical": "CD_REGION",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "region编码",
+          "logical": "region_code",
+          "catalogComment": "region编码"
+        },
+        {
+          "physical": "CD_INS_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "医保类型编码",
+          "logical": "insurance_type_code",
+          "catalogComment": "医保类型编码"
+        },
+        {
+          "physical": "NA_PAYER_SNAP",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "付款方名称快照",
+          "logical": "payer_name_snapshot",
+          "catalogComment": "付款方名称快照"
+        },
+        {
+          "physical": "CD_ORG",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "机构编码",
+          "logical": "organization_code",
+          "catalogComment": "机构编码"
+        },
+        {
+          "physical": "CD_DEPT",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "科室编码",
+          "logical": "department_code",
+          "catalogComment": "科室编码"
+        },
+        {
+          "physical": "CD_PRACT",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "医务人员编码",
+          "logical": "practitioner_code",
+          "catalogComment": "医务人员编码"
+        },
+        {
+          "physical": "HASH_DIAG_PAYLOAD",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "诊断载荷摘要",
+          "logical": "diagnosis_payload_digest",
+          "catalogComment": "诊断载荷摘要"
+        },
+        {
+          "physical": "DT_SVC_STARTED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "服务开始时间",
+          "logical": "service_started_at",
+          "catalogComment": "服务开始时间"
+        },
+        {
+          "physical": "DT_SVC_ENDED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "服务ended时间",
+          "logical": "service_ended_at",
+          "catalogComment": "服务ended时间"
+        },
+        {
+          "physical": "CD_EXT_PRE_STL_NO",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "外部pre结算编号",
+          "logical": "external_pre_settlement_no",
+          "catalogComment": "外部pre结算编号"
+        },
+        {
+          "physical": "CD_EXT_STL_NO",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "外部结算编号",
+          "logical": "external_settlement_no",
+          "catalogComment": "外部结算编号"
+        },
+        {
+          "physical": "AMT_GROSS",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "总额金额",
+          "logical": "gross_amount",
+          "catalogComment": "总额金额"
+        },
+        {
+          "physical": "AMT_INS_FUND",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "医保fund金额",
+          "logical": "insurance_fund_amount",
+          "catalogComment": "医保fund金额"
+        },
+        {
+          "physical": "AMT_PERS_ACCT",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 25,
+          "comment": "personal账户金额",
+          "logical": "personal_account_amount",
+          "catalogComment": "personal账户金额"
+        },
+        {
+          "physical": "AMT_PAT_CASH",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "患者cash金额",
+          "logical": "patient_cash_amount",
+          "catalogComment": "患者cash金额"
+        },
+        {
+          "physical": "AMT_OTHER_FUND",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 27,
+          "comment": "otherfund金额",
+          "logical": "other_fund_amount",
+          "catalogComment": "otherfund金额"
+        },
+        {
+          "physical": "CD_CCY",
+          "type": "CHARACTER VARYING",
+          "size": 3,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 28,
+          "comment": "币种编码",
+          "logical": "currency_code",
+          "catalogComment": "币种编码"
+        },
+        {
+          "physical": "ID_CORR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 29,
+          "comment": "关联标识",
+          "logical": "correlation_id",
+          "catalogComment": "关联标识"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 30,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 31,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 32,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "CD_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 33,
+          "comment": "错误编码",
+          "logical": "error_code",
+          "catalogComment": "错误编码"
+        },
+        {
+          "physical": "DES_ERROR_MSG",
+          "type": "CHARACTER VARYING",
+          "size": 2000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 34,
+          "comment": "错误消息",
+          "logical": "error_message",
+          "catalogComment": "错误消息"
+        },
+        {
+          "physical": "DES_RVRSL_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 35,
+          "comment": "reversal原因",
+          "logical": "reversal_reason",
+          "catalogComment": "reversal原因"
+        },
+        {
+          "physical": "DT_RVRSD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 36,
+          "comment": "reversed时间",
+          "logical": "reversed_at",
+          "catalogComment": "reversed时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_INS_CLAIM"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_INS_CLAIM_INS_CLAIM_COMMAND",
+          "columns": [
+            "ID_TNT",
+            "CD_COMMAND"
+          ]
+        },
+        {
+          "name": "UK_INS_CLAIM_INS_CLAIM_NO",
+          "columns": [
+            "ID_TNT",
+            "CD_CLAIM_NO"
+          ]
+        },
+        {
+          "name": "UK_INS_CLAIM_INS_CLAIM_SETTLEM",
+          "columns": [
+            "ID_TNT",
+            "ID_STL"
+          ]
+        },
+        {
+          "name": "UK_INS_CLAIM_INS_CLAIM_TENANT_",
+          "columns": [
+            "ID_TNT",
+            "ID_INS_CLAIM"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_INS_CLAIM_BIL_PAT_INS_CLAIM_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_ACCT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_INS_CLAIM_INS_PAT_INS_CLAIM_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_COVER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_INS_CLAIM_SYS_TNT_INS_CLAIM_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INS_CLAIM_INS_CLAIM_COVERA",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_COVER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INS_CLAIM_INS_CLAIM_WORKLI",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_UPDATED",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "ID_INS_CLAIM",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INS_CLAIM_UK_INS_CLAIM_EXT",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_REGION",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_EXT_STL_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "PRIMARY_KEY_D6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_INS_CLAIM",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_CLAIM_INS_CLAIM_COMMAND_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_COMMAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_CLAIM_INS_CLAIM_NO_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_CLAIM_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_CLAIM_INS_CLAIM_SETTLEM_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_STL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_CLAIM_INS_CLAIM_TENANT__INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_INS_CLAIM",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_INS_CLAIM_INS_CLAIM_AMOUNTS",
+          "expression": "(\"amt_gross\" > CAST(0 AS NUMERIC(1)))\n    AND (\"amt_ins_fund\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_pers_acct\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_pat_cash\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_other_fund\" >= CAST(0 AS NUMERIC(1)))"
+        },
+        {
+          "name": "CK_INS_CLAIM_INS_CLAIM_OPERATI",
+          "expression": "\"sd_current_oper\" IN('PRE_SETTLE', 'SETTLE', 'REVERSE')"
+        },
+        {
+          "name": "CK_INS_CLAIM_INS_CLAIM_REVERSA",
+          "expression": "((\"sd_status\" NOT IN('REVERSAL_PENDING', 'REVERSED'))\n    AND (\"dt_rvrsd\" IS NULL))\n    OR ((\"sd_status\" = 'REVERSED')\n    AND (\"des_rvrsl_reason\" IS NOT NULL)\n    AND (\"dt_rvrsd\" IS NOT NULL))\n    OR ((\"sd_status\" = 'REVERSAL_PENDING')\n    AND (\"des_rvrsl_reason\" IS NOT NULL)\n    AND (\"dt_rvrsd\" IS NULL))"
+        },
+        {
+          "name": "CK_INS_CLAIM_INS_CLAIM_STATUS",
+          "expression": "\"sd_status\" IN('PRE_SETTLEMENT_PENDING', 'PRE_SETTLED', 'SETTLEMENT_PENDING', 'SETTLED', 'FAILED', 'REVERSAL_PENDING', 'REVERSED')"
+        },
+        {
+          "name": "CK_INS_CLAIM_INS_CLAIM_TYPE",
+          "expression": "\"sd_claim_type\" IN('NORMAL', 'REVERSAL')"
+        }
+      ],
+      "catalogComment": "医保理赔；一行代表一条医保理赔记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/InsuranceClaim.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "ins.resident_coverage",
+      "legacy": "resident_coverages",
+      "physical": "RHN_INS_PAT_COVER",
+      "domain": "INS",
+      "comment": "患者保障；一行代表一条患者保障记录",
+      "columns": [
+        {
+          "physical": "ID_PAT_COVER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "患者保障主键",
+          "logical": "id",
+          "catalogComment": "患者保障主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "CD_COVER_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "保障类型编码",
+          "logical": "coverage_type_code",
+          "catalogComment": "保障类型编码"
+        },
+        {
+          "physical": "NA_PAYER",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "付款方名称",
+          "logical": "payer_name",
+          "catalogComment": "付款方名称"
+        },
+        {
+          "physical": "CD_MEMBER_NO",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "成员编号",
+          "logical": "member_no",
+          "catalogComment": "成员编号"
+        },
+        {
+          "physical": "FG_PRIMARY_FLAG",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 8,
+          "comment": "是否主要flag",
+          "logical": "primary_flag",
+          "catalogComment": "是否主要flag"
+        },
+        {
+          "physical": "DA_VALID_FROM",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "有效开始日期",
+          "logical": "valid_from",
+          "catalogComment": "有效开始日期"
+        },
+        {
+          "physical": "DA_VALID_TO",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "有效结束日期",
+          "logical": "valid_to",
+          "catalogComment": "有效结束日期"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAT_COVER"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_INS_PAT_COVER_RESIDENT_COVE",
+          "columns": [
+            "ID_TNT",
+            "ID_PAT_COVER"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_INS_PAT_COVER_PI_PAT_RESIDE_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_INS_PAT_COVER_RESIDENT_COV",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "FG_PRIMARY_FLAG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_82E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAT_COVER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_PAT_COVER_RESIDENT_COVE_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT_COVER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_INS_PAT_COVER_RESIDENT_CO_1",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        },
+        {
+          "name": "CK_INS_PAT_COVER_RESIDENT_COVE",
+          "expression": "(\"da_valid_to\" IS NULL)\n    OR (\"da_valid_to\" >= \"da_valid_from\")"
+        }
+      ],
+      "catalogComment": "患者保障；一行代表一条患者保障记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentProfileEntities.java",
+          "line": 192
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "FK_BIL_LEDGER_ENT_INS_CLAI_LED",
+      "sourceTable": "RHN_BIL_LEDGER_ENTRY",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CLAIM_RESP"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CLAIM_RESP"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INS_CLAIM_RESP",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_REG_BIL_IN_INS_PAT_REG_",
+      "sourceTable": "RHN_BIL_REG_BIL_INTENT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT_COVER"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT_COVER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INS_PAT_COVER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_STL_TENDER_INS_CLAI_STL",
+      "sourceTable": "RHN_BIL_STL_TENDER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CLAIM_RESP"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CLAIM_RESP"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INS_CLAIM_RESP",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_BIL_PAT_INS_CLAIM",
+      "sourceTable": "RHN_INS_CLAIM",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT_ACCT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT_ACCT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_PAT_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_BIL_STL_INS_CLAIM",
+      "sourceTable": "RHN_INS_CLAIM",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_STL"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_STL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_STL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_INS_PAT_INS_CLAIM",
+      "sourceTable": "RHN_INS_CLAIM",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT_COVER"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT_COVER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INS_PAT_COVER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_SYS_TNT_INS_CLAIM",
+      "sourceTable": "RHN_INS_CLAIM",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_LINE_BIL_STL_INS_",
+      "sourceTable": "RHN_INS_CLAIM_LINE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_STL_LINE"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_STL_LINE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_STL_LINE",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_LINE_INS_CLAI_INS",
+      "sourceTable": "RHN_INS_CLAIM_LINE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_INS_CLAIM"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_INS_CLAIM"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INS_CLAIM",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_LINE_SYS_TNT_INS_",
+      "sourceTable": "RHN_INS_CLAIM_LINE",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_RESP_INS_CLAI_INS",
+      "sourceTable": "RHN_INS_CLAIM_RESP",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_INS_CLAIM"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_INS_CLAIM"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INS_CLAIM",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_RESP_INT_EXT_INS_",
+      "sourceTable": "RHN_INS_CLAIM_RESP",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_EXT_MSG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_INT_EXT_MSG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_RESP_SYS_TNT_INS_",
+      "sourceTable": "RHN_INS_CLAIM_RESP",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_PAT_COVER_PI_PAT_RESIDE",
+      "sourceTable": "RHN_INS_PAT_COVER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    }
+  ]
+}

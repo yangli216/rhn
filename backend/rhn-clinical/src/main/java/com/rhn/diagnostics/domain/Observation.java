@@ -24,18 +24,18 @@ public class Observation {
     @Column(name = "NA_OBS", nullable = false) private String observationName;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "SD_VAL_TYPE", nullable = false) private String valueType;
-    @Column(name = "DT_EFFECTIVE", nullable = false) private Instant effectiveAt;
+    @Column(name = "DT_EFF", nullable = false) private Instant effectiveAt;
     @Column(name = "VALUE_STRING") private String valueString;
     @Column(name = "CD_VAL_NUMBER", precision = 28, scale = 8) private BigDecimal valueNumber;
     @Column(name = "FG_VAL_BOOLEAN") private Boolean valueBoolean;
     @Column(name = "CD_VAL") private String valueCode;
-    @Column(name = "DT_VAL_DATETIME") private Instant valueDateTime;
+    @Column(name = "DT_VAL_DTTM") private Instant valueDateTime;
     @Column(name = "CD_UNIT") private String unitCode;
-    @Column(name = "REFERENCE_RANGE_LOW", precision = 28, scale = 8) private BigDecimal referenceRangeLow;
-    @Column(name = "REFERENCE_RANGE_HIGH", precision = 28, scale = 8) private BigDecimal referenceRangeHigh;
-    @Column(name = "CD_INTERPRETATION") private String interpretationCode;
-    @Column(name = "CD_PERFORMER") private String performerCode;
-    @Column(name = "NA_PERFORMER") private String performerName;
+    @Column(name = "REF_RANGE_LOW", precision = 28, scale = 8) private BigDecimal referenceRangeLow;
+    @Column(name = "REF_RANGE_HIGH", precision = 28, scale = 8) private BigDecimal referenceRangeHigh;
+    @Column(name = "CD_INTERP") private String interpretationCode;
+    @Column(name = "CD_PRFRMR") private String performerCode;
+    @Column(name = "NA_PRFRMR") private String performerName;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected Observation() {}

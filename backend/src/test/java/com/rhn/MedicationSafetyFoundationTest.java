@@ -176,12 +176,12 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
         var finding = result.findings().getFirst();
         var override = new MedicationSafetyOverride(GlobalIds.next(), 1L, result.evaluationId(), finding.findingId(),
                 7L, "测试关联完整性；不是临床覆盖授权", Instant.now());
-        jdbc.update("insert into RHN_AUD_MED_OVERRIDE (ID_OVERRIDE, ID_TNT, ID_EVAL, ID_FINDING, ID_USER_ACTOR, DES_REASON, DT_CREATED) values (?,?,?,?,?,?,?)",
+        jdbc.update("insert into RHN_AUD_MED_OVERRIDE (ID_OVRD, ID_TNT, ID_EVAL, ID_FINDING, ID_USER_ACTOR, DES_REASON, DT_CREATED) values (?,?,?,?,?,?,?)",
                 override.id(), override.tenantId(), override.evaluationId(), override.findingId(), override.actorId(), override.reason(), OffsetDateTime.now());
-        assertThrows(DataAccessException.class, () -> jdbc.update("insert into RHN_AUD_MED_OVERRIDE (ID_OVERRIDE, ID_TNT, ID_EVAL, ID_FINDING, ID_USER_ACTOR, DES_REASON, DT_CREATED) values (?,?,?,?,?,?,?)",
+        assertThrows(DataAccessException.class, () -> jdbc.update("insert into RHN_AUD_MED_OVERRIDE (ID_OVRD, ID_TNT, ID_EVAL, ID_FINDING, ID_USER_ACTOR, DES_REASON, DT_CREATED) values (?,?,?,?,?,?,?)",
                 GlobalIds.next(), 99L, result.evaluationId(), finding.findingId(), 7L, "cross tenant", OffsetDateTime.now()));
         var other = safety.evaluate(legacyRequest(snapshot(item(11, 91L, "DRAFT"))));
-        assertThrows(DataAccessException.class, () -> jdbc.update("insert into RHN_AUD_MED_OVERRIDE (ID_OVERRIDE, ID_TNT, ID_EVAL, ID_FINDING, ID_USER_ACTOR, DES_REASON, DT_CREATED) values (?,?,?,?,?,?,?)",
+        assertThrows(DataAccessException.class, () -> jdbc.update("insert into RHN_AUD_MED_OVERRIDE (ID_OVRD, ID_TNT, ID_EVAL, ID_FINDING, ID_USER_ACTOR, DES_REASON, DT_CREATED) values (?,?,?,?,?,?,?)",
                 GlobalIds.next(), 1L, other.evaluationId(), finding.findingId(), 7L, "wrong evaluation", OffsetDateTime.now()));
         assertThrows(IllegalArgumentException.class, () -> new MedicationSafetyOverride(1L, 1L, 1L, 1L, 1L, "   ", Instant.now()));
     }

@@ -1,0 +1,463 @@
+{
+  "generatedBy": "scripts/rebuild-database.mjs",
+  "targetVersion": "1.77.0",
+  "generatedAt": "source-derived",
+  "policy": {
+    "existingDatabase": "keep-and-upgrade-with-published-history",
+    "freshDatabase": "new-schema-only",
+    "dataScope": [
+      "schema",
+      "standard-metadata",
+      "development-fixture"
+    ],
+    "excluded": [
+      "existing-patient-and-encounter-rows",
+      "runtime-audit-rows",
+      "live-database-dump"
+    ]
+  },
+  "flywayLocations": {
+    "h2": [
+      "classpath:db/rebuild/postgresql",
+      "classpath:db/rebuild/local",
+      "classpath:db/rebuild/h2"
+    ],
+    "postgresql": [
+      "classpath:db/rebuild/postgresql",
+      "classpath:db/rebuild/local"
+    ],
+    "oracle": [
+      "classpath:db/rebuild/oracle",
+      "classpath:db/rebuild/oracle-local"
+    ]
+  },
+  "outputs": [
+    {
+      "name": "postgresql",
+      "file": "backend/src/main/resources/db/rebuild/postgresql/B1_77_0__rhn_schema_and_standard_metadata.sql"
+    },
+    {
+      "name": "oracle",
+      "file": "backend/src/main/resources/db/rebuild/oracle/B1_77_0__rhn_schema_and_standard_metadata.sql"
+    },
+    {
+      "name": "development",
+      "file": "backend/src/main/resources/db/rebuild/local/V1_77_1__development_hospital.sql"
+    },
+    {
+      "name": "oracleDevelopment",
+      "file": "backend/src/main/resources/db/rebuild/oracle-local/V1_77_1__development_hospital.sql"
+    },
+    {
+      "name": "h2",
+      "file": "backend/src/main/resources/db/rebuild/h2/V1_77_2__h2_clob_types.sql"
+    }
+  ],
+  "sources": [
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/B1_42_1__rhn_schema_and_metadata.sql",
+      "sha256": "8f91a57cd567c9babe2114ca29c3209f7256c0789e647f801ee2970870d6dab5"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_43_0__physical_catalog_comments.sql",
+      "sha256": "0c784c558a7a79e02793f1abda501111465d0cc588d1a103c7127fe64f5f3e70"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_44_0__qmed_safety_foundation.sql",
+      "sha256": "e90c6a6b91c99ab4e2e8120b0ef3c98252243c1b8ff1e670500a11f49c556dc5"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_45_0__medication_rule_workbench.sql",
+      "sha256": "1f758bf47dfef4253bfc7497a6560d1a9212d4e1981e43fc836c84f1cfe71b2d"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_46_0__qmed_existing_rules_migration.sql",
+      "sha256": "8153795aae0573d386621fb582797f7d9a7d6d94f9f1d9c5a94bbe4ff90e4b91"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_47_0__national_essential_medications_2026.sql",
+      "sha256": "4a3f706b7b2f1b315b26ab03c0238ca9cb2e97496dc6a808e4b95931417f6cb7"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_48_0__qmed_common_clinical_rules.sql",
+      "sha256": "25e0e354261fd8a00112cfee8fd2760abe144554592a3765371b07b383655635"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_49_0__standard_medication_dose_forms.sql",
+      "sha256": "92a23bffb8d8e09c1bca5295a454bdf602fdfb5a84f6cfab65e241efd4da95ad"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_50_0__qmed_clinical_semantics.sql",
+      "sha256": "75b912a92aff33d3d30d5a8f213ed526e9dac45e6149e926979893cb219575e0"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_51_0__reconcile_parallel_qmed_migrations.sql",
+      "sha256": "5f928666233b9917b02b5af699bd303e94cd0e3367e03c98985408a622f91b14"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_52_0__charge_item_org_dept_dimensions.sql",
+      "sha256": "e260fceed368ed0fdfa8e2f31b34a158b971fb768229a02064de8040090bcaed"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_53_0__reconcile_p0_p1_dimensions_and_rename_exec.sql",
+      "sha256": "e2a5607cb7dea7d699e86f4ddac23d84ad9cf85d67d3738355acaf32c0017723"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_54_0__medication_catalog_integrity.sql",
+      "sha256": "b87cc411e502374c50f289ddf35bb276770fcf0a23b0819f67f0b72afa8ec375"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_55_0__outpatient_allergy_verification_policy.sql",
+      "sha256": "a97f62ea11f27d918e8e6c90a220770a4b72353033da762a75d4fe37545d250e"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_56_0__outpatient_direct_visit.sql",
+      "sha256": "8c9601af42cd5699d38e6cbfbb9822efbb92b94d46e34dca63e204edd59feda6"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_57_0__outpatient_document_info.sql",
+      "sha256": "51f1dc6657e63dc13f269bc831cea42e2e637df9bd3d0d03851648b8ceeba1b2"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_58_0__qmed_standard_reference_rules.sql",
+      "sha256": "a00899a2fdd4eadc0974fa1ff6947b7e17d5959f83fc9fb715ad477e2a9d5c4d"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_59_0__qmed_rule_catalog_governance.sql",
+      "sha256": "4264cc65b97f7fbc91a4fb705f4081d05d922ab4143e5d8519d35c940cc5643f"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_60_0__master_data_search_entries.sql",
+      "sha256": "b65810bb322a0355db364c6c80f3b87f877118e6cf6702c05b010a5764afd1a4"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_60_1__master_data_search_entry_comments.sql",
+      "sha256": "5847951db4ebfe78f281457e3ec88cca2fc8bff06cec1a4689a8f0ca60b2ae59"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_61_0__standard_catalog_source_review.sql",
+      "sha256": "eb76e2498aba57b8e2d3419c9c46eb4f9edb3bb213499d474f17b8477933d86f"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_62_0__medication_knowledge_drafts.sql",
+      "sha256": "97c2525a5e52e827a644dc0c4ffb8af2fdcbc72278fe1d65fffbf8ba2e38289b"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_63_0__medication_knowledge_extractions.sql",
+      "sha256": "722fdd3c0be449a0de2422fc75c679c71991067bdbbf98f5d4c3ee587831291a"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_64_0__medication_knowledge_replays.sql",
+      "sha256": "9f23b7f6b16858be768bfc1c4071dbe8caf63ff2e4b6f58f501aeffa2da22d5c"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_65_0__medication_knowledge_rules.sql",
+      "sha256": "2cb5c57fc00bae25b1be48384c09103134c0f5e47f0d9cb51e59d38f7ca5541a"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_66_0__medication_knowledge_tests.sql",
+      "sha256": "85b3045f0ed4bacb31750611a4e6e0698e92b62a5bf9aaa41b7c0fba7ae4b10e"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_67_0__medication_knowledge_reviews.sql",
+      "sha256": "0d7e0142dca3f45f83bc4f44218e5298f8e1a4414719c4f49eccb31a150e8e02"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_68_0__knowledge_shadow_observations.sql",
+      "sha256": "23404f42b2f7e102d10373de2bc8bc1227960e2b17ec6f239a1bc85dec1f74cd"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_69_0__medication_rule_intakes.sql",
+      "sha256": "56f8dc097663d776d739bbd4ce2798ab48b26b2984694016495e9f7182e41e29"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_70_0__knowledge_shadow_feedback.sql",
+      "sha256": "1fc8ef1907512b1496294e04c0423291ab02979783f974b63c8cb84f623c5e6c"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_71_0__knowledge_formal_publication.sql",
+      "sha256": "837220512d431f8839692e6838b93a830973cabfd10f3d890f0fc7d7e230a4c3"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_72_0__feedback_improvement_intakes.sql",
+      "sha256": "dea7396e47cc4e605cb1c8661c5dcd7c70d0848e0cff4ed33b9d7986e61098d7"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_73_0__standard_catalog_editions.sql",
+      "sha256": "402f0a4424733bcb38b0cf21cbe6370207eb7ef13af32455db7561b29b7e0615"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_74_0__prescription_medication_safety.sql",
+      "sha256": "1129cb674cc74a149236d280d00c55131b662f801f5bf6d738d3172dba7a9957"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_75_0__pharmacy_knowledge_improvement.sql",
+      "sha256": "6fbee48749a71f11105036166945898882396389ba01d451dd9d316c9ffdeea4"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_76_0__legacy_medication_standard_crosswalk.sql",
+      "sha256": "e7c980a4978d173674e4b49e64578bf53b81c87a01d35b9ff600bfbaae820618"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_77_0__governed_column_abbreviations.sql",
+      "sha256": "a5b31eadc8f03223086e760f0466312eea1a8aed160fcab6368476e8d8f4619c"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/local/V1_42_3__development_hospital.sql",
+      "sha256": "3ea75230ba6d613887740aab64f4d90bc4a79aeb4d1179b90b2fd6d799893999"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/B1_42_1__rhn_schema_and_metadata.sql",
+      "sha256": "f82c8d64f51ad10cc40a6187fe4d4e8716301275694d2d266a03e8e37f347909"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_43_0__physical_catalog_comments.sql",
+      "sha256": "0c784c558a7a79e02793f1abda501111465d0cc588d1a103c7127fe64f5f3e70"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_44_0__qmed_safety_foundation.sql",
+      "sha256": "b5f27201b9767df5846bc00895429aeb4fbbf72090fbc9785eaf0ed165d6b17c"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_45_0__medication_rule_workbench.sql",
+      "sha256": "73f47df62064c87185b10211b5517242c1b5c6c9f0da3e44720c8dd1d3e71c3f"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_46_0__qmed_existing_rules_migration.sql",
+      "sha256": "ffeba78001fbdfdd0699895798a27d1e6b74612141494985f28cb4a3690ee91f"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_47_0__national_essential_medications_2026.sql",
+      "sha256": "a2d8028d225d007b96efbbb9f47cdf7e5c0127b989060e76f14e682507bb06e3"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_48_0__qmed_common_clinical_rules.sql",
+      "sha256": "10da22369ed2311a58730f8192e68f7867020e7a914a3211a3656a465e4c06c0"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_49_0__standard_medication_dose_forms.sql",
+      "sha256": "92a23bffb8d8e09c1bca5295a454bdf602fdfb5a84f6cfab65e241efd4da95ad"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_50_0__qmed_clinical_semantics.sql",
+      "sha256": "a665dd5b675377092d0ca6767898301581806d021f6eac37a2f18de80e8a838a"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_51_0__reconcile_parallel_qmed_migrations.sql",
+      "sha256": "76616d199b74f13fc9fe91d4bae5a11c3b07d62943ef9204fa8729ac0eb6aac6"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_52_0__charge_item_org_dept_dimensions.sql",
+      "sha256": "51c975ca5767af8b03b10e156ea2c4dad577b8ecfde822e96b58a80082092146"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_53_0__reconcile_p0_p1_dimensions_and_rename_exec.sql",
+      "sha256": "2b019107c865d611b31404850b43decee96fb682a229f3e7c5b739919ffc45cc"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_54_0__medication_catalog_integrity.sql",
+      "sha256": "5ef18bcf4b80a8c2c1a28a119f56f73079718bc16eb36a9465149a54d114a351"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_55_0__outpatient_allergy_verification_policy.sql",
+      "sha256": "2c182fc1455ff0a330b6fd6eac4c50c396c137c75d6ebe66a2d0a4f221dc94bf"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_56_0__outpatient_direct_visit.sql",
+      "sha256": "61debcc528479a6c510584812548cef4f314e0f767593320e4b1254c24c9e06f"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_57_0__outpatient_document_info.sql",
+      "sha256": "585b59f73980519f3d044b18dc3d4e4edd575af02c15aa8966db4835e63db1fd"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_58_0__qmed_standard_reference_rules.sql",
+      "sha256": "403fb8077447c80e783bf886639fe9f2c65cad7a5bc1f20fd6f2fcc16bb83c81"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_59_0__qmed_rule_catalog_governance.sql",
+      "sha256": "d816015cb99b095b1369c27a6456f4c1785eaebf9dc1b603bbfcf457783aa167"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_60_0__master_data_search_entries.sql",
+      "sha256": "ac61b3de1fbdf4e64f4d90a762120d8880dc4662b2190a566e05044116534d2c"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_60_1__master_data_search_entry_comments.sql",
+      "sha256": "5847951db4ebfe78f281457e3ec88cca2fc8bff06cec1a4689a8f0ca60b2ae59"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_61_0__standard_catalog_source_review.sql",
+      "sha256": "b6f42596adde2e2f2bce91b663f7ec321ed6f1384dc30f998680655d29830c82"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_62_0__medication_knowledge_drafts.sql",
+      "sha256": "1ec768c191b7c889b618f1f0e6be170b4968d34716f00e921bac3a6f564c0f03"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_63_0__medication_knowledge_extractions.sql",
+      "sha256": "a75d142113e69ecb02728391a4e3f85077a55e718859bade20ab14c070ca3d24"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_64_0__medication_knowledge_replays.sql",
+      "sha256": "cf051d3482c0a66a66a28358825db8c7a25f4f0fee0dfab4ae8a880950be9d5f"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_65_0__medication_knowledge_rules.sql",
+      "sha256": "15a7ec5b714769c495cda7ecd9b13be9d072daba9f8dc6da0116867605b1c3f5"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_66_0__medication_knowledge_tests.sql",
+      "sha256": "0aee63184607a5e2ef055569f75f5ecad60988c6ae4d629be4dbbce59315d2a7"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_67_0__medication_knowledge_reviews.sql",
+      "sha256": "463c0b03fb086bbf2c85f97dde78436e6731402612baeedf1f558cde35a3c2b9"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_68_0__knowledge_shadow_observations.sql",
+      "sha256": "75f802b3d648ae523e06b26240413b4561ec17f0ed1f66a4117ec755597ce5cc"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_69_0__medication_rule_intakes.sql",
+      "sha256": "67a05dc8a11bc253ab1d7832f98a7331041b85564c9ad282549e59313a46b354"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_70_0__knowledge_shadow_feedback.sql",
+      "sha256": "dbeef167944a17932e8d6069bdef8aeffe66dca424768d53d7e4af68bf6f3f4d"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_71_0__knowledge_formal_publication.sql",
+      "sha256": "8b6b8b860ccb22a3f2e6bc864fe119a552623c2d1d22c95a7a8dcdde55ee0642"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_72_0__feedback_improvement_intakes.sql",
+      "sha256": "879b0090bc587955fa3699685ddfabbf63a21c0bcd32e1fb74893c624a4ceb0a"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_73_0__standard_catalog_editions.sql",
+      "sha256": "4556d4c6b41a515ba17b5c1319798811e15711b7f44d86f1be6ba898ad14a43c"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_74_0__prescription_medication_safety.sql",
+      "sha256": "d4c8522800c10eff875599a1c99ac95fc00308afe80cf80aa548d44034126223"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_75_0__pharmacy_knowledge_improvement.sql",
+      "sha256": "e4c08517fb59e4eb00137778f4733934ecca9bd333711330305102cf8d88e623"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_76_0__legacy_medication_standard_crosswalk.sql",
+      "sha256": "ca0292332c43b15c2b78e050aac6da1dc9cc2e3b9a3b2e9e49309dae515d35ff"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_77_0__governed_column_abbreviations.sql",
+      "sha256": "a5b31eadc8f03223086e760f0466312eea1a8aed160fcab6368476e8d8f4619c"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle-local/V1_42_3__development_hospital.sql",
+      "sha256": "017b1e2c7aae85a766341ea21f0c623b5530c3b3d7913df6d9a6fceb2e200b83"
+    },
+    {
+      "role": "development",
+      "path": "backend/src/main/resources/db/local/V1_42_3__development_hospital.sql",
+      "sha256": "3ea75230ba6d613887740aab64f4d90bc4a79aeb4d1179b90b2fd6d799893999"
+    },
+    {
+      "role": "oracleDevelopment",
+      "path": "backend/src/main/resources/db/oracle-local/V1_42_3__development_hospital.sql",
+      "sha256": "017b1e2c7aae85a766341ea21f0c623b5530c3b3d7913df6d9a6fceb2e200b83"
+    },
+    {
+      "role": "h2",
+      "path": "backend/src/main/resources/db/h2/V1_42_2__h2_clob_types.sql",
+      "sha256": "3a6df5c63c999d24e98325f5f2220de1dede4179871eb96df4d745ba65a26762"
+    },
+    {
+      "role": "h2",
+      "path": "backend/src/main/resources/db/h2/V1_57_1__outpatient_document_info_clob.sql",
+      "sha256": "c6ea49dffb3733d5aa6475870828e92f5c73b9f59fe4446e41697bec724f72d4"
+    },
+    {
+      "role": "h2",
+      "path": "backend/src/main/resources/db/h2/V1_74_1__prescription_medication_safety_clob.sql",
+      "sha256": "e4d4b29205ca354b90d8ddbebe35df21ddef6121873ca9319115ff48982b1773"
+    }
+  ]
+}

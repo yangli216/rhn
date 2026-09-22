@@ -16,7 +16,7 @@ import java.time.Instant;
 class IdempotencyRecord {
     @Id @Column(name = "ID_IDEMP_RECORD") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
-    @Column(name = "CD_OPERATION", nullable = false) private String operationCode;
+    @Column(name = "CD_OPER", nullable = false) private String operationCode;
     @Column(name = "CD_IDEMP_KEY", nullable = false) private String idempotencyKey;
     @Column(name = "HASH_REQ", nullable = false) private String requestHash;
     @Column(name = "SD_RSRC_TYPE") private String resourceType;
@@ -26,7 +26,7 @@ class IdempotencyRecord {
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "JSON_RESP") private String responseJson;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
     @Column(name = "DT_EXPIRES", nullable = false) private Instant expiresAt;
 
     protected IdempotencyRecord() {

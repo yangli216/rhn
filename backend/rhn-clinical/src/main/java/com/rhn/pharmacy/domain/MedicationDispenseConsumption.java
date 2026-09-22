@@ -16,20 +16,20 @@ public class MedicationDispenseConsumption {
     @Id @Column(name = "ID_INP_MED_CONSUME") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
-    @Column(name = "SD_CONSUMER_TYPE", nullable = false) private String consumerType;
+    @Column(name = "SD_CNSMR_TYPE", nullable = false) private String consumerType;
     @Column(name = "ID_INP_ORDER_TASK", nullable = false) private Long consumerId;
     @Column(name = "ID_DISP_TASK_LINE_DISP", nullable = false) private Long dispenseTaskLineId;
     @Column(name = "ID_MED_DISP", nullable = false) private Long dispenseId;
     @Column(name = "ID_MED_DISP_LINE", nullable = false) private Long dispenseLineId;
-    @Column(name = "QTY_CONSUMED", nullable = false, precision = 28, scale = 8)
+    @Column(name = "QTY_CNSMD", nullable = false, precision = 28, scale = 8)
     private BigDecimal consumedQuantity;
     @Column(name = "CD_DISP_UNIT", nullable = false) private String dispenseUnitCode;
-    @Column(name = "QTY_CONSUMED_BASE", nullable = false, precision = 28, scale = 8)
+    @Column(name = "QTY_CNSMD_BASE", nullable = false, precision = 28, scale = 8)
     private BigDecimal consumedBaseQuantity;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
-    @Column(name = "DT_CONSUMED", nullable = false) private Instant consumedAt;
-    @Column(name = "ID_USER_CONSUMED", nullable = false) private Long consumedBy;
+    @Column(name = "DT_CNSMD", nullable = false) private Instant consumedAt;
+    @Column(name = "ID_USER_CNSMD", nullable = false) private Long consumedBy;
 
     protected MedicationDispenseConsumption() {
     }

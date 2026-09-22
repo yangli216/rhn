@@ -22,22 +22,22 @@ public class MedicationRuleIntakeStore {
         return rows.stream().findFirst();
     }
     public FeedbackOrigin origin(Long tenant,Long id) {
-        return jdbc.query("select ID_ORG,ID_DEPT,ID_FEEDBACK,ID_PHARM_REVIEW,JSON_ORIGIN,HASH_ORIGIN from RHN_AUD_KNOW_INTAKE where ID_TNT=? and ID_INTAKE=?",(r,n)->{
+        return jdbc.query("select ID_ORG,ID_DEPT,ID_FDBK,ID_PHARM_REVIEW,JSON_ORIGIN,HASH_ORIGIN from RHN_AUD_KNOW_INTAKE where ID_TNT=? and ID_INTAKE=?",(r,n)->{
             String raw=r.getString("JSON_ORIGIN");
             if(raw==null) {
-                if(r.getObject("ID_ORG")!=null||r.getObject("ID_DEPT")!=null||r.getObject("ID_FEEDBACK")!=null||r.getObject("ID_PHARM_REVIEW")!=null||r.getString("HASH_ORIGIN")!=null)throw conflict("QMED_INTAKE_ORIGIN_INTEGRITY","改进需求来源缺失，请核查记录");
+                if(r.getObject("ID_ORG")!=null||r.getObject("ID_DEPT")!=null||r.getObject("ID_FDBK")!=null||r.getObject("ID_PHARM_REVIEW")!=null||r.getString("HASH_ORIGIN")!=null)throw conflict("QMED_INTAKE_ORIGIN_INTEGRITY","改进需求来源缺失，请核查记录");
                 return null;
             }
             if(!Objects.equals(hash(raw),r.getString("HASH_ORIGIN")))throw conflict("QMED_INTAKE_ORIGIN_INTEGRITY","改进需求来源指纹不一致");
             var o=json.read(raw,FeedbackOrigin.class);
             if((o.feedback()==null)==(o.pharmacy()==null))throw conflict("QMED_INTAKE_ORIGIN_INTEGRITY","改进需求来源类型不一致");
-            if(!Objects.equals(o.organizationId(),r.getObject("ID_ORG",Long.class))||!Objects.equals(o.departmentId(),r.getObject("ID_DEPT",Long.class))||!Objects.equals(o.feedback()==null?null:o.feedbackId(),r.getObject("ID_FEEDBACK",Long.class))||!Objects.equals(o.pharmacy()==null?null:o.feedbackId(),r.getObject("ID_PHARM_REVIEW",Long.class)))throw conflict("QMED_INTAKE_ORIGIN_INTEGRITY","改进需求来源索引不一致");
+            if(!Objects.equals(o.organizationId(),r.getObject("ID_ORG",Long.class))||!Objects.equals(o.departmentId(),r.getObject("ID_DEPT",Long.class))||!Objects.equals(o.feedback()==null?null:o.feedbackId(),r.getObject("ID_FDBK",Long.class))||!Objects.equals(o.pharmacy()==null?null:o.feedbackId(),r.getObject("ID_PHARM_REVIEW",Long.class)))throw conflict("QMED_INTAKE_ORIGIN_INTEGRITY","改进需求来源索引不一致");
             return o;
         },tenant,id).stream().filter(Objects::nonNull).findFirst().orElse(null);
     }
     public void appendImprovement(Long tenant,Run run,FeedbackOrigin origin) {
         String raw=json.write(origin);
-        jdbc.update("insert into RHN_AUD_KNOW_INTAKE (ID_TNT,ID_INTAKE,JSON_RUN,ID_ORG,ID_DEPT,ID_FEEDBACK,ID_PHARM_REVIEW,JSON_ORIGIN,HASH_ORIGIN) values (?,?,?,?,?,?,?,?,?)",tenant,run.id(),json.write(run),origin.organizationId(),origin.departmentId(),origin.feedback()==null?null:origin.feedbackId(),origin.pharmacy()==null?null:origin.feedbackId(),raw,hash(raw));
+        jdbc.update("insert into RHN_AUD_KNOW_INTAKE (ID_TNT,ID_INTAKE,JSON_RUN,ID_ORG,ID_DEPT,ID_FDBK,ID_PHARM_REVIEW,JSON_ORIGIN,HASH_ORIGIN) values (?,?,?,?,?,?,?,?,?)",tenant,run.id(),json.write(run),origin.organizationId(),origin.departmentId(),origin.feedback()==null?null:origin.feedbackId(),origin.pharmacy()==null?null:origin.feedbackId(),raw,hash(raw));
     }
     public PageResult<Summary> pharmacyPage(Long tenant,Long org,Long dept,Long review,int page) {
         String where="ID_TNT=? and ID_ORG=? and ID_DEPT=? and ID_PHARM_REVIEW=?";
@@ -46,7 +46,7 @@ public class MedicationRuleIntakeStore {
         return new PageResult<>(rows,total,(int)((total+19)/20),page,20);
     }
     public PageResult<Summary> feedbackPage(Long tenant,Long org,Long dept,Long run,int page) {
-        String where="ID_TNT=? and ID_ORG=? and ID_DEPT=? and ID_FEEDBACK in (select ID_FEEDBACK from RHN_AUD_KNOW_FEEDBACK where ID_TNT=? and ID_RULE_RUN=?)";
+        String where="ID_TNT=? and ID_ORG=? and ID_DEPT=? and ID_FDBK in (select ID_FDBK from RHN_AUD_KNOW_FEEDBACK where ID_TNT=? and ID_RULE_RUN=?)";
         long total=jdbc.queryForObject("select count(*) from RHN_AUD_KNOW_INTAKE where "+where,Long.class,tenant,org,dept,tenant,run);
         var rows=jdbc.query("select JSON_RUN from RHN_AUD_KNOW_INTAKE where "+where+" order by ID_INTAKE desc offset ? rows fetch next 20 rows only",(r,n)->{var value=json.read(r.getString(1),Run.class);return new Summary(value.id(),value.parentId(),value.input().requirement(),value.result().status(),value.actor(),value.createdAt());},tenant,org,dept,tenant,run,(long)page*20);
         return new PageResult<>(rows,total,(int)((total+19)/20),page,20);

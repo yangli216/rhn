@@ -38,7 +38,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         Instant admittedAt = LocalDate.now().minusDays(2).atTime(8, 0)
                 .atZone(ZoneId.of("Asia/Shanghai")).toInstant();
         jdbcTemplate.update("update RHN_VIS_CARE_EPISODE set DT_START = ? where ID_CARE_EPISODE = ?", admittedAt, Long.valueOf(episodeId));
-        jdbcTemplate.update("update RHN_VIS_ENC set DT_REGISTERED = ?, DT_STARTED = ? where ID_ENC = ?",
+        jdbcTemplate.update("update RHN_VIS_ENC set DT_REGD = ?, DT_STARTED = ? where ID_ENC = ?",
                 admittedAt, admittedAt, Long.valueOf(encounterId));
         jdbcTemplate.update("update RHN_VIS_ENC_LOC_HIST set DT_START = ? where ID_ENC = ?",
                 admittedAt, Long.valueOf(encounterId));
@@ -58,7 +58,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(0, new BigDecimal("60").compareTo(posting.at("/account/postedChargeAmount").decimalValue()));
         assertEquals(3, count("select count(*) from RHN_VIS_INP_BED_DAY_FACT where ID_CARE_EPISODE = ?", episodeId));
         assertEquals(1, count("select count(*) from RHN_VIS_INP_BED_DAY_FACT where ID_CARE_EPISODE = ? "
-                + "and DA_BUSINESS = current_date and ID_BED_LOC = 362387869898513", episodeId));
+                + "and DA_BIZ = current_date and ID_BED_LOC = 362387869898513", episodeId));
         assertEquals(3, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC = ? "
                 + "and SD_SRC_TYPE = 'INPATIENT_BED_DAY' and PRICE_UNIT = 20 "
                 + "and ID_PRICE = 362387869898522 and SN_PRICE_VER = 0", encounterId));
@@ -350,7 +350,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
                 + "and SD_PAY_TYPE = 'REFUND' and CD_PAY_NO = 'IP-REFUND-SURPLUS'", accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
-                + "and SD_PAY_TYPE = 'REFUND' and ID_PAY_REVERSES is not null", accountId));
+                + "and SD_PAY_TYPE = 'REFUND' and ID_PAY_RVRS is not null", accountId));
         JsonNode replay = postJson("/api/inpatient/episodes/" + episodeId
                 + "/billing/final-settlement/refunds", refundBody, 201);
         assertEquals(true, replay.get("duplicate").asBoolean());

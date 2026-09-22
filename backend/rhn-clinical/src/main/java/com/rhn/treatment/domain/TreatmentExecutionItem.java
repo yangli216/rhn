@@ -28,16 +28,16 @@ public class TreatmentExecutionItem {
     @Column(name = "CD_FREQ") private String frequencyCode;
     @Column(name = "ID_ORDER_FREQ") private Long frequencyId;
     @Column(name = "NA_FREQ_SNAP") private String frequencyNameSnapshot;
-    @Lob @Column(name = "FREQUENCY_RULE_SNAPSHOT") private String frequencyRuleSnapshot;
-    @Column(name = "QTY_DURATION_VAL", precision = 12, scale = 3) private BigDecimal durationValue;
-    @Column(name = "DURATION_UNIT") private String durationUnit;
-    @Column(name = "FG_SKIN_TEST_REQUIRED", nullable = false) private boolean skinTestRequired;
-    @Column(name = "FG_STL_REQUIRED", nullable = false) private boolean settlementRequired;
+    @Lob @Column(name = "FREQ_RULE_SNAP") private String frequencyRuleSnapshot;
+    @Column(name = "QTY_DUR_VAL", precision = 12, scale = 3) private BigDecimal durationValue;
+    @Column(name = "DUR_UNIT") private String durationUnit;
+    @Column(name = "FG_SKIN_TEST_RQD", nullable = false) private boolean skinTestRequired;
+    @Column(name = "FG_STL_RQD", nullable = false) private boolean settlementRequired;
     @Column(name = "ID_STL") private Long settlementId;
-    @Column(name = "FG_FULFILL_REQUIRED", nullable = false) private boolean fulfillmentRequired;
+    @Column(name = "FG_FULFILL_RQD", nullable = false) private boolean fulfillmentRequired;
     @Column(name = "ID_FULFILL") private Long fulfillmentId;
     @Column(name = "SD_FULFILL_STATUS") private String fulfillmentStatus;
-    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "DT_CNCLD") private Instant cancelledAt;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected TreatmentExecutionItem() {}

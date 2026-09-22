@@ -169,10 +169,10 @@ class DirectVisitIntegrationTest extends RhnIntegrationTestSupport {
         configure(ENABLE, "true");
         String resident = resident();
         String original = receive(resident, UUID.randomUUID().toString(), 200).at("/encounter/id").asString();
-        jdbc.update("update RHN_VIS_ENC set ID_CLINICIAN = ? where ID_ENC = ?", "other-doctor", Long.valueOf(original));
+        jdbc.update("update RHN_VIS_ENC set ID_CLNCN = ? where ID_ENC = ?", "other-doctor", Long.valueOf(original));
         JsonNode conflict = receive(resident, UUID.randomUUID().toString(), 409);
         assertEquals("DIRECT_VISIT_OTHER_CLINICIAN", conflict.get("code").asString());
-        jdbc.update("update RHN_VIS_ENC set DT_REGISTERED = ? where ID_ENC = ?",
+        jdbc.update("update RHN_VIS_ENC set DT_REGD = ? where ID_ENC = ?",
                 java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(86400 * 10)), Long.valueOf(original));
         String next = receive(resident, UUID.randomUUID().toString(), 200).at("/encounter/id").asString();
         assertNotEquals(original, next);
@@ -194,10 +194,10 @@ class DirectVisitIntegrationTest extends RhnIntegrationTestSupport {
         configure(ENABLE, "true");
         String resident = resident();
         String first = register(resident);
-        jdbc.update("update RHN_VIS_ENC set DT_REGISTERED = ? where ID_ENC = ?",
+        jdbc.update("update RHN_VIS_ENC set DT_REGD = ? where ID_ENC = ?",
                 java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(86400 * 10)), Long.valueOf(first));
         String second = register(resident);
-        jdbc.update("update RHN_VIS_ENC set DT_REGISTERED = ? where ID_ENC = ?",
+        jdbc.update("update RHN_VIS_ENC set DT_REGD = ? where ID_ENC = ?",
                 java.sql.Timestamp.from(java.time.Instant.now()), Long.valueOf(first));
         JsonNode selection = receive(resident, UUID.randomUUID().toString(), 200);
         assertEquals("SELECT_REGISTRATION", selection.get("outcome").asString());

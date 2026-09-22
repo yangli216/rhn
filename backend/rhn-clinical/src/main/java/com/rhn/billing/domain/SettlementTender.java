@@ -21,7 +21,7 @@ public class SettlementTender {
     @Column(name = "CD_PAYER") private String payerCode;
     @Column(name = "NA_PAYER_SNAP") private String payerNameSnapshot;
     @Column(name = "AMT_TENDER", nullable = false, precision = 24, scale = 6) private BigDecimal tenderAmount;
-    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_CCY", nullable = false) private String currencyCode;
 
     protected SettlementTender() {}
     public SettlementTender(Long tenantId, Long settlementId, Long paymentId, int lineNo,

@@ -28,7 +28,7 @@ public class InventoryOpenPackage {
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
     @Column(name = "PACKAGE_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal packageFactor;
     @Column(name = "QTY_OPENED_BASE", nullable = false, precision = 28, scale = 8) private BigDecimal openedBaseQuantity;
-    @Column(name = "QTY_REMAINING_BASE", nullable = false, precision = 28, scale = 8) private BigDecimal remainingBaseQuantity;
+    @Column(name = "QTY_REM_BASE", nullable = false, precision = 28, scale = 8) private BigDecimal remainingBaseQuantity;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_OPENED", nullable = false) private Instant openedAt;
     @Column(name = "ID_USER_OPENED", nullable = false) private Long openedBy;

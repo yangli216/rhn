@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode, type RefObject } from 'react'
 import type { BillingWorkItem, Invoice, Payment, ReceiptView } from '../../shared/api/billingApi'
 import { formatTime } from '../../shared/format'
-import { EmptyState, Icon, Panel, StatusBadge } from '../../shared/ui'
+import { EmptyState, Panel, PanelHead, SearchField, StatusBadge } from '../../shared/ui'
 
 export const workStatusText: Record<string, string> = {
   PENDING_CHARGE: '待计费', PENDING_INVOICE: '待结算', PENDING_PAYMENT: '待收款',
@@ -111,36 +111,11 @@ export function BillingQueue({
   }
 
   return <Panel className="billing-queue">
-    <header className="billing-queue-head">
-      <div className="billing-queue-head__title">
-        <h2>{title}</h2>
-      </div>
-      {action && <div className="billing-queue-head__action">{action}</div>}
-    </header>
+    <PanelHead title={title} actions={action} />
     {showSearch && items.length > 0 && (
       <div className="billing-queue-search">
-        <div className="billing-queue-search-wrap">
-          <Icon name="search" className="billing-queue-search-icon" />
-          <input
-            ref={searchInputRef}
-            type="search"
-            className="ui-field__control billing-queue-search-input"
-            placeholder="搜索姓名/拼音/条码 (F1)"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-          {keyword && (
-            <button
-              type="button"
-              className="billing-queue-search-clear"
-              onClick={() => setKeyword('')}
-              aria-label="清空搜索"
-            >
-              ×
-            </button>
-          )}
-        </div>
+        <SearchField inputRef={searchInputRef} label="收费队列" placeholder="搜索姓名/就诊号/档案号 (F1)"
+          value={keyword} onChange={setKeyword} onKeyDown={handleKeyDown} />
       </div>
     )}
     {!items.length ? (

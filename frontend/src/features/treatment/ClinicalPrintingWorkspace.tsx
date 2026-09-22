@@ -6,7 +6,7 @@ import type {
 import { errorMessage } from '../../shared/rhnApi'
 import { formatTime } from '../../shared/format'
 import {
-  Alert, Button, EmptyState, FormField, Icon, IconButton, LoadingState, PageHeader, Panel,
+  Alert, Button, EmptyState, FormField, Icon, IconButton, LoadingState, PageHeader, Panel, PanelHead,
   Select, StatusBadge, Tooltip,
 } from '../../shared/ui'
 import '../../styles/features/clinical-printing.css'
@@ -137,8 +137,8 @@ export function ClinicalPrintingWorkspace({ api }: { api: RhnApi }) {
 
     <div className="clinical-print-workspace">
       <Panel className="clinical-print-candidates">
-        <header className="clinical-print-panel-head"><div><h2>执行队列</h2><span>{preparation.data?.candidates.length ?? 0} 项</span></div>
-          <Button size="sm" variant="text" disabled={!printable.length} onClick={selectReady}>全选可打</Button></header>
+        <PanelHead title="执行队列" meta={`${preparation.data?.candidates.length ?? 0} 项`}
+          actions={<Button size="sm" variant="text" disabled={!printable.length} onClick={selectReady}>全选可打</Button>} />
         {preparation.isPending && <LoadingState label="正在核对执行任务…" />}
         {!preparation.isPending && !preparation.data?.candidates.length && <EmptyState icon="print"
           title="暂无卡片任务" copy="当前科室没有匹配的用药执行任务。" />}
@@ -149,8 +149,8 @@ export function ClinicalPrintingWorkspace({ api }: { api: RhnApi }) {
       </Panel>
 
       <Panel className="clinical-print-reconcile">
-        <header className="clinical-print-panel-head"><div><h2>打印对账</h2><span>已选 {selected.length} 张</span></div>
-          {selected.length > 0 && <Button size="sm" variant="text" onClick={() => setSelectedIds([])}>清空</Button>}</header>
+        <PanelHead title="打印对账" meta={`已选 ${selected.length} 张`}
+          actions={selected.length > 0 && <Button size="sm" variant="text" onClick={() => setSelectedIds([])}>清空</Button>} />
         {!selected.length ? <EmptyState icon="card" title="尚未选择卡片" copy="从左侧勾选已放行的执行任务。" /> : <>
           <div className="clinical-print-reconcile-summary">
             <div><span>纳入</span><strong>{selected.length}</strong></div>
@@ -170,7 +170,7 @@ export function ClinicalPrintingWorkspace({ api }: { api: RhnApi }) {
       </Panel>
 
       <Panel className="clinical-print-output">
-        <header className="clinical-print-panel-head"><div><h2>输出设置</h2><span>{preparation.data?.media.mediaName ?? '-'}</span></div></header>
+        <PanelHead title="输出设置" meta={preparation.data?.media.mediaName ?? '-'} />
         {preparation.data && <div className="clinical-print-settings">
           <dl><div><dt>模板</dt><dd>{preparation.data.template.templateName}</dd></div>
             <div><dt>版本</dt><dd>V{preparation.data.template.version}</dd></div>

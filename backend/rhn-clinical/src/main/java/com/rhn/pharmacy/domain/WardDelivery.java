@@ -26,17 +26,17 @@ public class WardDelivery {
     @Column(name = "NA_NURS_UNIT_SNAP", nullable = false) private String nursingUnitNameSnapshot;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
-    @Column(name = "DT_DISPATCHED") private Instant dispatchedAt;
-    @Column(name = "ID_USER_DISPATCHED") private Long dispatchedBy;
-    @Column(name = "DES_DISPATCH_NOTE") private String dispatchNote;
-    @Column(name = "DT_RECEIVED") private Instant receivedAt;
-    @Column(name = "ID_USER_RECEIVED") private Long receivedBy;
+    @Column(name = "DT_DSPTD") private Instant dispatchedAt;
+    @Column(name = "ID_USER_DSPTD") private Long dispatchedBy;
+    @Column(name = "DES_DSPT_NOTE") private String dispatchNote;
+    @Column(name = "DT_RECVD") private Instant receivedAt;
+    @Column(name = "ID_USER_RECVD") private Long receivedBy;
     @Column(name = "DES_RCPT_NOTE") private String receiptNote;
-    @Column(name = "DES_DISCREPANCY_NOTE") private String discrepancyNote;
-    @Column(name = "DT_RESOLVED") private Instant resolvedAt;
-    @Column(name = "ID_USER_RESOLVED") private Long resolvedBy;
-    @Column(name = "CD_RESOLUTION") private String resolutionCode;
-    @Column(name = "DES_RESOLUTION_NOTE") private String resolutionNote;
+    @Column(name = "DES_DSCRPN_NOTE") private String discrepancyNote;
+    @Column(name = "DT_RSLVD") private Instant resolvedAt;
+    @Column(name = "ID_USER_RSLVD") private Long resolvedBy;
+    @Column(name = "CD_RSLN") private String resolutionCode;
+    @Column(name = "DES_RSLN_NOTE") private String resolutionNote;
 
     protected WardDelivery() {}
 

@@ -198,7 +198,7 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
     setPeekDrawerOpen={setPeekDrawerOpen} />
 
   return <>
-    <PageHeader eyebrow="门诊医疗 · 医生工作区" title="门诊医生站"
+    <PageHeader compact eyebrow="门诊医疗 · 医生工作区" title="门诊医生站"
       description="门诊候诊、叫号调度与接诊状态协同工作台。"
       actions={canEdit && directVisitSettings.data?.enabled
         ? <Button onClick={() => setDirectVisitOpen(true)}><Icon name="add" />直接接诊</Button> : undefined} />
@@ -838,9 +838,9 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
             )}
           {activeTool && <aside className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}${activeTool === 'allergy' ? ' is-allergy' : ''}`}
             aria-label={toolLabel(activeTool)}>
-            <header><div><span>{activeTool === 'allergy' ? `${resident.fullName} · 患者安全` : '扩展业务'}</span><strong>{toolLabel(activeTool)}</strong></div>
-              <button type="button" aria-label="关闭扩展工具" disabled={activeTool === 'assistant' && aiAdoptionBusy}
-                onClick={() => setActiveTool(null)}><Icon name="close" /></button></header>
+            <PanelHead title={toolLabel(activeTool)}
+              actions={<Button variant="text" aria-label="关闭扩展工具" disabled={activeTool === 'assistant' && aiAdoptionBusy}
+                onClick={() => setActiveTool(null)}><Icon name="close" /></Button>} />
             <div className="doctor-workspace-drawer__content">
               {activeTool === 'assistant' && <div ref={setAiDetail} />}
               {activeTool === 'history' && <HistoryPanel encounters={encounters.data ?? []}
@@ -1022,12 +1022,12 @@ function ToolButton({ icon, label, active, onClick }: {
   icon: 'sparkles' | 'roadmap' | 'clinical' | 'tasks' | 'organization'; label: string; active: boolean; onClick: () => void
 }) {
   const labelLines = Array.from({ length: Math.ceil(label.length / 2) }, (_, index) => label.slice(index * 2, index * 2 + 2))
-  return <button type="button" className={active ? 'is-active' : ''} aria-label={label}
+  return <Button variant={active ? 'secondary' : 'text'} aria-label={label}
     aria-pressed={active} title={label} onClick={onClick}>
     <Icon name={icon} /><span className="doctor-tool-label" aria-hidden="true">
       {labelLines.map(line => <span key={line}>{line}</span>)}
     </span>
-  </button>
+  </Button>
 }
 
 const quickDispositionPhrases = [

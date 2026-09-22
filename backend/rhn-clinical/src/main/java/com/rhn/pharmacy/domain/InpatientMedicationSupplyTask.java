@@ -20,19 +20,19 @@ public class InpatientMedicationSupplyTask {
     @Column(name = "ID_INP_MED_SUPPLY_LINE", nullable = false) private Long supplyLineId;
     @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
     @Column(name = "ID_INP_ORDER_TASK", nullable = false) private Long orderTaskId;
-    @Column(name = "DT_SCHEDULED", nullable = false) private Instant scheduledAt;
-    @Column(name = "QTY_REQUIRED", nullable = false, precision = 28, scale = 8)
+    @Column(name = "DT_SCHEDD", nullable = false) private Instant scheduledAt;
+    @Column(name = "QTY_RQD", nullable = false, precision = 28, scale = 8)
     private BigDecimal requiredQuantity;
-    @Column(name = "CD_QUANTITY_UNIT", nullable = false) private String quantityUnitCode;
-    @Column(name = "QTY_REQUIRED_BASE", nullable = false, precision = 28, scale = 8)
+    @Column(name = "CD_QTY_UNIT", nullable = false) private String quantityUnitCode;
+    @Column(name = "QTY_RQD_BASE", nullable = false, precision = 28, scale = 8)
     private BigDecimal requiredBaseQuantity;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "ACTIVE_SLOT") private Short activeSlot;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;
-    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
-    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DT_CNCLD") private Instant cancelledAt;
+    @Column(name = "ID_USER_CNCLD") private Long cancelledBy;
     @Column(name = "DES_CANCEL_REASON") private String cancelReason;
 
     protected InpatientMedicationSupplyTask() {

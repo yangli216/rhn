@@ -35,12 +35,12 @@ class Appointment {
     @Column(name = "DT_START", nullable = false) private Instant startAt;
     @Column(name = "DT_END", nullable = false) private Instant endAt;
     @Column(name = "QTY_APPT", nullable = false) private int quantity;
-    @Column(name = "DT_CONFIRMED", nullable = false) private Instant confirmedAt;
+    @Column(name = "DT_CNFRMD", nullable = false) private Instant confirmedAt;
     @Column(name = "DT_CHECKED_IN") private Instant checkedInAt;
     @Column(name = "SD_BOOKING_SRC", nullable = false) private String bookingSource;
-    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
-    @Column(name = "DES_CANCELLATION_REASON") private String cancellationReason;
-    @Column(name = "ID_APPT_RESCHEDULED_FROM") private Long rescheduledFromId;
+    @Column(name = "DT_CNCLD") private Instant cancelledAt;
+    @Column(name = "DES_CNCLN_REASON") private String cancellationReason;
+    @Column(name = "ID_APPT_RESCHD_FROM") private Long rescheduledFromId;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
@@ -154,13 +154,13 @@ class AppointmentEvent {
     @Id @Column(name = "ID_APPT_EVT") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_APPT", nullable = false) private Long appointmentId;
-    @Column(name = "ID_APPT_REPLACEMENT") private Long replacementAppointmentId;
+    @Column(name = "ID_APPT_RPLCMNT") private Long replacementAppointmentId;
     @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
     @Column(name = "SD_STATUS_FROM") private String statusFrom;
     @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
-    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
-    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
+    @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCRD", nullable = false) private Long occurredBy;
     @Column(name = "DES_APPT_EVT") private String description;
 
     protected AppointmentEvent() {}
@@ -200,10 +200,10 @@ class PatientRegistration {
     @Column(name = "SD_REG_SRC", nullable = false) private String registrationSource;
     @Column(name = "SD_VISIT_TYPE", nullable = false) private String visitType;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "DT_REGISTERED", nullable = false) private Instant registeredAt;
-    @Column(name = "ID_USER_REGISTERED", nullable = false) private Long registeredBy;
+    @Column(name = "DT_REGD", nullable = false) private Instant registeredAt;
+    @Column(name = "ID_USER_REGD", nullable = false) private Long registeredBy;
     @Column(name = "DT_STARTED") private Instant startedAt;
-    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "DT_CMPLD") private Instant completedAt;
 
     protected PatientRegistration() {}
 

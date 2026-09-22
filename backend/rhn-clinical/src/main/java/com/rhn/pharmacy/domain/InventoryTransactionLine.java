@@ -21,9 +21,9 @@ public class InventoryTransactionLine {
     @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
     @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
     @Column(name = "SD_STOCK_STATUS", nullable = false) private String stockStatus;
-    @Column(name = "QTY_OPERATION", nullable = false, precision = 28, scale = 8) private BigDecimal operationQuantity;
-    @Column(name = "CD_OPERATION_UNIT", nullable = false) private String operationUnitCode;
-    @Column(name = "BASE_QUANTITY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
+    @Column(name = "QTY_OPER", nullable = false, precision = 28, scale = 8) private BigDecimal operationQuantity;
+    @Column(name = "CD_OPER_UNIT", nullable = false) private String operationUnitCode;
+    @Column(name = "BASE_QTY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
     @Column(name = "QTY_DELTA", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDelta;
     @Column(name = "PRICE_UNIT_COST", precision = 24, scale = 6) private BigDecimal unitCost;
     @Column(name = "AMT_DELTA", precision = 24, scale = 6) private BigDecimal amountDelta;

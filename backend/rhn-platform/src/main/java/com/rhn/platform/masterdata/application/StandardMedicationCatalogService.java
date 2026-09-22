@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.rhn.shared.api.BusinessErrors.notFound;
 import static com.rhn.shared.api.BusinessErrors.badRequest;
@@ -127,10 +128,38 @@ public class StandardMedicationCatalogService {
             prefix = prefix.substring(0, dash);
         }
         ids.addAll(entriesByClue.getOrDefault(normalized(name), java.util.Set.of()));
-        ids.addAll(entriesByClue.getOrDefault(normalized(alias), java.util.Set.of()));
+        // Explicit semicolon-separated aliases remain exact clues. Never split a compound name on '/' or '、'.
+        for (String clue : Objects.toString(alias, "").split("[;；\\n]"))
+            ids.addAll(entriesByClue.getOrDefault(normalized(clue), java.util.Set.of()));
         var byCode = specificationsById.get(code);
         if (byCode != null) ids.add(byCode.path("entryId").asString());
         return ids.stream().flatMap(id -> specifications.getOrDefault(id, List.of()).stream()).map(JsonNode::deepCopy).toList();
+    }
+
+    /** Preserve source salt distinctions; a generic name alone cannot resolve colliding specifications. */
+    public List<String> qualifierIdentityIssues(String medicationName, JsonNode specification) {
+        var siblings = specifications.getOrDefault(specification.path("entryId").asString(), List.of());
+        var qualifiers = siblings.stream().map(s -> s.path("substanceQualifier").asString(""))
+                .filter(q -> !q.isBlank()).distinct().toList();
+        if (qualifiers.size() < 2) return List.of();
+        // This guard resolves salt collisions, not arbitrary chemical-name or ester equivalence.
+        boolean collidingFamily = siblings.stream().anyMatch(a -> siblings.stream().anyMatch(b ->
+                a.path("doseForm").asString().equals(b.path("doseForm").asString())
+                && normalized(a.path("specification").asString()).equals(normalized(b.path("specification").asString()))
+                && !a.path("substanceQualifier").asString("").equals(b.path("substanceQualifier").asString(""))));
+        if (!collidingFamily) return List.of();
+        String target = specification.path("substanceQualifier").asString("");
+        String name = normalized(medicationName);
+        var named = qualifiers.stream().filter(q -> name.contains(normalized(q))
+                || q.endsWith("盐") && name.contains(normalized(q.substring(0, q.length() - 1))))
+                .toList();
+        if (!named.isEmpty()) return named.size() == 1 && named.contains(target) ? List.of()
+                : List.of("STANDARD_REFERENCE_QUALIFIER_MISMATCH");
+        boolean ambiguous = siblings.stream().anyMatch(s ->
+                s.path("doseForm").asString().equals(specification.path("doseForm").asString())
+                && normalized(s.path("specification").asString()).equals(normalized(specification.path("specification").asString()))
+                && !s.path("substanceQualifier").asString("").equals(target));
+        return ambiguous ? List.of("STANDARD_REFERENCE_QUALIFIER_MISSING") : List.of();
     }
 
     /** Reject incomplete source fragments as concrete medication identities, even when a legacy import agrees. */
@@ -143,8 +172,16 @@ public class StandardMedicationCatalogService {
         int separator = block.indexOf(':');
         String body = separator < 0 ? block : block.substring(separator + 1);
         String topLevel = outsideParentheses(body);
-        if (java.util.regex.Pattern.compile("(?:片剂|胶囊(?:剂)?|颗粒剂|软膏剂|乳膏剂|栓剂|注射液|注射用无菌粉末|混悬液|合剂|糖浆剂|丸剂|气雾剂|滴眼剂|滴鼻剂|散剂|酊剂|喷雾剂):")
-                .matcher(topLevel).find()) return List.of("STANDARD_SOURCE_FORM_BLOCK_REQUIRES_REVIEW");
+        var nextForm = java.util.regex.Pattern.compile("(?:片剂|胶囊(?:剂)?|颗粒剂|软膏剂|乳膏剂|栓剂|注射液|注射用无菌粉末|混悬液|合剂|糖浆剂|丸剂|气雾剂|滴眼剂|滴鼻剂|散剂|酊剂|喷雾剂):")
+                .matcher(topLevel);
+        if (nextForm.find()) {
+            // Only complete alternatives before the next form belong to this header. Do not
+            // quarantine a valid first specification merely because a later paragraph was joined.
+            String prefix = body.substring(0, nextForm.start());
+            if (!containsCompleteAlternative(prefix, text)) return List.of("STANDARD_SOURCE_FORM_BLOCK_REQUIRES_REVIEW");
+            body = prefix;
+            topLevel = outsideParentheses(body);
+        }
         if (topLevel.contains("相当于") && topLevel.contains("含") && !normalized(body).equals(text))
             return List.of("STANDARD_COMPOSITION_FRAGMENT_REQUIRES_REVIEW");
         return List.of();
@@ -152,11 +189,21 @@ public class StandardMedicationCatalogService {
     private String outsideParentheses(String text) {
         var result = new StringBuilder(); int depth = 0;
         for (char character : text.toCharArray()) {
-            if (character == '(' || character == '（') depth++;
-            else if (character == ')' || character == '）') depth = Math.max(0, depth - 1);
-            else if (depth == 0) result.append(character);
+            if (character == '(' || character == '（') { depth++; result.append(' '); }
+            else if (character == ')' || character == '）') { depth = Math.max(0, depth - 1); result.append(' '); }
+            else result.append(depth == 0 ? character : ' ');
         }
         return result.toString();
+    }
+    private boolean containsCompleteAlternative(String body, String expected) {
+        String visible = outsideParentheses(body); int start = 0;
+        for (int i = 0; i <= visible.length(); i++) {
+            if (i == visible.length() || "、,，".indexOf(visible.charAt(i)) >= 0) {
+                if (normalized(body.substring(start, i)).equals(expected)) return true;
+                start = i + 1;
+            }
+        }
+        return false;
     }
 
     private String normalized(String value) {

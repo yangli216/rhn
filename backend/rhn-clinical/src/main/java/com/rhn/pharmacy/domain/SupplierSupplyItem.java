@@ -20,7 +20,7 @@ public class SupplierSupplyItem {
     @Column(name = "ID_SUPPL", nullable = false) private Long supplierId;
     @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
     @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
-    @Column(name = "PRICE_AGREEMENT", precision = 24, scale = 6) private BigDecimal agreementPrice;
+    @Column(name = "PRICE_AGRMT", precision = 24, scale = 6) private BigDecimal agreementPrice;
     @Column(name = "TAX_RATE", precision = 9, scale = 6) private BigDecimal taxRate;
     @Column(name = "FG_PURCH", nullable = false) private boolean purchaseEnabled;
     @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;

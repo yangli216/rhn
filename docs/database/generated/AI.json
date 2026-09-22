@@ -1,0 +1,1421 @@
+{
+  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "tables": [
+    {
+      "logical": "ai.ai_suggestion_event",
+      "legacy": "ai_suggestion_events",
+      "physical": "RHN_AI_SUGGEST_EVT",
+      "domain": "AI",
+      "comment": "AI建议事件；一行代表一条AI建议事件记录",
+      "columns": [
+        {
+          "physical": "ID_AI_SUGGEST_EVT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "AI建议事件主键",
+          "logical": "id",
+          "catalogComment": "AI建议事件主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_AI_SUGGEST",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "建议标识",
+          "logical": "suggestion_id",
+          "catalogComment": "建议标识"
+        },
+        {
+          "physical": "SD_EVT_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "事件类型",
+          "logical": "event_type",
+          "catalogComment": "事件类型"
+        },
+        {
+          "physical": "SD_STATUS_FROM",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "状态原",
+          "logical": "status_from",
+          "catalogComment": "状态原"
+        },
+        {
+          "physical": "SD_STATUS_TO",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "状态目标",
+          "logical": "status_to",
+          "catalogComment": "状态目标"
+        },
+        {
+          "physical": "ID_PRACT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "医务人员标识",
+          "logical": "practitioner_id",
+          "catalogComment": "医务人员标识"
+        },
+        {
+          "physical": "ID_USER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "用户标识",
+          "logical": "user_id",
+          "catalogComment": "用户标识"
+        },
+        {
+          "physical": "CD_SECTION",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "section编码",
+          "logical": "section_code",
+          "catalogComment": "section编码"
+        },
+        {
+          "physical": "HASH_CONTEXT",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "上下文摘要",
+          "logical": "context_hash",
+          "catalogComment": "上下文摘要"
+        },
+        {
+          "physical": "CD_COMMAND",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "命令编码",
+          "logical": "command_code",
+          "catalogComment": "命令编码"
+        },
+        {
+          "physical": "DES_DETAIL",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "明细",
+          "logical": "detail",
+          "catalogComment": "明细"
+        },
+        {
+          "physical": "JSON_ACTION",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "操作JSON",
+          "logical": "action_json",
+          "catalogComment": "操作JSON"
+        },
+        {
+          "physical": "DT_OCCRD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "发生时间",
+          "logical": "occurred_at",
+          "catalogComment": "发生时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_AI_SUGGEST_EVT"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_AI_SUGGEST_EVT_AI_EVENT_COM",
+          "columns": [
+            "ID_TNT",
+            "ID_AI_SUGGEST",
+            "CD_COMMAND"
+          ]
+        },
+        {
+          "name": "UK_AI_SUGGEST_EVT_AI_EVENT_TEN",
+          "columns": [
+            "ID_TNT",
+            "ID_AI_SUGGEST_EVT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_AI_SUGGEST_EVT_AI_SUGGE_AI__INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_AI_SUGGEST",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AI_SUGGEST_EVT_SYS_PRAC_AI__INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PRACT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AI_SUGGEST_EVT_SYS_TNT_AI_E_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AI_SUGGEST_EVT_SYS_USER_AI__INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_EVT_AI_EVENT_PR",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PRACT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_OCCRD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_EVT_AI_EVENT_TI",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_AI_SUGGEST",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_OCCRD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_EVT_AI_EVENT_TY",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_EVT_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_OCCRD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_EVT_AI_EVENT_US",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_OCCRD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_CEB6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_AI_SUGGEST_EVT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_AI_SUGGEST_EVT_AI_EVENT_COM_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_AI_SUGGEST",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_COMMAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_AI_SUGGEST_EVT_AI_EVENT_TEN_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_AI_SUGGEST_EVT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_AI_SUGGEST_EVT_AI_EVENT_S_1",
+          "expression": "\"sd_status_to\" IN('GENERATING', 'GENERATED', 'PARTIALLY_ADOPTED', 'ADOPTED', 'IGNORED', 'EXPIRED', 'FAILED')"
+        },
+        {
+          "name": "CK_AI_SUGGEST_EVT_AI_EVENT_STA",
+          "expression": "\"sd_status_from\" IN('GENERATING', 'GENERATED', 'PARTIALLY_ADOPTED', 'ADOPTED', 'IGNORED', 'EXPIRED', 'FAILED')"
+        },
+        {
+          "name": "CK_AI_SUGGEST_EVT_AI_EVENT_TYP",
+          "expression": "\"sd_evt_type\" IN('GENERATED', 'VIEWED', 'ADOPTED', 'IGNORED', 'FEEDBACK_POSITIVE', 'FEEDBACK_NEGATIVE', 'EXPIRED', 'FAILED')"
+        }
+      ],
+      "catalogComment": "AI建议事件；一行代表一条AI建议事件记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/domain/AiSuggestionEvent.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "ai.ai_suggestion",
+      "legacy": "ai_suggestions",
+      "physical": "RHN_AI_SUGGEST",
+      "domain": "AI",
+      "comment": "AI建议；一行代表一条AI建议记录",
+      "columns": [
+        {
+          "physical": "ID_AI_SUGGEST",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "AI建议主键",
+          "logical": "id",
+          "catalogComment": "AI建议主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "ID_ENC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "就诊标识",
+          "logical": "encounter_id",
+          "catalogComment": "就诊标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "CD_SUGGEST",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "建议编码",
+          "logical": "suggestion_code",
+          "catalogComment": "建议编码"
+        },
+        {
+          "physical": "SD_SUGGEST_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "建议类型",
+          "logical": "suggestion_type",
+          "catalogComment": "建议类型"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "SD_RISK_LEVEL",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "risk等级",
+          "logical": "risk_level",
+          "catalogComment": "risk等级"
+        },
+        {
+          "physical": "CD_SCHEMA",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "模式定义编码",
+          "logical": "schema_code",
+          "catalogComment": "模式定义编码"
+        },
+        {
+          "physical": "CD_SCHEMA_VER",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "模式定义版本",
+          "logical": "schema_version",
+          "catalogComment": "模式定义版本"
+        },
+        {
+          "physical": "HASH_CLIENT_CONTEXT",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "客户端上下文指纹",
+          "logical": "client_context_fingerprint",
+          "catalogComment": "客户端上下文指纹"
+        },
+        {
+          "physical": "HASH_CONTEXT",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "上下文摘要",
+          "logical": "context_hash",
+          "catalogComment": "上下文摘要"
+        },
+        {
+          "physical": "HASH_SERVER_CONTEXT",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "server上下文摘要",
+          "logical": "server_context_hash",
+          "catalogComment": "server上下文摘要"
+        },
+        {
+          "physical": "JSON_CONTENT",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "内容JSON",
+          "logical": "content_json",
+          "catalogComment": "内容JSON"
+        },
+        {
+          "physical": "JSON_EVID",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "证据JSON",
+          "logical": "evidence_json",
+          "catalogComment": "证据JSON"
+        },
+        {
+          "physical": "CD_PRVDR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "提供方编码",
+          "logical": "provider_code",
+          "catalogComment": "提供方编码"
+        },
+        {
+          "physical": "CD_MODEL",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "model编码",
+          "logical": "model_code",
+          "catalogComment": "model编码"
+        },
+        {
+          "physical": "CD_PROMPT_VER",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "prompt版本",
+          "logical": "prompt_version",
+          "catalogComment": "prompt版本"
+        },
+        {
+          "physical": "CD_KNOW_VER",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "knowledge版本",
+          "logical": "knowledge_version",
+          "catalogComment": "knowledge版本"
+        },
+        {
+          "physical": "DT_DATA_CUTOFF",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "数据cutoff",
+          "logical": "data_cutoff",
+          "catalogComment": "数据cutoff"
+        },
+        {
+          "physical": "DT_GEND",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "生成时间",
+          "logical": "generated_at",
+          "catalogComment": "生成时间"
+        },
+        {
+          "physical": "DT_EXPIRES",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 25,
+          "comment": "到期时间",
+          "logical": "expires_at",
+          "catalogComment": "到期时间"
+        },
+        {
+          "physical": "DT_INVLDD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "invalidated时间",
+          "logical": "invalidated_at",
+          "catalogComment": "invalidated时间"
+        },
+        {
+          "physical": "DES_INVLDN_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 27,
+          "comment": "invalidation原因",
+          "logical": "invalidation_reason",
+          "catalogComment": "invalidation原因"
+        },
+        {
+          "physical": "ID_PRACT_REQD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 28,
+          "comment": "申请医务人员标识",
+          "logical": "requested_practitioner_id",
+          "catalogComment": "申请医务人员标识"
+        },
+        {
+          "physical": "ID_USER_REQD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 29,
+          "comment": "申请用户标识",
+          "logical": "requested_user_id",
+          "catalogComment": "申请用户标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 30,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_AI_SUGGEST"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_AI_SUGGEST_AI_SUGGESTION_CO",
+          "columns": [
+            "ID_TNT",
+            "CD_SUGGEST"
+          ]
+        },
+        {
+          "name": "UK_AI_SUGGEST_AI_SUGGESTION_TE",
+          "columns": [
+            "ID_TNT",
+            "ID_AI_SUGGEST"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_AI_SUGGEST_PI_PAT_AI_SUGGES_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AI_SUGGEST_SYS_DEPT_AI_SUGG_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AI_SUGGEST_SYS_ORG_AI_SUGGE_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AI_SUGGEST_SYS_PRAC_AI_SUGG_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PRACT_REQD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AI_SUGGEST_SYS_TNT_AI_SUGGE_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AI_SUGGEST_SYS_USER_AI_SUGG_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_REQD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AI_SUGGEST_VIS_ENC_AI_SUGGE_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_ENC",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_AI_SUGGESTION_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_ENC",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_GEND",
+              "direction": "D"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_AI_SUGGESTION_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_EXPIRES",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_AI_SUGGESTION_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ENC",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_GEND",
+              "direction": "D"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_AI_SUGGESTION_H",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ENC",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_GEND",
+              "direction": "D"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_AI_SUGGESTION_O",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_GEND",
+              "direction": "D"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_AI_SUGGESTION_P",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PRACT_REQD",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_GEND",
+              "direction": "D"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_AI_SUGGESTION_R",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_GEND",
+              "direction": "D"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_AI_SUGGEST_AI_SUGGESTION_U",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER_REQD",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_GEND",
+              "direction": "D"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_7B7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_AI_SUGGEST",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_AI_SUGGEST_AI_SUGGESTION_CO_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_SUGGEST",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_AI_SUGGEST_AI_SUGGESTION_TE_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_AI_SUGGEST",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_AI_SUGGEST_AI_SUGGESTION_EX",
+          "expression": "(\"sd_status\" <> 'EXPIRED')\n    OR ((\"dt_invldd\" IS NOT NULL)\n    AND (\"des_invldn_reason\" IS NOT NULL))"
+        },
+        {
+          "name": "CK_AI_SUGGEST_AI_SUGGESTION_PE",
+          "expression": "\"dt_expires\" > \"dt_gend\""
+        },
+        {
+          "name": "CK_AI_SUGGEST_AI_SUGGESTION_RI",
+          "expression": "\"sd_risk_level\" IN('INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL')"
+        },
+        {
+          "name": "CK_AI_SUGGEST_AI_SUGGESTION_ST",
+          "expression": "\"sd_status\" IN('GENERATING', 'GENERATED', 'PARTIALLY_ADOPTED', 'ADOPTED', 'IGNORED', 'EXPIRED', 'FAILED')"
+        }
+      ],
+      "catalogComment": "AI建议；一行代表一条AI建议记录",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/domain/AiSuggestion.java",
+          "line": 15
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "FK_AI_SUGGEST_PI_PAT_AI_SUGGES",
+      "sourceTable": "RHN_AI_SUGGEST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_PI_PAT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AI_SUGGEST_SYS_DEPT_AI_SUGG",
+      "sourceTable": "RHN_AI_SUGGEST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_DEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AI_SUGGEST_SYS_ORG_AI_SUGGE",
+      "sourceTable": "RHN_AI_SUGGEST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AI_SUGGEST_SYS_PRAC_AI_SUGG",
+      "sourceTable": "RHN_AI_SUGGEST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PRACT_REQD"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PRACT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_PRACT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AI_SUGGEST_SYS_TNT_AI_SUGGE",
+      "sourceTable": "RHN_AI_SUGGEST",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AI_SUGGEST_SYS_USER_AI_SUGG",
+      "sourceTable": "RHN_AI_SUGGEST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER_REQD"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AI_SUGGEST_VIS_ENC_AI_SUGGE",
+      "sourceTable": "RHN_AI_SUGGEST",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PAT",
+        "ID_ENC"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PAT",
+        "ID_ENC"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_VIS_ENC",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AI_SUGGEST_EVT_AI_SUGGE_AI_",
+      "sourceTable": "RHN_AI_SUGGEST_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_AI_SUGGEST"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_AI_SUGGEST"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AI_SUGGEST",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AI_SUGGEST_EVT_SYS_PRAC_AI_",
+      "sourceTable": "RHN_AI_SUGGEST_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PRACT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PRACT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_PRACT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AI_SUGGEST_EVT_SYS_TNT_AI_E",
+      "sourceTable": "RHN_AI_SUGGEST_EVT",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AI_SUGGEST_EVT_SYS_USER_AI_",
+      "sourceTable": "RHN_AI_SUGGEST_EVT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_USER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    }
+  ]
+}

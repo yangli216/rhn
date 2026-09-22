@@ -29,19 +29,19 @@ class ServiceRequest {
     @Column(name = "SD_REQ_KIND", nullable = false) private String requestKind;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "CD_INTENT", nullable = false) private String intentCode;
-    @Column(name = "CD_PRIORITY", nullable = false) private String priorityCode;
+    @Column(name = "CD_PRI", nullable = false) private String priorityCode;
     @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
     @Column(name = "ID_ITEM_PKG") private Long packageId;
     @Column(name = "ID_ORG_EXEC", nullable = false) private Long performerOrganizationId;
     @Column(name = "ID_DEPT_EXEC", nullable = false) private Long performerDepartmentId;
     @Column(name = "ID_ORG_REQ", nullable = false) private Long requestingOrganizationId;
     @Column(name = "ID_DEPT_REQ", nullable = false) private Long requestingDepartmentId;
-    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
-    @Column(name = "DT_AUTHORED", nullable = false) private Instant authoredAt;
-    @Column(name = "ID_USER_AUTHORED", nullable = false) private Long authoredBy;
+    @Column(name = "DA_BIZ", nullable = false) private LocalDate businessDate;
+    @Column(name = "DT_AUTHRD", nullable = false) private Instant authoredAt;
+    @Column(name = "ID_USER_AUTHRD", nullable = false) private Long authoredBy;
     @Column(name = "DES_REASON") private String reasonText;
-    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
-    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DT_CNCLD") private Instant cancelledAt;
+    @Column(name = "ID_USER_CNCLD") private Long cancelledBy;
     @Column(name = "DES_CANCEL_REASON") private String cancelReason;
 
     @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
@@ -49,17 +49,17 @@ class ServiceRequest {
     @Column(name = "CD_UNIT_SNAP", nullable = false) private String unitCodeSnapshot;
     @Column(name = "CD_LOCAL_SNAP") private String localCodeSnapshot;
     @Column(name = "NA_LOCAL_SNAP") private String localNameSnapshot;
-    @Column(name = "ID_ORG_CATALOG_ITEM_ADOPTION", nullable = false) private Long adoptionId;
-    @Column(name = "SN_ADOPTION_VER", nullable = false) private long adoptionRevision;
+    @Column(name = "ID_ORG_CATALOG_ITEM_ADOPT", nullable = false) private Long adoptionId;
+    @Column(name = "SN_ADOPT_VER", nullable = false) private long adoptionRevision;
     @Column(name = "ID_CATALOG_PRICE") private Long priceId;
     @Column(name = "SN_PRICE_VER") private Long priceRevision;
     @Column(name = "SD_PRICE_TYPE") private String priceType;
     @Column(name = "PRICE_UNIT", precision = 24, scale = 6) private BigDecimal unitPrice;
     @Column(name = "AMT_TOTAL", precision = 24, scale = 6) private BigDecimal totalAmount;
-    @Column(name = "CD_CURRENCY") private String currencyCode;
+    @Column(name = "CD_CCY") private String currencyCode;
     @Lob @Column(name = "JSON_ITEM_ATTR_SNAP", nullable = false) private String itemAttributeSnapshot;
     @Column(name = "HASH_ITEM_ATTR", nullable = false) private String itemAttributeHash;
-    @Column(name = "DT_ITEM_ATTR_RESOLVED", nullable = false) private Instant itemAttributeResolvedAt;
+    @Column(name = "DT_ITEM_ATTR_RSLVD", nullable = false) private Instant itemAttributeResolvedAt;
     @Lob @Column(name = "JSON_STD_MAP_SNAP", nullable = false) private String standardMappingSnapshot;
 
     @Column(name = "ID_TNT", table = "RHN_EX_SVC_REQ", nullable = false) private Long serviceTenantId;
@@ -67,7 +67,7 @@ class ServiceRequest {
     @Column(name = "SD_SPEC_TYPE_SNAP", table = "RHN_EX_SVC_REQ") private String specimenTypeSnapshot;
     @Column(name = "SD_EXAM_TYPE_SNAP", table = "RHN_EX_SVC_REQ") private String examinationTypeSnapshot;
     @Column(name = "QTY_ORDERED", table = "RHN_EX_SVC_REQ", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
-    @Column(name = "DES_CLIN_DESCRIPTION", table = "RHN_EX_SVC_REQ") private String clinicalDescription;
+    @Column(name = "DES_CLIN_DESCR", table = "RHN_EX_SVC_REQ") private String clinicalDescription;
 
     @jakarta.persistence.Lob @Column(name = "JSON_DOC_INFO") private String documentInfoJson;
 

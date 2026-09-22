@@ -74,8 +74,10 @@ class StandardCatalogTest(unittest.TestCase):
 
     def test_published_source_status_not_inferred_from_file_title(self):
         self.assertEqual('UNVERIFIED',self.catalog['source']['verificationStatus'])
-        self.assertIsNone(self.catalog['source']['officialUrl'])
-        self.assertIsNone(self.catalog['source']['effectiveFrom'])
+        self.assertEqual('VERIFIED', self.catalog['source']['publicationVerificationStatus'])
+        self.assertEqual('2026-09-01', self.catalog['source']['effectiveFrom'])
+        self.assertIn('gov.cn', self.catalog['source']['officialUrl'])
+        self.assertEqual(64, len(self.catalog['source']['officialAttachmentSha256']))
 
     def test_no_inferred_clinical_attributes_and_no_orderable_rows(self):
         for spec in self.catalog['specifications']:

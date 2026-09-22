@@ -17,16 +17,16 @@ public class StockReturn {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
-    @Column(name = "ID_MED_DISP_ORIGINAL", nullable = false) private Long originalDispenseId;
+    @Column(name = "ID_MED_DISP_ORIG", nullable = false) private Long originalDispenseId;
     @Column(name = "ID_MED_DISP_RETURN", nullable = false) private Long returnDispenseId;
     @Column(name = "CD_RETURN_NO", nullable = false) private String returnNo;
     @Column(name = "SD_RETURN_TYPE", nullable = false) private String returnType;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "CD_REASON", nullable = false) private String reasonCode;
-    @Column(name = "DT_REQUESTED", nullable = false) private Instant requestedAt;
-    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedBy;
-    @Column(name = "DT_CONFIRMED", nullable = false) private Instant confirmedAt;
-    @Column(name = "ID_USER_CONFIRMED", nullable = false) private Long confirmedBy;
+    @Column(name = "DT_REQD", nullable = false) private Instant requestedAt;
+    @Column(name = "ID_USER_REQD", nullable = false) private Long requestedBy;
+    @Column(name = "DT_CNFRMD", nullable = false) private Instant confirmedAt;
+    @Column(name = "ID_USER_CNFRMD", nullable = false) private Long confirmedBy;
     @Column(name = "DES_STOCK_RETURN") private String description;
 
     protected StockReturn() {}

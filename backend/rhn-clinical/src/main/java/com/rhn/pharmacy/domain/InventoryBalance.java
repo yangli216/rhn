@@ -26,11 +26,11 @@ public class InventoryBalance {
     @Column(name = "SD_STOCK_STATUS", nullable = false) private String stockStatus;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
     @Column(name = "QTY_ON_HAND", nullable = false, precision = 28, scale = 8) private BigDecimal quantityOnHand;
-    @Column(name = "QTY_RESERVED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityReserved;
+    @Column(name = "QTY_RESVD", nullable = false, precision = 28, scale = 8) private BigDecimal quantityReserved;
     @Column(name = "QTY_FROZEN", nullable = false, precision = 28, scale = 8) private BigDecimal quantityFrozen;
-    @Column(name = "QTY_AVAILABLE", nullable = false, precision = 28, scale = 8) private BigDecimal quantityAvailable;
+    @Column(name = "QTY_AVAIL", nullable = false, precision = 28, scale = 8) private BigDecimal quantityAvailable;
     @Column(name = "PRICE_AVERAGE_UNIT_COST", precision = 24, scale = 6) private BigDecimal averageUnitCost;
-    @Column(name = "DT_PROJECTED", nullable = false) private Instant projectedAt;
+    @Column(name = "DT_PROJD", nullable = false) private Instant projectedAt;
 
     protected InventoryBalance() {}
 

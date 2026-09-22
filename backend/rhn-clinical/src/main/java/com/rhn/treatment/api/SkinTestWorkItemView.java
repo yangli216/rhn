@@ -2,10 +2,12 @@ package com.rhn.treatment.api;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 public record SkinTestWorkItemView(
         Long medicationRequestId, long medicationRequestRevision, String requestNo,
-        Long residentId, String residentName, String healthRecordNo, Long encounterId,
+        Long residentId, String residentName, String healthRecordNo,
+        String gender, LocalDate birthDate, Long encounterId,
         Long organizationId, Long departmentId, Long medicationId,
         String medicationCode, String medicationName, String itemName,
         String routeCode, BigDecimal doseValue, String doseUnit,

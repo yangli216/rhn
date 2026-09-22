@@ -24,7 +24,7 @@ public class OrganizationProfileStore {
                 jdbc.sql("""
                         select ID_ORG_IDENT as id, CD_IDENT_SYS as identifier_system, CD_IDENT as identifier_code, SD_IDENT_TYPE as identifier_type,
                                ID_ORG_ISSUER as issuer_organization_id, FG_PRIMARY_IDENT as primary_identifier, DA_VALID_FROM as valid_from, DA_VALID_TO as valid_to,
-                               SD_VERIFY_STATUS as verify_status, DT_VERIFIED as verified_at, ID_USER_VERIFIED as verified_by, SD_STATUS as status from RHN_SYS_ORG_IDENT
+                               SD_VERIFY_STATUS as verify_status, DT_VRFD as verified_at, ID_USER_VRFD as verified_by, SD_STATUS as status from RHN_SYS_ORG_IDENT
                         where ID_TNT = :tenantId and ID_ORG = :organizationId
                         order by FG_PRIMARY_IDENT desc, SD_IDENT_TYPE, CD_IDENT
                         """).param("tenantId", tenantId).param("organizationId", organizationId)
@@ -48,7 +48,7 @@ public class OrganizationProfileStore {
                                 rs.getInt("sort_order"), rs.getObject("valid_from", LocalDate.class),
                                 rs.getObject("valid_to", LocalDate.class), rs.getString("status"))).list(),
                 jdbc.sql("""
-                        select ID_ORG_ADDR as id, SD_ADDR_TYPE as address_type, CD_COUNTRY as country_code, CD_PROVINCE as province_code, CD_CITY as city_code, CD_DISTRICT as district_code,
+                        select ID_ORG_ADDR as id, SD_ADDR_TYPE as address_type, CD_COUNTRY as country_code, CD_PROV as province_code, CD_CITY as city_code, CD_DIST as district_code,
                                DES_STREET_ADDR as street_address, CD_POSTAL as postal_code, DA_VALID_FROM as valid_from, DA_VALID_TO as valid_to, SD_STATUS as status from RHN_SYS_ORG_ADDR
                         where ID_TNT = :tenantId and ID_ORG = :organizationId
                         order by SD_ADDR_TYPE, DA_VALID_FROM desc
@@ -73,7 +73,7 @@ public class OrganizationProfileStore {
                                 rs.getObject("valid_from", LocalDate.class), rs.getObject("valid_to", LocalDate.class),
                                 rs.getString("status"))).list(),
                 jdbc.sql("""
-                        select ID_ORG_CAP as id, SD_CAP_TYPE as capability_type, CD_QUALIFICATION_BASIS as qualification_basis_code, SD_CAP_SCOPE as capability_scope,
+                        select ID_ORG_CAP as id, SD_CAP_TYPE as capability_type, CD_QUALIF_BASIS as qualification_basis_code, SD_CAP_SCOPE as capability_scope,
                                DA_VALID_FROM as valid_from, DA_VALID_TO as valid_to, SD_VERIFY_STATUS as verify_status, SD_STATUS as status from RHN_SYS_ORG_CAP
                         where ID_TNT = :tenantId and ID_ORG = :organizationId
                         order by SD_CAP_TYPE, DA_VALID_FROM desc
@@ -85,7 +85,7 @@ public class OrganizationProfileStore {
                                 rs.getString("verify_status"), rs.getString("status"))).list(),
                 jdbc.sql("""
                         select r.ID_ORG_RESP as id, r.ID_STAFF_ASSIGN as assignment_id,
-                               case when r.ID_STAFF_ASSIGN is null then r.NA_EXT_RESPONSIBLE else p.NA_FULL end responsible_name,
+                               case when r.ID_STAFF_ASSIGN is null then r.NA_EXT_RSPNSBL else p.NA_FULL end responsible_name,
                                r.SD_RESP_TYPE as responsibility_type, r.FG_PRIMARY_RESP as primary_responsibility, r.DA_VALID_FROM as valid_from, r.DA_VALID_TO as valid_to, r.SD_STATUS as status from RHN_SYS_ORG_RESP r
                         left join RHN_SYS_STAFF_ASSIGN a on a.ID_TNT = r.ID_TNT and a.ID_STAFF_ASSIGN = r.ID_STAFF_ASSIGN
                         left join RHN_SYS_EMPL e on e.ID_TNT = a.ID_TNT and e.ID_EMPL = a.ID_EMPL
@@ -106,7 +106,7 @@ public class OrganizationProfileStore {
                 insert into RHN_SYS_ORG_IDENT
                     (ID_ORG_IDENT, ID_TNT, ID_ORG, CD_IDENT_SYS, CD_IDENT, SD_IDENT_TYPE,
                      ID_ORG_ISSUER, FG_PRIMARY_IDENT, DA_VALID_FROM, DA_VALID_TO, SD_VERIFY_STATUS,
-                     DT_VERIFIED, ID_USER_VERIFIED, SD_STATUS)
+                     DT_VRFD, ID_USER_VRFD, SD_STATUS)
                 values (:id, :tenantId, :organizationId, :system, :code, :type,
                         :issuerId, :primary, :validFrom, :validTo, :verifyStatus, null, null, :status)
                 """).param("id", GlobalIds.next()).param("tenantId", tenantId)
@@ -135,8 +135,8 @@ public class OrganizationProfileStore {
                            LocalDate from, LocalDate to) {
         jdbc.sql("""
                 insert into RHN_SYS_ORG_ADDR
-                    (ID_ORG_ADDR, ID_TNT, ID_ORG, SD_ADDR_TYPE, CD_COUNTRY, CD_PROVINCE,
-                     CD_CITY, CD_DISTRICT, DES_STREET_ADDR, CD_POSTAL, DA_VALID_FROM, DA_VALID_TO, SD_STATUS)
+                    (ID_ORG_ADDR, ID_TNT, ID_ORG, SD_ADDR_TYPE, CD_COUNTRY, CD_PROV,
+                     CD_CITY, CD_DIST, DES_STREET_ADDR, CD_POSTAL, DA_VALID_FROM, DA_VALID_TO, SD_STATUS)
                 values (:id, :tenantId, :organizationId, :type, :country, :province,
                         :city, :district, :street, :postal, :validFrom, :validTo, :status)
                 """).param("id", GlobalIds.next()).param("tenantId", tenantId)
@@ -164,7 +164,7 @@ public class OrganizationProfileStore {
                               String scope, LocalDate from, LocalDate to, String verifyStatus) {
         jdbc.sql("""
                 insert into RHN_SYS_ORG_CAP
-                    (ID_ORG_CAP, ID_TNT, ID_ORG, SD_CAP_TYPE, CD_QUALIFICATION_BASIS,
+                    (ID_ORG_CAP, ID_TNT, ID_ORG, SD_CAP_TYPE, CD_QUALIF_BASIS,
                      SD_CAP_SCOPE, DA_VALID_FROM, DA_VALID_TO, SD_VERIFY_STATUS, SD_STATUS)
                 values (:id, :tenantId, :organizationId, :type, :qualification,
                         :scope, :validFrom, :validTo, :verifyStatus, :status)
@@ -178,7 +178,7 @@ public class OrganizationProfileStore {
                                   String type, boolean primary, LocalDate from, LocalDate to) {
         jdbc.sql("""
                 insert into RHN_SYS_ORG_RESP
-                    (ID_ORG_RESP, ID_TNT, ID_ORG, ID_STAFF_ASSIGN, NA_EXT_RESPONSIBLE,
+                    (ID_ORG_RESP, ID_TNT, ID_ORG, ID_STAFF_ASSIGN, NA_EXT_RSPNSBL,
                      SD_RESP_TYPE, FG_PRIMARY_RESP, DA_VALID_FROM, DA_VALID_TO, SD_STATUS)
                 values (:id, :tenantId, :organizationId, :assignmentId, :externalName,
                         :type, :primary, :validFrom, :validTo, :status)
