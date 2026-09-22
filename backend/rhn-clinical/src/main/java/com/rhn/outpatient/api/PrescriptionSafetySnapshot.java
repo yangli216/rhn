@@ -10,8 +10,17 @@ public record PrescriptionSafetySnapshot(
         String schemaVersion, Long tenantId, Long prescriptionId, long prescriptionRevision,
         Long encounterId, Long residentId, Long organizationId, Long departmentId,
         String prescriptionStatus, List<MedicationItem> medications,
-        PatientSafetyContext patientContext) {
+        PatientSafetyContext patientContext, EvaluationTiming evaluationTiming) {
     public static final String SCHEMA_VERSION = "qmed-prescription-v2";
+
+    /** Optional, additive capture metadata. Old audits retain an unknown evaluation date. */
+    public record EvaluationTiming(java.time.LocalDate date, String timeZone) {}
+    public PrescriptionSafetySnapshot(String schemaVersion, Long tenantId, Long prescriptionId, long prescriptionRevision,
+            Long encounterId, Long residentId, Long organizationId, Long departmentId, String prescriptionStatus,
+            List<MedicationItem> medications, PatientSafetyContext patientContext) {
+        this(schemaVersion,tenantId,prescriptionId,prescriptionRevision,encounterId,residentId,organizationId,departmentId,
+                prescriptionStatus,medications,patientContext,null);
+    }
 
     public PrescriptionSafetySnapshot(
             String schemaVersion, Long tenantId, Long prescriptionId, long prescriptionRevision,

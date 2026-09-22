@@ -660,4 +660,57 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     fireEvent.click(closeBtn)
     expect(handleClose).toHaveBeenCalled()
   })
+
+  it('renders BasicDataManagement in medication scope with flattened views and no parent category tabs', async () => {
+    const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
+    const { BasicDataManagement } = await import('./BasicDataManagement')
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const mockApi: any = {
+      dictionaries: { resolve: vi.fn().mockResolvedValue([]) },
+      masterData: {
+        diseaseCodeSystems: vi.fn().mockResolvedValue([]),
+        searchDiseases: vi.fn().mockResolvedValue({ content: [], totalElements: 0, totalPages: 0 }),
+        searchDiseaseManagementPrograms: vi.fn().mockResolvedValue({ content: [], totalElements: 0, totalPages: 0 }),
+        searchServices: vi.fn().mockResolvedValue({ content: [], totalElements: 0, totalPages: 0 }),
+        searchMedications: vi.fn().mockResolvedValue({ content: [], totalElements: 0, totalPages: 0 }),
+        medicationStandardReadiness: vi.fn().mockResolvedValue({
+          inspectedAt: '2026-09-22T00:00:00Z',
+          summary: { totalActive: 10, referenceStatuses: { LINKED: 10 }, sourceUnverified: 0, conversionUnavailable: 0 },
+          content: [], totalElements: 10, totalPages: 1,
+        }),
+        clinicalMedicationStandards: vi.fn().mockResolvedValue({ version: 'v2', doseUnits: [], routes: [], frequencies: [] }),
+        activeOrderFrequencies: vi.fn().mockResolvedValue([]),
+        activeMedicationRoutes: vi.fn().mockResolvedValue([]),
+        manufacturers: vi.fn().mockResolvedValue([]),
+      },
+    }
+
+    render(
+      <QueryClientProvider client={client}>
+        <BasicDataManagement
+          api={mockApi}
+          scope="medication"
+          organization={{ id: 'org-1', name: '总院' } as any}
+          onNavigate={vi.fn()}
+        />
+      </QueryClientProvider>
+    )
+
+    // 验证专属 PageHeader 标题与描述
+    expect(screen.getByText('药品知识与目录')).toBeInTheDocument()
+    expect(screen.getByText(/统一维护全院启用药品标准对齐/)).toBeInTheDocument()
+
+    // 验证消除了基础数据类型一级大 Tab
+    expect(screen.queryByRole('tablist', { name: '基础数据类型' })).not.toBeInTheDocument()
+
+    // 验证直接呈现单层 5 个扁平化药品视角 Tab
+    const medicationTablist = screen.getByRole('tablist', { name: '药品目录视图' })
+    expect(medicationTablist).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /药品标准建设与对齐/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /标准参考目录/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /基本信息视角/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /产品信息视角/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /临床用药规则基准/ })).toBeInTheDocument()
+  })
 })
+

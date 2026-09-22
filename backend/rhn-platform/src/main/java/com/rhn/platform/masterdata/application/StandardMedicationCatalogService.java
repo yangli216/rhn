@@ -22,9 +22,13 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 @Service
 public class StandardMedicationCatalogService {
     private final ObjectNode catalog;
+    private final java.util.Set<String> formNames = new java.util.HashSet<>();
     private final List<JsonNode> entries = new ArrayList<>();
     private final Map<String, List<JsonNode>> specifications = new HashMap<>();
+    private final Map<String, JsonNode> specificationsById = new HashMap<>();
     private final Map<String, List<JsonNode>> issues = new HashMap<>();
+    private final Map<String, java.util.Set<String>> entriesByClue = new HashMap<>();
+    private final Map<String, java.util.Set<String>> entriesByLegacyCode = new HashMap<>();
 
     public StandardMedicationCatalogService(JsonCodec jsonCodec) throws IOException {
         try (var input = new ClassPathResource("medication-standard-catalog.json").getInputStream()) {
@@ -32,22 +36,38 @@ public class StandardMedicationCatalogService {
         }
         catalog.path("specifications").forEach(node -> specifications
                 .computeIfAbsent(node.path("entryId").asString(), ignored -> new ArrayList<>()).add(node));
+        catalog.path("specifications").forEach(node -> specificationsById.put(node.path("id").asString(), node));
+        catalog.path("specifications").forEach(node -> formNames.add(normalized(node.path("doseFormName").asString(""))));
         catalog.path("issues").forEach(node -> issues
                 .computeIfAbsent(node.path("entryId").asString(), ignored -> new ArrayList<>()).add(node));
+        catalog.path("specifications").forEach(spec -> specificationIdentityIssues(spec).forEach(reason -> {
+            var issue = catalog.objectNode();
+            issue.put("entryId", spec.path("entryId").asString()); issue.put("specificationId", spec.path("id").asString());
+            issue.put("reason", reason); issue.put("sourceText", spec.path("sourceBlock").asString());
+            issues.computeIfAbsent(spec.path("entryId").asString(), ignored -> new ArrayList<>()).add(issue);
+        }));
         catalog.path("entries").forEach(node -> {
             ObjectNode entry = ((ObjectNode) node).deepCopy();
             String id = entry.path("id").asString();
             entry.put("specificationCount", specifications.getOrDefault(id, List.of()).size());
             entry.put("issueCount", issues.getOrDefault(id, List.of()).size());
             entries.add(entry);
+            entriesByLegacyCode.computeIfAbsent(entry.path("legacyCode").asString(""), ignored -> new java.util.LinkedHashSet<>()).add(id);
+            for (String field : List.of("name", "innName")) {
+                String clue = normalized(entry.path(field).asString(""));
+                if (!clue.isBlank()) entriesByClue.computeIfAbsent(clue, ignored -> new java.util.LinkedHashSet<>()).add(id);
+            }
         });
     }
+
+    public JsonNode snapshot() { return catalog.deepCopy(); }
 
     public JsonNode summary() {
         ObjectNode value = catalog.objectNode();
         for (String key : List.of("schemaVersion", "catalogId", "catalogVersion", "source", "scopeNote", "statistics", "contentHash")) {
             value.set(key, catalog.path(key).deepCopy());
         }
+        ((ObjectNode) value.path("statistics")).put("issues", issues.values().stream().mapToInt(List::size).sum());
         return value;
     }
 
@@ -77,7 +97,12 @@ public class StandardMedicationCatalogService {
                 .findFirst().orElseThrow(() -> notFound("STANDARD_MEDICATION_NOT_FOUND", "未找到标准目录条目"));
         ObjectNode result = entry.deepCopy();
         var specs = result.putArray("specifications");
-        specifications.getOrDefault(id, List.of()).forEach(node -> specs.add(node.deepCopy()));
+        specifications.getOrDefault(id, List.of()).forEach(node -> {
+            var specification = (ObjectNode) node.deepCopy();
+            var identityIssues = specification.putArray("identityIssues");
+            specificationIdentityIssues(node).forEach(identityIssues::add);
+            specs.add(specification);
+        });
         var pending = result.putArray("issues");
         issues.getOrDefault(id, List.of()).forEach(node -> pending.add(node.deepCopy()));
         result.set("source", catalog.path("source").deepCopy());
@@ -85,9 +110,57 @@ public class StandardMedicationCatalogService {
     }
 
     public JsonNode specification(String id) {
-        return specifications.values().stream().flatMap(List::stream)
-                .filter(spec -> id.equals(spec.path("id").asString())).findFirst()
-                .map(JsonNode::deepCopy).orElseThrow(() -> notFound("STANDARD_SPEC_NOT_FOUND", "未找到标准药品规格"));
+        var specification = specificationsById.get(id);
+        if (specification == null) throw notFound("STANDARD_SPEC_NOT_FOUND", "未找到标准药品规格");
+        return specification.deepCopy();
+    }
+
+    /** Exact local identity clues only. Never use an arbitrary top-N text search as binding evidence. */
+    public List<JsonNode> identityCandidates(String code, String name, String alias) {
+        var ids = new java.util.LinkedHashSet<String>();
+        // Traverse full legacy-code segments only; e.g. W001 must never match W0010.
+        String prefix = code == null ? "" : code;
+        while (!prefix.isBlank()) {
+            ids.addAll(entriesByLegacyCode.getOrDefault(prefix, java.util.Set.of()));
+            int dash = prefix.lastIndexOf('-');
+            if (dash < 0) break;
+            prefix = prefix.substring(0, dash);
+        }
+        ids.addAll(entriesByClue.getOrDefault(normalized(name), java.util.Set.of()));
+        ids.addAll(entriesByClue.getOrDefault(normalized(alias), java.util.Set.of()));
+        var byCode = specificationsById.get(code);
+        if (byCode != null) ids.add(byCode.path("entryId").asString());
+        return ids.stream().flatMap(id -> specifications.getOrDefault(id, List.of()).stream()).map(JsonNode::deepCopy).toList();
+    }
+
+    /** Reject incomplete source fragments as concrete medication identities, even when a legacy import agrees. */
+    public List<String> specificationIdentityIssues(JsonNode specification) {
+        String text = normalized(specification.path("specification").asString(""));
+        boolean formOnly = formNames.contains(text);
+        if (text.isBlank() || formOnly || text.matches("[0-9]+(?:\\.[0-9]+)?:[0-9]+(?:\\.[0-9]+)?"))
+            return List.of("STANDARD_SPECIFICATION_INCOMPLETE");
+        String block = specification.path("sourceBlock").asString("");
+        int separator = block.indexOf(':');
+        String body = separator < 0 ? block : block.substring(separator + 1);
+        String topLevel = outsideParentheses(body);
+        if (java.util.regex.Pattern.compile("(?:片剂|胶囊(?:剂)?|颗粒剂|软膏剂|乳膏剂|栓剂|注射液|注射用无菌粉末|混悬液|合剂|糖浆剂|丸剂|气雾剂|滴眼剂|滴鼻剂|散剂|酊剂|喷雾剂):")
+                .matcher(topLevel).find()) return List.of("STANDARD_SOURCE_FORM_BLOCK_REQUIRES_REVIEW");
+        if (topLevel.contains("相当于") && topLevel.contains("含") && !normalized(body).equals(text))
+            return List.of("STANDARD_COMPOSITION_FRAGMENT_REQUIRES_REVIEW");
+        return List.of();
+    }
+    private String outsideParentheses(String text) {
+        var result = new StringBuilder(); int depth = 0;
+        for (char character : text.toCharArray()) {
+            if (character == '(' || character == '（') depth++;
+            else if (character == ')' || character == '）') depth = Math.max(0, depth - 1);
+            else if (depth == 0) result.append(character);
+        }
+        return result.toString();
+    }
+
+    private String normalized(String value) {
+        return value == null ? "" : value.replaceAll("\\s+", "").replace("（", "(").replace("）", ")").toLowerCase(Locale.ROOT);
     }
 
     private String searchable(JsonNode entry) {

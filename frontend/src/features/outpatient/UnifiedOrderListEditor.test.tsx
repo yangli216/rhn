@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { UnifiedOrderListEditor, calculatePackageQuantity, syncMedicationDraftGroup, type ServicePlanDraft } from './UnifiedOrderListEditor'
+import { UnifiedOrderListEditor, syncMedicationDraftGroup, type ServicePlanDraft } from './UnifiedOrderListEditor'
+import { calculatePackageQuantity } from './orders/medicationQuantity'
+import type { ActiveOrderFrequency } from '../../shared/api/masterDataApi'
 import type { MedicationPlanDraft } from './PrescriptionListEditor'
 import type { Encounter } from '../../shared/model'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -20,6 +22,7 @@ describe('UnifiedOrderListEditor', () => {
     masterData: {
       activeOrderFrequencies: vi.fn().mockResolvedValue([{
         code: 'QD', name: '每日一次', executionTimes: ['08:00'], shortName: '每日一次',
+        ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D',
       }]),
       activeMedicationRoutes: vi.fn().mockResolvedValue([{
         code: 'ORAL', name: '口服', executionType: 'NONE',
@@ -38,6 +41,7 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.masterData.itemGroups).mockResolvedValue([])
     vi.mocked(mockApi.masterData.activeOrderFrequencies).mockResolvedValue([{
       code: 'QD', name: '每日一次', executionTimes: ['08:00'], shortName: '每日一次',
+        ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D',
     }] as never)
     vi.mocked(mockApi.masterData.activeMedicationRoutes).mockResolvedValue([{
       code: 'ORAL', name: '口服', executionType: 'NONE',
@@ -606,6 +610,8 @@ describe('UnifiedOrderListEditor', () => {
       } as any,
       doseValue: 30,
       doseUnit: 'mg',
+      frequencies: [{ code: 'QD', ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D' },
+        { code: 'BID', ruleType: 'TIMES_PER_PERIOD', frequencyCount: 2, periodValue: 1, periodUnit: 'D' }] as ActiveOrderFrequency[],
       frequencyCode: 'QD',
       durationValue: 7,
       selectedPackage: {
@@ -625,6 +631,8 @@ describe('UnifiedOrderListEditor', () => {
       } as any,
       doseValue: 20,
       doseUnit: 'mg',
+      frequencies: [{ code: 'QD', ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D' },
+        { code: 'BID', ruleType: 'TIMES_PER_PERIOD', frequencyCount: 2, periodValue: 1, periodUnit: 'D' }] as ActiveOrderFrequency[],
       frequencyCode: 'BID',
       durationValue: 5,
       selectedPackage: {
@@ -644,6 +652,8 @@ describe('UnifiedOrderListEditor', () => {
       } as any,
       doseValue: 15,
       doseUnit: 'mg',
+      frequencies: [{ code: 'QD', ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D' },
+        { code: 'BID', ruleType: 'TIMES_PER_PERIOD', frequencyCount: 2, periodValue: 1, periodUnit: 'D' }] as ActiveOrderFrequency[],
       frequencyCode: 'QD',
       durationValue: 10, // 150mg = 15片
       selectedPackage: {
@@ -964,12 +974,12 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByPlaceholderText('输入通用名、编码或别名')).not.toBeInTheDocument()
     expect(screen.getByText('头孢曲松钠 (1g)')).toBeInTheDocument()
   })
-  it('removes manual compatibility safety checkbox and allows adding high-risk medications directly without blocking', async () => {
+  it.each(['TID', 'PRN'])('keeps safety prompts and requires explicit quantity for noncomputable frequency %s', async (frequencyCode) => {
     const user = userEvent.setup()
     const setMedicationDrafts = vi.fn()
     const skintestMed = {
       id: 'm-skin', code: 'SKIN001', name: '青霉素V钾片', preparationSpec: '0.25g', preparationUnit: '片',
-      defaultDose: 0.25, defaultDoseUnit: 'g', defaultRoute: 'ORAL', defaultFrequency: 'TID',
+      defaultDose: 0.25, defaultDoseUnit: 'g', defaultRoute: 'ORAL', defaultFrequency: frequencyCode,
       skinTestRequired: true,
       sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药', products: [{
         id: 'product-skin', code: 'PSKIN', name: '青霉素V钾片', manufacturerName: '华北制药',
@@ -981,6 +991,8 @@ describe('UnifiedOrderListEditor', () => {
           price: 15.0, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
+    vi.mocked(mockApi.masterData.activeOrderFrequencies).mockResolvedValue([{ code: frequencyCode, name: frequencyCode,
+      ruleType: frequencyCode === 'PRN' ? 'PRN' : 'TIMES_PER_PERIOD', frequencyCount: 3, periodValue: 1, periodUnit: 'D', executionTimes: [] }] as never)
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValueOnce([skintestMed] as never)
     renderComponent({ setMedicationDrafts })
 
@@ -995,11 +1007,22 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByText(/已完成用药禁忌与配伍安全核对/)).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: /已完成用药禁忌与配伍安全核对/ })).not.toBeInTheDocument()
 
+    if (frequencyCode === 'PRN') {
+      expect(screen.getByLabelText('总量')).toHaveValue(null)
+      expect(screen.getByText('当前频次无法自动推算总量，请核对并手动填写数量。')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+      expect(setMedicationDrafts).not.toHaveBeenCalled()
+      await user.type(screen.getByLabelText('总量'), '3')
+      await user.clear(screen.getByLabelText('单次剂量'))
+      await user.type(screen.getByLabelText('单次剂量'), '0.5')
+      expect(screen.getByLabelText('总量')).toHaveValue(3)
+    }
     // 医生无需手动打勾，点击加入医嘱按钮即可顺利入单
     await user.click(screen.getByRole('button', { name: '加入医嘱' }))
     expect(setMedicationDrafts).toHaveBeenCalledTimes(1)
     const updater = setMedicationDrafts.mock.calls[0][0]
     expect(updater([])[0].request.allergyReviewConfirmed).toBe(false)
+    if (frequencyCode === 'PRN') expect(updater([])[0]).toMatchObject({ quantityManuallySet: true, request: { quantity: 3 } })
   })
 
   it('automatically groups subsequent infusion medication, shows bracket without IV-01 or 同组, and allows finishing group', async () => {
@@ -1205,7 +1228,7 @@ describe('UnifiedOrderListEditor', () => {
       }],
     }
     vi.mocked(mockApi.masterData.activeOrderFrequencies).mockResolvedValue([
-      { code: 'TID', name: '每日三次', executionTimes: ['08:00', '12:00', '18:00'], shortName: '每日三次' },
+      { code: 'TID', name: '每日三次', ruleType: 'TIMES_PER_PERIOD', frequencyCount: 3, periodValue: 1, periodUnit: 'D', executionTimes: ['08:00', '12:00', '18:00'], shortName: '每日三次' },
     ] as never)
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([patentMedicine] as never)
 
@@ -1363,8 +1386,8 @@ describe('UnifiedOrderListEditor', () => {
       }]
     }
 
-    const freqQD = { code: 'QD', name: '每日一次', executionTimes: ['08:00'], shortName: '每日一次' }
-    const freqBID = { code: 'BID', name: '每日两次', executionTimes: ['08:00', '16:00'], shortName: '每日两次' }
+    const freqQD = { ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D', code: 'QD', name: '每日一次', executionTimes: ['08:00'], shortName: '每日一次' }
+    const freqBID = { ruleType: 'TIMES_PER_PERIOD', frequencyCount: 2, periodValue: 1, periodUnit: 'D', code: 'BID', name: '每日两次', executionTimes: ['08:00', '16:00'], shortName: '每日两次' }
 
     const draftA: MedicationPlanDraft = {
       id: 'draft-a', editorMode: 'regular', categoryCode: 'WESTERN', medicationName: '注射用头孢曲松钠', medicationCode: 'MED-A',
@@ -1400,8 +1423,8 @@ describe('UnifiedOrderListEditor', () => {
     const result = syncMedicationDraftGroup(
       [draftA, draftB],
       updatedDraftA,
-      [medA as never, medB as never],
       [freqQD as never, freqBID as never],
+      [medA as never, medB as never],
       'org-1'
     )
 

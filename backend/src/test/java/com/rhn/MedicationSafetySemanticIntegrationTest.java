@@ -100,6 +100,18 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
             JsonNode again = evaluate(path);
             assertThat(again.path("inputHash")).isEqualTo(warn.path("inputHash"));
             assertThat(again.path("decision")).isEqualTo(warn.path("decision"));
+            var knowledgeInput = new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Save(0,
+                    MedicationKnowledgeDraftModelTest.duplicate(),"仅测试真实处方快照适配，不构成临床知识");
+            String knowledge = json(mockMvc.perform(post("/api/quality/medication-knowledge-drafts").with(rhnWorkContext())
+                    .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(knowledgeInput))).andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString()).path("saved").path("id").asString();
+            int auditCount=jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL",Integer.class);
+            mockMvc.perform(post("/api/quality/medication-knowledge-drafts/"+knowledge+"/replays").with(rhnWorkContext())
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"expectedVersion\":1,\"evaluationId\":\""+warn.path("evaluationId").asString()+"\"}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.result.outcome").value("MATCH"))
+                    .andExpect(jsonPath("$.input.facts.date").isNotEmpty())
+                    .andExpect(jsonPath("$.input.items[0].medicationName").value(originalName));
+            assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL",Integer.class)).isEqualTo(auditCount);
             assertThat(jdbc.queryForObject("select MEDICATION_SNAPSHOT from RHN_EX_MED_REQ where ID_CARE_REQ=?", String.class, firstId)).isEqualTo(frozen);
             mockMvc.perform(get(path+"/"+warn.path("evaluationId").asString()).with(rhnWorkContext()))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.inputHash").value(warn.path("inputHash").asString()));
@@ -112,6 +124,10 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
                 .param("kind","MEDICATION").param("conceptId",MEDICATION)).andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.area == 'ACTIVE_ORDERS')].activeCount").value("2"))
                 .andExpect(jsonPath("$[?(@.area == 'ORDER_TEMPLATES')].coverage").value("UNAVAILABLE"));
+        mockMvc.perform(get("/api/platform/master-data/clinical-semantics/impact/references").with(rhnWorkContext())
+                .param("kind","MEDICATION").param("conceptId",MEDICATION)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.coverage[?(@.area == 'ACTIVE_ORDERS')].activeCount").value("2"))
+                .andExpect(jsonPath("$.organizationId").value(ORGANIZATION)).andExpect(jsonPath("$.departmentId").value(DEPARTMENT));
         mockMvc.perform(get("/api/encounters/1/prescriptions/"+prescription+"/safety-evaluations/"+warn.path("evaluationId").asString())
                 .with(rhnWorkContext())).andExpect(status().isNotFound());
     }

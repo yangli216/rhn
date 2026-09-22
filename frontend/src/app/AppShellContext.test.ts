@@ -140,5 +140,21 @@ describe('AppShell work context routing', () => {
       title: '基础数据中心',
       icon: 'database',
     })
+    expect(tabForPath('/settings/medications')).toMatchObject({
+      title: '药品知识与目录',
+      icon: 'pill',
+    })
+    expect(tabForPath('/settings/services')).toMatchObject({
+      title: '诊疗服务目录',
+      icon: 'clinical',
+    })
+    expect(tabForPath('/settings/diseases')).toMatchObject({
+      title: '疾病与诊断标准',
+      icon: 'database',
+    })
+    expect(tabForPath('/settings/operations')).toMatchObject({
+      title: '耗材与运营主数据',
+      icon: 'card',
+    })
   })
 })

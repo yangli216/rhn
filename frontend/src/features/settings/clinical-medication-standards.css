@@ -1,9 +1,603 @@
-.clinical-medication-standards { display: grid; gap: var(--space-4, 16px); padding: var(--space-4, 16px); }
-.clinical-medication-standards > header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4, 16px); }
-.clinical-medication-standards h3, .clinical-medication-standards h4 { margin: 0; }
-.clinical-medication-standards p { color: var(--color-text-secondary); margin: 8px 0 12px; }
-.clinical-medication-standards__grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4, 16px); align-items: start; }
-.clinical-medication-standards__grid > section { min-width: 0; }
-.clinical-medication-standards table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.clinical-medication-standards th, .clinical-medication-standards td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }
-.clinical-medication-standards small { display: block; color: var(--color-text-secondary); font-size: 12px; margin-top: 4px; }
+.clinical-medication-standards {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  box-sizing: border-box;
+}
+
+.clinical-medication-standards__header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: none;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 6px;
+}
+
+.clinical-medication-standards__header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4, 16px);
+}
+
+.clinical-medication-standards h3,
+.clinical-medication-standards h4 {
+  margin: 0;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.clinical-medication-standards__header p {
+  color: var(--color-text-secondary);
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+.clinical-medication-standards__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.clinical-medication-standards__content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 药品标准建设治理工作台 */
+.medication-readiness {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 0;
+  background: var(--color-surface);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.medication-readiness__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex: none;
+}
+
+.medication-readiness__heading p {
+  color: var(--color-text-secondary);
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+.medication-readiness__metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  flex: none;
+}
+
+.medication-readiness__metrics > div {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-subtle, rgba(0, 0, 0, 0.02));
+}
+
+.medication-readiness__metrics strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 4px 0 2px;
+  line-height: 1.2;
+}
+
+.medication-readiness__metrics span {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.medication-readiness__metrics small {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.medication-readiness__metrics-meta {
+  flex: none;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.medication-readiness__matching {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  margin: 2px 0;
+}
+
+.medication-readiness__matching-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-right: 4px;
+}
+
+.medication-readiness__toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(200px, 260px) auto auto;
+  gap: 10px;
+  align-items: center;
+  flex: none;
+}
+
+.medication-readiness__content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  transition: opacity 0.15s ease-out;
+}
+
+.medication-readiness__content.is-fetching {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.medication-readiness-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 8px);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.medication-readiness-shell .master-data-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.medication-readiness-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.medication-readiness-table th {
+  padding: 10px 14px;
+}
+
+.medication-readiness-table td {
+  padding: 12px 14px;
+  vertical-align: middle;
+}
+
+/* 规范化各列宽度分配（桌面宽屏 1280px ~ 1920px+） */
+.medication-readiness-table th.col-medication,
+.medication-readiness-table td.col-medication {
+  width: 24%;
+  min-width: 220px;
+}
+
+.medication-readiness-table th.col-standard,
+.medication-readiness-table td.col-standard {
+  width: 22%;
+  min-width: 200px;
+}
+
+.medication-readiness-table th.col-source,
+.medication-readiness-table td.col-source {
+  width: 10%;
+  min-width: 90px;
+}
+
+.medication-readiness-table th.col-conversion,
+.medication-readiness-table td.col-conversion {
+  width: 14%;
+  min-width: 130px;
+}
+
+.medication-readiness-table th.col-actions,
+.medication-readiness-table td.col-actions {
+  width: 30%;
+  min-width: 280px;
+}
+
+/* 药品与规格两行信息排版 */
+.medication-readiness__item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.medication-readiness__item-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.medication-readiness__item-spec {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* 标准关联排版 */
+.medication-readiness__standard-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.medication-readiness__badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.medication-readiness__meta-text {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.medication-readiness__matching-hint {
+  color: var(--color-text-muted, #64748b);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+/* 占位灰字 */
+.medication-readiness__placeholder-text {
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+}
+
+/* 换算列 */
+.medication-readiness__conversion-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 下一步处理：左侧建议文本 + 右侧操作按钮 */
+.medication-readiness__action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.medication-readiness__action-desc {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+  word-break: break-all;
+}
+
+.medication-readiness__action-btn {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* 临床用药规则基准视图 */
+.clinical-medication-standards__rules-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.clinical-medication-standards__rules-view > .ui-alert {
+  flex: none;
+}
+
+/* 临床用药规则基准视图 */
+.clinical-medication-standards__rules-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.clinical-medication-standards__rules-view > .ui-alert {
+  flex: none;
+}
+
+.clinical-rules__category-bar {
+  flex: none;
+}
+
+.clinical-rules__active-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.clinical-rules__workspace-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  box-sizing: border-box;
+}
+
+.clinical-medication-standards__card-header {
+  flex: none;
+  margin-bottom: 12px;
+}
+
+.clinical-medication-standards__card-header h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.clinical-medication-standards__card-header p {
+  color: var(--color-text-secondary);
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.clinical-medication-standards__card-table {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.clinical-medication-standards__card-table .ui-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 临床规则表格公共样式与列宽 */
+.clinical-rules-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.clinical-rules-table th {
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.clinical-rules-table td {
+  padding: 12px 14px;
+  vertical-align: middle;
+  font-size: 13px;
+}
+
+/* 频次表格全宽列宽分配 (PC 宽屏 1280px ~ 1920px+) */
+.clinical-rules-table--frequencies th.col-freq-name,
+.clinical-rules-table--frequencies td.col-freq-name {
+  width: 16%;
+  min-width: 140px;
+}
+
+.clinical-rules-table--frequencies th.col-freq-semantic,
+.clinical-rules-table--frequencies td.col-freq-semantic {
+  width: 20%;
+  min-width: 180px;
+}
+
+.clinical-rules-table--frequencies th.col-freq-rate,
+.clinical-rules-table--frequencies td.col-freq-rate {
+  width: 16%;
+  min-width: 130px;
+}
+
+.clinical-rules-table--frequencies th.col-freq-schedule,
+.clinical-rules-table--frequencies td.col-freq-schedule {
+  width: 36%;
+  min-width: 280px;
+}
+
+.clinical-rules-table--frequencies th.col-freq-action,
+.clinical-rules-table--frequencies td.col-freq-action {
+  width: 12%;
+  min-width: 100px;
+}
+
+/* 途径表格全宽列宽分配 */
+.clinical-rules-table--routes th.col-route-name,
+.clinical-rules-table--routes td.col-route-name {
+  width: 24%;
+  min-width: 160px;
+}
+
+.clinical-rules-table--routes th.col-route-code,
+.clinical-rules-table--routes td.col-route-code {
+  width: 20%;
+  min-width: 140px;
+}
+
+.clinical-rules-table--routes th.col-route-source,
+.clinical-rules-table--routes td.col-route-source {
+  width: 42%;
+  min-width: 260px;
+}
+
+.clinical-rules-table--routes th.col-route-action,
+.clinical-rules-table--routes td.col-route-action {
+  width: 14%;
+  min-width: 100px;
+}
+
+/* 单位表格全宽列宽分配 */
+.clinical-rules-table--units th.col-unit-name,
+.clinical-rules-table--units td.col-unit-name {
+  width: 24%;
+  min-width: 160px;
+}
+
+.clinical-rules-table--units th.col-unit-dim,
+.clinical-rules-table--units td.col-unit-dim {
+  width: 18%;
+  min-width: 120px;
+}
+
+.clinical-rules-table--units th.col-unit-conversion,
+.clinical-rules-table--units td.col-unit-conversion {
+  width: 44%;
+  min-width: 280px;
+}
+
+.clinical-rules-table--units th.col-unit-action,
+.clinical-rules-table--units td.col-unit-action {
+  width: 14%;
+  min-width: 100px;
+}
+
+/* 单元格信息层级样式 */
+.clinical-rules__cell-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinical-rules__title {
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.clinical-rules__subtext {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.clinical-rules__subtext--code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  color: var(--color-text-muted, #64748b);
+  font-size: 11.5px;
+}
+
+.clinical-rules__code-text {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  letter-spacing: 0.02em;
+}
+
+.clinical-rules__semantic-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinical-rules__kind-text {
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.clinical-rules__concept-id {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.clinical-rules__doses-text {
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.clinical-rules__muted-text {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.clinical-rules__schedule-text {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.clinical-rules__source-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinical-rules__system-code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 11.5px;
+  color: var(--color-text);
+  word-break: break-all;
+  line-height: 1.35;
+}
+
+.clinical-rules__unit-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinical-rules__conversion-formula code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 12px;
+  color: var(--color-brand-strong, #0f766e);
+  font-weight: 500;
+}
+
+.medication-management-mode {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.medication-management-mode .ui-tabs__items {
+  flex-wrap: nowrap;
+}
+
+.medication-management-mode .ui-tabs__tab {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+

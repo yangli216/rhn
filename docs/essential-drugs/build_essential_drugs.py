@@ -283,7 +283,7 @@ def validate(catalog):
 
 def write_csv(path, headers, rows):
     with path.open('w',encoding='utf-8-sig',newline='') as f:
-        writer=csv.writer(f);writer.writerow(headers);writer.writerows(rows)
+        writer=csv.writer(f, lineterminator='\n');writer.writerow(headers);writer.writerows(rows)
 
 
 def write_outputs(catalog,rows,out=HERE,resource=RESOURCE):

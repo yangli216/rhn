@@ -393,9 +393,9 @@ export function createEncountersApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify({ categoryCode, note }),
       },
     ),
-    submitPrescription: (encounterId: string, prescriptionId: string, expectedRevision: number) =>
+    submitPrescription: (encounterId: string, prescriptionId: string, expectedRevision: number, reason?: string) =>
       client.request<Prescription>(`/api/encounters/${encounterId}/prescriptions/${prescriptionId}/submit`, {
-        method: 'POST', body: JSON.stringify({ expectedRevision }),
+        method: 'POST', body: JSON.stringify({ expectedRevision, reason }),
       }),
     evaluatePrescriptionSafety: (encounterId: string, prescriptionId: string) =>
       client.request<MedicationSafetyDecision>(

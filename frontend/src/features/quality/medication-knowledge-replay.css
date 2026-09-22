@@ -1,0 +1,14 @@
+.knowledge-replay { display: grid; gap: 12px; min-width: 0; }
+.knowledge-replay p { color: var(--color-text-secondary); line-height: 1.6; margin: 6px 0; }
+.knowledge-replay__layout { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(540px, 2.4fr); gap: 16px; align-items: start; }
+.knowledge-replay__queue, .knowledge-replay__result { min-width: 0; max-height: 62vh; overflow: auto; padding: 12px; border: 1px solid var(--color-border); border-radius: 6px; }
+.knowledge-replay__queue { display: grid; gap: 10px; }
+.knowledge-replay__queue > button { display: grid; gap: 6px; padding: 10px; text-align: left; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
+.knowledge-replay__queue > button.is-selected { border-color: var(--color-brand); box-shadow: inset 3px 0 var(--color-brand); }
+.knowledge-replay small { display: block; color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.knowledge-replay td { vertical-align: top; }
+.knowledge-replay h4 { margin: 4px 0; }
+.knowledge-replay__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.knowledge-replay details { margin-top: 12px; line-height: 1.7; }
+.knowledge-replay summary { cursor: pointer; }
+.knowledge-replay blockquote { white-space: pre-wrap; border-left: 3px solid var(--color-border); padding-left: 12px; }

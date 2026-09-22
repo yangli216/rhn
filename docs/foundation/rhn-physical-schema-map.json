@@ -19979,6 +19979,11 @@
         "logical": "document_info_json",
         "physical": "JSON_DOC_INFO",
         "comment": "处方单据信息JSON"
+      },
+      {
+        "logical": "safety_review_json",
+        "physical": "JSON_SAFETY_REVIEW",
+        "comment": "处方提交时合理用药提示、涉及药品及医生处理理由，供药师审方核对"
       }
     ]
   },
@@ -27962,6 +27967,26 @@
         "logical": "run",
         "physical": "JSON_RUN",
         "comment": "发布版本及评价事实快照"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "评价事实所属机构"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "评价事实所属科室"
+      },
+      {
+        "logical": "deployment_id",
+        "physical": "ID_DEPLOYMENT",
+        "comment": "冻结发布记录标识"
+      },
+      {
+        "logical": "outcome",
+        "physical": "SD_OUTCOME",
+        "comment": "知识规则结果：命中、未命中、不适用或不可评价"
       }
     ]
   },
@@ -27972,26 +27997,584 @@
     "domain": "BD",
     "comment": "基础数据检索条目；一行代表一个标准名称、别名、商品名或机构本地名称的检索投影。",
     "columns": [
-      {"logical": "id", "physical": "ID_SEARCH_ENTRY", "comment": "检索条目主键"},
-      {"logical": "revision", "physical": "REVISION", "comment": "乐观锁版本"},
-      {"logical": "scope_type", "physical": "SD_SCOPE_TYPE", "comment": "作用域类型：产品、租户或机构"},
-      {"logical": "scope_id", "physical": "ID_SCOPE", "comment": "作用域标识"},
-      {"logical": "tenant_id", "physical": "ID_TNT", "comment": "租户标识；产品级条目为空"},
-      {"logical": "target_type", "physical": "SD_TARGET_TYPE", "comment": "目标类型：概念、通用药品或目录项目"},
-      {"logical": "target_id", "physical": "ID_TARGET", "comment": "目标主键"},
-      {"logical": "name_type", "physical": "SD_NAME_TYPE", "comment": "名称类型"},
-      {"logical": "source_key", "physical": "CD_SOURCE_KEY", "comment": "来源字段稳定键，用于幂等同步"},
-      {"logical": "search_name", "physical": "NA_SEARCH", "comment": "标准化检索名称"},
-      {"logical": "pinyin_code", "physical": "CD_PINYIN", "comment": "拼音首字母简码，不保存完整拼音"},
-      {"logical": "wubi_code", "physical": "CD_WUBI", "comment": "五笔简码"},
-      {"logical": "mnemonic_code", "physical": "CD_MNEMONIC", "comment": "人工或导入助记码"},
-      {"logical": "primary_name", "physical": "FG_PRIMARY", "comment": "是否主名称"},
-      {"logical": "generator_version", "physical": "CD_GEN_VER", "comment": "检索码生成器版本"},
-      {"logical": "status", "physical": "SD_STATUS", "comment": "状态"},
-      {"logical": "created_at", "physical": "DT_CREATED", "comment": "创建时间"},
-      {"logical": "created_by_user_id", "physical": "ID_USER_CREATED", "comment": "创建用户标识"},
-      {"logical": "updated_at", "physical": "DT_UPDATED", "comment": "最后更新时间"},
-      {"logical": "updated_by_user_id", "physical": "ID_USER_UPDATED", "comment": "最后更新用户标识"}
+      {
+        "logical": "id",
+        "physical": "ID_SEARCH_ENTRY",
+        "comment": "检索条目主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "scope_type",
+        "physical": "SD_SCOPE_TYPE",
+        "comment": "作用域类型：产品、租户或机构"
+      },
+      {
+        "logical": "scope_id",
+        "physical": "ID_SCOPE",
+        "comment": "作用域标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识；产品级条目为空"
+      },
+      {
+        "logical": "target_type",
+        "physical": "SD_TARGET_TYPE",
+        "comment": "目标类型：概念、通用药品或目录项目"
+      },
+      {
+        "logical": "target_id",
+        "physical": "ID_TARGET",
+        "comment": "目标主键"
+      },
+      {
+        "logical": "name_type",
+        "physical": "SD_NAME_TYPE",
+        "comment": "名称类型"
+      },
+      {
+        "logical": "source_key",
+        "physical": "CD_SOURCE_KEY",
+        "comment": "来源字段稳定键，用于幂等同步"
+      },
+      {
+        "logical": "search_name",
+        "physical": "NA_SEARCH",
+        "comment": "标准化检索名称"
+      },
+      {
+        "logical": "pinyin_code",
+        "physical": "CD_PINYIN",
+        "comment": "拼音首字母简码，不保存完整拼音"
+      },
+      {
+        "logical": "wubi_code",
+        "physical": "CD_WUBI",
+        "comment": "五笔简码"
+      },
+      {
+        "logical": "mnemonic_code",
+        "physical": "CD_MNEMONIC",
+        "comment": "人工或导入助记码"
+      },
+      {
+        "logical": "primary_name",
+        "physical": "FG_PRIMARY",
+        "comment": "是否主名称"
+      },
+      {
+        "logical": "generator_version",
+        "physical": "CD_GEN_VER",
+        "comment": "检索码生成器版本"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "状态"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "created_by_user_id",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建用户标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "最后更新时间"
+      },
+      {
+        "logical": "updated_by_user_id",
+        "physical": "ID_USER_UPDATED",
+        "comment": "最后更新用户标识"
+      }
+    ]
+  },
+  {
+    "logical": "bd.standard_catalog_review",
+    "legacy": "standard_catalog_review",
+    "physical": "RHN_BD_STD_REVIEW",
+    "domain": "BD",
+    "comment": "标准目录来源核验事件，一行代表一个租户对特定目录及来源文件版本的一次不可变核验操作",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_STD_REVIEW",
+        "comment": "来源核验事件标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "catalog_code",
+        "physical": "CD_CATALOG",
+        "comment": "标准目录标识"
+      },
+      {
+        "logical": "identity_hash",
+        "physical": "HASH_IDENTITY",
+        "comment": "目录标识、版本、内容指纹及来源文件指纹的组合哈希"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "该租户及来源版本的递增核验序号"
+      },
+      {
+        "logical": "event",
+        "physical": "JSON_EVENT",
+        "comment": "核验事件快照，含证据、提交人、复核人、理由及时间"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_knowledge_draft",
+    "legacy": "medication_knowledge_draft",
+    "physical": "RHN_AUD_MED_KNOW_DRAFT",
+    "domain": "AUD",
+    "comment": "合理用药知识草稿版本，一行代表一个租户下一条知识草稿的一次不可变保存版本",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "knowledge_id",
+        "physical": "ID_KNOWLEDGE",
+        "comment": "知识草稿标识，各版本共用"
+      },
+      {
+        "logical": "version",
+        "physical": "NO_VERSION",
+        "comment": "该知识草稿的递增版本号"
+      },
+      {
+        "logical": "snapshot",
+        "physical": "JSON_VERSION",
+        "comment": "不可变草稿版本快照，含来源原文、标准身份、条件、结构校验及操作者"
+      },
+      {
+        "logical": "intake_id",
+        "physical": "ID_INTAKE",
+        "comment": "本知识版本关联的需求分析标识，不作为药学证据"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_knowledge_extraction",
+    "legacy": "medication_knowledge_extraction",
+    "physical": "RHN_AUD_KNOW_EXTRACT",
+    "domain": "AUD",
+    "comment": "合理用药 AI 知识抽取记录，一行代表一次基于来源原文的不可变抽取结果，不代表临床审核或发布",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "extraction_id",
+        "physical": "ID_EXTRACT",
+        "comment": "知识抽取记录标识"
+      },
+      {
+        "logical": "snapshot",
+        "physical": "JSON_RUN",
+        "comment": "原文、模型与提示版本、引用定位、标准候选、缺口及操作者快照"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_knowledge_replay",
+    "legacy": "medication_knowledge_replay",
+    "physical": "RHN_AUD_KNOW_REPLAY",
+    "domain": "AUD",
+    "comment": "合理用药知识处方回放记录，一行代表一个固定知识版本对一次历史审查输入的不可变回放结果",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "replay_id",
+        "physical": "ID_REPLAY",
+        "comment": "知识回放记录标识"
+      },
+      {
+        "logical": "knowledge_id",
+        "physical": "ID_KNOWLEDGE",
+        "comment": "知识草稿标识"
+      },
+      {
+        "logical": "version",
+        "physical": "NO_VERSION",
+        "comment": "本次回放使用的知识版本号"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "原评价所属机构标识"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "原评价所属科室标识"
+      },
+      {
+        "logical": "snapshot",
+        "physical": "JSON_RUN",
+        "comment": "固定知识、原评价来源、最小处方事实、缺口、结果、指纹及操作者快照"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_knowledge_rule",
+    "legacy": "medication_knowledge_rule",
+    "physical": "RHN_AUD_KNOW_RULE",
+    "domain": "AUD",
+    "comment": "知识衍生规则候选，一行代表一条知识规则的一次不可变编译版本，尚不代表审核或发布",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "knowledge_rule_id",
+        "physical": "ID_KNOW_RULE",
+        "comment": "知识规则候选版本标识"
+      },
+      {
+        "logical": "knowledge_id",
+        "physical": "ID_KNOWLEDGE",
+        "comment": "来源知识标识及规则版本链标识"
+      },
+      {
+        "logical": "version",
+        "physical": "NO_VERSION",
+        "comment": "该知识规则的递增候选版本号"
+      },
+      {
+        "logical": "knowledge_version",
+        "physical": "NO_KNOWLEDGE_VERSION",
+        "comment": "本次编译锁定的知识版本号"
+      },
+      {
+        "logical": "compiler_version",
+        "physical": "CD_COMPILER_VER",
+        "comment": "结构化规则编译器版本"
+      },
+      {
+        "logical": "snapshot",
+        "physical": "JSON_CONTENT",
+        "comment": "知识及标准来源、结构化规则、指纹、合成测试及生成操作者快照"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_knowledge_suite",
+    "legacy": "medication_knowledge_suite",
+    "physical": "RHN_AUD_KNOW_SUITE",
+    "domain": "AUD",
+    "comment": "人工编写的知识候选合成验证样例，一行代表一组不可变样例版本",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "candidate_id",
+        "physical": "ID_KNOW_RULE",
+        "comment": "固定知识规则候选版本标识"
+      },
+      {
+        "logical": "version",
+        "physical": "NO_VERSION",
+        "comment": "样例递增版本号"
+      },
+      {
+        "logical": "snapshot",
+        "physical": "JSON_SUITE",
+        "comment": "人工定义的事实、预期结果与依据及候选指纹和作者快照"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_knowledge_test",
+    "legacy": "medication_knowledge_test",
+    "physical": "RHN_AUD_KNOW_TEST",
+    "domain": "AUD",
+    "comment": "知识规则候选的合成样例执行审计，一行代表一次固定样例版本验证",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "run_id",
+        "physical": "ID_KNOW_TEST",
+        "comment": "验证执行标识"
+      },
+      {
+        "logical": "candidate_id",
+        "physical": "ID_KNOW_RULE",
+        "comment": "固定知识规则候选版本标识"
+      },
+      {
+        "logical": "suite_version",
+        "physical": "NO_SUITE_VERSION",
+        "comment": "本次执行的样例版本号"
+      },
+      {
+        "logical": "snapshot",
+        "physical": "JSON_RUN",
+        "comment": "样例输入及预期、实际命中医嘱、差异、指纹和执行者快照"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_knowledge_review",
+    "legacy": "medication_knowledge_review",
+    "physical": "RHN_AUD_KNOW_REVIEW",
+    "domain": "AUD",
+    "comment": "知识规则候选审核留痕，一行代表一次提交、撤回、退回或批准事件",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "review_id",
+        "physical": "ID_KNOW_REVIEW",
+        "comment": "不可变审核事件标识"
+      },
+      {
+        "logical": "candidate_id",
+        "physical": "ID_KNOW_RULE",
+        "comment": "固定知识规则候选版本标识"
+      },
+      {
+        "logical": "snapshot",
+        "physical": "JSON_REVIEW",
+        "comment": "提交或审核时冻结的知识、验证、指纹、策略、核验意见及操作者快照"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_rule_intake",
+    "legacy": "medication_rule_intake",
+    "physical": "RHN_AUD_KNOW_INTAKE",
+    "domain": "AUD",
+    "comment": "合理用药需求分析记录，一行代表一次不可变的意图分类与澄清分析，不代表药学证据或执行规则",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "id",
+        "physical": "ID_INTAKE",
+        "comment": "需求分析标识"
+      },
+      {
+        "logical": "run",
+        "physical": "JSON_RUN",
+        "comment": "需求、澄清来源、能力范围、引用定位、模型与提示版本及分析结果快照"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "关联研判所属机构，普通需求为空"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "关联研判所属科室，普通需求为空"
+      },
+      {
+        "logical": "feedback_id",
+        "physical": "ID_FEEDBACK",
+        "comment": "改进需求引用的固定研判事件标识"
+      },
+      {
+        "logical": "feedback_origin",
+        "physical": "JSON_ORIGIN",
+        "comment": "业务反馈意见、相关规则提示及来源知识身份，不包含完整处方或患者资料"
+      },
+      {
+        "logical": "feedback_origin_hash",
+        "physical": "HASH_ORIGIN",
+        "comment": "固定研判来源原始 JSON 的 SHA256 指纹"
+      },
+      {
+        "logical": "pharmacy_review_id",
+        "physical": "ID_PHARM_REVIEW",
+        "comment": "知识改进引用的已保存药师审方结论"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_knowledge_feedback",
+    "legacy": "medication_knowledge_feedback",
+    "physical": "RHN_AUD_KNOW_FEEDBACK",
+    "domain": "AUD",
+    "comment": "合理用药旁路研判记录，一行代表对一次观察追加或撤回的人工意见，不改写运行结果或发布状态",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "id",
+        "physical": "ID_FEEDBACK",
+        "comment": "不可变研判事件标识"
+      },
+      {
+        "logical": "run_id",
+        "physical": "ID_RULE_RUN",
+        "comment": "旁路运行观察标识"
+      },
+      {
+        "logical": "deployment_id",
+        "physical": "ID_DEPLOYMENT",
+        "comment": "冻结发布记录标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "观察所属机构"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "观察所属科室"
+      },
+      {
+        "logical": "revision",
+        "physical": "NO_REVISION",
+        "comment": "本次观察研判事件序号"
+      },
+      {
+        "logical": "operation",
+        "physical": "SD_OPERATION",
+        "comment": "研判操作：追加意见或撤回"
+      },
+      {
+        "logical": "verdict",
+        "physical": "SD_VERDICT",
+        "comment": "人工研判分类，撤回时为空"
+      },
+      {
+        "logical": "event",
+        "physical": "JSON_EVENT",
+        "comment": "运行与规则版本指纹、人工意见、依据、建议及操作者快照"
+      },
+      {
+        "logical": "event_hash",
+        "physical": "HASH_EVENT",
+        "comment": "研判事件原始快照的 SHA256 指纹"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_knowledge_release",
+    "legacy": "medication_knowledge_release",
+    "physical": "RHN_AUD_KNOW_RELEASE",
+    "domain": "AUD",
+    "comment": "知识规则正式发布材料，一行代表一次显式启用或回退形成的固定验收记录",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "id",
+        "physical": "ID_KNOW_RELEASE",
+        "comment": "独立正式发布材料标识"
+      },
+      {
+        "logical": "deployment_id",
+        "physical": "ID_DEPLOYMENT",
+        "comment": "本次正式部署标识"
+      },
+      {
+        "logical": "release",
+        "physical": "JSON_RELEASE",
+        "comment": "冻结审批、旁路观察与研判、验收说明、回退方案及启用人"
+      },
+      {
+        "logical": "release_hash",
+        "physical": "HASH_RELEASE",
+        "comment": "不可变正式发布材料原始 JSON 的 SHA256 指纹"
+      }
+    ]
+  },
+  {
+    "logical": "bd.standard_catalog_edition",
+    "legacy": "standard_catalog_edition",
+    "physical": "RHN_BD_STD_EDITION",
+    "domain": "BD",
+    "comment": "标准参考目录登记，一行代表一个租户保存的不可变候选版次，不改变当前运行目录",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "id",
+        "physical": "ID_STD_EDITION",
+        "comment": "标准目录登记版次标识"
+      },
+      {
+        "logical": "catalog_code",
+        "physical": "CD_CATALOG",
+        "comment": "标准目录编码体系标识"
+      },
+      {
+        "logical": "catalog_version",
+        "physical": "CATALOG_VERSION",
+        "comment": "不可覆盖的目录版次"
+      },
+      {
+        "logical": "edition",
+        "physical": "JSON_EDITION",
+        "comment": "目录登记元数据及完整规范化目录包，保留来源声明与原上传文本指纹"
+      },
+      {
+        "logical": "edition_hash",
+        "physical": "HASH_EDITION",
+        "comment": "登记元数据与完整目录包的规范化 SHA256 指纹"
+      },
+      {
+        "logical": "metadata",
+        "physical": "JSON_METADATA",
+        "comment": "独立登记摘要，列表读取不加载完整目录包"
+      },
+      {
+        "logical": "metadata_hash",
+        "physical": "HASH_METADATA",
+        "comment": "登记摘要的规范化 SHA256 指纹"
+      }
     ]
   }
 ]

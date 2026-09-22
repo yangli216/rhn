@@ -1,0 +1,12 @@
+.knowledge-examples-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.knowledge-examples-layout aside { display: flex; flex-direction: column; gap: var(--space-3); }
+.knowledge-examples-layout section { min-width: 0; }
+.knowledge-examples-layout li { margin-bottom: var(--space-2); }
+.knowledge-examples-layout blockquote { white-space: pre-wrap; padding: var(--space-3); background: var(--color-surface); }
+.knowledge-examples-results { max-height: 360px; overflow: auto; margin: var(--space-3) 0; }
+.knowledge-examples-results table { width: 100%; border-collapse: collapse; }
+.knowledge-examples-results th, .knowledge-examples-results td { text-align: left; padding: var(--space-2); border-bottom: 1px solid var(--color-border); }

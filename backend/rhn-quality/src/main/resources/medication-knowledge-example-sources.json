@@ -1,0 +1,22 @@
+[
+  {
+    "id": "duplicate",
+    "title": "处方管理办法",
+    "publisher": "中华人民共和国卫生部（国家卫生健康委员会官网）",
+    "edition": "卫生部令第53号，2007年5月1日起施行",
+    "url": "https://www.nhc.gov.cn/wjw/c100221/202201/6a4ee53e4a3a407fbd9f520e1e2662c5.shtml",
+    "section": "第三十五条第五项",
+    "excerpt": "（五）是否有重复给药现象；",
+    "retrieved": "2026-09-21"
+  },
+  {
+    "id": "interaction",
+    "title": "CLARITHROMYCIN tablet",
+    "publisher": "Ajanta Pharma USA Inc.；DailyMed / U.S. National Library of Medicine",
+    "edition": "页面更新 2023-12-05，说明书修订 2023-05",
+    "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=98580dee-d2f4-4f62-a2d4-7434bab2421e",
+    "section": "7 DRUG INTERACTIONS，HMG-CoA Reductase Inhibitors；另见 4.5",
+    "excerpt": "Concomitant use of clarithromycin tablets with lovastatin or simvastatin is contraindicated",
+    "retrieved": "2026-09-21"
+  }
+]

@@ -24,11 +24,14 @@ import {
   Pagination, SearchField, Select, StatusBadge, TableShell, Tabs, Tooltip,
 } from '../../shared/ui'
 import '../../styles/features/operational-master-data.css'
+import './clinical-medication-standards.css'
 
 const MedicationCompositionDialog = lazy(() => import('./MedicationCompositionDialog')
   .then((module) => ({ default: module.MedicationCompositionDialog })))
 const ClinicalMedicationStandardsPanel = lazy(() => import('./ClinicalMedicationStandardsPanel')
   .then((module) => ({ default: module.ClinicalMedicationStandardsPanel })))
+const MedicationStandardReadinessPanel = lazy(() => import('./MedicationStandardReadinessPanel')
+  .then((module) => ({ default: module.MedicationStandardReadinessPanel })))
 const StandardMedicationCatalogPanel = lazy(() => import('./StandardMedicationCatalogPanel')
   .then((module) => ({ default: module.StandardMedicationCatalogPanel })))
 const ItemAttributeConfigurationPanel = lazy(() => import('./ItemAttributeConfigurationPanel')
@@ -38,8 +41,10 @@ const OperationalMasterDataPanel = lazy(() => import('./OperationalMasterDataPan
 const ClinicalServiceConfigurationDialog = lazy(() => import('./OperationalMasterDataPanel')
   .then((module) => ({ default: module.ClinicalServiceConfigurationDialog })))
 
+export type BasicDataScope = 'all' | 'medication' | 'service' | 'disease' | 'operations'
 type Tab = 'disease' | 'service' | 'medication' | 'operations' | 'attribute'
 type DiseaseMode = 'terms' | 'management'
+export type MedicationMode = 'readiness' | 'standard' | 'knowledge' | 'product' | 'rules' | 'semantics'
 export type DictionaryMap = Record<string, DictionaryValue[]>
 
 const dictionaryCodes = [
@@ -54,14 +59,19 @@ const dictionaryCodes = [
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export function BasicDataManagement({ api, organization, onNavigate }: {
-  api: RhnApi; organization: Organization; onNavigate: (path: string) => void
+export function BasicDataManagement({ api, organization, onNavigate, scope = 'all' }: {
+  api: RhnApi; organization: Organization; onNavigate: (path: string) => void; scope?: BasicDataScope
 }) {
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState<Tab>('disease')
+  const initialTab: Tab = scope === 'medication' ? 'medication'
+    : scope === 'service' ? 'service'
+    : scope === 'disease' ? 'disease'
+    : scope === 'operations' ? 'operations'
+    : 'disease'
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [diseaseMode, setDiseaseMode] = useState<DiseaseMode>('terms')
   const [serviceDensity, setServiceDensity] = useState<'two-line' | 'single-line'>('two-line')
-  const [medicationMode, setMedicationMode] = useState<'knowledge' | 'product' | 'standard' | 'semantics'>('knowledge')
+  const [medicationMode, setMedicationMode] = useState<MedicationMode>('readiness')
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -148,7 +158,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   const pagination = <Pagination page={safePage} totalPages={totalPages} total={count} pageSize={pageSize}
     onPageSizeChange={setPageSize} onChange={setPage} label={`${tabLabel(tab)}列表分页`} />
   useEffect(() => { if (pageDataReady && page !== safePage) setPage(safePage) }, [page, pageDataReady, safePage])
-  const pageActions = tab === 'attribute' || tab === 'operations' || (tab === 'medication' && ['standard', 'semantics'].includes(medicationMode)) ? undefined : <>
+  const pageActions = tab === 'attribute' || tab === 'operations' || (tab === 'medication' && ['standard', 'semantics', 'readiness', 'rules'].includes(medicationMode)) ? undefined : <>
     {tab !== 'disease' && <>
       <Button variant="secondary" onClick={() => setDialog(
         <MasterDataImportDialog api={api} importType={tab === 'service' ? 'SERVICE' : 'MEDICATION'}
@@ -170,11 +180,24 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
     }}><Icon name="add" />{tab === 'disease' && diseaseMode === 'management' ? '新增管理项目' : tab === 'medication' ? '从标准目录建档' : `新增${tabLabel(tab)}`}</Button>
   </>
 
+  const headerMeta = scope === 'medication'
+    ? { eyebrow: '药品知识库与标准体系', title: '药品知识与目录', description: '统一维护全院启用药品标准对齐、国家参考目录追溯、临床通用知识与生产企业包装主档。' }
+    : scope === 'service'
+      ? { eyebrow: '诊疗服务主档', title: '诊疗服务目录', description: '统一维护集团/区域共享的诊疗服务目录主档与开立收费标准；本院开展与定价请至「机构项目管理」维护。' }
+      : scope === 'disease'
+        ? { eyebrow: '诊断概念与临床标准', title: '疾病与诊断标准', description: '统一维护版本化疾病诊断术语与慢病管理分类规则。' }
+        : scope === 'operations'
+          ? { eyebrow: '运营主数据与属性体系', title: '耗材与运营主数据', description: '统一维护医用耗材主档、诊疗耗材组套、统一计量单位与扩展属性配置。' }
+          : { eyebrow: '中心治理 · 标准主数据', title: '基础数据中心', description: '统一维护集团/区域共享的疾病诊断术语、诊疗服务目录主档、通用药品知识库与医用耗材标准；机构开展项目与本院定价请至「机构项目管理」维护。' }
+
   return <div className="master-data-page">
-    <PageHeader compact eyebrow="中心治理 · 标准主数据" title="基础数据中心"
-      description="统一维护集团/区域共享的疾病诊断术语、诊疗服务目录主档、通用药品知识库与医用耗材标准；机构开展项目与本院定价请至「机构项目管理」维护。"
-      actions={<Button variant="secondary" onClick={() => onNavigate('/settings/organization-catalog')}>
-        <Icon name="clinical" />前往机构项目管理</Button>} />
+    <PageHeader compact eyebrow={headerMeta.eyebrow} title={headerMeta.title}
+      description={headerMeta.description}
+      actions={<>
+        {scope === 'service' && pageActions}
+        <Button variant="secondary" onClick={() => onNavigate('/settings/organization-catalog')}>
+          <Icon name="clinical" />前往机构项目管理</Button>
+      </>} />
 
     {feedback && <Alert tone="success" className="master-data-feedback">{feedback}</Alert>}
     {(operationError || currentError) && <Alert className="master-data-feedback">
@@ -182,27 +205,30 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
     </Alert>}
 
     <Panel className="master-data-panel">
-      <Tabs value={tab} onChange={setTab} label="基础数据类型" variant="workspace" responsiveCards
-        className="master-data-tabs" actions={pageActions} items={[
-          { value: 'disease', label: '疾病与术语', meta: '版本化标准' },
-          { value: 'service', label: '诊疗项目', meta: '开立 · 执行 · 收费' },
-          { value: 'medication', label: '药品目录', meta: '知识 · 产品 · 包装' },
-          { value: 'operations', label: '运营主数据', meta: '组套 · 耗材 · 计量' },
-          { value: 'attribute', label: '属性配置', meta: '定义 · 装配 · 继承' },
-        ]} />
+      {scope === 'all' && (
+        <Tabs value={tab} onChange={setTab} label="基础数据类型" variant="workspace" responsiveCards
+          className="master-data-tabs" actions={pageActions} items={[
+            { value: 'disease', label: '疾病与术语', meta: '版本化标准' },
+            { value: 'service', label: '诊疗项目', meta: '开立 · 执行 · 收费' },
+            { value: 'medication', label: '药品目录', meta: '知识 · 产品 · 包装' },
+            { value: 'operations', label: '运营主数据', meta: '组套 · 耗材 · 计量' },
+            { value: 'attribute', label: '属性配置', meta: '定义 · 装配 · 继承' },
+          ]} />
+      )}
       {tab === 'disease' && <Tabs value={diseaseMode} onChange={setDiseaseMode} label="疾病维护视图"
-        variant="line" className="disease-management-mode" items={[
+        variant="line" className="disease-management-mode" actions={scope !== 'all' ? pageActions : undefined} items={[
           { value: 'terms', label: '疾病术语' },
           { value: 'management', label: '管理分类与规则' },
         ]} />}
-      {tab === 'medication' && <Tabs value={medicationMode} onChange={setMedicationMode} label="药品目录视图"
-        variant="line" className="medication-management-mode" items={[
-          { value: 'semantics', label: '用药标准', meta: '频次 · 给药途径 · 剂量单位' },
-          { value: 'standard', label: '标准参考目录', meta: '来源追溯 · 独立规格 · 核验清单' },
-          { value: 'knowledge', label: '基本信息视角', meta: '通用知识 · 剂型规格 · 默认用法' },
-          { value: 'product', label: '产品信息视角', meta: '厂家产品 · 包装规格 · 批准文号' },
+      {tab === 'medication' && <Tabs value={medicationMode === 'semantics' ? 'readiness' : medicationMode} onChange={setMedicationMode} label="药品目录视图"
+        variant="line" className="medication-management-mode" actions={scope !== 'all' ? pageActions : undefined} items={[
+          { value: 'readiness', label: '药品标准建设与对齐', meta: '全院对齐 · 缺口治理' },
+          { value: 'standard', label: '标准参考目录', meta: '国家标准 · 规格追溯' },
+          { value: 'knowledge', label: '基本信息视角', meta: '通用知识 · 剂型用法' },
+          { value: 'product', label: '产品信息视角', meta: '厂家产品 · 包装文号' },
+          { value: 'rules', label: '临床用药规则基准', meta: '频次 · 途径 · 剂量单位' },
         ]} />}
-      {tab !== 'attribute' && tab !== 'operations' && !(tab === 'medication' && ['standard', 'semantics'].includes(medicationMode)) && <div className="master-data-toolbar">
+      {tab !== 'attribute' && tab !== 'operations' && !(tab === 'medication' && ['standard', 'semantics', 'readiness', 'rules'].includes(medicationMode)) && <div className="master-data-toolbar">
         <SearchField className="master-data-toolbar__search" label="搜索基础数据" value={query} onChange={setQuery}
           placeholder={tab === 'disease' && diseaseMode === 'management' ? '管理项目名称、编码或说明'
             : tab === 'disease' ? '名称、别名、编码或检索码'
@@ -269,9 +295,14 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         onMappings={(value) => setDialog(<StandardMappingDialog api={api} subjectType="CATALOG_ITEM"
           targetId={value.id} itemName={value.name} systemType="SERVICE"
           onClose={() => setDialog(undefined)} />)} />}
-      {tab === 'medication' && medicationMode === 'semantics' && (
-        <Suspense fallback={<LoadingState label="正在加载临床标准…" />}>
-          <ClinicalMedicationStandardsPanel api={api} organizationId={organization.id} />
+      {tab === 'medication' && (medicationMode === 'readiness' || medicationMode === 'semantics') && (
+        <Suspense fallback={<LoadingState label="正在加载药品标准建设情况…" />}>
+          <MedicationStandardReadinessPanel api={api} compact={scope !== 'all'} organizationId={organization.id} onOpenCatalog={() => setMedicationMode('standard')} />
+        </Suspense>
+      )}
+      {tab === 'medication' && medicationMode === 'rules' && (
+        <Suspense fallback={<LoadingState label="正在加载临床用药规则基准…" />}>
+          <ClinicalMedicationStandardsPanel api={api} defaultTab="rules" hideNav organizationId={organization.id} onOpenCatalog={() => setMedicationMode('standard')} />
         </Suspense>
       )}
       {tab === 'medication' && medicationMode === 'standard' && (

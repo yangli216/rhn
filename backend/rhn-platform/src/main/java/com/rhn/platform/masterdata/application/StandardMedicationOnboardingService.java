@@ -68,6 +68,6 @@ public class StandardMedicationOnboardingService {
     }
 
     private static String normalize(String value) {
-        return value == null ? "" : value.replaceAll("\\s+", "").replace("（", "(").replace("）", ")").toLowerCase(java.util.Locale.ROOT);
+        return value == null ? "" : value.replaceAll("\\s+", "").replace("（", "(").replace("）", ")").replace("∶", ":").replace("：", ":").toLowerCase(java.util.Locale.ROOT);
     }
 }

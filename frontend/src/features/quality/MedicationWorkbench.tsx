@@ -14,9 +14,11 @@ import type {
 } from '../../shared/api/medicationWorkbenchApi'
 import { Alert, Button, Dialog, FormField, IconButton, Icon, PageHeader, SearchField, Select, StatusBadge } from '../../shared/ui'
 import './medication-workbench.css'
+import { MedicationRuleIntake, type IntakeSeed } from './MedicationRuleIntake'
+import { MedicationKnowledgeDrafts } from './MedicationKnowledgeDrafts'
 import { MedicationRuleCatalog } from './MedicationRuleCatalog'
 
-type TabKey = 'catalog' | 'sandbox' | 'evaluations' | 'factory'
+type TabKey = 'knowledge' | 'catalog' | 'sandbox' | 'evaluations' | 'factory'
 
 export const severityMap: Record<string, { label: string; tone: string }> = {
   CRITICAL: { label: '极高风险', tone: 'critical' },
@@ -59,6 +61,8 @@ type ClinicalSelectOption = { value: string; label: string; secondaryText?: stri
 
 export function MedicationWorkbench({ api }: { api: RhnApi }) {
   const [tab, setTab] = useState<TabKey>('catalog')
+  const [factoryMode, setFactoryMode] = useState<'intake' | 'template'>('intake')
+  const [intakeSeed, setIntakeSeed] = useState<IntakeSeed>()
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -126,7 +130,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
       })
       .catch(err => {
         if (current !== epoch.current) return
-        setError(prev => prev ? `${prev}；生效规则库: ${errorMessage(err)}` : `生效规则库: ${errorMessage(err)}`)
+        setError(prev => prev ? `${prev}；内置验证规则: ${errorMessage(err)}` : `内置验证规则: ${errorMessage(err)}`)
       })
       .finally(() => {
         if (current === epoch.current) setRulesLoading(false)
@@ -470,18 +474,18 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
     <div className="qmed-workbench">
       <PageHeader
         compact
-        eyebrow="临床质量 · 规则治理与审计"
+        eyebrow="临床质量 · 规则与知识"
         title="合理用药规则工作台"
         actions={
           <div className="qmed-header-actions">
-            <div className="qmed-header-meta" aria-label="当前规则运行状态">
+            <div className="qmed-header-meta" aria-label="规则验证与AI状态">
               <span className="qmed-header-meta__item">
                 <span className="qmed-kpi-dot" />
-                <span className="qmed-kpi-label">规则集</span>
+                <span className="qmed-kpi-label">内置验证集</span>
                 <strong className="qmed-kpi-val text-accent">{activeRules[0]?.ruleSetVersion ?? '—'}</strong>
               </span>
-              <span className="qmed-header-meta__item"><span className="qmed-kpi-label">运行模式</span><strong className="qmed-kpi-val">旁路监控</strong></span>
-              <span className="qmed-header-meta__item"><span className="qmed-kpi-label">在行规则</span><strong className="qmed-kpi-val">{activeRules.length} 条</strong></span>
+              <span className="qmed-header-meta__item"><span className="qmed-kpi-label">临床运行</span><strong className="qmed-kpi-val">按规则发布设置</strong></span>
+              <span className="qmed-header-meta__item"><span className="qmed-kpi-label">内置验证规则</span><strong className="qmed-kpi-val">{activeRules.length} 条</strong></span>
               <span className="qmed-header-meta__item"><span className="qmed-kpi-label">AI</span><strong className="qmed-kpi-val">{aiLoading ? '检测中…' : ai?.available ? ai.model : '未配置'}</strong></span>
             </div>
             <Link to="/settings/ai-assistant" className="qmed-link-btn" title="配置或更换后台大模型">
@@ -521,8 +525,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
           className={`qmed-tab-btn ${tab === 'catalog' ? 'is-active' : ''}`}
           onClick={() => setTab('catalog')}
         >
-          <strong>在行生效规则库</strong>
-          <span className="qmed-tab-badge">{activeRules.length}</span>
+          <strong>在行规则目录</strong>
         </button>
         <button
           className={`qmed-tab-btn ${tab === 'evaluations' ? 'is-active' : ''}`}
@@ -535,7 +538,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
           className={`qmed-tab-btn ${tab === 'sandbox' ? 'is-active' : ''}`}
           onClick={() => openActiveSandbox('ALL')}
         >
-          <strong>规则验证沙箱</strong>
+          <strong>内置规则验证沙箱</strong>
           <span className="qmed-tab-badge">单条 / 全部</span>
         </button>
         <button
@@ -545,22 +548,24 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
           <strong>AI 规则工坊与候选孵化</strong>
           <span className="qmed-tab-badge">{candidates.length}</span>
         </button>
+        <button className={`qmed-tab-btn ${tab === 'knowledge' ? 'is-active' : ''}`} onClick={() => setTab('knowledge')}><strong>规则知识草稿</strong></button>
       </nav>
 
       {/* Tab 主体内容容器：自适应高度并杜绝外部整页滚动 */}
       <div className="qmed-tab-content">
+        {tab === 'knowledge' && <MedicationKnowledgeDrafts api={api} initialIntake={intakeSeed} onIntakeConsumed={() => setIntakeSeed(undefined)} />}
         {/* Tab 1: 在行生效规则库 */}
         {tab === 'catalog' && (
-          <MedicationRuleCatalog api={api} onOpenCandidate={(value) => { setCandidate(value); setTab('factory') }} onBuiltinTrial={(code) => { const found=activeRules.find(rule => rule.ruleCode===code); if(found) openActiveSandbox('SINGLE', found) }} />
+          <MedicationRuleCatalog api={api} onOpenCandidate={(value) => { setCandidate(value); setFactoryMode('template'); setTab('factory') }} onBuiltinTrial={(code) => { const found=activeRules.find(rule => rule.ruleCode===code); if(found) openActiveSandbox('SINGLE', found) }} />
         )}
 
-      {/* Tab: 在行规则验证沙箱 */}
+      {/* Tab: 内置规则验证沙箱 */}
       {tab === 'sandbox' && (
         <div className="qmed-active-sandbox-view">
           <div className="qmed-active-sandbox-head">
             <div>
-              <h3>在行规则验证沙箱</h3>
-              <p>使用同一套生产规则运行时验证已生效规则；可只跑选中的单条规则，也可一次运行当前全部规则集。沙箱结果不写入临床处方审查流水。</p>
+              <h3>内置规则验证沙箱</h3>
+              <p>此处验证内置规则基线，不代表当前机构、科室的全部生效规则。知识生成的候选请在“在行规则目录 → 人工验证样例”中验证；实际生效范围与模式以该规则的发布设置为准。沙箱结果不写入临床处方。</p>
             </div>
             <div className="qmed-sandbox-scope-controls">
               <FormField label="验证范围">
@@ -570,7 +575,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   searchable={false}
                   clearable={false}
                   options={[
-                    { value: 'ALL', label: `全部在行规则（${activeRules.length} 条）` },
+                    { value: 'ALL', label: `全部内置规则（${activeRules.length} 条）` },
                     { value: 'SINGLE', label: '指定单条规则' }
                   ]}
                   onChange={value => {
@@ -580,9 +585,9 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                 />
               </FormField>
               {sandboxScope === 'SINGLE' && (
-                <FormField label="在行规则">
+                <FormField label="内置规则">
                   <Select
-                    aria-label="选择在行规则"
+                    aria-label="选择内置规则"
                     value={sandboxRuleCode}
                     clearable={false}
                     options={activeRules.map(rule => ({
@@ -687,8 +692,8 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
 
               <div className="qmed-sim-trigger-bar">
                 <Button variant="primary" disabled={!!busy || items.length === 0 || items.some(item => !item.medicationId) || (sandboxScope === 'SINGLE' && !sandboxRuleCode)}
-                  onClick={() => action('运行在行规则沙箱', executeActiveSandbox)}>
-                  {sandboxScope === 'ALL' ? '验证全部在行规则' : '验证所选单条规则'}
+                  onClick={() => action('运行内置规则沙箱', executeActiveSandbox)}>
+                  {sandboxScope === 'ALL' ? '验证全部内置规则' : '验证所选单条规则'}
                 </Button>
                 <span className="qmed-meta-text">{sandboxScope === 'ALL' ? `将运行规则集内 ${activeRules.length} 条规则` : `仅运行 ${activeRules.find(rule => rule.ruleCode === sandboxRuleCode)?.ruleName || '所选规则'}`}</span>
               </div>
@@ -732,8 +737,8 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
         <div className="qmed-evaluations-view">
           <div className="qmed-eval-header">
             <div>
-              <h3>真实处方旁路审查流水</h3>
-              <p>记录本租户门诊处方提交时，合理用药质量引擎触发的旁路安全评价结果与风险命中发现。</p>
+              <h3>真实处方审查结果</h3>
+              <p>展示处方实际记录的审查模式、结论及命中项；旁路观察和正式审查分别标示。</p>
             </div>
             <Button
               disabled={!!busy}
@@ -778,13 +783,13 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                       <td>{ev.prescriptionId}</td>
                       <td>{ev.encounterId}</td>
                       <td><small>{ev.ruleSetVersion}</small></td>
-                      <td><span className="qmed-tag tag-shadow">{ev.mode}</span></td>
+                      <td><span className="qmed-tag">{ev.mode === 'ENFORCED' ? '正式审查' : ev.mode === 'SHADOW' ? '旁路观察' : ev.mode || '模式待核对'}</span></td>
                       <td><span className={`qmed-dec-badge dec-${dec.tone}`}>{dec.label}</span></td>
                       <td>
                         {ev.findingCount > 0 ? (
                           <strong className="text-danger">{ev.findingCount} 项风险</strong>
                         ) : (
-                          <span className="text-muted">无风险</span>
+                          <span className="text-muted">未记录命中项</span>
                         )}
                       </td>
                     </tr>
@@ -804,7 +809,8 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
       )}
 
       {/* Tab 3: AI 规则工坊与候选孵化 (规范化 QMED-5) */}
-      {tab === 'factory' && (
+      {tab === 'factory' && <><div className="qmed-intake-switch"><Button variant={factoryMode === 'intake' ? 'primary' : 'secondary'} onClick={() => setFactoryMode('intake')}>需求分析与澄清</Button><Button variant={factoryMode === 'template' ? 'primary' : 'secondary'} onClick={() => setFactoryMode('template')}>模板候选与历史</Button></div>{factoryMode === 'intake' && <MedicationRuleIntake api={api} onStartKnowledge={seed => { setIntakeSeed(seed); setTab('knowledge') }} />}</>}
+      {tab === 'factory' && factoryMode === 'template' && (
         <div className="qmed-factory-layout">
           {/* 单行高密度向导与场景工具条 (高度压缩至 36px，移除常驻长文本) */}
           <div className="qmed-wizard-bar">
@@ -812,6 +818,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
               <div className="qmed-wizard-title">
                 <Icon name="clinical" />
                 <span>规则孵化向导</span>
+                <Button size="sm" variant="secondary" onClick={() => setTab('knowledge')}>重复用药 / 相互作用知识提取</Button>
                 <span
                   className="qmed-guide-help"
                   title="遵循医疗合规审计要求，大模型输出严禁直接介入临床生产阻断；须经【起草规则串 ➔ 结构化解析 ➔ 模拟门诊就诊测试 ➔ 离线单测/处方回放 ➔ 专家批准】五步闭环后进入旁路监控。"

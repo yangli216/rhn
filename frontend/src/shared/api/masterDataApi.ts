@@ -407,7 +407,7 @@ export interface MedicationStandardReference {
   catalogId?: string; catalogVersion?: string; contentHash?: string
   entryId?: string; specificationId?: string; semanticVersion?: number
   name?: string; doseForm?: string; preparationSpec?: string; presentationUnit?: string
-  sourceVerificationStatus?: string; issues: string[]
+  sourceVerificationStatus?: string; sourceVerificationId?: string; issues: string[]
 }
 export interface ClinicalMedicationStandards {
   version: string
@@ -416,7 +416,27 @@ export interface ClinicalMedicationStandards {
   frequencies: { id: string; code: string; name: string; standard: {
     system: string; version: string; conceptId: string | null; status: string
     interpretation: {kind: string; dailyRateComputable: boolean; doses: number | null; perDays: number | null; unknownReason: string | null}
-  }}[]
+  }; scheduleCapability?: FrequencyScheduleCapability }[]
+}
+
+export interface MedicationStandardReadiness {
+  inspectedAt: string
+  scope: 'TENANT_ACTIVE_MEDICATIONS'
+  summary: { totalActive: number; referenceStatuses: Record<MedicationStandardReference['status'], number>; sourceUnverified: number; conversionUnavailable: number; matchingStatuses?: Record<string, number> }
+  content: { medicationId: string; code: string; name: string; preparationSpec?: string; standardReference: MedicationStandardReference;
+    presentationConversionStatus: 'COMPUTABLE' | 'UNAVAILABLE' | 'NOT_ASSESSED'; conversionReasons: string[];
+    matching?: {status: string; candidateCount: number; consistentCount: number} | null }[]
+  totalElements: number; totalPages: number; page: number; size: number
+}
+
+export interface MedicationStandardBindingPreview {
+  medication: {id: string; revision: number; code: string; name: string; medicationType: string; doseForm?: string;
+    preparationSpec?: string; presentationUnit?: string; strengthValue?: number; strengthUnit?: string; status: string}
+  identity: StandardCatalogIdentity
+  reference: MedicationStandardReference
+  candidates: {specification: StandardMedicationSpecification & {name: string; entryId: string; medicationType: string; doseForm: string}; issues: string[]; boundMedicationId?: string; canBind: boolean}[]
+  bindings: {catalogId: string; catalogVersion: string; entryId: string; specificationId: string; contentHash: string}[]
+  audits: {id: string; recordedAt: string; snapshot: {actor: string; reason: string; after: MedicationStandardReference}}[]
 }
 
 export interface MedicationKnowledge {
@@ -815,6 +835,7 @@ export interface OrderFrequencyConfiguration {
   firstDayPolicy: 'REMAINING_SLOTS' | 'FULL_SCHEDULE' | 'FROM_ORDER_TIME'
   enabled: boolean; status: OperationalStatus; validFrom: string; validTo?: string
 }
+export interface FrequencyScheduleCapability { version: string; status: string; reason: string | null; explanation: string }
 export interface OrderFrequency {
   id: string; revision: number; code: string; name: string; shortName?: string; description?: string
   ruleType: OrderFrequencyRuleType; frequencyCount?: number; periodValue?: number; periodUnit?: string
@@ -823,6 +844,7 @@ export interface OrderFrequency {
   medicationApplicable: boolean; treatmentApplicable: boolean; nursingApplicable: boolean
   automaticTaskGeneration: boolean; sortOrder: number; status: OperationalStatus
   validFrom: string; validTo?: string; configurations: OrderFrequencyConfiguration[]
+  standard?: ClinicalMedicationStandards['frequencies'][number]['standard']; scheduleCapability?: FrequencyScheduleCapability
 }
 export interface ActiveOrderFrequency {
   id: string; revision: number; code: string; name: string; shortName?: string; description?: string
@@ -830,7 +852,7 @@ export interface ActiveOrderFrequency {
   anchorType: OrderFrequencyAnchorType; executionTimes: string[]
   firstDayPolicy: OrderFrequencyConfiguration['firstDayPolicy']; automaticTaskGeneration: boolean
 }
-export interface OrderFrequencyInput extends Omit<OrderFrequency, 'id' | 'revision' | 'defaultExecutionTimes' | 'configurations'> {
+export interface OrderFrequencyInput extends Omit<OrderFrequency, 'id' | 'revision' | 'defaultExecutionTimes' | 'configurations' | 'standard' | 'scheduleCapability'> {
   defaultExecutionTimes?: string
 }
 export interface OrderFrequencyConfigurationInput extends Omit<OrderFrequencyConfiguration,
@@ -839,7 +861,8 @@ export interface OrderFrequencyConfigurationInput extends Omit<OrderFrequencyCon
 }
 export interface OrderFrequencySchedulePreview {
   frequencyCode: string; frequencyName: string; ruleType: OrderFrequencyRuleType
-  explanation: string; plannedTimes: string[]
+  explanation: string; plannedTimes: string[]; capability?: FrequencyScheduleCapability
+  standard?: ClinicalMedicationStandards['frequencies'][number]['standard']; source?: string
 }
 
 export interface AdoptionBatchInput {
@@ -1389,6 +1412,10 @@ export function createMasterDataApi(client: ApiClient) {
         query, medicationType, status, organizationId,
       })}`),
     standardMedicationSummary: () => client.request<StandardMedicationSummary>('/api/platform/master-data/medication-standard-catalog/summary'),
+    standardCatalogSourceReview: (historyPage = 0) => client.request<StandardCatalogSourceReview>(
+      `/api/platform/master-data/medication-standard-catalog/source-review${queryString({historyPage: String(historyPage)})}`),
+    changeStandardCatalogSourceReview: (input: StandardCatalogReviewChange) => client.request<StandardCatalogSourceReview>(
+      '/api/platform/master-data/medication-standard-catalog/source-review', {method: 'POST', body: JSON.stringify(input)}),
     standardMedications: (query = '', medicationType = '', state = '', page = 0, size = 20) =>
       client.request<MasterDataPage<StandardMedicationEntry>>(`/api/platform/master-data/medication-standard-catalog${queryString({
         query, medicationType, state, page: String(page), size: String(size),
@@ -1409,6 +1436,14 @@ export function createMasterDataApi(client: ApiClient) {
         query, medicationType, status, organizationId, page: String(page), size: String(size),
       })}`),
     clinicalMedicationStandards: () => client.request<ClinicalMedicationStandards>('/api/platform/master-data/clinical-semantics/standards'),
+    medicationStandardReadiness: (query = '', filter = 'ALL', page = 0, size = 20) =>
+      client.request<MedicationStandardReadiness>(`/api/platform/master-data/clinical-semantics/readiness${queryString({
+        query, filter, page: String(page), size: String(size),
+      })}`),
+    medicationStandardBindingPreview: (id: string) => client.request<MedicationStandardBindingPreview>(
+      `/api/platform/master-data/medications/${encodeURIComponent(id)}/standard-binding`),
+    bindMedicationStandard: (id: string, input: {expectedRevision: number; identity: StandardCatalogIdentity; specificationId: string; reason: string; confirmedIdentity: boolean}) =>
+      client.request<MedicationStandardBindingPreview>(`/api/platform/master-data/medications/${encodeURIComponent(id)}/standard-binding`, {method: 'POST', body: JSON.stringify(input)}),
     medicationIngredients: () => client.request<MedicationIngredient[]>('/api/platform/master-data/medication-ingredients'),
     createMedicationIngredient: (input: Omit<MedicationIngredient, 'id'>) => client.request<MedicationIngredient>(
       '/api/platform/master-data/medication-ingredients', {method: 'POST', body: JSON.stringify(input)}),
@@ -1660,6 +1695,10 @@ export function createMasterDataApi(client: ApiClient) {
         `/api/platform/master-data/order-frequencies/${frequencyId}/configurations/${value.id}`,
         { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) },
       ),
+    previewOrderFrequencyDefinition: (definition: OrderFrequencyInput, start?: string, occurrences = 8) => client.request<OrderFrequencySchedulePreview>(
+      '/api/platform/master-data/order-frequencies/preview-definition', { method: 'POST', body: JSON.stringify({ definition, start, occurrences }) }),
+    previewOrderFrequencyConfiguration: (frequency: OrderFrequency, configuration: OrderFrequencyConfigurationInput, start?: string, occurrences = 8) => client.request<OrderFrequencySchedulePreview>(
+      `/api/platform/master-data/order-frequencies/${frequency.id}/preview-configuration`, { method: 'POST', body: JSON.stringify({ expectedRevision: frequency.revision, configuration, start, occurrences }) }),
     previewOrderFrequency: (code: string, organizationId?: string, departmentId?: string,
       start?: string, occurrences = 8) => client.request<OrderFrequencySchedulePreview>(
       '/api/platform/master-data/order-frequencies/preview',
@@ -1669,9 +1708,25 @@ export function createMasterDataApi(client: ApiClient) {
 }
 
 export interface StandardMedicationSource {
-  title: string; claimedEdition: string; sha256: string; verificationStatus: string; note: string
+  title: string; claimedEdition: string; sha256: string; verificationStatus: string; note: string; verificationId?: string
+}
+export interface StandardCatalogIdentity { catalogId: string; catalogVersion: string; contentHash: string; sourceHash: string }
+export interface StandardCatalogEvidence { title: string; publisher: string; edition: string; location: string; verificationNotes: string }
+export type StandardCatalogReviewAction = 'SUBMIT' | 'VERIFY' | 'REJECT' | 'REVOKE'
+export interface StandardCatalogReviewEvent {
+  id: string; revision: number; identity: StandardCatalogIdentity; status: string; evidence: StandardCatalogEvidence
+  submittedBy: string; submitter: string; actorId: string; actor: string; reason: string; recordedAt: string
+}
+export interface StandardCatalogSourceReview {
+  identity: StandardCatalogIdentity; revision: number; status: string; latest: StandardCatalogReviewEvent | null
+  history: StandardCatalogReviewEvent[]; totalEvents: number; historyPage: number; historyPageSize: number; allowedActions: StandardCatalogReviewAction[]
+}
+export interface StandardCatalogReviewChange {
+  identity: StandardCatalogIdentity; expectedRevision: number; action: StandardCatalogReviewAction
+  evidence?: StandardCatalogEvidence; reason: string
 }
 export interface StandardMedicationSummary {
+  catalogId: string; contentHash: string
   catalogVersion: string; source: StandardMedicationSource; scopeNote: string
   statistics: { entries: number; specifications: number; scopeEntries: number; issues: number;
     structuredStrengths: number; entriesWithSpecifications: number; crossCategoryRows: number }
@@ -1684,7 +1739,7 @@ export interface StandardMedicationEntry {
 }
 export interface StandardMedicationSpecification {
   id: string; doseForm: string; doseFormName: string; substanceQualifier: string; specification: string;
-  sourceBlock: string; orderable: boolean; presentationUnit?: string | null;
+  sourceBlock: string; orderable: boolean; presentationUnit?: string | null; identityIssues?: string[];
   strength: { kind: string; numerator: {value: string; unit: string} | null;
     denominator: {value: string; unit: string} | null; components: {ordinal: number; value: string; unit: string}[];
     computable: boolean }

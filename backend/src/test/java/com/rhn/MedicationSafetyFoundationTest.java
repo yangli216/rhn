@@ -193,7 +193,7 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
         int checked = 0;
         for (var table : catalog) {
             String name = table.path("physical").asString();
-            if (!name.startsWith("RHN_AUD_MED_")) continue;
+            if (!name.startsWith("RHN_AUD_MED_") && !name.startsWith("RHN_AUD_KNOW_")) continue;
             checked++;
             assertTrue(name.length() <= 30);
             assertEquals(table.path("comment").asString(), jdbc.queryForObject(
@@ -207,6 +207,6 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
                             row.getString("column_name").toUpperCase(java.util.Locale.ROOT), row.getString("remarks")), name);
             assertEquals(expected, actual, name);
         }
-        assertEquals(9, checked);
+        assertEquals(19, checked); // Includes knowledge drafts, extraction, replay and compiled candidate audit tables.
     }
 }

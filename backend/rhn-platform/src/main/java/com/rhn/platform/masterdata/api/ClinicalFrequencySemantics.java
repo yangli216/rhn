@@ -29,6 +29,8 @@ public final class ClinicalFrequencySemantics {
         if (value.periodValue() == null || value.periodValue().signum() <= 0) {
             return unknown(kind, "PERIOD_MISSING_OR_INVALID", times);
         }
+        if ("INTERVAL".equals(kind) && !Integer.valueOf(1).equals(value.frequencyCount()))
+            return unknown(kind, "INTERVAL_COUNT_CONFLICT", times);
         int count = "INTERVAL".equals(kind) ? 1 : value.frequencyCount() == null ? 0 : value.frequencyCount();
         if (count <= 0) return unknown(kind, "FREQUENCY_COUNT_MISSING_OR_INVALID", times);
         BigDecimal perDays = value.periodValue();

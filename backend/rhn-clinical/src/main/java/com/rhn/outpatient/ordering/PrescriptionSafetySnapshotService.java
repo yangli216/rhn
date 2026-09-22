@@ -41,6 +41,8 @@ class PrescriptionSafetySnapshotService implements PrescriptionSafetySnapshotDir
     @Override
     @Transactional(readOnly = true)
     public PrescriptionSafetySnapshot requireSnapshot(Long encounterId, Long prescriptionId) {
+        var evaluationZone=java.time.ZoneId.systemDefault();
+        var evaluationDate=java.time.LocalDate.now(evaluationZone);
         var encounter = encounters.requireAccessible(encounterId);
         var prescription = prescriptions.findByIdAndTenantId(prescriptionId, encounter.tenantId())
                 .filter(value -> encounterId.equals(value.encounterId()))
@@ -62,7 +64,7 @@ class PrescriptionSafetySnapshotService implements PrescriptionSafetySnapshotDir
                 if (resident != null) {
                     gender = resident.gender();
                     if (resident.birthDate() != null) {
-                        ageYears = java.time.Period.between(resident.birthDate(), java.time.LocalDate.now()).getYears();
+                        ageYears = java.time.Period.between(resident.birthDate(), evaluationDate).getYears();
                     }
                 }
             } catch (RuntimeException ex) {
@@ -89,7 +91,8 @@ class PrescriptionSafetySnapshotService implements PrescriptionSafetySnapshotDir
 
         return new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION, encounter.tenantId(),
                 prescriptionId, prescription.revision(), encounterId, encounter.residentId(),
-                encounter.organizationId(), encounter.departmentId(), prescription.status(), items, patientContext);
+                encounter.organizationId(), encounter.departmentId(), prescription.status(), items, patientContext,
+                new PrescriptionSafetySnapshot.EvaluationTiming(evaluationDate,evaluationZone.getId()));
     }
     private String semanticStatus(String saved) {
         if (saved == null) return "LEGACY";

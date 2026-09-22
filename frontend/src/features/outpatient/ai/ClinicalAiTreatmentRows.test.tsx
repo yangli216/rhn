@@ -17,7 +17,8 @@ function setup(defaults = true) {
       prices: [{ packageId: 'pack1', price: 8.6, sdStatus: 'ACTIVE', sdPriceType: 'SALE', validFrom: '2020-01-01' }] }] }
   const api = { encounters: { orderableMedications: vi.fn().mockResolvedValue([medication]) }, masterData: {
     activeMedicationRoutes: vi.fn().mockResolvedValue([{ code: 'ORAL', name: '口服' }]),
-    activeOrderFrequencies: vi.fn().mockResolvedValue([{ code: 'QD', name: '每日一次', executionTimes: ['08:00'] }]),
+    activeOrderFrequencies: vi.fn().mockResolvedValue([{ code: 'QD', name: '每日一次', executionTimes: ['08:00'],
+      ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D' }]),
     searchServices: vi.fn().mockResolvedValue({ content: [{ id: 's1', unitCode: 'ITEM', specimenType: '静脉血',
       examinationNotes: '测试采样要求', prices: [] }] }),
   } } as unknown as RhnApi

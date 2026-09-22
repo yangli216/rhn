@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MedicationKnowledge } from '../../shared/api/masterDataApi'
-import { resolveDispensableOptions } from './PrescriptionListEditor'
+import { resolveDispensableOptions } from './orders/dispensableOptions'
 
 describe('门诊处方包装与拆零计价', () => {
   it('同时提供整包装和最小单位选项，并优先使用当前机构价格', () => {

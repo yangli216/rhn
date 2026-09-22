@@ -3,6 +3,7 @@ package com.rhn.platform.masterdata.application;
 import com.rhn.platform.masterdata.api.*;
 import com.rhn.platform.masterdata.api.MasterDataCommands.MedicationCommand;
 import com.rhn.platform.masterdata.domain.MedicationStandardSource;
+import com.rhn.platform.masterdata.domain.Medication;
 import com.rhn.platform.masterdata.infrastructure.MedicationStandardSourceRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationRepository;
 import org.springframework.stereotype.Service;
@@ -16,8 +17,11 @@ public class MedicationStandardService {
     private final StandardMedicationCatalogService catalog;
     private final MedicationStandardSourceRepository sources;
     private final MedicationRepository medications;
-    public MedicationStandardService(StandardMedicationCatalogService catalog, MedicationStandardSourceRepository sources, MedicationRepository medications) {
+    private final StandardCatalogReviewService reviews;
+    public MedicationStandardService(StandardMedicationCatalogService catalog, MedicationStandardSourceRepository sources, MedicationRepository medications,
+            StandardCatalogReviewService reviews) {
         this.catalog = catalog; this.sources = sources; this.medications = medications;
+        this.reviews = reviews;
     }
 
     public void validateNew(Long tenant, MedicationCommand command) {
@@ -32,6 +36,8 @@ public class MedicationStandardService {
         if (specificationId == null || specificationId.isBlank())
             throw badRequest("MEDICATION_STANDARD_REQUIRED", "新建药品必须选择标准参考目录中的规格；目录外药品须先补充标准目录");
         var spec = catalog.specification(specificationId);
+        if (!catalog.specificationIdentityIssues(spec).isEmpty())
+            throw badRequest("MEDICATION_STANDARD_SPECIFICATION_REQUIRES_REVIEW", "标准原文存在规格不完整、剂型边界或成分拆分问题，请先核对标准规格");
         if (!Objects.equals(spec.path("medicationType").asString(), command.medicationType())
                 || !Objects.equals(spec.path("doseForm").asString(), command.doseForm())
                 || !normalize(spec.path("specification").asString()).equals(normalize(command.preparationSpec())))
@@ -87,19 +93,58 @@ public class MedicationStandardService {
 
     public MedicationStandardReference reference(Long tenant, Long medicationId) {
         var links = sources.findByTenantIdAndMedicationId(tenant, medicationId);
+        return reference(medications.findByIdAndTenantId(medicationId, tenant).orElse(null), links, reviews.summary(tenant));
+    }
+
+    /** Tenant-wide audit reuses the runtime identity check without a query for every medication. */
+    public java.util.Map<Long, MedicationStandardReference> references(Long tenant, List<Medication> items) {
+        var grouped = sources.findByTenantId(tenant).stream().collect(java.util.stream.Collectors.groupingBy(MedicationStandardSource::medicationId));
+        var summary = reviews.summary(tenant);
+        var result = new java.util.HashMap<Long, MedicationStandardReference>();
+        for (var item : items) {
+            if (!Objects.equals(tenant, item.tenantId())) throw new IllegalArgumentException("Medication tenant mismatch");
+            result.put(item.id(), reference(item, grouped.getOrDefault(item.id(), List.of()), summary));
+        }
+        return result;
+    }
+
+    private MedicationStandardReference reference(Medication medication, List<MedicationStandardSource> links, JsonNode summary) {
         if (links.isEmpty()) return MedicationStandardReference.unavailable("UNMAPPED", "STANDARD_REFERENCE_MISSING");
         if (links.size() != 1) return MedicationStandardReference.unavailable("AMBIGUOUS", "STANDARD_REFERENCE_AMBIGUOUS");
-        var source = links.getFirst(); var summary = catalog.summary();
+        var source = links.getFirst();
         if (!current(source, summary)) return MedicationStandardReference.unavailable("STALE", "STANDARD_REFERENCE_VERSION_UNAVAILABLE");
-        var spec = catalog.specification(source.specificationCode());
-        var medication = medications.findByIdAndTenantId(medicationId, tenant).orElse(null);
-        String unit = spec.path("presentationUnit").asString("");
-        if (medication == null || !source.entryCode().equals(spec.path("entryId").asString())
-                || !Objects.equals(medication.medicationType(), spec.path("medicationType").asString())
-                || !Objects.equals(medication.doseForm(), spec.path("doseForm").asString())
-                || !normalize(medication.preparationSpec()).equals(normalize(spec.path("specification").asString()))
-                || (!unit.isBlank() && !Objects.equals(unit, medication.preparationUnit())))
+        JsonNode spec;
+        try { spec = catalog.specification(source.specificationCode()); }
+        catch (com.rhn.shared.api.BusinessException ex) {
+            if (!"STANDARD_SPEC_NOT_FOUND".equals(ex.code())) throw ex;
+            return MedicationStandardReference.unavailable("STALE", "STANDARD_REFERENCE_SPECIFICATION_UNAVAILABLE");
+        }
+        if (!source.entryCode().equals(spec.path("entryId").asString()))
             return MedicationStandardReference.unavailable("MISMATCH", "STANDARD_REFERENCE_IDENTITY_MISMATCH");
+        var issues = identityIssues(medication, spec);
+        if (!issues.isEmpty()) return MedicationStandardReference.unavailable("MISMATCH", issues.getFirst());
+        return new MedicationStandardReference("LINKED", source.catalogCode(), source.catalogVersion(), source.sourceHash(),
+                source.entryCode(), source.specificationCode(), spec.path("semanticVersion").asInt(), spec.path("name").asString(),
+                spec.path("doseForm").asString(), spec.path("specification").asString(), spec.path("presentationUnit").asString(null),
+                spec.path("strength").deepCopy(), summary.path("source").path("verificationStatus").asString("UNKNOWN"), List.of(),
+                summary.path("source").path("verificationId").asString(null));
+    }
+
+    /** The same structural comparison is used by runtime references and explicit legacy binding. */
+    public List<String> identityIssues(Medication medication, JsonNode spec) {
+        var sourceIssues = catalog.specificationIdentityIssues(spec);
+        if (!sourceIssues.isEmpty()) return sourceIssues;
+        String unit = spec.path("presentationUnit").asString("");
+        if (medication == null) return List.of("STANDARD_REFERENCE_IDENTITY_MISMATCH");
+        var differences = new java.util.ArrayList<String>();
+        if (!Objects.equals(medication.medicationType(), spec.path("medicationType").asString())) differences.add("STANDARD_REFERENCE_TYPE_MISMATCH");
+        if (!Objects.equals(medication.doseForm(), spec.path("doseForm").asString())) differences.add("STANDARD_REFERENCE_FORM_MISMATCH");
+        if (!normalize(medication.preparationSpec()).equals(normalize(spec.path("specification").asString()))) differences.add("STANDARD_REFERENCE_SPEC_MISMATCH");
+        if (!unit.isBlank() && !Objects.equals(unit, medication.preparationUnit())) differences.add("STANDARD_REFERENCE_UNIT_MISMATCH");
+        if (!differences.isEmpty()) {
+            differences.addFirst("STANDARD_REFERENCE_IDENTITY_MISMATCH");
+            return List.copyOf(differences);
+        }
         var strength = spec.path("strength");
         if (medication.strengthValue() != null && "AMOUNT_PER_PRESENTATION".equals(strength.path("kind").asString())
                 && strength.path("computable").asBoolean()) {
@@ -107,12 +152,9 @@ public class MedicationStandardService {
             var converted = ClinicalDoseUnits.convert(medication.strengthValue(), medication.strengthUnit(), expected.path("unit").asString());
             var actual = Objects.equals(medication.strengthUnit(), expected.path("unit").asString()) ? medication.strengthValue() : converted.orElse(null);
             if (actual == null || actual.compareTo(new java.math.BigDecimal(expected.path("value").asString())) != 0)
-                return MedicationStandardReference.unavailable("MISMATCH", "STANDARD_REFERENCE_STRENGTH_MISMATCH");
+                return List.of("STANDARD_REFERENCE_STRENGTH_MISMATCH");
         }
-        return new MedicationStandardReference("LINKED", source.catalogCode(), source.catalogVersion(), source.sourceHash(),
-                source.entryCode(), source.specificationCode(), spec.path("semanticVersion").asInt(), spec.path("name").asString(),
-                spec.path("doseForm").asString(), spec.path("specification").asString(), spec.path("presentationUnit").asString(null),
-                spec.path("strength").deepCopy(), summary.path("source").path("verificationStatus").asString("UNKNOWN"), List.of());
+        return List.of();
     }
 
     public void requireLinked(Long tenant, Long medicationId) {
@@ -128,6 +170,6 @@ public class MedicationStandardService {
                 && source.sourceHash().equals(summary.path("contentHash").asString());
     }
     private static String normalize(String value) {
-        return value == null ? "" : value.replaceAll("\\s+", "").replace("（", "(").replace("）", ")");
+        return value == null ? "" : value.replaceAll("\\s+", "").replace("（", "(").replace("）", ")").replace("∶", ":").replace("：", ":");
     }
 }

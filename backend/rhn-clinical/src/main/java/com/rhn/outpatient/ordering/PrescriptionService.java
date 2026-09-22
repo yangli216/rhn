@@ -44,6 +44,7 @@ class PrescriptionService {
     private final PrescriptionInventoryFreezePolicy freezePolicy;
     private final PrescriptionSplitEngine splitEngine;
     private final PrescriptionSafetyEvaluationDirectory safetyEvaluations;
+    private final com.rhn.shared.json.JsonCodec json;
 
     PrescriptionService(PrescriptionRepository repository, MedicationRequestRepository medicationRepository,
                         MedicationRequestService medicationService, EncounterDirectory encounterDirectory,
@@ -52,7 +53,9 @@ class PrescriptionService {
                         OutpatientPrescriptionInventoryDirectory inventoryDirectory,
                         PrescriptionInventoryFreezePolicy freezePolicy,
                         PrescriptionSplitEngine splitEngine,
-                        PrescriptionSafetyEvaluationDirectory safetyEvaluations, OrderDocumentInfoSupport documentInfoSupport) {
+                        PrescriptionSafetyEvaluationDirectory safetyEvaluations, OrderDocumentInfoSupport documentInfoSupport,
+                        com.rhn.shared.json.JsonCodec json) {
+        this.json = json;
         this.documentInfoSupport = documentInfoSupport;
         this.repository = repository; this.medicationRepository = medicationRepository;
         this.medicationService = medicationService; this.encounterDirectory = encounterDirectory;
@@ -221,6 +224,11 @@ class PrescriptionService {
 
         drafts.forEach(request -> medicationService.activateFromPrescription(request, encounter));
         value.submit(action.expectedRevision(), context.subjectId());
+        value.recordSafetyReview(json.write(new com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Review(
+                value.id(), value.groupNo(), value.submittedAt(), clean(action.reason()), safetyEvaluation,
+                requests.stream().filter(request -> !"CANCELLED".equals(request.status())).map(request ->
+                    new com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Medication(request.id(),
+                        json.readTree(request.medicationSnapshot()).path("name").asString("药品名称未记录"))).toList())));
         medicationRepository.flush(); repository.flush();
         publish(value, "PRESCRIPTION_SUBMITTED", "提交门诊处方", Map.of(
                 "medicationCount", drafts.size(),

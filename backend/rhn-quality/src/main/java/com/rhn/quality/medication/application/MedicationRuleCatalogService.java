@@ -22,9 +22,11 @@ public class MedicationRuleCatalogService {
     private final MedicationWorkbenchStore candidates;
     private final MedicationRuleGovernanceStore governance;
     private final MedicationKnowledgeDirectory knowledge;
+    private final MedicationKnowledgeRuleStore knowledgeRules;
+    private final MedicationKnowledgeTestStore knowledgeTests;
     public MedicationRuleCatalogService(ExecutionContextProvider contexts, MedicationRuleRegistry registry,
-            MedicationWorkbenchStore candidates, MedicationRuleGovernanceStore governance, MedicationKnowledgeDirectory knowledge) {
-        this.contexts=contexts;this.registry=registry;this.candidates=candidates;this.governance=governance;this.knowledge=knowledge;
+            MedicationWorkbenchStore candidates, MedicationRuleGovernanceStore governance, MedicationKnowledgeDirectory knowledge, MedicationKnowledgeRuleStore knowledgeRules, MedicationKnowledgeTestStore knowledgeTests) {
+        this.contexts=contexts;this.registry=registry;this.candidates=candidates;this.governance=governance;this.knowledge=knowledge;this.knowledgeRules=knowledgeRules;this.knowledgeTests=knowledgeTests;
     }
     private void access() {
         if(!contexts.requireCurrent().hasAuthority("MASTER_DATA.MANAGE"))
@@ -58,6 +60,15 @@ public class MedicationRuleCatalogService {
             }).toList();
             result.add(new CatalogEntry(key,"QMED.CUSTOM."+root,views.getFirst().name(),views.getFirst().origin(),stored.revision(),views,stored.state().deployments(),stored.state().history()));
         });
+        knowledgeRules.all(tenant).stream().collect(Collectors.groupingBy(v->v.knowledgeId(),TreeMap::new,Collectors.toList())).forEach((knowledgeId,versions)-> {
+            String key="KNOWLEDGE:"+knowledgeId;var stored=states.getOrDefault(key,new MedicationRuleGovernanceStore.Stored(key,0,Governance.empty()));
+            var views=versions.stream().sorted(Comparator.comparingInt(com.rhn.quality.medication.api.MedicationKnowledgeRuleContracts.KnowledgeRuleCandidate::version).reversed()).map(v-> {
+                var review=review(stored.state(),v.id().toString());
+                boolean passed=!v.cases().isEmpty()&&v.cases().stream().allMatch(com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.TestCase::passed);
+                return new CatalogVersion(v.id().toString(),v.version(),v.knowledge().body().title(),review==null?"DRAFT":review.status(),passed,"KNOWLEDGE",null,null,review,v,knowledgeTests.status(tenant,v.id()));
+            }).toList();
+            result.add(new CatalogEntry(key,"QMED.KNOWLEDGE."+knowledgeId,views.getFirst().name(),"KNOWLEDGE",stored.revision(),views,stored.state().deployments(),stored.state().history()));
+        });
         return List.copyOf(result);
     }
     private Long root(Candidate value,Map<Long,Candidate> index) {
@@ -71,7 +82,7 @@ public class MedicationRuleCatalogService {
     private Review review(Governance state,String id) { return state.reviews().stream().filter(v->v.versionId().equals(id)).findFirst().orElse(null); }
     private CatalogEntry require(String key) { return entries(contexts.requireCurrent().tenantId()).stream().filter(v->v.key().equals(key)).findFirst()
             .orElseThrow(()->notFound("QMED_RULE_NOT_FOUND","未找到当前租户的规则")); }
-    public List<RuntimeRecord> runs(String key) {access();require(key);return governance.runs(contexts.requireCurrent().tenantId(),key);}
+    public List<RuntimeRecord> runs(String key) {access();require(key);var c=contexts.requireCurrent();return key.startsWith("KNOWLEDGE:")?governance.scopedRuns(c.tenantId(),c.organizationId(),c.departmentId(),key):governance.runs(c.tenantId(),key);}
 
     public Candidate draft(DraftCommand input) {
         access();
@@ -102,6 +113,8 @@ public class MedicationRuleCatalogService {
                 .orElseThrow(()->notFound("QMED_VERSION_NOT_FOUND","规则版本不存在"));
         var reviews=new ArrayList<>(stored.state().reviews());var releases=new ArrayList<>(stored.state().deployments());
         var events=new ArrayList<>(stored.state().history());var now=Instant.now();String operation=Objects.toString(input.operation(),"");
+        if(version.knowledgeCandidate()!=null && !"RETIRE".equals(operation))
+            throw conflict("QMED_KNOWLEDGE_REVIEW_PENDING","知识候选的提交与审核请使用“审核与提交”入口；旁路请使用“旁路部署与观察”入口，正式启用和回退请使用独立发布入口");
         switch(operation) {
             case "SUBMIT" -> {
                 if(!Set.of("DRAFT","REJECTED").contains(version.reviewStatus())) throw conflict("QMED_REVIEW_TRANSITION_INVALID","当前版本不能重复提交审核");

@@ -1,0 +1,398 @@
+[
+  {
+    "id": "daily-ignores-execution-slots",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "TIMES_PER_PERIOD",
+      "frequencyCount": 2,
+      "periodValue": 1,
+      "periodUnit": "D",
+      "executionTimes": [
+        "08:00"
+      ]
+    },
+    "expected": {
+      "kind": "TIMES_PER_DAY",
+      "dailyRateComputable": true,
+      "doses": 2,
+      "perDays": 1,
+      "scheduledTimes": [
+        "08:00"
+      ],
+      "unknownReason": null
+    }
+  },
+  {
+    "id": "eight-hours",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "FIXED_INTERVAL",
+      "frequencyCount": 1,
+      "periodValue": 8,
+      "periodUnit": "H",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "INTERVAL",
+      "dailyRateComputable": true,
+      "doses": 24,
+      "perDays": 8,
+      "scheduledTimes": [],
+      "unknownReason": null
+    }
+  },
+  {
+    "id": "ninety-minutes",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "FIXED_INTERVAL",
+      "frequencyCount": 1,
+      "periodValue": 90,
+      "periodUnit": "MIN",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "INTERVAL",
+      "dailyRateComputable": true,
+      "doses": 1440,
+      "perDays": 90,
+      "scheduledTimes": [],
+      "unknownReason": null
+    }
+  },
+  {
+    "id": "weekly",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "TIMES_PER_PERIOD",
+      "frequencyCount": 1,
+      "periodValue": 1,
+      "periodUnit": "WK",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "TIMES_PER_DAY",
+      "dailyRateComputable": true,
+      "doses": 1,
+      "perDays": 7,
+      "scheduledTimes": [],
+      "unknownReason": null
+    }
+  },
+  {
+    "id": "every-two-weeks",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "TIMES_PER_PERIOD",
+      "frequencyCount": 1,
+      "periodValue": 2,
+      "periodUnit": "WK",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "TIMES_PER_DAY",
+      "dailyRateComputable": true,
+      "doses": 1,
+      "perDays": 14,
+      "scheduledTimes": [],
+      "unknownReason": null
+    }
+  },
+  {
+    "id": "alternate-days",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "TIMES_PER_PERIOD",
+      "frequencyCount": 1,
+      "periodValue": 2,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "TIMES_PER_DAY",
+      "dailyRateComputable": true,
+      "doses": 1,
+      "perDays": 2,
+      "scheduledTimes": [],
+      "unknownReason": null
+    }
+  },
+  {
+    "id": "fractional-period",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "FIXED_INTERVAL",
+      "frequencyCount": 1,
+      "periodValue": 0.5,
+      "periodUnit": "H",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "INTERVAL",
+      "dailyRateComputable": true,
+      "doses": 24,
+      "perDays": 0.5,
+      "scheduledTimes": [],
+      "unknownReason": null
+    }
+  },
+  {
+    "id": "PRN",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "PRN",
+      "frequencyCount": 1,
+      "periodValue": 1,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "AS_NEEDED",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "AS_NEEDED_HAS_NO_FIXED_DAILY_RATE"
+    }
+  },
+  {
+    "id": "ONCE",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "ONCE",
+      "frequencyCount": 1,
+      "periodValue": 1,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "ONCE",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "SINGLE_OCCURRENCE_HAS_NO_DAILY_RATE"
+    }
+  },
+  {
+    "id": "CALENDAR",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "CALENDAR",
+      "frequencyCount": 1,
+      "periodValue": 1,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "SCHEDULED_TIME",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "CALENDAR_REQUIRES_DATE_CONTEXT"
+    }
+  },
+  {
+    "id": "CONTINUOUS",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "CONTINUOUS",
+      "frequencyCount": 1,
+      "periodValue": 1,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "OTHER",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "FREQUENCY_NOT_COMPUTABLE"
+    }
+  },
+  {
+    "id": "None",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": null,
+      "frequencyCount": 1,
+      "periodValue": 1,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "OTHER",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "FREQUENCY_NOT_COMPUTABLE"
+    }
+  },
+  {
+    "id": "MISSING",
+    "snapshot": null,
+    "expected": {
+      "kind": "OTHER",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "FREQUENCY_MISSING"
+    }
+  },
+  {
+    "id": "interval-count-conflict",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "FIXED_INTERVAL",
+      "frequencyCount": 99,
+      "periodValue": 1,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "INTERVAL",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "INTERVAL_COUNT_CONFLICT"
+    }
+  },
+  {
+    "id": "missing-period",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "TIMES_PER_PERIOD",
+      "frequencyCount": 1,
+      "periodValue": null,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "TIMES_PER_DAY",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "PERIOD_MISSING_OR_INVALID"
+    }
+  },
+  {
+    "id": "zero-period",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "TIMES_PER_PERIOD",
+      "frequencyCount": 1,
+      "periodValue": 0,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "TIMES_PER_DAY",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "PERIOD_MISSING_OR_INVALID"
+    }
+  },
+  {
+    "id": "zero-count",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "TIMES_PER_PERIOD",
+      "frequencyCount": 0,
+      "periodValue": 1,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "TIMES_PER_DAY",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "FREQUENCY_COUNT_MISSING_OR_INVALID"
+    }
+  },
+  {
+    "id": "missing-count",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "TIMES_PER_PERIOD",
+      "frequencyCount": null,
+      "periodValue": 1,
+      "periodUnit": "D",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "TIMES_PER_DAY",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "FREQUENCY_COUNT_MISSING_OR_INVALID"
+    }
+  },
+  {
+    "id": "calendar-month",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "TIMES_PER_PERIOD",
+      "frequencyCount": 1,
+      "periodValue": 1,
+      "periodUnit": "MO",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "TIMES_PER_DAY",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "PERIOD_UNIT_NOT_FIXED_LENGTH"
+    }
+  },
+  {
+    "id": "unsupported-lowercase-unit",
+    "snapshot": {
+      "code": "MISLEADING-QD",
+      "name": "每日九十九次",
+      "ruleType": "TIMES_PER_PERIOD",
+      "frequencyCount": 1,
+      "periodValue": 1,
+      "periodUnit": "w",
+      "executionTimes": []
+    },
+    "expected": {
+      "kind": "TIMES_PER_DAY",
+      "dailyRateComputable": false,
+      "doses": null,
+      "perDays": null,
+      "scheduledTimes": [],
+      "unknownReason": "PERIOD_UNIT_NOT_FIXED_LENGTH"
+    }
+  }
+]

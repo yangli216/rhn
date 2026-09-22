@@ -27,8 +27,11 @@ class ClinicalSemanticPrimitivesTest {
         var bid = ClinicalFrequencySemantics.interpret(frequency("TIMES_PER_PERIOD", 2, "1", "D"));
         assertThat(bid.doses()).isEqualByComparingTo("2");
         assertThat(bid.perDays()).isEqualByComparingTo("1");
-        var everyEightHours = ClinicalFrequencySemantics.interpret(frequency("FIXED_INTERVAL", 99, "8", "H"));
+        var everyEightHours = ClinicalFrequencySemantics.interpret(frequency("FIXED_INTERVAL", 1, "8", "H"));
         assertThat(everyEightHours.doses().divide(everyEightHours.perDays())).isEqualByComparingTo("3");
+        var inconsistent = ClinicalFrequencySemantics.interpret(frequency("FIXED_INTERVAL", 99, "8", "H"));
+        assertThat(inconsistent.dailyRateComputable()).isFalse();
+        assertThat(inconsistent.unknownReason()).isEqualTo("INTERVAL_COUNT_CONFLICT");
         var weekly = ClinicalFrequencySemantics.interpret(frequency("TIMES_PER_PERIOD", 1, "1", "WK"));
         assertThat(weekly.doses()).isEqualByComparingTo("1");
         assertThat(weekly.perDays()).isEqualByComparingTo("7");

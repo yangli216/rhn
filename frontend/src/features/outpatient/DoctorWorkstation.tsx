@@ -1,3 +1,17 @@
+import { useClinicalAiDraft, type AiRecordUndo } from './record/useClinicalAiDraft'
+import { DiagnosisPanel } from './record/DiagnosisPanel'
+import { ClinicalVitalsFields } from './record/ClinicalVitalsFields'
+import { StructuredNoteForm, ClinicalRecordReadView } from './record/StructuredNoteFields'
+import { NoteTemplateBar, mergeNoteTemplateContent, type NoteTemplateField } from './record/NoteTemplateBar'
+export { mergeNoteTemplateContent, type NoteTemplateField } from './record/NoteTemplateBar'
+import { createClinicalDraftSaver } from './record/saveClinicalDraft'
+import { clinicalRecordContent, createRecordSchema, diagnosisDraftSignature,
+  normalizeDiagnosisOrder, structuredFormSignature, validateStructuredForm,
+  type RecordForm } from './record/clinicalRecordDraft'
+import { draftToBatchItem, persistOrderDrafts } from './orders/persistOrderDrafts'
+export { createRecordSchema, diagnosisDraftSignature, moveDiagnosis, normalizeDiagnosisOrder,
+  structuredFormSignature, validateStructuredForm } from './record/clinicalRecordDraft'
+export { draftToBatchItem, persistOrderDrafts } from './orders/persistOrderDrafts'
 import { OrderDocumentSummary, orderDocuments, documentMissing } from './OrderDocuments'
 import type { ClinicalAiFieldStream } from '../../shared/api/clinicalAiStream'
 import { HistoryPrescriptionReference } from './ai/HistoryPrescriptionReference'
@@ -7,26 +21,24 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { ClinicalDocument } from '../../shared/api/clinicalDocumentsApi'
 import type { ClinicalAiDraftContext, ClinicalAiRecordDraft } from '../../shared/api/clinicalAiApi'
-import type { DiseaseConcept } from '../../shared/api/masterDataApi'
 import type { Department } from '../../shared/api/organizationApi'
 import type {
   CreateOutpatientReferralInput, OutpatientReferral, OutpatientReferralStatus, OutpatientReferralType,
 } from '../../shared/api/outpatientReferralsApi'
 import type {
-  BatchOrderMedicationItem, ClinicalRecordInput, CompleteEncounterInput, DiagnosisInput,
+  ClinicalRecordInput, CompleteEncounterInput, DiagnosisInput,
   MedicationRequest, MedicationSafetyDecision, MedicationSafetyFinding, Prescription, ServiceRequest, SplitPrescriptionPlan,
 } from '../../shared/api/encountersApi'
 import type { TerminateEncounterInput } from '../../shared/api/outpatientFlowApi'
 import type { OutpatientPlanTemplate, OutpatientPlanTemplateScope } from '../../shared/api/outpatientPlanTemplatesApi'
 import type {
-  OutpatientNoteTemplate, OutpatientNoteTemplateContent, OutpatientNoteTemplateScope,
+  OutpatientNoteTemplate, OutpatientNoteTemplateContent,
 } from '../../shared/api/outpatientNoteTemplatesApi'
 import type {
-  OutpatientNoteForm, OutpatientNoteFormField,
+  OutpatientNoteForm,
 } from '../../shared/api/outpatientNoteFormsApi'
 import type { PrintPurpose, PrintReceipt, PrintRecord } from '../../shared/api/printingApi'
 import type { AllergenTerm, AllergyIntolerance } from '../../shared/api/residentsApi'
@@ -36,20 +48,17 @@ import { age, formatTime, genderLabel } from '../../shared/format'
 import { requiresBloodPressure } from './bloodPressurePolicy'
 import { encounterStatusPresentation } from '../../shared/presentation'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
-import { exceedsWarning, VITAL_HARD_LIMITS, vitalRule } from '../../shared/validation/businessValidation'
 import type { SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import {
-  Alert, Button, ClinicalResourceSearch, Dialog, EmptyState, FormField, Icon, LoadingState,
+  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState,
   ObjectContextBar, PageHeader, Panel, PanelHead, Popconfirm, Select, StatusBadge,
-  Tooltip, type ClinicalResourceOption, type SelectOption,
+  Tooltip,
 } from '../../shared/ui'
-import {
-  isInfusionRoute, type MedicationPlanDraft,
-} from './PrescriptionListEditor'
+import type { MedicationPlanDraft } from './orders/medicationDraft'
 import { UnifiedOrderListEditor, type AiOrderReviewCommand, type ServicePlanDraft } from './UnifiedOrderListEditor'
 import type { ClinicalAiSurfaceRefs } from './ai/ClinicalAiInlineWorkspace'
 import {
-  clinicalAiContextFingerprint, mergeAiDiagnoses, mergeAiRecordDraft, stableClinicalAiFingerprint,
+  clinicalAiContextFingerprint,
   type ClinicalAiDraftRequest,
 } from './ai/aiDraftAdapter'
 import './waiting/waitingWorkspace.css'
@@ -1403,484 +1412,8 @@ function allergenConceptTypeLabel(value: AllergenTerm['conceptType']) {
 }
 
 
-function vitalNumber(label: string, limits: { minimum: number; maximum: number }, integer: boolean) {
-  const rangeMessage = `${label}请输入 ${limits.minimum}～${limits.maximum} 之间的数值`
-  const number = z.number({ error: (issue) => issue.input === undefined
-    ? `请填写${label}` : `${label}请输入有效数字` }).min(limits.minimum, rangeMessage).max(limits.maximum, rangeMessage)
-  return integer ? number.int(`${label}请输入整数`) : number
-}
-
-export const createRecordSchema = (bloodPressureRequired: boolean) => z.object({
-  chiefComplaint: z.string().trim().min(1, '请输入主诉').max(1000),
-  presentIllness: z.string().trim().max(4000),
-  medicalHistory: z.string().trim().max(4000),
-  physicalExam: z.string().trim().max(4000),
-  treatmentPlan: z.string().trim().max(4000),
-  systolic: vitalNumber('收缩压', VITAL_HARD_LIMITS.systolicPressure, true).optional(),
-  diastolic: vitalNumber('舒张压', VITAL_HARD_LIMITS.diastolicPressure, true).optional(),
-  temperature: vitalNumber('体温', VITAL_HARD_LIMITS.temperature, false).optional(),
-  pulseRate: vitalNumber('脉搏', VITAL_HARD_LIMITS.pulse, true).optional(),
-  respiratoryRate: vitalNumber('呼吸', VITAL_HARD_LIMITS.respiratoryRate, true).optional(),
-  heightCm: vitalNumber('身高', VITAL_HARD_LIMITS.height, false).optional(),
-  weightKg: vitalNumber('体重', VITAL_HARD_LIMITS.weight, false).optional(),
-  oxygenSaturation: vitalNumber('血氧', VITAL_HARD_LIMITS.oxygenSaturation, true).optional(),
-}).superRefine((value, context) => {
-  if (bloodPressureRequired || value.systolic !== undefined || value.diastolic !== undefined) {
-    if (value.systolic === undefined) context.addIssue({ code: 'custom', path: ['systolic'], message: '请填写收缩压' })
-    if (value.diastolic === undefined) context.addIssue({ code: 'custom', path: ['diastolic'], message: '请填写舒张压' })
-  }
-  if (value.systolic !== undefined && value.diastolic !== undefined && value.systolic <= value.diastolic) {
-    context.addIssue({ code: 'custom', path: ['systolic'], message: '收缩压必须大于舒张压' })
-  }
-})
-type RecordForm = z.infer<ReturnType<typeof createRecordSchema>>
 type AmendmentDraft = Pick<RecordForm,
   'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'treatmentPlan'>
-
-interface ClinicalAiContextState {
-  document?: ClinicalDocument
-  documentStatus: string
-  structuredFormId: string
-  structuredFormVersion?: number
-  structuredValues: Record<string, unknown>
-  medicationDrafts: MedicationPlanDraft[]
-  serviceDrafts: ServicePlanDraft[]
-  allergies: AllergyIntolerance[]
-  allergyState: ClinicalAiDraftContext['allergyState']
-  busy: boolean
-}
-
-function aiContextPartFingerprint(prefix: string, value: unknown) {
-  return stableClinicalAiFingerprint(prefix, value)
-}
-
-function aiContextFromDraft(value: RecordForm, diagnoses: DiagnosisInput[], encounter: Encounter,
-  state: ClinicalAiContextState): ClinicalAiDraftContext {
-  return {
-    encounterId: encounter.id, residentId: encounter.residentId,
-    encounterStatus: encounter.status,
-    documentVersion: state.document?.currentVersion ?? 0,
-    documentStatus: state.documentStatus,
-    structuredContextFingerprint: aiContextPartFingerprint('structured', {
-      formId: state.structuredFormId, formVersion: state.structuredFormVersion ?? 0,
-      values: state.structuredValues,
-    }),
-    medicationDraftFingerprint: aiContextPartFingerprint('medications', state.medicationDrafts),
-    serviceDraftFingerprint: aiContextPartFingerprint('services', state.serviceDrafts),
-    allergyContextFingerprint: aiContextPartFingerprint('allergies', [...state.allergies]
-      .sort((left, right) => left.id.localeCompare(right.id))),
-    allergyState: state.allergyState,
-    busy: state.busy,
-    chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
-    medicalHistory: value.medicalHistory, physicalExam: value.physicalExam,
-    treatmentPlan: value.treatmentPlan, systolic: value.systolic, diastolic: value.diastolic,
-    temperature: value.temperature, pulseRate: value.pulseRate, respiratoryRate: value.respiratoryRate,
-    oxygenSaturation: value.oxygenSaturation, heightCm: value.heightCm, weightKg: value.weightKg,
-    diagnoses: diagnoses.map(({ code, display, type }) => ({ code, display, type })),
-  }
-}
-
-export type NoteTemplateField = keyof OutpatientNoteTemplateContent
-const noteTemplateFields: Array<{ key: NoteTemplateField; label: string }> = [
-  { key: 'chiefComplaint', label: '主诉' },
-  { key: 'presentIllness', label: '现病史' },
-  { key: 'medicalHistory', label: '既往史' },
-  { key: 'physicalExam', label: '查体所见' },
-  { key: 'treatmentPlan', label: '诊疗计划' },
-]
-
-export function mergeNoteTemplateContent(current: OutpatientNoteTemplateContent,
-  template: OutpatientNoteTemplateContent, fields: Set<NoteTemplateField>, overwrite: boolean) {
-  const next = { ...current }
-  fields.forEach((key) => {
-    const incoming = template[key]?.trim()
-    if (incoming && (overwrite || !current[key]?.trim())) next[key] = incoming
-  })
-  return next
-}
-
-export function structuredFormSignature(formVersionId: string, values: Record<string, unknown>) {
-  return JSON.stringify({ formVersionId, values: Object.fromEntries(
-    Object.entries(values).filter(([, value]) => value !== undefined && value !== '')
-      .sort(([left], [right]) => left.localeCompare(right)),
-  ) })
-}
-
-export function validateStructuredForm(form: OutpatientNoteForm | undefined, values: Record<string, unknown>) {
-  const errors: Record<string, string> = {}
-  form?.sections.forEach((section) => section.fields.forEach((field) => {
-    const value = values[field.code]
-    const empty = value === undefined || value === null || (typeof value === 'string' && !value.trim())
-    if (field.required && empty) errors[field.code] = `请填写${field.label}`
-    if (!empty && typeof value === 'string' && field.maxLength && value.trim().length > field.maxLength) {
-      errors[field.code] = `${field.label}不能超过 ${field.maxLength} 个字符`
-    }
-    if (!empty && field.type === 'NUMBER' && typeof value === 'number') {
-      if (field.minimum != null && value < field.minimum) errors[field.code] = `${field.label}不能小于 ${field.minimum}`
-      if (field.maximum != null && value > field.maximum) errors[field.code] = `${field.label}不能大于 ${field.maximum}`
-    }
-  }))
-  return errors
-}
-
-function StructuredNoteForm({ form, values, errors, disabled, onChange }: {
-  form: OutpatientNoteForm
-  values: Record<string, unknown>
-  errors: Record<string, string>
-  disabled: boolean
-  onChange: (code: string, value: unknown) => void
-}) {
-  return <div className="doctor-structured-note" aria-label={`${form.name}结构化病历`}>
-    <div className="doctor-structured-note__head">
-      <span><strong>{form.name}</strong><small>{form.formCode} · V{form.version}</small></span>
-      <StatusBadge tone="info">科室结构</StatusBadge>
-    </div>
-    {form.description && <p>{form.description}</p>}
-    {form.sections.map((section) => <fieldset key={section.code}>
-      <legend>{section.title}</legend>
-      {section.description && <small className="doctor-structured-note__description">{section.description}</small>}
-      <div className="doctor-structured-note__fields">
-        {section.fields.map((field) => <StructuredNoteField key={field.code} field={field}
-          value={values[field.code]} error={errors[field.code]} disabled={disabled}
-          onChange={(value) => onChange(field.code, value)} />)}
-      </div>
-    </fieldset>)}
-  </div>
-}
-
-function structuredNoteReadValue(field: OutpatientNoteFormField, value: unknown) {
-  if (value === undefined || value === null || value === '') return '未记录'
-  if (field.type === 'BOOLEAN') return value ? '是' : '否'
-  if (field.type === 'SELECT') return field.options.find((option) => option.value === value)?.label ?? String(value)
-  return `${String(value)}${field.unit ? ` ${field.unit}` : ''}`
-}
-
-function StructuredNoteReadView({ form, values }: {
-  form: OutpatientNoteForm
-  values: Record<string, unknown>
-}) {
-  return <section className="doctor-structured-note-read" aria-label={`${form.name}阅读内容`}>
-    <header><strong>{form.name}</strong><small>{form.formCode} · V{form.version}</small></header>
-    {form.sections.map((section) => <section key={section.code}>
-      <h4>{section.title}</h4>
-      <dl>{section.fields.map((field) => <div key={field.code}>
-        <dt>{field.label}</dt><dd>{structuredNoteReadValue(field, values[field.code])}</dd>
-      </div>)}</dl>
-    </section>)}
-  </section>
-}
-
-function ClinicalRecordReadView({ value, bmi, structuredForm, structuredValues }: {
-  value: RecordForm
-  bmi?: string
-  structuredForm?: OutpatientNoteForm
-  structuredValues: Record<string, unknown>
-}) {
-  const sections = [
-    { label: '主诉', value: value.chiefComplaint },
-    { label: '现病史', value: value.presentIllness },
-    { label: '既往史', value: value.medicalHistory },
-    { label: '查体所见', value: value.physicalExam },
-    { label: '诊疗计划', value: value.treatmentPlan },
-  ]
-  const vitals = [
-    { label: '体温', value: value.temperature, unit: '℃' },
-    { label: '脉搏', value: value.pulseRate, unit: '次/分' },
-    { label: '呼吸', value: value.respiratoryRate, unit: '次/分' },
-    { label: '血氧', value: value.oxygenSaturation, unit: '%' },
-    { label: '血压', value: value.systolic && value.diastolic ? `${value.systolic}/${value.diastolic}` : undefined, unit: 'mmHg' },
-    { label: '身高', value: value.heightCm, unit: 'cm' },
-    { label: '体重', value: value.weightKg, unit: 'kg' },
-    { label: 'BMI', value: bmi, unit: 'kg/m²' },
-  ]
-  return <article className="doctor-record-read" aria-label="门诊病历阅读内容">
-    <div className="doctor-record-read__body">
-      {sections.slice(0, 3).map((section) => <section key={section.label}>
-        <h3>{section.label}</h3>
-        <p className={section.value?.trim() ? '' : 'is-empty'}>{section.value?.trim() || '未记录'}</p>
-      </section>)}
-      <section className="doctor-record-read__vitals">
-        <h3>生命体征</h3>
-        <dl>{vitals.map((item) => <div key={item.label}>
-          <dt>{item.label}</dt><dd className={item.value == null || item.value === '' ? 'is-empty' : ''}>
-            {item.value == null || item.value === '' ? '—' : item.value}<small>{item.value == null || item.value === '' ? '' : item.unit}</small>
-          </dd>
-        </div>)}</dl>
-      </section>
-      {sections.slice(3).map((section) => <section key={section.label}>
-        <h3>{section.label}</h3>
-        <p className={section.value?.trim() ? '' : 'is-empty'}>{section.value?.trim() || '未记录'}</p>
-      </section>)}
-    </div>
-    {structuredForm && <StructuredNoteReadView form={structuredForm} values={structuredValues} />}
-  </article>
-}
-
-function StructuredNoteField({ field, value, error, disabled, onChange }: {
-  field: OutpatientNoteFormField
-  value: unknown
-  error?: string
-  disabled: boolean
-  onChange: (value: unknown) => void
-}) {
-  const common = { disabled, 'aria-label': field.label }
-  let control
-  if (field.type === 'TEXTAREA') {
-    control = <textarea {...common} value={typeof value === 'string' ? value : ''}
-      maxLength={field.maxLength ?? undefined} placeholder={field.placeholder ?? undefined}
-      onChange={(event) => onChange(event.target.value)} />
-  } else if (field.type === 'SELECT') {
-    control = <select {...common} value={typeof value === 'string' ? value : ''}
-      onChange={(event) => onChange(event.target.value || undefined)}>
-      <option value="">请选择</option>
-      {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-    </select>
-  } else if (field.type === 'BOOLEAN') {
-    control = <select {...common} value={typeof value === 'boolean' ? String(value) : ''}
-      onChange={(event) => onChange(event.target.value === '' ? undefined : event.target.value === 'true')}>
-      <option value="">请选择</option><option value="true">是</option><option value="false">否</option>
-    </select>
-  } else if (field.type === 'NUMBER') {
-    control = <span className="doctor-structured-note__number"><input {...common} type="number"
-      value={typeof value === 'number' ? value : ''} min={field.minimum ?? undefined} max={field.maximum ?? undefined}
-      placeholder={field.placeholder ?? undefined}
-      onChange={(event) => onChange(event.target.value === '' ? undefined : Number(event.target.value))} />
-      {field.unit && <small>{field.unit}</small>}</span>
-  } else {
-    control = <input {...common} type={field.type === 'DATE' ? 'date' : 'text'}
-      value={typeof value === 'string' ? value : ''} maxLength={field.maxLength ?? undefined}
-      placeholder={field.placeholder ?? undefined} onChange={(event) => onChange(event.target.value)} />
-  }
-  return <FormField label={field.label} required={field.required} error={error}>{control}</FormField>
-}
-
-function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
-  api: RhnApi
-  disabled: boolean
-  currentContent: () => OutpatientNoteTemplateContent
-  onApply: (template: OutpatientNoteTemplate, fields: Set<NoteTemplateField>, overwrite: boolean) => void
-}) {
-  const queryClient = useQueryClient()
-  const [selectedId, setSelectedId] = useState('')
-  const [saveOpen, setSaveOpen] = useState(false)
-  const [applyOpen, setApplyOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [scope, setScope] = useState<OutpatientNoteTemplateScope>('PERSONAL')
-  const [checked, setChecked] = useState<Set<NoteTemplateField>>(new Set())
-  const [overwrite, setOverwrite] = useState(false)
-  const [notice, setNotice] = useState('')
-  const templates = useQuery({
-    queryKey: ['outpatient-note-templates', 'GENERAL_PRACTICE'],
-    queryFn: () => api.outpatientNoteTemplates.list('', 'GENERAL_PRACTICE'),
-  })
-  const selected = templates.data?.find((value) => value.id === selectedId)
-  useEffect(() => {
-    if (!selectedId && templates.data?.length) setSelectedId(templates.data[0].id)
-    if (selectedId && templates.data && !templates.data.some((value) => value.id === selectedId)) {
-      setSelectedId(templates.data[0]?.id ?? '')
-    }
-  }, [selectedId, templates.data])
-  const save = useMutation({
-    mutationFn: () => api.outpatientNoteTemplates.create({
-      scopeType: scope, name: name.trim(), description: description.trim() || undefined,
-      specialtyCode: 'GENERAL_PRACTICE', content: currentContent(),
-    }),
-    onSuccess: async (value) => {
-      setSaveOpen(false); setName(''); setDescription(''); setSelectedId(value.id)
-      setNotice(`已保存${value.scopeType === 'PERSONAL' ? '个人' : '科室'}病历模板“${value.name}”。`)
-      await queryClient.invalidateQueries({ queryKey: ['outpatient-note-templates'] })
-    },
-  })
-  const apply = useMutation({
-    mutationFn: (value: OutpatientNoteTemplate) => api.outpatientNoteTemplates.use(value.id),
-    onSuccess: (value) => {
-      onApply(value, checked, overwrite); setApplyOpen(false)
-      setNotice(`已调入“${value.name}”的 ${checked.size} 个病历段落，请核对后保存。`)
-      void queryClient.invalidateQueries({ queryKey: ['outpatient-note-templates'] })
-    },
-  })
-  const fieldsInTemplate = (value: OutpatientNoteTemplate) => new Set<NoteTemplateField>(
-    noteTemplateFields.filter(({ key }) => Boolean(value.content[key]?.trim())).map(({ key }) => key),
-  )
-  const openApply = () => {
-    const value = selected ?? templates.data?.[0]
-    if (value) setSelectedId(value.id)
-    setChecked(value ? fieldsInTemplate(value) : new Set())
-    setOverwrite(false); setApplyOpen(true)
-  }
-  const selectForApply = (id: string) => {
-    setSelectedId(id)
-    setNotice('')
-    const value = templates.data?.find((template) => template.id === id)
-    setChecked(value ? fieldsInTemplate(value) : new Set())
-  }
-  const toggleField = (key: NoteTemplateField) => setChecked((current) => {
-    const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next
-  })
-  const templateOptions: SelectOption[] = useMemo(() => (
-    templates.data?.length
-      ? templates.data.map((value) => ({
-          value: value.id,
-          label: `${value.scopeType === 'PERSONAL' ? '个人' : '科室'} · ${value.name}`,
-        }))
-      : [{ value: '', label: '暂无模板' }]
-  ), [templates.data])
-
-  return <div className="doctor-note-template-bar">
-    <div>
-      <Button size="sm" type="button" variant="secondary" disabled={disabled}
-        onClick={openApply}>模板调入</Button>
-      <Button size="sm" type="button" variant="text" disabled={disabled}
-        onClick={() => setSaveOpen(true)}>存为模板</Button>
-    </div>
-    {templates.isPending && <small>正在加载模板…</small>}
-    {notice && <span>{notice}</span>}
-    {saveOpen && <Dialog title="保存病历模板" eyebrow="门诊病历 · 书写效率"
-      description="仅保存主诉、现病史、既往史、查体所见和诊疗计划；患者信息、生命体征、诊断及医嘱不会进入模板。"
-      onClose={() => !save.isPending && setSaveOpen(false)} footer={<>
-        <Button variant="secondary" disabled={save.isPending} onClick={() => setSaveOpen(false)}>取消</Button>
-        <Button busy={save.isPending} disabled={!name.trim()} onClick={() => save.mutate()}>确认保存</Button>
-      </>}>
-      <div className="ui-form-grid">
-        <FormField label="模板名称" required><input value={name} maxLength={100}
-          onChange={(event) => setName(event.target.value)} placeholder="如：高血压常规复诊病历" /></FormField>
-        <FormField label="使用范围"><select value={scope}
-          onChange={(event) => setScope(event.target.value as OutpatientNoteTemplateScope)}>
-          <option value="PERSONAL">仅本人</option><option value="DEPARTMENT">本科室</option>
-        </select></FormField>
-        <FormField className="ui-form-span-2" label="模板说明"><textarea value={description} maxLength={500}
-          onChange={(event) => setDescription(event.target.value)} placeholder="适用场景和书写提醒（可选）" /></FormField>
-      </div>
-      <div className="doctor-note-template-facts">
-        {noteTemplateFields.map(({ key, label }) => {
-          const isFilled = Boolean(currentContent()[key]?.trim())
-          return <span key={key} className={isFilled ? 'is-ready' : ''}>
-            <Icon name={isFilled ? 'check' : 'close'} className="ui-icon-inline" /> {label}
-          </span>
-        })}
-      </div>
-      {save.error && <Alert>{errorMessage(save.error)}</Alert>}
-    </Dialog>}
-    {applyOpen && <Dialog title="调入病历模板" eyebrow="门诊病历"
-      description="选择模板和需要调入的段落；确认后只修改当前页面草稿，不会自动保存或签署病历。"
-      closeOnBackdrop={false} onClose={() => !apply.isPending && setApplyOpen(false)} footer={<>
-        <Button variant="secondary" disabled={apply.isPending} onClick={() => setApplyOpen(false)}>取消</Button>
-        <Button busy={apply.isPending} disabled={!selected || checked.size === 0}
-          onClick={() => selected && apply.mutate(selected)}>确认调入</Button>
-      </>}>
-      <div className="doctor-note-template-picker">
-        <span>选择模板</span>
-        <Select
-          className="doctor-note-template-select"
-          aria-label="选择调入模板"
-          value={selectedId}
-          options={templateOptions}
-          clearable={false}
-          searchable={templateOptions.length > 5}
-          disabled={apply.isPending || !templates.data?.length}
-          placeholder="请选择模板"
-          onChange={selectForApply}
-        />
-        <small>{selected
-          ? selected.description || `${selected.scopeType === 'PERSONAL' ? '个人' : '科室'}模板 · 已使用 ${selected.useCount} 次`
-          : templates.isPending ? '正在加载模板…' : '暂无可用病历模板，可先取消并使用“存为模板”创建。'}</small>
-      </div>
-      {templates.error && <Alert>{errorMessage(templates.error)}</Alert>}
-      <label className="doctor-note-template-mode"><input type="checkbox" checked={overwrite}
-        disabled={!selected || apply.isPending}
-        onChange={(event) => setOverwrite(event.target.checked)} />
-        <span><strong>覆盖所选字段已有内容</strong><small>未勾选时只填充当前为空的段落。</small></span></label>
-      <div className="doctor-note-template-preview">
-        {selected && noteTemplateFields.filter(({ key }) => selected.content[key]?.trim()).map(({ key, label }) => <label key={key}>
-          <input type="checkbox" checked={checked.has(key)} onChange={() => toggleField(key)} />
-          <span><strong>{label}</strong><small>{selected.content[key]}</small></span>
-        </label>)}
-      </div>
-      {apply.error && <Alert>{errorMessage(apply.error)}</Alert>}
-    </Dialog>}
-  </div>
-}
-
-export function diagnosisDraftSignature(values: DiagnosisInput[]) {
-  return values.map((value) => `${value.conceptId ?? ''}|${value.diagnosisDomain ?? ''}|${value.code}|${value.display}|${value.type}`)
-    .join('\n')
-}
-
-function diagnosisKey(value: DiagnosisInput) {
-  return String(value.conceptId || `${value.diagnosisDomain}|${value.code}`)
-}
-
-export function normalizeDiagnosisOrder(values: DiagnosisInput[]) {
-  return values.map((value, index) => ({
-    ...value,
-    type: index === 0 ? 'PRIMARY' as const : 'SECONDARY' as const,
-  }))
-}
-
-export function moveDiagnosis(values: DiagnosisInput[], sourceKey: string, targetKey: string) {
-  const sourceIndex = values.findIndex((value) => diagnosisKey(value) === sourceKey)
-  const targetIndex = values.findIndex((value) => diagnosisKey(value) === targetKey)
-  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return normalizeDiagnosisOrder(values)
-  const next = [...values]
-  const [moved] = next.splice(sourceIndex, 1)
-  next.splice(targetIndex, 0, moved)
-  return normalizeDiagnosisOrder(next)
-}
-
-function formatShortDate(value?: string) {
-  if (!value) return ''
-  try {
-    const d = new Date(value)
-    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  } catch {
-    return value
-  }
-}
-
-function formatShortTime(value?: string) {
-  if (!value) return ''
-  try {
-    const d = new Date(value)
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  } catch {
-    return value
-  }
-}
-
-function formatVitalsSummary(v: {
-  systolic?: number
-  diastolic?: number
-  temperature?: number
-  pulseRate?: number
-  respiratoryRate?: number
-  oxygenSaturation?: number
-  heightCm?: number
-  weightKg?: number
-}) {
-  const items: Array<{ key: string; label: string; text: string }> = []
-  if (v.systolic && v.diastolic) {
-    items.push({ key: 'bp', label: '血压', text: `${v.systolic}/${v.diastolic} mmHg` })
-  } else if (v.systolic) {
-    items.push({ key: 'sys', label: '收缩压', text: `${v.systolic} mmHg` })
-  } else if (v.diastolic) {
-    items.push({ key: 'dia', label: '舒张压', text: `${v.diastolic} mmHg` })
-  }
-  if (v.pulseRate != null) items.push({ key: 'pulse', label: '脉搏', text: `${v.pulseRate} 次/分` })
-  if (v.temperature != null) items.push({ key: 'temp', label: '体温', text: `${v.temperature} ℃` })
-  if (v.respiratoryRate != null) items.push({ key: 'resp', label: '呼吸', text: `${v.respiratoryRate} 次/分` })
-  if (v.oxygenSaturation != null) items.push({ key: 'spo2', label: '血氧', text: `${v.oxygenSaturation} %` })
-  if (v.heightCm != null) items.push({ key: 'height', label: '身高', text: `${v.heightCm} cm` })
-  if (v.weightKg != null) items.push({ key: 'weight', label: '体重', text: `${v.weightKg} kg` })
-  return items
-}
-
-function infusionGroupSignature(value: Pick<MedicationRequest, 'routeCode' | 'frequencyCode' | 'durationValue'>
-  | Pick<MedicationPlanDraft, 'request'>) {
-  const request = 'request' in value ? value.request : value
-  return [request.routeCode?.trim().toUpperCase(), request.frequencyCode,
-    String(request.durationValue ?? '')].join('|')
-}
 
 export function prescriptionSplitSummary(drafts: MedicationPlanDraft[], existingPrescriptions: Prescription[] = []) {
   const totals = new Map<string, number>()
@@ -1894,131 +1427,6 @@ export function prescriptionSplitSummary(drafts: MedicationPlanDraft[], existing
     medicationCount: count,
     prescriptionCount: categoryCode === 'HERBAL' ? (count > 0 ? 1 : 0) : Math.ceil(count / 5),
   }))
-}
-
-export function draftToBatchItem(draft: MedicationPlanDraft): BatchOrderMedicationItem {
-  return {
-    medicationId: draft.request.medicationId,
-    catalogItemId: draft.request.catalogItemId,
-    packageId: draft.request.packageId,
-    doseValue: draft.request.doseValue,
-    doseUnit: draft.request.doseUnit,
-    routeCode: draft.request.routeCode,
-    frequencyCode: draft.request.frequencyCode,
-    durationValue: draft.request.durationValue,
-    durationUnit: draft.request.durationUnit,
-    quantity: draft.request.quantity,
-    quantityUnit: draft.request.quantityUnit,
-    substitutionAllowed: draft.request.substitutionAllowed ?? true,
-    selfProvided: draft.request.selfProvided ?? false,
-    medicationInstruction: draft.request.medicationInstruction,
-    allergyReviewConfirmed: draft.request.allergyReviewConfirmed,
-    allergyOverrideReason: draft.request.allergyOverrideReason,
-    priceType: draft.request.priceType,
-    pricingRequired: draft.request.pricingRequired,
-    stockSiteName: draft.stockSiteName,
-    administrationGroupKey: draft.administrationGroupKey,
-    routeExecutionType: draft.routeExecutionType,
-    categoryCode: draft.categoryCode,
-    skinTestExempt: draft.request.skinTestExempt,
-    skinTestExemptReason: draft.request.skinTestExemptReason,
-    exemptEvidenceEventId: draft.request.exemptEvidenceEventId,
-    reason: draft.request.reason,
-  }
-}
-
-export async function persistOrderDrafts(
-  encounterId: string | number,
-  medDrafts: MedicationPlanDraft[],
-  svcDrafts: ServicePlanDraft[],
-  api: RhnApi,
-  existingPrescriptions: Prescription[] = [],
-  autoSubmit = false,
-) {
-  if (medDrafts.length === 0 && svcDrafts.length === 0) return
-  const encId = String(encounterId)
-
-  if (medDrafts.length > 0) {
-    if (typeof api.encounters?.batchOrderPrescriptions === 'function') {
-      const items = medDrafts.map(draftToBatchItem)
-      await api.encounters.batchOrderPrescriptions(encId, { items, autoSubmit })
-    } else {
-      const prescriptionsByCategory = new Map<string, Prescription[]>()
-      const requestsByPrescription = new Map<string, MedicationRequest[]>()
-      for (const value of existingPrescriptions) {
-        if (value.status === 'DRAFT' && !value.documentInfo?.externalPrescription
-          && !value.documentInfo?.specialDisease && !value.documentInfo?.diagnoses.length) {
-          const values = prescriptionsByCategory.get(value.categoryCode) ?? []
-          values.push(value)
-          prescriptionsByCategory.set(value.categoryCode, values)
-        }
-        requestsByPrescription.set(value.id, [...value.medicationRequests])
-      }
-
-      const infusionRoots = new Map<string, string>()
-      const infusionSignatures = new Map<string, string>()
-      for (const prescription of existingPrescriptions) {
-        for (const request of prescription.medicationRequests.filter((value) => value.status !== 'CANCELLED'
-          && isInfusionRoute(value.routeCode, value.routeExecutionType))) {
-          const rootId = request.parentRequestId || request.id
-          infusionRoots.set(`request:${rootId}`, rootId)
-          infusionSignatures.set(`request:${rootId}`, infusionGroupSignature(request))
-        }
-      }
-
-      for (const draft of medDrafts) {
-        const categoryPrescriptions = prescriptionsByCategory.get(draft.categoryCode) ?? []
-        let prescription = draft.categoryCode === 'HERBAL'
-          ? categoryPrescriptions[0]
-          : categoryPrescriptions.find((value) => (requestsByPrescription.get(value.id) ?? [])
-              .filter((request) => request.status !== 'CANCELLED').length < 5)
-        if (!prescription) {
-          prescription = await api.encounters.createPrescription(
-            encId,
-            draft.categoryCode,
-            draft.categoryCode === 'HERBAL' ? '门诊草药处方' : '门诊西药/中成药处方'
-          )
-          categoryPrescriptions.push(prescription)
-          prescriptionsByCategory.set(draft.categoryCode, categoryPrescriptions)
-          requestsByPrescription.set(prescription.id, [])
-        }
-        const existingRequests = requestsByPrescription.get(prescription.id) ?? []
-        let parentRequestId: string | undefined
-        if (isInfusionRoute(draft.request.routeCode, draft.routeExecutionType) && draft.administrationGroupKey) {
-          const signature = infusionGroupSignature(draft)
-          const existingSignature = infusionSignatures.get(draft.administrationGroupKey)
-          if (existingSignature && existingSignature !== signature) {
-            throw new Error('同一输液组的给药途径、频次和疗程必须一致')
-          }
-          parentRequestId = infusionRoots.get(draft.administrationGroupKey)
-          infusionSignatures.set(draft.administrationGroupKey, signature)
-        }
-        const created = await api.encounters.createMedicationRequest(encId, {
-          ...draft.request,
-          prescriptionId: prescription.id,
-          parentRequestId,
-        })
-        if (isInfusionRoute(draft.request.routeCode, draft.routeExecutionType) && draft.administrationGroupKey
-          && !infusionRoots.has(draft.administrationGroupKey)) {
-          infusionRoots.set(draft.administrationGroupKey, created.id)
-        }
-        existingRequests.push(created)
-        requestsByPrescription.set(prescription.id, existingRequests)
-      }
-    }
-  }
-
-  for (const draft of svcDrafts) {
-    await api.encounters.createServiceRequest(encId, {
-      catalogItemId: draft.catalogItemId,
-      quantity: draft.quantity,
-      unitCode: draft.unitCode,
-      priceType: 'SALE',
-      pricingRequired: true,
-      reason: '门诊诊疗申请',
-      clinicalDescription: draft.clinicalDescription || '门诊医生站诊疗方案',
-    })
-  }
 }
 
 function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, api, historyCopy, onHistoryCopyConsumed,
@@ -2047,46 +1455,12 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   currentDepartmentName?: string
 }) {
   const queryClient = useQueryClient()
-  const vitalRulesQuery = useQuery({
-    queryKey: ['clinical-safety-vital-rules'],
-    queryFn: api.clinicalSafety.vitalSignRules,
-    staleTime: 5 * 60 * 1000,
-  })
-  const [diagnosisSearch, setDiagnosisSearch] = useState<ClinicalResourceOption<DiseaseConcept>>()
-  const [diagnosisDomainFilter, setDiagnosisDomainFilter] = useState('')
   const [diagnoses, setDiagnoses] = useState<DiagnosisInput[]>([])
-  const [diagnosisComposerOpen, setDiagnosisComposerOpen] = useState(false)
-  const diagnosisComposerRef = useRef<HTMLDivElement>(null)
-  const [draggedDiagnosisKey, setDraggedDiagnosisKey] = useState<string>()
   const [medicationDrafts, setMedicationDrafts] = useState<MedicationPlanDraft[]>([])
-  const [diagnosisHovered, setDiagnosisHovered] = useState(false)
-
-  useEffect(() => {
-    if (!diagnosisComposerOpen && diagnoses.length > 0) return
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target as Node
-      const isInsideRow = diagnosisComposerRef.current?.contains(target)
-      const isInsidePopover = Boolean(
-        (target as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
-      )
-      if (!isInsideRow && !isInsidePopover && !diagnosisSearch) {
-        if (diagnoses.length > 0) {
-          setDiagnosisComposerOpen(false)
-        }
-        setDiagnosisSearch(undefined)
-        setDiagnosisError('')
-      }
-    }
-    window.document.addEventListener('pointerdown', handlePointerDown)
-    return () => window.document.removeEventListener('pointerdown', handlePointerDown)
-  }, [diagnosisComposerOpen, diagnosisSearch, diagnoses.length])
   const [serviceDrafts, setServiceDrafts] = useState<ServicePlanDraft[]>([])
   const [orderBusy, setOrderBusy] = useState(false)
-  const [diagnosisError, setDiagnosisError] = useState('')
   const [copyNotice, setCopyNotice] = useState('')
-  const [aiRecordUndo, setAiRecordUndo] = useState<{
-    before: ClinicalAiRecordDraft; after: ClinicalAiRecordDraft; documentVersion: number
-  } | null>(null)
+  const [aiRecordUndo, setAiRecordUndo] = useState<AiRecordUndo | null>(null)
   const [notePrintOpen, setNotePrintOpen] = useState(false)
   const [amendmentOpen, setAmendmentOpen] = useState(false)
   const [amendmentReason, setAmendmentReason] = useState('')
@@ -2097,127 +1471,17 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const [structuredValues, setStructuredValues] = useState<Record<string, unknown>>({})
   const [structuredBaseline, setStructuredBaseline] = useState(structuredFormSignature('', {}))
   const [structuredErrors, setStructuredErrors] = useState<Record<string, string>>({})
-  const [selectedRefIdx, setSelectedRefIdx] = useState(0)
-  const [appliedRefFeedback, setAppliedRefFeedback] = useState(false)
-  const pendingRecordCommand = useRef<{ fingerprint: string; commandCode: string } | null>(null)
-  const processedAiDraft = useRef<string | null>(null)
+  const draftSaver = useRef(createClinicalDraftSaver())
   const serverStateInitialized = useRef(false)
   const bloodPressureRequired = requiresBloodPressure(birthDate, encounter.registeredAt)
   const recordSchema = useMemo(() => createRecordSchema(bloodPressureRequired), [bloodPressureRequired])
-  const { register, handleSubmit, reset, getValues, watch, formState } = useForm<RecordForm>({
+  const form = useForm<RecordForm>({
     resolver: zodResolver(recordSchema),
     defaultValues: { chiefComplaint: '', presentIllness: '', medicalHistory: '', physicalExam: '', treatmentPlan: '',
       systolic: undefined, diastolic: undefined, temperature: undefined, pulseRate: undefined,
       respiratoryRate: undefined, heightCm: undefined, weightKg: undefined, oxygenSaturation: undefined },
   })
-  const pastEncounters = useMemo(() => {
-    return (historyEncounters ?? []).filter((item) => item.id !== encounter.id)
-  }, [historyEncounters, encounter.id])
-  const recentPastEncounter = pastEncounters[0]
-  const pastDocumentQuery = useQuery({
-    queryKey: ['doctor-recent-past-doc', recentPastEncounter?.id],
-    queryFn: () => api.clinicalDocuments.byEncounter(recentPastEncounter!.id),
-    enabled: Boolean(recentPastEncounter?.id),
-    staleTime: 5 * 60 * 1000,
-  })
-  const pastNote = pastDocumentQuery.data?.find((item) => item.documentType === 'OUTPATIENT_NOTE')
-  const pastVitalsData = useMemo(() => {
-    if (!recentPastEncounter) return null
-    const noteVitals = pastNote?.content.vitalSigns
-    const systolic = recentPastEncounter.systolic ?? noteVitals?.systolic
-    const diastolic = recentPastEncounter.diastolic ?? noteVitals?.diastolic
-    const temperature = noteVitals?.temperature
-    const pulseRate = noteVitals?.pulseRate
-    const respiratoryRate = noteVitals?.respiratoryRate
-    const oxygenSaturation = noteVitals?.oxygenSaturation
-    const heightCm = noteVitals?.heightCm
-    const weightKg = noteVitals?.weightKg
-
-    const hasAny = [systolic, diastolic, temperature, pulseRate, respiratoryRate, oxygenSaturation, heightCm, weightKg]
-      .some((v) => v !== undefined && v !== null && !isNaN(Number(v)))
-
-    if (!hasAny) return null
-
-    const dateStr = recentPastEncounter.registeredAt ? formatShortDate(recentPastEncounter.registeredAt) : ''
-    return {
-      sourceType: 'PAST' as const,
-      label: `上次就诊 (${dateStr || '既往'})`,
-      vitals: {
-        systolic,
-        diastolic,
-        temperature,
-        pulseRate,
-        respiratoryRate,
-        oxygenSaturation,
-        heightCm,
-        weightKg,
-      },
-    }
-  }, [recentPastEncounter, pastNote])
-
-  const triageVitalsData = useMemo(() => {
-    if (!triageVitals) return null
-    const systolic = triageVitals.systolic
-    const diastolic = triageVitals.diastolic
-    const temperature = triageVitals.temperature
-    const pulseRate = triageVitals.pulseRate
-    const oxygenSaturation = triageVitals.spo2
-    const hasAny = [systolic, diastolic, temperature, pulseRate, oxygenSaturation]
-      .some((v) => v !== undefined && v !== null && !isNaN(Number(v)))
-
-    if (!hasAny) return null
-
-    const timeStr = triageVitals.measuredAt ? formatShortTime(triageVitals.measuredAt) : '分诊'
-    return {
-      sourceType: 'TRIAGE' as const,
-      label: `分诊测量 (${timeStr})`,
-      vitals: {
-        systolic,
-        diastolic,
-        temperature,
-        pulseRate,
-        oxygenSaturation,
-        respiratoryRate: undefined,
-        heightCm: undefined,
-        weightKg: undefined,
-      },
-    }
-  }, [triageVitals])
-
-  const availableSources = useMemo(() => {
-    const list = []
-    if (triageVitalsData) list.push(triageVitalsData)
-    if (pastVitalsData) list.push(pastVitalsData)
-    return list
-  }, [triageVitalsData, pastVitalsData])
-
-  const activeRef = availableSources[selectedRefIdx] ?? availableSources[0]
-
-  const handleApplyReferenceVitals = (refVitals: {
-    systolic?: number
-    diastolic?: number
-    temperature?: number
-    pulseRate?: number
-    respiratoryRate?: number
-    oxygenSaturation?: number
-    heightCm?: number
-    weightKg?: number
-  }) => {
-    const current = getValues()
-    reset({
-      ...current,
-      systolic: refVitals.systolic !== undefined ? refVitals.systolic : current.systolic,
-      diastolic: refVitals.diastolic !== undefined ? refVitals.diastolic : current.diastolic,
-      temperature: refVitals.temperature !== undefined ? refVitals.temperature : current.temperature,
-      pulseRate: refVitals.pulseRate !== undefined ? refVitals.pulseRate : current.pulseRate,
-      respiratoryRate: refVitals.respiratoryRate !== undefined ? refVitals.respiratoryRate : current.respiratoryRate,
-      oxygenSaturation: refVitals.oxygenSaturation !== undefined ? refVitals.oxygenSaturation : current.oxygenSaturation,
-      heightCm: refVitals.heightCm !== undefined ? refVitals.heightCm : current.heightCm,
-      weightKg: refVitals.weightKg !== undefined ? refVitals.weightKg : current.weightKg,
-    }, { keepDefaultValues: true })
-    setAppliedRefFeedback(true)
-    setTimeout(() => setAppliedRefFeedback(false), 2000)
-  }
+  const { register, handleSubmit, reset, getValues, watch, formState } = form
   const documents = useQuery({ queryKey: ['doctor-document', encounter.id], queryFn: () => api.clinicalDocuments.byEncounter(encounter.id) })
   const noteForms = useQuery({ queryKey: ['outpatient-note-forms', 'GENERAL_PRACTICE'],
     queryFn: () => api.outpatientNoteForms.list('GENERAL_PRACTICE') })
@@ -2242,35 +1506,14 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       const formErrors = validateStructuredForm(selectedNoteForm, structuredValues)
       setStructuredErrors(formErrors)
       if (Object.keys(formErrors).length) throw new Error(Object.values(formErrors)[0])
-      const content = {
-        chiefComplaint: form.chiefComplaint, presentIllness: form.presentIllness, medicalHistory: form.medicalHistory,
-        physicalExam: form.physicalExam, treatmentPlan: form.treatmentPlan,
-        systolic: form.systolic, diastolic: form.diastolic, temperature: form.temperature,
-        pulseRate: form.pulseRate, respiratoryRate: form.respiratoryRate, heightCm: form.heightCm,
-        weightKg: form.weightKg, oxygenSaturation: form.oxygenSaturation,
-        noteFormVersionId: selectedNoteFormId || undefined,
-        structuredData: selectedNoteFormId ? structuredValues : undefined,
-        diagnoses: diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type }) => ({
-          conceptId, diagnosisDomain, diagnosisGroupId, code, display, type,
-        })),
-      }
-      const fingerprint = JSON.stringify(content)
-      if (pendingRecordCommand.current?.fingerprint !== fingerprint) {
-        pendingRecordCommand.current = { fingerprint, commandCode: commandCode('RECORD', encounter.id) }
-      }
-      const savedEncounter = await api.encounters.recordClinicalData(encounter.id, {
-        commandCode: pendingRecordCommand.current.commandCode, ...content,
+      return draftSaver.current.save(api, {
+        encounterId: encounter.id,
+        content: clinicalRecordContent(form, diagnoses, selectedNoteFormId, structuredValues),
+        medicationDrafts,
+        serviceDrafts,
       })
-
-      if (medicationDrafts.length > 0 || serviceDrafts.length > 0) {
-        const currentPrescriptions = await api.encounters.prescriptions(encounter.id).catch(() => [])
-        await persistOrderDrafts(encounter.id, medicationDrafts, serviceDrafts, api, currentPrescriptions)
-      }
-
-      return savedEncounter
     },
     onSuccess: async (savedEncounter, form) => {
-      pendingRecordCommand.current = null
       setCopyNotice('')
       onSaveDraftNotice?.({ message: '门诊病历、诊断与医嘱草稿已保存', tone: 'success' })
       setMedicationDrafts([])
@@ -2421,65 +1664,18 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const aiContextBusy = businessBusy || documents.isPending || Boolean(documents.error)
   const documentStatus = documents.isPending ? 'LOADING'
     : documents.error ? 'ERROR' : document?.status ?? 'NONE'
-  const buildAiContext = () => aiContextFromDraft(getValues(), diagnoses, encounter, {
-    document, documentStatus, structuredFormId: selectedNoteFormId,
-    structuredFormVersion: selectedNoteForm?.version, structuredValues,
-    medicationDrafts, serviceDrafts, allergies, allergyState, busy: aiContextBusy,
-  })
-  useEffect(() => {
-    const publish = () => onAiContextChange(aiContextFromDraft(getValues(), diagnoses, encounter, {
-      document, documentStatus, structuredFormId: selectedNoteFormId,
+  const applyAiPlan = useCallback((request: ClinicalAiDraftRequest, diagnosesWithAi: DiagnosisInput[]) => {
+    if (!request.planTemplate) return
+    stageTemplate(request.planTemplate, diagnosesWithAi, setDiagnoses, medicationDrafts, setMedicationDrafts,
+      serviceDrafts, setServiceDrafts, request.allergyOverrideReason, request.allergyReviewConfirmed === true)
+  }, [medicationDrafts, serviceDrafts])
+  const { buildAiContext, canUndoAiRecord, undoAiRecord } = useClinicalAiDraft({
+    encounter, form, diagnoses, setDiagnoses, aiDraft, onAiDraftConsumed, onAiContextChange,
+    context: { document, documentStatus, structuredFormId: selectedNoteFormId,
       structuredFormVersion: selectedNoteForm?.version, structuredValues,
-      medicationDrafts, serviceDrafts, allergies, allergyState, busy: aiContextBusy,
-    }))
-    publish()
-    const subscription = watch(publish)
-    return () => subscription.unsubscribe()
-  }, [aiContextBusy, allergies, allergyState, diagnoses, document, documentStatus, encounter, getValues,
-    medicationDrafts, onAiContextChange, selectedNoteForm?.version, selectedNoteFormId, serviceDrafts,
-    structuredValues, watch])
-  useEffect(() => () => onAiContextChange(null), [onAiContextChange])
-  useEffect(() => {
-    if (!aiDraft || processedAiDraft.current === aiDraft.requestId) return
-    processedAiDraft.current = aiDraft.requestId
-    const currentContext = buildAiContext()
-    const wrongPatient = aiDraft.encounterId !== encounter.id || aiDraft.residentId !== encounter.residentId
-    if (wrongPatient || businessBusy
-      || clinicalAiContextFingerprint(currentContext) !== aiDraft.contextFingerprint) {
-      setCopyNotice(wrongPatient
-        ? '当前患者或就诊已切换，系统已拒绝带入智医助理建议。'
-        : businessBusy ? '当前正在保存、签署或处理医嘱，系统已拒绝带入智医助理建议，请稍后重试。'
-          : '智医助理建议生成后当前草稿已变化，系统已拒绝带入；请重新分析。')
-      onAiDraftConsumed(); return
-    }
-    if (aiDraft.planTemplate && allergyState !== 'READY') {
-      setCopyNotice('患者过敏信息尚未就绪，系统已拒绝带入诊疗方案；请核对后重新分析。')
-      onAiDraftConsumed(); return
-    }
-    if (aiDraft.recordDraft) {
-      const previous = getValues()
-      const next = mergeAiRecordDraft(previous, aiDraft.recordDraft, aiDraft.overwriteRecord === true)
-      const changedFields = (Object.keys(aiDraft.recordDraft) as Array<keyof ClinicalAiRecordDraft>)
-        .filter((field) => previous[field] !== next[field])
-      if (changedFields.length) setAiRecordUndo({
-        before: Object.fromEntries(changedFields.map((field) => [field, previous[field] ?? ''])),
-        after: Object.fromEntries(changedFields.map((field) => [field, next[field] ?? ''])),
-        documentVersion: document?.currentVersion ?? 0,
-      })
-      reset(next, { keepDefaultValues: true })
-    }
-    const diagnosesWithAi = aiDraft.diagnoses?.length
-      ? mergeAiDiagnoses(diagnoses, aiDraft.diagnoses) : diagnoses
-    if (aiDraft.diagnoses?.length) setDiagnoses(normalizeDiagnosisOrder(diagnosesWithAi))
-    if (aiDraft.planTemplate) {
-      stageTemplate(aiDraft.planTemplate, diagnosesWithAi, setDiagnoses, medicationDrafts, setMedicationDrafts,
-        serviceDrafts, setServiceDrafts, aiDraft.allergyOverrideReason, aiDraft.allergyReviewConfirmed === true)
-    }
-    setCopyNotice(`已带入${aiDraft.sourceLabel}，内容仍是草稿，请逐项核对后保存和开立。`)
-    onAiDraftConsumed()
-  }, [aiDraft, allergies, allergyState, businessBusy, diagnoses, document, documentStatus, encounter,
-    getValues, medicationDrafts, onAiDraftConsumed, reset, selectedNoteForm?.version, selectedNoteFormId,
-    serviceDrafts, structuredValues])
+      medicationDrafts, serviceDrafts, allergies, allergyState, busy: aiContextBusy },
+    businessBusy, aiRecordUndo, setAiRecordUndo, onNotice: setCopyNotice, onPlan: applyAiPlan,
+  })
   useEffect(() => {
     onDraftStateChange({ recordChanged: recordContentChanged || structuredChanged, diagnosesChanged,
       medicationDraftCount: medicationDrafts.length, serviceDraftCount: serviceDrafts.length,
@@ -2516,31 +1712,6 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
     return () => onRegisterSaveDraft?.(null)
   }, [onRegisterSaveDraft, saveDraftAndWait])
   const signed = document?.status === 'SIGNED'
-  const isDiagnosisEmpty = diagnoses.length === 0
-  const showDiagnosisComposer = editing && !signed && (diagnosisComposerOpen || isDiagnosisEmpty)
-  const addDiagnosis = (candidate?: ClinicalResourceOption<DiseaseConcept>) => {
-    const selected = candidate?.raw ?? diagnosisSearch?.raw
-    if (!selected) { setDiagnosisError('请先检索并选择诊断'); return }
-    if (diagnoses.some((item) => item.conceptId === selected.id
-      || (item.diagnosisDomain === selected.sdDiagnosisDomain && item.code === selected.code))) {
-      setDiagnosisError('该诊断已经录入'); return
-    }
-    const diagnosisGroupId = selected.sdDiagnosisDomain === 'WESTERN_MEDICINE'
-      ? undefined : `TCM-${encounter.id}`
-    setDiagnoses((current) => normalizeDiagnosisOrder([
-      ...current,
-      { conceptId: selected.id, diagnosisDomain: selected.sdDiagnosisDomain, diagnosisGroupId,
-        code: selected.code, display: selected.display, type: 'SECONDARY',
-        managementPrograms: (selected.managementPrograms ?? []).map((program) => ({ id: program.id, code: program.code,
-          name: program.name, managementType: program.sdManagementType, triggerAction: program.sdTriggerAction,
-          reportCardType: program.reportCardType, reportDeadlineHours: program.reportDeadlineHours })) },
-    ]))
-    setDiagnosisSearch(undefined)
-    setDiagnosisError('')
-    window.requestAnimationFrame(() => {
-      window.document.getElementById('doctor-diagnosis-composer-search')?.focus()
-    })
-  }
   const recordValues = watch()
   const streamingRecord = aiFieldStream?.encounterId === encounter.id
     && aiFieldStream.contextFingerprint === clinicalAiContextFingerprint(buildAiContext()) ? aiFieldStream.recordDraft : null
@@ -2554,17 +1725,6 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const weight = recordValues.weightKg
   const bmi = height && weight && Number(height) > 0 ? (Number(weight) / ((Number(height) / 100) ** 2)).toFixed(1) : undefined
 
-  const moveDiagnosisByOffset = (key: string, offset: number) => setDiagnoses((current) => {
-    const sourceIndex = current.findIndex((item) => diagnosisKey(item) === key)
-    const target = current[sourceIndex + offset]
-    return target ? moveDiagnosis(current, key, diagnosisKey(target)) : normalizeDiagnosisOrder(current)
-  })
-  const makePrimary = (key: string) => setDiagnoses((current) => {
-    const first = current[0]
-    return first ? moveDiagnosis(current, key, diagnosisKey(first)) : current
-  })
-  const removeDiagnosis = (key: string) => setDiagnoses((current) => normalizeDiagnosisOrder(current.filter((item) =>
-    diagnosisKey(item) !== key)))
   const currentNoteContent = (): OutpatientNoteTemplateContent => {
     const value = getValues()
     return { chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
@@ -2594,17 +1754,6 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const readOnlyReason = !canEdit ? '当前账号没有病历编辑权限'
     : !encounterEditable ? '本次就诊已结束；如需更正，应发起病历修订并保留原始版本'
       : signed ? '病历已签署；如需更正，应发起病历修订' : ''
-
-  const canUndoAiRecord = Boolean(aiRecordUndo && !signed && !businessBusy
-    && aiRecordUndo.documentVersion === (document?.currentVersion ?? 0)
-    && Object.entries(aiRecordUndo.after).every(([field, value]) =>
-      getValues(field as keyof ClinicalAiRecordDraft) === value))
-  const undoAiRecord = () => {
-    if (!canUndoAiRecord || !aiRecordUndo) return
-    reset({ ...getValues(), ...aiRecordUndo.before }, { keepDefaultValues: true })
-    setAiRecordUndo(null)
-    setCopyNotice('已撤销本次 AI 病历采纳；诊断及医嘱草稿保留。')
-  }
 
   return <section className={`doctor-clinical-cockpit ${editing ? 'is-editing' : 'is-reading'}`}>
     {!editing && <div className="doctor-clinical-modebar">
@@ -2679,196 +1828,9 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         <FormField className="doctor-record-narrative doctor-record-field--history" label="既往史" error={formState.errors.medicalHistory?.message}>
           <textarea {...register('medicalHistory')} {...streamingField('medicalHistory')} disabled={signed} placeholder="既往疾病、手术、过敏及长期用药" rows={2} />
         </FormField>
-        {(() => {
-          const tempNum = recordValues.temperature ? Number(recordValues.temperature) : undefined
-          const isTempAbnormal = exceedsWarning(tempNum, vitalRule(vitalRulesQuery.data, 'temperature'))
-
-          const pulseNum = recordValues.pulseRate ? Number(recordValues.pulseRate) : undefined
-          const isPulseAbnormal = exceedsWarning(pulseNum, vitalRule(vitalRulesQuery.data, 'pulse'))
-
-          const respNum = recordValues.respiratoryRate ? Number(recordValues.respiratoryRate) : undefined
-          const isRespAbnormal = exceedsWarning(respNum, vitalRule(vitalRulesQuery.data, 'respiratory-rate'))
-
-          const spo2Num = recordValues.oxygenSaturation ? Number(recordValues.oxygenSaturation) : undefined
-          const isSpo2Abnormal = exceedsWarning(spo2Num, vitalRule(vitalRulesQuery.data, 'oxygen-saturation'))
-
-          const sysNum = recordValues.systolic ? Number(recordValues.systolic) : undefined
-          const diaNum = recordValues.diastolic ? Number(recordValues.diastolic) : undefined
-          const isBpAbnormal = exceedsWarning(sysNum, vitalRule(vitalRulesQuery.data, 'systolic-pressure'))
-            || exceedsWarning(diaNum, vitalRule(vitalRulesQuery.data, 'diastolic-pressure'))
-
-          const bmiNum = bmi ? Number(bmi) : undefined
-          const bmiStatus = bmiNum !== undefined && !isNaN(bmiNum)
-            ? bmiNum < 18.5 ? { label: '偏瘦', tone: 'info' as const }
-              : bmiNum < 24.0 ? { label: '正常', tone: 'normal' as const }
-                : bmiNum < 28.0 ? { label: '超重', tone: 'warning' as const }
-                  : { label: '肥胖', tone: 'danger' as const }
-            : null
-
-          return (
-            <div className="doctor-physical-exam" role="group" aria-labelledby="doctor-physical-exam-label">
-              <span id="doctor-physical-exam-label" className="doctor-physical-exam__label">体格检查</span>
-              <div className="doctor-physical-exam__body">
-                {activeRef && (
-                  <div className="doctor-recent-vitals-bar" aria-label="近期体格数据参考">
-                    <div className="doctor-recent-vitals-head">
-                      <Icon name="roadmap" />
-                      <span className="doctor-recent-vitals-title">近期参考</span>
-                      {availableSources.length > 1 ? (
-                        <div className="doctor-recent-vitals-tabs" role="tablist">
-                          {availableSources.map((src, idx) => (
-                            <button
-                              key={src.sourceType}
-                              type="button"
-                              className={`doctor-recent-vitals-tab ${selectedRefIdx === idx ? 'is-active' : ''}`}
-                              onClick={() => setSelectedRefIdx(idx)}
-                            >
-                              {src.label}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="doctor-recent-vitals-tag">{activeRef.label}</span>
-                      )}
-                    </div>
-                    <div className="doctor-recent-vitals-metrics">
-                      {formatVitalsSummary(activeRef.vitals).map((item) => (
-                        <span key={item.key} className="doctor-recent-vitals-metric">
-                          <span className="doctor-recent-vitals-metric__name">{item.label}</span>
-                          <strong className="doctor-recent-vitals-metric__val">{item.text}</strong>
-                        </span>
-                      ))}
-                    </div>
-                    {!signed && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className={`doctor-recent-vitals-apply-btn ${appliedRefFeedback ? 'is-applied' : ''}`}
-                        onClick={() => handleApplyReferenceVitals(activeRef.vitals)}
-                        title={`将${activeRef.label}的数据一键带入本次病历`}
-                      >
-                        <Icon name={appliedRefFeedback ? 'check' : 'roadmap'} />
-                        {appliedRefFeedback ? '已带入' : `引用${activeRef.sourceType === 'TRIAGE' ? '分诊数据' : '上次结果'}`}
-                      </Button>
-                    )}
-                  </div>
-                )}
-                <div className={`doctor-vital-grid ${appliedRefFeedback ? 'is-highlight' : ''}`}>
-                  <div className={`doctor-vital-cell ${isTempAbnormal ? 'is-abnormal' : ''}`}>
-                    <span className="doctor-vital-name">
-                      体温
-                      {isTempAbnormal && <span className="doctor-vital-alert-dot" title="体温异常" />}
-                    </span>
-                    <div className="doctor-vital-input-wrap">
-                      <input aria-label="体温" aria-invalid={Boolean(formState.errors.temperature)}
-                        aria-describedby={formState.errors.temperature ? 'doctor-vital-errors' : undefined} type="number" step="0.1" min={VITAL_HARD_LIMITS.temperature.minimum}
-                        max={VITAL_HARD_LIMITS.temperature.maximum} disabled={signed}
-                        {...register('temperature', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
-                      <small>℃</small>
-                    </div>
-                  </div>
-                  <div className={`doctor-vital-cell ${isPulseAbnormal ? 'is-abnormal' : ''}`}>
-                    <span className="doctor-vital-name">
-                      脉搏
-                      {isPulseAbnormal && <span className="doctor-vital-alert-dot" title="脉搏异常" />}
-                    </span>
-                    <div className="doctor-vital-input-wrap">
-                      <input aria-label="脉搏" aria-invalid={Boolean(formState.errors.pulseRate)}
-                        aria-describedby={formState.errors.pulseRate ? 'doctor-vital-errors' : undefined} type="number" min={VITAL_HARD_LIMITS.pulse.minimum}
-                        max={VITAL_HARD_LIMITS.pulse.maximum} disabled={signed}
-                        {...register('pulseRate', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
-                      <small>次/分</small>
-                    </div>
-                  </div>
-                  <div className={`doctor-vital-cell ${isRespAbnormal ? 'is-abnormal' : ''}`}>
-                    <span className="doctor-vital-name">
-                      呼吸
-                      {isRespAbnormal && <span className="doctor-vital-alert-dot" title="呼吸频率异常" />}
-                    </span>
-                    <div className="doctor-vital-input-wrap">
-                      <input aria-label="呼吸" aria-invalid={Boolean(formState.errors.respiratoryRate)}
-                        aria-describedby={formState.errors.respiratoryRate ? 'doctor-vital-errors' : undefined} type="number" min={VITAL_HARD_LIMITS.respiratoryRate.minimum}
-                        max={VITAL_HARD_LIMITS.respiratoryRate.maximum} disabled={signed}
-                        {...register('respiratoryRate', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
-                      <small>次/分</small>
-                    </div>
-                  </div>
-                  <div className={`doctor-vital-cell ${isSpo2Abnormal ? 'is-abnormal' : ''}`}>
-                    <span className="doctor-vital-name">
-                      血氧
-                      {isSpo2Abnormal && <span className="doctor-vital-alert-dot" title="血氧偏低" />}
-                    </span>
-                    <div className="doctor-vital-input-wrap">
-                      <input aria-label="血氧" aria-invalid={Boolean(formState.errors.oxygenSaturation)}
-                        aria-describedby={formState.errors.oxygenSaturation ? 'doctor-vital-errors' : undefined} type="number" min={VITAL_HARD_LIMITS.oxygenSaturation.minimum}
-                        max={VITAL_HARD_LIMITS.oxygenSaturation.maximum} disabled={signed}
-                        {...register('oxygenSaturation', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
-                      <small>%</small>
-                    </div>
-                  </div>
-                  <div className={`doctor-vital-cell doctor-vital-cell--bp ${isBpAbnormal ? 'is-abnormal' : ''}`}>
-                    <span className="doctor-vital-name">
-                      血压 {bloodPressureRequired ? <span className="doctor-vital-required" aria-hidden="true">*</span>
-                        : <small>（未满18岁可不填）</small>}
-                      {isBpAbnormal && <span className="doctor-vital-alert-dot" title="血压异常" />}
-                    </span>
-                    <div className="doctor-vital-input-wrap doctor-vital-bp-wrap">
-                      <input aria-label="收缩压" aria-invalid={Boolean(formState.errors.systolic)}
-                        aria-describedby={formState.errors.systolic ? 'doctor-vital-errors' : undefined} aria-required={bloodPressureRequired} type="number" min={VITAL_HARD_LIMITS.systolicPressure.minimum}
-                        max={VITAL_HARD_LIMITS.systolicPressure.maximum}
-                        {...register('systolic', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} disabled={signed} />
-                      <b>/</b>
-                      <input aria-label="舒张压" aria-invalid={Boolean(formState.errors.diastolic)}
-                        aria-describedby={formState.errors.diastolic ? 'doctor-vital-errors' : undefined} aria-required={bloodPressureRequired} type="number" min={VITAL_HARD_LIMITS.diastolicPressure.minimum}
-                        max={VITAL_HARD_LIMITS.diastolicPressure.maximum}
-                        {...register('diastolic', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} disabled={signed} />
-                      <small>mmHg</small>
-                    </div>
-                  </div>
-                  <div className="doctor-vital-cell">
-                    <span className="doctor-vital-name">身高</span>
-                    <div className="doctor-vital-input-wrap">
-                      <input aria-label="身高" aria-invalid={Boolean(formState.errors.heightCm)}
-                        aria-describedby={formState.errors.heightCm ? 'doctor-vital-errors' : undefined} type="number" step="0.1" min={VITAL_HARD_LIMITS.height.minimum}
-                        max={VITAL_HARD_LIMITS.height.maximum} disabled={signed}
-                        {...register('heightCm', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
-                      <small>cm</small>
-                    </div>
-                  </div>
-                  <div className="doctor-vital-cell">
-                    <span className="doctor-vital-name">体重</span>
-                    <div className="doctor-vital-input-wrap">
-                      <input aria-label="体重" aria-invalid={Boolean(formState.errors.weightKg)}
-                        aria-describedby={formState.errors.weightKg ? 'doctor-vital-errors' : undefined} type="number" step="0.1" min={VITAL_HARD_LIMITS.weight.minimum}
-                        max={VITAL_HARD_LIMITS.weight.maximum} disabled={signed}
-                        {...register('weightKg', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
-                      <small>kg</small>
-                    </div>
-                  </div>
-                  <div className="doctor-vital-cell doctor-vital-cell--bmi">
-                    <span className="doctor-vital-name">BMI</span>
-                    <div className="doctor-vital-bmi-content">
-                      <span className="doctor-vital-bmi-value">{bmi ?? '—'}</span>
-                      <small>kg/m²</small>
-                      {bmiStatus && <span className={`doctor-vital-bmi-badge doctor-vital-bmi-badge--${bmiStatus.tone}`}>{bmiStatus.label}</span>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {Object.values({ systolic: formState.errors.systolic, diastolic: formState.errors.diastolic,
-                temperature: formState.errors.temperature, pulseRate: formState.errors.pulseRate,
-                respiratoryRate: formState.errors.respiratoryRate, heightCm: formState.errors.heightCm,
-                weightKg: formState.errors.weightKg, oxygenSaturation: formState.errors.oxygenSaturation })
-                .some(Boolean) && <small id="doctor-vital-errors" role="alert" className="ui-field__message ui-field__error">
-                  {[formState.errors.systolic, formState.errors.diastolic, formState.errors.temperature,
-                    formState.errors.pulseRate, formState.errors.respiratoryRate, formState.errors.heightCm,
-                    formState.errors.weightKg, formState.errors.oxygenSaturation]
-                    .flatMap((error) => error?.message ? [error.message] : []).join('；')}
-                </small>}
-            </div>
-          )
-        })()}
+        <ClinicalVitalsFields api={api} encounterId={encounter.id} historyEncounters={historyEncounters}
+          triageVitals={triageVitals} form={form} recordValues={recordValues} bmi={bmi}
+          signed={signed} bloodPressureRequired={bloodPressureRequired} />
         <FormField className="doctor-record-narrative doctor-record-field--exam" label="查体所见" error={formState.errors.physicalExam?.message}>
           <textarea {...register('physicalExam')} {...streamingField('physicalExam')} disabled={signed} placeholder="阳性体征及必要的阴性体征" rows={3} />
         </FormField>
@@ -2893,219 +1855,13 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
     </Panel>
     </div>
     <aside className="doctor-clinical-aside" aria-label="诊断与医嘱工作区">
-      <Panel className={`doctor-diagnosis-panel ${diagnoses.length === 0 ? 'is-empty' : ''} ${diagnosisHovered ? 'is-hovered' : ''}`}
-        onMouseEnter={() => setDiagnosisHovered(true)}
-        onMouseLeave={() => setDiagnosisHovered(false)}>
-        <PanelHead title="诊断" meta={`${diagnoses.length} 项`} actions={
+      <DiagnosisPanel encounterId={encounter.id} api={api} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
+        editing={editing} signed={signed} aiSuggestionSurfaceRef={aiSurfaceRefs.diagnoses}
+        actions={
           editing ? <PlanTemplatePanel diagnoses={diagnoses} setDiagnoses={setDiagnoses}
             medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
             serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts}
             allergies={allergies} api={api} disabled={signed} /> : undefined} />
-        <div className="doctor-diagnosis-content">
-          <div className="doctor-table-wrap">
-            <div className={`doctor-diagnosis-list ${diagnoses.length === 0 ? 'is-empty' : ''}`} role="table" aria-label="本次诊断连续录入列表">
-              <div className="doctor-diagnosis-head" role="row">
-                <span className="doctor-diag-col-type">类型</span>
-                <span className="doctor-diag-col-main">诊断名称与ICD编码</span>
-                <span className="doctor-diag-col-domain">主次</span>
-                <span className="doctor-diag-col-management">公共卫生管理 / 临床提示</span>
-                {editing && !signed && <span className="doctor-diag-col-actions">操作</span>}
-              </div>
-
-              {editing && !signed && <div ref={aiSurfaceRefs.diagnoses} />}
-
-              {diagnoses.length === 0 && (!editing || signed) && (
-                <div className="doctor-diagnosis-empty" role="row">
-                  <span>尚未录入诊断</span>
-                </div>
-              )}
-
-              {diagnoses.map((item, index) => {
-                const key = item.conceptId || `${item.diagnosisDomain}|${item.code}`
-                const isPrimary = item.type === 'PRIMARY'
-                return <div key={key} className={`doctor-diagnosis-row ${isPrimary ? 'is-primary' : ''}${draggedDiagnosisKey === key ? ' is-dragging' : ''}`}
-                  role="row"
-                  onDragOver={(event) => { if (editing && !signed) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' } }}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    if (draggedDiagnosisKey) setDiagnoses((current) => moveDiagnosis(current, draggedDiagnosisKey, String(key)))
-                    setDraggedDiagnosisKey(undefined)
-                  }}
-                  onDragEnd={() => setDraggedDiagnosisKey(undefined)}>
-                  <span className="doctor-diag-col-type">
-                    {editing && !signed && (
-                      <span
-                        className="doctor-diag-drag-handle"
-                        title="拖动调整诊断顺序"
-                        role="button"
-                        aria-label={`拖动调整诊断顺序 ${item.display}`}
-                        draggable
-                        onDragStart={(event) => {
-                          setDraggedDiagnosisKey(String(key))
-                          event.dataTransfer.effectAllowed = 'move'
-                          const row = event.currentTarget.closest('.doctor-diagnosis-row') as HTMLElement | null
-                          if (row && event.dataTransfer.setDragImage) {
-                            const rect = row.getBoundingClientRect()
-                            event.dataTransfer.setDragImage(row, event.clientX - rect.left, event.clientY - rect.top)
-                          }
-                        }}
-                        onDragEnd={() => setDraggedDiagnosisKey(undefined)}
-                      >
-                        <Icon name="drag" />
-                      </span>
-                    )}
-                    <span className={`doctor-diag-domain-pill is-${(item.diagnosisDomain ?? 'WESTERN_MEDICINE').toLowerCase()}`}>
-                      {item.diagnosisDomain === 'TCM_DISEASE' ? '中医病名'
-                        : item.diagnosisDomain === 'TCM_SYNDROME' ? '中医证候' : '西医诊断'}
-                    </span>
-                  </span>
-                  <span className="doctor-diag-col-main">
-                    <div className="doctor-diag-name-wrap">
-                      <strong className="doctor-diag-name">{item.display}</strong>
-                      <span className="doctor-diag-code-pill" title={`ICD编码: ${item.code}`}>{item.code}</span>
-                    </div>
-                  </span>
-                  <span className="doctor-diag-col-domain">
-                    <span className={`doctor-diag-badge ${isPrimary ? 'is-primary' : 'is-secondary'}`}>
-                      {isPrimary ? '主要诊断' : `次要 #${index}`}
-                    </span>
-                  </span>
-                  <span className="doctor-diag-col-management">
-                    {item.managementPrograms?.length ? (
-                      <div className="doctor-diag-management-flow">
-                        {item.managementPrograms.map((program) => (
-                          <span key={program.id} className="doctor-diag-management-chip" title={program.name}>
-                            {program.name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : <span className="doctor-diag-subtle-dash">—</span>}
-                  </span>
-                  {editing && !signed && (
-                    <span className="doctor-diag-col-actions">
-                      <Button type="button" size="sm" variant="text" disabled={index === 0}
-                        onClick={() => moveDiagnosisByOffset(String(key), -1)} title="上移" aria-label={`上移诊断 ${item.display}`}><Icon name="chevron-up" /></Button>
-                      <Button type="button" size="sm" variant="text" disabled={index === diagnoses.length - 1}
-                        onClick={() => moveDiagnosisByOffset(String(key), 1)} title="下移" aria-label={`下移诊断 ${item.display}`}><Icon name="chevron-down" /></Button>
-                      {!isPrimary && <Button type="button" size="sm" variant="text" disabled={signed}
-                        onClick={() => makePrimary(key)}>设为主要</Button>}
-                      <Popconfirm
-                        title={`确认移除诊断“${item.display}”？`}
-                        okText="移除"
-                        okVariant="danger"
-                        disabled={signed}
-                        onConfirm={() => removeDiagnosis(key)}
-                      >
-                        <Button type="button" size="sm" variant="text" disabled={signed}>移除</Button>
-                      </Popconfirm>
-                    </span>
-                  )}
-                </div>
-              })}
-
-              {showDiagnosisComposer && (
-                <div ref={diagnosisComposerRef} className="doctor-diagnosis-row is-active-composer" role="row"
-                  onBlur={(event) => {
-                    const next = event.relatedTarget as Node | null
-                    if (!next) return
-                    const isInsideRow = diagnosisComposerRef.current?.contains(next)
-                    const isInsidePopover = Boolean(
-                      (next as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover, .ui-popconfirm')
-                    )
-                    if (!isInsideRow && !isInsidePopover && !diagnosisSearch) {
-                      if (!isDiagnosisEmpty) {
-                        setDiagnosisComposerOpen(false)
-                      }
-                      setDiagnosisSearch(undefined)
-                      setDiagnosisError('')
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape' && !diagnosisSearch) {
-                      e.preventDefault()
-                      setDiagnosisSearch(undefined)
-                      if (!isDiagnosisEmpty) {
-                        setDiagnosisComposerOpen(false)
-                      }
-                      setDiagnosisError('')
-                    } else if (e.key === 'Enter' && diagnosisSearch && !e.nativeEvent.isComposing) {
-                      e.preventDefault()
-                      addDiagnosis()
-                    }
-                  }}>
-                  <span className="doctor-diag-col-type">
-                    <div className="doctor-diag-composer-domain">
-                      <Select aria-label="诊断类型" value={diagnosisDomainFilter} clearable={false} searchable={false}
-                        disabled={signed}
-                        placeholder="全部类型"
-                        options={[
-                          { value: '', label: '全部类型' },
-                          { value: 'WESTERN_MEDICINE', label: '西医诊断' },
-                          { value: 'TCM_DISEASE', label: '中医病名' },
-                          { value: 'TCM_SYNDROME', label: '中医证候' },
-                        ]}
-                        onChange={(val) => { setDiagnosisDomainFilter(val); setDiagnosisSearch(undefined) }} />
-                    </div>
-                  </span>
-                  <span className="doctor-diag-col-composer-main">
-                    <div className="doctor-diag-composer-search">
-                      <ClinicalResourceSearch<DiseaseConcept> id="doctor-diagnosis-composer-search" api={api}
-                        resource="diagnosis" value={diagnosisSearch}
-                        filterResult={(item) => !diagnosisDomainFilter || item.sdDiagnosisDomain === diagnosisDomainFilter}
-                        disabled={signed}
-                        placeholder={diagnoses.length === 0 ? "检索并选择主要诊断 (拼音/编码/名称，回车连续录入)" : "检索并选择次要诊断 (支持拼音/编码/名称，回车连续录入)"}
-                        onChange={(option) => {
-                          if (option) {
-                            addDiagnosis(option)
-                          } else {
-                            setDiagnosisSearch(undefined)
-                            setDiagnosisError('')
-                          }
-                        }} />
-                    </div>
-                  </span>
-                  <span className="doctor-diag-col-composer-hint">
-                    <span className="doctor-diag-badge is-composer">新增</span>
-                    {diagnoses.length === 0 ? (
-                      <span className="doctor-diag-hint is-required">接诊需至少录入一项主要诊断</span>
-                    ) : (
-                      <span className="doctor-diag-hint">已开立 {diagnoses.length} 项，支持连续盲打</span>
-                    )}
-                    {!isDiagnosisEmpty && (
-                      <Button type="button" size="sm" variant="text" onClick={() => {
-                        setDiagnosisSearch(undefined); setDiagnosisComposerOpen(false); setDiagnosisError('')
-                      }} title="退出诊断录入" aria-label="退出诊断录入"><Icon name="close" /></Button>
-                    )}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {editing && !signed && !showDiagnosisComposer && (
-              <div className="doctor-diagnosis-row is-launcher" role="row" onClick={() => {
-                setDiagnosisComposerOpen(true)
-              }}>
-                <div className="doctor-diag-launcher-cell">
-                  <button type="button" className="doctor-table-launcher-btn" aria-label="新增诊断" onClick={(e) => {
-                    e.stopPropagation()
-                    setDiagnosisComposerOpen(true)
-                  }}>
-                    <Icon name="add" />
-                    <span><strong>新增诊断</strong></span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          {editing && diagnosisError && <small className="ui-field__message ui-field__error">{diagnosisError}</small>}
-          {diagnoses.some((item) => item.managementPrograms?.length) && <Alert tone="warning"
-            className="doctor-diagnosis-management-alert">
-            <strong>公共卫生管理提示</strong>
-            <span>{Array.from(new Set(diagnoses.flatMap((item) => item.managementPrograms?.map((program) =>
-              `${item.display}：${program.name}${program.managementType === 'DISEASE_REPORT' ? '（需生成报卡草稿）' : '（需确认是否纳入管理）'}`) ?? []))).join('；')}</span>
-          </Alert>}
-        </div>
-      </Panel>
       <OrdersPanel aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
         onTreatmentKeysChange={onTreatmentKeysChange} encounter={encounter} allergies={allergies} api={api} editing={editing}
         aiSuggestionSurfaceRef={editing && !signed ? aiSurfaceRefs.plans : undefined}
@@ -3364,11 +2120,30 @@ function medicationSafetySeverityLabel(severity: MedicationSafetyFinding['severi
 }
 
 function medicationSafetyDecisionLabel(decision: MedicationSafetyDecision['decision']) {
-  return ({ PASS: '通过', WARN: '警告', REQUIRE_OVERRIDE: '需说明理由', BLOCK: '禁忌', UNAVAILABLE: '评价不可用' })[decision]
+  return ({ PASS: '通过', WARN: '警告', REQUIRE_OVERRIDE: '需说明理由', BLOCK: '阻断', UNAVAILABLE: '评价不可用' })[decision]
 }
 
 function needsMedicationSafetyAcknowledgement(value: MedicationSafetyDecision) {
   return value.decision !== 'PASS' || value.findings.length > 0 || value.failureCodes.length > 0
+    || (value.mode !== 'SHADOW' && !value.evaluationId)
+}
+
+function medicationSafetyBlocksSubmission(value: MedicationSafetyDecision) {
+  return value.mode !== 'SHADOW'
+    && (value.decision === 'BLOCK' || value.decision === 'UNAVAILABLE' || !value.evaluationId)
+}
+
+function medicationSafetyNeedsReason(value: MedicationSafetyDecision) {
+  return value.mode !== 'SHADOW' && value.decision === 'REQUIRE_OVERRIDE'
+}
+
+function medicationSafetyReviewKey(reviews: MedicationSafetyDecision[]) {
+  // Evaluation/finding IDs and the formal rule-set label are regenerated on each check.
+  // Compare clinical input and displayed results so a changed prescription must be reviewed again.
+  return JSON.stringify(reviews.map(({ evaluationId, ruleSetVersion, findings, ...review }) => ({
+    ...review, recorded: Boolean(evaluationId),
+    findings: findings.map(({ findingId, ...finding }) => finding),
+  })))
 }
 
 function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicationDrafts,
@@ -3400,6 +2175,11 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   }
 
   const [safetyReviews, setSafetyReviews] = useState<MedicationSafetyDecision[]>([])
+  const [safetyReasons, setSafetyReasons] = useState<Record<string, string>>({})
+  const [safetyReviewNotice, setSafetyReviewNotice] = useState('')
+  useEffect(() => {
+    if (!reviewOpen) { setSafetyReasons({}); setSafetyReviewNotice('') }
+  }, [reviewOpen])
   const [ordersHovered, setOrdersHovered] = useState(false)
   const [printPrescription, setPrintPrescription] = useState<Prescription | null>(null)
   const [printServiceRequest, setPrintServiceRequest] = useState<ServiceRequest | null>(null)
@@ -3466,16 +2246,25 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
       const draftsToSubmit = latest.filter((value) => value.status === 'DRAFT'
         && value.medicationRequests.some((request) => request.status === 'DRAFT'))
 
-      if (!acknowledged && draftsToSubmit.length > 0) {
+      if (draftsToSubmit.length > 0) {
         const evaluations = await Promise.all(draftsToSubmit.map((value) =>
           api.encounters.evaluatePrescriptionSafety(encounter.id, value.id)))
         const reviews = evaluations.filter(needsMedicationSafetyAcknowledgement)
-        if (reviews.length > 0) return { requiresAcknowledgement: true, reviews }
+        if (reviews.length > 0 && (!acknowledged
+          || medicationSafetyReviewKey(reviews) !== medicationSafetyReviewKey(safetyReviews))) {
+          return { requiresAcknowledgement: true, reviews, changed: acknowledged }
+        }
+        if (reviews.some(medicationSafetyBlocksSubmission)) throw new Error('当前处方不能开立，请返回修改或补齐评价所需信息。')
+        if (reviews.some((review) => medicationSafetyNeedsReason(review) && !safetyReasons[review.prescriptionId]?.trim())) {
+          throw new Error('请填写每张处方的继续开立理由。')
+        }
       }
 
       if (draftsToSubmit.length > 0) {
         const submitted = await Promise.all(draftsToSubmit.map((value) =>
-          api.encounters.submitPrescription(encounter.id, value.id, value.revision)))
+          safetyReasons[value.id]?.trim()
+            ? api.encounters.submitPrescription(encounter.id, value.id, value.revision, safetyReasons[value.id].trim())
+            : api.encounters.submitPrescription(encounter.id, value.id, value.revision)))
         return { requiresAcknowledgement: false,
           reviews: submitted.flatMap((value) => value.safetyEvaluation ? [value.safetyEvaluation] : []) }
       }
@@ -3484,6 +2273,8 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
     onSuccess: async (result) => {
       if (result.requiresAcknowledgement) {
         setSafetyReviews(result.reviews)
+        setSafetyReasons({})
+        setSafetyReviewNotice(result.changed ? '处方或审查结果已变化，请重新核对本次提示并填写处理理由。' : '')
         await refresh()
         return
       }
@@ -3502,6 +2293,9 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   const error = prescriptions.error || services.error || medications.error
     || cancelService.error || cancelMedication.error || saveDraftOrders.error
   const hasAnyOrders = orderCount + planCount > 0
+  const safetyBlocked = safetyReviews.some(medicationSafetyBlocksSubmission)
+  const safetyReasonMissing = safetyReviews.some((review) => medicationSafetyNeedsReason(review)
+    && !safetyReasons[review.prescriptionId]?.trim())
   const documents = orderDocuments(prescriptions.data ?? [], services.data ?? [])
   const incompleteDocuments = documents.filter(doc => documentMissing(doc).length > 0)
   const documentRows = Object.fromEntries(documents.flatMap(doc => doc.items.map(item => [item.id, {
@@ -3545,9 +2339,10 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
       onClose={() => { if (!confirmPlan.isPending) { setReviewOpen(false); setSafetyReviews([]) } }}
       footer={<><Button variant="secondary" disabled={confirmPlan.isPending}
         onClick={() => { setReviewOpen(false); setSafetyReviews([]) }}>返回修改</Button>
-        <Button busy={confirmPlan.isPending} disabled={saveDraftOrders.isPending || (planCount === 0 && safetyReviews.length === 0)}
+        <Button busy={confirmPlan.isPending} disabled={saveDraftOrders.isPending || safetyBlocked || safetyReasonMissing
+          || (planCount === 0 && safetyReviews.length === 0)}
           onClick={() => confirmPlan.mutate({ acknowledged: safetyReviews.length > 0 })}>
-          {safetyReviews.length > 0 ? '已知晓风险，继续开立' : '确认保存并开立'}
+          {safetyBlocked ? '当前处方不可开立' : safetyReviews.length > 0 ? '已知晓风险，继续开立' : '确认保存并开立'}
         </Button></>}>
       <div className="doctor-split-review-container">
         {(medicationDrafts.length > 0 || serviceDrafts.length > 0) && <section className="doctor-document-review">
@@ -3584,8 +2379,13 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
               <strong>合理用药审查</strong>
               <span>发现 {safetyReviews.reduce((sum, value) => sum + value.findings.length, 0)} 项用药风险</span>
             </div>
-            <StatusBadge tone="warning">影子运行，仅警告不阻断</StatusBadge>
+            <StatusBadge tone={safetyBlocked ? 'danger' : 'warning'}>
+              {safetyReviews.every((review) => review.mode === 'SHADOW')
+                ? '旁路监控，仅提示不阻断' : '正式审查，按规则要求处理'}
+            </StatusBadge>
           </header>
+          {safetyReviewNotice && <Alert tone="warning">{safetyReviewNotice}</Alert>}
+          {safetyBlocked && <Alert>存在阻断或无法完成的正式审查，请返回修改处方或补齐信息后重新检查。</Alert>}
           <div className="doctor-medication-safety-review__grid">
             {safetyReviews.flatMap((review) => review.findings.map((finding) => (
               <article key={`${review.evaluationId ?? review.prescriptionId}-${finding.findingId}`}
@@ -3594,11 +2394,27 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
                   <StatusBadge tone={finding.severity === 'CRITICAL' || finding.severity === 'HIGH' ? 'danger' : 'warning'}>
                     {medicationSafetySeverityLabel(finding.severity)} · {medicationSafetyDecisionLabel(finding.decision)}
                   </StatusBadge>
-                  <span>{medicationSafetyRuleNames[finding.ruleCode] ?? finding.ruleCode}</span>
-                  <code>{finding.ruleCode}</code>
+                  <span>{medicationSafetyRuleNames[finding.ruleCode]
+                    ?? ({ DUPLICATE_THERAPY: '重复用药核对', DRUG_INTERACTION: '相互作用核对' } as Record<string, string>)[finding.category]
+                    ?? '用药规则核对'}</span>
+                  <span>{prescriptions.data?.find((value) => value.id === review.prescriptionId)?.prescriptionNo ?? review.prescriptionId}
+                    {' · '}{review.mode === 'SHADOW' ? '旁路提示' : '正式审查'}</span>
                 </div>
+                <p><strong>涉及药品：</strong>{finding.medicationRequestIds.map((id) => {
+                  const request = medications.data?.find((value) => value.id === id)
+                    ?? prescriptions.data?.flatMap((value) => value.medicationRequests).find((value) => value.id === id)
+                  return typeof request?.medicationSnapshot.name === 'string' ? request.medicationSnapshot.name : `药品明细 ${id}`
+                }).join('、') || '请核对本张处方'}</p>
                 <p>{finding.message}</p>
                 {finding.suggestedAction && <small><strong>建议：</strong>{finding.suggestedAction}</small>}
+                {finding.evidence.length > 0 && <details>
+                  <summary>查看规则依据</summary>
+                  {finding.evidence.map((evidence, index) => <div key={index}>
+                    <small>{[evidence.sourceTitle, evidence.sourceVersion, evidence.section, evidence.sourceLocator].filter(Boolean).join(' · ')}</small>
+                    <p>{evidence.excerpt}</p>
+                    {evidence.usageScope && <small>适用范围：{evidence.usageScope}</small>}
+                  </div>)}
+                </details>}
               </article>
             )))}
             {safetyReviews.some((review) => review.failureCodes.length > 0) && <article className="is-unavailable">
@@ -3609,6 +2425,14 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
               <p>{[...new Set(safetyReviews.flatMap((review) => review.failureCodes))].join('、')}</p>
             </article>}
           </div>
+          {safetyReviews.filter((review) => review.mode !== 'SHADOW' && !medicationSafetyBlocksSubmission(review))
+            .map((review) => <FormField key={review.prescriptionId}
+              label={`${prescriptions.data?.find((value) => value.id === review.prescriptionId)?.prescriptionNo ?? review.prescriptionId} 继续开立理由${medicationSafetyNeedsReason(review) ? '（必填）' : '（选填）'}`}>
+              <textarea aria-label={`${review.prescriptionId} 继续开立理由`} maxLength={1000}
+                disabled={confirmPlan.isPending} value={safetyReasons[review.prescriptionId] ?? ''}
+                placeholder="请说明已核对的风险及继续用药的临床理由"
+                onChange={(event) => setSafetyReasons((current) => ({ ...current, [review.prescriptionId]: event.target.value }))} />
+            </FormField>)}
         </section>}
 
         <div className="doctor-split-overview-bar">

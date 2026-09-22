@@ -83,6 +83,7 @@ public class OrderFrequency {
         if (!RULE_TYPES.contains(ruleType)) throw new IllegalArgumentException("不支持的频次规则类型");
         if (!ANCHOR_TYPES.contains(anchorType)) throw new IllegalArgumentException("不支持的频次锚点类型");
         if (periodUnit != null && !PERIOD_UNITS.contains(periodUnit)) throw new IllegalArgumentException("不支持的频次周期单位");
+        if ("FIXED_INTERVAL".equals(ruleType) && !Integer.valueOf(1).equals(frequencyCount)) throw new IllegalArgumentException("固定间隔的次数必须为 1");
         if (frequencyCount != null && frequencyCount <= 0) throw new IllegalArgumentException("周期执行次数必须大于0");
         if (periodValue != null && periodValue.signum() <= 0) throw new IllegalArgumentException("频次周期必须大于0");
         if (Set.of("TIMES_PER_PERIOD", "FIXED_INTERVAL").contains(ruleType)

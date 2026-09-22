@@ -1,5 +1,12 @@
 # Project Instructions
 
+## Task entry points and focused verification
+
+- Start with `docs/ai/module-map.md` for the affected use case; read only the relevant domain guide and code paths.
+- Locate symbols with scoped `rg` before reading whole files. Exclude generated types, large catalogs, build output, and logs from routine implementation searches; inspect them explicitly when the task concerns contracts or data.
+- `./scripts/verify-scope.sh {frequency|outpatient-draft|round1} --list` shows the maintained checks. Run the applicable scope; expand verification for contracts, migrations, permissions, inventory, billing, or shared infrastructure. A scope is not a replacement for full CI.
+- Keep full test logs in files and inspect concise results first. Preserve existing service, test-isolation, and Git rules below.
+
 ## Browser automation
 
 - Do not perform real-system browser verification by default. The user will verify browser workflows manually unless they explicitly request browser-based verification or QA.

@@ -13,10 +13,10 @@ public final class OrderFrequencyViews {
             boolean outpatientApplicable, boolean inpatientApplicable, boolean emergencyApplicable,
             boolean medicationApplicable, boolean treatmentApplicable, boolean nursingApplicable,
             boolean automaticTaskGeneration, int sortOrder, String status,
-            LocalDate validFrom, LocalDate validTo, List<ConfigurationView> configurations) {}
+            LocalDate validFrom, LocalDate validTo, List<ConfigurationView> configurations, ClinicalMedicationStandards.StandardFrequency standard, ClinicalFrequencySchedule.Capability scheduleCapability) {}
     public record ConfigurationView(Long id, long revision, Long organizationId, Long departmentId,
             Long frequencyId, String localCode, String localName, List<String> executionTimes,
             String firstDayPolicy, boolean enabled, String status, LocalDate validFrom, LocalDate validTo) {}
     public record SchedulePreview(String frequencyCode, String frequencyName, String ruleType,
-            String explanation, List<LocalDateTime> plannedTimes) {}
+            String explanation, List<LocalDateTime> plannedTimes, ClinicalFrequencySchedule.Capability capability, ClinicalMedicationStandards.StandardFrequency standard, String source) {}
 }

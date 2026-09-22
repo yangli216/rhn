@@ -3,8 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { errorMessage, type RhnApi, type StandardMedicationDetail, type StandardMedicationSpecification } from '../../shared/rhnApi'
 import { Alert, Button, EmptyState, LoadingState, Pagination, SearchField, Select } from '../../shared/ui'
 import './standard-medication-catalog.css'
+import { StandardCatalogEditionsDialog } from './StandardCatalogEditionsDialog'
+import { MedicationStandardImpactDialog } from './MedicationStandardImpactDialog'
+import { StandardCatalogSourceReviewDialog, sourceReviewStatus } from './StandardCatalogSourceReviewDialog'
 
 const reasons: Record<string, string> = {
+  STANDARD_SPECIFICATION_INCOMPLETE: '标准规格不完整，不能作为具体药品身份',
+  STANDARD_SOURCE_FORM_BLOCK_REQUIRES_REVIEW: '原文剂型段落未正确分开，须核对规格归属',
+  STANDARD_COMPOSITION_FRAGMENT_REQUIRES_REVIEW: '成分说明被拆成规格片段，须恢复完整规格',
+
   SCOPE_NOT_ORDERABLE: '目录范围条目，需按原文注释补充具体药品',
   FORM_OR_SPEC_REQUIRES_REVIEW: '剂型或规格需人工核对',
   TEXT_REQUIRES_REVIEW: '复杂规格需核对成分和强度',
@@ -30,6 +37,9 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(20)
   const [selected, setSelected] = useState('')
+  const [editionsOpen, setEditionsOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [impactOpen, setImpactOpen] = useState(false)
 
   const summary = useQuery({ queryKey: ['medication-standard-summary'], queryFn: api.masterData.standardMedicationSummary })
   const list = useQuery({
@@ -65,6 +75,8 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
   const error = summary.error || list.error || detail.error
   const stats = summary.data?.statistics
   return <section className="standard-medication" aria-label="标准药品参考目录">
+    {editionsOpen && <StandardCatalogEditionsDialog api={api} onClose={() => setEditionsOpen(false)} />}
+    {impactOpen && summary.data && <MedicationStandardImpactDialog api={api} catalogId={summary.data.catalogId} entry={detail.data} onClose={() => setImpactOpen(false)} />}
     <div className="standard-medication__header">
       <div className="standard-medication__title-group">
         <div className="standard-medication__title-row">
@@ -139,7 +151,13 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
         </div>
       </form>
       <p className="standard-medication__notice" role="note">
-        来源：{summary.data?.source.title ?? '用户提供目录'}。官方发布信息待核实。选择具体规格后可建立本院药品、配置厂家产品与价格；用法和管理属性可在调试中维护。
+        来源：{summary.data?.source.title ?? '用户提供目录'}。
+        {summary.data?.source.verificationStatus === 'VERIFIED' ? '来源已完成核验；具体规格及临床知识仍须分别核对。' : '官方发布信息待核实。'}
+        当前状态：{sourceReviewStatus[summary.data?.source.verificationStatus ?? 'UNVERIFIED'] ?? '待核验'}。
+        选择具体规格后可建立本院药品、配置厂家产品与价格。
+        <Button variant="secondary" size="sm" onClick={() => setReviewOpen(true)}>来源核验与历史</Button>
+        <Button variant="secondary" size="sm" disabled={setupDisabled} onClick={() => setEditionsOpen(true)}>目录版次与差异</Button>
+        <Button variant="secondary" size="sm" disabled={!summary.data?.catalogId} onClick={() => setImpactOpen(true)}>标准变更影响清单</Button>
       </p>
     </div>
 
@@ -174,7 +192,7 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
                 <td><strong>{entry.name}</strong><small>{entry.legacyCode}</small></td>
                 <td>{entry.categories[0]?.sub || entry.categories[0]?.major}<small>{entry.entryType === 'SCOPE' ? '范围条目 · 不可直接开立' : entry.innName || '中成药'}</small></td>
                 <td className="ui-table-cell--numeric">{entry.specificationCount}</td>
-                <td className="ui-table-cell--status">{entry.issueCount ? `${entry.issueCount} 项` : '来源待核验'}</td>
+                <td className="ui-table-cell--status">{entry.issueCount ? `${entry.issueCount} 项` : summary.data?.source.verificationStatus === 'VERIFIED' ? '规格待核对' : '来源待核验'}</td>
               </tr>
             ))}</tbody>
           </table></div>
@@ -223,7 +241,7 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
                         </span>
                       </td>
                       <td className="standard-medication__spec-val">
-                        <strong>{spec.specification}</strong>
+                        <strong>{spec.specification}</strong>{spec.identityIssues?.map(issue => <small key={issue}>{reasons[issue] ?? '标准身份待核对'}</small>)}
                       </td>
                       <td className="standard-medication__spec-strength">
                         <span>{strengthText(spec)}</span>
@@ -233,7 +251,7 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
                           <Button
                             variant="secondary"
                             size="sm"
-                            disabled={setupDisabled}
+                            disabled={setupDisabled || !!spec.identityIssues?.length}
                             aria-label={`建立本院药品 ${spec.doseFormName} ${spec.specification}`}
                             onClick={() => onSetup(detail.data!, spec)}
                           >
@@ -257,5 +275,6 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
           </>}
       </aside>
     </div>
+    {reviewOpen && <StandardCatalogSourceReviewDialog api={api} onClose={() => setReviewOpen(false)} />}
   </section>
 }

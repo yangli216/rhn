@@ -7,7 +7,7 @@ import java.util.List;
 /** Structural identities and arithmetic only. No recommended dose or clinical limit is inferred. */
 public final class ClinicalMedicationStandards {
     private ClinicalMedicationStandards() {}
-    public static final String VERSION = "rhn-medication-standards-v1";
+    public static final String VERSION = "rhn-medication-standards-v2";
     private static final java.util.Map<String, String> COMMON_FREQUENCIES = java.util.Map.ofEntries(
             java.util.Map.entry("QD", "TIMES_PER_DAY:1/1:DAY"), java.util.Map.entry("BID", "TIMES_PER_DAY:2/1:DAY"),
             java.util.Map.entry("TID", "TIMES_PER_DAY:3/1:DAY"), java.util.Map.entry("QID", "TIMES_PER_DAY:4/1:DAY"),

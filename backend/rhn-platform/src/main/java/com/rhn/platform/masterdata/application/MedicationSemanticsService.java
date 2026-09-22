@@ -136,7 +136,8 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
             throw forbidden("MEDICATION_SEMANTICS_TENANT_INVALID", "无权读取其他租户的药品语义");
         }
         var composition = composition(tenantId, medication.id());
-        var medVersion = medicationVersion(tenantId, medication, composition);
+        var reference = standards.reference(tenantId, medication.id());
+        var medVersion = medicationVersion(tenantId, medication, composition, reference);
         var medData = json.readObject(medVersion.snapshot());
         var unknown = new ArrayList<String>();
         if (composition.components().isEmpty()) unknown.add("INGREDIENT_MAPPING_MISSING");
@@ -145,7 +146,6 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
         }
         var result = new LinkedHashMap<String, Object>();
         result.put("schemaVersion", SCHEMA);
-        var reference = standards.reference(tenantId, medication.id());
         result.put("standardReference", reference);
         if (!reference.linked()) unknown.addAll(reference.issues());
         var standardFrequency = ClinicalMedicationStandards.frequency(frequency);
@@ -181,7 +181,7 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
             semantic.put("semanticVersion", version.semanticVersion()); semantic.put("conceptId", frequency.id());
             semantic.put("code", frequency.code()); semantic.put("display", frequency.name());
             result.put("frequency", semantic);
-            if ("OTHER".equals(interpreted.kind())) unknown.add("FREQUENCY_UNCOMPUTABLE");
+            if ("UNAVAILABLE".equals(standardFrequency.status())) unknown.add("FREQUENCY_UNCOMPUTABLE");
         }
         if (composition.components().stream().anyMatch(c -> c.numeratorValue() != null
                 && ClinicalDoseUnits.resolve(c.numeratorUnit()).isEmpty())) unknown.add("STRENGTH_UNIT_UNKNOWN");
@@ -197,8 +197,13 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
     }
 
     private Version medicationVersion(Long tenant, CatalogLifecycleDirectory.MedicationSnapshot medication, Composition mapping) {
+        return medicationVersion(tenant, medication, mapping, standards.reference(tenant, medication.id()));
+    }
+
+    private Version medicationVersion(Long tenant, CatalogLifecycleDirectory.MedicationSnapshot medication, Composition mapping,
+            com.rhn.platform.masterdata.api.MedicationStandardReference reference) {
         var data = json.readObject(json.write(medication));
-        data.put("standardReference", standards.reference(tenant, medication.id()));
+        data.put("standardReference", reference);
         data.put("ingredients", mapping.components().stream().map(c -> history.latest(tenant, "INGREDIENT", c.ingredientId())
                 .map(v -> json.read(v.snapshot(), Ingredient.class)).orElseThrow()).toList());
         data.put("strengths", mapping.components().stream().map(c -> {

@@ -1,3 +1,4 @@
+import type { KnowledgeRuleCandidate } from './medicationKnowledgeDraftApi'
 import type { MedicationStandardReference } from './masterDataApi'
 import type { ApiClient } from './httpClient'
 export interface MedicationKnowledge {
@@ -130,7 +131,7 @@ export function createMedicationWorkbenchApi(client:ApiClient) {
 export interface CatalogEvidence { sourceType:string; sourceTitle:string; sourceVersion:string; sourceLocator:string; section:string; excerpt:string; usageScope:string }
 export interface CatalogReview { versionId:string; status:string; action:string|null; evidence:CatalogEvidence[]; actorId:string; recordedAt:string; reason:string }
 export interface CatalogBuiltin { id:string; version:number; ruleSetVersion:string; implementationKey:string; decision:string; severity:string; definition:{id:string;code:string;category:string;title:string}; evidence:CatalogEvidence[] }
-export interface CatalogVersion { id:string; version:number; name:string; reviewStatus:string; testsPassed:boolean; origin:string; candidate:MedicationCandidate|null; builtin:CatalogBuiltin|null; review:CatalogReview|null }
+export interface CatalogVersion { id:string; version:number; name:string; reviewStatus:string; testsPassed:boolean; origin:string; candidate:MedicationCandidate|null; builtin:CatalogBuiltin|null; review:CatalogReview|null; knowledgeCandidate?:KnowledgeRuleCandidate|null; manualValidation?:{status:string;suiteVersion:number;runId:string|null;caseCount:number;passedCount:number}|null }
 export interface RuleDeployment { id:string; versionId:string; version:number; mode:string; status:string; action:string; organizationId:string; departmentId:string|null; effectiveFrom:string; effectiveTo:string|null; actorId:string; createdAt:string; reason:string }
 export interface RuleCatalogEntry { key:string; code:string; name:string; origin:string; revision:number; versions:CatalogVersion[]; deployments:RuleDeployment[]; history:{id:string;operation:string;versionId:string;actorId:string;time:string;reason:string}[] }
 export interface RuleCatalog { organizationId:string|null; departmentId:string|null; rules:RuleCatalogEntry[] }

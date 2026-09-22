@@ -13,6 +13,11 @@ import type {
 } from '../../shared/api/medicationWorkbenchApi'
 import { Alert, Button, Dialog, FormField, Icon, LoadingState, SearchField, Select, StatusBadge } from '../../shared/ui'
 import './medication-rule-catalog.css'
+import { MedicationKnowledgePublicationDialog } from './MedicationKnowledgePublicationDialog'
+import { MedicationKnowledgeDeploymentDialog } from './MedicationKnowledgeDeploymentDialog'
+import { MedicationKnowledgeReviewDialog } from './MedicationKnowledgeReviewDialog'
+import { MedicationKnowledgeTestDialog } from './MedicationKnowledgeTestDialog'
+import { MedicationKnowledgeRuleView } from './MedicationKnowledgeRuleView'
 
 const reviews: Record<string, string> = {
   DRAFT: '草稿',
@@ -40,13 +45,15 @@ const operations: Record<string, string> = {
   DEPLOY: '发布版本',
   PAUSE: '暂停运行',
   ROLLBACK: '回滚版本',
-  RETIRE: '废止版本'
+  RETIRE: '废止版本',
+  WITHDRAW: '撤回提交'
 }
 
 const originName: Record<string, string> = {
   BUILTIN: '系统内置',
   AI: 'AI 辅助起草',
-  MANUAL: '人工起草'
+  MANUAL: '人工起草',
+  KNOWLEDGE: '知识编译'
 }
 
 function reviewTone(status?: string): 'neutral' | 'warning' | 'info' | 'success' | 'danger' {
@@ -120,6 +127,10 @@ export function MedicationRuleCatalog({
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  const [testCandidate, setTestCandidate] = useState<NonNullable<CatalogVersion['knowledgeCandidate']>>()
+  const [publicationCandidate, setPublicationCandidate] = useState<NonNullable<CatalogVersion['knowledgeCandidate']>>()
+  const [deploymentCandidate, setDeploymentCandidate] = useState<NonNullable<CatalogVersion['knowledgeCandidate']>>()
+  const [reviewCandidate, setReviewCandidate] = useState<NonNullable<CatalogVersion['knowledgeCandidate']>>()
   const [loading, setLoading] = useState(true)
   const [runs, setRuns] = useState<RuleRuntimeRecord[]>([])
   const [action, setAction] = useState<{ operation: string; versionId: string; deployment?: RuleDeployment; mode?: string }>()
@@ -406,9 +417,12 @@ export function MedicationRuleCatalog({
                     </StatusBadge>
                     <StatusBadge tone={version.testsPassed ? 'success' : 'warning'}>
                       {version.testsPassed
-                        ? (version.builtin ? '内置执行器回归基线' : '回归测试通过')
+                        ? (version.knowledgeCandidate ? '结构样例通过 · 人工验证另查' : version.builtin ? '内置执行器回归基线' : '回归测试通过')
                         : '尚未通过回归测试'}
                     </StatusBadge>
+                    {version.knowledgeCandidate && <StatusBadge tone={version.manualValidation?.status === 'FAILED' ? 'danger' : 'info'}>
+                      人工样例：{version.manualValidation?.status === 'PASSED' ? `v${version.manualValidation.suiteVersion} 全部通过` : version.manualValidation?.status === 'FAILED' ? `v${version.manualValidation.suiteVersion} 有失败项` : version.manualValidation?.status === 'NOT_RUN' ? `v${version.manualValidation.suiteVersion} 待运行` : '尚未编写'}
+                    </StatusBadge>}
                     <span className="qmed-action-chip">
                       审核动作：{version.review?.action ? actions[version.review.action] ?? version.review.action : '待审核确定'}
                     </span>
@@ -416,6 +430,7 @@ export function MedicationRuleCatalog({
 
                   <div className="qmed-detail-hero__actions">
                     <div className="qmed-detail-hero__action-group">
+                      {version.knowledgeCandidate && <><Button variant="secondary" onClick={() => setTestCandidate(version.knowledgeCandidate!)}>人工验证样例</Button><Button variant="secondary" onClick={() => setReviewCandidate(version.knowledgeCandidate!)}>审核与提交</Button><Button variant="secondary" onClick={() => setDeploymentCandidate(version.knowledgeCandidate!)}>旁路部署与观察</Button><Button variant="primary" onClick={() => setPublicationCandidate(version.knowledgeCandidate!)}>正式启用与回退</Button></>}
                       {version.candidate && (
                         <>
                           <Button variant="secondary" disabled={busy} onClick={() => void runSuite(version)}>
@@ -438,7 +453,7 @@ export function MedicationRuleCatalog({
                           <span>验证当前规则</span>
                         </Button>
                       )}
-                      {['DRAFT', 'REJECTED'].includes(version.reviewStatus) && (
+                      {!version.knowledgeCandidate && ['DRAFT', 'REJECTED'].includes(version.reviewStatus) && (
                         <Button
                           variant="primary"
                           disabled={!version.testsPassed}
@@ -447,7 +462,7 @@ export function MedicationRuleCatalog({
                           <span>提交审核</span>
                         </Button>
                       )}
-                      {version.reviewStatus === 'IN_REVIEW' && (
+                      {!version.knowledgeCandidate && version.reviewStatus === 'IN_REVIEW' && (
                         <>
                           <Button
                             variant="primary"
@@ -465,7 +480,7 @@ export function MedicationRuleCatalog({
                           </Button>
                         </>
                       )}
-                      {version.reviewStatus === 'APPROVED' && (
+                      {!version.knowledgeCandidate && version.reviewStatus === 'APPROVED' && (
                         <>
                           <Button
                             variant="primary"
@@ -507,7 +522,7 @@ export function MedicationRuleCatalog({
                 {/* 宽屏卡片栅格 1：规则版本内容 vs 临床审核证据 */}
                 <div className="qmed-grid-2col">
                   {/* 卡片 1：版本内容与执行逻辑 */}
-                  <section className="qmed-card">
+                  <section className={`qmed-card${version.knowledgeCandidate ? ' qmed-card--knowledge' : ''}`}>
                     <div className="qmed-card__header">
                       <div className="qmed-card__header-title">
                         <Icon name="clinical" />
@@ -545,6 +560,7 @@ export function MedicationRuleCatalog({
                           </div>
                         </>
                       )}
+                      {version.knowledgeCandidate && <><p>来源知识 {version.knowledgeCandidate.knowledgeId} · 第 {version.knowledgeCandidate.knowledge.version} 版；生成者：{version.knowledgeCandidate.actor}；原因：{version.knowledgeCandidate.reason}。修改时请回到知识草稿，保存后生成新候选版本。可维护人工验证样例并提交独立审核；旁路部署、暂停及观察请使用“旁路部署与观察”入口；正式启用、暂停正式及回退请使用“正式启用与回退”入口。</p><MedicationKnowledgeRuleView value={version.knowledgeCandidate} /></>}
                       {version.builtin && (
                         <div className="qmed-builtin-spec">
                           <p>内置规则的计算逻辑由版本化执行器维护，发布范围和审核策略在此管理。</p>
@@ -678,12 +694,12 @@ export function MedicationRuleCatalog({
                                 <Button
                                   variant="secondary"
                                   size="sm"
-                                  onClick={() => setAction({ operation: 'PAUSE', versionId: d.versionId, deployment: d })}
+                                  onClick={() => { const candidate = rule.versions.find(v => v.id === d.versionId)?.knowledgeCandidate; if (candidate) { if (d.mode === 'ENFORCED') setPublicationCandidate(candidate); else setDeploymentCandidate(candidate); } else setAction({ operation: 'PAUSE', versionId: d.versionId, deployment: d }) }}
                                 >
                                   暂停
                                 </Button>
                               )}
-                              {['已结束', '已替换', '已暂停'].includes(runtimeStatus(d)) && (
+                              {rule.origin !== 'KNOWLEDGE' && ['已结束', '已替换', '已暂停'].includes(runtimeStatus(d)) && (
                                 <Button
                                   variant="secondary"
                                   size="sm"
@@ -808,6 +824,10 @@ export function MedicationRuleCatalog({
         />
       )}
 
+      {publicationCandidate && <MedicationKnowledgePublicationDialog key={publicationCandidate.id} api={api} candidate={publicationCandidate} onClose={() => { setPublicationCandidate(undefined); void reload() }} />}
+      {deploymentCandidate && <MedicationKnowledgeDeploymentDialog key={deploymentCandidate.id} api={api} candidate={deploymentCandidate} onClose={() => { setDeploymentCandidate(undefined); void reload() }} />}
+      {reviewCandidate && <MedicationKnowledgeReviewDialog key={reviewCandidate.id} api={api} candidate={reviewCandidate} onClose={() => { setReviewCandidate(undefined); void reload() }} />}
+      {testCandidate && <MedicationKnowledgeTestDialog key={testCandidate.id} api={api} candidate={testCandidate} onClose={() => { setTestCandidate(undefined); void reload() }} />}
       {draft && (
         <RuleDraftDialog
           api={api}

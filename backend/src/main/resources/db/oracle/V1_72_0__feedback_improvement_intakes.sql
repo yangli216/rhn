@@ -1,0 +1,13 @@
+alter table RHN_AUD_KNOW_INTAKE add ID_ORG number(19);
+comment on column RHN_AUD_KNOW_INTAKE.ID_ORG is '关联研判所属机构，普通需求为空';
+alter table RHN_AUD_KNOW_INTAKE add ID_DEPT number(19);
+comment on column RHN_AUD_KNOW_INTAKE.ID_DEPT is '关联研判所属科室，普通需求为空';
+alter table RHN_AUD_KNOW_INTAKE add ID_FEEDBACK number(19);
+comment on column RHN_AUD_KNOW_INTAKE.ID_FEEDBACK is '改进需求引用的固定研判事件标识';
+alter table RHN_AUD_KNOW_INTAKE add JSON_ORIGIN clob;
+comment on column RHN_AUD_KNOW_INTAKE.JSON_ORIGIN is '固定研判意见及来源知识身份，不包含处方评价事实';
+alter table RHN_AUD_KNOW_INTAKE add HASH_ORIGIN varchar(64);
+comment on column RHN_AUD_KNOW_INTAKE.HASH_ORIGIN is '固定研判来源原始 JSON 的 SHA256 指纹';
+alter table RHN_AUD_KNOW_INTAKE add constraint FK_INTAKE_FEEDBACK foreign key (ID_TNT,ID_FEEDBACK) references RHN_AUD_KNOW_FEEDBACK(ID_TNT,ID_FEEDBACK);
+alter table RHN_AUD_KNOW_INTAKE add constraint CK_INTAKE_FEEDBACK_SCOPE check ((ID_FEEDBACK is null and ID_ORG is null and ID_DEPT is null and HASH_ORIGIN is null) or (ID_FEEDBACK is not null and ID_ORG is not null and ID_DEPT is not null and HASH_ORIGIN is not null));
+create index IX_INTAKE_FEEDBACK_SCOPE on RHN_AUD_KNOW_INTAKE(ID_TNT,ID_ORG,ID_DEPT,ID_FEEDBACK);

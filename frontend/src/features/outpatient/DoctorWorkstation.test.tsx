@@ -8,7 +8,8 @@ import type { GenerateClinicalAiSuggestionInput, ClinicalAiSuggestion } from '..
 import type { ClinicalContext } from '../../app/AppShell'
 import type { Encounter, Resident } from '../../shared/model'
 import type { ReceptionQueueItem, RhnApi } from '../../shared/rhnApi'
-import { DoctorWorkstation, persistOrderDrafts } from './DoctorWorkstation'
+import { DoctorWorkstation } from './DoctorWorkstation'
+import { persistOrderDrafts } from './orders/persistOrderDrafts'
 
 const mockResident: Resident = {
   id: 'resident-1',
@@ -931,6 +932,120 @@ describe('DoctorWorkstation reception flow', () => {
 
     await user.click(screen.getByRole('button', { name: '已知晓风险，继续开立' }))
     await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-child', 0))
+  })
+
+  function prepareFormalSafetyReview(status: 'BLOCK' | 'UNAVAILABLE' | 'REQUIRE_OVERRIDE' | 'WARN' = 'REQUIRE_OVERRIDE') {
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const medicationRequests = ['a', 'b'].map((suffix) => ({
+      id: `med-${suffix}`, revision: 0, prescriptionId: 'rx-pair', status: 'DRAFT',
+      medicationId: `drug-${suffix}`, medicationSnapshot: { name: `测试药品${suffix}` },
+      quantity: 1, quantityUnit: '片', doseValue: 1, doseUnit: '片', routeCode: 'ORAL',
+      frequencyCode: 'QD', durationValue: 3, durationUnit: 'DAY', selfProvided: true,
+      itemAttributeSnapshot: {}, standardMappings: [], authoredAt: '2026-09-21T08:00:00Z',
+    }))
+    const prescription = {
+      id: 'rx-pair', revision: 0, residentId: 'resident-1', encounterId: 'encounter-101',
+      prescriptionNo: 'RX-PAIR', categoryCode: 'WESTERN', status: 'DRAFT',
+      performerOrganizationId: 'org-1', performerDepartmentId: 'dept-1',
+      authoredAt: '2026-09-21T08:00:00Z', medicationRequests,
+    } as any
+    const evaluation = {
+      evaluationId: 'evaluation-pair', prescriptionId: 'rx-pair', prescriptionRevision: 0,
+      inputHash: 'pair-hash', ruleSetVersion: 'release-1', engineVersion: 'test',
+      mode: 'ENFORCED', decision: status, failureCodes: [], ruleExecutions: [],
+      findings: [{ findingId: 'finding-pair', ruleCode: 'QMED.KNOW.TEST', ruleVersion: 1,
+        category: 'DRUG_INTERACTION', severity: 'HIGH', decision: status,
+        message: '测试配对命中相互作用条件', medicationRequestIds: ['med-a', 'med-b'],
+        evidence: [{ sourceType: 'INSTITUTION', sourceTitle: '合成验收依据', sourceVersion: '1',
+          sourceLocator: '测试章节', section: '配对', excerpt: '本材料仅用于测试，不用于临床。', usageScope: '隔离测试' }],
+        overridePolicy: 'REASON_REQUIRED', suggestedAction: '核对配对并调整处方。' }],
+    } as any
+    api.encounters.prescriptions = vi.fn().mockResolvedValue([prescription])
+    api.encounters.medicationRequests = vi.fn().mockResolvedValue(medicationRequests)
+    api.encounters.evaluatePrescriptionSafety = vi.fn().mockResolvedValue(evaluation)
+    api.encounters.submitPrescription = vi.fn().mockResolvedValue({ ...prescription, status: 'ACTIVE' })
+    return { api, evaluation }
+  }
+
+  async function openSafetyReview(api: RhnApi, user: ReturnType<typeof userEvent.setup>) {
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: '审核开立' }))
+    await user.click(screen.getByRole('button', { name: '确认保存并开立' }))
+    return screen.findByRole('region', { name: '合理用药审查' })
+  }
+
+  it.each(['BLOCK', 'UNAVAILABLE'] as const)('prevents acknowledgement from bypassing formal %s and rechecks after returning to edit', async (status) => {
+    const user = userEvent.setup()
+    const { api, evaluation } = prepareFormalSafetyReview(status)
+    const review = await openSafetyReview(api, user)
+    expect(review).toHaveTextContent('正式审查，按规则要求处理')
+    expect(review).not.toHaveTextContent('仅提示不阻断')
+    expect(screen.getByRole('button', { name: '当前处方不可开立' })).toBeDisabled()
+    expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: '返回修改' }))
+    vi.mocked(api.encounters.evaluatePrescriptionSafety).mockResolvedValue({
+      ...evaluation, inputHash: 'corrected-prescription', decision: 'PASS', findings: [],
+    })
+    await user.click(screen.getByRole('button', { name: '审核开立' }))
+    await user.click(screen.getByRole('button', { name: '确认保存并开立' }))
+    await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-pair', 0))
+    expect(api.encounters.evaluatePrescriptionSafety).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows paired drugs and evidence, requires a reason, and sends it only after a fresh equivalent evaluation', async () => {
+    const user = userEvent.setup()
+    const { api, evaluation } = prepareFormalSafetyReview()
+    const review = await openSafetyReview(api, user)
+    expect(review).toHaveTextContent('涉及药品：测试药品a、测试药品b')
+    await user.click(within(review).getByText('查看规则依据'))
+    expect(within(review).getByText('合成验收依据 · 1 · 配对 · 测试章节')).toBeVisible()
+    expect(screen.getByRole('button', { name: '已知晓风险，继续开立' })).toBeDisabled()
+    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续开立理由' }), '   ')
+    expect(screen.getByRole('button', { name: '已知晓风险，继续开立' })).toBeDisabled()
+    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续开立理由' }), '已核对适用条件，记录测试处理理由')
+    vi.mocked(api.encounters.evaluatePrescriptionSafety).mockResolvedValue({
+      ...evaluation, evaluationId: 'evaluation-new', ruleSetVersion: 'release-new',
+      findings: [{ ...evaluation.findings[0], findingId: 'finding-new' }],
+    })
+    await user.click(screen.getByRole('button', { name: '已知晓风险，继续开立' }))
+    await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith(
+      'encounter-101', 'rx-pair', 0, '已核对适用条件，记录测试处理理由'))
+    expect(api.encounters.evaluatePrescriptionSafety).toHaveBeenCalledTimes(2)
+  })
+
+  it('requires reasons separately for every affected prescription', async () => {
+    const user = userEvent.setup()
+    const { api, evaluation } = prepareFormalSafetyReview()
+    const first = (await api.encounters.prescriptions('encounter-101'))[0]
+    const second = { ...first, id: 'rx-second', prescriptionNo: 'RX-SECOND', medicationRequests:
+      first.medicationRequests.map((request) => ({ ...request, id: `${request.id}-2`, prescriptionId: 'rx-second' })) }
+    vi.mocked(api.encounters.prescriptions).mockResolvedValue([first, second])
+    vi.mocked(api.encounters.evaluatePrescriptionSafety).mockImplementation(async (_encounter, id) => ({
+      ...evaluation, prescriptionId: id, findings: [{ ...evaluation.findings[0],
+        medicationRequestIds: id === 'rx-second' ? ['med-a-2', 'med-b-2'] : ['med-a', 'med-b'] }],
+    }))
+    await openSafetyReview(api, user)
+    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续开立理由' }), '第一张处方理由')
+    expect(screen.getByRole('button', { name: '已知晓风险，继续开立' })).toBeDisabled()
+    await user.type(screen.getByRole('textbox', { name: 'rx-second 继续开立理由' }), '第二张处方理由')
+    await user.click(screen.getByRole('button', { name: '已知晓风险，继续开立' }))
+    await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith(
+      'encounter-101', 'rx-second', 0, '第二张处方理由'))
+    expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-pair', 0, '第一张处方理由')
+  })
+
+  it('discards the old acknowledgement and reason when clinical input changes before confirmation', async () => {
+    const user = userEvent.setup()
+    const { api, evaluation } = prepareFormalSafetyReview()
+    await openSafetyReview(api, user)
+    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续开立理由' }), '原处理理由')
+    vi.mocked(api.encounters.evaluatePrescriptionSafety).mockResolvedValue({ ...evaluation, inputHash: 'changed' })
+    await user.click(screen.getByRole('button', { name: '已知晓风险，继续开立' }))
+    expect(await screen.findByText('处方或审查结果已变化，请重新核对本次提示并填写处理理由。')).toBeVisible()
+    expect(screen.getByRole('textbox', { name: 'rx-pair 继续开立理由' })).toHaveValue('')
+    expect(screen.getByRole('button', { name: '已知晓风险，继续开立' })).toBeDisabled()
+    expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
   })
 
   it('does not automatically append new medication to a prescription with confirmed document metadata', async () => {

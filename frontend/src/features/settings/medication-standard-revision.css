@@ -1,0 +1,17 @@
+.standard-revision__head, .standard-revision__actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.standard-revision__columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; margin-top: 16px; }
+.standard-revision__columns > section { min-width: 0; max-height: 68vh; overflow: auto; padding: 0 8px 8px 0; }
+.standard-revision__columns article { border: 1px solid var(--color-border); border-radius: 6px; padding: 12px; margin-bottom: 12px; overflow-wrap: anywhere; }
+.standard-revision__columns small { display: block; color: var(--color-text-secondary); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.standard-revision__columns fieldset { min-width: 0; border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
+.standard-revision__choice, .standard-revision__check { display: flex; gap: 8px; align-items: flex-start; line-height: 1.6; }
+.standard-revision__columns textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.standard-revision__text { white-space: pre-wrap; }
+.standard-revision__columns details { margin-bottom: 12px; }
+.standard-revision__columns summary { cursor: pointer; line-height: 1.6; }
+.standard-revision__columns pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 350px; overflow: auto; }
+
+.standard-revision__impact { border: 1px solid var(--color-border); border-radius: 6px; padding: 12px; }
+.standard-revision__impact-table { overflow: auto; max-height: 300px; }
+.standard-revision__impact-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.standard-revision__impact-table th, .standard-revision__impact-table td { padding: 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }

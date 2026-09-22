@@ -102,6 +102,20 @@ class MedicationSemanticVersionsTest extends RhnIntegrationTestSupport {
         assertThat(jdbc.queryForObject("select count(*) from RHN_BD_CLIN_SEM_VER", Integer.class)).isEqualTo(before);
     }
 
+    @Test void inconsistent_interval_is_frozen_as_unknown_without_rewriting_prior_snapshot() {
+        var med=catalog.requireMedication(tenant,medicationId);
+        var previous=freeze(med,frequency("正常每日两次","08:00","20:00"));
+        var invalid=new OrderFrequencyDirectory.FrequencySnapshot(52L,0,"LOCAL","冲突间隔",null,null,
+                "FIXED_INTERVAL",2,BigDecimal.valueOf(6),"H","ORDER_START",List.of(),"REMAINING_SLOTS",true);
+        var captured=freeze(med,invalid);
+        assertThat(captured.at("/clinicalSemantics/standardFrequency/status").asString()).isEqualTo("UNAVAILABLE");
+        assertThat(captured.at("/clinicalSemantics/standardDose/averageDailyDose").isNull()).isTrue();
+        assertThat(captured.at("/clinicalSemantics/unknownReasons").toString()).contains("FREQUENCY_UNCOMPUTABLE");
+        assertThat(captured.at("/clinicalSemantics/frequency/semanticVersion")).isNotEqualTo(previous.at("/clinicalSemantics/frequency/semanticVersion"));
+        assertThat(previous.at("/clinicalSemantics/standardFrequency/status").asString()).isEqualTo("STANDARDIZED");
+        assertThat(previous.at("/clinicalSemantics/standardDose/averageDailyDose").isNull()).isFalse();
+    }
+
     private tools.jackson.databind.JsonNode freeze(CatalogLifecycleDirectory.MedicationSnapshot med, OrderFrequencyDirectory.FrequencySnapshot frequency) {
         return semantics.freeze(tenant, med, null, new MedicationRouteDirectory.RouteSnapshot(51L, "ORAL", "口服", "RHN.ROUTE", "1", "NONE"),
                 frequency, BigDecimal.TEN, "mg", BigDecimal.valueOf(3), "D", LocalDate.now());

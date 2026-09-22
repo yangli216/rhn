@@ -437,6 +437,15 @@ export interface PharmacyReview {
   reviewedAt: string
 }
 
+export interface PrescriptionSafetyReview {
+  prescriptionId: string
+  prescriptionNo: string
+  submittedAt: string
+  doctorReason?: string | null
+  evaluation: import('./encountersApi').MedicationSafetyDecision
+  medications: Array<{ requestId: string; name: string }>
+}
+
 export interface DispenseTask {
   id: string
   revision: number
@@ -457,6 +466,7 @@ export interface DispenseTask {
   description?: string
   lines: DispenseTaskLine[]
   reviews: PharmacyReview[]
+  prescriptionSafety?: PrescriptionSafetyReview[]
 }
 
 export interface MedicationDispenseLine {

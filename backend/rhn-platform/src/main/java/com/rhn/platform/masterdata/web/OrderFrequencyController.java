@@ -46,6 +46,17 @@ public class OrderFrequencyController {
     @PostMapping("/preview")
     SchedulePreview preview(@Valid @RequestBody PreviewRequest request) { return service.preview(request.code(), request.organizationId(), request.departmentId(), request.start(), request.occurrences()); }
 
+    @PostMapping("/preview-definition") @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
+    SchedulePreview previewDefinition(@Valid @RequestBody DefinitionPreviewRequest request) {
+        return service.previewDefinition(request.definition().command(),request.start(),request.occurrences());
+    }
+    @PostMapping("/{id}/preview-configuration") @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
+    SchedulePreview previewConfiguration(@PathVariable Long id,@Valid @RequestBody ConfigurationPreviewRequest request) {
+        return service.previewConfiguration(id,request.expectedRevision(),request.configuration().command(),request.start(),request.occurrences());
+    }
+    public record DefinitionPreviewRequest(@NotNull @Valid FrequencyRequest definition,LocalDateTime start,@Min(1) @Max(30) int occurrences) {}
+    public record ConfigurationPreviewRequest(@NotNull Long expectedRevision,@NotNull @Valid ConfigurationRequest configuration,LocalDateTime start,@Min(1) @Max(30) int occurrences) {}
+
     public record FrequencyRequest(@NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 160) String name, @Size(max = 64) String shortName,
             @Size(max = 1000) String description, @NotBlank String ruleType,

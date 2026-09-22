@@ -37,6 +37,10 @@ class Prescription {
     @Column(name = "DES_NOTE") private String note;
 
     @jakarta.persistence.Lob @Column(name = "JSON_DOC_INFO") private String documentInfoJson;
+    @jakarta.persistence.Lob @Column(name = "JSON_SAFETY_REVIEW") private String safetyReviewJson;
+
+    String safetyReviewJson() { return safetyReviewJson; }
+    void recordSafetyReview(String json) { safetyReviewJson = json; }
 
     String documentInfoJson() { return documentInfoJson; }
     void updateDocumentInfo(long expectedRevision, String json) {

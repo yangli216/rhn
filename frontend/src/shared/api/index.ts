@@ -1,3 +1,13 @@
+import { createStandardCatalogEditionApi } from './standardCatalogEditionApi'
+export * from './standardCatalogEditionApi'
+import { createClinicalSemanticImpactApi } from './clinicalSemanticImpactApi'
+export * from './clinicalSemanticImpactApi'
+import { createMedicationStandardRevisionApi } from './medicationStandardRevisionApi'
+export * from './medicationStandardRevisionApi'
+import { createMedicationStandardImpactApi } from './medicationStandardImpactApi'
+export * from './medicationStandardImpactApi'
+import { createMedicationKnowledgeDraftApi } from './medicationKnowledgeDraftApi'
+export * from './medicationKnowledgeDraftApi'
 import { createMedicationWorkbenchApi } from './medicationWorkbenchApi'
 import { createAnalyticsApi } from './analyticsApi'
 import { createEncountersApi } from './encountersApi'
@@ -71,6 +81,11 @@ export * from './outpatientTriageApi'
 function createApiModules(client: ApiClient) {
   return {
     medicationWorkbench: createMedicationWorkbenchApi(client),
+    clinicalSemanticImpact: createClinicalSemanticImpactApi(client),
+    medicationStandardImpact: createMedicationStandardImpactApi(client),
+    standardCatalogEditions: createStandardCatalogEditionApi(client),
+    medicationStandardRevision: createMedicationStandardRevisionApi(client),
+    medicationKnowledgeDrafts: createMedicationKnowledgeDraftApi(client),
     analytics: createAnalyticsApi(client),
     session: createSessionApi(client),
     organization: createOrganizationApi(client),

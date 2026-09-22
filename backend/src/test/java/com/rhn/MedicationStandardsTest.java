@@ -26,6 +26,95 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
     @Autowired JsonCodec codec;
     @Autowired StandardMedicationCatalogService references;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @Autowired com.rhn.platform.masterdata.application.MedicationStandardReadinessService readiness;
+
+    @Test void readiness_uses_full_active_inventory_and_keeps_evidence_separate_from_identity() throws Exception {
+        var linked = linkStandardMedication(SPEC, "MED-2026-W006-04");
+        int count = jdbc.queryForObject("select count(*) from RHN_BD_MED where ID_TNT=? and SD_STATUS='ACTIVE'", Integer.class, Long.valueOf(TENANT));
+        assertThat(count).isGreaterThan(40);
+        var result = json(mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext()).param("size", "1"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.summary.totalActive").value(count))
+                .andExpect(jsonPath("$.summary.referenceStatuses.LINKED").isNumber())
+                .andExpect(jsonPath("$.totalElements").value(count)).andExpect(jsonPath("$.content.length()").value(1))
+                .andReturn().getResponse().getContentAsString());
+        long sum = 0;
+        for (var value : result.path("summary").path("referenceStatuses")) sum += value.asLong();
+        assertThat(sum).isEqualTo(count);
+        mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext())
+                .param("query", linked.path("code").asString()).param("filter", "SOURCE_UNVERIFIED"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.summary.totalActive").value(count))
+                .andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.content[0].standardReference.status").value("LINKED"))
+                .andExpect(jsonPath("$.content[0].standardReference.sourceVerificationStatus").value("UNVERIFIED"))
+                .andExpect(jsonPath("$.content[0].presentationConversionStatus").value("COMPUTABLE"))
+                .andExpect(jsonPath("$.content[0].conversionReasons").isEmpty());
+        assertThat(readiness.inspect(-1L, "", "ALL", 0, 20).summary().totalActive()).isZero();
+        assertThat(readiness.inspect(-1L, "", "ALL", 0, 20).content()).isEmpty();
+    }
+
+    @Test void readiness_classifies_duplicates_across_pages_and_then_reports_the_occupied_standard() throws Exception {
+        long original = 362387880000024L;
+        long other = jdbc.queryForObject("select min(ID_MED) from RHN_BD_MED where ID_TNT=? and ID_MED<>?", Long.class, Long.valueOf(TENANT), original);
+        var spec = references.specification(SPEC);
+        jdbc.update("update RHN_BD_MED set CD_MED='DUPLICATE-LOCAL', NA_MED=?, NA_ALIAS=null, SD_MED_TYPE=?, DOSE_FORM=?, PREPARATION_SPEC=?, PREPARATION_UNIT=?, QTY_STRENGTH_VAL=null, STRENGTH_UNIT=null where ID_MED=?",
+                spec.path("name").asString(), spec.path("medicationType").asString(), spec.path("doseForm").asString(),
+                spec.path("specification").asString(), spec.path("presentationUnit").asString(), other);
+        var duplicate = readiness.inspect(Long.valueOf(TENANT), "DUPLICATE-LOCAL", "DUPLICATE_LOCAL", 0, 1);
+        assertThat(duplicate.content()).hasSize(1);
+        assertThat(duplicate.content().getFirst().matching().consistentCount()).isEqualTo(1);
+        assertThat(duplicate.summary().matchingStatuses().get("DUPLICATE_LOCAL")).isGreaterThanOrEqualTo(2);
+        var summary = references.summary();
+        medicationSources.saveAndFlush(new com.rhn.platform.masterdata.domain.MedicationStandardSource(Long.valueOf(TENANT), original,
+                summary.path("catalogId").asString(), summary.path("catalogVersion").asString(), spec.path("entryId").asString(),
+                SPEC, summary.path("contentHash").asString(), 1L));
+        assertThat(readiness.inspect(Long.valueOf(TENANT), "DUPLICATE-LOCAL", "TARGET_IN_USE", 0, 1).content()).hasSize(1);
+        jdbc.update("update RHN_BD_MED set DOSE_FORM='INJECTION' where ID_MED=?", other);
+        assertThat(readiness.inspect(Long.valueOf(TENANT), "DUPLICATE-LOCAL", "IDENTITY_MISMATCH", 0, 1).content()).hasSize(1);
+        jdbc.update("update RHN_BD_MED set NA_MED='无标准名称' where ID_MED=?", other);
+        assertThat(readiness.inspect(Long.valueOf(TENANT), "DUPLICATE-LOCAL", "NO_CANDIDATE", 0, 1).content()).hasSize(1);
+        assertThat(readiness.inspect(-1L, "", "DUPLICATE_LOCAL", 0, 1).content()).isEmpty();
+    }
+
+    @Test void readiness_reports_drift_missing_specification_and_inactive_exclusion() throws Exception {
+        var linked = linkStandardMedication(SPEC, "MED-2026-W006-04");
+        long id = linked.path("id").asLong(); String code = linked.path("code").asString();
+        jdbc.update("update RHN_BD_MED set PREPARATION_SPEC=? where ID_MED=?", "0.5g", id);
+        mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext()).param("query", code).param("filter", "MISMATCH"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].presentationConversionStatus").value("NOT_ASSESSED"));
+        jdbc.update("update RHN_BD_MED_STD_SOURCE set CD_STD_SPEC=? where ID_MED=?", "MISSING-SPECIFICATION", id);
+        mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext()).param("query", code))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].standardReference.status").value("STALE"))
+                .andExpect(jsonPath("$.content[0].standardReference.issues[0]").value("STANDARD_REFERENCE_SPECIFICATION_UNAVAILABLE"));
+        jdbc.update("update RHN_BD_MED set SD_STATUS=? where ID_MED=?", "INACTIVE", id);
+        mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext()).param("query", code))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test void readiness_rejects_invalid_filters_and_pages_and_handles_empty_pages() throws Exception {
+        for (String parameter : List.of("filter", "size", "page")) {
+            mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext()).param(parameter, "-1"))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("MEDICATION_READINESS_QUERY_INVALID"));
+        }
+        mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext()).param("page", "2147483647"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isEmpty());
+        mockMvc.perform(get(BASE+"/clinical-semantics/readiness").header("X-Tenant-Id", TENANT)).andExpect(status().isUnauthorized());
+    }
+
+    @Test void readiness_does_not_count_ambiguous_identity_as_verified_or_convertible() throws Exception {
+        var linked = linkStandardMedication(SPEC, "MED-2026-W006-04");
+        var summary = references.summary();
+        medicationSources.saveAndFlush(new com.rhn.platform.masterdata.domain.MedicationStandardSource(Long.valueOf(TENANT),
+                linked.path("id").asLong(), summary.path("catalogId").asString(), summary.path("catalogVersion").asString(),
+                "SECOND-ENTRY", "SECOND-SPEC", summary.path("contentHash").asString(), 1L));
+        mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext())
+                .param("query", linked.path("code").asString()).param("filter", "AMBIGUOUS"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].standardReference.status").value("AMBIGUOUS"))
+                .andExpect(jsonPath("$.content[0].presentationConversionStatus").value("NOT_ASSESSED"));
+        mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext())
+                .param("query", linked.path("code").asString()).param("filter", "SOURCE_UNVERIFIED"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+    }
 
     private ObjectNode input() {
         return (ObjectNode) json("""

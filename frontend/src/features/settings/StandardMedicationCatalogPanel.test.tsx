@@ -9,18 +9,18 @@ const source = {title:'用户提供目录',claimedEdition:'2026',sha256:'source-
 const entry = {id:'GEN-AMIKACIN',name:'阿米卡星',innName:'Amikacin',legacyCode:'MED-2026-W016',
   sourceLocations:['table:1/row:16'],categories:[{major:'抗微生物药',sub:'氨基糖苷类',function:''}],
   entryType:'MEDICATION',medicationType:'WESTERN',specificationCount:1,issueCount:0}
-function setup(error = false) {
+function setup(error = false, blocked = false) {
   const api = {masterData:{
     standardMedicationSummary: vi.fn().mockResolvedValue({catalogVersion:'1.0.0',source,
       statistics:{entries:794,specifications:2078,scopeEntries:7,issues:143}}),
     standardMedications: error ? vi.fn().mockRejectedValue(new Error('目录暂不可用')) : vi.fn().mockResolvedValue({
       content:[entry],totalElements:1,totalPages:1,page:0,size:20}),
     standardMedicationDetail:vi.fn().mockResolvedValue({...entry,source,sourceSpecification:'注射液：1ml:0.1g',
-      specifications:[{id:'STD-AMIKACIN',doseFormName:'注射液',specification:'1ml:0.1g',substanceQualifier:'',
+      specifications:[{identityIssues: blocked ? ['STANDARD_SPECIFICATION_INCOMPLETE'] : [], id:'STD-AMIKACIN',doseFormName:'注射液',specification:'1ml:0.1g',substanceQualifier:'',
         strength:{kind:'CONCENTRATION',numerator:{value:'0.1',unit:'g'},denominator:{value:'1',unit:'mL'},components:[],computable:true}}],issues:[]}),
   }} as unknown as RhnApi
   const client = new QueryClient({defaultOptions:{queries:{retry:false}}})
-  render(<QueryClientProvider client={client}><StandardMedicationCatalogPanel api={api} /></QueryClientProvider>)
+  render(<QueryClientProvider client={client}><StandardMedicationCatalogPanel api={api} onSetup={blocked ? vi.fn() : undefined} /></QueryClientProvider>)
   return api
 }
 describe('Standard medication catalog', () => {
@@ -60,6 +60,12 @@ describe('Standard medication catalog', () => {
     expect(screen.getByRole('columnheader', { name: '剂型形态' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: '规格说明' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: '强度语义' })).toBeInTheDocument()
+  })
+  it('shows the source identity defect and disables onboarding an incomplete specification', async () => {
+    setup(false, true)
+    await userEvent.click(await screen.findByText('阿米卡星'))
+    expect(await screen.findByText('标准规格不完整，不能作为具体药品身份')).toBeInTheDocument()
+    expect(screen.getByRole('button', {name: '建立本院药品 注射液 1ml:0.1g'})).toBeDisabled()
   })
   it('shows a failed request instead of presenting it as an empty verified catalog', async () => {
     setup(true)

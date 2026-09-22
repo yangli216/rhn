@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalConfiguration, OrderFrequency, RhnApi, ServiceCatalogItem } from '../../shared/rhnApi'
@@ -580,6 +580,10 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
         },
       ],
     }
+    api.masterData.previewOrderFrequencyConfiguration = vi.fn().mockResolvedValue({
+      explanation: '当前未保存时点预演', plannedTimes: ['2026-09-21T17:00:00'],
+      capability: { version: 'v1', status: 'SUPPORTED', reason: null, explanation: '当前未保存时点预演' },
+    })
     api.masterData.orderFrequencies = vi.fn().mockResolvedValue([mockFrequency])
     api.organization.departments = vi.fn().mockResolvedValue([
       { id: 'dept-1', code: 'IM', name: '内科', sdOrgStatus: 'ACTIVE' } as any,
@@ -622,5 +626,14 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
       expect(screen.getByText('⚡ 执行排程实时推演')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: '保存当前范围配置' })).toBeInTheDocument()
     })
+    expect(api.masterData.previewOrderFrequencyConfiguration).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText('执行时点 2'), { target: { value: '17:00' } })
+    await user.click(screen.getByRole('button', { name: '预演当前内容（最多 8 个时点）' }))
+    await waitFor(() => expect(api.masterData.previewOrderFrequencyConfiguration).toHaveBeenCalledWith(
+      mockFrequency, expect.objectContaining({ organizationId: 'org-1', executionTimes: '08:00,17:00', firstDayPolicy: 'REMAINING_SLOTS' }), expect.any(String), 8,
+    ))
+    expect(await screen.findByText('当前未保存时点预演')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('执行时点 2'), { target: { value: '18:00' } })
+    expect(screen.queryByText('当前未保存时点预演')).not.toBeInTheDocument()
   })
 })

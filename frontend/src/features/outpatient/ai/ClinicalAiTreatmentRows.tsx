@@ -4,8 +4,10 @@ import type { ClinicalAiTreatmentRecommendation } from '../../../shared/api/clin
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
 import { Button, Icon } from '../../../shared/ui'
-import { calculatePackageQuantity, clinicalAiTreatmentKey, formatPackageUnit } from '../UnifiedOrderListEditor'
-import { resolveDispensableOptions } from '../PrescriptionListEditor'
+import { calculatePackageQuantity } from '../orders/medicationQuantity'
+import { clinicalAiTreatmentKey } from '../orders/orderDraftTypes'
+import { formatPackageUnit } from '../orders/orderPresentation'
+import { resolveDispensableOptions } from '../orders/dispensableOptions'
 
 type OrderDetails = NonNullable<ClinicalAiTreatmentRecommendation['orderDraft']>
 

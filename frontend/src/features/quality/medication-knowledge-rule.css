@@ -1,0 +1,12 @@
+.knowledge-rule-view { display: grid; gap: 12px; min-width: 0; }
+.knowledge-rule-view__columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.knowledge-rule-view__columns > section { min-width: 0; max-height: 52vh; overflow: auto; padding: 12px; border: 1px solid var(--color-border); border-radius: 6px; }
+.knowledge-rule-view p, .knowledge-rule-view li { line-height: 1.6; overflow-wrap: anywhere; }
+.knowledge-rule-view p { margin: 6px 0; }
+.knowledge-rule-view h4 { margin: 8px 0; }
+.knowledge-rule-view small { display: block; color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.knowledge-rule-view__group { border-top: 1px solid var(--color-border); padding-top: 10px; margin-top: 10px; }
+.knowledge-rule-view blockquote { white-space: pre-wrap; border-left: 3px solid var(--color-border); padding-left: 12px; margin: 12px 0; }
+.knowledge-rule-view pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 30vh; overflow: auto; font-size: 12px; }
+.knowledge-rule-view summary { cursor: pointer; padding: 6px 0; }
+.knowledge-rule-view__create { display: grid; grid-template-columns: minmax(240px, 1fr) auto; align-items: end; gap: 12px; }

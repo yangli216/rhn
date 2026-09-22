@@ -1,0 +1,16 @@
+.rule-intake { display: grid; gap: 12px; }
+.rule-intake__layout { display: grid; grid-template-columns: minmax(330px, 0.8fr) minmax(640px, 1.8fr); gap: 16px; align-items: start; }
+.rule-intake__pane { min-width: 0; max-height: 72vh; overflow: auto; padding: 16px; border: 1px solid var(--color-border); border-radius: 6px; }
+.rule-intake p, .rule-intake li, .rule-intake__source { line-height: 1.6; overflow-wrap: anywhere; }
+.rule-intake textarea { width: 100%; }
+.rule-intake__actions, .qmed-intake-switch { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.qmed-intake-switch { margin: 12px 0; }
+.rule-intake__history { width: 100%; display: grid; gap: 6px; padding: 12px; margin: 8px 0; text-align: left; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
+.rule-intake__history strong { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.rule-intake small { font-size: 12px; color: var(--color-text-secondary); }
+.rule-intake__intents { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.rule-intake__intent, .rule-intake__capability { padding: 12px; border: 1px solid var(--color-border); border-radius: 6px; }
+.rule-intake blockquote, .rule-intake__source blockquote { white-space: pre-wrap; margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--color-border); }
+.rule-intake h3, .rule-intake h4 { margin: 8px 0; }
+.rule-intake fieldset { border: 0; padding: 0; display: grid; gap: 12px; }
+.rule-intake summary { cursor: pointer; }

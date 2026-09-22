@@ -101,7 +101,8 @@ public final class PharmacyViews {
             String taskNo, String taskType, String priority, String status, String closureStatus,
             Instant createdAt, Instant dueAt, Instant pickedAt, Long assignedPractitionerId,
             Long pickedByUserId, Long pickedAssignmentId, String pickDescription, String description,
-            List<DispenseTaskLineView> lines, List<PharmacyReviewView> reviews) {}
+            List<DispenseTaskLineView> lines, List<PharmacyReviewView> reviews,
+            List<com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Review> prescriptionSafety) {}
 
     public record DispenseTaskLineView(
             Long id, Long requestId, Long stockItemId, Long packageId,

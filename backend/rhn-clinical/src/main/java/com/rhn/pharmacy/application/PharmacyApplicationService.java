@@ -57,7 +57,7 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
-public class PharmacyApplicationService {
+public class PharmacyApplicationService implements com.rhn.pharmacy.api.PharmacyReviewDirectory {
     private static final Set<String> SITE_TYPES = Set.of("WAREHOUSE", "PHARMACY", "DEPARTMENT_STORE", "VIRTUAL");
     private static final Set<String> SERVICE_SCOPES = Set.of("OUTPATIENT", "INPATIENT", "EMERGENCY", "COMMUNITY", "MIXED");
     private static final Set<String> ISSUE_POLICIES = Set.of("FEFO", "FIFO", "MANUAL");
@@ -84,6 +84,7 @@ public class PharmacyApplicationService {
     private final DispenseRouteApplicationService routing;
     private final InpatientMedicationStopDirectory medicationStops;
     private final PrescriptionReviewPolicy reviewPolicy;
+    private final com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory prescriptionSafety;
     private final boolean requireSettlementAuthorization;
 
     public PharmacyApplicationService(StockSiteRepository siteRepository, StockItemRepository itemRepository,
@@ -103,6 +104,7 @@ public class PharmacyApplicationService {
                                       DispenseRouteApplicationService routing,
                                       InpatientMedicationStopDirectory medicationStops,
                                       PrescriptionReviewPolicy reviewPolicy,
+                                      com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory prescriptionSafety,
                                       @Value("${rhn.pharmacy.require-settlement-authorization:true}")
                                       boolean requireSettlementAuthorization) {
         this.siteRepository = siteRepository; this.itemRepository = itemRepository;
@@ -118,6 +120,7 @@ public class PharmacyApplicationService {
         this.routing = routing;
         this.medicationStops = medicationStops;
         this.reviewPolicy = reviewPolicy;
+        this.prescriptionSafety = prescriptionSafety;
         this.requireSettlementAuthorization = requireSettlementAuthorization;
     }
 
@@ -627,7 +630,8 @@ public class PharmacyApplicationService {
                 task.stockSiteId(), task.taskNo(), task.taskType(), task.priority(), task.status(), closureStatus,
                 task.createdAt(), task.dueAt(), task.pickedAt(), task.assignedPractitionerId(),
                 task.pickedByUserId(), task.pickedAssignmentId(), task.pickDescription(),
-                task.description(), lines, reviews);
+                task.description(), lines, reviews, lines.stream().map(line -> prescriptionSafety.forMedicationRequest(line.requestId()))
+                    .filter(java.util.Objects::nonNull).distinct().toList());
     }
 
     private DispenseTaskLineView lineView(DispenseTaskLine value) {
@@ -636,6 +640,23 @@ public class PharmacyApplicationService {
                 value.returnedQuantity(), value.dispenseUnitCode(), value.baseQuantityFactor(), value.split(),
                 value.traceRequired(), value.status(), value.productCodeSnapshot(), value.productNameSnapshot(),
                 value.packageSpecSnapshot(), jsonCodec.readTree(value.itemAttributeSnapshot()), value.itemAttributeHash());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.rhn.pharmacy.api.PharmacyReviewDirectory.Source improvementSource(Long taskId, Long reviewId) {
+        var context = requireWorkContext();
+        if (!context.hasAuthority("PHARMACY.DISPENSE") && !context.hasAuthority("ROLE_ADMIN"))
+            throw com.rhn.shared.api.BusinessErrors.forbidden("PHARMACY_REVIEW_FORBIDDEN", "需要药房业务权限");
+        var task = requireTask(context, taskId);
+        var review = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(context.tenantId(), taskId).stream()
+                .filter(value -> value.id().equals(reviewId)).findFirst()
+                .orElseThrow(() -> notFound("PHARMACY_REVIEW_NOT_FOUND", "未找到本任务的已保存审方结论"));
+        var saved = prescriptionSafety.forMedicationRequest(review.requestId());
+        var findings = saved == null ? java.util.List.<com.rhn.outpatient.api.MedicationSafetyDecision.Finding>of()
+                : saved.evaluation().findings().stream()
+                .filter(f -> f.medicationRequestIds().isEmpty() || f.medicationRequestIds().contains(review.requestId())).toList();
+        return new com.rhn.pharmacy.api.PharmacyReviewDirectory.Source(task.id(), reviewView(review), findings);
     }
 
     private PharmacyReviewView reviewView(PharmacyReview value) {

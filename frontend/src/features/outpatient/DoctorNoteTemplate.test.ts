@@ -1,6 +1,6 @@
+import { diagnosisDraftSignature, moveDiagnosis, normalizeDiagnosisOrder, structuredFormSignature, validateStructuredForm } from './record/clinicalRecordDraft'
 import { describe, expect, it } from 'vitest'
-import { diagnosisDraftSignature, draftStateLabels, mergeNoteTemplateContent,
-  moveDiagnosis, normalizeDiagnosisOrder, prescriptionCategoryLabel, printPurposeLabel, structuredFormSignature, validateStructuredForm,
+import { draftStateLabels, mergeNoteTemplateContent, prescriptionCategoryLabel, printPurposeLabel,
   type NoteTemplateField } from './DoctorWorkstation'
 import { canPrintPrescription } from './PrescriptionListEditor'
 import type { OutpatientNoteForm } from '../../shared/api/outpatientNoteFormsApi'

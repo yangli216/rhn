@@ -2,6 +2,8 @@ package com.rhn.platform.masterdata.web;
 
 import com.rhn.platform.masterdata.application.StandardMedicationCatalogService;
 import com.rhn.platform.masterdata.application.StandardMedicationOnboardingService;
+import com.rhn.platform.masterdata.application.StandardCatalogReviewService;
+import com.rhn.platform.masterdata.api.StandardCatalogReview;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationView;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -26,9 +28,11 @@ public class StandardMedicationCatalogController {
     private final StandardMedicationCatalogService service;
     private final ExecutionContextProvider contextProvider;
     private final StandardMedicationOnboardingService onboarding;
+    private final StandardCatalogReviewService reviews;
 
     public StandardMedicationCatalogController(StandardMedicationCatalogService service, ExecutionContextProvider contextProvider,
-            StandardMedicationOnboardingService onboarding) {
+            StandardMedicationOnboardingService onboarding, StandardCatalogReviewService reviews) {
+        this.reviews = reviews;
         this.onboarding = onboarding;
         this.service = service;
         this.contextProvider = contextProvider;
@@ -52,9 +56,15 @@ public class StandardMedicationCatalogController {
 
     @GetMapping("/summary")
     public JsonNode summary() {
-        contextProvider.requireCurrent();
-        return service.summary();
+        return reviews.summary(contextProvider.requireCurrent().tenantId());
     }
+
+    @GetMapping("/source-review")
+    public StandardCatalogReview.View sourceReview(@RequestParam(defaultValue = "0") int historyPage) { return reviews.view(historyPage); }
+
+    @PostMapping("/source-review")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
+    public StandardCatalogReview.View sourceReview(@RequestBody StandardCatalogReview.Change input) { return reviews.change(input); }
 
     @GetMapping
     public PageResult<JsonNode> search(@RequestParam(defaultValue = "") String query,
@@ -68,7 +78,9 @@ public class StandardMedicationCatalogController {
 
     @GetMapping("/{id}")
     public JsonNode detail(@PathVariable String id) {
-        contextProvider.requireCurrent();
-        return service.detail(id);
+        var context = contextProvider.requireCurrent();
+        var detail = (tools.jackson.databind.node.ObjectNode) service.detail(id);
+        detail.set("source", reviews.summary(context.tenantId()).path("source"));
+        return detail;
     }
 }

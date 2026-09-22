@@ -1,3 +1,4 @@
+import { displayUnitName, formatDoseWithMinimumUnit, formatFrequencyName } from './medicationDisplay'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -13,6 +14,8 @@ import { DateRangePicker } from '../../shared/ui/DateRangePicker'
 import { PHARMACY_QUERY_PRESETS, type DateRange, type PresetKey } from '../../shared/utils/dateRange'
 import { WardDailySupplyPanel } from './WardDailySupplyPanel'
 import { WardMedicationReturnInbox } from './WardMedicationReturnInbox'
+import { PharmacyKnowledgeImprovement } from './PharmacyKnowledgeImprovement'
+import { PharmacyMedicationSafety } from './PharmacyMedicationSafety'
 import './pharmacy-dispense-workbench.css'
 import '../../styles/features/pharmacy-warehouse.css'
 
@@ -411,6 +414,9 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
 
   useEffect(() => {
     setStockItemId('')
+    setReviewResult('PASS')
+    setReasonCode('')
+    setDescription('')
   }, [siteId, requestId])
 
   const selected = mode === 'ward' ? undefined : displayInbox.find((item) => item.request.id === requestId)
@@ -1425,7 +1431,9 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                     <StatusBadge tone={line.status === 'READY' ? 'success' : 'neutral'}>{line.status}</StatusBadge>
                   </article>)}</div>
                 </section>
+                {mode === 'review' && <PharmacyMedicationSafety reviews={task.data.prescriptionSafety} />}
                 {mode === 'review' && <section className="pharmacy-action-section pharmacy-action-section--primary">
+                  <p>当前审方结论作用于本条药品任务；上方配对提示来自整张处方。</p>
                   <div className="pharmacy-section-head"><div><h3>{configuredReviewMode === 'PRE_DISPENSE'
                     ? '事前审方' : '事后审方'}</h3><span>{configuredReviewMode === 'PRE_DISPENSE'
                     ? '审方通过后进入库存预留与发药' : '对已完成发药的处方补充药学审核结论'}</span></div></div>
@@ -1449,6 +1457,15 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                       || reviewResult !== 'PASS' && (!reasonCode.trim() || !description.trim())}
                       busy={review.isPending} onClick={() => review.mutate()}>提交审方结论</Button>
                   </div> : <Alert tone="info">当前任务已完成审方，审方记录已归档。</Alert>}
+                  {task.data.reviews.length > 0 && <div className="pharmacy-safety-findings" aria-label="药师处理结果">
+                    {task.data.reviews.map((result) => <article key={result.id}>
+                      <strong>{reviewText[result.result]}</strong> · {formatTime(result.reviewedAt)}
+                      <p>{result.description || '未填写补充说明'}</p>
+                      <PharmacyKnowledgeImprovement api={api} taskId={task.data!.id} reviewId={result.id}
+                        findings={(task.data!.prescriptionSafety ?? []).flatMap(r => r.evaluation.findings)
+                          .filter(f => !f.medicationRequestIds.length || f.medicationRequestIds.some(id => task.data!.lines.some(line => line.requestId === id)))} />
+                    </article>)}
+                  </div>}
                 </section>}
                 {mode === 'returns' && (task.data.status === 'COMPLETED' || task.data.status === 'PARTIALLY_RETURNED')
                   && <div className="pharmacy-return-form">
@@ -2148,18 +2165,6 @@ function formatQuantityWithUnit(value: number, unit: string) {
   return `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value)}${unit}`
 }
 
-function displayUnitName(code?: string) {
-  if (!code) return ''
-  const value = code.trim()
-  const labels: Record<string, string> = {
-    BOX: '盒', BOTTLE: '瓶', BAG: '袋', PACK: '包', VIAL: '瓶', AMP: '支', AMPOULE: '支',
-    TABLET: '片', TAB: '片', CAPSULE: '粒', CAP: '粒', PIECE: '个', PCS: '个',
-    ML: 'ml', L: 'L', MG: 'mg', G: 'g', UG: 'μg', DOSE: '剂', UNIT: 'U',
-    毫克: 'mg', 克: 'g', 毫升: 'ml', 升: 'L', 微克: 'μg',
-  }
-  return labels[value.toUpperCase()] ?? labels[value] ?? value
-}
-
 function genderText(value?: string) {
   return { MALE: '男', FEMALE: '女', UNKNOWN: '未知' }[value ?? ''] ?? '未知'
 }
@@ -2173,144 +2178,4 @@ function ageText(birthDate?: string) {
   if (today.getMonth() < birth.getMonth()
     || today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate()) age -= 1
   return `${Math.max(age, 0)}岁`
-}
-
-function formatFrequencyName(code?: string, name?: string) {
-  if (name?.trim()) return name.trim()
-  if (!code) return '每日一次'
-  const map: Record<string, string> = {
-    QD: '每日一次', BID: '每日两次', TID: '每日三次', QID: '每日四次',
-    Q8H: '每8小时一次', Q12H: '每12小时一次', QN: '每晚一次', QOD: '隔日一次',
-    QW: '每周一次', PRN: '必要时', STAT: '立即',
-  }
-  return map[code.toUpperCase()] ?? code
-}
-
-function frequencyTimesPerDay(code?: string, name?: string): number {
-  const text = (code || name || '').toUpperCase().trim()
-  if (!text) return 1
-  if (text.includes('TID') || text.includes('每日三次') || text.includes('3次') || text.includes('三次') || text.includes('Q8H')) return 3
-  if (text.includes('BID') || text.includes('每日两次') || text.includes('2次') || text.includes('两次') || text.includes('Q12H')) return 2
-  if (text.includes('QID') || text.includes('每日四次') || text.includes('4次') || text.includes('四次') || text.includes('Q6H')) return 4
-  if (text.includes('QOD') || text.includes('隔日')) return 0.5
-  if (text.includes('QW') || text.includes('每周')) return 1 / 7
-  if (text.includes('QD') || text.includes('每日一次') || text.includes('每日') || text.includes('QN')) return 1
-  return 1
-}
-
-const COUNTABLE_UNITS = new Set([
-  '片', '粒', '支', '袋', '瓶', '贴', '包', '丸', '枚', '盒', '剂', '滴',
-  'TAB', 'CAP', 'CAPSULE', 'TABLET', 'VIAL', 'AMP', 'AMPOULE', 'BAG', 'BOTTLE', 'PACK', 'PIECE', 'PCS',
-])
-
-interface StrengthInfo {
-  value: number
-  unit: string
-}
-
-function parseStrength(spec?: string, snapshot?: Record<string, unknown>): StrengthInfo | null {
-  if (snapshot?.strengthValue && snapshot?.strengthUnit) {
-    const val = Number(snapshot.strengthValue)
-    if (val > 0) {
-      return { value: val, unit: displayUnitName(String(snapshot.strengthUnit)) || String(snapshot.strengthUnit) }
-    }
-  }
-
-  if (!spec) return null
-
-  // Match e.g. "0.25g", "250mg", "10ml", "5mg/片", "0.25g*24片/盒", "0.5g/支", "100mg"
-  const match = spec.match(/([\d.]+)\s*(g|mg|ml|ug|μg|毫克|克|毫升|微克)/i)
-  if (match) {
-    const val = parseFloat(match[1])
-    const unit = displayUnitName(match[2]) || match[2]
-    if (val > 0) {
-      return { value: val, unit }
-    }
-  }
-  return null
-}
-
-function convertToUnit(value: number, fromUnit: string, toUnit: string): number {
-  const from = fromUnit.toLowerCase().trim()
-  const to = toUnit.toLowerCase().trim()
-  if (from === to) return value
-
-  if ((from === 'g' || from === '克') && (to === 'mg' || to === '毫克')) return value * 1000
-  if ((from === 'mg' || from === '毫克') && (to === 'g' || to === '克')) return value / 1000
-  if ((from === 'mg' || from === '毫克') && (to === 'ug' || to === 'μg' || to === '微克')) return value * 1000
-  if ((from === 'ug' || from === 'μg' || from === '微克') && (to === 'mg' || to === '毫克')) return value / 1000
-  if ((from === 'g' || from === '克') && (to === 'ug' || to === 'μg' || to === '微克')) return value * 1000000
-  if ((from === 'l' || from === '升') && (to === 'ml' || to === '毫升')) return value * 1000
-  if ((from === 'ml' || from === '毫升') && (to === 'l' || to === '升')) return value / 1000
-
-  return value
-}
-
-function formatNum(val: number): string {
-  if (Math.abs(val - Math.round(val)) < 0.0001) {
-    return String(Math.round(val))
-  }
-  return val.toFixed(2).replace(/\.?0+$/, '')
-}
-
-function formatDoseWithMinimumUnit(req: MedicationRequest): string {
-  const doseVal = req.doseValue
-  const rawDoseUnit = req.doseUnit ? displayUnitName(req.doseUnit) : ''
-  const minUnit = displayUnitName(req.preparationUnit || req.baseUnit) || '片'
-  const snap = (req.medicationSnapshot as Record<string, unknown> | undefined) ?? {}
-  const strength = parseStrength(req.preparationSpec || req.packageSpec, snap)
-
-  // If no dose specified at all
-  if (doseVal === undefined || doseVal === null) {
-    if (strength) {
-      return `${formatNum(strength.value)} ${strength.unit}（1${minUnit}）`
-    }
-    return `1 ${minUnit}`
-  }
-
-  // Case 1: Prescribed in countable packaging units (e.g. 2片, 4粒, 1支, 2袋)
-  if (rawDoseUnit && (COUNTABLE_UNITS.has(rawDoseUnit) || COUNTABLE_UNITS.has(req.doseUnit || ''))) {
-    const count = doseVal
-    const countUnit = rawDoseUnit || minUnit
-    if (strength) {
-      const totalStrength = count * strength.value
-      return `${formatNum(totalStrength)} ${strength.unit}（${formatNum(count)}${countUnit}）`
-    }
-    return `${formatNum(count)} ${countUnit}`
-  }
-
-  // Case 2: Prescribed in mass/volume units (e.g. 0.5g, 250mg, 10ml) or general numeric dose
-  const doseUnitName = rawDoseUnit || (strength ? strength.unit : 'g')
-  const primaryDose = `${formatNum(doseVal)} ${doseUnitName}`
-
-  let minUnitCount: number | null = null
-
-  if (strength) {
-    const strengthInDoseUnit = convertToUnit(strength.value, strength.unit, doseUnitName)
-    if (strengthInDoseUnit > 0) {
-      const calculated = doseVal / strengthInDoseUnit
-      if (calculated > 0 && calculated <= 1000 && Number.isFinite(calculated)) {
-        minUnitCount = Math.round(calculated * 100) / 100
-      }
-    }
-  }
-
-  if (minUnitCount === null) {
-    const totalBase = req.baseQuantity || (req.quantity && req.packageFactor ? req.quantity * req.packageFactor : null)
-    const timesPerDay = frequencyTimesPerDay(req.frequencyCode, req.frequencyName)
-    const days = req.durationValue || 1
-    const totalDoses = timesPerDay * days
-    if (totalBase && totalDoses > 0) {
-      const calculated = totalBase / totalDoses
-      if (calculated > 0 && calculated <= 1000 && Number.isFinite(calculated)) {
-        minUnitCount = Math.round(calculated * 100) / 100
-      }
-    }
-  }
-
-  if (minUnitCount && minUnitCount > 0) {
-    return `${primaryDose}（${formatNum(minUnitCount)}${minUnit}）`
-  }
-
-  return primaryDose
 }

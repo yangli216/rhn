@@ -7,8 +7,15 @@ import tools.jackson.databind.JsonNode;
 public record MedicationStandardReference(String status, String catalogId, String catalogVersion,
         String contentHash, String entryId, String specificationId, Integer semanticVersion,
         String name, String doseForm, String preparationSpec, String presentationUnit,
-        JsonNode strength, String sourceVerificationStatus, List<String> issues) {
+        JsonNode strength, String sourceVerificationStatus, List<String> issues, String sourceVerificationId) {
     public MedicationStandardReference { issues = List.copyOf(issues); }
+    public MedicationStandardReference(String status, String catalogId, String catalogVersion,
+            String contentHash, String entryId, String specificationId, Integer semanticVersion,
+            String name, String doseForm, String preparationSpec, String presentationUnit,
+            JsonNode strength, String sourceVerificationStatus, List<String> issues) {
+        this(status, catalogId, catalogVersion, contentHash, entryId, specificationId, semanticVersion,
+                name, doseForm, preparationSpec, presentationUnit, strength, sourceVerificationStatus, issues, null);
+    }
     public boolean linked() { return "LINKED".equals(status); }
     public static MedicationStandardReference unavailable(String status, String reason) {
         return new MedicationStandardReference(status, null, null, null, null, null, null,

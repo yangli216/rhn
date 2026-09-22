@@ -50,6 +50,16 @@ class StandardMedicationCatalogTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void incomplete_source_identity_is_visible_in_catalog_detail_and_review_filter() throws Exception {
+        var response = json(mockMvc.perform(get(PATH).with(rhn()).param("query", "MED-2026-W007").param("state", "REVIEW"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String id = response.path("content").get(0).path("id").asString();
+        var detail = json(mockMvc.perform(get(PATH + "/" + id).with(rhn())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(detail.path("specifications").valueStream().filter(spec -> "4:1".equals(spec.path("specification").asString()))
+                .findFirst().orElseThrow().path("identityIssues").get(0).asString()).isEqualTo("STANDARD_SPECIFICATION_INCOMPLETE");
+    }
+
+    @Test
     void requires_authentication() throws Exception {
         mockMvc.perform(get(PATH).header("X-Tenant-Id", TENANT)).andExpect(status().isUnauthorized());
     }

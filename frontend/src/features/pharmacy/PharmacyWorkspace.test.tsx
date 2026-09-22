@@ -214,7 +214,9 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     expect(screen.getByText('200片/盒')).toBeInTheDocument()
     expect(screen.getByText('云南制药有限公司')).toBeInTheDocument()
     expect(screen.getByText('每次剂量')).toBeInTheDocument()
-    expect(screen.getByText(/1 g（66\.67片）/)).toBeInTheDocument()
+    // Historical request has no structured frequency snapshot: show the prescribed dose only.
+    expect(screen.getByText(/^1 g$/)).toBeInTheDocument()
+    expect(screen.queryByText(/66\.67片/)).not.toBeInTheDocument()
     expect(screen.getByText('TID')).toBeInTheDocument()
     expect(screen.getByText('口服')).toBeInTheDocument()
 
@@ -439,6 +441,61 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     expect(document.querySelector('.pharmacy-toolbar')).not.toBeInTheDocument()
     expect(screen.queryByText('当前药房')).not.toBeInTheDocument()
     expect(screen.queryByText('当前工作上下文')).not.toBeInTheDocument()
+  })
+
+  it('connects the submitted safety context to pharmacist intervention and shows its saved result', async () => {
+    const user = userEvent.setup()
+    const request = { id: 'req-safety', prescriptionId: 'rx-safety', requestNo: 'MR-SAFETY',
+      residentId: 'resident-safety', encounterId: 'encounter-safety', medicationName: '合成测试药品',
+      itemName: '测试产品', quantity: 1, quantityUnit: '片', itemAttributeSnapshot: {},
+      authoredAt: '2026-09-21T08:00:00Z' }
+    const context = { prescriptionId: 'rx-safety', prescriptionNo: 'RX-SAFETY',
+      submittedAt: '2026-09-21T08:00:00Z', doctorReason: '医生已核对重复用药条件',
+      medications: [{ requestId: 'req-safety', name: '合成测试药品' }],
+      evaluation: { evaluationId: 'eval-safety', mode: 'ENFORCED', decision: 'WARN', failureCodes: [], findings: [{
+        findingId: 'f1', category: 'DUPLICATE_THERAPY', decision: 'WARN', message: '合成重复用药提示',
+        medicationRequestIds: ['req-safety'], evidence: [], suggestedAction: '请核对是否应调整处方',
+      }] } }
+    let task = { id: 'task-safety', taskNo: 'TASK-SAFETY', status: 'PENDING_REVIEW', lines: [],
+      prescriptionSafety: [context], reviews: [] as any[] }
+    const assignment = { id: 'assignment-1', practitionerId: 'pharmacist-1', organizationId: 'org-1',
+      departmentId: 'dept-1', sdPositionType: 'PHARMACY', sdPersonnelStatus: 'ACTIVE', primaryAssignment: true }
+    const review = vi.fn().mockImplementation(async (_id, input) => {
+      task = { ...task, status: 'INTERVENTION', reviews: [{ id: 'review-1', result: input.result,
+        description: input.description, reviewedAt: '2026-09-21T09:00:00Z' }] }
+      return task
+    })
+    const api = {
+      pharmacy: {
+        sites: vi.fn().mockResolvedValue([{ id: 'site-1', departmentId: 'dept-1', siteType: 'PHARMACY', active: true }]),
+        inbox: vi.fn().mockImplementation(async () => [{ request, taskId: 'task-safety', taskStatus: task.status }]),
+        prescriptionReviewMode: vi.fn().mockResolvedValue({ enabled: true, mode: 'PRE_DISPENSE' }),
+        stockItems: vi.fn().mockResolvedValue([]), task: vi.fn().mockImplementation(async () => task),
+        trace: vi.fn().mockResolvedValue({ events: [] }), review,
+      },
+      organization: {
+        practitioners: vi.fn().mockResolvedValue([{ id: 'pharmacist-1', fullName: '测试药师', sdPersonnelStatus: 'ACTIVE' }]),
+        assignments: vi.fn().mockResolvedValue([assignment]),
+        practitioner: vi.fn().mockResolvedValue({ assignments: [assignment] }),
+      },
+    } as unknown as RhnApi
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><MemoryRouter>
+      <PharmacyWorkspace api={api} clinicalContext={clinicalContext} mode="review" />
+    </MemoryRouter></QueryClientProvider>)
+    expect(await screen.findByText('合成重复用药提示')).toBeVisible()
+    expect(screen.getByText(/医生已核对重复用药条件/)).toBeVisible()
+    await user.click(screen.getByRole('combobox', { name: '审方结论' }))
+    await user.click(screen.getByRole('option', { name: /干预/ }))
+    await user.type(screen.getByRole('textbox', { name: '原因编码' }), 'DUPLICATE_CONFIRM')
+    await user.type(screen.getByRole('textbox', { name: '审方说明' }), '联系医生核对重复开立，暂缓发药')
+    await user.click(screen.getByRole('button', { name: '提交审方结论' }))
+    await waitFor(() => expect(review).toHaveBeenCalledWith('task-safety', {
+      result: 'INTERVENE', reasonCode: 'DUPLICATE_CONFIRM', description: '联系医生核对重复开立，暂缓发药',
+      pharmacistPractitionerId: 'pharmacist-1', reviewerAssignmentId: 'assignment-1',
+    }))
+    expect(await screen.findByText('联系医生核对重复开立，暂缓发药')).toBeVisible()
+    expect(screen.getByText(/医生已核对重复用药条件/)).toBeVisible()
   })
 
   it('renders a record-oriented query table without exposing internal workflow identifiers', async () => {

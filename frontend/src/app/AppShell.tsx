@@ -270,7 +270,10 @@ const NAVIGATION_NODES: NavigationNode[] = [
   },
   {
     id: 'center-master-data', label: '中心主数据', icon: 'database', children: [
-      { id: 'master-data', label: '基础数据中心', icon: 'database', to: '/settings/master-data', requiredAuthority: 'MASTER_DATA.MANAGE' },
+      { id: 'medications', label: '药品知识与目录', icon: 'pill', to: '/settings/medications', requiredAuthority: 'MASTER_DATA.MANAGE' },
+      { id: 'services', label: '诊疗服务目录', icon: 'clinical', to: '/settings/services', requiredAuthority: 'MASTER_DATA.MANAGE' },
+      { id: 'diseases', label: '疾病与诊断标准', icon: 'database', to: '/settings/diseases', requiredAuthority: 'MASTER_DATA.MANAGE' },
+      { id: 'operations', label: '耗材与运营主数据', icon: 'card', to: '/settings/operations', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'business-partners', label: '厂商与供应商', icon: 'pharmacy', to: '/settings/partners', requiredAuthority: 'BUSINESS_PARTNER.ACCESS' },
       { id: 'medication-workbench', label: '合理用药规则', icon: 'pill', to: '/quality/medication-rules', requiredAuthority: 'MASTER_DATA.MANAGE' },
     ],
@@ -398,6 +401,10 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/inpatient/deposits') return { id: pathname, path: pathname, title: '预交金管理', icon: 'billing', closeable: true }
   if (pathname === '/inpatient/billing') return { id: pathname, path: pathname, title: '住院费用', icon: 'billing', closeable: true }
   if (pathname === '/settings/master-data') return { id: pathname, path: pathname, title: '基础数据中心', icon: 'database', closeable: true }
+  if (pathname === '/settings/medications') return { id: pathname, path: pathname, title: '药品知识与目录', icon: 'pill', closeable: true }
+  if (pathname === '/settings/services') return { id: pathname, path: pathname, title: '诊疗服务目录', icon: 'clinical', closeable: true }
+  if (pathname === '/settings/diseases') return { id: pathname, path: pathname, title: '疾病与诊断标准', icon: 'database', closeable: true }
+  if (pathname === '/settings/operations') return { id: pathname, path: pathname, title: '耗材与运营主数据', icon: 'card', closeable: true }
   if (pathname === '/settings/organization-catalog') return { id: pathname, path: pathname, title: '机构项目管理', icon: 'card', closeable: true }
   if (pathname === '/settings/partners') return { id: pathname, path: pathname, title: '厂商与供应商', icon: 'pharmacy', closeable: true }
   if (pathname === '/settings/organization') return { id: pathname, path: pathname, title: '组织与人员', icon: 'residents', closeable: true }
@@ -982,7 +989,15 @@ export function AppShell() {
                   <Route path="/settings/grid-addresses" element={<GridAddressManagement api={tabSlot.api} />} />
                   <Route path="/settings/dispense-routes" element={<DispenseRouteSettings api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
-                  <Route path="/settings/master-data" element={<BasicDataManagement api={tabSlot.api}
+                   <Route path="/settings/medications" element={<BasicDataManagement api={tabSlot.api} scope="medication"
+                    organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/settings/services" element={<BasicDataManagement api={tabSlot.api} scope="service"
+                    organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/settings/diseases" element={<BasicDataManagement api={tabSlot.api} scope="disease"
+                    organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/settings/operations" element={<BasicDataManagement api={tabSlot.api} scope="operations"
+                    organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/settings/master-data" element={<BasicDataManagement api={tabSlot.api} scope="all"
                     organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/organization-catalog" element={<OrganizationCatalogManagement
                     api={tabSlot.api} organization={tabSlot.clinicalContext.organization}
