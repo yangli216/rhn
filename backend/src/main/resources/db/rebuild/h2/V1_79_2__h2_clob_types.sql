@@ -1,6 +1,6 @@
 -- RHN H2 rebuild compatibility types
--- GENERATED FILE. H2-only CLOB conversions for the 1.77 fresh-schema package.
--- The physical column rename is already part of B1_77_0, so source identifiers are rewritten by table.
+-- GENERATED FILE. H2-only CLOB conversions for the 1.78 fresh-schema package.
+-- The physical column rename is already part of B1_79_0, so source identifiers are rewritten by table.
 
 -- SOURCE backend/src/main/resources/db/h2/V1_42_2__h2_clob_types.sql sha256=3a6df5c63c999d24e98325f5f2220de1dede4179871eb96df4d745ba65a26762
 -- =============================================================================

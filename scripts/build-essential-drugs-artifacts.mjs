@@ -6,6 +6,7 @@ import process from "node:process";
 
 const root = process.cwd();
 const jsonPath = path.join(root, "docs/essential-drugs/legacy/essential_drugs_2026.json");
+const standardCatalogPath = path.join(root, "docs/essential-drugs/standard_medication_catalog.json");
 const csvPath = path.join(root, "output/essential-drugs-legacy/国家基本药物目录（2026年版）_药品基本信息导入表.csv");
 const pgSqlPath = path.join(root, "output/essential-drugs-legacy/postgresql/V1_47_0__national_essential_medications_2026.sql");
 const oraSqlPath = path.join(root, "output/essential-drugs-legacy/oracle/V1_47_0__national_essential_medications_2026.sql");
@@ -15,7 +16,27 @@ const backendOraSqlPath = path.join(root, "backend/src/main/resources/db/oracle/
 for (const output of [csvPath, pgSqlPath, oraSqlPath, backendPgSqlPath, backendOraSqlPath]) fs.mkdirSync(path.dirname(output), { recursive: true });
 
 const catalogData = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+const standardCatalog = JSON.parse(fs.readFileSync(standardCatalogPath, "utf8"));
 const flatItems = catalogData.flatItems;
+
+function normalizeDoseFormName(value) {
+  return (value || "")
+    .replace(/^[（(][^）)]+[）)]/, "")
+    .replace(/[\s　]/g, "")
+    .replace(/[（(]/g, "(")
+    .replace(/[）)]/g, ")")
+    .trim();
+}
+
+const standardDoseForms = new Map();
+for (const specification of standardCatalog.specifications || []) {
+  const key = `${specification.legacyCode}|${normalizeDoseFormName(specification.doseFormName)}`;
+  const existing = standardDoseForms.get(key);
+  if (existing && existing !== specification.doseForm) {
+    throw new Error(`Conflicting standard dose forms for ${key}: ${existing}, ${specification.doseForm}`);
+  }
+  standardDoseForms.set(key, specification.doseForm);
+}
 
 // Deduplicate varieties by code (794 unique varieties)
 const uniqueVarietiesMap = new Map();
@@ -83,8 +104,14 @@ function cleanSpecString(spec) {
   return s.trim();
 }
 
-function mapDoseForm(text) {
-  if (!text) return ["TABLET", "片"];
+function mapDoseForm(text, legacyCode) {
+  const standardDoseForm = standardDoseForms.get(`${legacyCode}|${normalizeDoseFormName(text)}`);
+  const fallback = mapLegacyDoseForm(text);
+  return [standardDoseForm || fallback[0], fallback[1]];
+}
+
+function mapLegacyDoseForm(text) {
+  if (!text) return ["OTHER", null];
   if (text.includes("注射用") || text.includes("无菌粉末") || text.includes("冻干粉")) return ["INJECTION", "支"];
   if (text.includes("注射液") || text.includes("针剂") || text.includes("氯化钠") || text.includes("葡萄糖") || text.includes("灭菌注射用水") || text.includes("注射剂") || text.includes("静脉滴注")) return ["INJECTION", "支"];
   if (text.includes("软胶囊")) return ["CAPSULE", "粒"];
@@ -99,7 +126,7 @@ function mapDoseForm(text) {
   if (text.includes("栓")) return ["SUPPOSITORY", "枚"];
   if (text.includes("贴") || text.includes("膏药") || text.includes("硬膏")) return ["PATCH", "贴"];
   if (text.includes("散剂") || text.includes("粉剂")) return ["POWDER", "袋"];
-  return ["TABLET", "片"];
+  return ["OTHER", null];
 }
 
 function formatMedName(baseName, formName, part) {
@@ -151,6 +178,18 @@ function extractStrength(spec) {
     return { val: stdMatch[1], unit: stdMatch[2] };
   }
   return { val: null, unit: null };
+}
+
+function isInjectionDoseForm(value) {
+  return value === "INJECTION" || value.includes("INJECTION") || value.startsWith("POWDER_FOR_");
+}
+
+function isOralDoseForm(value) {
+  const base = value.replace(/^ENTERIC_EXTENDED_/, "").replace(/^ENTERIC_/, "").replace(/^EXTENDED_RELEASE_/, "");
+  return ["TABLET", "CAPSULE", "SOFT_CAPSULE", "GRANULE", "ORAL_LIQUID", "ORAL_SOLUTION", "MIXTURE",
+    "SYRUP", "SUSPENSION", "DRY_SUSPENSION", "PILL", "DROPPING_PILL", "ELECTUARY", "POWDER",
+    "POWDER_FORM", "CHEWABLE_TABLET", "DISPERSIBLE_TABLET", "EFFERVESCENT_TABLET", "ORODISPERSIBLE_TABLET",
+    "ORAL_FILM"].includes(base);
 }
 
 function determineDrugAttributes(item, formName, specDesc, sdDoseForm, prepUnit) {
@@ -208,7 +247,7 @@ function determineDrugAttributes(item, formName, specDesc, sdDoseForm, prepUnit)
   if (isWestern) {
     if (["青霉素", "苄星青霉素", "普鲁卡因青霉素", "苯唑西林", "氨苄西林", "哌拉西林", "阿莫西林克拉维酸钾", "破伤风抗毒素", "抗蛇毒血清"].some(w => name.includes(w))) {
       skinTest = true;
-    } else if (name.includes("头孢") && sdDoseForm === "INJECTION") {
+    } else if (name.includes("头孢") && isInjectionDoseForm(sdDoseForm)) {
       skinTest = true;
     }
   }
@@ -234,27 +273,40 @@ function determineDrugAttributes(item, formName, specDesc, sdDoseForm, prepUnit)
   }
 
   // Route
-  let defaultRoute = "ORAL";
-  if (sdDoseForm === "INJECTION") {
-    defaultRoute = (formName.includes("粉末") || formName.includes("浓溶液") || name.includes("氯化钠") || name.includes("葡萄糖")) ? "IVGTT" : "IM";
-  } else if (["TABLET", "CAPSULE", "GRANULE", "ORAL_LIQUID"].includes(sdDoseForm) || formName.includes("丸")) {
+  let defaultRoute = null;
+  if (sdDoseForm.startsWith("EYE_")) {
+    defaultRoute = "OPHTHALMIC";
+  } else if (sdDoseForm === "EAR_DROPS") {
+    defaultRoute = "OTIC";
+  } else if (sdDoseForm === "NASAL_DROPS") {
+    defaultRoute = "NASAL";
+  } else if (sdDoseForm === "SUBLINGUAL_TABLET") {
+    defaultRoute = "SUBLINGUAL";
+  } else if (sdDoseForm.includes("VAGINAL")) {
+    defaultRoute = "VAGINAL";
+  } else if (sdDoseForm === "ENEMA") {
+    defaultRoute = "RECTAL";
+  } else if (isInjectionDoseForm(sdDoseForm)) {
+    defaultRoute = (["粉末", "浓溶液", "氯化钠", "葡萄糖"].some(value => formName.includes(value))
+      || name.includes("氯化钠") || name.includes("葡萄糖")) ? "IVGTT" : "IM";
+  } else if (isOralDoseForm(sdDoseForm) || formName.includes("丸")) {
     defaultRoute = "ORAL";
-  } else if (["CREAM", "OINTMENT"].includes(sdDoseForm)) {
+  } else if (["CREAM", "OINTMENT", "GEL", "TOPICAL_SOLUTION", "LINIMENT", "PASTE"].includes(sdDoseForm)) {
     defaultRoute = "TOPICAL";
   } else if (sdDoseForm === "DROPS") {
     defaultRoute = (formName.includes("眼") || name.includes("眼")) ? "OPHTHALMIC" : "OTIC";
-  } else if (sdDoseForm === "AEROSOL") {
+  } else if (sdDoseForm === "AEROSOL" || sdDoseForm.includes("INHAL") || sdDoseForm.includes("NEBUL")) {
     defaultRoute = (formName.includes("溶液") || formName.includes("混悬")) ? "NEB" : "INHALATION";
   } else if (sdDoseForm === "SUPPOSITORY") {
     defaultRoute = (formName.includes("阴道") || name.includes("阴道")) ? "VAGINAL" : "RECTAL";
-  } else if (sdDoseForm === "PATCH") {
+  } else if (["PATCH", "PLASTER"].includes(sdDoseForm)) {
     defaultRoute = "TRANSDERMAL";
   }
 
   // Frequency
-  let defaultFreq = "BID";
+  let defaultFreq = defaultRoute ? "BID" : null;
   if (isAntimicrobial) {
-    defaultFreq = ["TABLET", "CAPSULE"].includes(sdDoseForm) ? "TID" : "QD";
+    defaultFreq = isOralDoseForm(sdDoseForm) ? "TID" : "QD";
   } else if (chronic) {
     defaultFreq = "QD";
   } else if (["对乙酰氨基酚", "布洛芬", "氨茶碱", "硝酸甘油"].some(w => name.includes(w))) {
@@ -262,6 +314,7 @@ function determineDrugAttributes(item, formName, specDesc, sdDoseForm, prepUnit)
   } else {
     defaultFreq = isTcm ? "TID" : "BID";
   }
+  if (!defaultRoute) defaultFreq = null;
 
   // Storage
   let storage = "ROOM_TEMPERATURE";
@@ -354,7 +407,7 @@ for (const v of uniqueVarieties) {
     }
     codeSet.add(subCode);
 
-    const [sdDoseForm, prepUnit] = mapDoseForm(e.form);
+    const [sdDoseForm, prepUnit] = mapDoseForm(e.form, baseCode);
     const fullName = formatMedName(baseName, e.form, v.part);
     const attrs = determineDrugAttributes(v, e.form, e.spec, sdDoseForm, prepUnit);
     const strengthInfo = extractStrength(e.spec);

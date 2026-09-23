@@ -7,9 +7,14 @@ export interface CatalogEditionDetail { edition: CatalogEdition; source: Record<
 export interface CatalogEditionChange { group: string; objectId: string; name: string; operation: string; path: string; before: unknown; after: unknown }
 export interface CatalogEditionComparison { base: CatalogEdition; target: CatalogEdition; fingerprint: string; counts: Record<string, number>; changes: EditionPage<CatalogEditionChange> }
 export interface CatalogEditionDependencies { target: CatalogEdition; fingerprint: string; coverage: string[]; limitations: string[]; items: EditionPage<StandardImpactItem> }
+export interface CatalogEntryReview { id: string; identity: StandardCatalogIdentity; entryId: string; revision: number; status: 'CHECKED' | 'ISSUE'; note: string; actor: string; recordedAt: string }
+export interface CatalogEntryReviewView { identity: StandardCatalogIdentity; entries: CatalogEntryReview[] }
 export function createStandardCatalogEditionApi(client: ApiClient) {
   const root = '/api/platform/master-data/medication-standard-catalog/editions'
   return {
+    entryReviews: (id: string) => client.request<CatalogEntryReviewView>(`${root}/${encodeURIComponent(id)}/entry-reviews`),
+    reviewEntry: (id: string, entryId: string, input: {identity: StandardCatalogIdentity; expectedRevision: number; status: 'CHECKED' | 'ISSUE'; note: string}) =>
+      client.request<CatalogEntryReview>(`${root}/${encodeURIComponent(id)}/entry-reviews/${encodeURIComponent(entryId)}`, {method: 'POST', body: JSON.stringify(input)}),
     runtime: () => client.request<CatalogEdition>(`${root}/runtime`),
     list: (page = 0) => client.request<EditionPage<CatalogEdition>>(`${root}?page=${page}`),
     detail: (id: string, reviewPage = 0) => client.request<CatalogEditionDetail>(`${root}/${encodeURIComponent(id)}?reviewPage=${reviewPage}`),

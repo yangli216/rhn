@@ -24,6 +24,7 @@ function fixture(): Catalog {
 let data: Catalog
 let failSave = false
 beforeEach(() => {
+  window.history.replaceState(null, '', '/')
   data = fixture(); failSave = false
   vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
     const url = new URL(input, 'http://localhost')
@@ -79,6 +80,25 @@ describe('database collaboration workbench', () => {
     expect(screen.getByText('ID_TNT = ID_TNT AND ID_PAT = ID_PAT')).toBeInTheDocument()
     await user.click(within(screen.getByRole('region', { name: '数据关系图' })).getByRole('button', { name: /居民.*RHN_PI_PAT/ }))
     expect(screen.getByRole('heading', { level: 2, name: '居民' })).toBeInTheDocument()
+  })
+
+  it('does not substitute an unrelated semantic entity for an unmapped table', async () => {
+    const user = userEvent.setup()
+    data.tables.push(makeTable('RHN_SYS_ORG', 'sys.organization', '机构；一行代表一个机构', 'ID_ORG'))
+    render(<SchemaWorkbench />)
+    await screen.findByRole('table', { name: '表字段' })
+    await user.click(screen.getByRole('button', { name: /RHN_SYS_ORG/ }))
+    await user.click(screen.getByRole('tab', { name: '业务语义' }))
+    expect((await screen.findAllByText('当前表尚未映射统计实体')).length).toBeGreaterThanOrEqual(2)
+    expect(screen.queryByText('单次就诊')).not.toBeInTheDocument()
+  })
+
+  it('keeps the selected table and view in a shareable URL', async () => {
+    const user = userEvent.setup(); render(<SchemaWorkbench />)
+    await screen.findByRole('table', { name: '表字段' })
+    await user.click(screen.getByRole('button', { name: /居民.*RHN_PI_PAT/ }))
+    await user.click(screen.getByRole('tab', { name: '结构检查' }))
+    expect(Object.fromEntries(new URLSearchParams(window.location.search))).toMatchObject({ table: 'RHN_PI_PAT', tab: 'checks' })
   })
 
   it('keeps edits after conflict and requires an explicit choice before changing tables', async () => {

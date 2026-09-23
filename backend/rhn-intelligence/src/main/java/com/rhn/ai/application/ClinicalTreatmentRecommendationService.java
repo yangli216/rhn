@@ -97,7 +97,7 @@ public class ClinicalTreatmentRecommendationService {
             var selection = gateway.analyze(new ClinicalAiModelGateway.ModelRequest(request.promptVersion(), request.question(),
                     request.voiceTranscript(), request.draft(), request.resident(), request.allergies(), request.availablePlans(),
                     request.diagnosticReports(), request.clinicalHistory(), request.priorSuggestion(), request.receptionScene(),
-                    request.receptionSceneContext(), "CATALOG_TREATMENT", candidates), runtime);
+                    request.receptionSceneContext(), "CATALOG_TREATMENT", candidates, request.temporalContext()), runtime);
             var result = new LinkedHashMap<String, TreatmentRecommendation>(deterministic);
             for (var item : selection.treatmentRecommendations()) {
                 if (item == null || item.catalogItemId() == null) continue;

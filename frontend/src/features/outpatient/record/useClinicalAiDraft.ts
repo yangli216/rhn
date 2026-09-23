@@ -3,7 +3,7 @@ import type { UseFormReturn } from 'react-hook-form'
 import type { ClinicalAiDraftContext, ClinicalAiRecordDraft } from '../../../shared/api/clinicalAiApi'
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
 import type { Encounter } from '../../../shared/model'
-import { clinicalAiContextFingerprint, mergeAiDiagnoses, mergeAiRecordDraft, type ClinicalAiDraftRequest } from '../ai/aiDraftAdapter'
+import { aiRecordDraftFields, clinicalAiContextFingerprint, mergeAiDiagnoses, mergeAiRecordDraft, type ClinicalAiDraftRequest } from '../ai/aiDraftAdapter'
 import { normalizeDiagnosisOrder, type RecordForm } from './clinicalRecordDraft'
 import { aiContextFromDraft, type ClinicalAiContextState } from './clinicalAiDraftContext'
 
@@ -73,11 +73,11 @@ export function useClinicalAiDraft({ encounter, form, diagnoses, setDiagnoses, a
     if (aiDraft.recordDraft) {
       const previous = getValues()
       const next = mergeAiRecordDraft(previous, aiDraft.recordDraft, aiDraft.overwriteRecord === true)
-      const changedFields = (Object.keys(aiDraft.recordDraft) as Array<keyof ClinicalAiRecordDraft>)
+      const changedFields = aiRecordDraftFields
         .filter((field) => previous[field] !== next[field])
       if (changedFields.length) setAiRecordUndo({
-        before: Object.fromEntries(changedFields.map((field) => [field, previous[field] ?? ''])),
-        after: Object.fromEntries(changedFields.map((field) => [field, next[field] ?? ''])),
+        before: Object.fromEntries(changedFields.map((field) => [field, previous[field]])),
+        after: Object.fromEntries(changedFields.map((field) => [field, next[field]])),
         documentVersion: document?.currentVersion ?? 0,
       })
       reset(next, { keepDefaultValues: true })

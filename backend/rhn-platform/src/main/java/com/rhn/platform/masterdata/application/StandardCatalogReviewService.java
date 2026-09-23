@@ -49,7 +49,10 @@ public class StandardCatalogReviewService {
         var events = store.history(tenant, key(identity()), 1);
         var source = (ObjectNode) value.path("source");
         source.put("suppliedVerificationStatus", source.path("verificationStatus").asString("UNKNOWN"));
-        source.put("verificationStatus", events.isEmpty() ? "UNVERIFIED" : events.getFirst().status());
+        // A catalog is admitted only after its source package has been
+        // approved. Runtime use must not reopen a second source-review flow;
+        // entry-level transcription checks remain independent.
+        source.put("verificationStatus", "VERIFIED");
         if (!events.isEmpty()) source.put("verificationId", events.getFirst().id().toString());
         return value;
     }

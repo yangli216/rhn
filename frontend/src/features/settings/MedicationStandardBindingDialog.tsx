@@ -26,6 +26,10 @@ const doseFormLabels: Record<string, string> = {
   PATCH: '贴剂', CREAM: '乳膏剂', OINTMENT: '软膏剂', GEL: '凝胶剂', DROPS: '滴剂',
   OTHER: '其他剂型（未规范）', UNKNOWN: '未定义剂型',
 }
+const sourceVerificationLabels: Record<string, string> = {
+  UNVERIFIED: '来源待核验', SUBMITTED: '来源待复核', VERIFIED: '来源已核验',
+  REJECTED: '来源材料已退回', REVOKED: '来源核验已撤销',
+}
 function doseFormLabel(code?: string, name?: string) {
   return name || (code ? doseFormLabels[code] ?? code : '未记录')
 }
@@ -66,7 +70,11 @@ export function MedicationStandardBindingDialog({api, medicationId, onClose, onO
   const eligible = value?.candidates.filter(item => item.canBind) ?? []
   const excluded = value?.candidates.filter(item => !item.canBind && item.issues.length > 0) ?? []
   const unavailable = value?.candidates.filter(item => !item.canBind && !item.issues.length) ?? []
-  const needsMedicationCorrection = value?.medication.doseForm === 'OTHER' || excluded.some(item => item.issues.includes('STANDARD_REFERENCE_FORM_MISMATCH'))
+  const linked = value?.reference.status === 'LINKED'
+  const linkedCandidate = value?.candidates.find(item => item.specification.id === value.reference.specificationId)
+  const doseFormCode = value?.medication.doseForm
+  const needsMedicationCorrection = !doseFormCode || doseFormCode === 'OTHER' || doseFormCode === 'UNKNOWN'
+  const hasDoseFormMismatch = excluded.some(item => item.issues.includes('STANDARD_REFERENCE_FORM_MISMATCH'))
   const needsCatalogReview = excluded.some(item => item.issues.some(issue => ['STANDARD_SPECIFICATION_INCOMPLETE', 'STANDARD_SOURCE_FORM_BLOCK_REQUIRES_REVIEW', 'STANDARD_COMPOSITION_FRAGMENT_REQUIRES_REVIEW'].includes(issue)))
   const candidate = eligible.find(item => item.specification.id === selected)
   const status = medicationStandardBindingStatusPresentation(value?.reference.status ?? '')
@@ -88,13 +96,13 @@ export function MedicationStandardBindingDialog({api, medicationId, onClose, onO
     : value?.medication.status && value.medication.status !== 'ACTIVE'
       ? '当前药品未启用，请先核对药品启用状态。'
       : '当前状态或权限不允许关联，请核对药品状态及主数据管理权限。'
-  return <Dialog title="核对药品标准关联" size="xwide" className="standard-binding" onClose={() => {if (!mutation.isPending) onClose()}}
+  return <Dialog title={linked ? '当前药品标准关联' : '核对药品标准关联'} size="xwide" className="standard-binding" onClose={() => {if (!mutation.isPending) onClose()}}
     closeOnBackdrop={false} enterNavigation={false}
-    description="选择身份一致的标准规格，核对来源后建立关联。保留原有药品、产品、包装及用法属性。"
+    description={linked ? '查看当前生效的标准身份；需要变更时进入标准关联修订与复核。' : '选择身份一致的标准规格，核对来源后建立关联。保留原有药品、产品、包装及用法属性。'}
     footer={<>
       <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>{mutation.isSuccess ? '完成' : '取消'}</Button>
       <Button variant="secondary" onClick={() => {void query.refetch()}} disabled={busy}>刷新核对结果</Button>
-      {!!eligible.length && <Button variant="primary" onClick={() => mutation.mutate()}
+      {!linked && !!eligible.length && <Button variant="primary" onClick={() => mutation.mutate()}
         disabled={!candidate || !reason.trim() || !confirmed || busy || !!query.error}>
         {mutation.isPending ? '正在建立关联…' : '建立标准关联'}
       </Button>}
@@ -112,7 +120,22 @@ export function MedicationStandardBindingDialog({api, medicationId, onClose, onO
               <div key={label}><dt>{label}</dt><dd>{text || '未记录'}</dd></div>)}
           </dl>
         </section>
-        <section aria-label="可关联标准规格">
+        {linked ? <section aria-label="当前标准关联">
+          <PanelHead title="当前标准关联" meta="身份一致" />
+          <div className="standard-binding__notice">
+            <strong>当前药品已关联且身份一致，无需再次建立关联。</strong>
+            <dl className="standard-binding__facts">
+              {Object.entries({
+                标准药品: value.reference.name || linkedCandidate?.specification.name || value.medication.name,
+                标准剂型: doseFormLabel(value.reference.doseForm || linkedCandidate?.specification.doseForm, linkedCandidate?.specification.doseFormName),
+                标准规格: value.reference.preparationSpec || linkedCandidate?.specification.specification || '未记录',
+                制剂单位: value.reference.presentationUnit || linkedCandidate?.specification.presentationUnit || '未记录',
+                标准规格编码: value.reference.specificationId || '未记录',
+                来源状态: sourceVerificationLabels[value.reference.sourceVerificationStatus ?? ''] || value.reference.sourceVerificationStatus || '待核验',
+              }).map(([label, text]) => <div key={label}><dt>{label}</dt><dd>{text}</dd></div>)}
+            </dl>
+          </div>
+        </section> : <section aria-label="可关联标准规格">
           <PanelHead title="可关联规格" meta={`${eligible.length} 项`} />
           {!!eligible.length && <>
             <p className="standard-binding__secondary">仅展示通过身份校验且允许关联的规格；即使只有一项，也请核对后主动选择。</p>
@@ -140,12 +163,16 @@ export function MedicationStandardBindingDialog({api, medicationId, onClose, onO
               <p>当前剂型为“{doseFormLabel(value.medication.doseForm)}”，属于未规范的内部编码。请在药品档案中选择实际中文剂型，并确认规格、制剂单位后重新核查。</p>
               <Button variant="secondary" onClick={onClose}>返回修正药品档案</Button>
             </div>}
+            {!needsMedicationCorrection && hasDoseFormMismatch && <div className="standard-binding__resolution-item">
+              <strong>核对候选剂型差异</strong>
+              <p>当前药品剂型“{doseFormLabel(value.medication.doseForm)}”已规范，但检索到的候选规格剂型不同。请查看排除项确认是否应补充正确规格，或修正药品档案中的实际剂型。</p>
+            </div>}
             {needsCatalogReview && <div className="standard-binding__resolution-item">
               <strong>标准目录需要补充或拆分</strong>
               <p>候选来源包含未拆分的剂型段落或不完整规格，不能直接作为标准身份。请先在标准参考目录补齐标准规格，再重新核查。</p>
               {onOpenCatalog && <Button variant="secondary" onClick={() => {onClose(); onOpenCatalog()}}>前往标准参考目录</Button>}
             </div>}
-            {!needsMedicationCorrection && !needsCatalogReview && <div className="standard-binding__resolution-item">
+            {!needsMedicationCorrection && !hasDoseFormMismatch && !needsCatalogReview && <div className="standard-binding__resolution-item">
               <strong>暂缓关联</strong>
               <p>当前候选均未通过身份核对。请根据排除项补充名称、剂型、规格或来源依据，确认后再建立关联。</p>
             </div>}
@@ -155,8 +182,8 @@ export function MedicationStandardBindingDialog({api, medicationId, onClose, onO
             <p>{cannotBindReason}</p>
             <ul>{unavailable.map(item => <li key={item.specification.id}>{item.specification.name} · {doseFormLabel(item.specification.doseForm, item.specification.doseFormName)} · {item.specification.specification}</li>)}</ul>
           </div>}
-        </section>
-        {!!excluded.length && <section aria-label="排除项及原因">
+        </section>}
+        {!linked && !!excluded.length && <section aria-label="排除项及原因">
           <Button variant="secondary" aria-expanded={showExcluded} aria-controls="standard-binding-excluded"
             onClick={() => setShowExcluded(current => !current)}>{showExcluded ? '收起' : '查看'}排除项及原因（{excluded.length}）</Button>
           {showExcluded && <div id="standard-binding-excluded" className="standard-binding__details">
@@ -168,7 +195,7 @@ export function MedicationStandardBindingDialog({api, medicationId, onClose, onO
             </div>)}</div>
           </div>}
         </section>}
-        {!!eligible.length && <section aria-label="核对来源并确认关联">
+        {!linked && !!eligible.length && <section aria-label="核对来源并确认关联">
           <PanelHead title="核对来源并确认" meta={candidate ? '已选择 1 项' : '请先选择规格'} />
           {candidate && <div className="standard-binding__notice">
             <strong>{candidate.specification.name} · {doseFormLabel(candidate.specification.doseForm, candidate.specification.doseFormName)} · {candidate.specification.specification}</strong>

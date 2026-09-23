@@ -13,12 +13,14 @@ import { messageOf, request, WorkbenchError, type Catalog, type Job } from './ap
 type Tab = 'structure' | 'relations' | 'semantic' | 'collaboration' | 'checks' | 'standards' | 'ai'
 const tabs: { value: Tab; label: string }[] = [{ value: 'structure', label: '字段与约束' }, { value: 'relations', label: '表关系' },
   { value: 'semantic', label: '业务语义' }, { value: 'collaboration', label: '人机共建' }, { value: 'checks', label: '结构检查' }, { value: 'standards', label: '设计规范' }, { value: 'ai', label: 'AI 上下文' }]
+const tabFromUrl = (value: string | null): Tab => tabs.some(tab => tab.value === value) ? value as Tab : 'structure'
 
 export function SchemaWorkbench() {
   const [catalog, setCatalog] = useState<Catalog | null>(null), [loading, setLoading] = useState(true)
   const [error, setError] = useState(''), [forbidden, setForbidden] = useState(false), [notice, setNotice] = useState('')
-  const [selected, setSelected] = useState(new URLSearchParams(window.location.search).get('table') ?? '')
-  const [tab, setTab] = useState<Tab>('structure'), [domain, setDomain] = useState('all'), [query, setQuery] = useState(''), [page, setPage] = useState(0)
+  const initialParams = new URLSearchParams(window.location.search)
+  const [selected, setSelected] = useState(initialParams.get('table') ?? '')
+  const [tab, setTab] = useState<Tab>(tabFromUrl(initialParams.get('tab'))), [domain, setDomain] = useState('all'), [query, setQuery] = useState(''), [page, setPage] = useState(0)
   const [relationKind, setRelationKind] = useState('all'), [dirty, setDirty] = useState(false), [pendingTable, setPendingTable] = useState('')
   const [job, setJob] = useState<Job | null>(null), [refreshMode, setRefreshMode] = useState('all')
   const load = useCallback(async () => {
@@ -32,6 +34,13 @@ export function SchemaWorkbench() {
     finally { setLoading(false) }
   }, [])
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (selected) url.searchParams.set('table', selected)
+    else url.searchParams.delete('table')
+    url.searchParams.set('tab', tab)
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  }, [selected, tab])
   useEffect(() => {
     if (!dirty) return
     const prevent = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }

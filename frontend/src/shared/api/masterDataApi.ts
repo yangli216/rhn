@@ -1428,6 +1428,12 @@ export function createMasterDataApi(client: ApiClient) {
         {method: 'POST', body: JSON.stringify({medication: input, medicationId: prior?.id, expectedRevision: prior?.revision})}),
     standardMedicationDetail: (id: string) => client.request<StandardMedicationDetail>(
       `/api/platform/master-data/medication-standard-catalog/${encodeURIComponent(id)}`),
+    standardCatalogSourceDocumentUrl: (page?: number) => {
+      const base = '/api/platform/master-data/medication-standard-catalog/source-document'
+      return page ? `${base}#page=${page}&view=FitH` : base
+    },
+    downloadStandardCatalogSourceDocument: () =>
+      client.download('/api/platform/master-data/medication-standard-catalog/source-document'),
     searchMedicationProducts: (query = '', medicationType = '', status = '', organizationId = '', page = 0, size = 20,
       stockable = false, dispensable = false) => client.request<MasterDataPage<{ product: MedicationProduct; medication: MedicationKnowledge }>>(
         `/api/platform/master-data/medication-products/search${queryString({query, medicationType, status, organizationId,
@@ -1733,10 +1739,16 @@ export interface StandardMedicationSummary {
   statistics: { entries: number; specifications: number; scopeEntries: number; issues: number;
     structuredStrengths: number; entriesWithSpecifications: number; crossCategoryRows: number }
 }
+export interface StandardMedicationPdfLocation {
+  location: string
+  page: number
+  printPage: number
+}
 export interface StandardMedicationEntry {
   id: string; legacyCode: string; name: string; innName: string; pinyinCode: string;
   medicationType: string; entryType: string; sourceSpecification: string; sourceNote: string;
-  specialistGuidance: boolean; sourceLocations: string[]; specificationCount: number; issueCount: number;
+  specialistGuidance: boolean; sourceLocations: string[]; pdfLocations?: StandardMedicationPdfLocation[];
+  specificationCount: number; issueCount: number;
   categories: { major: string; sub: string; function: string }[]
 }
 export interface StandardMedicationSpecification {

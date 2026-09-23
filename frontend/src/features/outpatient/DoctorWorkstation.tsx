@@ -23,7 +23,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { ClinicalDocument } from '../../shared/api/clinicalDocumentsApi'
-import type { ClinicalAiDraftContext, ClinicalAiRecordDraft } from '../../shared/api/clinicalAiApi'
+import type { ClinicalAiDraftContext, ClinicalAiRecordText } from '../../shared/api/clinicalAiApi'
 import type { Department } from '../../shared/api/organizationApi'
 import type {
   CreateOutpatientReferralInput, OutpatientReferral, OutpatientReferralStatus, OutpatientReferralType,
@@ -1715,7 +1715,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const recordValues = watch()
   const streamingRecord = aiFieldStream?.encounterId === encounter.id
     && aiFieldStream.contextFingerprint === clinicalAiContextFingerprint(buildAiContext()) ? aiFieldStream.recordDraft : null
-  const streamingField = (field: keyof ClinicalAiRecordDraft) => ({
+  const streamingField = (field: keyof ClinicalAiRecordText) => ({
     value: streamingRecord?.[field] ?? recordValues[field] ?? '',
     readOnly: streamingRecord !== null,
     'aria-busy': streamingRecord !== null || undefined,
@@ -2309,7 +2309,7 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
     }}
     onMouseEnter={() => setOrdersHovered(true)}
     onMouseLeave={() => setOrdersHovered(false)}>
-    <PanelHead title="医嘱和费用信息" meta={<>{orderCount} 项已开立
+    <PanelHead title="医嘱和费用" meta={<>{orderCount} 项已开立
       {statement.data ? ` · ${money(statement.data.chargeAmount, statement.data.currencyCode)}` : ''}</>}
       actions={editing ? <div className="doctor-order-head-actions">
         <StatusBadge tone={planCount ? 'warning' : 'neutral'}>{planCount} 项待确认</StatusBadge>

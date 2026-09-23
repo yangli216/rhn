@@ -19,7 +19,7 @@ const dbRoot = path.join(root, "backend", "src", "main", "resources", "db");
 const rebuildRoot = path.join(dbRoot, "rebuild");
 const manifestPath = path.join(rebuildRoot, "manifest.json");
 const renameManifestPath = path.join(root, "docs", "database", "column-renames-1.77.0.json");
-const targetVersion = "1.77.0";
+const targetVersion = "1.79.0";
 
 const sourceDirs = {
   postgresql: path.join(dbRoot, "migration"),
@@ -30,11 +30,11 @@ const sourceDirs = {
 };
 
 const outputs = {
-  postgresql: path.join(rebuildRoot, "postgresql", "B1_77_0__rhn_schema_and_standard_metadata.sql"),
-  oracle: path.join(rebuildRoot, "oracle", "B1_77_0__rhn_schema_and_standard_metadata.sql"),
-  development: path.join(rebuildRoot, "local", "V1_77_1__development_hospital.sql"),
-  oracleDevelopment: path.join(rebuildRoot, "oracle-local", "V1_77_1__development_hospital.sql"),
-  h2: path.join(rebuildRoot, "h2", "V1_77_2__h2_clob_types.sql"),
+  postgresql: path.join(rebuildRoot, "postgresql", "B1_79_0__rhn_schema_and_standard_metadata.sql"),
+  oracle: path.join(rebuildRoot, "oracle", "B1_79_0__rhn_schema_and_standard_metadata.sql"),
+  development: path.join(rebuildRoot, "local", "V1_79_1__development_hospital.sql"),
+  oracleDevelopment: path.join(rebuildRoot, "oracle-local", "V1_79_1__development_hospital.sql"),
+  h2: path.join(rebuildRoot, "h2", "V1_79_2__h2_clob_types.sql"),
 };
 
 // These are product-level reference rows that the published standard seed
@@ -340,8 +340,8 @@ function fixture(file, title, byTable) {
 function h2Fixture(files, byTable) {
   const content = [
     "-- RHN H2 rebuild compatibility types",
-    "-- GENERATED FILE. H2-only CLOB conversions for the 1.77 fresh-schema package.",
-    "-- The physical column rename is already part of B1_77_0, so source identifiers are rewritten by table.",
+    "-- GENERATED FILE. H2-only CLOB conversions for the 1.78 fresh-schema package.",
+    "-- The physical column rename is already part of B1_79_0, so source identifiers are rewritten by table.",
     "",
     ...files.map((file) => [
       `-- SOURCE ${relative(file)} sha256=${sha256(read(file))}`,

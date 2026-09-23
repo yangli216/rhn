@@ -74,7 +74,7 @@ export interface ClinicalAiCapabilities {
   features: string[]
 }
 
-export interface ClinicalAiRecordDraft {
+export interface ClinicalAiRecordText {
   chiefComplaint?: string
   presentIllness?: string
   medicalHistory?: string
@@ -82,19 +82,24 @@ export interface ClinicalAiRecordDraft {
   treatmentPlan?: string
 }
 
-export interface ClinicalAiDraftInput extends ClinicalAiRecordDraft {
+export interface ClinicalAiVitalSigns {
   systolic?: number
   diastolic?: number
   temperature?: number
   pulseRate?: number
   respiratoryRate?: number
   oxygenSaturation?: number
+  heightCm?: number
+  weightKg?: number
+}
+
+export interface ClinicalAiRecordDraft extends ClinicalAiRecordText, ClinicalAiVitalSigns {}
+
+export interface ClinicalAiDraftInput extends ClinicalAiRecordDraft {
   diagnoses: DiagnosisInput[]
 }
 
 export interface ClinicalAiDraftContext extends ClinicalAiDraftInput {
-  heightCm?: number
-  weightKg?: number
   encounterId: string
   residentId: string
   encounterStatus: string

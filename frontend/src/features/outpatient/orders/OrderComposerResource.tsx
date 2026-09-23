@@ -31,7 +31,7 @@ export function OrderComposerResource({
       <div className="doctor-composer-type-wrap">
         <Select id="doctor-unified-entry-type" aria-label="医嘱类型" value={entryType} clearable={false} searchable={false}
           options={[
-            { value: 'ALL', label: '全部类型' },
+            { value: 'ALL', label: '全部' },
             { value: 'WESTERN', label: '西药' },
             { value: 'CHINESE_PATENT', label: '中成药' },
             { value: 'HERBAL', label: '草药' },

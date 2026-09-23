@@ -3,11 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { expect, it, vi } from 'vitest'
 import type { RhnApi } from '../../shared/rhnApi'
+import type { MedicationStandardBindingPreview } from '../../shared/api/masterDataApi'
 import { MedicationStandardBindingDialog } from './MedicationStandardBindingDialog'
 
 const identity = {catalogId: 'catalog', catalogVersion: 'v1', contentHash: 'content', sourceHash: 'source'}
-const base = {medication: {id: '1', revision: 3, code: 'LOCAL-1', name: '测试药品', doseForm: 'CAPSULE', preparationSpec: '0.25g', presentationUnit: '粒'},
-  identity, reference: {status: 'UNMAPPED'}, candidates: [{specification: {id: 'STD-1', name: '测试药品', doseForm: 'CAPSULE', doseFormName: '胶囊', specification: '0.25g', presentationUnit: '粒', sourceBlock: '测试原文条款'}, canBind: true, issues: [] as string[]}], bindings: [], audits: []}
+const base: MedicationStandardBindingPreview = {medication: {id: '1', revision: 3, code: 'LOCAL-1', name: '测试药品', medicationType: 'WESTERN', doseForm: 'CAPSULE', preparationSpec: '0.25g', presentationUnit: '粒', status: 'ACTIVE'},
+  identity, reference: {status: 'UNMAPPED', issues: []}, candidates: [{specification: {id: 'STD-1', entryId: 'ENTRY-1', name: '测试药品', medicationType: 'WESTERN', doseForm: 'CAPSULE', doseFormName: '胶囊', substanceQualifier: '', specification: '0.25g', presentationUnit: '粒', sourceBlock: '测试原文条款', orderable: true, strength: {kind: 'SINGLE', numerator: {value: '0.25', unit: 'g'}, denominator: null, components: [], computable: true}}, canBind: true, issues: []}], bindings: [], audits: []}
 function mount(data = base, mutation = vi.fn().mockResolvedValue({...base, reference: {status: 'LINKED'}, candidates: []})) {
   const preview = vi.fn().mockResolvedValue(data)
   const client = new QueryClient({defaultOptions: {queries: {retry: false, gcTime: 0}}})
@@ -108,6 +109,32 @@ it('distinguishes unavailable actions from identity exclusions', async () => {
   expect(screen.getByText(/当前状态或权限不允许关联/)).toBeInTheDocument()
   expect(screen.queryByRole('button', {name: /排除项及原因/})).not.toBeInTheDocument()
   expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+})
+it('presents an existing matching link as the current standard identity instead of an unavailable candidate', async () => {
+  mount({...base,
+    medication: {...base.medication, name: '一清颗粒', doseForm: 'GRANULE', preparationSpec: '每袋装 5g', presentationUnit: '袋'},
+    reference: {status: 'LINKED', name: '一清颗粒', doseForm: 'GRANULE', preparationSpec: '每袋装 5g', presentationUnit: '袋', specificationId: 'STD-GRANULE', sourceVerificationStatus: 'VERIFIED', issues: []},
+    candidates: [{...base.candidates[0], specification: {...base.candidates[0].specification, id: 'STD-GRANULE', name: '一清颗粒', doseForm: 'GRANULE', doseFormName: '颗粒剂', specification: '每袋装 5g', presentationUnit: '袋'}, canBind: false, issues: [], boundMedicationId: '1'}],
+    bindings: [{catalogId: 'catalog', catalogVersion: 'v1', entryId: 'ENTRY-1', specificationId: 'STD-GRANULE', contentHash: 'content'}],
+  })
+  expect(await screen.findByRole('heading', {name: '当前标准关联'})).toBeInTheDocument()
+  expect(screen.getByText('当前药品已关联且身份一致，无需再次建立关联。')).toBeInTheDocument()
+  expect(screen.getByText('STD-GRANULE')).toBeInTheDocument()
+  expect(screen.getByText('来源已核验')).toBeInTheDocument()
+  expect(screen.getByRole('button', {name: '标准关联修订与复核'})).toBeInTheDocument()
+  expect(screen.queryByText(/可关联规格/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/建议处理/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/未规范的内部编码/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/身份一致但当前不可操作/)).not.toBeInTheDocument()
+})
+it('treats a known local dosage form with different candidates as a mismatch rather than an invalid code', async () => {
+  mount({...base,
+    medication: {...base.medication, doseForm: 'GRANULE'},
+    candidates: [{...base.candidates[0], specification: {...base.candidates[0].specification, doseForm: 'CAPSULE', doseFormName: '胶囊'}, canBind: false, issues: ['STANDARD_REFERENCE_FORM_MISMATCH']}],
+  })
+  expect(await screen.findByText('核对候选剂型差异')).toBeInTheDocument()
+  expect(screen.getByText(/当前药品剂型“颗粒剂”已规范/)).toBeInTheDocument()
+  expect(screen.queryByText(/未规范的内部编码/)).not.toBeInTheDocument()
 })
 it('clears evidence and consent when a different specification is selected', async () => {
   mount({...base, candidates: [base.candidates[0], {...base.candidates[0], specification: {...base.candidates[0].specification, id: 'STD-2', sourceBlock: '另一原文'}}]})

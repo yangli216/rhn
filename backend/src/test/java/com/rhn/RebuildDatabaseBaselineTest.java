@@ -36,11 +36,11 @@ class RebuildDatabaseBaselineTest {
                 assertEquals("TABLE", history.getString("type"));
                 assertNull(history.getString("version"));
                 assertTrue(history.next());
-                assertEquals("1.77.0", history.getString("version"));
+                assertEquals("1.79.0", history.getString("version"));
                 assertTrue(history.next());
-                assertEquals("1.77.1", history.getString("version"));
+                assertEquals("1.79.1", history.getString("version"));
                 assertTrue(history.next());
-                assertEquals("1.77.2", history.getString("version"));
+                assertEquals("1.79.2", history.getString("version"));
                 assertFalse(history.next());
             }
             assertTrue(count(sql, "select count(*) from information_schema.tables"
@@ -52,6 +52,11 @@ class RebuildDatabaseBaselineTest {
             assertEquals(1, count(sql, "select count(*) from information_schema.columns"
                     + " where table_schema = current_schema() and table_name = 'rhn_bd_allergen'"
                     + " and column_name = 'id_alrgn'"));
+            assertEquals(247, count(sql, "select count(*) from RHN_BD_MED"
+                    + " where SD_STATUS = 'RETIRED' and CD_MED like 'MED-2026-%'"));
+            assertEquals(4, count(sql, "select count(*) from RHN_BD_MED"
+                    + " where SD_STATUS = 'ACTIVE' and CD_MED in"
+                    + " ('DEMO-DRUG-FLU-VAC','DEMO-DRUG-MEM','DEMO-DRUG-PEN-G','DEMO-DRUG-HUANGQI')"));
             String jsonType = sql.executeQuery("select JSON_SNAP from RHN_SYS_PRINT_OUTPUT").getMetaData().getColumnTypeName(1);
             assertTrue(jsonType.equalsIgnoreCase("CHARACTER LARGE OBJECT"), jsonType);
         }
@@ -64,10 +69,10 @@ class RebuildDatabaseBaselineTest {
         assertTrue(content.contains("standard-metadata"));
         assertTrue(content.contains("development-fixture"));
         assertTrue(content.contains("existing-patient-and-encounter-rows"));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/postgresql/B1_77_0__rhn_schema_and_standard_metadata.sql")));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/oracle/B1_77_0__rhn_schema_and_standard_metadata.sql")));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/local/V1_77_1__development_hospital.sql")));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/h2/V1_77_2__h2_clob_types.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/postgresql/B1_79_0__rhn_schema_and_standard_metadata.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/oracle/B1_79_0__rhn_schema_and_standard_metadata.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/local/V1_79_1__development_hospital.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/h2/V1_79_2__h2_clob_types.sql")));
     }
 
     private static int count(java.sql.Statement sql, String query) throws Exception {

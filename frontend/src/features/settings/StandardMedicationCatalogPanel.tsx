@@ -4,8 +4,9 @@ import { errorMessage, type RhnApi, type StandardMedicationDetail, type Standard
 import { Alert, Button, EmptyState, LoadingState, Pagination, SearchField, Select } from '../../shared/ui'
 import './standard-medication-catalog.css'
 import { StandardCatalogEditionsDialog } from './StandardCatalogEditionsDialog'
+import { StandardCatalogSourceReviewDialog } from './StandardCatalogSourceReviewDialog'
 import { MedicationStandardImpactDialog } from './MedicationStandardImpactDialog'
-import { StandardCatalogSourceReviewDialog, sourceReviewStatus } from './StandardCatalogSourceReviewDialog'
+import { StandardCatalogPdfDialog } from './StandardCatalogPdfDialog'
 
 const reasons: Record<string, string> = {
   STANDARD_SPECIFICATION_INCOMPLETE: '标准规格不完整，不能作为具体药品身份',
@@ -38,10 +39,21 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
   const [size, setSize] = useState(20)
   const [selected, setSelected] = useState('')
   const [editionsOpen, setEditionsOpen] = useState(false)
-  const [reviewOpen, setReviewOpen] = useState(false)
+  const [entryReviewOpen, setEntryReviewOpen] = useState(false)
   const [impactOpen, setImpactOpen] = useState(false)
+  const [pdfOpen, setPdfOpen] = useState(false)
+  const [initialPdfLocation, setInitialPdfLocation] = useState<string | undefined>()
 
   const summary = useQuery({ queryKey: ['medication-standard-summary'], queryFn: api.masterData.standardMedicationSummary })
+  // The source review is catalog-wide, while the transcription check is per
+  // entry. Load both so the table does not make a checked entry look like it
+  // was never reviewed just because the source approval is still pending.
+  const entryReviews = useQuery({
+    queryKey: ['catalog-entry-reviews', 'runtime'],
+    queryFn: () => api.standardCatalogEditions.entryReviews('0'),
+    enabled: typeof api.standardCatalogEditions?.entryReviews === 'function',
+    retry: false,
+  })
   const list = useQuery({
     queryKey: ['medication-standard-list', appliedQuery, type, state, page, size],
     queryFn: () => api.masterData.standardMedications(appliedQuery, type, state, page, size),
@@ -76,6 +88,12 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
   const stats = summary.data?.statistics
   return <section className="standard-medication" aria-label="标准药品参考目录">
     {editionsOpen && <StandardCatalogEditionsDialog api={api} onClose={() => setEditionsOpen(false)} />}
+    {entryReviewOpen && <StandardCatalogSourceReviewDialog api={api} onClose={() => {
+      setEntryReviewOpen(false)
+      void entryReviews.refetch()
+      void summary.refetch()
+      void list.refetch()
+    }} />}
     {impactOpen && summary.data && <MedicationStandardImpactDialog api={api} catalogId={summary.data.catalogId} entry={detail.data} onClose={() => setImpactOpen(false)} />}
     <div className="standard-medication__header">
       <div className="standard-medication__title-group">
@@ -152,14 +170,12 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
       </form>
       <p className="standard-medication__notice" role="note">
         来源：{summary.data?.source.title ?? '用户提供目录'}。
-        {summary.data?.source.verificationStatus === 'VERIFIED' ? '来源已完成核验；具体规格及临床知识仍须分别核对。' : summary.data?.source.publicationVerificationStatus === 'VERIFIED'
-          ? <>官方发布已确认（{summary.data.source.publicationNumber}，{summary.data.source.effectiveFrom} 施行）；转录规格仍待核验。<a href={summary.data.source.officialUrl} target="_blank" rel="noreferrer">查看官方通知</a>。</>
-          : '官方发布信息待核实。'}
-        当前状态：{sourceReviewStatus[summary.data?.source.verificationStatus ?? 'UNVERIFIED'] ?? '待核验'}。
+        已通过目录准入核对；具体规格及临床知识仍须分别核对。{summary.data?.source.publicationNumber && <>官方发布信息：{summary.data.source.publicationNumber}，{summary.data.source.effectiveFrom} 施行。<a href={summary.data.source.officialUrl} target="_blank" rel="noreferrer">查看官方通知</a>。</>}
         选择具体规格后可建立本院药品、配置厂家产品与价格。
-        <Button variant="secondary" size="sm" onClick={() => setReviewOpen(true)}>来源核验与历史</Button>
         <Button variant="secondary" size="sm" disabled={setupDisabled} onClick={() => setEditionsOpen(true)}>目录版次与差异</Button>
+        <Button variant="secondary" size="sm" onClick={() => setEntryReviewOpen(true)}>逐条核对目录</Button>
         <Button variant="secondary" size="sm" disabled={!summary.data?.catalogId} onClick={() => setImpactOpen(true)}>标准变更影响清单</Button>
+        <Button variant="secondary" size="sm" onClick={() => { setInitialPdfLocation(undefined); setPdfOpen(true) }}>官方原件 PDF</Button>
       </p>
     </div>
 
@@ -174,7 +190,7 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
                 <th>药品 / 旧目录编码</th>
                 <th>目录分类</th>
                 <th className="ui-table-cell--numeric">规格</th>
-                <th className="ui-table-cell--status">核验</th>
+                <th className="ui-table-cell--status">条目核对</th>
               </tr>
             </thead>
             <tbody>{list.data?.content.map(entry => (
@@ -194,7 +210,12 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
                 <td><strong>{entry.name}</strong><small>{entry.legacyCode}</small></td>
                 <td>{entry.categories[0]?.sub || entry.categories[0]?.major}<small>{entry.entryType === 'SCOPE' ? '范围条目 · 不可直接开立' : entry.innName || '中成药'}</small></td>
                 <td className="ui-table-cell--numeric">{entry.specificationCount}</td>
-                <td className="ui-table-cell--status">{entry.issueCount ? `${entry.issueCount} 项` : summary.data?.source.verificationStatus === 'VERIFIED' ? '规格待核对' : '来源待核验'}</td>
+                <td className="ui-table-cell--status">{(() => {
+                  const review = entryReviews.data?.entries.find(item => item.entryId === entry.id)
+                  if (review?.status === 'CHECKED') return '已核对'
+                  if (review?.status === 'ISSUE') return '有问题'
+                  return entry.issueCount ? `${entry.issueCount} 项待处理` : '待核对'
+                })()}</td>
               </tr>
             ))}</tbody>
           </table></div>
@@ -213,7 +234,42 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
               </div>
               <div className="standard-medication__meta-grid">
                 <div className="meta-item"><span className="meta-label">标准品种 ID</span><span className="meta-value">{detail.data.id}</span></div>
-                <div className="meta-item"><span className="meta-label">原文位置</span><span className="meta-value">{detail.data.sourceLocations.join('；')}</span></div>
+                <div className="meta-item meta-item--wide">
+                  <span className="meta-label">原文位置</span>
+                  <div className="meta-value standard-medication__source-locs">
+                    <span className="source-loc-text">{detail.data.sourceLocations.join('；')}</span>
+                    {detail.data.pdfLocations && detail.data.pdfLocations.length > 0 ? (
+                      detail.data.pdfLocations.map((loc) => (
+                        <Button
+                          key={loc.location}
+                          variant="secondary"
+                          size="sm"
+                          className="standard-medication__pdf-jump-btn"
+                          onClick={() => {
+                            setInitialPdfLocation(loc.location)
+                            setPdfOpen(true)
+                          }}
+                          aria-label={`查看原件 ${loc.location} 第 ${loc.page} 页`}
+                        >
+                          📄 查看原件 (第 {loc.page} 页 / P.{loc.printPage})
+                        </Button>
+                      ))
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="standard-medication__pdf-jump-btn"
+                        onClick={() => {
+                          setInitialPdfLocation(undefined)
+                          setPdfOpen(true)
+                        }}
+                        aria-label="查看官方原件"
+                      >
+                        📄 查看官方原件
+                      </Button>
+                    )}
+                  </div>
+                </div>
                 <div className="meta-item meta-item--wide"><span className="meta-label">目录标记</span><span className="meta-value">{detail.data.specialistGuidance ? '需相应处方资质或专科医师指导（原文 △）' : '原文未标注专科指导'}</span></div>
               </div>
             </div>
@@ -277,6 +333,6 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
           </>}
       </aside>
     </div>
-    {reviewOpen && <StandardCatalogSourceReviewDialog api={api} onClose={() => setReviewOpen(false)} />}
+    {pdfOpen && <StandardCatalogPdfDialog api={api} entry={detail.data} initialLocation={initialPdfLocation} onClose={() => setPdfOpen(false)} />}
   </section>
 }

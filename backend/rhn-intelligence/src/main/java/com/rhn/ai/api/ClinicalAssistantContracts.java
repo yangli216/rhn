@@ -107,7 +107,15 @@ public final class ClinicalAssistantContracts {
             @Min(20) @Max(250) Integer pulseRate,
             @Min(5) @Max(80) Integer respiratoryRate,
             @Min(50) @Max(100) Integer oxygenSaturation,
+            @DecimalMin("20") @DecimalMax("250") BigDecimal heightCm,
+            @DecimalMin("0.1") @DecimalMax("500") BigDecimal weightKg,
             @Size(max = 20) List<@NotNull @Valid DiagnosisInput> diagnoses) {
+        public Draft(String chiefComplaint, String presentIllness, String medicalHistory, String physicalExam,
+                     String treatmentPlan, Integer systolic, Integer diastolic, BigDecimal temperature,
+                     Integer pulseRate, Integer respiratoryRate, Integer oxygenSaturation, List<DiagnosisInput> diagnoses) {
+            this(chiefComplaint, presentIllness, medicalHistory, physicalExam, treatmentPlan, systolic, diastolic,
+                    temperature, pulseRate, respiratoryRate, oxygenSaturation, null, null, diagnoses);
+        }
         public Draft {
             diagnoses = diagnoses == null ? List.of() : List.copyOf(diagnoses);
         }
@@ -138,7 +146,16 @@ public final class ClinicalAssistantContracts {
             String disclaimer, List<TreatmentRecommendation> treatmentRecommendations) {}
 
     public record RecordDraft(String chiefComplaint, String presentIllness, String medicalHistory,
-                              String physicalExam, String treatmentPlan) {}
+                              String physicalExam, String treatmentPlan,
+                              BigDecimal temperature, BigDecimal pulseRate, BigDecimal respiratoryRate,
+                              BigDecimal systolic, BigDecimal diastolic, BigDecimal oxygenSaturation,
+                              BigDecimal heightCm, BigDecimal weightKg) {
+        public RecordDraft(String chiefComplaint, String presentIllness, String medicalHistory,
+                           String physicalExam, String treatmentPlan) {
+            this(chiefComplaint, presentIllness, medicalHistory, physicalExam, treatmentPlan,
+                    null, null, null, null, null, null, null, null);
+        }
+    }
 
     public record DiagnosisCandidate(String code, String display, String type,
                                      double confidence, String rationale) {}

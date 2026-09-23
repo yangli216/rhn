@@ -14,6 +14,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.JsonNode;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -90,6 +91,37 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
         verify(modelGateway).analyze(argThat(request -> "合成测试文本".equals(request.voiceTranscript())), any());
+    }
+
+    @Test
+    void extractsCurrentTemperatureAndWeightFromQuestionIntoVitalDraft() throws Exception {
+        when(modelGateway.analyze(any(), any())).thenReturn(new SuggestionContent("已整理",
+                new RecordDraft("发热", "发热3天，最高体温39℃。", null, null, null,
+                        new BigDecimal("39"), null, null, null, null, null, null, new BigDecimal("11")),
+                List.of(), List.of(), List.of(), List.of(), List.of(), "待确认"));
+        String encounterId = createStartedEncounter();
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"VITAL-QUESTION",
+                                 "question":"孩子发热3天，最高体温39度，今天测量体温38度，孩子的体重10公斤",
+                                 "draft":{"diagnoses":[]}}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.recordDraft.temperature").value(38))
+                .andExpect(jsonPath("$.recordDraft.weightKg").value(10));
+    }
+
+    @Test
+    void removesModelBirthDateConflictWhenResidentDateIsValidOnServerDate() throws Exception {
+        when(modelGateway.analyze(any(), any())).thenReturn(new SuggestionContent("日期核对",
+                new RecordDraft(null, null, null, null, null), List.of(), List.of(), List.of(),
+                List.of(new SafetyAlert("WARNING", "出生日期核对", "当前日期早于出生日期，请核实")),
+                List.of(), "待确认"));
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", createStartedEncounter())
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"clientContextFingerprint\":\"BIRTH-DATE\",\"draft\":{\"diagnoses\":[]}}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.safetyAlerts.length()").value(0));
     }
 
     @Test

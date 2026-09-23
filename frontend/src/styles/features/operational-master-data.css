@@ -1685,30 +1685,56 @@
 .master-data-mapping-history > .master-data-table-wrap { margin-top: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
 .master-data-mapping-history .master-data-table { min-width: 74rem; }
 .master-data-mapping-history .master-data-table td .ui-badge + .ui-badge { margin-left: var(--space-2); }
-.master-data-lifecycle-dialog { margin-top: var(--space-5); display: grid; gap: var(--space-5); align-items: start; }
-.master-data-lifecycle-dialog > section, .master-data-lifecycle-editors > section { min-width: 0; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
-.master-data-lifecycle-status { padding: var(--space-4) var(--space-5); display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3) var(--space-6); }
-.master-data-lifecycle-status .ui-field { width: 11rem; margin: 0; flex: 0 0 auto; }
-.master-data-lifecycle-status__item { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
-.master-data-lifecycle-status__item > span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.master-data-lifecycle-status__item strong { white-space: nowrap; }
-.master-data-lifecycle-status__item strong small { margin-left: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-regular); }
-.master-data-lifecycle-status__item code, .master-data-lifecycle-status__empty { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.master-data-lifecycle-editors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); align-items: start; }
-.master-data-lifecycle-editor, .master-data-lifecycle-history { padding: var(--space-5); }
+/* 宽屏弹窗尺寸约束：充分利用 PC 宽屏（1280px ~ 1920px+），杜绝单列长拉伸 */
+.ui-dialog.master-data-lifecycle-dialog-window { width: min(84rem, 96vw); max-height: 92vh; }
+.ui-dialog.master-data-lifecycle-dialog-window .ui-dialog__body { padding: var(--space-3) var(--space-5); overflow-y: auto; }
+.master-data-lifecycle-dialog { display: grid; gap: var(--space-3); }
+.master-data-lifecycle-dialog > .ui-tabs { margin-bottom: 0; }
+.master-data-lifecycle-tab-panel { display: grid; gap: var(--space-3); }
+
+/* 顶部紧凑单行基准状态栏 */
+.master-data-lifecycle-tab-panel > section.master-data-lifecycle-status { padding: var(--space-2) var(--space-4); display: flex; align-items: center; gap: var(--space-4); background: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.master-data-lifecycle-status .master-data-lifecycle-status__date { width: 13rem; flex: 0 0 auto; margin: 0; align-self: flex-end; }
+.master-data-lifecycle-status__date label { font-size: var(--font-size-small); margin-bottom: var(--space-0-5); }
+.master-data-lifecycle-status__content { flex: 1; min-width: 0; padding-left: var(--space-4); border-left: 1px solid var(--color-border); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; align-self: flex-end; }
+.master-data-lifecycle-status__label { font-size: var(--font-size-small); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); white-space: nowrap; }
+.master-data-lifecycle-status__meta-line { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.master-data-lifecycle-status__meta-line strong { font-size: var(--font-size-body); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
+.master-data-lifecycle-status__meta-line code { font-size: var(--font-size-small); padding: var(--space-0-5) var(--space-1); border-radius: var(--radius-sm); background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text-secondary); }
+.master-data-lifecycle-status__meta-sub { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.master-data-lifecycle-status__caps { margin-left: var(--space-1); padding-left: var(--space-3); border-left: 1px solid var(--color-border); font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.master-data-lifecycle-status__prices { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.master-data-lifecycle-price-badge { display: inline-flex; align-items: baseline; gap: var(--space-2); padding: var(--space-0-5) var(--space-1-5); border-radius: var(--radius-md); background: var(--color-surface); border: 1px solid var(--color-border); }
+.master-data-price-val { font-size: var(--font-size-body); font-weight: var(--font-weight-bold); color: var(--color-brand-primary); font-family: var(--font-family-mono, monospace); }
+.master-data-price-meta { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+
+/* 生命周期工作区按业务顺序纵向排列：先维护，再查看历史，避免两栏高度互相拉伸。 */
+.master-data-lifecycle-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+.master-data-lifecycle-editor, .master-data-lifecycle-history { display: flex; flex-direction: column; min-width: 0; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .master-data-lifecycle-editor > header, .master-data-lifecycle-history > header,
-.master-data-batch-picker > header, .master-data-batch-config > header, .master-data-batch-result > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.master-data-batch-picker > header, .master-data-batch-config > header, .master-data-batch-result > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border); }
 .master-data-lifecycle-dialog h3, .master-data-batch-lifecycle h3 { margin: 0; font-size: var(--font-size-body); }
 .master-data-lifecycle-dialog header p, .master-data-batch-lifecycle header p { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .master-data-lifecycle-switch { padding: 2px; display: inline-flex; gap: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
 .master-data-lifecycle-switch button { min-height: 2rem; padding: 0 var(--space-3); border: 0; border-radius: calc(var(--radius-md) - 2px); color: var(--color-text-secondary); background: transparent; cursor: pointer; }
 .master-data-lifecycle-switch button.is-active { color: var(--color-brand-primary); background: var(--color-surface); box-shadow: var(--shadow-sm); font-weight: var(--font-weight-semibold); }
-.master-data-lifecycle-form { margin-top: var(--space-4); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
-.master-data-lifecycle-form > .ui-alert, .master-data-lifecycle-form > .master-data-checkboxes,
+.master-data-lifecycle-form { margin-top: var(--space-3); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); flex: 1; }
+.master-data-lifecycle-form .span-2,
+.master-data-lifecycle-form > .master-data-field-hint,
+.master-data-lifecycle-form > .ui-alert,
+.master-data-lifecycle-form > .master-data-checkboxes,
 .master-data-lifecycle-form > .master-data-lifecycle-editor-actions { grid-column: 1 / -1; }
 .master-data-lifecycle-form .ui-field { margin: 0; }
-.master-data-lifecycle-editor-actions { display: flex; justify-content: flex-end; }
-.master-data-lifecycle-history > .master-data-table-wrap { margin-top: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.master-data-field-hint { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--color-brand-soft); border: 1px solid var(--color-border-subtle); color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: var(--line-height-base, 1.4); }
+.master-data-field-hint strong { color: var(--color-text-primary); }
+.master-data-lifecycle-form .master-data-checkboxes { padding: var(--space-2) var(--space-3) var(--space-3); }
+.master-data-lifecycle-form .master-data-checkboxes > div { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr)); gap: var(--space-1-5) var(--space-2); }
+.master-data-lifecycle-form .master-data-checkboxes label { display: inline-flex; align-items: center; justify-content: flex-start; gap: var(--space-2); min-height: 2.1rem; padding: 0 var(--space-2-5); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); color: var(--color-text-secondary); font-size: var(--font-size-small); cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); }
+.master-data-lifecycle-form .master-data-checkboxes label:hover { color: var(--color-text-primary); border-color: var(--color-brand-primary); }
+.master-data-lifecycle-form .master-data-checkboxes label:has(input:checked) { color: var(--color-brand-primary); border-color: var(--color-brand-primary); background: var(--color-brand-soft); font-weight: var(--font-weight-medium); }
+.master-data-lifecycle-editor-actions { margin-top: auto; padding-top: var(--space-3); border-top: 1px dashed var(--color-border); display: flex; justify-content: flex-end; }
+.master-data-lifecycle-history .master-data-table-wrap { margin-top: var(--space-3); flex: 1; max-height: 30rem; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.master-data-lifecycle-history .master-data-table-wrap th { position: sticky; top: 0; background: var(--color-surface-subtle); z-index: var(--z-index-base, 1); }
 .master-data-price { white-space: nowrap; }
 .master-data-batch-lifecycle { margin-top: var(--space-5); display: grid; grid-template-columns: minmax(28rem, .8fr) minmax(38rem, 1.2fr); gap: var(--space-5); align-items: start; }
 .master-data-batch-lifecycle > .ui-alert, .master-data-batch-lifecycle > .ui-form-actions,

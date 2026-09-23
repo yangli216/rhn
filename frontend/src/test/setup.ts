@@ -16,4 +16,13 @@ if (typeof window !== 'undefined' && (!window.localStorage || typeof window.loca
   Object.defineProperty(globalThis, 'localStorage', { value: mockStorage, writable: true })
 }
 
+if (typeof URL !== 'undefined') {
+  if (!URL.createObjectURL) {
+    URL.createObjectURL = (blob: Blob | MediaSource) => `blob:mock-url-${blob ? 'valid' : 'empty'}`
+  }
+  if (!URL.revokeObjectURL) {
+    URL.revokeObjectURL = () => {}
+  }
+}
+
 afterEach(cleanup)

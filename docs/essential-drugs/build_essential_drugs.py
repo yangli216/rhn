@@ -19,6 +19,7 @@ from extract_essential_source import extract_rows, extract_notes
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 SOURCE = ROOT / 'docs/国家基本药物目录（2026年版）.docx'
+PDF_SOURCE = ROOT / 'docs/国家基本药物目录（2026年版）.pdf'
 RESOURCE = ROOT / 'backend/rhn-platform/src/main/resources/medication-standard-catalog.json'
 # These are scope entries, as stated by the supplied document's numbered notes.
 SCOPE_SEQUENCES = {35, 51, 56, 292, 429, 431, 471}
@@ -183,6 +184,56 @@ def strength(spec: str, part: str) -> dict:
     return {'kind':'TEXT_REQUIRES_REVIEW','numerator':None,'denominator':None,'components':[], 'computable':False}
 
 
+def clean_pdf_text(s):
+    if not s: return ''
+    return re.sub(r'[\s\(\)（）\[\]［］、，,\.:：\.-]', '', s).lower()
+
+
+def enrich_pdf_locations(entries, rows, pdf_path=PDF_SOURCE):
+    if not pdf_path.exists():
+        return
+    import pypdf
+    reader = pypdf.PdfReader(str(pdf_path))
+    total_pages = len(reader.pages)
+    pages_text = {p: clean_pdf_text(reader.pages[p - 1].extract_text() or '') for p in range(1, total_pages + 1)}
+    row_to_page = {}
+    current_page = 13
+    for r in rows:
+        loc = r["sourceLocation"]
+        is_w = r.get("part") == "WESTERN"
+        if not is_w and current_page < 84:
+            current_page = 84
+        end_p = 84 if is_w else 138
+        spec = r.get("spec", "")
+        spec_clean = clean_pdf_text(spec)[:20]
+        name_clean = clean_pdf_text(r.get("cn_name", ""))
+        code = r.get("code", "")
+        if code == "MED-2026-W026":
+            name_clean = "复方磺胺"
+        elif code == "MED-2026-W084":
+            name_clean = "美沙拉秦"
+        elif code == "MED-2026-W269":
+            name_clean = "坦洛新"
+        elif code == "MED-2026-W384":
+            name_clean = "三氧化二砷"
+        found_page = None
+        for p in range(current_page, end_p + 1):
+            txt = pages_text[p]
+            if name_clean in txt and (not spec_clean or spec_clean in txt):
+                found_page = p
+                break
+        if not found_page:
+            for p in range(current_page, end_p + 1):
+                if name_clean in pages_text[p]:
+                    found_page = p
+                    break
+        if found_page:
+            current_page = found_page
+            row_to_page[loc] = {"location": loc, "page": found_page, "printPage": found_page - 12}
+    for e in entries:
+        e["pdfLocations"] = [row_to_page[loc] for loc in e.get("sourceLocations", []) if loc in row_to_page]
+
+
 def build_catalog(source=SOURCE):
     rows=extract_rows(source)
     notes=extract_notes(source)
@@ -261,7 +312,9 @@ def build_catalog(source=SOURCE):
         'structuredStrengths':sum(x['strength']['computable'] for x in specifications),
         'entriesWithSpecifications':len({x['entryId'] for x in specifications}),
         'orderableSpecifications':0}
-    semantic=json.dumps({'entries':entries,'specifications':catalog['specifications']},ensure_ascii=False,sort_keys=True,separators=(',',':'))
+    enrich_pdf_locations(entries, rows)
+    semantic=json.dumps({'entries':[{k: v for k, v in e.items() if k != 'pdfLocations'} for e in entries],
+                         'specifications':catalog['specifications']},ensure_ascii=False,sort_keys=True,separators=(',',':'))
     catalog['contentHash']=hashlib.sha256(semantic.encode()).hexdigest()
     validate(catalog)
     return catalog, rows

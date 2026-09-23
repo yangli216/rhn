@@ -44,15 +44,11 @@ it('compares the fixed import baseline, retains full counts across pages, and se
   await screen.findByText('完整保存关系')
   expect(api.dependencies).toHaveBeenCalledWith('10', 0)
 })
-it('opens edition-specific source review and never submits against the current runtime implicitly', async () => {
-  const { api, masterData } = setup()
-  await userEvent.click(await screen.findByRole('button', { name: /候选版 2/ }))
-  await screen.findByText('候选目录 · 2')
-  await userEvent.click(screen.getByRole('button', { name: '核验此版来源' }))
-  await screen.findByText('目录 C · 2')
-  expect(api.detail).toHaveBeenCalledWith('10', 0)
-  expect(masterData.standardCatalogSourceReview).not.toHaveBeenCalled()
-  expect(api.review).not.toHaveBeenCalled()
+it('does not expose a second source review workflow for an admitted edition', async () => {
+  setup()
+  await screen.findByText(/来源已在目录准入时核对/)
+  expect(screen.queryByRole('button', {name: '核验此版来源'})).not.toBeInTheDocument()
+  expect(screen.getByText(/来源已在目录准入时核对/)).toBeInTheDocument()
 })
 it('read failure removes stale comparison and metadata actions rather than showing no difference', async () => {
   const { api } = setup()

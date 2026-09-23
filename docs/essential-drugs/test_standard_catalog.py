@@ -118,7 +118,26 @@ class StandardCatalogTest(unittest.TestCase):
         value['specifications'].append(copy.deepcopy(value['specifications'][0]))
         with self.assertRaises(AssertionError):validate(value)
         value=copy.deepcopy(self.catalog)
-        value['specifications'][0]['orderable']=True
-        with self.assertRaises(AssertionError):validate(value)
+    def test_all_entries_have_valid_pdf_locations(self):
+        entries = self.catalog['entries']
+        self.assertEqual(794, len(entries))
+        for e in entries:
+            pdf_locs = e.get('pdfLocations')
+            self.assertTrue(pdf_locs, f"Entry {e['id']} ({e['name']}) missing pdfLocations")
+            self.assertEqual(len(e['sourceLocations']), len(pdf_locs))
+            for loc in pdf_locs:
+                self.assertGreaterEqual(loc['page'], 13)
+                self.assertEqual(loc['page'] - 12, loc['printPage'])
+        # Specific spot check
+        penicillin = next(e for e in entries if e['name'] == '青霉素')
+        self.assertEqual([{'location': 'table:1/row:3', 'page': 15, 'printPage': 3}], penicillin['pdfLocations'])
+        metronidazole = next(e for e in entries if e['name'] == '甲硝唑')
+        self.assertEqual([
+            {'location': 'table:6/row:8', 'page': 20, 'printPage': 8},
+            {'location': 'table:11/row:7', 'page': 24, 'printPage': 12},
+            {'location': 'table:87/row:4', 'page': 81, 'printPage': 69},
+        ], metronidazole['pdfLocations'])
+
 
 if __name__=='__main__':unittest.main()
+

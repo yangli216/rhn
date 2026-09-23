@@ -9,12 +9,12 @@ The package has three layers:
 
 | Layer | PostgreSQL/H2 | Oracle | Contents |
 | --- | --- | --- | --- |
-| Base | `postgresql/B1_77_0__rhn_schema_and_standard_metadata.sql` | `oracle/B1_77_0__rhn_schema_and_standard_metadata.sql` | Final schema, comments, standard dictionaries, medication standards and rule metadata through 1.77.0 |
-| Development fixture | `local/V1_77_1__development_hospital.sql` | `oracle-local/V1_77_1__development_hospital.sql` | The reusable demonstration hospital, staff, catalog, inventory, print devices and sample residents |
-| H2 adapter | `h2/V1_77_2__h2_clob_types.sql` | — | H2-only CLOB conversions after the final physical column names are in place |
+| Base | `postgresql/B1_79_0__rhn_schema_and_standard_metadata.sql` | `oracle/B1_79_0__rhn_schema_and_standard_metadata.sql` | Final schema, comments, standard dictionaries, medication standards and rule metadata through 1.79.0 |
+| Development fixture | `local/V1_79_1__development_hospital.sql` | `oracle-local/V1_79_1__development_hospital.sql` | The reusable demonstration hospital, staff, catalog, inventory, print devices and sample residents |
+| H2 adapter | `h2/V1_79_2__h2_clob_types.sql` | — | H2-only CLOB conversions after the final physical column names are in place |
 
 The generated base is a fold of `B1_42_1` and every published PostgreSQL or
-Oracle `V` migration through `1.77.0`. It is source-derived, so the header and
+Oracle `V` migration through `1.79.0`. It is source-derived, so the header and
 `manifest.json` retain the source checksums. Do not edit generated SQL by hand;
 run:
 

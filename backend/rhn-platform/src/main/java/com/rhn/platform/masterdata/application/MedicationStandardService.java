@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.List;
+import java.util.Locale;
 import static com.rhn.shared.api.BusinessErrors.*;
 
 @Service
@@ -177,10 +178,16 @@ public class MedicationStandardService {
      */
     public boolean doseFormMatches(String medicationName, String localDoseForm, JsonNode spec) {
         String standardDoseForm = spec.path("doseForm").asString("");
-        if (Objects.equals(localDoseForm, standardDoseForm)) return true;
+        String name = normalize(medicationName);
+        if (Objects.equals(localDoseForm, standardDoseForm)) {
+            // A name that explicitly declares a release mechanism cannot match the plain base form.
+            if (("TABLET".equals(localDoseForm) || "CAPSULE".equals(localDoseForm))
+                    && (name.contains("缓释") || name.contains("控释") || name.contains("长效") || name.contains("肠溶")))
+                return false;
+            return true;
+        }
         String baseDoseForm = baseDoseForm(standardDoseForm);
         if (!Objects.equals(localDoseForm, baseDoseForm)) return false;
-        String name = normalize(medicationName);
         if (standardDoseForm.startsWith("EXTENDED_RELEASE_")) return name.contains("缓释") || name.contains("控释") || name.contains("长效");
         if (standardDoseForm.startsWith("ENTERIC_")) return name.contains("肠溶");
         return false;
@@ -205,6 +212,9 @@ public class MedicationStandardService {
                 && source.sourceHash().equals(summary.path("contentHash").asString());
     }
     private static String normalize(String value) {
-        return value == null ? "" : value.replaceAll("\\s+", "").replace("（", "(").replace("）", ")").replace("∶", ":").replace("：", ":");
+        return value == null ? "" : value.replaceAll("\\s+", "").toLowerCase(Locale.ROOT)
+                .replace("（", "(").replace("）", ")").replace("［", "[").replace("］", "]")
+                .replace("∶", ":").replace("：", ":").replace("，", ",")
+                .replace("μ", "u").replace("µ", "u");
     }
 }

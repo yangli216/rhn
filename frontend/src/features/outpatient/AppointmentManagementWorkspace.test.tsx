@@ -139,9 +139,9 @@ describe('AppointmentManagementWorkspace', () => {
     const inDialog = within(dialog)
 
     expect(inDialog.getByText('门诊预约 · 号源调度')).toBeInTheDocument()
-    expect(inDialog.getByText('1. 就诊患者确认')).toBeInTheDocument()
-    expect(inDialog.getByText('2. 预约设置')).toBeInTheDocument()
-    expect(inDialog.getByText('3. 预约核验单预览')).toBeInTheDocument()
+    expect(inDialog.getByPlaceholderText('输入姓名、身份证、卡号或健康档案号')).toBeInTheDocument()
+    expect(inDialog.getByText('预约设置')).toBeInTheDocument()
+    expect(inDialog.getByText('预约核验')).toBeInTheDocument()
 
     // Search and select resident
     const searchInput = inDialog.getByPlaceholderText('输入姓名、身份证、卡号或健康档案号')
@@ -439,7 +439,7 @@ describe('AppointmentManagementWorkspace', () => {
     // Verify T-layout components
     expect(await inDialog.findByText('号池模式')).toBeInTheDocument()
     expect(inDialog.getByText('号池共享模式')).toBeInTheDocument()
-    expect(inDialog.getByText(/该班次采用整段共享号池/)).toBeInTheDocument()
+    expect(inDialog.getAllByText('可选时段').length).toBeGreaterThanOrEqual(1)
 
     // Select resident in top strip
     const searchInput = inDialog.getByPlaceholderText('输入姓名、身份证、卡号或健康档案号')

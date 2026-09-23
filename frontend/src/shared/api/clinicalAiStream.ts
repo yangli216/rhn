@@ -1,4 +1,4 @@
-import type { ClinicalAiRecordDraft, ClinicalAiSuggestion } from './clinicalAiApi'
+import type { ClinicalAiRecordText, ClinicalAiSuggestion } from './clinicalAiApi'
 
 /** Only the committed, validated `complete` event is an adoptable suggestion. */
 export async function consumeClinicalAiStream(response: Response, onDelta: (text: string) => void): Promise<ClinicalAiSuggestion> {
@@ -40,10 +40,10 @@ export async function consumeClinicalAiStream(response: Response, onDelta: (text
 export interface ClinicalAiFieldStream {
   encounterId: string
   contextFingerprint: string
-  recordDraft: ClinicalAiRecordDraft
+  recordDraft: ClinicalAiRecordText
 }
 
-export interface ClinicalAiPreview { summary?: string; recordDraft: ClinicalAiRecordDraft }
+export interface ClinicalAiPreview { summary?: string; recordDraft: ClinicalAiRecordText }
 const fields = new Set(['chiefComplaint', 'presentIllness', 'medicalHistory', 'physicalExam', 'treatmentPlan'])
 
 /** A small incremental JSON reader: never treats JSON embedded inside quoted text as a field. */
@@ -78,7 +78,7 @@ export function clinicalAiPreview(source: string): ClinicalAiPreview {
       const text = string()
       if (path.length === 1 && path[0] === 'summary') result.summary = text.value
       if (path.length === 2 && path[0] === 'recordDraft' && fields.has(path[1])) {
-        result.recordDraft[path[1] as keyof ClinicalAiRecordDraft] = text.value
+        result.recordDraft[path[1] as keyof ClinicalAiRecordText] = text.value
       }
       return text.complete
     }

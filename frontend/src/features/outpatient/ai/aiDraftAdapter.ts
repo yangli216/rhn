@@ -1,8 +1,9 @@
 import type {
-  ClinicalAiDraftContext, ClinicalAiDraftInput, ClinicalAiRecordDraft, ClinicalAiSuggestion,
+  ClinicalAiDraftContext, ClinicalAiDraftInput, ClinicalAiRecordDraft, ClinicalAiSuggestion, ClinicalAiVitalSigns,
 } from '../../../shared/api/clinicalAiApi'
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
 import type { OutpatientPlanTemplate } from '../../../shared/api/outpatientPlanTemplatesApi'
+import { VITAL_HARD_LIMITS } from '../../../shared/validation/businessValidation'
 
 export interface ClinicalAiDraftRequest {
   requestId: string
@@ -63,6 +64,7 @@ export function clinicalAiDraftInput(value: ClinicalAiDraftContext): ClinicalAiD
     treatmentPlan: value.treatmentPlan, systolic: value.systolic, diastolic: value.diastolic,
     temperature: value.temperature, pulseRate: value.pulseRate,
     respiratoryRate: value.respiratoryRate, oxygenSaturation: value.oxygenSaturation,
+    heightCm: value.heightCm, weightKg: value.weightKg,
     diagnoses: value.diagnoses,
   }
 }
@@ -73,6 +75,11 @@ export function mergeAiRecordDraft<T extends ClinicalAiRecordDraft>(current: T,
   for (const field of recordDraftFields) {
     const suggestion = patch[field]?.trim()
     if (!suggestion || (!overwrite && current[field]?.trim())) continue
+    Object.assign(next, { [field]: suggestion })
+  }
+  for (const field of vitalDraftFields) {
+    const suggestion = patch[field]
+    if (!validAiVital(field, suggestion) || (!overwrite && current[field] != null)) continue
     Object.assign(next, { [field]: suggestion })
   }
   return next
@@ -106,7 +113,47 @@ export const recordDraftFields = [
   'chiefComplaint', 'presentIllness', 'medicalHistory', 'physicalExam', 'treatmentPlan',
 ] as const
 
-export const recordDraftFieldLabels: Record<(typeof recordDraftFields)[number], string> = {
+export const vitalDraftFields = [
+  'temperature', 'pulseRate', 'respiratoryRate', 'systolic', 'diastolic', 'oxygenSaturation', 'heightCm', 'weightKg',
+] as const
+export const aiRecordDraftFields = [...recordDraftFields, ...vitalDraftFields] as const
+export type AiRecordDraftField = (typeof aiRecordDraftFields)[number]
+export type AiVitalDraftField = keyof ClinicalAiVitalSigns
+
+export const aiVitalDefinitions = {
+  temperature: { ...VITAL_HARD_LIMITS.temperature, unit: '℃', step: 0.1 },
+  pulseRate: { ...VITAL_HARD_LIMITS.pulse, unit: '次/分', step: 1 },
+  respiratoryRate: { ...VITAL_HARD_LIMITS.respiratoryRate, unit: '次/分', step: 1 },
+  systolic: { ...VITAL_HARD_LIMITS.systolicPressure, unit: 'mmHg', step: 1 },
+  diastolic: { ...VITAL_HARD_LIMITS.diastolicPressure, unit: 'mmHg', step: 1 },
+  oxygenSaturation: { ...VITAL_HARD_LIMITS.oxygenSaturation, unit: '%', step: 1 },
+  heightCm: { ...VITAL_HARD_LIMITS.height, unit: 'cm', step: 0.1 },
+  weightKg: { ...VITAL_HARD_LIMITS.weight, unit: 'kg', step: 0.1 },
+} as const
+
+export function isAiVitalField(field: AiRecordDraftField): field is AiVitalDraftField {
+  return (vitalDraftFields as readonly string[]).includes(field)
+}
+
+export function validAiVital(field: AiVitalDraftField, value: unknown): value is number {
+  const rule = aiVitalDefinitions[field]
+  return typeof value === 'number' && Number.isFinite(value) && value >= rule.minimum && value <= rule.maximum
+    && (rule.step !== 1 || Number.isInteger(value))
+}
+
+export function aiRecordDraftValue(field: AiRecordDraftField, value: unknown): string | number | undefined {
+  return isAiVitalField(field) ? validAiVital(field, value) ? value : undefined
+    : typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+export function formatAiRecordDraftValue(field: AiRecordDraftField, value: unknown) {
+  const valid = aiRecordDraftValue(field, value)
+  return valid === undefined ? '' : `${valid}${isAiVitalField(field) ? ` ${aiVitalDefinitions[field].unit}` : ''}`
+}
+
+export const recordDraftFieldLabels: Record<AiRecordDraftField, string> = {
   chiefComplaint: '主诉', presentIllness: '现病史', medicalHistory: '既往史',
   physicalExam: '查体所见', treatmentPlan: '诊疗计划',
+  temperature: '体温', pulseRate: '脉搏', respiratoryRate: '呼吸', systolic: '收缩压', diastolic: '舒张压',
+  oxygenSaturation: '血氧', heightCm: '身高', weightKg: '体重',
 }

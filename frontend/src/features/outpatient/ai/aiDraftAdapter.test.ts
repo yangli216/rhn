@@ -33,6 +33,18 @@ describe('clinical AI draft adapter', () => {
     })).toEqual({ chiefComplaint: '头晕三天', presentIllness: '三天前出现头晕，演变情况待补充。' })
   })
 
+  it('fills empty structured vital fields and rejects out-of-range model values', () => {
+    expect(mergeAiRecordDraft({ chiefComplaint: '发热', temperature: undefined, weightKg: undefined }, {
+      temperature: 38, weightKg: 10,
+    })).toMatchObject({ temperature: 38, weightKg: 10 })
+    expect(mergeAiRecordDraft({ chiefComplaint: '发热', temperature: undefined }, {
+      temperature: 99,
+    })).toMatchObject({ temperature: undefined })
+    expect(mergeAiRecordDraft({ chiefComplaint: '发热', temperature: 36.6 }, {
+      temperature: 38,
+    })).toMatchObject({ temperature: 36.6 })
+  })
+
   it('deduplicates diagnoses and preserves a single primary diagnosis', () => {
     expect(mergeAiDiagnoses(
       [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],

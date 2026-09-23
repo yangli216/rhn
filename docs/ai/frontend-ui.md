@@ -26,6 +26,7 @@
 以下是按源码选出的**局部参考候选**，未宣称已经由用户确认视觉验收：
 
 - `features/settings/ParameterManagement.tsx`：参考分类—列表—详情的业务组织、TreePanel 调用；分类已接入共享树的搜索、选择和键盘操作，仍不作为整页视觉合规证明。
+- `features/settings/OrganizationPersonnelManagement.tsx`：组织架构与人员任职已采用 `MasterDetailPage` 的 `WorkspacePane` 滚动边界；目录筛选和详情操作固定，正文独立滚动，关系表使用 `DataTable`。
 - `features/settings/OperationalMasterDataPanel.tsx`：参考 TableShell/DataTable 的组合，不能复制其业务私有表格封装作为新的通用组件。
 - `features/inpatient/InpatientDoctorStation.tsx`：参考工作区 Tabs 与业务分区组合，临床细节仍读领域入口。
 

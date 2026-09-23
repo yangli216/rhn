@@ -28581,5 +28581,44 @@
         "comment": "登记摘要的规范化 SHA256 指纹"
       }
     ]
+  },
+  {
+    "logical": "bd.standard_catalog_entry_review",
+    "legacy": "standard_catalog_entry_review",
+    "physical": "RHN_BD_ENTRY_REVIEW",
+    "domain": "BD",
+    "comment": "标准目录逐条转录核对事件，一行代表一个租户对特定目录版本中一个条目的不可变核对操作；不替代来源审批与临床审核",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_REVIEW",
+        "comment": "核对事件标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "identity_hash",
+        "physical": "HASH_IDTY",
+        "comment": "目录标识版本及内容和来源文件指纹组合哈希"
+      },
+      {
+        "logical": "entry_id",
+        "physical": "ID_ENTRY",
+        "comment": "电子目录条目标识"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "条目核对递增序号，用于并发控制"
+      },
+      {
+        "logical": "event",
+        "physical": "JSON_EVENT",
+        "comment": "不可变核对结果，含问题说明、操作人和时间"
+      }
+    ]
   }
 ]

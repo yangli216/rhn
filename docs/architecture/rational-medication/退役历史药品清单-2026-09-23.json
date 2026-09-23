@@ -1,0 +1,1984 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-23",
+  "reason": "No safe standard identity; historical split specification or incomplete imported medication record",
+  "recordCount": 247,
+  "records": [
+    {
+      "code": "MED-2026-T013-03",
+      "name": "防风通圣丸（颗粒）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每丸重 6g"
+    },
+    {
+      "code": "MED-2026-T030-02",
+      "name": "藿香正气水每",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T030-07",
+      "name": "藿香正气水每 1ml相当于饮片 0.66g",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T030-08",
+      "name": "藿香正气水含甘草浸膏 10mg",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T030-09",
+      "name": "藿香正气水含广藿香油0.8μl",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T030-10",
+      "name": "藿香正气水含紫苏叶油 0.4μl",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T031-02",
+      "name": "十滴水酊剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每瓶 10ml"
+    },
+    {
+      "code": "MED-2026-T031-03",
+      "name": "十滴水酊剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每瓶 100ml"
+    },
+    {
+      "code": "MED-2026-T031-04",
+      "name": "十滴水酊剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每瓶 500ml"
+    },
+    {
+      "code": "MED-2026-T031-05",
+      "name": "十滴水每1ml 相当于饮片 0.07g",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T031-06",
+      "name": "十滴水含樟脑 25mg",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T031-07",
+      "name": "十滴水桉油 12.5μl",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T033-02",
+      "name": "双黄连每支装 10ml（相当于饮片 7.5g）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T033-03",
+      "name": "双黄连20ml",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T033-04",
+      "name": "双黄连每 1ml 相当于饮片1.5g",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T033-05",
+      "name": "双黄连3.0g",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T034-02",
+      "name": "银黄每 1ml 含金银花提取物（以绿原酸计）2.4mg",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T034-03",
+      "name": "银黄含黄芩提取物（以黄芩苷计） 24mg",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T045-01",
+      "name": "生脉饮合剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每支装 10ml"
+    },
+    {
+      "code": "MED-2026-T049-01",
+      "name": "蛇胆川贝液糖浆剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每支装 10ml"
+    },
+    {
+      "code": "MED-2026-T049-02",
+      "name": "蛇胆川贝液糖浆剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每 1ml 相当于饮片0.085g"
+    },
+    {
+      "code": "MED-2026-T049-03",
+      "name": "蛇胆川贝液合剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每支装 10ml"
+    },
+    {
+      "code": "MED-2026-T049-04",
+      "name": "蛇胆川贝液合剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每 1ml 相当于饮片0.085g"
+    },
+    {
+      "code": "MED-2026-T054-02",
+      "name": "二母宁嗽丸（颗粒、片）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每 100 丸重 10g颗粒剂：每袋装 3g"
+    },
+    {
+      "code": "MED-2026-T054-03",
+      "name": "二母宁嗽丸（颗粒、片）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每丸重 10g"
+    },
+    {
+      "code": "MED-2026-T055-01",
+      "name": "润肺膏煎膏剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每 1g 相当于饮片 20mg"
+    },
+    {
+      "code": "MED-2026-T055-02",
+      "name": "润肺膏煎膏剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "含莱阳梨清膏485mg"
+    },
+    {
+      "code": "MED-2026-T056-01",
+      "name": "强力枇杷膏（蜜炼）、\n强力枇杷露煎膏剂（膏滋）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每瓶装 180g"
+    },
+    {
+      "code": "MED-2026-T056-02",
+      "name": "强力枇杷膏（蜜炼）、\n强力枇杷露煎膏剂（膏滋）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每瓶装 240g"
+    },
+    {
+      "code": "MED-2026-T056-03",
+      "name": "强力枇杷膏（蜜炼）、\n强力枇杷露煎膏剂（膏滋）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每瓶装 300g"
+    },
+    {
+      "code": "MED-2026-T056-08",
+      "name": "强力枇杷膏（蜜炼）、\n强力枇杷露每 1ml 相当于饮片 0. 155g",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T056-09",
+      "name": "强力枇杷膏（蜜炼）、\n强力枇杷露含薄荷脑 0.15mg",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T063-03",
+      "name": "清开灵颗粒（胶囊、\n软胶囊、片、注射液）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "每粒装 0.2g（含黄芩苷 10mg）"
+    },
+    {
+      "code": "MED-2026-T063-04",
+      "name": "清开灵颗粒（胶囊、\n软胶囊、片、注射液）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "每粒装 0.4g（含黄芩苷 20mg）"
+    },
+    {
+      "code": "MED-2026-T078-01",
+      "name": "健脾生血颗粒（片）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "GRANULE",
+      "preparationSpec": "每 1g 相当于饮片 0.36g"
+    },
+    {
+      "code": "MED-2026-T078-02",
+      "name": "健脾生血颗粒（片）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "GRANULE",
+      "preparationSpec": "含硫酸亚铁（FeSO4 ·7H2O）20mg（相当于铁 4mg）"
+    },
+    {
+      "code": "MED-2026-T080-04",
+      "name": "知柏地黄丸",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每丸重 2g"
+    },
+    {
+      "code": "MED-2026-T084-03",
+      "name": "百令胶囊（片）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.44g（含发酵冬虫夏草菌粉 0.333g）"
+    },
+    {
+      "code": "MED-2026-T084-04",
+      "name": "百令胶囊（片）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.45g（相当于发酵冬虫夏草菌粉 0.2g）"
+    },
+    {
+      "code": "MED-2026-T092-01",
+      "name": "参芪降糖颗粒（胶囊、片）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "GRANULE",
+      "preparationSpec": "每 1g 相当于饮片2.39g"
+    },
+    {
+      "code": "MED-2026-T092-02",
+      "name": "参芪降糖颗粒（胶囊、片）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "GRANULE",
+      "preparationSpec": "含人参茎叶总皂苷17.14mg"
+    },
+    {
+      "code": "MED-2026-T108-04",
+      "name": "血栓通5ml ∶175mg（三七总皂苷）注射用无菌粉末",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "INJECTION",
+      "preparationSpec": "每瓶 （支）装 100mg"
+    },
+    {
+      "code": "MED-2026-T108-05",
+      "name": "血栓通5ml ∶175mg（三七总皂苷）注射用无菌粉末",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "INJECTION",
+      "preparationSpec": "每瓶 150mg"
+    },
+    {
+      "code": "MED-2026-T108-06",
+      "name": "血栓通5ml ∶175mg（三七总皂苷）注射用无菌粉末",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "INJECTION",
+      "preparationSpec": "每瓶 250mg"
+    },
+    {
+      "code": "MED-2026-T109-03",
+      "name": "血塞通胶囊（软胶囊、滴丸、注射液）、注射用血塞通（冻干）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "每粒装 0.33g（含三七总皂苷60mg）"
+    },
+    {
+      "code": "MED-2026-T109-04",
+      "name": "血塞通胶囊（软胶囊、滴丸、注射液）、注射用血塞通（冻干）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "每粒装 0.33g（含三七总皂苷120mg）"
+    },
+    {
+      "code": "MED-2026-T109-05",
+      "name": "血塞通胶囊（软胶囊、滴丸、注射液）、注射用血塞通（冻干）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "每粒装 0.55g （含三七总皂苷100mg）"
+    },
+    {
+      "code": "MED-2026-T109-06",
+      "name": "血塞通滴丸剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每丸 含三七总皂苷 5mg"
+    },
+    {
+      "code": "MED-2026-T109-07",
+      "name": "血塞通滴丸剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每丸重 28mg（含三七总皂苷 10mg）"
+    },
+    {
+      "code": "MED-2026-T109-08",
+      "name": "血塞通滴丸剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每丸重 45mg （含三七总皂苷 10mg）"
+    },
+    {
+      "code": "MED-2026-T111-01",
+      "name": "银杏叶胶囊（片、滴丸）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "每粒 含总黄酮醇苷 9.6mg"
+    },
+    {
+      "code": "MED-2026-T111-02",
+      "name": "银杏叶胶囊（片、滴丸）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "萜类内酯 2.4mg"
+    },
+    {
+      "code": "MED-2026-T111-03",
+      "name": "银杏叶胶囊（片、滴丸）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "每粒 含总黄酮醇苷19.2mg"
+    },
+    {
+      "code": "MED-2026-T111-04",
+      "name": "银杏叶胶囊（片、滴丸）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "萜类内酯 4.8mg"
+    },
+    {
+      "code": "MED-2026-T111-05",
+      "name": "银杏叶胶囊（片、滴丸）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片 含总黄酮醇苷 9.6mg"
+    },
+    {
+      "code": "MED-2026-T111-06",
+      "name": "银杏叶胶囊（片、滴丸）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "萜类内酯 2.4mg"
+    },
+    {
+      "code": "MED-2026-T111-07",
+      "name": "银杏叶胶囊（片、滴丸）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片 含总黄酮醇苷19.2mg"
+    },
+    {
+      "code": "MED-2026-T111-08",
+      "name": "银杏叶胶囊（片、滴丸）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "萜类内酯 4.8mg"
+    },
+    {
+      "code": "MED-2026-T127",
+      "name": "鳖甲煎丸",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T131-01",
+      "name": "灯盏花素片",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片 含灯盏花素20mg"
+    },
+    {
+      "code": "MED-2026-T131-02",
+      "name": "灯盏花素片",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片 40mg"
+    },
+    {
+      "code": "MED-2026-T135-05",
+      "name": "血府逐瘀丸（片、口服液、胶囊）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.42g （相当于饮片 0.74g）"
+    },
+    {
+      "code": "MED-2026-T135-06",
+      "name": "血府逐瘀丸（片、口服液、胶囊）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.45g合剂：每支装 10ml"
+    },
+    {
+      "code": "MED-2026-T136-02",
+      "name": "复方丹参片（颗粒、胶囊、滴丸）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.32g （相当于饮片 0.6g）"
+    },
+    {
+      "code": "MED-2026-T136-03",
+      "name": "复方丹参片（颗粒、胶囊、滴丸）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.8g（相当于饮片 1.8g）颗粒剂：每袋装 1g"
+    },
+    {
+      "code": "MED-2026-T145-03",
+      "name": "逍遥丸（颗粒）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每袋装 6g"
+    },
+    {
+      "code": "MED-2026-T145-04",
+      "name": "逍遥丸（颗粒）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每袋装 9g颗粒剂：每袋装 5g（相当于饮片 10.0g）"
+    },
+    {
+      "code": "MED-2026-T145-05",
+      "name": "逍遥丸（颗粒）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每袋装 15g"
+    },
+    {
+      "code": "MED-2026-T149-02",
+      "name": "护肝片（颗粒、胶囊）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.36g（相当于饮片 1.255g）"
+    },
+    {
+      "code": "MED-2026-T149-03",
+      "name": "护肝片（颗粒、胶囊）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.38g颗粒剂：每袋装 2g"
+    },
+    {
+      "code": "MED-2026-T160-01",
+      "name": "宽胸气雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "每瓶 含内容物5.8g"
+    },
+    {
+      "code": "MED-2026-T160-02",
+      "name": "宽胸气雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "其中药液 2.7ml（含挥发油 0.6ml）"
+    },
+    {
+      "code": "MED-2026-T160-03",
+      "name": "宽胸气雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "每瓶 60揿"
+    },
+    {
+      "code": "MED-2026-T160-04",
+      "name": "宽胸气雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "每揿重 69mg"
+    },
+    {
+      "code": "MED-2026-T160-05",
+      "name": "宽胸气雾剂每瓶 内容物重 13.8g",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T160-06",
+      "name": "宽胸气雾剂内含药 液 4.8g（含挥发油 1.5ml ）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T160-07",
+      "name": "宽胸气雾剂每瓶 185 揿",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T160-08",
+      "name": "宽胸气雾剂每揿 63mg",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T164-02",
+      "name": "川芎茶调丸（散、颗粒、片）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每袋装 6g"
+    },
+    {
+      "code": "MED-2026-T174",
+      "name": "华佗再造丸",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T193-02",
+      "name": "普乐安胶囊（片）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.57g（含油菜花粉 0.5g）"
+    },
+    {
+      "code": "MED-2026-T193-03",
+      "name": "普乐安胶囊（片）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.64g（含油菜花粉 0.5g）"
+    },
+    {
+      "code": "MED-2026-T198-02",
+      "name": "消炎利胆片（颗粒、胶囊）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.25g （相当于饮片 2.6g）"
+    },
+    {
+      "code": "MED-2026-T198-03",
+      "name": "消炎利胆片（颗粒、胶囊）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片重 0.26g（相当于饮片 2.6g）颗粒剂：每袋装 2.5g"
+    },
+    {
+      "code": "MED-2026-T204-01",
+      "name": "肛泰栓（软膏）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "SUPPOSITORY",
+      "preparationSpec": "每粒 相当于饮片0.086g"
+    },
+    {
+      "code": "MED-2026-T204-02",
+      "name": "肛泰栓（软膏）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "SUPPOSITORY",
+      "preparationSpec": "含盐酸小檗碱 36mg"
+    },
+    {
+      "code": "MED-2026-T204-03",
+      "name": "肛泰栓（软膏）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "SUPPOSITORY",
+      "preparationSpec": "盐酸罂粟碱 7mg软膏剂：每 1g 相当于饮片 86mg"
+    },
+    {
+      "code": "MED-2026-T204-04",
+      "name": "肛泰栓（软膏）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "SUPPOSITORY",
+      "preparationSpec": "含盐酸小檗碱36mg"
+    },
+    {
+      "code": "MED-2026-T204-05",
+      "name": "肛泰栓（软膏）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "SUPPOSITORY",
+      "preparationSpec": "盐酸罂粟碱 7mg"
+    },
+    {
+      "code": "MED-2026-T207-02",
+      "name": "如意金黄散",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "POWDER",
+      "preparationSpec": "每袋 9g"
+    },
+    {
+      "code": "MED-2026-T207-03",
+      "name": "如意金黄散",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "POWDER",
+      "preparationSpec": "每袋 12g"
+    },
+    {
+      "code": "MED-2026-T210-01",
+      "name": "康复新液合剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每瓶装 10ml"
+    },
+    {
+      "code": "MED-2026-T210-02",
+      "name": "康复新液合剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每瓶装 50ml"
+    },
+    {
+      "code": "MED-2026-T210-03",
+      "name": "康复新液合剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每瓶装 100ml"
+    },
+    {
+      "code": "MED-2026-T210-04",
+      "name": "康复新液合剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每1ml含美洲大蠊干燥虫体的乙醇提取物（含总氨基酸以丙氨酸计） 1mg"
+    },
+    {
+      "code": "MED-2026-T210-05",
+      "name": "康复新液溶液剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每瓶装 10ml"
+    },
+    {
+      "code": "MED-2026-T210-06",
+      "name": "康复新液溶液剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每瓶装 50ml"
+    },
+    {
+      "code": "MED-2026-T210-07",
+      "name": "康复新液溶液剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每瓶装 100ml"
+    },
+    {
+      "code": "MED-2026-T211-01",
+      "name": "肤痔清软膏软膏剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CREAM",
+      "preparationSpec": "每 1g 相当于饮片0.436g"
+    },
+    {
+      "code": "MED-2026-T211-02",
+      "name": "肤痔清软膏软膏剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CREAM",
+      "preparationSpec": "含薄荷脑 3mg"
+    },
+    {
+      "code": "MED-2026-T214",
+      "name": "马应龙麝香痔疮膏软膏剂",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CREAM",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T216-03",
+      "name": "小金丸（胶囊、片）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "6g"
+    },
+    {
+      "code": "MED-2026-T230-01",
+      "name": "妇科千金片（胶囊）",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T238-04",
+      "name": "艾附暖宫丸",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每丸重 10g"
+    },
+    {
+      "code": "MED-2026-T242-01",
+      "name": "定坤丹丸",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每丸重 10.8g（相当于饮片4.78g，含复方滇鸡血藤膏 0.25g）"
+    },
+    {
+      "code": "MED-2026-T245",
+      "name": "滋肾育胎丸",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T247-03",
+      "name": "桂枝茯苓丸（胶囊）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每丸重 2.2g"
+    },
+    {
+      "code": "MED-2026-T254-01",
+      "name": "珍珠明目滴眼液滴眼剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "DROPS",
+      "preparationSpec": "每 1ml 相当于饮片 1mg"
+    },
+    {
+      "code": "MED-2026-T254-02",
+      "name": "珍珠明目滴眼液滴眼剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "DROPS",
+      "preparationSpec": "含珍珠液 0.02ml"
+    },
+    {
+      "code": "MED-2026-T254-03",
+      "name": "珍珠明目滴眼液每瓶（支）装 8ml",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T254-04",
+      "name": "珍珠明目滴眼液10ml",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T254-05",
+      "name": "珍珠明目滴眼液12ml",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T254-06",
+      "name": "珍珠明目滴眼液15ml",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T277-02",
+      "name": "冰硼散",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "POWDER",
+      "preparationSpec": "每瓶 1.5g"
+    },
+    {
+      "code": "MED-2026-T277-03",
+      "name": "冰硼散",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "POWDER",
+      "preparationSpec": "每瓶 2g"
+    },
+    {
+      "code": "MED-2026-T277-04",
+      "name": "冰硼散",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "POWDER",
+      "preparationSpec": "每瓶 3g"
+    },
+    {
+      "code": "MED-2026-T281-02",
+      "name": "接骨七厘散（丸、片）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "OTHER",
+      "preparationSpec": "每袋装 1.5g"
+    },
+    {
+      "code": "MED-2026-T283-01",
+      "name": "云南白药散",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "POWDER",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T283-02",
+      "name": "云南白药（胶囊、膏、酊、气雾剂）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T283-03",
+      "name": "云南白药贴膏剂",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "PATCH",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T283-04",
+      "name": "云南白药酊剂",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T283-05",
+      "name": "云南白药（胶囊、膏、酊、气雾剂）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-T286-02",
+      "name": "消痛贴膏贴膏剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "PATCH",
+      "preparationSpec": "1.2g"
+    },
+    {
+      "code": "MED-2026-T295-02",
+      "name": "狗皮膏膏药",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "PATCH",
+      "preparationSpec": "15g"
+    },
+    {
+      "code": "MED-2026-T295-03",
+      "name": "狗皮膏膏药",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "PATCH",
+      "preparationSpec": "24g"
+    },
+    {
+      "code": "MED-2026-T295-04",
+      "name": "狗皮膏膏药",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "PATCH",
+      "preparationSpec": "30g"
+    },
+    {
+      "code": "MED-2026-T302-02",
+      "name": "小儿柴桂退热颗粒（口服液）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "GRANULE",
+      "preparationSpec": "每袋装 4g （每 1g 相当于饮片1.25g）"
+    },
+    {
+      "code": "MED-2026-T302-03",
+      "name": "小儿柴桂退热颗粒（口服液）",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "GRANULE",
+      "preparationSpec": "每袋装 5g（每 1g 相当于饮片 1.0g）合剂：每 1ml 相当于饮片 0.5g"
+    },
+    {
+      "code": "MED-2026-T305-01",
+      "name": "小儿热速清合剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每支装 10ml（每 1ml 相当于饮片 1.1625g）颗粒剂：每袋装 2g"
+    },
+    {
+      "code": "MED-2026-T305-02",
+      "name": "小儿热速清合剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "CHINESE_PATENT",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "每支装 6g"
+    },
+    {
+      "code": "MED-2026-W006-07",
+      "name": "阿莫西林干混悬剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "0.125g"
+    },
+    {
+      "code": "MED-2026-W006-08",
+      "name": "阿莫西林干混悬剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "0.25g"
+    },
+    {
+      "code": "MED-2026-W007-02",
+      "name": "阿莫西林克拉维酸钾片",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "4:1"
+    },
+    {
+      "code": "MED-2026-W007-03",
+      "name": "阿莫西林克拉维酸钾片",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "7:1"
+    },
+    {
+      "code": "MED-2026-W007-04",
+      "name": "阿莫西林克拉维酸钾颗粒",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "GRANULE",
+      "preparationSpec": "125mg∶31.25mg"
+    },
+    {
+      "code": "MED-2026-W007-05",
+      "name": "阿莫西林克拉维酸钾颗粒",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "GRANULE",
+      "preparationSpec": "200mg∶28.5mg（7:1）"
+    },
+    {
+      "code": "MED-2026-W007-06",
+      "name": "阿莫西林克拉维酸钾干混悬剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "250mg∶62.5mg"
+    },
+    {
+      "code": "MED-2026-W007-07",
+      "name": "阿莫西林克拉维酸钾干混悬剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "200mg∶28.5mg（7:1）"
+    },
+    {
+      "code": "MED-2026-W007-08",
+      "name": "阿莫西林克拉维酸钾注射用无菌粉末",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "250mg∶50mg"
+    },
+    {
+      "code": "MED-2026-W007-09",
+      "name": "阿莫西林克拉维酸钾注射用无菌粉末",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "500mg∶100mg"
+    },
+    {
+      "code": "MED-2026-W007-10",
+      "name": "阿莫西林克拉维酸钾注射用无菌粉末",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "1000mg∶200mg（5:1）"
+    },
+    {
+      "code": "MED-2026-W012-08",
+      "name": "头孢呋辛干混悬剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "0.25g"
+    },
+    {
+      "code": "MED-2026-W012-09",
+      "name": "头孢呋辛钠注射用无菌粉末",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "0.25g"
+    },
+    {
+      "code": "MED-2026-W013-06",
+      "name": "头孢克肟干混悬剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "50mg"
+    },
+    {
+      "code": "MED-2026-W021-04",
+      "name": "阿奇霉素干混悬剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "0.1g（10 万单位）"
+    },
+    {
+      "code": "MED-2026-W029-02",
+      "name": "环丙沙星片",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "0.5g （乳酸盐）氯化钠注射液：100ml ∶0.2g"
+    },
+    {
+      "code": "MED-2026-W035",
+      "name": "结核病用药常规定制",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "以国家专项规定为准"
+    },
+    {
+      "code": "MED-2026-W038-01",
+      "name": "伊曲康唑分散片",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "0.1g"
+    },
+    {
+      "code": "MED-2026-W050-01",
+      "name": "人干扰素人干扰素α1b注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "10μg∶0.5ml"
+    },
+    {
+      "code": "MED-2026-W050-02",
+      "name": "人干扰素人干扰素α1b注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "30μg∶1ml注射用人干扰素α1b ∶10μg"
+    },
+    {
+      "code": "MED-2026-W050-03",
+      "name": "人干扰素人干扰素α1b注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "30μg人干扰素α2a 注射液"
+    },
+    {
+      "code": "MED-2026-W050-04",
+      "name": "人干扰素人干扰素α1b注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "注射用人干扰素α2a ∶300 万 IU"
+    },
+    {
+      "code": "MED-2026-W050-05",
+      "name": "人干扰素人干扰素α1b注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "500 万 IU人干扰素α2b 注射液"
+    },
+    {
+      "code": "MED-2026-W050-06",
+      "name": "人干扰素人干扰素α1b注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "注射用人干扰素α2b ∶300 万 IU"
+    },
+    {
+      "code": "MED-2026-W050-07",
+      "name": "人干扰素人干扰素α1b注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "500 万 IU"
+    },
+    {
+      "code": "MED-2026-W051",
+      "name": "艾滋病用药常规定制",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "以国家专项规定为准"
+    },
+    {
+      "code": "MED-2026-W056",
+      "name": "青蒿素类药物常规定制",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "以国家专项规定为准"
+    },
+    {
+      "code": "MED-2026-W073-01",
+      "name": "吗啡片",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W073-02",
+      "name": "吗啡缓释片",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W073-03",
+      "name": "吗啡口服溶液剂",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W073-04",
+      "name": "吗啡注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W076-04",
+      "name": "对乙酰氨基酚口服溶液剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "混悬液"
+    },
+    {
+      "code": "MED-2026-W076-05",
+      "name": "对乙酰氨基酚口服溶液剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "干混悬剂"
+    },
+    {
+      "code": "MED-2026-W076-06",
+      "name": "对乙酰氨基酚口服溶液剂",
+      "classification": "STANDARD_SPECIFICATION_REVIEW",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "栓剂"
+    },
+    {
+      "code": "MED-2026-W092-01",
+      "name": "多巴丝肼片",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "0.125g"
+    },
+    {
+      "code": "MED-2026-W092-02",
+      "name": "多巴丝肼片",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "0.25g（0.2g∶0.05g）"
+    },
+    {
+      "code": "MED-2026-W092-03",
+      "name": "多巴丝肼胶囊",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "0.125g"
+    },
+    {
+      "code": "MED-2026-W092-04",
+      "name": "多巴丝肼胶囊",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "0.25g（0.2g∶0.05g）"
+    },
+    {
+      "code": "MED-2026-W152-03",
+      "name": "硝酸异山梨酯氯化钠注射液",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "100ml ∶10mg"
+    },
+    {
+      "code": "MED-2026-W152-04",
+      "name": "硝酸异山梨酯葡萄糖注射液",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "100ml ∶10mg"
+    },
+    {
+      "code": "MED-2026-W180-01",
+      "name": "缬沙坦氨氯地平片剂(Ⅰ)",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片 含缬沙坦 80mg"
+    },
+    {
+      "code": "MED-2026-W180-02",
+      "name": "缬沙坦氨氯地平片剂(Ⅰ)",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "氨氯地平 5mg"
+    },
+    {
+      "code": "MED-2026-W180-03",
+      "name": "缬沙坦氨氯地平片剂(Ⅱ)",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "每片 含缬沙坦 160mg"
+    },
+    {
+      "code": "MED-2026-W180-04",
+      "name": "缬沙坦氨氯地平片剂(Ⅱ)",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "氨氯地平 5mg"
+    },
+    {
+      "code": "MED-2026-W206-06",
+      "name": "氨溴索吸入用溶液",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "2ml ∶15mg"
+    },
+    {
+      "code": "MED-2026-W210-01",
+      "name": "复方甘草片",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W210-02",
+      "name": "复方甘草口服溶液剂",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W214-01",
+      "name": "复方甲氧那明胶囊",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "每粒 含盐酸甲氧那明12.5mg"
+    },
+    {
+      "code": "MED-2026-W214-02",
+      "name": "复方甲氧那明胶囊",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "那可丁 7mg"
+    },
+    {
+      "code": "MED-2026-W214-03",
+      "name": "复方甲氧那明胶囊",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "氨茶碱 25mg"
+    },
+    {
+      "code": "MED-2026-W214-04",
+      "name": "复方甲氧那明胶囊",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "马来酸氯苯那敏 2mg"
+    },
+    {
+      "code": "MED-2026-W217-01",
+      "name": "沙丁胺醇吸入气雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "200 揿：每揿 100μg"
+    },
+    {
+      "code": "MED-2026-W217-02",
+      "name": "沙丁胺醇200 揿",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "每揿 140μg"
+    },
+    {
+      "code": "MED-2026-W219",
+      "name": "噻托溴铵吸入粉雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "18μg"
+    },
+    {
+      "code": "MED-2026-W220-02",
+      "name": "孟鲁司特咀嚼片",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "4mg"
+    },
+    {
+      "code": "MED-2026-W220-03",
+      "name": "孟鲁司特咀嚼片",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "5mg"
+    },
+    {
+      "code": "MED-2026-W220-05",
+      "name": "孟鲁司特口溶膜",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "4mg"
+    },
+    {
+      "code": "MED-2026-W220-06",
+      "name": "孟鲁司特口溶膜",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "5mg"
+    },
+    {
+      "code": "MED-2026-W221-01",
+      "name": "丙酸氟替卡松吸入气雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "50μg/ 揿"
+    },
+    {
+      "code": "MED-2026-W221-02",
+      "name": "丙酸氟替卡松吸入气雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "125μg/ 揿"
+    },
+    {
+      "code": "MED-2026-W222-01",
+      "name": "布地奈德吸入气雾剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "每瓶 100 揿"
+    },
+    {
+      "code": "MED-2026-W222-02",
+      "name": "布地奈德吸入气雾剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "每揿含布地奈德 200μg"
+    },
+    {
+      "code": "MED-2026-W222-03",
+      "name": "布地奈德每瓶 200 揿",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W222-04",
+      "name": "布地奈德每揿含布地奈德 100μg",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W222-06",
+      "name": "布地奈德0.2mg",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W222-07",
+      "name": "布地奈德200μg/ 吸",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W222-08",
+      "name": "布地奈德200 吸/ 支",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W223-01",
+      "name": "布地奈德福莫特罗吸入粉雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "80μg/4.5μg/吸"
+    },
+    {
+      "code": "MED-2026-W223-02",
+      "name": "布地奈德福莫特罗吸入粉雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "160μg/4.5μg/ 吸"
+    },
+    {
+      "code": "MED-2026-W223-03",
+      "name": "布地奈德福莫特罗吸入粉雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "320μg/9μg/ 吸"
+    },
+    {
+      "code": "MED-2026-W224",
+      "name": "茚达特罗格隆溴铵吸入粉雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "110μg/50μg/ 粒"
+    },
+    {
+      "code": "MED-2026-W225-01",
+      "name": "布地格福吸入气雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "每瓶 120 揿"
+    },
+    {
+      "code": "MED-2026-W225-02",
+      "name": "布地格福吸入气雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "每揿含布地奈德 160μg"
+    },
+    {
+      "code": "MED-2026-W225-03",
+      "name": "布地格福吸入气雾剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "格隆铵 7.2μg 和富马酸福莫特罗 4.8μg"
+    },
+    {
+      "code": "MED-2026-W228",
+      "name": "复方氢氧化铝片",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W232-04",
+      "name": "艾司奥美拉唑肠溶干混悬剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "40mg"
+    },
+    {
+      "code": "MED-2026-W232-05",
+      "name": "艾司奥美拉唑注射用无菌粉末",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "40mg"
+    },
+    {
+      "code": "MED-2026-W239-01",
+      "name": "山莨菪碱片剂（含消旋）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "5mg"
+    },
+    {
+      "code": "MED-2026-W239-02",
+      "name": "山莨菪碱片剂（含消旋）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "10mg"
+    },
+    {
+      "code": "MED-2026-W239-03",
+      "name": "山莨菪碱注射液（含消旋）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "1ml ∶2mg"
+    },
+    {
+      "code": "MED-2026-W239-04",
+      "name": "山莨菪碱注射液（含消旋）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "1ml ∶10mg"
+    },
+    {
+      "code": "MED-2026-W246",
+      "name": "开塞露灌肠剂（含甘油、山梨醇）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W250",
+      "name": "聚乙二醇散",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "POWDER",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W272",
+      "name": "腹膜透析液注射液（腹腔用药）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W292",
+      "name": "血友病用药注射用无菌粉末",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W294",
+      "name": "低分子量肝素注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W311-01",
+      "name": "胰岛素人胰岛素注射液（短效、中效和预混 30R ）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "300 单位"
+    },
+    {
+      "code": "MED-2026-W311-02",
+      "name": "胰岛素人胰岛素注射液（短效、中效和预混 30R ）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "400 单位"
+    },
+    {
+      "code": "MED-2026-W325-03",
+      "name": "司美格鲁肽1.34mg/ml",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W325-04",
+      "name": "司美格鲁肽3ml（预填充注射笔）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W343-07",
+      "name": "阿法骨化醇滴剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "DROPS",
+      "preparationSpec": "20ml ∶40μg"
+    },
+    {
+      "code": "MED-2026-W354-01",
+      "name": "环孢素胶囊",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W354-02",
+      "name": "环孢素软胶囊",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "CAPSULE",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W354-03",
+      "name": "环孢素口服溶液剂",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W403",
+      "name": "多种维生素注射用无菌粉末",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W406-04",
+      "name": "复方氨基酸 18AA小儿复方氨基酸注射液（ 18AA- Ⅰ)",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "20ml ∶1.348g（总氨基酸）小儿复方氨基酸注射液（18AA- Ⅱ)： 50ml ∶3.0g（总氨基酸）"
+    },
+    {
+      "code": "MED-2026-W407-01",
+      "name": "脂肪乳氨基酸葡萄糖注射液",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "1440ml（20% 脂肪乳注射液 255ml；复方氨基酸注射液（17）300ml； 11% 葡萄糖注射液 885ml）"
+    },
+    {
+      "code": "MED-2026-W407-02",
+      "name": "脂肪乳氨基酸葡萄糖注射液",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "1920ml（20% 脂肪乳注射液 340ml；复方氨基酸注射液（17）400ml； 11% 葡萄糖注射液 1180ml）"
+    },
+    {
+      "code": "MED-2026-W408-01",
+      "name": "中/ 长链脂肪乳注射液",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "250ml（大豆油 12.5g；中链甘油三酸酯 12.5g）"
+    },
+    {
+      "code": "MED-2026-W408-02",
+      "name": "中/ 长链脂肪乳注射液",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "250ml（大豆油 25g；中链甘油三酸酯 25g；卵磷脂 3g）"
+    },
+    {
+      "code": "MED-2026-W410",
+      "name": "口服补液盐散剂(Ⅰ、Ⅱ、Ⅲ)",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "POWDER",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W429",
+      "name": "抗蛇毒血清注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W431",
+      "name": "国家免疫规划用疫苗常规定制",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "以国家专项规定为准"
+    },
+    {
+      "code": "MED-2026-W432",
+      "name": "硫酸钡干混悬剂(Ⅰ型、Ⅱ型）",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W437",
+      "name": "结核菌素纯蛋白衍生物注射液",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "INJECTION",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W447",
+      "name": "炉甘石洗剂",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "DROPS",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W451-01",
+      "name": "加替沙星滴眼剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "DROPS",
+      "preparationSpec": "0.3%"
+    },
+    {
+      "code": "MED-2026-W451-02",
+      "name": "加替沙星眼用凝胶",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "CREAM",
+      "preparationSpec": "0.3%"
+    },
+    {
+      "code": "MED-2026-W458-01",
+      "name": "复方托吡卡胺滴眼剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "DROPS",
+      "preparationSpec": "1ml（托吡卡胺 5mg，盐酸去氧肾上腺素 5mg）"
+    },
+    {
+      "code": "MED-2026-W458-02",
+      "name": "复方托吡卡胺滴眼剂",
+      "classification": "LOCAL_IDENTITY_CORRECTION",
+      "medicationType": "WESTERN",
+      "doseForm": "DROPS",
+      "preparationSpec": "5ml（托吡卡胺 25mg，盐酸去氧肾上腺素25mg）"
+    },
+    {
+      "code": "MED-2026-W459-03",
+      "name": "康柏西普10mg/ml",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W459-04",
+      "name": "康柏西普0.05ml/ 支（预充式）",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "常规说明书规格"
+    },
+    {
+      "code": "MED-2026-W463-03",
+      "name": "羟甲唑啉滴鼻剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "DROPS",
+      "preparationSpec": "10ml ∶5mg"
+    },
+    {
+      "code": "MED-2026-W463-05",
+      "name": "羟甲唑啉喷雾剂",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "AEROSOL",
+      "preparationSpec": "10ml ∶5mg"
+    },
+    {
+      "code": "MED-2026-W471",
+      "name": "避孕药常规定制",
+      "classification": "CATALOG_COVERAGE_GAP",
+      "medicationType": "WESTERN",
+      "doseForm": "TABLET",
+      "preparationSpec": "以国家专项规定为准"
+    },
+    {
+      "code": "MED-2026-W475-02",
+      "name": "水合氯醛糖浆组合包装",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "水合氯醛浓缩液 1.342g∶1g/ 糖浆（稀释液）9ml"
+    },
+    {
+      "code": "MED-2026-W475-03",
+      "name": "水合氯醛糖浆组合包装",
+      "classification": "AMBIGUOUS_CANDIDATES",
+      "medicationType": "WESTERN",
+      "doseForm": "ORAL_LIQUID",
+      "preparationSpec": "水合氯醛浓缩液 0.671g∶0.5g/ 糖浆（稀释液）4.5ml"
+    }
+  ]
+}

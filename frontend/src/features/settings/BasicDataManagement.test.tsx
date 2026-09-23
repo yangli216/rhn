@@ -600,8 +600,8 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     fireEvent.click(packageBtn)
     expect(handlePackage).toHaveBeenCalledWith(medication.products[0], medication)
 
-    // 点击“完整产品视角 ›”
-    const modeChangeBtn = screen.getByRole('button', { name: '完整产品视角 ›' })
+    // 点击“厂家产品与包装 ›”
+    const modeChangeBtn = screen.getByRole('button', { name: '厂家产品与包装 ›' })
     fireEvent.click(modeChangeBtn)
     expect(handleModeChange).toHaveBeenCalledWith('product')
   })
@@ -698,18 +698,18 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
 
     // 验证专属 PageHeader 标题与描述
     expect(screen.getByText('药品知识与目录')).toBeInTheDocument()
-    expect(screen.getByText(/统一维护全院启用药品标准对齐/)).toBeInTheDocument()
+    expect(screen.getByText(/统一维护国家参考目录追溯/)).toBeInTheDocument()
 
     // 验证消除了基础数据类型一级大 Tab
     expect(screen.queryByRole('tablist', { name: '基础数据类型' })).not.toBeInTheDocument()
 
-    // 验证直接呈现单层 5 个扁平化药品视角 Tab
+    // 验证直接呈现单层 5 个扁平化药品视角 Tab（方案 A 顺序与规范化命名）
     const medicationTablist = screen.getByRole('tablist', { name: '药品目录视图' })
     expect(medicationTablist).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /药品标准建设与对齐/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /标准参考目录/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /基本信息视角/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /产品信息视角/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /药品标准对齐治理/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /本院药品主档/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /厂家产品与包装/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /临床用药规则基准/ })).toBeInTheDocument()
   })
 })

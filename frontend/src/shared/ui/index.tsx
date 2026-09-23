@@ -138,6 +138,8 @@ export function PanelHead({ title, meta, actions, className = '' }: {
   </header>
 }
 
+export type PaginationMode = 'full' | 'compact' | 'simple' | 'mini'
+
 export function Pagination({
   page,
   totalPages,
@@ -148,6 +150,8 @@ export function Pagination({
   pageSizeOptions = [10, 20, 50],
   label = '列表分页',
   left,
+  mode = 'full',
+  className = '',
 }: {
   page: number
   totalPages: number
@@ -158,30 +162,57 @@ export function Pagination({
   pageSizeOptions?: number[]
   label?: string
   left?: ReactNode
+  mode?: PaginationMode
+  className?: string
 }) {
   if (totalPages <= 1 && total === undefined && pageSize === undefined && !left) return null
-  return <nav className="ui-pagination" aria-label={label}>
-    {left && <div className="ui-pagination__left">{left}</div>}
-    {total !== undefined && <span className="ui-pagination__total">共 {total} 条记录</span>}
-    {pageSize !== undefined && onPageSizeChange && (
+  const isMini = mode === 'mini'
+  const isCompact = mode === 'compact'
+  const showSize = (mode === 'full' || mode === 'compact') && pageSize !== undefined && Boolean(onPageSizeChange)
+  const showTotal = !isMini && total !== undefined
+
+  return <nav className={`ui-pagination ui-pagination--${mode} ${className}`.trim()} aria-label={label}>
+    {left && !isMini && <div className="ui-pagination__left">{left}</div>}
+    {showTotal && <span className="ui-pagination__total">共 {total} 条记录</span>}
+    {showSize && onPageSizeChange && (
       <label className="ui-pagination__size">
-        <span>每页显示</span>
+        {!isCompact && <span>每页显示</span>}
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
           aria-label="每页显示条数"
         >
           {pageSizeOptions.map((opt) => (
-            <option key={opt} value={opt}>{opt} 条</option>
+            <option key={opt} value={opt}>
+              {isCompact ? `${opt} 条/页` : `${opt} 条`}
+            </option>
           ))}
         </select>
       </label>
     )}
     {totalPages > 0 && (
       <div className="ui-pagination__nav">
-        <button type="button" disabled={page <= 0} onClick={() => onChange(page - 1)}>上一页</button>
-        <span><strong>{page + 1}</strong> / {Math.max(1, totalPages)}</span>
-        <button type="button" disabled={page >= totalPages - 1} onClick={() => onChange(page + 1)}>下一页</button>
+        <button
+          type="button"
+          disabled={page <= 0}
+          onClick={() => onChange(page - 1)}
+          aria-label="上一页"
+          title="上一页"
+        >
+          {isMini ? '‹' : '上一页'}
+        </button>
+        <span className="ui-pagination__page-indicator">
+          <strong>{page + 1}</strong> / {Math.max(1, totalPages)}
+        </span>
+        <button
+          type="button"
+          disabled={page >= totalPages - 1}
+          onClick={() => onChange(page + 1)}
+          aria-label="下一页"
+          title="下一页"
+        >
+          {isMini ? '›' : '下一页'}
+        </button>
       </div>
     )}
   </nav>

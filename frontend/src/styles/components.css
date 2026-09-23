@@ -136,6 +136,26 @@
 .ui-pagination span { color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }
 .ui-pagination strong { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
 
+/* Compact mode: optimized for sidebars, catalogs, and narrow panes (260px - 450px) */
+.ui-pagination--compact { min-height: 2.5rem; padding: var(--space-2) var(--space-3); gap: var(--space-2); justify-content: space-between; flex-wrap: nowrap; }
+.ui-pagination--compact .ui-pagination__total { font-size: var(--font-size-xsmall); flex-shrink: 0; }
+.ui-pagination--compact .ui-pagination__size { flex-shrink: 0; gap: 0; }
+.ui-pagination--compact .ui-pagination__size select { height: 1.75rem; padding: 0 var(--space-1); font-size: var(--font-size-xsmall); }
+.ui-pagination--compact .ui-pagination__nav { gap: var(--space-1); flex-shrink: 0; }
+.ui-pagination--compact button { min-width: auto; height: 1.75rem; padding: 0 var(--space-2); font-size: var(--font-size-xsmall); border-radius: var(--radius-sm); }
+.ui-pagination--compact .ui-pagination__page-indicator,
+.ui-pagination--compact span { font-size: var(--font-size-xsmall); }
+
+/* Simple mode: without page size changer, streamlined for cards and dialogs */
+.ui-pagination--simple { min-height: 2.5rem; padding: var(--space-2) var(--space-3); gap: var(--space-3); justify-content: space-between; flex-wrap: nowrap; }
+.ui-pagination--simple button { min-width: auto; padding: 0 var(--space-3); height: 1.75rem; font-size: var(--font-size-xsmall); }
+
+/* Mini mode: ultra-compact pagination with small arrow buttons */
+.ui-pagination--mini { min-height: 2rem; padding: var(--space-1) var(--space-2); gap: var(--space-2); justify-content: flex-end; border-top: none; background: transparent; flex-wrap: nowrap; }
+.ui-pagination--mini .ui-pagination__nav { gap: 2px; }
+.ui-pagination--mini button { min-width: 1.5rem; width: 1.5rem; height: 1.5rem; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: var(--font-size-base); border-radius: var(--radius-sm); }
+.ui-pagination--mini .ui-pagination__page-indicator { font-size: var(--font-size-xsmall); padding: 0 4px; }
+
 .query-status-summary { display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-size-small); color: var(--color-text-secondary); white-space: nowrap; }
 .query-status-summary__item { display: inline-flex; align-items: center; gap: var(--space-1); }
 .query-status-summary__item span { color: var(--color-text-secondary); }

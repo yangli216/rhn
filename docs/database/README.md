@@ -38,7 +38,7 @@ node scripts/rebuild-database.mjs
 node scripts/rebuild-database.mjs --check
 ```
 
-重建包分为结构与规范基线、开发样例、H2 类型适配三层，当前版本为 `1.77.1`。Oracle 空库启动时使用 `oracle-local,rebuild-oracle`，PostgreSQL 使用 `rebuild-postgres`，H2 使用 `rebuild`。重建包不包含清库动作，删除旧 Oracle 开发数据必须由 DBA 或明确的开发环境操作完成；应用启动只负责在空 Schema 上执行 Flyway。
+重建包分为结构与规范基线、开发样例、H2 类型适配三层，当前结构与规范基线版本为 `1.79.0`。Oracle 空库启动时使用 `oracle-local,rebuild-oracle`，PostgreSQL 使用 `rebuild-postgres`，H2 使用 `rebuild`。重建包不包含清库动作，删除旧 Oracle 开发数据必须由 DBA 或明确的开发环境操作完成；应用启动只负责在空 Schema 上执行 Flyway。
 
 现有 `db/migration`、`db/oracle`、`db/local`、`db/oracle-local`、`db/h2` 历史目录继续保留，供已经存在数据的环境增量升级。不要删除 Flyway 历史后在非空库上混用重建包；需要重建时应使用可丢弃的空 Schema，并只导入规范基础数据和开发样例。
 

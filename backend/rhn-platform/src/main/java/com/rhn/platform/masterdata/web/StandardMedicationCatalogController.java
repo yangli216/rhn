@@ -83,4 +83,19 @@ public class StandardMedicationCatalogController {
         detail.set("source", reviews.summary(context.tenantId()).path("source"));
         return detail;
     }
+
+    @GetMapping("/source-document")
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> sourceDocument() {
+        contextProvider.requireCurrent();
+        var resource = new org.springframework.core.io.ClassPathResource("catalogs/national-essential-medications-2026.pdf");
+        if (!resource.exists()) {
+            throw com.rhn.shared.api.BusinessErrors.notFound("STANDARD_CATALOG_DOCUMENT_NOT_FOUND", "官方原件文档不存在");
+        }
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "application/pdf")
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"national-essential-medications-2026.pdf\"")
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                .eTag("25671de0d85d12e409d79764d48865522e03122d8e9c1b0957a7ad1c8bf97e8e")
+                .body(resource);
+    }
 }

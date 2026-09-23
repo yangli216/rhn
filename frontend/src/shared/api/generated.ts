@@ -404,6 +404,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/master-data/medications/{id}/composition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["composition"];
+        put: operations["save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/master-data/medication-products/{id}": {
         parameters: {
             query?: never;
@@ -804,6 +820,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/encounters/{encounterId}/service-requests/{id}/document-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateDocumentInfo"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/{encounterId}/prescriptions/{id}/document-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateDocumentInfo_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/encounters/{encounterId}/clinical-record": {
         parameters: {
             query?: never;
@@ -845,6 +893,22 @@ export interface paths {
         };
         get?: never;
         put: operations["update_7"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pages/saved/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["analyticsPagesUpdate"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1284,6 +1348,406 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/quality/pharmacy-tasks/{task}/reviews/{review}/improvement-intakes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["history"];
+        put?: never;
+        post: operations["analyze"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/prescription-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["prescriptionPreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["generate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/candidates/{id}/trial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["trial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/candidates/{id}/suite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["suite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/candidates/{id}/shadow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["shadow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/candidates/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/active-rules/trial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["activeRuleTrial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-intakes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["history_1"];
+        put?: never;
+        post: operations["analyze_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-catalog/{key}/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ruleCatalogCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-catalog/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ruleCatalogCreateDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/tests/suites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["suites"];
+        put?: never;
+        post: operations["save_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/tests/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["runs"];
+        put?: never;
+        post: operations["execute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/review/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["command"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/deployments/formal-commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["command_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/deployments/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["command_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{candidate}/deployments/{deployment}/observations/{run}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail"];
+        put?: never;
+        post: operations["command_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{candidate}/deployments/{deployment}/observations/{run}/feedback/improvement-intakes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["history_2"];
+        put?: never;
+        post: operations["analyze_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-extractions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_1"];
+        put?: never;
+        post: operations["extract"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_2"];
+        put?: never;
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["save_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/{id}/rule-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/{id}/replays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["history_3"];
+        put?: never;
+        post: operations["replay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["validate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/presence/users/{userId}/terminate": {
         parameters: {
             query?: never;
@@ -1629,7 +2093,7 @@ export interface paths {
         };
         get: operations["batches"];
         put?: never;
-        post: operations["create_1"];
+        post: operations["create_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1693,7 +2157,7 @@ export interface paths {
         };
         get: operations["drafts"];
         put?: never;
-        post: operations["create_2"];
+        post: operations["create_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1757,7 +2221,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["preview"];
+        post: operations["preview_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1997,7 +2461,7 @@ export interface paths {
         };
         get: operations["maintenance"];
         put?: never;
-        post: operations["create_3"];
+        post: operations["create_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2059,9 +2523,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_1"];
+        get: operations["list_3"];
         put?: never;
-        post: operations["create_4"];
+        post: operations["create_6"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/order-frequencies/{id}/preview-configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewConfiguration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2093,7 +2573,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["preview_1"];
+        post: operations["preview_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/order-frequencies/preview-definition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewDefinition"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2308,6 +2804,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/master-data/medications/{id}/standard-revision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preview_3"];
+        put?: never;
+        post: operations["submit_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medications/{id}/standard-revision/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["review"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medications/{id}/standard-binding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preview_4"];
+        put?: never;
+        post: operations["bind_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/specifications/{id}/medications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["standardMedicationCandidates"];
+        put?: never;
+        post: operations["saveStandardMedication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/source-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sourceReview"];
+        put?: never;
+        post: operations["sourceReview_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/editions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_4"];
+        put?: never;
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/editions/{id}/source-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["review_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/editions/{editionId}/entry-reviews/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/master-data/medication-products": {
         parameters: {
             query?: never;
@@ -2334,6 +2958,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["createProductSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-ingredients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ingredients"];
+        put?: never;
+        post: operations["create_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2763,9 +3403,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_2"];
+        get: operations["list_5"];
         put?: never;
-        post: operations["create_5"];
+        post: operations["create_8"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2811,9 +3451,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_3"];
+        get: operations["list_6"];
         put?: never;
-        post: operations["create_6"];
+        post: operations["create_9"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3243,9 +3883,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_4"];
+        get: operations["list_7"];
         put?: never;
-        post: operations["generate"];
+        post: operations["generate_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3323,9 +3963,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_5"];
+        get: operations["list_8"];
         put?: never;
-        post: operations["create_7"];
+        post: operations["create_10"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3371,9 +4011,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_6"];
+        get: operations["list_9"];
         put?: never;
-        post: operations["create_8"];
+        post: operations["create_11"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3483,9 +4123,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_7"];
+        get: operations["list_10"];
         put?: never;
-        post: operations["create_9"];
+        post: operations["create_12"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3501,7 +4141,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["submit_2"];
+        post: operations["submit_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3581,7 +4221,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve"];
+        post: operations["approve_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3659,9 +4299,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_8"];
+        get: operations["list_11"];
         put?: never;
-        post: operations["create_10"];
+        post: operations["create_13"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3677,7 +4317,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["submit_3"];
+        post: operations["submit_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3741,7 +4381,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve_1"];
+        post: operations["approve_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3771,9 +4411,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_9"];
+        get: operations["list_12"];
         put?: never;
-        post: operations["create_11"];
+        post: operations["create_14"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3789,7 +4429,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["submit_4"];
+        post: operations["submit_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3869,7 +4509,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve_2"];
+        post: operations["approve_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4011,9 +4651,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_10"];
+        get: operations["list_13"];
         put?: never;
-        post: operations["create_12"];
+        post: operations["create_15"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4029,7 +4669,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["submit_5"];
+        post: operations["submit_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4077,7 +4717,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve_3"];
+        post: operations["approve_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4093,7 +4733,7 @@ export interface paths {
         };
         get: operations["periods"];
         put?: never;
-        post: operations["create_13"];
+        post: operations["create_16"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4157,7 +4797,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["register"];
+        post: operations["register_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4212,6 +4852,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pharmacy/dispense/trace-codes/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["scanTraceCodes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pharmacy/dispense-tasks/{taskId}/reviews": {
         parameters: {
             query?: never;
@@ -4221,7 +4877,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["review"];
+        post: operations["review_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4299,9 +4955,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_11"];
+        get: operations["list_14"];
         put?: never;
-        post: operations["create_14"];
+        post: operations["create_17"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pharmacy/direct-goods-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["directGoodsReceipt"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4477,7 +5149,7 @@ export interface paths {
         };
         get: operations["byEncounter"];
         put?: never;
-        post: operations["create_15"];
+        post: operations["create_18"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4491,9 +5163,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_12"];
+        get: operations["list_15"];
         put?: never;
-        post: operations["create_16"];
+        post: operations["create_19"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4539,9 +5211,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_13"];
+        get: operations["list_16"];
         put?: never;
-        post: operations["create_17"];
+        post: operations["create_20"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4587,9 +5259,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_14"];
+        get: operations["list_17"];
         put?: never;
-        post: operations["create_18"];
+        post: operations["create_21"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4619,9 +5291,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_15"];
+        get: operations["list_18"];
         put?: never;
-        post: operations["create_19"];
+        post: operations["create_22"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4797,7 +5469,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["submit_6"];
+        post: operations["submit_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4925,7 +5597,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["execute"];
+        post: operations["execute_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5133,7 +5805,7 @@ export interface paths {
         };
         get: operations["byResident"];
         put?: never;
-        post: operations["register_1"];
+        post: operations["register_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5179,9 +5851,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_16"];
+        get: operations["list_19"];
         put?: never;
-        post: operations["create_20"];
+        post: operations["create_23"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5243,9 +5915,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_17"];
+        get: operations["list_20"];
         put?: never;
-        post: operations["create_21"];
+        post: operations["create_24"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5261,7 +5933,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["submit_7"];
+        post: operations["submit_8"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/{encounterId}/prescriptions/{prescriptionId}/safety-evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["evaluate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5339,9 +6027,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_18"];
+        get: operations["list_21"];
         put?: never;
-        post: operations["create_22"];
+        post: operations["create_25"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5390,6 +6078,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["cancel_9"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/direct-visit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["receive_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5485,7 +6189,7 @@ export interface paths {
         };
         get: operations["byScope"];
         put?: never;
-        post: operations["create_23"];
+        post: operations["create_26"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5563,7 +6267,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_19"];
+        get: operations["list_22"];
         put?: never;
         post: operations["issue_1"];
         delete?: never;
@@ -5629,7 +6333,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["create_24"];
+        post: operations["create_27"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5691,9 +6395,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_20"];
+        get: operations["list_23"];
         put?: never;
-        post: operations["create_25"];
+        post: operations["create_28"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6123,9 +6827,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_21"];
+        get: operations["list_24"];
         put?: never;
-        post: operations["create_26"];
+        post: operations["create_29"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6164,6 +6868,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/v2/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["analyticsV2Resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/v2/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["analyticsV2Plan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/v2/ontology/copilot/suggest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 人机共建：AI 辅助逆向推断属性规则建议 */
+        post: operations["analyticsV2OntologyCopilotSuggest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/v2/interpret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["analyticsV2Interpret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/v2/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["analyticsV2Execute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/v2/compile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["analyticsV2Compile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics/pilot/saved": {
         parameters: {
             query?: never;
@@ -6173,7 +6974,7 @@ export interface paths {
         };
         get: operations["saved"];
         put?: never;
-        post: operations["save"];
+        post: operations["save_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6222,6 +7023,38 @@ export interface paths {
         get: operations["analyticsPagesSaved"];
         put?: never;
         post: operations["analyticsPagesSave"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pages/saved/{id}/rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["analyticsPagesRename"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pages/saved/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["analyticsPagesArchive"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6299,9 +7132,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["history"];
+        get: operations["history_4"];
         put?: never;
-        post: operations["generate_1"];
+        post: operations["generate_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6580,6 +7413,502 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/quality/pharmacy-tasks/{task}/reviews/{review}/improvement-intakes/source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["source"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/medications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["medications_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["evaluations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["candidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/candidates/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["runs_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/ai-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/active-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["activeRules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-standard-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["inspect"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-intakes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-intakes/{id}/feedback-origin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["origin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-intakes/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["capabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ruleCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-catalog/{key}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ruleCatalogRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/tests/suites/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["suite_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/tests/runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["run"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preview_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/review/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["history_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/review/history/{eventId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["event"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preview_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/deployments/{deploymentId}/observations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["observations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/deployments/{deploymentId}/formal-material": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["material"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-rule-candidates/{id}/deployments/formal-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preview_7"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-extractions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-extractions/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/{id}/versions/{version}/intake-origin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["origin_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/{id}/rule-candidates/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preview_8"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/{id}/replays/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["history_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/replay-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-knowledge-drafts/examples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["examples"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/presence/users": {
         parameters: {
             query?: never;
@@ -6795,7 +8124,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["candidates"];
+        get: operations["candidates_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6932,6 +8261,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/master-data/medications/{id}/standard-revision/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["impact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medications/{id}/semantic-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["history_7"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/master-data/medications/search": {
         parameters: {
             query?: never;
@@ -6948,6 +8309,182 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/master-data/medication-standard-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["search_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["summary_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/source-document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sourceDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/editions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail_4"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/editions/{id}/original": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["original"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/editions/{id}/dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dependencies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/editions/{id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["content"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/editions/{id}/comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["compare"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/editions/{editionId}/entry-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/editions/runtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["runtime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/master-data/medication-routes/active": {
         parameters: {
             query?: never;
@@ -6956,6 +8493,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["active_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-products/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["searchProducts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7067,7 +8620,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_22"];
+        get: operations["list_25"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7083,7 +8636,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_2"];
+        get: operations["get_4"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7116,6 +8669,70 @@ export interface paths {
             cookie?: never;
         };
         get: operations["template"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/clinical-semantics/standards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["standards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/clinical-semantics/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["readiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/clinical-semantics/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["impact_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/clinical-semantics/impact/references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["references"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7387,7 +9004,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_3"];
+        get: operations["get_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7403,7 +9020,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_4"];
+        get: operations["get_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7435,7 +9052,39 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_5"];
+        get: operations["get_7"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pharmacy/purchase-orders/{orderId}/receivable-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["receivableOrderLines"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pharmacy/procurement-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["procurementCatalog"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7499,7 +9148,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["search_2"];
+        get: operations["search_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7515,7 +9164,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["detail"];
+        get: operations["detail_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7595,7 +9244,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_6"];
+        get: operations["get_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7675,7 +9324,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["summary_2"];
+        get: operations["summary_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7899,7 +9548,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_7"];
+        get: operations["get_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7963,7 +9612,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["summary_3"];
+        get: operations["summary_4"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8155,7 +9804,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["candidates_1"];
+        get: operations["candidates_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8171,7 +9820,23 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_8"];
+        get: operations["get_10"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/{encounterId}/prescriptions/{prescriptionId}/safety-evaluations/{evaluationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["find"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8204,6 +9869,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["byEncounter_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["page_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/direct-visit/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["settings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8267,7 +9964,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_9"];
+        get: operations["get_11"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8331,7 +10028,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_10"];
+        get: operations["get_12"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8363,7 +10060,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_11"];
+        get: operations["get_13"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8379,7 +10076,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_12"];
+        get: operations["get_14"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8443,7 +10140,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_13"];
+        get: operations["get_15"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8507,7 +10204,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_14"];
+        get: operations["get_16"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8555,7 +10252,24 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["summary_4"];
+        get: operations["summary_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/v2/ontology/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取数据关系网全量拓扑节点与连线元数据 */
+        get: operations["analyticsV2OntologyGraph"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8588,6 +10302,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["analyticsPagesSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pages/saved/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["analyticsPagesHistory"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8635,7 +10365,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["search_3"];
+        get: operations["search_4"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8651,7 +10381,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["capabilities"];
+        get: operations["capabilities_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8687,246 +10417,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["archive_1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/platform/master-data/medication-products/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["searchProducts"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/platform/master-data/medication-standard-catalog/specifications/{id}/medications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["standardMedicationCandidates"];
-        put?: never;
-        post: operations["saveStandardMedication"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/encounters/{encounterId}/service-requests/{id}/document-info": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["updateDocumentInfo"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/encounters/{encounterId}/prescriptions/{id}/document-info": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["updateDocumentInfo_1"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/pages/saved/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["analyticsPagesUpdate"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/pages/saved/{id}/rename": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["analyticsPagesRename"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/pages/saved/{id}/archive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["analyticsPagesArchive"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/pages/saved/{id}/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["analyticsPagesHistory"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/quality/medication-rule-catalog/{key}/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ruleCatalogRuns"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/platform/master-data/clinical-semantics/standards": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["standards"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/quality/medication-rule-catalog/drafts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["ruleCatalogCreateDraft"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/quality/medication-rule-catalog": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ruleCatalog"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/quality/medication-rule-catalog/{key}/commands": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["ruleCatalogCommand"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/pharmacy/procurement-catalog": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["procurementCatalog"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/pharmacy/purchase-orders/{orderId}/receivable-lines": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["receivableOrderLines"];
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -9280,12 +10770,12 @@ export interface components {
             exceptionCount?: number;
             rules?: components["schemas"]["RuleView"][];
             members?: components["schemas"]["MemberView"][];
+            /** @description 字典 BD_DISEASE_TRIGGER_ACTION 的显示文本 */
+            readonly sdTriggerActionText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
             /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
             readonly sdManagementTypeText?: string;
-            /** @description 字典 BD_DISEASE_TRIGGER_ACTION 的显示文本 */
-            readonly sdTriggerActionText?: string;
         };
         MemberView: {
             /** @example 824633720832983041 */
@@ -9808,6 +11298,18 @@ export interface components {
             /** Format: date */
             validTo?: string;
         };
+        Capability: {
+            version?: string;
+            status?: string;
+            reason?: string;
+            explanation?: string;
+            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
+            readonly sdVerifyStatusText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
+            readonly sdCapabilityTypeText?: string;
+        };
         ConfigurationView: {
             /** @example 824633720832983041 */
             id?: string;
@@ -9829,6 +11331,14 @@ export interface components {
             validFrom?: string;
             /** Format: date */
             validTo?: string;
+        };
+        Frequency: {
+            kind?: string;
+            dailyRateComputable?: boolean;
+            doses?: number;
+            perDays?: number;
+            scheduledTimes?: string[];
+            unknownReason?: string;
         };
         FrequencyView: {
             /** @example 824633720832983041 */
@@ -9861,6 +11371,15 @@ export interface components {
             /** Format: date */
             validTo?: string;
             configurations?: components["schemas"]["ConfigurationView"][];
+            standard?: components["schemas"]["StandardFrequency"];
+            scheduleCapability?: components["schemas"]["Capability"];
+        };
+        StandardFrequency: {
+            system?: string;
+            version?: string;
+            conceptId?: string;
+            status?: string;
+            interpretation?: components["schemas"]["Frequency"];
         };
         UpdateConfigurationRequest: {
             /** @example 824633720832983041 */
@@ -10334,6 +11853,34 @@ export interface components {
             sdStatus: string;
             standardSpecificationId?: string;
         };
+        JsonNode: {
+            array?: boolean;
+            empty?: boolean;
+            null?: boolean;
+            float?: boolean;
+            /** @enum {string} */
+            nodeType?: "ARRAY" | "BINARY" | "BOOLEAN" | "MISSING" | "NULL" | "NUMBER" | "OBJECT" | "POJO" | "STRING";
+            string?: boolean;
+            integralNumber?: boolean;
+            missingNode?: boolean;
+            valueNode?: boolean;
+            object?: boolean;
+            pojo?: boolean;
+            number?: boolean;
+            floatingPointNumber?: boolean;
+            short?: boolean;
+            int?: boolean;
+            long?: boolean;
+            double?: boolean;
+            bigDecimal?: boolean;
+            bigInteger?: boolean;
+            /** @deprecated */
+            textual?: boolean;
+            boolean?: boolean;
+            binary?: boolean;
+            container?: boolean;
+            embeddedValue?: boolean;
+        };
         MedicationClassification: {
             /** @example 824633720832983041 */
             conceptId?: string;
@@ -10407,6 +11954,24 @@ export interface components {
             /** @description 字典 BD_PRODUCT_MARKET_STATUS 的显示文本 */
             readonly sdMarketStatusText?: string;
         };
+        MedicationStandardReference: {
+            status?: string;
+            catalogId?: string;
+            catalogVersion?: string;
+            contentHash?: string;
+            entryId?: string;
+            specificationId?: string;
+            /** Format: int32 */
+            semanticVersion?: number;
+            name?: string;
+            doseForm?: string;
+            preparationSpec?: string;
+            presentationUnit?: string;
+            strength?: components["schemas"]["JsonNode"];
+            sourceVerificationStatus?: string;
+            issues?: string[];
+            sourceVerificationId?: string;
+        };
         MedicationView: {
             /** @example 824633720832983041 */
             id?: string;
@@ -10456,6 +12021,8 @@ export interface components {
             allergenConceptIds?: string[];
             products?: components["schemas"]["MedicationProductView"][];
             standardReference?: components["schemas"]["MedicationStandardReference"];
+            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
+            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
             /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
@@ -10464,8 +12031,19 @@ export interface components {
             readonly sdAntimicrobialLevelText?: string;
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly sdDoseFormText?: string;
-            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
-            readonly sdStorageTypeText?: string;
+        };
+        Component: {
+            ingredientId?: string;
+            numeratorValue?: number;
+            numeratorUnit?: string;
+            denominatorValue?: number;
+            denominatorUnit?: string;
+        };
+        Composition: {
+            /** @example 824633720832983041 */
+            revision?: string;
+            source?: string;
+            components?: components["schemas"]["Component"][];
         };
         UpdateProductRequest: {
             expectedRevision: number;
@@ -10533,34 +12111,6 @@ export interface components {
             readonly sdManufacturerTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
-        };
-        JsonNode: {
-            array?: boolean;
-            empty?: boolean;
-            null?: boolean;
-            float?: boolean;
-            number?: boolean;
-            valueNode?: boolean;
-            container?: boolean;
-            missingNode?: boolean;
-            object?: boolean;
-            /** @enum {string} */
-            nodeType?: "ARRAY" | "BINARY" | "BOOLEAN" | "MISSING" | "NULL" | "NUMBER" | "OBJECT" | "POJO" | "STRING";
-            string?: boolean;
-            integralNumber?: boolean;
-            pojo?: boolean;
-            floatingPointNumber?: boolean;
-            short?: boolean;
-            int?: boolean;
-            long?: boolean;
-            double?: boolean;
-            bigDecimal?: boolean;
-            bigInteger?: boolean;
-            /** @deprecated */
-            textual?: boolean;
-            boolean?: boolean;
-            binary?: boolean;
-            embeddedValue?: boolean;
         };
         SaveOverrideRequest: {
             subjectType: string;
@@ -11178,6 +12728,8 @@ export interface components {
             dependencyBehavior?: "DISABLE_AND_SUPPRESS" | "HIDE";
             dependsOnName?: string;
             dependencySatisfied?: boolean;
+            /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
+            readonly sdParamValueTypeText?: string;
             /** @description 字典 PARAM_SENSITIVITY 的显示文本 */
             readonly sdParamSensitivityText?: string;
             /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
@@ -11188,8 +12740,6 @@ export interface components {
             readonly sdParamConfigTypeText?: string;
             /** @description 字典 PARAM_STATUS 的显示文本 */
             readonly sdParamStatusText?: string;
-            /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
-            readonly sdParamValueTypeText?: string;
         };
         ParameterValueResponse: {
             /** @example 824633720832983041 */
@@ -11520,6 +13070,8 @@ export interface components {
             feeCurrencyCode?: string;
             feeConfigured?: boolean;
             feePriceDocumentCode?: string;
+            /** @description 字典 SC_BOOKING_POLICY 的显示文本 */
+            readonly sdBookingPolicyText?: string;
             /** @description 字典 SC_SLOT_MODE 的显示文本 */
             readonly sdSlotModeText?: string;
             /** @description 字典 SC_SCHEDULE_STATUS 的显示文本 */
@@ -11530,8 +13082,6 @@ export interface components {
             readonly sdManagementModeText?: string;
             /** @description 字典 SC_REGISTRATION_SCOPE 的显示文本 */
             readonly sdRegistrationScopeText?: string;
-            /** @description 字典 SC_BOOKING_POLICY 的显示文本 */
-            readonly sdBookingPolicyText?: string;
         };
         DiagnosisRequest: {
             code: string;
@@ -11589,6 +13139,267 @@ export interface components {
             diagnosisType?: string;
             verificationStatus?: string;
             diagnosisStatus?: string;
+        };
+        DiagnosisLink: {
+            code: string;
+            display: string;
+            primary?: boolean;
+        };
+        OrderDocumentInfo: {
+            diagnoses: components["schemas"]["DiagnosisLink"][];
+            externalPrescription?: boolean;
+            specialDisease?: string;
+            examinationPurpose?: string;
+        };
+        UpdateOrderDocumentInfo: {
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+            documentInfo: components["schemas"]["OrderDocumentInfo"];
+        };
+        ServiceRequestResponse: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            residentId?: string;
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            requestNo?: string;
+            status?: string;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            /** @example 824633720832983041 */
+            packageId?: string;
+            /** @example 824633720832983041 */
+            performerOrganizationId?: string;
+            /** @example 824633720832983041 */
+            performerDepartmentId?: string;
+            /** Format: date */
+            businessDate?: string;
+            /** Format: date-time */
+            authoredAt?: string;
+            /** @example 824633720832983041 */
+            authoredBy?: string;
+            reason?: string;
+            itemCode?: string;
+            itemName?: string;
+            unitCode?: string;
+            localCode?: string;
+            localName?: string;
+            /** @example 824633720832983041 */
+            adoptionId?: string;
+            /** Format: int64 */
+            adoptionRevision?: number;
+            /** @example 824633720832983041 */
+            priceId?: string;
+            /** @example 824633720832983041 */
+            priceRevision?: string;
+            priceType?: string;
+            quantity?: number;
+            unitPrice?: number;
+            totalAmount?: number;
+            currencyCode?: string;
+            itemAttributeSnapshot?: components["schemas"]["JsonNode"];
+            itemAttributeHash?: string;
+            /** Format: date-time */
+            itemAttributeResolvedAt?: string;
+            standardMappings?: components["schemas"]["JsonNode"];
+            serviceType?: string;
+            specimenType?: string;
+            examinationType?: string;
+            clinicalDescription?: string;
+            /** Format: date-time */
+            cancelledAt?: string;
+            /** @example 824633720832983041 */
+            cancelledBy?: string;
+            cancelReason?: string;
+            documentInfo?: components["schemas"]["OrderDocumentInfo"];
+            documentInfoEditable?: boolean;
+        };
+        Evidence: {
+            sourceType?: string;
+            sourceTitle?: string;
+            sourceVersion?: string;
+            sourceLocator?: string;
+            section?: string;
+            excerpt?: string;
+            usageScope?: string;
+        };
+        Finding: {
+            /** @example 824633720832983041 */
+            findingId?: string;
+            ruleCode?: string;
+            /** Format: int32 */
+            ruleVersion?: number;
+            category?: string;
+            /** @enum {string} */
+            severity?: "INFO" | "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
+            /** @enum {string} */
+            decision?: "PASS" | "WARN" | "REQUIRE_OVERRIDE" | "BLOCK" | "UNAVAILABLE";
+            message?: string;
+            medicationRequestIds?: string[];
+            evidence?: components["schemas"]["Evidence"][];
+            /** @enum {string} */
+            overridePolicy?: "NOT_ALLOWED" | "ACKNOWLEDGE" | "REASON_REQUIRED";
+            suggestedAction?: string;
+        };
+        MedicationRequestResponse: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            residentId?: string;
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            requestNo?: string;
+            status?: string;
+            /** @example 824633720832983041 */
+            prescriptionId?: string;
+            /** @example 824633720832983041 */
+            parentRequestId?: string;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            /** @example 824633720832983041 */
+            medicationId?: string;
+            /** @example 824633720832983041 */
+            packageId?: string;
+            /** @example 824633720832983041 */
+            performerOrganizationId?: string;
+            /** @example 824633720832983041 */
+            performerDepartmentId?: string;
+            /** Format: date */
+            businessDate?: string;
+            /** Format: date-time */
+            authoredAt?: string;
+            /** @example 824633720832983041 */
+            authoredBy?: string;
+            reason?: string;
+            itemCode?: string;
+            itemName?: string;
+            localCode?: string;
+            localName?: string;
+            /** @example 824633720832983041 */
+            adoptionId?: string;
+            /** @example 824633720832983041 */
+            adoptionRevision?: string;
+            /** @example 824633720832983041 */
+            priceId?: string;
+            /** @example 824633720832983041 */
+            priceRevision?: string;
+            priceType?: string;
+            unitPrice?: number;
+            priceQuantity?: number;
+            totalAmount?: number;
+            currencyCode?: string;
+            medicationCode?: string;
+            medicationName?: string;
+            medicationType?: string;
+            manufacturerName?: string;
+            doseForm?: string;
+            preparationSpec?: string;
+            preparationUnit?: string;
+            skinTestRequired?: boolean;
+            skinTestExempt?: boolean;
+            skinTestExemptReason?: string;
+            /** @example 824633720832983041 */
+            exemptEvidenceEventId?: string;
+            antimicrobial?: boolean;
+            antimicrobialLevel?: string;
+            doseValue?: number;
+            doseUnit?: string;
+            /** @example 824633720832983041 */
+            routeId?: string;
+            routeCode?: string;
+            routeName?: string;
+            routeExecutionType?: string;
+            frequencyCode?: string;
+            /** @example 824633720832983041 */
+            frequencyId?: string;
+            frequencyName?: string;
+            frequencyRule?: components["schemas"]["JsonNode"];
+            durationValue?: number;
+            durationUnit?: string;
+            quantity?: number;
+            quantityUnit?: string;
+            baseQuantity?: number;
+            baseUnit?: string;
+            packageFactor?: number;
+            packageUnitName?: string;
+            packageSpec?: string;
+            substitutionAllowed?: boolean;
+            selfProvided?: boolean;
+            medicationInstruction?: string;
+            medicationSnapshot?: components["schemas"]["JsonNode"];
+            itemAttributeSnapshot?: components["schemas"]["JsonNode"];
+            itemAttributeHash?: string;
+            /** Format: date-time */
+            itemAttributeResolvedAt?: string;
+            standardMappings?: components["schemas"]["JsonNode"];
+            /** Format: date-time */
+            cancelledAt?: string;
+            /** @example 824633720832983041 */
+            cancelledBy?: string;
+            cancelReason?: string;
+        };
+        MedicationSafetyDecision: {
+            /** @example 824633720832983041 */
+            evaluationId?: string;
+            /** @example 824633720832983041 */
+            prescriptionId?: string;
+            /** Format: int64 */
+            prescriptionRevision?: number;
+            inputHash?: string;
+            ruleSetVersion?: string;
+            engineVersion?: string;
+            mode?: string;
+            /** @enum {string} */
+            decision?: "PASS" | "WARN" | "REQUIRE_OVERRIDE" | "BLOCK" | "UNAVAILABLE";
+            findings?: components["schemas"]["Finding"][];
+            ruleExecutions?: components["schemas"]["RuleExecution"][];
+            failureCodes?: string[];
+        };
+        PrescriptionResponse: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            residentId?: string;
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            prescriptionNo?: string;
+            categoryCode?: string;
+            status?: string;
+            /** @example 824633720832983041 */
+            performerOrganizationId?: string;
+            /** @example 824633720832983041 */
+            performerDepartmentId?: string;
+            /** Format: date-time */
+            authoredAt?: string;
+            /** @example 824633720832983041 */
+            authoredBy?: string;
+            /** Format: date-time */
+            submittedAt?: string;
+            /** @example 824633720832983041 */
+            submittedBy?: string;
+            /** Format: date-time */
+            cancelledAt?: string;
+            /** @example 824633720832983041 */
+            cancelledBy?: string;
+            cancelReason?: string;
+            note?: string;
+            medicationRequests?: components["schemas"]["MedicationRequestResponse"][];
+            safetyEvaluation?: components["schemas"]["MedicationSafetyDecision"];
+            documentInfo?: components["schemas"]["OrderDocumentInfo"];
+        };
+        RuleExecution: {
+            ruleCode?: string;
+            /** Format: int32 */
+            ruleVersion?: number;
+            outcome?: string;
+            failureCode?: string;
         };
         DiagnosisInput: {
             /** @example 824633720832983041 */
@@ -11796,6 +13607,64 @@ export interface components {
             updatedAt?: string;
             read?: boolean;
         };
+        AnalysisPagePeriod: {
+            /** @enum {string} */
+            kind: "MONTH_TO_DATE" | "LAST_MONTH" | "LAST_30_DAYS" | "YEAR_TO_DATE" | "FIXED";
+            /** Format: date */
+            startDate?: string;
+            /** Format: date */
+            endDate?: string;
+        };
+        AnalysisPageSpec: {
+            title: string;
+            /** @enum {string} */
+            template: "AUTO" | "LIST" | "RANKING" | "TREND" | "COMPARISON" | "DASHBOARD" | "CUSTOM";
+            metrics: string[];
+            /** @enum {string} */
+            dimension: "DAY" | "MONTH" | "DEPARTMENT" | "DIAGNOSIS" | "ITEM" | "ORDER_TYPE" | "STATUS";
+            /** @enum {string} */
+            scope: "CURRENT" | "AUTHORIZED";
+            period: components["schemas"]["AnalysisPagePeriod"];
+            /** Format: int32 */
+            limit?: number;
+            measures?: components["schemas"]["AnalysisPlanMeasure"][];
+            widgets?: components["schemas"]["AnalysisPageWidget"][];
+        };
+        AnalysisPageWidget: {
+            title: string;
+            /** @enum {string} */
+            type: "KPI" | "BAR" | "LINE" | "TABLE";
+            metrics: string[];
+        };
+        AnalysisPlanFilter: {
+            field?: string;
+            /** @enum {string} */
+            operator?: "EQ" | "IN" | "CONTAINS" | "GTE" | "LTE";
+            values?: string[];
+        };
+        AnalysisPlanMeasure: {
+            code?: string;
+            name?: string;
+            source?: string;
+            /** Format: int32 */
+            sourceVersion?: number;
+            /** @enum {string} */
+            aggregate?: "COUNT" | "COUNT_DISTINCT" | "SUM" | "AVG";
+            field?: string;
+            filters?: components["schemas"]["AnalysisPlanFilter"][];
+        };
+        AnalysisPageSaved: {
+            /** @example 824633720832983041 */
+            id?: string;
+            spec?: components["schemas"]["AnalysisPageSpec"];
+            /** Format: date-time */
+            savedAt?: string;
+            /** @example 824633720832983041 */
+            functionId?: string;
+            /** Format: int32 */
+            version?: number;
+            archived?: boolean;
+        };
         StartRequest: {
             /** @example 824633720832983041 */
             expectedRevision: string;
@@ -11919,6 +13788,9 @@ export interface components {
             residentId?: string;
             residentName?: string;
             healthRecordNo?: string;
+            gender?: string;
+            /** Format: date */
+            birthDate?: string;
             /** @example 824633720832983041 */
             encounterId?: string;
             /** @example 824633720832983041 */
@@ -12228,6 +14100,843 @@ export interface components {
             priority?: number;
             ready?: boolean;
             commandCode: string;
+        };
+        Answer: {
+            questionId?: string;
+            value?: string;
+        };
+        PharmacyImprovementRequest: {
+            intake?: components["schemas"]["Request"];
+            /** @example 824633720832983041 */
+            findingId?: string;
+            confirmed?: boolean;
+        };
+        Request: {
+            requirement?: string;
+            /** @example 824633720832983041 */
+            parentId?: string;
+            answers?: components["schemas"]["Answer"][];
+        };
+        Citation: {
+            source?: string;
+            quote?: string;
+            /** Format: int32 */
+            start?: number;
+            /** Format: int32 */
+            end?: number;
+        };
+        Clarification: {
+            /** @example 824633720832983041 */
+            analysisId?: string;
+            questionId?: string;
+            question?: string;
+            answer?: string;
+        };
+        Condition: {
+            dimension?: string;
+            citation?: components["schemas"]["Citation"];
+        };
+        Input: {
+            requirement?: string;
+            clarifications?: components["schemas"]["Clarification"][];
+        };
+        Intent: {
+            kind?: string;
+            name?: string;
+            citation?: components["schemas"]["Citation"];
+            scope?: string;
+            scopeCitation?: components["schemas"]["Citation"];
+            conditions?: components["schemas"]["Condition"][];
+            capability?: components["schemas"]["Capability"];
+        };
+        Question: {
+            id?: string;
+            text?: string;
+            origin?: string;
+        };
+        Result: {
+            status?: string;
+            intents?: components["schemas"]["Intent"][];
+            questions?: components["schemas"]["Question"][];
+            notes?: string[];
+        };
+        Run: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            parentId?: string;
+            input?: components["schemas"]["Input"];
+            inputHash?: string;
+            model?: string;
+            promptVersion?: string;
+            capabilityVersion?: string;
+            result?: components["schemas"]["Result"];
+            resultHash?: string;
+            rawOutput?: string;
+            rawTruncated?: boolean;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            actor?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ShadowRequest: {
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            /** @example 824633720832983041 */
+            prescriptionId?: string;
+        };
+        PatientSimulationContext: {
+            /** Format: int32 */
+            patientAgeYears?: number;
+            gender?: string;
+            activeAllergies?: string[];
+        };
+        PrescriptionPreview: {
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            /** @example 824633720832983041 */
+            prescriptionId?: string;
+            /** @example 824633720832983041 */
+            residentId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            prescriptionStatus?: string;
+            patientContext?: components["schemas"]["PatientSimulationContext"];
+            items?: components["schemas"]["PrescriptionPreviewItem"][];
+        };
+        PrescriptionPreviewItem: {
+            /** @example 824633720832983041 */
+            medicationId?: string;
+            status?: string;
+            durationDays?: number;
+            routeCode?: string;
+            frequencyCode?: string;
+            medicationName?: string;
+            preparationSpec?: string;
+            historicalSnapshotAvailable?: boolean;
+        };
+        GenerateRequest: {
+            requirement?: string;
+            source?: string;
+            medicationIds?: string[];
+            /** @example 824633720832983041 */
+            parentId?: string;
+        };
+        AllergenTerm: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            parentId?: string;
+            categoryCode?: string;
+            conceptType?: string;
+            codeSystemUri?: string;
+            code?: string;
+            display?: string;
+            aliases?: string;
+        };
+        Candidate: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            parentId?: string;
+            /** Format: int32 */
+            version?: number;
+            requirement?: string;
+            source?: string;
+            model?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            rule?: components["schemas"]["RuleSpec"];
+            medications?: components["schemas"]["Knowledge"][];
+            status?: string;
+        };
+        Generation: {
+            status?: string;
+            message?: string;
+            candidate?: components["schemas"]["Candidate"];
+        };
+        ItemTermMappingView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            subjectId?: string;
+            subjectType?: string;
+            /** @example 824633720832983041 */
+            targetId?: string;
+            /** @example 824633720832983041 */
+            conceptId?: string;
+            /** @example 824633720832983041 */
+            codeSystemId?: string;
+            systemCode?: string;
+            systemName?: string;
+            systemVersion?: string;
+            authorityType?: string;
+            termCode?: string;
+            termDisplay?: string;
+            mappingType?: string;
+            equivalence?: string;
+            primaryMapping?: boolean;
+            limitation?: string;
+            /** Format: date */
+            validFrom?: string;
+            /** Format: date */
+            validTo?: string;
+            status?: string;
+            /** @example 824633720832983041 */
+            replacesMappingId?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** @example 824633720832983041 */
+            createdBy?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            /** @example 824633720832983041 */
+            updatedBy?: string;
+        };
+        Knowledge: {
+            medication?: components["schemas"]["MedicationSnapshot"];
+            /** Format: int64 */
+            revision?: number;
+            semanticStatus?: string;
+            /** Format: date-time */
+            capturedAt?: string;
+            classifications?: components["schemas"]["MedicationClassification"][];
+            allergens?: components["schemas"]["AllergenTerm"][];
+            standardMappings?: components["schemas"]["ItemTermMappingView"][];
+            standardReference?: components["schemas"]["MedicationStandardReference"];
+        };
+        MedicationSnapshot: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            itemTypeId?: string;
+            code?: string;
+            name?: string;
+            aliasName?: string;
+            medicationType?: string;
+            doseForm?: string;
+            preparationSpec?: string;
+            preparationUnit?: string;
+            strengthValue?: number;
+            strengthUnit?: string;
+            storageType?: string;
+            prescriptionDrug?: boolean;
+            essentialDrug?: boolean;
+            antimicrobial?: boolean;
+            antimicrobialLevel?: string;
+            antimicrobialOutpatientAllowed?: boolean;
+            antimicrobialConsultationRequired?: boolean;
+            antimicrobialEmergencyAllowed?: boolean;
+            /** Format: int32 */
+            antimicrobialMaxDays?: number;
+            skinTestRequired?: boolean;
+            skinTestMethod?: string;
+            skinTestSolutionMode?: string;
+            /** Format: int32 */
+            skinTestObservationMinutes?: number;
+            /** Format: int32 */
+            skinTestResultValidityHours?: number;
+            skinTestInstructions?: string;
+            defaultDose?: number;
+            defaultDoseUnit?: string;
+            defaultRoute?: string;
+            /** @example 824633720832983041 */
+            defaultFrequencyId?: string;
+            defaultFrequency?: string;
+            chronicDiseaseDrug?: boolean;
+            singleOrder?: boolean;
+            status?: string;
+        };
+        RuleSpec: {
+            template?: string;
+            name?: string;
+            explanation?: string;
+            /** Format: int32 */
+            duplicateCount?: number;
+            message?: string;
+            decision?: string;
+            ruleExpression?: string;
+            categoryName?: string;
+            /** Format: int32 */
+            minAge?: number;
+            /** Format: int32 */
+            maxAge?: number;
+        };
+        TrialItem: {
+            /** @example 824633720832983041 */
+            medicationId?: string;
+            status?: string;
+            durationDays?: number;
+            routeCode?: string;
+            frequencyCode?: string;
+        };
+        TrialRequest: {
+            items?: components["schemas"]["TrialItem"][];
+            patientContext?: components["schemas"]["PatientSimulationContext"];
+        };
+        CaseResult: {
+            name?: string;
+            expected?: string;
+            actual?: string;
+            passed?: boolean;
+            matchedRows?: number[];
+            reasons?: string[];
+            input?: components["schemas"]["TrialItem"][];
+        };
+        TrialRun: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            candidateId?: string;
+            mode?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** @example 824633720832983041 */
+            prescriptionId?: string;
+            inputHash?: string;
+            cases?: components["schemas"]["CaseResult"][];
+        };
+        ActiveRuleTrialRequest: {
+            ruleCodes?: string[];
+            items?: components["schemas"]["TrialItem"][];
+            patientContext?: components["schemas"]["PatientSimulationContext"];
+        };
+        ActiveRuleTrialCase: {
+            ruleCode?: string;
+            ruleName?: string;
+            /** Format: int32 */
+            version?: number;
+            outcome?: string;
+            failureCode?: string;
+            decision?: string;
+            matchedRows?: number[];
+            reasons?: string[];
+        };
+        ActiveRuleTrialRun: {
+            mode?: string;
+            scope?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            ruleSetVersion?: string;
+            decision?: string;
+            cases?: components["schemas"]["ActiveRuleTrialCase"][];
+        };
+        CatalogCommand: {
+            /** Format: int64 */
+            expectedRevision?: number;
+            operation?: string;
+            versionId?: string;
+            /** @example 824633720832983041 */
+            deploymentId?: string;
+            reason?: string;
+            action?: string;
+            evidence?: components["schemas"]["Evidence"][];
+            standardVerified?: boolean;
+            evidenceVerified?: boolean;
+            mode?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: date-time */
+            effectiveTo?: string;
+        };
+        Age: {
+            /** @enum {string} */
+            mode?: "ALL" | "RANGE";
+            unit?: string;
+            /** Format: int32 */
+            minimumInclusive?: number;
+            /** Format: int32 */
+            maximumExclusive?: number;
+        };
+        Assessment: {
+            structureComplete?: boolean;
+            issues?: components["schemas"]["Issue"][];
+            ruleDescription?: string;
+            groupA?: components["schemas"]["ResolvedTarget"][];
+            groupB?: components["schemas"]["ResolvedTarget"][];
+            groupARoutes?: components["schemas"]["RouteSnapshot"][];
+            groupBRoutes?: components["schemas"]["RouteSnapshot"][];
+        };
+        AuditEvent: {
+            /** @example 824633720832983041 */
+            id?: string;
+            operation?: string;
+            versionId?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            /** Format: date-time */
+            time?: string;
+            reason?: string;
+        };
+        Basis: {
+            candidate?: components["schemas"]["KnowledgeRuleCandidate"];
+            validation?: components["schemas"]["Run"];
+            possibleConflicts?: components["schemas"]["Conflict"][];
+            fingerprint?: string;
+        };
+        Body: {
+            title?: string;
+            kind?: string;
+            matchMode?: string;
+            groupA?: components["schemas"]["Target"][];
+            groupB?: components["schemas"]["Target"][];
+            /** Format: int32 */
+            minimumOrders?: number;
+            exposureScope?: string;
+            conditions?: components["schemas"]["Conditions"];
+            evidence?: components["schemas"]["Evidence"];
+            clinicalMeaning?: string;
+            severity?: string;
+            proposedAction?: string;
+        };
+        Case: {
+            title?: string;
+            rationale?: string;
+            input?: components["schemas"]["FixtureInput"];
+            expectedOutcome?: string;
+            expectedOrderIds?: string[];
+            medicationLabels?: {
+                [key: string]: string;
+            };
+        };
+        CatalogEntry: {
+            key?: string;
+            code?: string;
+            name?: string;
+            origin?: string;
+            /** Format: int64 */
+            revision?: number;
+            versions?: components["schemas"]["CatalogVersion"][];
+            deployments?: components["schemas"]["Deployment"][];
+            history?: components["schemas"]["AuditEvent"][];
+        };
+        CatalogVersion: {
+            id?: string;
+            /** Format: int32 */
+            version?: number;
+            name?: string;
+            reviewStatus?: string;
+            testsPassed?: boolean;
+            origin?: string;
+            candidate?: components["schemas"]["Candidate"];
+            builtin?: components["schemas"]["RuleVersion"];
+            review?: components["schemas"]["Review"];
+            knowledgeCandidate?: components["schemas"]["KnowledgeRuleCandidate"];
+            manualValidation?: components["schemas"]["ValidationStatus"];
+        };
+        Conditions: {
+            ageMode?: string;
+            ageUnit?: string;
+            /** Format: int32 */
+            minimumAgeInclusive?: number;
+            /** Format: int32 */
+            maximumAgeExclusive?: number;
+            groupARoutes?: components["schemas"]["RouteCondition"];
+            groupBRoutes?: components["schemas"]["RouteCondition"];
+            additionalConditions?: string;
+        };
+        Conflict: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int32 */
+            version?: number;
+            title?: string;
+            reason?: string;
+        };
+        Deployment: {
+            /** @example 824633720832983041 */
+            id?: string;
+            versionId?: string;
+            /** Format: int32 */
+            version?: number;
+            mode?: string;
+            status?: string;
+            action?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: date-time */
+            effectiveTo?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            reason?: string;
+            candidate?: components["schemas"]["Candidate"];
+            executable?: components["schemas"]["RuleVersion"];
+            knowledgeRelease?: components["schemas"]["Release"];
+        };
+        Event: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            candidateId?: string;
+            operation?: string;
+            /** @example 824633720832983041 */
+            submissionId?: string;
+            basis?: components["schemas"]["Basis"];
+            action?: string;
+            unavailableAction?: string;
+            standardVerified?: boolean;
+            evidenceVerified?: boolean;
+            testsVerified?: boolean;
+            assessment?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            actor?: string;
+            /** Format: date-time */
+            time?: string;
+            reason?: string;
+        };
+        Facts: {
+            /** Format: int32 */
+            age?: number;
+            ageUnit?: string;
+            /** Format: date */
+            date?: string;
+            medications?: components["schemas"]["Row"][];
+        };
+        FixtureInput: {
+            age?: number;
+            ageUnit?: string;
+            /** Format: date */
+            date?: string;
+            medications?: components["schemas"]["Row"][];
+        };
+        Group: {
+            targets?: components["schemas"]["ResolvedTarget"][];
+            /** @enum {string} */
+            routeMode?: "ALL" | "LIST";
+            routes?: components["schemas"]["RouteSnapshot"][];
+        };
+        Issue: {
+            field?: string;
+            code?: string;
+            message?: string;
+        };
+        KnowledgeRuleCandidate: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            knowledgeId?: string;
+            /** Format: int32 */
+            version?: number;
+            knowledge?: components["schemas"]["Version"];
+            knowledgeHash?: string;
+            program?: components["schemas"]["Program"];
+            programHash?: string;
+            cases?: components["schemas"]["TestCase"][];
+            /** @example 824633720832983041 */
+            actorId?: string;
+            actor?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            reason?: string;
+        };
+        Program: {
+            schemaVersion?: string;
+            /** @enum {string} */
+            operator?: "SAME_STANDARD_ENTRY" | "EXPLICIT_GROUP" | "GROUP_PAIR";
+            exposureScope?: string;
+            groupA?: components["schemas"]["Group"];
+            groupB?: components["schemas"]["Group"];
+            /** Format: int32 */
+            minimumOrders?: number;
+            age?: components["schemas"]["Age"];
+            /** Format: date */
+            effectiveFrom?: string;
+            /** Format: date */
+            effectiveTo?: string;
+            proposedAction?: string;
+            requiredFacts?: string[];
+        };
+        Reference: {
+            catalogId?: string;
+            catalogVersion?: string;
+            contentHash?: string;
+            sourceHash?: string;
+            entryId?: string;
+            specificationId?: string;
+            name?: string;
+            doseForm?: string;
+            preparationSpec?: string;
+        };
+        Release: {
+            approval?: components["schemas"]["Event"];
+            factAdapterVersion?: string;
+            fingerprint?: string;
+            /** @example 824633720832983041 */
+            authorizationId?: string;
+        };
+        ResolvedTarget: {
+            level?: string;
+            reference?: components["schemas"]["Reference"];
+        };
+        Review: {
+            versionId?: string;
+            status?: string;
+            action?: string;
+            evidence?: components["schemas"]["Evidence"][];
+            standardVerified?: boolean;
+            evidenceVerified?: boolean;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            /** Format: date-time */
+            recordedAt?: string;
+            reason?: string;
+            /** @example 824633720832983041 */
+            knowledgeReviewId?: string;
+        };
+        RouteCondition: {
+            mode?: string;
+            codes?: string[];
+        };
+        RouteSnapshot: {
+            /** @example 824633720832983041 */
+            id?: string;
+            code?: string;
+            name?: string;
+            systemCode?: string;
+            systemVersion?: string;
+            executionType?: string;
+        };
+        Row: {
+            orderId?: string;
+            catalogId?: string;
+            catalogVersion?: string;
+            contentHash?: string;
+            entryId?: string;
+            specificationId?: string;
+            routeCode?: string;
+            status?: string;
+        };
+        RuleDefinition: {
+            /** @example 824633720832983041 */
+            id?: string;
+            code?: string;
+            category?: string;
+            title?: string;
+        };
+        RuleVersion: {
+            /** @example 824633720832983041 */
+            id?: string;
+            definition?: components["schemas"]["RuleDefinition"];
+            /** Format: int32 */
+            version?: number;
+            ruleSetVersion?: string;
+            implementationKey?: string;
+            status?: string;
+            /** @enum {string} */
+            severity?: "INFO" | "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
+            /** @enum {string} */
+            decision?: "PASS" | "WARN" | "REQUIRE_OVERRIDE" | "BLOCK" | "UNAVAILABLE";
+            /** @enum {string} */
+            overridePolicy?: "NOT_ALLOWED" | "ACKNOWLEDGE" | "REASON_REQUIRED";
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: date-time */
+            effectiveTo?: string;
+            evidence?: components["schemas"]["Evidence"][];
+        };
+        Suite: {
+            /** @example 824633720832983041 */
+            candidateId?: string;
+            /** Format: int32 */
+            version?: number;
+            programHash?: string;
+            knowledgeHash?: string;
+            cases?: components["schemas"]["Case"][];
+            /** @example 824633720832983041 */
+            actorId?: string;
+            actor?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            reason?: string;
+        };
+        Target: {
+            level?: string;
+            specificationId?: string;
+            catalogId?: string;
+            catalogVersion?: string;
+            contentHash?: string;
+        };
+        TestCase: {
+            name?: string;
+            input?: components["schemas"]["Facts"];
+            expected?: string;
+            actual?: components["schemas"]["Result"];
+            passed?: boolean;
+        };
+        ValidationStatus: {
+            status?: string;
+            /** Format: int32 */
+            suiteVersion?: number;
+            /** @example 824633720832983041 */
+            runId?: string;
+            /** Format: int32 */
+            caseCount?: number;
+            /** Format: int32 */
+            passedCount?: number;
+        };
+        Version: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int32 */
+            version?: number;
+            status?: string;
+            body?: components["schemas"]["Body"];
+            assessment?: components["schemas"]["Assessment"];
+            /** @example 824633720832983041 */
+            actorId?: string;
+            actor?: string;
+            /** Format: date-time */
+            savedAt?: string;
+            changeReason?: string;
+            /** @example 824633720832983041 */
+            extractionId?: string;
+        };
+        DraftCommand: {
+            /** @example 824633720832983041 */
+            parentId?: string;
+            requirement?: string;
+            source?: string;
+            rule?: components["schemas"]["RuleSpec"];
+            medicationIds?: string[];
+        };
+        Save: {
+            /** Format: int32 */
+            expectedVersion?: number;
+            programHash?: string;
+            reason?: string;
+            cases?: components["schemas"]["Case"][];
+        };
+        SuiteDetail: {
+            suite?: components["schemas"]["Suite"];
+            suiteHash?: string;
+        };
+        Execute: {
+            /** Format: int32 */
+            suiteVersion?: number;
+            suiteHash?: string;
+            reason?: string;
+        };
+        Command: {
+            /** Format: int64 */
+            expectedRevision?: number;
+            operation?: string;
+            expectedBasisHash?: string;
+            reason?: string;
+            action?: string;
+            unavailableAction?: string;
+            standardVerified?: boolean;
+            evidenceVerified?: boolean;
+            testsVerified?: boolean;
+            assessment?: string;
+        };
+        Detail: {
+            basis?: components["schemas"]["Basis"];
+            observation?: components["schemas"]["Observation"];
+            input?: components["schemas"]["Input"];
+            frozenCandidate?: components["schemas"]["KnowledgeRuleCandidate"];
+            gaps?: string[];
+            allowedVerdicts?: string[];
+            latest?: components["schemas"]["Event"];
+            canWithdraw?: boolean;
+            history?: components["schemas"]["PageResultEvent"];
+        };
+        Item: {
+            orderId?: string;
+            /** Format: int64 */
+            revision?: number;
+            originalStatus?: string;
+            medicationName?: string;
+            semanticVersion?: string;
+            fact?: components["schemas"]["Row"];
+            route?: components["schemas"]["Route"];
+            gaps?: string[];
+        };
+        Observation: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            deploymentId?: string;
+            /** @example 824633720832983041 */
+            prescriptionId?: string;
+            /** Format: date-time */
+            time?: string;
+            outcome?: string;
+            reasons?: string[];
+            matchedOrderIds?: string[];
+            feedback?: components["schemas"]["State"];
+        };
+        PageResultEvent: {
+            content?: components["schemas"]["Event"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        Route: {
+            conceptId?: string;
+            code?: string;
+            system?: string;
+            version?: string;
+        };
+        State: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int32 */
+            revision?: number;
+            operation?: string;
+            verdict?: string;
+            actor?: string;
+            /** Format: date-time */
+            time?: string;
+        };
+        ImprovementRequest: {
+            intake?: components["schemas"]["Request"];
+            /** @example 824633720832983041 */
+            feedbackId?: string;
+            expectedBasisHash?: string;
+            confirmed?: boolean;
+        };
+        Create: {
+            /** Format: int32 */
+            expectedKnowledgeVersion?: number;
+            expectedProgramHash?: string;
+            reason?: string;
+        };
+        Source: {
+            /** @example 824633720832983041 */
+            evaluationId?: string;
+            /** @example 824633720832983041 */
+            prescriptionId?: string;
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            /** Format: int64 */
+            prescriptionRevision?: number;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            /** Format: date-time */
+            evaluatedAt?: string;
+            inputHash?: string;
+            originalMode?: string;
         };
         TerminatePresenceRequest: {
             reason: string;
@@ -12683,25 +15392,6 @@ export interface components {
             /** @description 字典 ORG_ADDRESS_TYPE 的显示文本 */
             readonly sdAddressTypeText?: string;
         };
-        Capability: {
-            /** @example 824633720832983041 */
-            id?: string;
-            sdCapabilityType?: string;
-            qualificationBasisCode?: string;
-            capabilityScope?: string;
-            /** Format: date */
-            validFrom?: string;
-            /** Format: date */
-            validTo?: string;
-            sdVerifyStatus?: string;
-            sdDetailStatus?: string;
-            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
-            readonly sdVerifyStatusText?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
-            /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
-            readonly sdCapabilityTypeText?: string;
-        };
         Contact: {
             /** @example 824633720832983041 */
             id?: string;
@@ -12880,46 +15570,6 @@ export interface components {
             effectiveMappings?: components["schemas"]["ItemTermMappingView"][];
             history?: components["schemas"]["ItemTermMappingView"][];
         };
-        ItemTermMappingView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            /** @example 824633720832983041 */
-            subjectId?: string;
-            subjectType?: string;
-            /** @example 824633720832983041 */
-            targetId?: string;
-            /** @example 824633720832983041 */
-            conceptId?: string;
-            /** @example 824633720832983041 */
-            codeSystemId?: string;
-            systemCode?: string;
-            systemName?: string;
-            systemVersion?: string;
-            authorityType?: string;
-            termCode?: string;
-            termDisplay?: string;
-            mappingType?: string;
-            equivalence?: string;
-            primaryMapping?: boolean;
-            limitation?: string;
-            /** Format: date */
-            validFrom?: string;
-            /** Format: date */
-            validTo?: string;
-            status?: string;
-            /** @example 824633720832983041 */
-            replacesMappingId?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            /** @example 824633720832983041 */
-            createdBy?: string;
-            /** Format: date-time */
-            updatedAt?: string;
-            /** @example 824633720832983041 */
-            updatedBy?: string;
-        };
         MappingStatusRequest: {
             expectedRevision: number;
             status: string;
@@ -12988,6 +15638,15 @@ export interface components {
             /** Format: date */
             validTo?: string;
         };
+        ConfigurationPreviewRequest: {
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+            configuration: components["schemas"]["ConfigurationRequest"];
+            /** Format: date-time */
+            start?: string;
+            /** Format: int32 */
+            occurrences?: number;
+        };
         ConfigurationRequest: {
             /** @example 824633720832983041 */
             organizationId: string;
@@ -13010,6 +15669,16 @@ export interface components {
             ruleType?: string;
             explanation?: string;
             plannedTimes?: string[];
+            capability?: components["schemas"]["Capability"];
+            standard?: components["schemas"]["StandardFrequency"];
+            source?: string;
+        };
+        DefinitionPreviewRequest: {
+            definition: components["schemas"]["FrequencyRequest"];
+            /** Format: date-time */
+            start?: string;
+            /** Format: int32 */
+            occurrences?: number;
         };
         UnitRequest: {
             code: string;
@@ -13255,6 +15924,161 @@ export interface components {
             sdStatus: string;
             standardSpecificationId?: string;
         };
+        Identity: {
+            catalogId?: string;
+            catalogVersion?: string;
+            contentHash?: string;
+            sourceHash?: string;
+        };
+        Submit: {
+            /** @example 824633720832983041 */
+            expectedMedicationRevision?: string;
+            /** @example 824633720832983041 */
+            expectedEventId?: string;
+            expectedSourceFingerprint?: string;
+            identity?: components["schemas"]["Identity"];
+            specificationId?: string;
+            reason?: string;
+            impactNotes?: string;
+            confirmedIdentity?: boolean;
+            expectedImpactFingerprint?: string;
+        };
+        Area: {
+            scope?: components["schemas"]["Scope"];
+            coverage?: string[];
+            limitations?: string[];
+            dependencies?: components["schemas"]["Item"][];
+        };
+        ImpactSnapshot: {
+            version?: string;
+            /** Format: date-time */
+            inspectedAt?: string;
+            areas?: components["schemas"]["Area"][];
+            fingerprint?: string;
+        };
+        Preview: {
+            binding?: components["schemas"]["Preview"];
+            currentLinks?: components["schemas"]["SourceLink"][];
+            sourceFingerprint?: string;
+            eligibleSpecificationIds?: string[];
+            latest?: components["schemas"]["Event"];
+            staleIssues?: string[];
+            allowedActions?: string[];
+            history?: components["schemas"]["Event"][];
+            /** Format: int64 */
+            totalEvents?: number;
+            /** Format: int32 */
+            historyPage?: number;
+            currentImpact?: components["schemas"]["ImpactSnapshot"];
+        };
+        Scope: {
+            catalogId?: string;
+            entryId?: string;
+            specificationId?: string;
+        };
+        SourceLink: {
+            /** @example 824633720832983041 */
+            id?: string;
+            catalogId?: string;
+            catalogVersion?: string;
+            entryId?: string;
+            specificationId?: string;
+            contentHash?: string;
+            /** @example 824633720832983041 */
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        Bind: {
+            /** @example 824633720832983041 */
+            expectedRevision?: string;
+            identity?: components["schemas"]["Identity"];
+            specificationId?: string;
+            reason?: string;
+            confirmedIdentity?: boolean;
+        };
+        StandardMedicationSetupRequest: {
+            /** @example 824633720832983041 */
+            medicationId?: string;
+            /** @example 824633720832983041 */
+            expectedRevision?: string;
+            medication: components["schemas"]["MedicationRequest"];
+        };
+        Change: {
+            identity?: components["schemas"]["Identity"];
+            /** Format: int32 */
+            expectedRevision?: number;
+            action?: string;
+            evidence?: components["schemas"]["Evidence"];
+            reason?: string;
+        };
+        View: {
+            identity?: components["schemas"]["Identity"];
+            /** Format: int32 */
+            revision?: number;
+            status?: string;
+            latest?: components["schemas"]["Event"];
+            history?: components["schemas"]["Event"][];
+            /** Format: int32 */
+            totalEvents?: number;
+            /** Format: int32 */
+            historyPage?: number;
+            /** Format: int32 */
+            historyPageSize?: number;
+            allowedActions?: string[];
+        };
+        Import: {
+            fileName?: string;
+            content?: string;
+            reason?: string;
+            expectedRuntimeHash?: string;
+        };
+        Edition: {
+            /** @example 824633720832983041 */
+            id?: string;
+            identity?: components["schemas"]["Identity"];
+            packageHash?: string;
+            declaredContentHash?: string;
+            fileName?: string;
+            reason?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            actor?: string;
+            /** Format: date-time */
+            importedAt?: string;
+            /** Format: int32 */
+            entries?: number;
+            /** Format: int32 */
+            specifications?: number;
+            /** Format: int32 */
+            issues?: number;
+            runtime?: boolean;
+            origin?: string;
+            /** @example 824633720832983041 */
+            baselineId?: string;
+        };
+        EntryReviewChange: {
+            identity?: components["schemas"]["Identity"];
+            /** Format: int32 */
+            expectedRevision?: number;
+            status?: string;
+            note?: string;
+        };
+        EntryReviewEvent: {
+            /** @example 824633720832983041 */
+            id?: string;
+            identity?: components["schemas"]["Identity"];
+            entryId?: string;
+            /** Format: int32 */
+            revision?: number;
+            status?: string;
+            note?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            actor?: string;
+            /** Format: date-time */
+            recordedAt?: string;
+        };
         ProductRequest: {
             /** @example 824633720832983041 */
             medicationId: string;
@@ -13320,6 +16144,21 @@ export interface components {
             purchasePrice: number;
             salePrice: number;
             priceDocumentCode?: string;
+        };
+        IngredientInput: {
+            code: string;
+            display: string;
+            system: string;
+            systemVersion: string;
+            source: string;
+        };
+        Ingredient: {
+            id?: string;
+            code?: string;
+            display?: string;
+            system?: string;
+            systemVersion?: string;
+            source?: string;
         };
         ManufacturerRequest: {
             code: string;
@@ -14029,16 +16868,6 @@ export interface components {
             requiredBaseQuantity?: number;
             baseUnitCode?: string;
             status?: string;
-        };
-        GenerateRequest: {
-            /** @example 824633720832983041 */
-            stockSiteId: string;
-            /** @example 824633720832983041 */
-            nursingUnitDepartmentId: string;
-            /** Format: date */
-            businessDate: string;
-            shiftCode: string;
-            commandCode: string;
         };
         SupplyBatchView: {
             /** @example 824633720832983041 */
@@ -14803,6 +17632,7 @@ export interface components {
             description?: string;
             lines?: components["schemas"]["DispenseTaskLineView"][];
             reviews?: components["schemas"]["PharmacyReviewView"][];
+            prescriptionSafety?: components["schemas"]["Review"][];
         };
         PharmacyReviewView: {
             /** @example 824633720832983041 */
@@ -15416,6 +18246,49 @@ export interface components {
             description?: string;
             lines?: components["schemas"]["StockReturnLineView"][];
         };
+        BatchTraceScanRequest: {
+            /** @example 824633720832983041 */
+            stockSiteId: string;
+            traceCodes: string[];
+        };
+        TraceCodeBatchScanView: {
+            codes?: components["schemas"]["TraceCodeView"][];
+            notFoundCodes?: string[];
+        };
+        TraceCodeView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            stockSiteId?: string;
+            /** @example 824633720832983041 */
+            stockBinId?: string;
+            /** @example 824633720832983041 */
+            stockItemId?: string;
+            /** @example 824633720832983041 */
+            stockLotId?: string;
+            /** @example 824633720832983041 */
+            goodsReceiptLineId?: string;
+            traceCode?: string;
+            productCode?: string;
+            productName?: string;
+            lotNo?: string;
+            packageQuantity?: number;
+            baseQuantity?: number;
+            remainingBaseQuantity?: number;
+            status?: string;
+            currentDocumentType?: string;
+            /** @example 824633720832983041 */
+            currentDocumentId?: string;
+            currentDocumentNo?: string;
+            /** Format: date-time */
+            receivedAt?: string;
+            /** Format: date-time */
+            issuedAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
         ReviewRequest: {
             result: string;
             reasonCode?: string;
@@ -15596,6 +18469,37 @@ export interface components {
             /** Format: date */
             validTo?: string;
             description?: string;
+        };
+        DirectGoodsReceiptLineRequest: {
+            /** @example 824633720832983041 */
+            stockItemId: string;
+            /** @example 824633720832983041 */
+            packageId: string;
+            /** @example 824633720832983041 */
+            destinationBinId: string;
+            lotNo: string;
+            /** Format: date */
+            productionDate?: string;
+            /** Format: date */
+            expiryDate?: string;
+            quantity: number;
+            unitPrice: number;
+            taxRate?: number;
+            description?: string;
+        };
+        DirectGoodsReceiptRequest: {
+            /** @example 824633720832983041 */
+            stockSiteId: string;
+            /** @example 824633720832983041 */
+            supplierId: string;
+            orderNo?: string;
+            receiptNo?: string;
+            requestCode: string;
+            deliveryNoteNo?: string;
+            /** Format: date-time */
+            receivedAt?: string;
+            description?: string;
+            lines: components["schemas"]["DirectGoodsReceiptLineRequest"][];
         };
         CreateTriageRequest: {
             /** @example 824633720832983041 */
@@ -15828,60 +18732,6 @@ export interface components {
         RejectRequest: {
             commandCode: string;
             reason: string;
-        };
-        View: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            requestNo?: string;
-            /** @example 824633720832983041 */
-            encounterId?: string;
-            encounterNo?: string;
-            sourceEncounterStatus?: string;
-            /** @example 824633720832983041 */
-            residentId?: string;
-            residentName?: string;
-            healthRecordNo?: string;
-            /** @example 824633720832983041 */
-            sourceOrganizationId?: string;
-            sourceOrganizationName?: string;
-            /** @example 824633720832983041 */
-            sourceDepartmentId?: string;
-            sourceDepartmentName?: string;
-            referralType?: string;
-            /** @example 824633720832983041 */
-            targetOrganizationId?: string;
-            targetOrganizationName?: string;
-            /** @example 824633720832983041 */
-            targetDepartmentId?: string;
-            targetDepartmentName?: string;
-            /** @example 824633720832983041 */
-            targetPractitionerId?: string;
-            urgency?: string;
-            referralReason?: string;
-            clinicalSummary?: string;
-            /** Format: date-time */
-            expectedAt?: string;
-            status?: string;
-            /** @example 824633720832983041 */
-            targetRegistrationId?: string;
-            /** @example 824633720832983041 */
-            targetEncounterId?: string;
-            /** @example 824633720832983041 */
-            requestedBy?: string;
-            /** Format: date-time */
-            requestedAt?: string;
-            /** @example 824633720832983041 */
-            acceptedBy?: string;
-            /** Format: date-time */
-            acceptedAt?: string;
-            /** @example 824633720832983041 */
-            completedBy?: string;
-            /** Format: date-time */
-            completedAt?: string;
-            outcomeText?: string;
-            rejectionReason?: string;
         };
         CancelRequest: {
             commandCode: string;
@@ -16959,67 +19809,6 @@ export interface components {
             reason?: string;
             clinicalDescription?: string;
         };
-        ServiceRequestResponse: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            /** @example 824633720832983041 */
-            residentId?: string;
-            /** @example 824633720832983041 */
-            encounterId?: string;
-            requestNo?: string;
-            status?: string;
-            /** @example 824633720832983041 */
-            catalogItemId?: string;
-            /** @example 824633720832983041 */
-            packageId?: string;
-            /** @example 824633720832983041 */
-            performerOrganizationId?: string;
-            /** @example 824633720832983041 */
-            performerDepartmentId?: string;
-            /** Format: date */
-            businessDate?: string;
-            /** Format: date-time */
-            authoredAt?: string;
-            /** @example 824633720832983041 */
-            authoredBy?: string;
-            reason?: string;
-            itemCode?: string;
-            itemName?: string;
-            unitCode?: string;
-            localCode?: string;
-            localName?: string;
-            /** @example 824633720832983041 */
-            adoptionId?: string;
-            /** Format: int64 */
-            adoptionRevision?: number;
-            /** @example 824633720832983041 */
-            priceId?: string;
-            /** @example 824633720832983041 */
-            priceRevision?: string;
-            priceType?: string;
-            quantity?: number;
-            unitPrice?: number;
-            totalAmount?: number;
-            currencyCode?: string;
-            itemAttributeSnapshot?: components["schemas"]["JsonNode"];
-            itemAttributeHash?: string;
-            /** Format: date-time */
-            itemAttributeResolvedAt?: string;
-            standardMappings?: components["schemas"]["JsonNode"];
-            serviceType?: string;
-            specimenType?: string;
-            examinationType?: string;
-            clinicalDescription?: string;
-            /** Format: date-time */
-            cancelledAt?: string;
-            /** @example 824633720832983041 */
-            cancelledBy?: string;
-            cancelReason?: string;
-            documentInfo?: components["schemas"]["OrderDocumentInfo"];
-            documentInfoEditable?: boolean;
-        };
         PrintAction: {
             purpose: string;
             /** Format: int32 */
@@ -17041,139 +19830,6 @@ export interface components {
             /** @example 824633720832983041 */
             performerDepartmentId?: string;
             note?: string;
-        };
-        MedicationRequestResponse: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            /** @example 824633720832983041 */
-            residentId?: string;
-            /** @example 824633720832983041 */
-            encounterId?: string;
-            requestNo?: string;
-            status?: string;
-            /** @example 824633720832983041 */
-            prescriptionId?: string;
-            /** @example 824633720832983041 */
-            parentRequestId?: string;
-            /** @example 824633720832983041 */
-            catalogItemId?: string;
-            /** @example 824633720832983041 */
-            medicationId?: string;
-            /** @example 824633720832983041 */
-            packageId?: string;
-            /** @example 824633720832983041 */
-            performerOrganizationId?: string;
-            /** @example 824633720832983041 */
-            performerDepartmentId?: string;
-            /** Format: date */
-            businessDate?: string;
-            /** Format: date-time */
-            authoredAt?: string;
-            /** @example 824633720832983041 */
-            authoredBy?: string;
-            reason?: string;
-            itemCode?: string;
-            itemName?: string;
-            localCode?: string;
-            localName?: string;
-            /** @example 824633720832983041 */
-            adoptionId?: string;
-            /** @example 824633720832983041 */
-            adoptionRevision?: string;
-            /** @example 824633720832983041 */
-            priceId?: string;
-            /** @example 824633720832983041 */
-            priceRevision?: string;
-            priceType?: string;
-            unitPrice?: number;
-            priceQuantity?: number;
-            totalAmount?: number;
-            currencyCode?: string;
-            medicationCode?: string;
-            medicationName?: string;
-            medicationType?: string;
-            manufacturerName?: string;
-            doseForm?: string;
-            preparationSpec?: string;
-            preparationUnit?: string;
-            skinTestRequired?: boolean;
-            skinTestExempt?: boolean;
-            skinTestExemptReason?: string;
-            /** @example 824633720832983041 */
-            exemptEvidenceEventId?: string;
-            antimicrobial?: boolean;
-            antimicrobialLevel?: string;
-            doseValue?: number;
-            doseUnit?: string;
-            /** @example 824633720832983041 */
-            routeId?: string;
-            routeCode?: string;
-            routeName?: string;
-            routeExecutionType?: string;
-            frequencyCode?: string;
-            /** @example 824633720832983041 */
-            frequencyId?: string;
-            frequencyName?: string;
-            frequencyRule?: components["schemas"]["JsonNode"];
-            durationValue?: number;
-            durationUnit?: string;
-            quantity?: number;
-            quantityUnit?: string;
-            baseQuantity?: number;
-            baseUnit?: string;
-            packageFactor?: number;
-            packageUnitName?: string;
-            packageSpec?: string;
-            substitutionAllowed?: boolean;
-            selfProvided?: boolean;
-            medicationInstruction?: string;
-            medicationSnapshot?: components["schemas"]["JsonNode"];
-            itemAttributeSnapshot?: components["schemas"]["JsonNode"];
-            itemAttributeHash?: string;
-            /** Format: date-time */
-            itemAttributeResolvedAt?: string;
-            standardMappings?: components["schemas"]["JsonNode"];
-            /** Format: date-time */
-            cancelledAt?: string;
-            /** @example 824633720832983041 */
-            cancelledBy?: string;
-            cancelReason?: string;
-        };
-        PrescriptionResponse: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            /** @example 824633720832983041 */
-            residentId?: string;
-            /** @example 824633720832983041 */
-            encounterId?: string;
-            prescriptionNo?: string;
-            categoryCode?: string;
-            status?: string;
-            /** @example 824633720832983041 */
-            performerOrganizationId?: string;
-            /** @example 824633720832983041 */
-            performerDepartmentId?: string;
-            /** Format: date-time */
-            authoredAt?: string;
-            /** @example 824633720832983041 */
-            authoredBy?: string;
-            /** Format: date-time */
-            submittedAt?: string;
-            /** @example 824633720832983041 */
-            submittedBy?: string;
-            /** Format: date-time */
-            cancelledAt?: string;
-            /** @example 824633720832983041 */
-            cancelledBy?: string;
-            cancelReason?: string;
-            note?: string;
-            medicationRequests?: components["schemas"]["MedicationRequestResponse"][];
-            safetyEvaluation?: components["schemas"]["MedicationSafetyDecision"];
-            documentInfo?: components["schemas"]["OrderDocumentInfo"];
         };
         PrescriptionAction: {
             /** @example 824633720832983041 */
@@ -18169,6 +20825,271 @@ export interface components {
             /** Format: date-time */
             expireAt?: string;
         };
+        DimensionIntent: {
+            text?: string;
+        };
+        FilterIntent: {
+            dimension?: string;
+            operator?: string;
+            values?: string[];
+        };
+        MetricIntent: {
+            text?: string;
+        };
+        SemanticQuery: {
+            /** @enum {string} */
+            intent?: "METRIC_SUMMARY" | "TREND" | "RANKING" | "DISTRIBUTION" | "COMPARISON" | "CLARIFICATION_ANSWER";
+            metrics?: components["schemas"]["MetricIntent"][];
+            dimensions?: components["schemas"]["DimensionIntent"][];
+            filters?: components["schemas"]["FilterIntent"][];
+            period?: components["schemas"]["TimeIntent"];
+            /** @enum {string} */
+            scope?: "CURRENT" | "AUTHORIZED";
+            sort?: components["schemas"]["SortIntent"];
+            /** Format: int32 */
+            limit?: number;
+        };
+        SortIntent: {
+            metric?: string;
+            direction?: string;
+        };
+        TimeIntent: {
+            type?: string;
+            startDate?: string;
+            endDate?: string;
+        };
+        DefaultFilter: {
+            field?: string;
+            /** @enum {string} */
+            operator?: "EQ" | "NE" | "IN" | "NOT_IN" | "CONTAINS" | "GTE" | "LTE";
+            values?: string[];
+        };
+        DimensionAttribute: {
+            code?: string;
+            name?: string;
+            aliases?: string[];
+            physicalColumn?: string;
+            valueAliases?: {
+                [key: string]: string[];
+            };
+        };
+        DimensionDefinition: {
+            code?: string;
+            name?: string;
+            aliases?: string[];
+            entity?: string;
+            field?: string;
+            grain?: string;
+            compatibleMetrics?: string[];
+            attributes?: components["schemas"]["DimensionAttribute"][];
+        };
+        MetricDefinition: {
+            code?: string;
+            name?: string;
+            aliases?: string[];
+            description?: string;
+            domain?: string;
+            source?: string;
+            field?: string;
+            /** @enum {string} */
+            aggregate?: "COUNT" | "COUNT_DISTINCT" | "SUM" | "AVG";
+            grain?: string;
+            defaultFilters?: components["schemas"]["DefaultFilter"][];
+            timeDimension?: string;
+            supportedDimensions?: string[];
+            forbiddenMeanings?: string[];
+        };
+        Resolution: {
+            /** @enum {string} */
+            status?: "READY" | "CLARIFY" | "UNSUPPORTED";
+            message?: string;
+            query?: components["schemas"]["ResolvedSemanticQuery"];
+            clarification?: components["schemas"]["Clarification"];
+            unsupportedReason?: string;
+        };
+        ResolvedDimension: {
+            definition?: components["schemas"]["DimensionDefinition"];
+            semanticRole?: string;
+        };
+        ResolvedFilter: {
+            dimension?: components["schemas"]["DimensionDefinition"];
+            attribute?: components["schemas"]["DimensionAttribute"];
+            /** @enum {string} */
+            operator?: "EQ" | "NE" | "IN" | "NOT_IN" | "CONTAINS" | "GTE" | "LTE";
+            values?: string[];
+            description?: string;
+        };
+        ResolvedMetric: {
+            definition?: components["schemas"]["MetricDefinition"];
+            effectiveFilters?: components["schemas"]["DefaultFilter"][];
+        };
+        ResolvedSemanticQuery: {
+            /** @enum {string} */
+            intent?: "METRIC_SUMMARY" | "TREND" | "RANKING" | "DISTRIBUTION" | "COMPARISON" | "CLARIFICATION_ANSWER";
+            metrics?: components["schemas"]["ResolvedMetric"][];
+            dimensions?: components["schemas"]["ResolvedDimension"][];
+            filters?: components["schemas"]["FilterIntent"][];
+            resolvedFilters?: components["schemas"]["ResolvedFilter"][];
+            period?: components["schemas"]["TimeIntent"];
+            /** @enum {string} */
+            scope?: "CURRENT" | "AUTHORIZED";
+            sort?: components["schemas"]["SortIntent"];
+            /** Format: int32 */
+            limit?: number;
+        };
+        JoinCondition: {
+            fromField?: string;
+            toField?: string;
+        };
+        LogicalQueryPlan: {
+            planId?: string;
+            primaryEntity?: string;
+            primaryTable?: string;
+            primaryAlias?: string;
+            grain?: string;
+            joins?: components["schemas"]["PlannedJoin"][];
+            dimensions?: components["schemas"]["PlannedDimension"][];
+            measures?: components["schemas"]["PlannedMeasure"][];
+            filters?: components["schemas"]["PlannedFilter"][];
+            timeRange?: components["schemas"]["PlannedTimeRange"];
+            scope?: components["schemas"]["PlannedScope"];
+            sort?: components["schemas"]["PlannedSort"];
+            /** Format: int32 */
+            limit?: number;
+        };
+        PlannedDimension: {
+            dimensionCode?: string;
+            name?: string;
+            entity?: string;
+            tableAlias?: string;
+            column?: string;
+            groupExpression?: string;
+        };
+        PlannedFilter: {
+            entity?: string;
+            tableAlias?: string;
+            column?: string;
+            /** @enum {string} */
+            operator?: "EQ" | "NE" | "IN" | "NOT_IN" | "CONTAINS" | "GTE" | "LTE";
+            values?: string[];
+            description?: string;
+            isScopeFilter?: boolean;
+        };
+        PlannedJoin: {
+            fromEntity?: string;
+            fromAlias?: string;
+            toEntity?: string;
+            toTable?: string;
+            toAlias?: string;
+            /** @enum {string} */
+            joinType?: "INNER_JOIN" | "LEFT_JOIN";
+            conditions?: components["schemas"]["JoinCondition"][];
+            reason?: string;
+        };
+        PlannedMeasure: {
+            measureCode?: string;
+            name?: string;
+            entity?: string;
+            tableAlias?: string;
+            column?: string;
+            /** @enum {string} */
+            aggregate?: "COUNT" | "COUNT_DISTINCT" | "SUM" | "AVG";
+            defaultFilters?: components["schemas"]["PlannedFilter"][];
+        };
+        PlannedScope: {
+            /** @enum {string} */
+            intent?: "CURRENT" | "AUTHORIZED";
+            /** @example 824633720832983041 */
+            tenantId?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            authorizedDepartments?: {
+                [key: string]: string;
+            };
+        };
+        PlannedSort: {
+            target?: string;
+            direction?: string;
+        };
+        PlannedTimeRange: {
+            entity?: string;
+            tableAlias?: string;
+            column?: string;
+            type?: string;
+            /** Format: date */
+            startDate?: string;
+            /** Format: date */
+            endDate?: string;
+        };
+        CopilotSuggestRequest: {
+            prompt?: string;
+            targetEntity?: string;
+        };
+        CopilotSuggestResponse: {
+            status?: string;
+            rationale?: string;
+            suggestedYamlDiff?: string;
+            suggestedRules?: {
+                [key: string]: unknown;
+            };
+        };
+        AnalysisPageTurn: {
+            /** @enum {string} */
+            role: "USER" | "ASSISTANT";
+            content: string;
+        };
+        InterpretRequest: {
+            requirement?: string;
+            currentQuery?: components["schemas"]["SemanticQuery"];
+            history?: components["schemas"]["AnalysisPageTurn"][];
+            /** Format: date */
+            today?: string;
+        };
+        ExecuteRequest: {
+            query?: components["schemas"]["SemanticQuery"];
+            text?: string;
+            scope?: components["schemas"]["PlannedScope"];
+        };
+        CompiledColumn: {
+            code?: string;
+            name?: string;
+            alias?: string;
+            /** @enum {string} */
+            type?: "DIMENSION" | "MEASURE";
+        };
+        ExecutionResult: {
+            planId?: string;
+            /** @enum {string} */
+            status?: "READY" | "CLARIFY" | "UNSUPPORTED";
+            explanation?: string;
+            columns?: components["schemas"]["CompiledColumn"][];
+            rows?: {
+                [key: string]: unknown;
+            }[];
+            /** Format: int32 */
+            totalRows?: number;
+            /** Format: int64 */
+            executionTimeMs?: number;
+            compiledSql?: string;
+            parameters?: {
+                [key: string]: unknown;
+            };
+            summary?: {
+                [key: string]: unknown;
+            };
+            clarification?: components["schemas"]["Clarification"];
+        };
+        CompiledQuery: {
+            planId?: string;
+            sql?: string;
+            parameters?: {
+                [key: string]: unknown;
+            };
+            columns?: components["schemas"]["CompiledColumn"][];
+            grain?: string;
+            /** Format: int32 */
+            limit?: number;
+        };
         PilotAnalysisQuery: {
             /** @enum {string} */
             metric: "REGISTERED" | "CANCELLED" | "COMPLETED" | "CANCELLATION_RATE";
@@ -18233,12 +21154,6 @@ export interface components {
             /** Format: double */
             value?: number;
         };
-        InterpretRequest: {
-            text: string;
-            base: components["schemas"]["PilotAnalysisQuery"];
-            /** @enum {string} */
-            chart: "BAR" | "LINE" | "TABLE";
-        };
         Interpretation: {
             /** @enum {string} */
             status?: "READY" | "UNSUPPORTED" | "CLARIFY";
@@ -18247,62 +21162,10 @@ export interface components {
             /** @enum {string} */
             chart?: "BAR" | "LINE" | "TABLE";
         };
-        AnalysisPagePeriod: {
-            /** @enum {string} */
-            kind: "MONTH_TO_DATE" | "LAST_MONTH" | "LAST_30_DAYS" | "YEAR_TO_DATE" | "FIXED";
-            /** Format: date */
-            startDate?: string;
-            /** Format: date */
-            endDate?: string;
-        };
-        AnalysisPageSpec: {
+        AnalysisPageRename: {
             title: string;
-            /** @enum {string} */
-            template: "AUTO" | "LIST" | "RANKING" | "TREND" | "COMPARISON" | "DASHBOARD" | "CUSTOM";
-            metrics: string[];
-            /** @enum {string} */
-            dimension: "DAY" | "MONTH" | "DEPARTMENT" | "DIAGNOSIS" | "ITEM" | "ORDER_TYPE" | "STATUS";
-            /** @enum {string} */
-            scope: "CURRENT" | "AUTHORIZED";
-            period: components["schemas"]["AnalysisPagePeriod"];
-            /** Format: int32 */
-            limit?: number;
-            measures?: components["schemas"]["AnalysisPlanMeasure"][];
-            widgets?: components["schemas"]["AnalysisPageWidget"][];
         };
-        AnalysisPageWidget: {
-            title: string;
-            /** @enum {string} */
-            type: "KPI" | "BAR" | "LINE" | "TABLE";
-            metrics: string[];
-        };
-        AnalysisPlanFilter: {
-            field?: string;
-            /** @enum {string} */
-            operator?: "EQ" | "IN" | "CONTAINS" | "GTE" | "LTE";
-            values?: string[];
-        };
-        AnalysisPlanMeasure: {
-            code?: string;
-            name?: string;
-            source?: string;
-            /** Format: int32 */
-            sourceVersion?: number;
-            /** @enum {string} */
-            aggregate?: "COUNT" | "COUNT_DISTINCT" | "SUM" | "AVG";
-            field?: string;
-            filters?: components["schemas"]["AnalysisPlanFilter"][];
-        };
-        AnalysisPageSaved: {
-            /** @example 824633720832983041 */
-            id?: string;
-            spec?: components["schemas"]["AnalysisPageSpec"];
-            /** Format: date-time */
-            savedAt?: string;
-            /** @example 824633720832983041 */
-            functionId?: string;
-            /** Format: int32 */
-            version?: number;
+        AnalysisPageArchive: {
             archived?: boolean;
         };
         AnalysisPagePoint: {
@@ -18340,11 +21203,6 @@ export interface components {
             template: "AUTO" | "LIST" | "RANKING" | "TREND" | "COMPARISON" | "DASHBOARD" | "CUSTOM";
             currentSpec?: components["schemas"]["AnalysisPageSpec"];
             history?: components["schemas"]["AnalysisPageTurn"][];
-        };
-        AnalysisPageTurn: {
-            /** @enum {string} */
-            role: "USER" | "ASSISTANT";
-            content: string;
         };
         AnalysisPageProposal: {
             /** @enum {string} */
@@ -18390,6 +21248,14 @@ export interface components {
             medicalHistory?: string;
             physicalExam?: string;
             treatmentPlan?: string;
+            temperature?: number;
+            pulseRate?: number;
+            respiratoryRate?: number;
+            systolic?: number;
+            diastolic?: number;
+            oxygenSaturation?: number;
+            heightCm?: number;
+            weightKg?: number;
         };
         SafetyAlert: {
             level?: string;
@@ -18614,6 +21480,261 @@ export interface components {
             scene?: string;
             ticketPrefix?: string;
             active?: boolean;
+        };
+        PageResultSummary: {
+            content?: components["schemas"]["Summary"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        Summary: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            parentId?: string;
+            requirement?: string;
+            status?: string;
+            actor?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        FeedbackOrigin: {
+            feedback?: components["schemas"]["Event"];
+            /** @example 824633720832983041 */
+            knowledgeId?: string;
+            /** Format: int32 */
+            knowledgeVersion?: number;
+            title?: string;
+            pharmacy?: components["schemas"]["PharmacyOrigin"];
+        };
+        PharmacyOrigin: {
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            /** @example 824633720832983041 */
+            taskId?: string;
+            review?: components["schemas"]["PharmacyReviewView"];
+            finding?: components["schemas"]["Finding"];
+        };
+        EvaluationSummary: {
+            /** @example 824633720832983041 */
+            evaluationId?: string;
+            /** @example 824633720832983041 */
+            prescriptionId?: string;
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            /** @example 824633720832983041 */
+            residentId?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            ruleSetVersion?: string;
+            mode?: string;
+            decision?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            /** Format: int32 */
+            findingCount?: number;
+        };
+        Status: {
+            available?: boolean;
+            model?: string;
+            message?: string;
+        };
+        ActiveRuleView: {
+            /** @example 824633720832983041 */
+            ruleId?: string;
+            /** @example 824633720832983041 */
+            ruleVersionId?: string;
+            ruleCode?: string;
+            category?: string;
+            ruleName?: string;
+            /** Format: int32 */
+            version?: number;
+            ruleSetVersion?: string;
+            implementation?: string;
+            status?: string;
+            severity?: string;
+            decision?: string;
+            overridePolicy?: string;
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: date-time */
+            effectiveTo?: string;
+            evidence?: components["schemas"]["Evidence"][];
+        };
+        Report: {
+            scope?: components["schemas"]["Scope"];
+            /** Format: date-time */
+            inspectedAt?: string;
+            totals?: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            historicalCount?: number;
+            /** Format: int32 */
+            potentialCount?: number;
+            coverage?: string[];
+            limitations?: string[];
+            content?: components["schemas"]["Item"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        Catalog: {
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            rules?: components["schemas"]["CatalogEntry"][];
+        };
+        RuntimeRecord: {
+            /** @example 824633720832983041 */
+            id?: string;
+            ruleKey?: string;
+            versionId?: string;
+            /** @example 824633720832983041 */
+            deploymentId?: string;
+            /** @example 824633720832983041 */
+            prescriptionId?: string;
+            mode?: string;
+            decision?: string;
+            /** Format: date-time */
+            time?: string;
+            details?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            knowledgeResult?: components["schemas"]["Result"];
+        };
+        PageResultSuiteSummary: {
+            content?: components["schemas"]["SuiteSummary"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        SuiteSummary: {
+            /** Format: int32 */
+            version?: number;
+            /** Format: int32 */
+            caseCount?: number;
+            actor?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            reason?: string;
+        };
+        PageResultRunSummary: {
+            content?: components["schemas"]["RunSummary"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        RunSummary: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int32 */
+            suiteVersion?: number;
+            /** Format: int32 */
+            caseCount?: number;
+            /** Format: int32 */
+            passedCount?: number;
+            allPassed?: boolean;
+            actor?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        Observations: {
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            counts?: {
+                [key: string]: string;
+            };
+            records?: components["schemas"]["PageResultObservation"];
+            feedback?: components["schemas"]["Summary"];
+        };
+        PageResultObservation: {
+            content?: components["schemas"]["Observation"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        Authorization: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            tenantId?: string;
+            /** @example 824633720832983041 */
+            deploymentId?: string;
+            /** @example 824633720832983041 */
+            candidateId?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            basis?: components["schemas"]["Basis"];
+            assessment?: string;
+            rollbackPlan?: string;
+            reason?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            actor?: string;
+            /** Format: date-time */
+            time?: string;
+        };
+        PageResultSource: {
+            content?: components["schemas"]["Source"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        Example: {
+            id?: string;
+            purpose?: string;
+            notes?: string[];
+            sourceUrl?: string;
+            sourceMaterial?: string;
+            body?: components["schemas"]["Body"];
+            assessment?: components["schemas"]["Assessment"];
+            medicationLabels?: {
+                [key: string]: string;
+            };
+            manualCases?: components["schemas"]["Case"][];
+            results?: components["schemas"]["TestCase"][];
         };
         PresenceUserPage: {
             /** Format: int64 */
@@ -19014,14 +22135,89 @@ export interface components {
             /** Format: int32 */
             size?: number;
         };
-        RouteSnapshot: {
-            /** @example 824633720832983041 */
-            id?: string;
-            code?: string;
-            name?: string;
-            systemCode?: string;
-            systemVersion?: string;
-            executionType?: string;
+        PageResultJsonNode: {
+            content?: components["schemas"]["JsonNode"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        PageResultEdition: {
+            content?: components["schemas"]["Edition"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        Original: {
+            fileName?: string;
+            content?: string;
+            packageHash?: string;
+        };
+        Dependencies: {
+            target?: components["schemas"]["Edition"];
+            fingerprint?: string;
+            coverage?: string[];
+            limitations?: string[];
+            items?: components["schemas"]["PageResultItem"];
+        };
+        PageResultItem: {
+            content?: components["schemas"]["Item"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        Comparison: {
+            base?: components["schemas"]["Edition"];
+            target?: components["schemas"]["Edition"];
+            fingerprint?: string;
+            counts?: {
+                [key: string]: number;
+            };
+            changes?: components["schemas"]["PageResultChange"];
+        };
+        PageResultChange: {
+            content?: components["schemas"]["Change"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        EntryReviewView: {
+            identity?: components["schemas"]["Identity"];
+            entries?: components["schemas"]["EntryReviewEvent"][];
+        };
+        MedicationProductEntryView: {
+            product?: components["schemas"]["MedicationProductView"];
+            medication?: components["schemas"]["MedicationView"];
+        };
+        PageResultMedicationProductEntryView: {
+            content?: components["schemas"]["MedicationProductEntryView"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
         };
         ItemTypeView: {
             /** @example 824633720832983041 */
@@ -19093,6 +22289,92 @@ export interface components {
             changedAt?: string;
             /** @example 824633720832983041 */
             changedBy?: string;
+        };
+        MedicationStandardsView: {
+            version?: string;
+            doseUnits?: components["schemas"]["Unit"][];
+            routes?: components["schemas"]["RouteSnapshot"][];
+            frequencies?: components["schemas"]["StandardFrequencyView"][];
+        };
+        StandardFrequencyView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            code?: string;
+            name?: string;
+            standard?: components["schemas"]["StandardFrequency"];
+            scheduleCapability?: components["schemas"]["Capability"];
+        };
+        Unit: {
+            id?: string;
+            code?: string;
+            display?: string;
+            dimension?: string;
+            canonicalUnit?: string;
+            conversionFactor?: number;
+            /** Format: int32 */
+            semanticVersion?: number;
+        };
+        Readiness: {
+            /** Format: date-time */
+            inspectedAt?: string;
+            scope?: string;
+            summary?: components["schemas"]["Summary"];
+            content?: components["schemas"]["Item"][];
+            /** Format: int32 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        Impact: {
+            area?: string;
+            coverage?: string;
+            /** @example 824633720832983041 */
+            activeCount?: string;
+            references?: string[];
+            ruleRetestRequired?: boolean;
+            note?: string;
+        };
+        ClinicalSemanticDependencyReport: {
+            scope?: components["schemas"]["Scope"];
+            /** Format: date-time */
+            inspectedAt?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            coverage?: components["schemas"]["Impact"][];
+            limitations?: string[];
+            totals?: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            historicalCount?: number;
+            /** Format: int32 */
+            potentialCount?: number;
+            content?: components["schemas"]["Dependency"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        Dependency: {
+            kind?: string;
+            id?: string;
+            parentId?: string;
+            name?: string;
+            version?: string;
+            status?: string;
+            historical?: boolean;
+            relation?: string;
+            references?: components["schemas"]["Reference"][];
         };
         CatalogAdoptionCandidateView: {
             /** @example 824633720832983041 */
@@ -19348,6 +22630,50 @@ export interface components {
             baseQuantityFactor?: number;
             baseUnitCode?: string;
         };
+        ProcurementCatalogOption: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            stockSiteId?: string;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            /** @example 824633720832983041 */
+            packageId?: string;
+            /** @example 824633720832983041 */
+            medicationId?: string;
+            productCode?: string;
+            productName?: string;
+            packageUnitCode?: string;
+            packageUnitName?: string;
+            packageSpec?: string;
+            packageFactor?: number;
+            baseUnitCode?: string;
+            issuePolicy?: string;
+            negativeAllowed?: boolean;
+            lotRequired?: boolean;
+            traceRequired?: boolean;
+            splitAllowed?: boolean;
+            coldChain?: boolean;
+            controlled?: boolean;
+            controlLevel?: string;
+            highAlert?: boolean;
+            status?: string;
+            manufacturerName?: string;
+            /** @example 824633720832983041 */
+            supplierSupplyItemId?: string;
+            agreementPrice?: number;
+            taxRate?: number;
+        };
+        ReceivableOrderLineOption: {
+            /** @example 824633720832983041 */
+            purchaseOrderLineId?: string;
+            remainingQuantity?: number;
+            unitPrice?: number;
+            taxRate?: number;
+            catalog?: components["schemas"]["ProcurementCatalogOption"];
+        };
         PrescriptionReviewModeView: {
             mode?: string;
             enabled?: boolean;
@@ -19366,40 +22692,6 @@ export interface components {
             totalPages?: number;
             first?: boolean;
             last?: boolean;
-        };
-        TraceCodeView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            /** @example 824633720832983041 */
-            stockSiteId?: string;
-            /** @example 824633720832983041 */
-            stockBinId?: string;
-            /** @example 824633720832983041 */
-            stockItemId?: string;
-            /** @example 824633720832983041 */
-            stockLotId?: string;
-            /** @example 824633720832983041 */
-            goodsReceiptLineId?: string;
-            traceCode?: string;
-            productCode?: string;
-            productName?: string;
-            lotNo?: string;
-            packageQuantity?: number;
-            baseQuantity?: number;
-            remainingBaseQuantity?: number;
-            status?: string;
-            currentDocumentType?: string;
-            /** @example 824633720832983041 */
-            currentDocumentId?: string;
-            currentDocumentNo?: string;
-            /** Format: date-time */
-            receivedAt?: string;
-            /** Format: date-time */
-            issuedAt?: string;
-            /** Format: date-time */
-            updatedAt?: string;
         };
         TraceDetailView: {
             code?: components["schemas"]["TraceCodeView"];
@@ -19646,6 +22938,17 @@ export interface components {
             stockItemId?: string;
             selectedProductName?: string;
             latestReviewResult?: string;
+            residentName?: string;
+            healthRecordNo?: string;
+            residentPhone?: string;
+            /** Format: date-time */
+            dispensedAt?: string;
+            /** @example 824633720832983041 */
+            dispenserPractitionerId?: string;
+            plannedQuantity?: number;
+            dispensedQuantity?: number;
+            returnedQuantity?: number;
+            dispenseUnitCode?: string;
             clinicalContext?: components["schemas"]["PharmacyClinicalContextView"];
             prescriptionRequests?: components["schemas"]["MedicationRequestSnapshot"][];
         };
@@ -19684,17 +22987,17 @@ export interface components {
             /** Format: int64 */
             offset?: number;
             sort?: components["schemas"]["SortObject"];
-            unpaged?: boolean;
             paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
+            unpaged?: boolean;
             /** Format: int32 */
             pageSize?: number;
         };
         SortObject: {
             empty?: boolean;
-            unsorted?: boolean;
             sorted?: boolean;
+            unsorted?: boolean;
         };
         TriageStatisticsResponse: {
             /** Format: int64 */
@@ -20180,6 +23483,67 @@ export interface components {
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly sdDoseFormText?: string;
         };
+        EncounterPageView: {
+            content?: components["schemas"]["EncounterQueryItem"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            first?: boolean;
+            last?: boolean;
+        };
+        EncounterQueryItem: {
+            /** @example 824633720832983041 */
+            id?: string;
+            encounterNo?: string;
+            /** @example 824633720832983041 */
+            residentId?: string;
+            healthRecordNo?: string;
+            residentName?: string;
+            gender?: string;
+            /** Format: date */
+            birthDate?: string;
+            phone?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            departmentName?: string;
+            /** @example 824633720832983041 */
+            registrationId?: string;
+            registrationNo?: string;
+            registrationSource?: string;
+            visitType?: string;
+            clinicianId?: string;
+            clinicianName?: string;
+            status?: string;
+            chiefComplaint?: string;
+            /** Format: int32 */
+            systolic?: number;
+            /** Format: int32 */
+            diastolic?: number;
+            primaryDiagnosisName?: string;
+            primaryDiagnosisCode?: string;
+            /** Format: int32 */
+            diagnosisCount?: number;
+            serviceName?: string;
+            locationName?: string;
+            /** Format: date-time */
+            registeredAt?: string;
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+        };
+        Settings: {
+            enabled?: boolean;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+        };
         VitalSignRule: {
             code?: string;
             name?: string;
@@ -20330,10 +23694,41 @@ export interface components {
             /** Format: int64 */
             total?: number;
         };
-        Status: {
-            available?: boolean;
-            model?: string;
-            message?: string;
+        OntologyEdgeDto: {
+            id?: string;
+            source?: string;
+            target?: string;
+            cardinality?: string;
+            conditions?: components["schemas"]["JoinCondition"][];
+            aggregationSafe?: boolean;
+            fanoutRisk?: boolean;
+            label?: string;
+        };
+        OntologyGraphDto: {
+            version?: string;
+            domain?: string;
+            nodes?: components["schemas"]["OntologyNodeDto"][];
+            edges?: components["schemas"]["OntologyEdgeDto"][];
+            dimensions?: components["schemas"]["DimensionDefinition"][];
+            metrics?: components["schemas"]["MetricDefinition"][];
+            statistics?: {
+                [key: string]: unknown;
+            };
+        };
+        OntologyNodeDto: {
+            id?: string;
+            label?: string;
+            entityCode?: string;
+            table?: string;
+            primaryKey?: string;
+            grain?: string;
+            description?: string;
+            nodeType?: string;
+            /** Format: int32 */
+            metricCount?: number;
+            /** Format: int32 */
+            dimensionCount?: number;
+            attributes?: string[];
         };
         AnalysisSourceCatalog: {
             code?: string;
@@ -20370,31 +23765,6 @@ export interface components {
             contractVersion?: string;
             pilotEnabled?: boolean;
         };
-        AllergenTerm: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** @example 824633720832983041 */
-            parentId?: string;
-            categoryCode?: string;
-            conceptType?: string;
-            codeSystemUri?: string;
-            code?: string;
-            display?: string;
-            aliases?: string;
-        };
-        Event: {
-            /** @example 824633720832983041 */
-            id?: string;
-            eventType?: string;
-            statusFrom?: string;
-            statusTo?: string;
-            commandCode?: string;
-            sectionCode?: string;
-            contextHash?: string;
-            detail?: string;
-            /** Format: date-time */
-            occurredAt?: string;
-        };
         Capabilities: {
             mode?: string;
             available?: boolean;
@@ -20402,437 +23772,6 @@ export interface components {
             model?: string;
             message?: string;
             features?: string[];
-        };
-        PageResultMedicationProductEntryView: {
-            content?: components["schemas"]["MedicationProductEntryView"][];
-            /** Format: int64 */
-            totalElements?: number;
-            /** Format: int32 */
-            totalPages?: number;
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-        };
-        MedicationProductEntryView: {
-            product?: components["schemas"]["MedicationProductView"];
-            medication?: components["schemas"]["MedicationView"];
-        };
-        StandardMedicationSetupRequest: {
-            /** @example 824633720832983041 */
-            medicationId?: string;
-            /** @example 824633720832983041 */
-            expectedRevision?: string;
-            medication: components["schemas"]["MedicationRequest"];
-        };
-        OrderDocumentInfo: {
-            diagnoses: components["schemas"]["DiagnosisLink"][];
-            externalPrescription?: boolean;
-            specialDisease?: string;
-            examinationPurpose?: string;
-        };
-        UpdateOrderDocumentInfo: {
-            /** @example 824633720832983041 */
-            expectedRevision: string;
-            documentInfo: components["schemas"]["OrderDocumentInfo"];
-        };
-        DiagnosisLink: {
-            code: string;
-            display: string;
-            primary?: boolean;
-        };
-        MedicationSafetyDecision: {
-            /** @example 824633720832983041 */
-            evaluationId?: string;
-            /** @example 824633720832983041 */
-            prescriptionId?: string;
-            /** Format: int64 */
-            prescriptionRevision?: number;
-            inputHash?: string;
-            ruleSetVersion?: string;
-            engineVersion?: string;
-            mode?: string;
-            /** @enum {string} */
-            decision?: "PASS" | "WARN" | "REQUIRE_OVERRIDE" | "BLOCK" | "UNAVAILABLE";
-            findings?: components["schemas"]["Finding"][];
-            ruleExecutions?: components["schemas"]["RuleExecution"][];
-            failureCodes?: string[];
-        };
-        RuleExecution: {
-            ruleCode?: string;
-            /** Format: int32 */
-            ruleVersion?: number;
-            outcome?: string;
-            failureCode?: string;
-        };
-        Finding: {
-            /** @example 824633720832983041 */
-            findingId?: string;
-            ruleCode?: string;
-            /** Format: int32 */
-            ruleVersion?: number;
-            category?: string;
-            /** @enum {string} */
-            severity?: "INFO" | "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
-            /** @enum {string} */
-            decision?: "PASS" | "WARN" | "REQUIRE_OVERRIDE" | "BLOCK" | "UNAVAILABLE";
-            message?: string;
-            medicationRequestIds?: string[];
-            evidence?: components["schemas"]["Evidence"][];
-            /** @enum {string} */
-            overridePolicy?: "NOT_ALLOWED" | "ACKNOWLEDGE" | "REASON_REQUIRED";
-            suggestedAction?: string;
-        };
-        Evidence: {
-            sourceType?: string;
-            sourceTitle?: string;
-            sourceVersion?: string;
-            sourceLocator?: string;
-            section?: string;
-            excerpt?: string;
-            usageScope?: string;
-        };
-        AnalysisPageRename: {
-            title: string;
-        };
-        AnalysisPageArchive: {
-            archived?: boolean;
-        };
-        AuditEvent: {
-            /** @example 824633720832983041 */
-            id?: string;
-            operation?: string;
-            versionId?: string;
-            /** @example 824633720832983041 */
-            actorId?: string;
-            /** Format: date-time */
-            time?: string;
-            reason?: string;
-        };
-        Review: {
-            versionId?: string;
-            status?: string;
-            action?: string;
-            evidence?: components["schemas"]["Evidence"][];
-            standardVerified?: boolean;
-            evidenceVerified?: boolean;
-            /** @example 824633720832983041 */
-            actorId?: string;
-            /** Format: date-time */
-            recordedAt?: string;
-            reason?: string;
-        };
-        Catalog: {
-            /** @example 824633720832983041 */
-            organizationId?: string;
-            /** @example 824633720832983041 */
-            departmentId?: string;
-            rules?: components["schemas"]["CatalogEntry"][];
-        };
-        RuleVersion: {
-            /** @example 824633720832983041 */
-            id?: string;
-            definition?: components["schemas"]["RuleDefinition"];
-            /** Format: int32 */
-            version?: number;
-            ruleSetVersion?: string;
-            implementationKey?: string;
-            status?: string;
-            /** @enum {string} */
-            severity?: "INFO" | "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
-            /** @enum {string} */
-            decision?: "PASS" | "WARN" | "REQUIRE_OVERRIDE" | "BLOCK" | "UNAVAILABLE";
-            /** @enum {string} */
-            overridePolicy?: "NOT_ALLOWED" | "ACKNOWLEDGE" | "REASON_REQUIRED";
-            /** Format: date-time */
-            effectiveFrom?: string;
-            /** Format: date-time */
-            effectiveTo?: string;
-            evidence?: components["schemas"]["Evidence"][];
-        };
-        Unit: {
-            id?: string;
-            code?: string;
-            display?: string;
-            dimension?: string;
-            canonicalUnit?: string;
-            conversionFactor?: number;
-            /** Format: int32 */
-            semanticVersion?: number;
-        };
-        StandardFrequency: {
-            system?: string;
-            version?: string;
-            conceptId?: string;
-            status?: string;
-            interpretation?: components["schemas"]["Frequency"];
-        };
-        CatalogCommand: {
-            /** Format: int64 */
-            expectedRevision?: number;
-            operation?: string;
-            versionId?: string;
-            /** @example 824633720832983041 */
-            deploymentId?: string;
-            reason?: string;
-            action?: string;
-            evidence?: components["schemas"]["Evidence"][];
-            standardVerified?: boolean;
-            evidenceVerified?: boolean;
-            mode?: string;
-            /** @example 824633720832983041 */
-            organizationId?: string;
-            /** @example 824633720832983041 */
-            departmentId?: string;
-            /** Format: date-time */
-            effectiveFrom?: string;
-            /** Format: date-time */
-            effectiveTo?: string;
-        };
-        StandardFrequencyView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            code?: string;
-            name?: string;
-            standard?: components["schemas"]["StandardFrequency"];
-        };
-        MedicationSnapshot: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** @example 824633720832983041 */
-            itemTypeId?: string;
-            code?: string;
-            name?: string;
-            aliasName?: string;
-            medicationType?: string;
-            doseForm?: string;
-            preparationSpec?: string;
-            preparationUnit?: string;
-            strengthValue?: number;
-            strengthUnit?: string;
-            storageType?: string;
-            prescriptionDrug?: boolean;
-            essentialDrug?: boolean;
-            antimicrobial?: boolean;
-            antimicrobialLevel?: string;
-            antimicrobialOutpatientAllowed?: boolean;
-            antimicrobialConsultationRequired?: boolean;
-            antimicrobialEmergencyAllowed?: boolean;
-            /** Format: int32 */
-            antimicrobialMaxDays?: number;
-            skinTestRequired?: boolean;
-            skinTestMethod?: string;
-            skinTestSolutionMode?: string;
-            /** Format: int32 */
-            skinTestObservationMinutes?: number;
-            /** Format: int32 */
-            skinTestResultValidityHours?: number;
-            skinTestInstructions?: string;
-            defaultDose?: number;
-            defaultDoseUnit?: string;
-            defaultRoute?: string;
-            /** @example 824633720832983041 */
-            defaultFrequencyId?: string;
-            defaultFrequency?: string;
-            chronicDiseaseDrug?: boolean;
-            singleOrder?: boolean;
-            status?: string;
-        };
-        Candidate: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** @example 824633720832983041 */
-            parentId?: string;
-            /** Format: int32 */
-            version?: number;
-            requirement?: string;
-            source?: string;
-            model?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            rule?: components["schemas"]["RuleSpec"];
-            medications?: components["schemas"]["Knowledge"][];
-            status?: string;
-        };
-        Frequency: {
-            kind?: string;
-            dailyRateComputable?: boolean;
-            doses?: number;
-            perDays?: number;
-            scheduledTimes?: string[];
-            unknownReason?: string;
-        };
-        Knowledge: {
-            medication?: components["schemas"]["MedicationSnapshot"];
-            /** Format: int64 */
-            revision?: number;
-            semanticStatus?: string;
-            /** Format: date-time */
-            capturedAt?: string;
-            classifications?: components["schemas"]["MedicationClassification"][];
-            allergens?: components["schemas"]["AllergenTerm"][];
-            standardMappings?: components["schemas"]["ItemTermMappingView"][];
-            standardReference?: components["schemas"]["MedicationStandardReference"];
-        };
-        DraftCommand: {
-            /** @example 824633720832983041 */
-            parentId?: string;
-            requirement?: string;
-            source?: string;
-            rule?: components["schemas"]["RuleSpec"];
-            medicationIds?: string[];
-        };
-        CatalogVersion: {
-            id?: string;
-            /** Format: int32 */
-            version?: number;
-            name?: string;
-            reviewStatus?: string;
-            testsPassed?: boolean;
-            origin?: string;
-            candidate?: components["schemas"]["Candidate"];
-            builtin?: components["schemas"]["RuleVersion"];
-            review?: components["schemas"]["Review"];
-        };
-        RuleDefinition: {
-            /** @example 824633720832983041 */
-            id?: string;
-            code?: string;
-            category?: string;
-            title?: string;
-        };
-        MedicationStandardReference: {
-            status?: string;
-            catalogId?: string;
-            catalogVersion?: string;
-            contentHash?: string;
-            entryId?: string;
-            specificationId?: string;
-            /** Format: int32 */
-            semanticVersion?: number;
-            name?: string;
-            doseForm?: string;
-            preparationSpec?: string;
-            presentationUnit?: string;
-            strength?: components["schemas"]["JsonNode"];
-            sourceVerificationStatus?: string;
-            issues?: string[];
-        };
-        CatalogEntry: {
-            key?: string;
-            code?: string;
-            name?: string;
-            origin?: string;
-            /** Format: int64 */
-            revision?: number;
-            versions?: components["schemas"]["CatalogVersion"][];
-            deployments?: components["schemas"]["Deployment"][];
-            history?: components["schemas"]["AuditEvent"][];
-        };
-        MedicationStandardsView: {
-            version?: string;
-            doseUnits?: components["schemas"]["Unit"][];
-            routes?: components["schemas"]["RouteSnapshot"][];
-            frequencies?: components["schemas"]["StandardFrequencyView"][];
-        };
-        RuntimeRecord: {
-            /** @example 824633720832983041 */
-            id?: string;
-            ruleKey?: string;
-            versionId?: string;
-            /** @example 824633720832983041 */
-            deploymentId?: string;
-            /** @example 824633720832983041 */
-            prescriptionId?: string;
-            mode?: string;
-            decision?: string;
-            /** Format: date-time */
-            time?: string;
-            details?: string;
-        };
-        RuleSpec: {
-            template?: string;
-            name?: string;
-            explanation?: string;
-            /** Format: int32 */
-            duplicateCount?: number;
-            message?: string;
-            decision?: string;
-            ruleExpression?: string;
-            categoryName?: string;
-            /** Format: int32 */
-            minAge?: number;
-            /** Format: int32 */
-            maxAge?: number;
-        };
-        Deployment: {
-            /** @example 824633720832983041 */
-            id?: string;
-            versionId?: string;
-            /** Format: int32 */
-            version?: number;
-            mode?: string;
-            status?: string;
-            action?: string;
-            /** @example 824633720832983041 */
-            organizationId?: string;
-            /** @example 824633720832983041 */
-            departmentId?: string;
-            /** Format: date-time */
-            effectiveFrom?: string;
-            /** Format: date-time */
-            effectiveTo?: string;
-            /** @example 824633720832983041 */
-            actorId?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            reason?: string;
-            candidate?: components["schemas"]["Candidate"];
-            executable?: components["schemas"]["RuleVersion"];
-        };
-        ProcurementCatalogOption: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            /** @example 824633720832983041 */
-            stockSiteId?: string;
-            /** @example 824633720832983041 */
-            catalogItemId?: string;
-            /** @example 824633720832983041 */
-            packageId?: string;
-            /** @example 824633720832983041 */
-            medicationId?: string;
-            productCode?: string;
-            productName?: string;
-            packageUnitCode?: string;
-            packageUnitName?: string;
-            packageSpec?: string;
-            packageFactor?: number;
-            baseUnitCode?: string;
-            issuePolicy?: string;
-            negativeAllowed?: boolean;
-            lotRequired?: boolean;
-            traceRequired?: boolean;
-            splitAllowed?: boolean;
-            coldChain?: boolean;
-            controlled?: boolean;
-            controlLevel?: string;
-            highAlert?: boolean;
-            status?: string;
-            manufacturerName?: string;
-            /** @example 824633720832983041 */
-            supplierSupplyItemId?: string;
-            agreementPrice?: number;
-            taxRate?: number;
-        };
-        ReceivableOrderLineOption: {
-            /** @example 824633720832983041 */
-            purchaseOrderLineId?: string;
-            remainingQuantity?: number;
-            unitPrice?: number;
-            taxRate?: number;
-            catalog?: components["schemas"]["ProcurementCatalogOption"];
         };
     };
     responses: never;
@@ -21877,6 +24816,72 @@ export interface operations {
             };
         };
     };
+    composition: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Composition"];
+                };
+            };
+        };
+    };
+    save: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Composition"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Composition"];
+                };
+            };
+        };
+    };
     updateProduct: {
         parameters: {
             query?: {
@@ -22908,6 +25913,78 @@ export interface operations {
             };
         };
     };
+    updateDocumentInfo: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrderDocumentInfo"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ServiceRequestResponse"];
+                };
+            };
+        };
+    };
+    updateDocumentInfo_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrderDocumentInfo"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PrescriptionResponse"];
+                };
+            };
+        };
+    };
     record: {
         parameters: {
             query?: never;
@@ -23009,6 +26086,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AnnouncementView"];
+                };
+            };
+        };
+    };
+    analyticsPagesUpdate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisPageSpec"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalysisPageSaved"];
                 };
             };
         };
@@ -24044,6 +27156,1158 @@ export interface operations {
             };
         };
     };
+    history: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                task: string;
+                review: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultSummary"];
+                };
+            };
+        };
+    };
+    analyze: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                task: string;
+                review: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PharmacyImprovementRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    prescriptionPreview: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShadowRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PrescriptionPreview"];
+                };
+            };
+        };
+    };
+    generate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Generation"];
+                };
+            };
+        };
+    };
+    trial: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrialRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TrialRun"];
+                };
+            };
+        };
+    };
+    suite: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TrialRun"];
+                };
+            };
+        };
+    };
+    shadow: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShadowRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TrialRun"];
+                };
+            };
+        };
+    };
+    approve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Candidate"];
+                };
+            };
+        };
+    };
+    activeRuleTrial: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActiveRuleTrialRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ActiveRuleTrialRun"];
+                };
+            };
+        };
+    };
+    history_1: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultSummary"];
+                };
+            };
+        };
+    };
+    analyze_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Request"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    ruleCatalogCommand: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogCommand"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CatalogEntry"];
+                };
+            };
+        };
+    };
+    ruleCatalogCreateDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftCommand"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Candidate"];
+                };
+            };
+        };
+    };
+    suites: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultSuiteSummary"];
+                };
+            };
+        };
+    };
+    save_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Save"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SuiteDetail"];
+                };
+            };
+        };
+    };
+    runs: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultRunSummary"];
+                };
+            };
+        };
+    };
+    execute: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Execute"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    command: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Command"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    command_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Command"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Deployment"];
+                };
+            };
+        };
+    };
+    command_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Command"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Deployment"];
+                };
+            };
+        };
+    };
+    detail: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                candidate: string;
+                deployment: string;
+                run: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    command_3: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                candidate: string;
+                deployment: string;
+                run: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Command"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    history_2: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                candidate: string;
+                deployment: string;
+                run: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultSummary"];
+                };
+            };
+        };
+    };
+    analyze_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                candidate: string;
+                deployment: string;
+                run: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImprovementRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    list_1: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"][];
+                };
+            };
+        };
+    };
+    extract: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Request"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    list_2: {
+        parameters: {
+            query?: {
+                query?: string;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultSummary"];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Save"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    save_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Save"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    create_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Create"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["KnowledgeRuleCandidate"];
+                };
+            };
+        };
+    };
+    history_3: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultSummary"];
+                };
+            };
+        };
+    };
+    replay: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Request"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    validate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Body"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Assessment"];
+                };
+            };
+        };
+    };
+    preview: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Body"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TestCase"][];
+                };
+            };
+        };
+    };
     terminate: {
         parameters: {
             query?: never;
@@ -24851,7 +29115,7 @@ export interface operations {
             };
         };
     };
-    create_1: {
+    create_3: {
         parameters: {
             query?: never;
             header: {
@@ -25014,7 +29278,7 @@ export interface operations {
             };
         };
     };
-    create_2: {
+    create_4: {
         parameters: {
             query?: never;
             header: {
@@ -25152,7 +29416,7 @@ export interface operations {
             };
         };
     };
-    preview: {
+    preview_1: {
         parameters: {
             query?: never;
             header: {
@@ -25844,7 +30108,7 @@ export interface operations {
             };
         };
     };
-    create_3: {
+    create_5: {
         parameters: {
             query?: never;
             header: {
@@ -26021,7 +30285,7 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    list_3: {
         parameters: {
             query?: {
                 query?: string;
@@ -26053,7 +30317,7 @@ export interface operations {
             };
         };
     };
-    create_4: {
+    create_6: {
         parameters: {
             query?: never;
             header: {
@@ -26082,6 +30346,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["FrequencyView"];
+                };
+            };
+        };
+    };
+    previewConfiguration: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigurationPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SchedulePreview"];
                 };
             };
         };
@@ -26121,7 +30420,7 @@ export interface operations {
             };
         };
     };
-    preview_1: {
+    preview_2: {
         parameters: {
             query?: never;
             header: {
@@ -26140,6 +30439,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["PreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SchedulePreview"];
+                };
+            };
+        };
+    };
+    previewDefinition: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DefinitionPreviewRequest"];
             };
         };
         responses: {
@@ -26763,6 +31095,444 @@ export interface operations {
             };
         };
     };
+    preview_3: {
+        parameters: {
+            query?: {
+                historyPage?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preview"];
+                };
+            };
+        };
+    };
+    submit_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Submit"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preview"];
+                };
+            };
+        };
+    };
+    review: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Review"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preview"];
+                };
+            };
+        };
+    };
+    preview_4: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preview"];
+                };
+            };
+        };
+    };
+    bind_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Bind"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preview"];
+                };
+            };
+        };
+    };
+    standardMedicationCandidates: {
+        parameters: {
+            query?: {
+                organizationId?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MedicationView"][];
+                };
+            };
+        };
+    };
+    saveStandardMedication: {
+        parameters: {
+            query?: {
+                organizationId?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StandardMedicationSetupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MedicationView"];
+                };
+            };
+        };
+    };
+    sourceReview: {
+        parameters: {
+            query?: {
+                historyPage?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["View"];
+                };
+            };
+        };
+    };
+    sourceReview_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["View"];
+                };
+            };
+        };
+    };
+    list_4: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultEdition"];
+                };
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Import"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    review_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    change: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                editionId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntryReviewChange"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EntryReviewEvent"];
+                };
+            };
+        };
+    };
     createProduct: {
         parameters: {
             query?: {
@@ -26827,6 +31597,68 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MedicationProductView"];
+                };
+            };
+        };
+    };
+    ingredients: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Ingredient"][];
+                };
+            };
+        };
+    };
+    create_7: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngredientInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Ingredient"];
                 };
             };
         };
@@ -27808,7 +32640,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_5: {
         parameters: {
             query?: {
                 maxLevel?: number;
@@ -27841,7 +32673,7 @@ export interface operations {
             };
         };
     };
-    create_5: {
+    create_8: {
         parameters: {
             query?: never;
             header: {
@@ -27942,7 +32774,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_6: {
         parameters: {
             query?: {
                 query?: string;
@@ -27976,7 +32808,7 @@ export interface operations {
             };
         };
     };
-    create_6: {
+    create_9: {
         parameters: {
             query?: never;
             header: {
@@ -29104,7 +33936,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    list_7: {
         parameters: {
             query: {
                 stockSiteId: string;
@@ -29138,7 +33970,7 @@ export interface operations {
             };
         };
     };
-    generate: {
+    generate_1: {
         parameters: {
             query?: never;
             header: {
@@ -29311,7 +34143,7 @@ export interface operations {
             };
         };
     };
-    list_5: {
+    list_8: {
         parameters: {
             query?: {
                 status?: string;
@@ -29343,7 +34175,7 @@ export interface operations {
             };
         };
     };
-    create_7: {
+    create_10: {
         parameters: {
             query?: never;
             header: {
@@ -29446,7 +34278,7 @@ export interface operations {
             };
         };
     };
-    list_6: {
+    list_9: {
         parameters: {
             query?: {
                 status?: string;
@@ -29479,7 +34311,7 @@ export interface operations {
             };
         };
     };
-    create_8: {
+    create_11: {
         parameters: {
             query?: never;
             header: {
@@ -29784,7 +34616,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_10: {
         parameters: {
             query: {
                 stockSiteId: string;
@@ -29816,7 +34648,7 @@ export interface operations {
             };
         };
     };
-    create_9: {
+    create_12: {
         parameters: {
             query?: never;
             header: {
@@ -29849,7 +34681,7 @@ export interface operations {
             };
         };
     };
-    submit_2: {
+    submit_3: {
         parameters: {
             query?: never;
             header: {
@@ -30012,7 +34844,7 @@ export interface operations {
             };
         };
     };
-    approve: {
+    approve_1: {
         parameters: {
             query?: never;
             header: {
@@ -30278,7 +35110,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_11: {
         parameters: {
             query: {
                 sourceSiteId: string;
@@ -30309,7 +35141,7 @@ export interface operations {
             };
         };
     };
-    create_10: {
+    create_13: {
         parameters: {
             query?: never;
             header: {
@@ -30342,7 +35174,7 @@ export interface operations {
             };
         };
     };
-    submit_3: {
+    submit_4: {
         parameters: {
             query?: never;
             header: {
@@ -30470,7 +35302,7 @@ export interface operations {
             };
         };
     };
-    approve_1: {
+    approve_2: {
         parameters: {
             query?: never;
             header: {
@@ -30571,7 +35403,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_12: {
         parameters: {
             query: {
                 stockSiteId: string;
@@ -30602,7 +35434,7 @@ export interface operations {
             };
         };
     };
-    create_11: {
+    create_14: {
         parameters: {
             query?: never;
             header: {
@@ -30635,7 +35467,7 @@ export interface operations {
             };
         };
     };
-    submit_4: {
+    submit_5: {
         parameters: {
             query?: never;
             header: {
@@ -30798,7 +35630,7 @@ export interface operations {
             };
         };
     };
-    approve_2: {
+    approve_3: {
         parameters: {
             query?: never;
             header: {
@@ -31162,7 +35994,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_13: {
         parameters: {
             query: {
                 stockSiteId: string;
@@ -31193,7 +36025,7 @@ export interface operations {
             };
         };
     };
-    create_12: {
+    create_15: {
         parameters: {
             query?: never;
             header: {
@@ -31226,7 +36058,7 @@ export interface operations {
             };
         };
     };
-    submit_5: {
+    submit_6: {
         parameters: {
             query?: never;
             header: {
@@ -31319,7 +36151,7 @@ export interface operations {
             };
         };
     };
-    approve_3: {
+    approve_4: {
         parameters: {
             query?: never;
             header: {
@@ -31381,7 +36213,7 @@ export interface operations {
             };
         };
     };
-    create_13: {
+    create_16: {
         parameters: {
             query?: never;
             header: {
@@ -31575,7 +36407,7 @@ export interface operations {
             };
         };
     };
-    register: {
+    register_1: {
         parameters: {
             query?: never;
             header: {
@@ -31711,7 +36543,40 @@ export interface operations {
             };
         };
     };
-    review: {
+    scanTraceCodes: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchTraceScanRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TraceCodeBatchScanView"];
+                };
+            };
+        };
+    };
+    review_2: {
         parameters: {
             query?: never;
             header: {
@@ -31917,7 +36782,7 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_14: {
         parameters: {
             query: {
                 organizationId: string;
@@ -31948,7 +36813,7 @@ export interface operations {
             };
         };
     };
-    create_14: {
+    create_17: {
         parameters: {
             query?: never;
             header: {
@@ -31977,6 +36842,39 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DispenseRouteView"];
+                };
+            };
+        };
+    };
+    directGoodsReceipt: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectGoodsReceiptRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GoodsReceiptView"];
                 };
             };
         };
@@ -32419,7 +37317,7 @@ export interface operations {
             };
         };
     };
-    create_15: {
+    create_18: {
         parameters: {
             query?: never;
             header: {
@@ -32454,7 +37352,7 @@ export interface operations {
             };
         };
     };
-    list_12: {
+    list_15: {
         parameters: {
             query?: {
                 keyword?: string;
@@ -32485,7 +37383,7 @@ export interface operations {
             };
         };
     };
-    create_16: {
+    create_19: {
         parameters: {
             query?: never;
             header: {
@@ -32584,7 +37482,7 @@ export interface operations {
             };
         };
     };
-    list_13: {
+    list_16: {
         parameters: {
             query?: {
                 keyword?: string;
@@ -32616,7 +37514,7 @@ export interface operations {
             };
         };
     };
-    create_17: {
+    create_20: {
         parameters: {
             query?: never;
             header: {
@@ -32715,7 +37613,7 @@ export interface operations {
             };
         };
     };
-    list_14: {
+    list_17: {
         parameters: {
             query?: {
                 specialtyCode?: string;
@@ -32746,7 +37644,7 @@ export interface operations {
             };
         };
     };
-    create_18: {
+    create_21: {
         parameters: {
             query?: never;
             header: {
@@ -32814,7 +37712,7 @@ export interface operations {
             };
         };
     };
-    list_15: {
+    list_18: {
         parameters: {
             query?: {
                 dateFrom?: string;
@@ -32848,7 +37746,7 @@ export interface operations {
             };
         };
     };
-    create_19: {
+    create_22: {
         parameters: {
             query?: never;
             header: {
@@ -33254,7 +38152,7 @@ export interface operations {
             };
         };
     };
-    submit_6: {
+    submit_7: {
         parameters: {
             query?: never;
             header: {
@@ -33532,7 +38430,7 @@ export interface operations {
             };
         };
     };
-    execute: {
+    execute_1: {
         parameters: {
             query?: never;
             header: {
@@ -34050,7 +38948,7 @@ export interface operations {
             };
         };
     };
-    register_1: {
+    register_2: {
         parameters: {
             query?: never;
             header: {
@@ -34153,7 +39051,7 @@ export interface operations {
             };
         };
     };
-    list_16: {
+    list_19: {
         parameters: {
             query?: never;
             header: {
@@ -34184,7 +39082,7 @@ export interface operations {
             };
         };
     };
-    create_20: {
+    create_23: {
         parameters: {
             query?: never;
             header: {
@@ -34326,7 +39224,7 @@ export interface operations {
             };
         };
     };
-    list_17: {
+    list_20: {
         parameters: {
             query?: never;
             header: {
@@ -34357,7 +39255,7 @@ export interface operations {
             };
         };
     };
-    create_21: {
+    create_24: {
         parameters: {
             query?: never;
             header: {
@@ -34392,7 +39290,7 @@ export interface operations {
             };
         };
     };
-    submit_7: {
+    submit_8: {
         parameters: {
             query?: never;
             header: {
@@ -34424,6 +39322,38 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PrescriptionResponse"];
+                };
+            };
+        };
+    };
+    evaluate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+                prescriptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MedicationSafetyDecision"];
                 };
             };
         };
@@ -34570,7 +39500,7 @@ export interface operations {
             };
         };
     };
-    list_18: {
+    list_21: {
         parameters: {
             query?: never;
             header: {
@@ -34601,7 +39531,7 @@ export interface operations {
             };
         };
     };
-    create_22: {
+    create_25: {
         parameters: {
             query?: never;
             header: {
@@ -34738,6 +39668,39 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CancelEncounterResponse"];
+                };
+            };
+        };
+    };
+    receive_4: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Request"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Result"];
                 };
             };
         };
@@ -34949,7 +39912,7 @@ export interface operations {
             };
         };
     };
-    create_23: {
+    create_26: {
         parameters: {
             query?: never;
             header: {
@@ -35118,7 +40081,7 @@ export interface operations {
             };
         };
     };
-    list_19: {
+    list_22: {
         parameters: {
             query?: never;
             header: {
@@ -35289,7 +40252,7 @@ export interface operations {
             };
         };
     };
-    create_24: {
+    create_27: {
         parameters: {
             query?: never;
             header: {
@@ -35419,7 +40382,7 @@ export interface operations {
             };
         };
     };
-    list_20: {
+    list_23: {
         parameters: {
             query?: never;
             header: {
@@ -35448,7 +40411,7 @@ export interface operations {
             };
         };
     };
-    create_25: {
+    create_28: {
         parameters: {
             query?: never;
             header: {
@@ -36394,7 +41357,7 @@ export interface operations {
             };
         };
     };
-    list_21: {
+    list_24: {
         parameters: {
             query?: {
                 status?: string;
@@ -36425,7 +41388,7 @@ export interface operations {
             };
         };
     };
-    create_26: {
+    create_29: {
         parameters: {
             query?: never;
             header: {
@@ -36528,6 +41491,204 @@ export interface operations {
             };
         };
     };
+    analyticsV2Resolve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SemanticQuery"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Resolution"];
+                };
+            };
+        };
+    };
+    analyticsV2Plan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SemanticQuery"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LogicalQueryPlan"];
+                };
+            };
+        };
+    };
+    analyticsV2OntologyCopilotSuggest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopilotSuggestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CopilotSuggestResponse"];
+                };
+            };
+        };
+    };
+    analyticsV2Interpret: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterpretRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SemanticQuery"];
+                };
+            };
+        };
+    };
+    analyticsV2Execute: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExecuteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExecutionResult"];
+                };
+            };
+        };
+    };
+    analyticsV2Compile: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SemanticQuery"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CompiledQuery"];
+                };
+            };
+        };
+    };
     saved: {
         parameters: {
             query?: never;
@@ -36557,7 +41718,7 @@ export interface operations {
             };
         };
     };
-    save: {
+    save_3: {
         parameters: {
             query?: never;
             header: {
@@ -36706,6 +41867,76 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AnalysisPageSpec"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalysisPageSaved"];
+                };
+            };
+        };
+    };
+    analyticsPagesRename: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisPageRename"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalysisPageSaved"];
+                };
+            };
+        };
+    };
+    analyticsPagesArchive: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisPageArchive"];
             };
         };
         responses: {
@@ -36888,7 +42119,7 @@ export interface operations {
             };
         };
     };
-    history: {
+    history_4: {
         parameters: {
             query?: never;
             header: {
@@ -36919,7 +42150,7 @@ export interface operations {
             };
         };
     };
-    generate_1: {
+    generate_2: {
         parameters: {
             query?: never;
             header: {
@@ -37527,6 +42758,978 @@ export interface operations {
             };
         };
     };
+    source: {
+        parameters: {
+            query?: {
+                findingId?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                task: string;
+                review: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FeedbackOrigin"];
+                };
+            };
+        };
+    };
+    medications_1: {
+        parameters: {
+            query?: {
+                query?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Knowledge"][];
+                };
+            };
+        };
+    };
+    evaluations: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EvaluationSummary"][];
+                };
+            };
+        };
+    };
+    candidates: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Candidate"][];
+                };
+            };
+        };
+    };
+    runs_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TrialRun"][];
+                };
+            };
+        };
+    };
+    status_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Status"];
+                };
+            };
+        };
+    };
+    activeRules: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ActiveRuleView"][];
+                };
+            };
+        };
+    };
+    inspect: {
+        parameters: {
+            query: {
+                catalogId: string;
+                entryId?: string;
+                specificationId?: string;
+                kind?: string;
+                includeHistory?: boolean;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Report"];
+                };
+            };
+        };
+    };
+    get_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    origin: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FeedbackOrigin"];
+                };
+            };
+        };
+    };
+    capabilities: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Capability"][];
+                };
+            };
+        };
+    };
+    ruleCatalog: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Catalog"];
+                };
+            };
+        };
+    };
+    ruleCatalogRuns: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuntimeRecord"][];
+                };
+            };
+        };
+    };
+    suite_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SuiteDetail"];
+                };
+            };
+        };
+    };
+    run: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    preview_5: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preview"];
+                };
+            };
+        };
+    };
+    history_5: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultSummary"];
+                };
+            };
+        };
+    };
+    event: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+                eventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    preview_6: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preview"];
+                };
+            };
+        };
+    };
+    observations: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+                deploymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Observations"];
+                };
+            };
+        };
+    };
+    material: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+                deploymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Authorization"];
+                };
+            };
+        };
+    };
+    preview_7: {
+        parameters: {
+            query: {
+                sourceDeploymentId: string;
+                operation: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preview"];
+                };
+            };
+        };
+    };
+    get_3: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    status_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Status"];
+                };
+            };
+        };
+    };
+    detail_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    origin_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    preview_8: {
+        parameters: {
+            query: {
+                expectedVersion: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preview"];
+                };
+            };
+        };
+    };
+    detail_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Run"];
+                };
+            };
+        };
+    };
+    history_6: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Version"][];
+                };
+            };
+        };
+    };
+    sources: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultSource"];
+                };
+            };
+        };
+    };
+    examples: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Example"][];
+                };
+            };
+        };
+    };
     users: {
         parameters: {
             query?: {
@@ -37938,7 +44141,7 @@ export interface operations {
             };
         };
     };
-    candidates: {
+    candidates_1: {
         parameters: {
             query?: {
                 documentType?: string;
@@ -38230,6 +44433,70 @@ export interface operations {
             };
         };
     };
+    impact: {
+        parameters: {
+            query: {
+                specificationId: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ImpactSnapshot"];
+                };
+            };
+        };
+    };
+    history_7: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Version"][];
+                };
+            };
+        };
+    };
     searchMedications: {
         parameters: {
             query?: {
@@ -38266,6 +44533,353 @@ export interface operations {
             };
         };
     };
+    search_2: {
+        parameters: {
+            query?: {
+                query?: string;
+                medicationType?: string;
+                state?: string;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultJsonNode"];
+                };
+            };
+        };
+    };
+    detail_3: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["JsonNode"];
+                };
+            };
+        };
+    };
+    summary_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["JsonNode"];
+                };
+            };
+        };
+    };
+    sourceDocument: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    detail_4: {
+        parameters: {
+            query?: {
+                reviewPage?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    original: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Original"];
+                };
+            };
+        };
+    };
+    dependencies: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Dependencies"];
+                };
+            };
+        };
+    };
+    content: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["JsonNode"];
+                };
+            };
+        };
+    };
+    compare: {
+        parameters: {
+            query?: {
+                base?: string;
+                page?: number;
+                group?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Comparison"];
+                };
+            };
+        };
+    };
+    view: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                editionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EntryReviewView"];
+                };
+            };
+        };
+    };
+    runtime: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Edition"];
+                };
+            };
+        };
+    };
     active_1: {
         parameters: {
             query?: {
@@ -38294,6 +44908,44 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RouteSnapshot"][];
+                };
+            };
+        };
+    };
+    searchProducts: {
+        parameters: {
+            query?: {
+                query?: string;
+                medicationType?: string;
+                status?: string;
+                organizationId?: string;
+                page?: number;
+                size?: number;
+                stockable?: boolean;
+                dispensable?: boolean;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultMedicationProductEntryView"];
                 };
             };
         };
@@ -38488,7 +45140,7 @@ export interface operations {
             };
         };
     };
-    list_22: {
+    list_25: {
         parameters: {
             query?: never;
             header: {
@@ -38517,7 +45169,7 @@ export interface operations {
             };
         };
     };
-    get_2: {
+    get_4: {
         parameters: {
             query?: never;
             header: {
@@ -38607,6 +45259,137 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+        };
+    };
+    standards: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MedicationStandardsView"];
+                };
+            };
+        };
+    };
+    readiness: {
+        parameters: {
+            query?: {
+                query?: string;
+                filter?: string;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Readiness"];
+                };
+            };
+        };
+    };
+    impact_1: {
+        parameters: {
+            query: {
+                kind: string;
+                conceptId: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Impact"][];
+                };
+            };
+        };
+    };
+    references: {
+        parameters: {
+            query: {
+                kind: string;
+                conceptId: string;
+                objectKind?: string;
+                includeHistory?: boolean;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ClinicalSemanticDependencyReport"];
                 };
             };
         };
@@ -39129,7 +45912,7 @@ export interface operations {
             };
         };
     };
-    get_3: {
+    get_5: {
         parameters: {
             query?: never;
             header: {
@@ -39160,7 +45943,7 @@ export interface operations {
             };
         };
     };
-    get_4: {
+    get_6: {
         parameters: {
             query?: never;
             header: {
@@ -39222,7 +46005,7 @@ export interface operations {
             };
         };
     };
-    get_5: {
+    get_7: {
         parameters: {
             query?: never;
             header: {
@@ -39249,6 +46032,74 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["WardDeliveryView"];
+                };
+            };
+        };
+    };
+    receivableOrderLines: {
+        parameters: {
+            query?: {
+                query?: string;
+                businessDate?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReceivableOrderLineOption"][];
+                };
+            };
+        };
+    };
+    procurementCatalog: {
+        parameters: {
+            query: {
+                stockSiteId: string;
+                supplierId: string;
+                query?: string;
+                businessDate?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProcurementCatalogOption"][];
                 };
             };
         };
@@ -39354,7 +46205,7 @@ export interface operations {
             };
         };
     };
-    search_2: {
+    search_3: {
         parameters: {
             query: {
                 stockSiteId: string;
@@ -39387,7 +46238,7 @@ export interface operations {
             };
         };
     };
-    detail: {
+    detail_5: {
         parameters: {
             query?: never;
             header: {
@@ -39546,7 +46397,7 @@ export interface operations {
             };
         };
     };
-    get_6: {
+    get_8: {
         parameters: {
             query?: never;
             header: {
@@ -39702,7 +46553,7 @@ export interface operations {
             };
         };
     };
-    summary_2: {
+    summary_3: {
         parameters: {
             query?: never;
             header: {
@@ -40153,7 +47004,7 @@ export interface operations {
             };
         };
     };
-    get_7: {
+    get_9: {
         parameters: {
             query?: never;
             header: {
@@ -40279,7 +47130,7 @@ export interface operations {
             };
         };
     };
-    summary_3: {
+    summary_4: {
         parameters: {
             query?: never;
             header: {
@@ -40664,7 +47515,7 @@ export interface operations {
             };
         };
     };
-    candidates_1: {
+    candidates_2: {
         parameters: {
             query?: {
                 residentId?: string;
@@ -40695,7 +47546,7 @@ export interface operations {
             };
         };
     };
-    get_8: {
+    get_10: {
         parameters: {
             query?: never;
             header: {
@@ -40722,6 +47573,39 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["EncounterResponse"];
+                };
+            };
+        };
+    };
+    find: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+                prescriptionId: string;
+                evaluationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MedicationSafetyDecision"];
                 };
             };
         };
@@ -40786,6 +47670,72 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DiagnosticReportResponse"][];
+                };
+            };
+        };
+    };
+    page_2: {
+        parameters: {
+            query?: {
+                dateFrom?: string;
+                dateTo?: string;
+                status?: string;
+                query?: string;
+                page?: number;
+                size?: number;
+                scope?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EncounterPageView"];
+                };
+            };
+        };
+    };
+    settings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Settings"];
                 };
             };
         };
@@ -40880,7 +47830,7 @@ export interface operations {
             };
         };
     };
-    get_9: {
+    get_11: {
         parameters: {
             query?: never;
             header: {
@@ -41002,7 +47952,7 @@ export interface operations {
             };
         };
     };
-    get_10: {
+    get_12: {
         parameters: {
             query?: never;
             header: {
@@ -41064,7 +48014,7 @@ export interface operations {
             };
         };
     };
-    get_11: {
+    get_13: {
         parameters: {
             query?: never;
             header: {
@@ -41095,7 +48045,7 @@ export interface operations {
             };
         };
     };
-    get_12: {
+    get_14: {
         parameters: {
             query?: never;
             header: {
@@ -41219,7 +48169,7 @@ export interface operations {
             };
         };
     };
-    get_13: {
+    get_15: {
         parameters: {
             query?: never;
             header: {
@@ -41345,7 +48295,7 @@ export interface operations {
             };
         };
     };
-    get_14: {
+    get_16: {
         parameters: {
             query?: never;
             header: {
@@ -41436,7 +48386,7 @@ export interface operations {
             };
         };
     };
-    summary_4: {
+    summary_5: {
         parameters: {
             query?: never;
             header: {
@@ -41461,6 +48411,35 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AnnouncementSummary"];
+                };
+            };
+        };
+    };
+    analyticsV2OntologyGraph: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OntologyGraphDto"];
                 };
             };
         };
@@ -41523,6 +48502,37 @@ export interface operations {
             };
         };
     };
+    analyticsPagesHistory: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalysisPageSaved"][];
+                };
+            };
+        };
+    };
     analyticsPagesCatalog: {
         parameters: {
             query?: never;
@@ -41581,7 +48591,7 @@ export interface operations {
             };
         };
     };
-    search_3: {
+    search_4: {
         parameters: {
             query?: {
                 category?: string;
@@ -41613,7 +48623,7 @@ export interface operations {
             };
         };
     };
-    capabilities: {
+    capabilities_1: {
         parameters: {
             query?: never;
             header: {
@@ -41697,547 +48707,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    searchProducts: {
-        parameters: {
-            query?: {
-                query?: string;
-                medicationType?: string;
-                status?: string;
-                organizationId?: string;
-                page?: number;
-                size?: number;
-                stockable?: boolean;
-                dispensable?: boolean;
-            };
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PageResultMedicationProductEntryView"];
-                };
-            };
-        };
-    };
-    standardMedicationCandidates: {
-        parameters: {
-            query?: {
-                organizationId?: string;
-            };
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["MedicationView"][];
-                };
-            };
-        };
-    };
-    saveStandardMedication: {
-        parameters: {
-            query?: {
-                organizationId?: string;
-            };
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StandardMedicationSetupRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["MedicationView"];
-                };
-            };
-        };
-    };
-    updateDocumentInfo: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                encounterId: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateOrderDocumentInfo"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ServiceRequestResponse"];
-                };
-            };
-        };
-    };
-    updateDocumentInfo_1: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                encounterId: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateOrderDocumentInfo"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PrescriptionResponse"];
-                };
-            };
-        };
-    };
-    analyticsPagesUpdate: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnalysisPageSpec"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["AnalysisPageSaved"];
-                };
-            };
-        };
-    };
-    analyticsPagesRename: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnalysisPageRename"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["AnalysisPageSaved"];
-                };
-            };
-        };
-    };
-    analyticsPagesArchive: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnalysisPageArchive"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["AnalysisPageSaved"];
-                };
-            };
-        };
-    };
-    analyticsPagesHistory: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["AnalysisPageSaved"][];
-                };
-            };
-        };
-    };
-    ruleCatalogRuns: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                key: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RuntimeRecord"][];
-                };
-            };
-        };
-    };
-    standards: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["MedicationStandardsView"];
-                };
-            };
-        };
-    };
-    ruleCatalogCreateDraft: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DraftCommand"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["Candidate"];
-                };
-            };
-        };
-    };
-    ruleCatalog: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["Catalog"];
-                };
-            };
-        };
-    };
-    ruleCatalogCommand: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                key: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CatalogCommand"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["CatalogEntry"];
-                };
-            };
-        };
-    };
-    procurementCatalog: {
-        parameters: {
-            query: {
-                stockSiteId: string;
-                supplierId: string;
-                query?: string;
-                businessDate?: string;
-            };
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ProcurementCatalogOption"][];
-                };
-            };
-        };
-    };
-    receivableOrderLines: {
-        parameters: {
-            query?: {
-                query?: string;
-                businessDate?: string;
-            };
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                orderId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ReceivableOrderLineOption"][];
-                };
             };
         };
     };

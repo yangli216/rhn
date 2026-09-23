@@ -1,6 +1,6 @@
 {
   "generatedBy": "scripts/rebuild-database.mjs",
-  "targetVersion": "1.77.0",
+  "targetVersion": "1.79.0",
   "generatedAt": "source-derived",
   "policy": {
     "existingDatabase": "keep-and-upgrade-with-published-history",
@@ -34,23 +34,23 @@
   "outputs": [
     {
       "name": "postgresql",
-      "file": "backend/src/main/resources/db/rebuild/postgresql/B1_77_0__rhn_schema_and_standard_metadata.sql"
+      "file": "backend/src/main/resources/db/rebuild/postgresql/B1_79_0__rhn_schema_and_standard_metadata.sql"
     },
     {
       "name": "oracle",
-      "file": "backend/src/main/resources/db/rebuild/oracle/B1_77_0__rhn_schema_and_standard_metadata.sql"
+      "file": "backend/src/main/resources/db/rebuild/oracle/B1_79_0__rhn_schema_and_standard_metadata.sql"
     },
     {
       "name": "development",
-      "file": "backend/src/main/resources/db/rebuild/local/V1_77_1__development_hospital.sql"
+      "file": "backend/src/main/resources/db/rebuild/local/V1_79_1__development_hospital.sql"
     },
     {
       "name": "oracleDevelopment",
-      "file": "backend/src/main/resources/db/rebuild/oracle-local/V1_77_1__development_hospital.sql"
+      "file": "backend/src/main/resources/db/rebuild/oracle-local/V1_79_1__development_hospital.sql"
     },
     {
       "name": "h2",
-      "file": "backend/src/main/resources/db/rebuild/h2/V1_77_2__h2_clob_types.sql"
+      "file": "backend/src/main/resources/db/rebuild/h2/V1_79_2__h2_clob_types.sql"
     }
   ],
   "sources": [
@@ -241,6 +241,16 @@
     },
     {
       "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_78_0__quarantine_unresolved_essential_medication_fragments.sql",
+      "sha256": "aacb4b9c4ac8e55856eb99a0289b4dd75efd0703c2447dd3486f33009a0ec70c"
+    },
+    {
+      "role": "postgresql",
+      "path": "backend/src/main/resources/db/migration/V1_79_0__standard_catalog_entry_review.sql",
+      "sha256": "460b2dbdd100364659c8213472daf32ef60c0303c5744c519cc0e8f87d10d175"
+    },
+    {
+      "role": "postgresql",
       "path": "backend/src/main/resources/db/local/V1_42_3__development_hospital.sql",
       "sha256": "3ea75230ba6d613887740aab64f4d90bc4a79aeb4d1179b90b2fd6d799893999"
     },
@@ -428,6 +438,16 @@
       "role": "oracle",
       "path": "backend/src/main/resources/db/oracle/V1_77_0__governed_column_abbreviations.sql",
       "sha256": "a5b31eadc8f03223086e760f0466312eea1a8aed160fcab6368476e8d8f4619c"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_78_0__quarantine_unresolved_essential_medication_fragments.sql",
+      "sha256": "aacb4b9c4ac8e55856eb99a0289b4dd75efd0703c2447dd3486f33009a0ec70c"
+    },
+    {
+      "role": "oracle",
+      "path": "backend/src/main/resources/db/oracle/V1_79_0__standard_catalog_entry_review.sql",
+      "sha256": "5770a96281dd4fb8c7a9786488dc52aa9014bbe90053baf87177c7724e634ae7"
     },
     {
       "role": "oracle",

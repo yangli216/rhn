@@ -4,7 +4,8 @@ import type { ClinicalAiCapabilities, ClinicalAiDraftContext,
 import { Button, FormField, Icon, StatusBadge } from '../../../shared/ui'
 import type { ClinicalAiPreview } from '../../../shared/api/clinicalAiStream'
 import { clinicalAiDraftStatusPresentation } from '../../../shared/presentation'
-import { recordDraftFields, recordDraftFieldLabels } from './aiDraftAdapter'
+import { aiRecordDraftFields, aiRecordDraftValue, aiVitalDefinitions, formatAiRecordDraftValue,
+  isAiVitalField, recordDraftFieldLabels, type AiRecordDraftField } from './aiDraftAdapter'
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
 import { ClinicalAiPipelineStepper } from './ClinicalAiPipelineStepper'
 import type { ClinicalAiSurfaces, InlineAiSelection } from './ClinicalAiInlineWorkspace'
@@ -70,9 +71,16 @@ export function ClinicalAiCopilotHub({
   }, [current, reviewOpen, summaryOpen, onView])
 
   const recordFeature = capability.features.includes('RECORD_COMPLETENESS')
-  const entries = recordFeature && current ? recordDraftFields.filter((field) => suggestion?.recordDraft[field]?.trim()) : []
+  const entries = recordFeature && current ? aiRecordDraftFields.filter((field) =>
+    aiRecordDraftValue(field, suggestion?.recordDraft[field]) !== undefined) : []
+  const editedValue = (field: AiRecordDraftField) => {
+    const value = edited[field]
+    return aiRecordDraftValue(field, value === undefined ? suggestion?.recordDraft[field]
+      : isAiVitalField(field) ? value.trim() ? Number(value) : undefined : value)
+  }
   const selectedFields = entries.filter((field) => fields.includes(field)
-    && (edited[field] ?? suggestion?.recordDraft[field])?.trim())
+    && editedValue(field) !== undefined)
+  const comparisonLabel = entries.some(isAiVitalField) ? '病历对照' : '段落对照'
   const selectionCount = selectedFields.length
   const adoptionDisabled = disabled || busy || !current || !canAdopt || selectionCount === 0
 
@@ -81,7 +89,7 @@ export function ClinicalAiCopilotHub({
 
   const applySelection = () => onApply({
     recordDraft: selectedFields.length ? Object.fromEntries(selectedFields
-      .map((field) => [field, edited[field] ?? suggestion!.recordDraft[field]])) : undefined,
+      .map((field) => [field, editedValue(field)])) : undefined,
   })
 
   const generate = (focus?: string) => {
@@ -107,7 +115,8 @@ export function ClinicalAiCopilotHub({
   useEffect(() => {
     if (!appliedSuggestionId.current || !current || !suggestion || appliedSuggestionId.current !== suggestion.id) return
     appliedSuggestionId.current = null
-    const validEntries = recordDraftFields.filter((field) => suggestion.recordDraft[field]?.trim())
+    const validEntries = aiRecordDraftFields.filter((field) =>
+      aiRecordDraftValue(field, suggestion.recordDraft[field]) !== undefined)
     if (validEntries.length === 0) return
     onApply({
       recordDraft: Object.fromEntries(validEntries.map((field) => [field, suggestion.recordDraft[field]])),
@@ -467,7 +476,7 @@ export function ClinicalAiCopilotHub({
                     }}
                   >
                     <Icon name="check" />
-                    <span>{reviewOpen ? '收起对照' : `段落对照 · ${entries.length}`}</span>
+                    <span>{reviewOpen ? '收起对照' : `${comparisonLabel} · ${entries.length}`}</span>
                   </Button>
                 )}
               </div>
@@ -487,7 +496,7 @@ export function ClinicalAiCopilotHub({
             {/* Review & Paragraph Comparison */}
             {entries.length > 0 && reviewOpen && (
               <details className="doctor-ai-cowrite__review" open>
-                <summary>段落对照 · {entries.length} 项建议</summary>
+                <summary>{comparisonLabel} · {entries.length} 项建议</summary>
                 <div className="doctor-ai-cowrite__fields">
                   {entries.map((field) => (
                     <article key={field}>
@@ -499,28 +508,37 @@ export function ClinicalAiCopilotHub({
                           onChange={() => setFields(toggle(fields, field))}
                         />
                         <strong>{recordDraftFieldLabels[field]}</strong>
-                        <small>{context[field]?.trim() ? '采纳将替换本段' : '补充空白段落'}</small>
+                        <small>{formatAiRecordDraftValue(field, context[field])
+                          ? isAiVitalField(field) ? '采纳将替换此值' : '采纳将替换本段'
+                          : isAiVitalField(field) ? '补充体格检查' : '补充空白段落'}</small>
                       </label>
                       <div className="doctor-ai-cowrite__comparison">
                         <div>
                           <small>当前内容</small>
-                          <p>{context[field] || '尚未填写'}</p>
+                          <p>{formatAiRecordDraftValue(field, context[field]) || '尚未填写'}</p>
                         </div>
-                        <FormField label={`${recordDraftFieldLabels[field]}建议（可编辑）`}>
-                          <textarea
+                        <FormField label={`${recordDraftFieldLabels[field]}建议（可编辑）`}
+                          hint={isAiVitalField(field) ? `单位：${aiVitalDefinitions[field].unit}` : undefined}>
+                          {isAiVitalField(field) ? <input type="number"
+                            min={aiVitalDefinitions[field].minimum} max={aiVitalDefinitions[field].maximum}
+                            step={aiVitalDefinitions[field].step}
+                            value={edited[field] ?? suggestion!.recordDraft[field] ?? ''}
+                            disabled={!current || busy || disabled}
+                            onChange={(event) => setEdited({ ...edited, [field]: event.target.value })}
+                          /> : <textarea
                             className="ui-field__control doctor-ai-comparison-textarea"
                             rows={3}
                             value={edited[field] ?? suggestion!.recordDraft[field] ?? ''}
                             disabled={!current || busy || disabled}
                             onChange={(event) => setEdited({ ...edited, [field]: event.target.value })}
-                          />
+                          />}
                         </FormField>
                       </div>
                     </article>
                   ))}
                 </div>
                 <div className="doctor-ai-review-actions">
-                  <small>仅替换勾选段落；采纳后可撤销本次病历修改。</small>
+                  <small>仅替换勾选内容；采纳后可撤销本次病历修改。</small>
                   <Button size="sm" variant="secondary" disabled={adoptionDisabled} onClick={applySelection}>
                     采纳所选草稿{selectionCount > 0 ? `（${selectionCount}）` : ''}
                   </Button>

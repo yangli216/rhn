@@ -217,6 +217,7 @@ public class ClinicalAssistantApplicationService {
         requireAvailable(runtime, requestContext);
         Access access = requireAccess(encounterId, true);
         Instant now = Instant.now();
+        var temporalContext = new ClinicalAiModelGateway.TemporalContext(now, access.encounter().registeredAt());
         ServerContext serverContext = loadServerContext(access);
         if (input.receptionSceneContext() != null && input.receptionSceneContext().selectedReportIds() != null
                 && !serverContext.reports().stream().map(DiagnosticReportResponse::id).toList()
@@ -226,7 +227,7 @@ public class ClinicalAssistantApplicationService {
         SuggestionContent priorSuggestion = requirePriorSuggestion(access, input, serverContext, now, runtime);
         String contextHash = contextHash(access, input);
         Analysis analysis = runtime.mode() == ClinicalAssistantSettings.Mode.MODEL
-                ? analyzeWithModel(input, serverContext, priorSuggestion, runtime, onDelta)
+                ? analyzeWithModel(input, serverContext, priorSuggestion, runtime, temporalContext, onDelta)
                 : analyzeLocally(access, input, serverContext);
         SuggestionContent content = analysis.content();
 
@@ -236,6 +237,7 @@ public class ClinicalAssistantApplicationService {
         evidence.put("parentSuggestionId", input.parentSuggestionId());
         evidence.put("receptionScene", input.receptionScene());
         evidence.put("receptionSceneContext", input.receptionSceneContext());
+        evidence.put("temporalContext", temporalContext);
         evidence.put("clientContextHash", contextHash);
         evidence.put("clinicalDraftHash", clinicalDraftHash(access, input));
         evidence.put("serverContextHash", serverContext.hash());
@@ -352,7 +354,7 @@ public class ClinicalAssistantApplicationService {
         String summary = "已核对病历完整性、生命体征、过敏风险及 " + draft.diagnoses().size()
                 + " 条诊断编码；发现 " + missing.size() + " 项待补充信息、" + alerts.size()
                 + " 项优先核对内容，并匹配 " + plans.size() + " 个院内既有方案。";
-        SuggestionContent content = new SuggestionContent(summary, conservativeRecordDraft(draft),
+        SuggestionContent content = new SuggestionContent(summary, enrichRecordDraftFromInput(conservativeRecordDraft(draft), input),
                 candidates, List.of(), missing, alerts, plans, DISCLAIMER);
         String risk = alerts.stream().anyMatch(value -> "CRITICAL".equals(value.level())) ? "CRITICAL"
                 : alerts.isEmpty() ? "INFO" : "MEDIUM";
@@ -361,13 +363,15 @@ public class ClinicalAssistantApplicationService {
 
     private Analysis analyzeWithModel(GenerateRequest input, ServerContext serverContext,
                                       SuggestionContent priorSuggestion, ClinicalAssistantSettings runtime,
+                                      ClinicalAiModelGateway.TemporalContext temporalContext,
                                       java.util.function.Consumer<String> onDelta) {
         SuggestionContent raw;
         try {
             var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION,
                     clean(input.question()), clean(input.voiceTranscript()), input.draft(),
                     serverContext.resident(), serverContext.allergies(),
-                    serverContext.plans(), serverContext.reports(), serverContext.clinicalHistory(), priorSuggestion, input.receptionScene(), input.receptionSceneContext());
+                    serverContext.plans(), serverContext.reports(), serverContext.clinicalHistory(), priorSuggestion, input.receptionScene(), input.receptionSceneContext())
+                    .withTemporalContext(temporalContext);
             raw = onDelta == null ? modelGateway.analyze(request, runtime)
                     : modelGateway.analyzeStreaming(request, runtime, onDelta);
         } catch (RuntimeException exception) {
@@ -387,13 +391,13 @@ public class ClinicalAssistantApplicationService {
         }
 
         List<SafetyAlert> alerts = safetyAlerts(input.draft(), serverContext.allergies());
-        alerts.addAll(validatedAlerts(raw.safetyAlerts()));
+        alerts.addAll(validatedBirthDateAlerts(raw.safetyAlerts(), serverContext.resident(), temporalContext.currentDate()));
         alerts = distinctAlerts(alerts, 10);
         List<String> missing = distinctStrings(merge(missingInformation(input.draft()), raw.missingInformation()), 10, 300);
         List<DiagnosisCandidate> candidates = validatedDiagnosisCandidates(raw.diagnosisCandidates(), 3);
         List<DiagnosisCandidate> differentials = validatedDiagnosisCandidates(raw.differentialDiagnoses(), 5);
         List<RecommendedPlan> plans = validatedPlans(raw.recommendedPlans(), serverContext.plans());
-        RecordDraft recordDraft = validatedRecordDraft(raw.recordDraft());
+        RecordDraft recordDraft = enrichRecordDraftFromInput(validatedRecordDraft(raw.recordDraft()), input);
         String summary = clipped(raw.summary(), 1000);
         if (blank(summary)) {
             summary = "已完成病历草稿、诊断与鉴别方向、风险和院内方案的结构化辅助分析，请逐项核对。";
@@ -404,7 +408,7 @@ public class ClinicalAssistantApplicationService {
             var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION, clean(input.question()),
                     clean(input.voiceTranscript()), input.draft(), serverContext.resident(), serverContext.allergies(),
                     serverContext.plans(), serverContext.reports(), serverContext.clinicalHistory(), content,
-                    input.receptionScene(), input.receptionSceneContext());
+                    input.receptionScene(), input.receptionSceneContext()).withTemporalContext(temporalContext);
             var treatment = treatmentService.recommend(raw.treatmentRecommendations(), request, runtime);
             List<SafetyAlert> completeAlerts = new ArrayList<>(alerts);
             completeAlerts.addAll(treatment.alerts());
@@ -464,6 +468,8 @@ public class ClinicalAssistantApplicationService {
             if (draft.pulseRate() != null) vitalFacts.add("脉搏 " + draft.pulseRate() + " 次/分");
             if (draft.respiratoryRate() != null) vitalFacts.add("呼吸 " + draft.respiratoryRate() + " 次/分");
             if (draft.oxygenSaturation() != null) vitalFacts.add("SpO₂ " + draft.oxygenSaturation() + "%");
+            if (draft.heightCm() != null) vitalFacts.add("身高 " + draft.heightCm() + " cm");
+            if (draft.weightKg() != null) vitalFacts.add("体重 " + draft.weightKg() + " kg");
             if (!vitalFacts.isEmpty()) {
                 physicalExam = "已录入生命体征：" + String.join("，", vitalFacts) + "；专科查体待医生补充核实。";
             }
@@ -600,6 +606,19 @@ public class ClinicalAssistantApplicationService {
                 .toList();
     }
 
+    private List<SafetyAlert> validatedBirthDateAlerts(List<SafetyAlert> values,
+                                                        ResidentDirectory.ResidentSnapshot resident,
+                                                        LocalDate currentDate) {
+        List<SafetyAlert> alerts = validatedAlerts(values);
+        if (resident.birthDate() == null || resident.birthDate().isAfter(currentDate)) return alerts;
+        return alerts.stream().filter(value -> {
+            String text = (safe(value.title()) + safe(value.detail())).toLowerCase(Locale.ROOT);
+            boolean birthDateConflict = text.contains("出生日期") || text.contains("出生年月") || text.contains("出生时间");
+            return !(birthDateConflict && (text.contains("早于") || text.contains("晚于") || text.contains("未来")
+                    || text.contains("矛盾") || text.contains("不符") || text.contains("错误")));
+        }).toList();
+    }
+
     private List<SafetyAlert> distinctAlerts(List<SafetyAlert> values, int limit) {
         Map<String, SafetyAlert> result = new LinkedHashMap<>();
         for (SafetyAlert value : values) {
@@ -613,7 +632,77 @@ public class ClinicalAssistantApplicationService {
         if (value == null) return new RecordDraft(null, null, null, null, null);
         return new RecordDraft(clipped(value.chiefComplaint(), 1000), clipped(value.presentIllness(), 4000),
                 clipped(value.medicalHistory(), 4000), clipped(value.physicalExam(), 4000),
-                clipped(value.treatmentPlan(), 4000));
+                clipped(value.treatmentPlan(), 4000),
+                validatedVital(value.temperature(), 20, 45, false),
+                validatedVital(value.pulseRate(), 0, 300, true),
+                validatedVital(value.respiratoryRate(), 0, 100, true),
+                validatedVital(value.systolic(), 20, 300, true),
+                validatedVital(value.diastolic(), 10, 200, true),
+                validatedVital(value.oxygenSaturation(), 0, 100, true),
+                validatedVital(value.heightCm(), 20, 250, false),
+                validatedVital(value.weightKg(), 0.1, 500, false));
+    }
+
+    private RecordDraft enrichRecordDraftFromInput(RecordDraft value, GenerateRequest input) {
+        RecordDraft draft = value == null ? new RecordDraft(null, null, null, null, null) : value;
+        String source = (safe(input.question()) + " " + safe(input.voiceTranscript())).trim();
+        java.math.BigDecimal extractedTemperature = extractCurrentTemperature(source);
+        java.math.BigDecimal extractedWeight = extractWeight(source);
+        java.math.BigDecimal temperature = input.draft().temperature() != null ? input.draft().temperature()
+                : extractedTemperature != null ? extractedTemperature
+                : containsHighestTemperature(source) ? null : draft.temperature();
+        java.math.BigDecimal weight = input.draft().weightKg() != null ? input.draft().weightKg()
+                : extractedWeight != null ? extractedWeight : draft.weightKg();
+        java.math.BigDecimal pulse = input.draft().pulseRate() == null ? draft.pulseRate()
+                : java.math.BigDecimal.valueOf(input.draft().pulseRate());
+        java.math.BigDecimal respiratoryRate = input.draft().respiratoryRate() == null ? draft.respiratoryRate()
+                : java.math.BigDecimal.valueOf(input.draft().respiratoryRate());
+        java.math.BigDecimal systolic = input.draft().systolic() == null ? draft.systolic()
+                : java.math.BigDecimal.valueOf(input.draft().systolic());
+        java.math.BigDecimal diastolic = input.draft().diastolic() == null ? draft.diastolic()
+                : java.math.BigDecimal.valueOf(input.draft().diastolic());
+        java.math.BigDecimal oxygenSaturation = input.draft().oxygenSaturation() == null ? draft.oxygenSaturation()
+                : java.math.BigDecimal.valueOf(input.draft().oxygenSaturation());
+        java.math.BigDecimal height = input.draft().heightCm() == null ? draft.heightCm() : input.draft().heightCm();
+        return new RecordDraft(draft.chiefComplaint(), draft.presentIllness(), draft.medicalHistory(), draft.physicalExam(),
+                draft.treatmentPlan(), temperature, pulse, respiratoryRate, systolic, diastolic, oxygenSaturation,
+                height, weight);
+    }
+
+    private java.math.BigDecimal extractCurrentTemperature(String source) {
+        var matcher = java.util.regex.Pattern.compile(
+                "(?:今天|今日|本日|当前|目前)\\s*(?:测量|测得|测了|量得)?\\s*(?:的)?\\s*体温\\s*(?:为|是)?\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:℃|度|°C|摄氏度)?",
+                java.util.regex.Pattern.CASE_INSENSITIVE).matcher(source);
+        while (matcher.find()) {
+            String before = source.substring(Math.max(0, matcher.start() - 4), matcher.start());
+            if (before.contains("最高") || before.contains("最高体温")) continue;
+            java.math.BigDecimal value = new java.math.BigDecimal(matcher.group(1));
+            if (value.compareTo(java.math.BigDecimal.valueOf(20)) >= 0 && value.compareTo(java.math.BigDecimal.valueOf(45)) <= 0) return value;
+        }
+        var explicit = java.util.regex.Pattern.compile("(?:今天|今日|当前|目前)(?:(?!最高).){0,8}体温\\s*(?:为|是)?\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)",
+                java.util.regex.Pattern.CASE_INSENSITIVE).matcher(source);
+        if (!explicit.find()) return null;
+        java.math.BigDecimal value = new java.math.BigDecimal(explicit.group(1));
+        return value.compareTo(java.math.BigDecimal.valueOf(20)) >= 0 && value.compareTo(java.math.BigDecimal.valueOf(45)) <= 0 ? value : null;
+    }
+
+    private java.math.BigDecimal extractWeight(String source) {
+        var matcher = java.util.regex.Pattern.compile("(?:孩子|小孩|患儿|儿童|患者|宝宝)?\\s*的?\\s*体重\\s*(?:为|是|约|约为)?\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:kg|千克|公斤)",
+                java.util.regex.Pattern.CASE_INSENSITIVE).matcher(source);
+        if (!matcher.find()) return null;
+        java.math.BigDecimal value = new java.math.BigDecimal(matcher.group(1));
+        return value.compareTo(java.math.BigDecimal.valueOf(0.1)) >= 0 && value.compareTo(java.math.BigDecimal.valueOf(500)) <= 0 ? value : null;
+    }
+
+    private boolean containsHighestTemperature(String source) {
+        return source.contains("最高体温") || source.contains("体温最高") || source.contains("最高温度");
+    }
+
+    private java.math.BigDecimal validatedVital(java.math.BigDecimal value, double minimum, double maximum, boolean integer) {
+        if (value == null || value.compareTo(java.math.BigDecimal.valueOf(minimum)) < 0
+                || value.compareTo(java.math.BigDecimal.valueOf(maximum)) > 0
+                || integer && value.stripTrailingZeros().scale() > 0) return null;
+        return value;
     }
 
     private List<String> merge(List<String> left, List<String> right) {
@@ -810,6 +899,8 @@ public class ClinicalAssistantApplicationService {
         if (draft.pulseRate() != null) fields.add("draft.pulseRate");
         if (draft.respiratoryRate() != null) fields.add("draft.respiratoryRate");
         if (draft.oxygenSaturation() != null) fields.add("draft.oxygenSaturation");
+        if (draft.heightCm() != null) fields.add("draft.heightCm");
+        if (draft.weightKg() != null) fields.add("draft.weightKg");
         if (!draft.diagnoses().isEmpty()) fields.add("draft.diagnoses");
         return List.copyOf(fields);
     }

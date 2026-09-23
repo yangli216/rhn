@@ -84,6 +84,28 @@ class StandardMedicationCatalogTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void serves_offline_official_pdf_document_with_sha256_etag_and_inline_header() throws Exception {
+        mockMvc.perform(get(PATH + "/source-document").with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Content-Type", "application/pdf"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Content-Disposition", "inline; filename=\"national-essential-medications-2026.pdf\""))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("ETag", "\"25671de0d85d12e409d79764d48865522e03122d8e9c1b0957a7ad1c8bf97e8e\""));
+    }
+
+    @Test
+    void exposes_pdf_page_locations_in_catalog_detail_and_search() throws Exception {
+        var response = json(mockMvc.perform(get(PATH).with(rhn()).param("query", "青霉素"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var entry = response.path("content").get(0);
+        assertThat(entry.path("pdfLocations").get(0).path("page").asInt()).isEqualTo(15);
+        assertThat(entry.path("pdfLocations").get(0).path("printPage").asInt()).isEqualTo(3);
+
+        String id = entry.path("id").asString();
+        var detail = json(mockMvc.perform(get(PATH + "/" + id).with(rhn())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(detail.path("pdfLocations").get(0).path("page").asInt()).isEqualTo(15);
+    }
+
+    @Test
     void requires_authentication() throws Exception {
         mockMvc.perform(get(PATH).header("X-Tenant-Id", TENANT)).andExpect(status().isUnauthorized());
     }

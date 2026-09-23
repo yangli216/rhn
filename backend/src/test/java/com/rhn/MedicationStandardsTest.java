@@ -27,6 +27,7 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
     @Autowired StandardMedicationCatalogService references;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @Autowired com.rhn.platform.masterdata.application.MedicationStandardReadinessService readiness;
+    @Autowired com.rhn.platform.masterdata.application.MedicationStandardService standards;
 
     @Test void readiness_uses_full_active_inventory_and_keeps_evidence_separate_from_identity() throws Exception {
         var linked = linkStandardMedication(SPEC, "MED-2026-W006-04");
@@ -109,6 +110,20 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext()).param("page", "2147483647"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content").isEmpty());
         mockMvc.perform(get(BASE+"/clinical-semantics/readiness").header("X-Tenant-Id", TENANT)).andExpect(status().isUnauthorized());
+    }
+
+    @Test void identity_matching_normalizes_microgram_punctuation_and_prefers_declared_modified_release_form() {
+        var microgram = readiness.inspect(Long.valueOf(TENANT), "MED-2026-W468", "UNIQUE_MATCH", 0, 10);
+        assertThat(microgram.content()).singleElement().satisfies(item -> {
+            assertThat(item.name()).contains("米索前列醇");
+            assertThat(item.matching().consistentCount()).isEqualTo(1);
+        });
+
+        var plain = references.specification("STD-FF8B2548AED68228B288073D");
+        var extended = references.specification("STD-4951A6C9B2C8AF2D2DF9A11A");
+        assertThat(standards.doseFormMatches("二甲双胍缓释片", "TABLET", plain)).isFalse();
+        assertThat(standards.doseFormMatches("二甲双胍缓释片", "TABLET", extended)).isTrue();
+        assertThat(readiness.inspect(Long.valueOf(TENANT), "MED-2026-W315-05", "UNIQUE_MATCH", 0, 10).content()).hasSize(1);
     }
 
     @Test void readiness_does_not_count_ambiguous_identity_as_verified_or_convertible() throws Exception {

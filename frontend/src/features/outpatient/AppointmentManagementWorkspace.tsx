@@ -376,32 +376,95 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
   }, [futureSchedules.data, initialSchedules])
 
   // 筛选状态
+  const [weekOffset, setWeekOffset] = useState<number>(0)
   const [selectedDate, setSelectedDate] = useState<string>('ALL')
   const [selectedDept, setSelectedDept] = useState<string>('ALL')
   const [selectedClinicType, setSelectedClinicType] = useState<'ALL' | 'EXPERT' | 'REGULAR'>('ALL')
   const [selectedDayPart, setSelectedDayPart] = useState<string>('ALL')
   const [keyword, setKeyword] = useState('')
 
-  // 动态提取日期列表
-  const dateOptions = useMemo(() => {
-    const map = new Map<string, { date: string; label: string; count: number; availableSum: number }>()
-    for (const item of allAvailableSchedules) {
-      const d = item.serviceDate
-      if (!map.has(d)) {
-        const dateObj = new Date(item.startAt)
-        const isToday = d === businessDate(0)
-        const isTomorrow = d === businessDate(1)
-        const dateStr = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit' }).format(dateObj)
-        const weekStr = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', weekday: 'short' }).format(dateObj)
-        const label = isToday ? `${dateStr} 今天` : isTomorrow ? `${dateStr} 明天` : `${dateStr} ${weekStr}`
-        map.set(d, { date: d, label, count: 0, availableSum: 0 })
+  // 计算锚点日期：若数据中有最早排班且离今天较远（如测试数据的远未来日期），则以最早排班为锚点，否则以业务今天为锚点
+  const anchorDate = useMemo(() => {
+    const earliest = allAvailableSchedules[0]?.serviceDate
+    if (earliest) {
+      const dToday = new Date(businessDate(0)).getTime()
+      const dEarliest = new Date(earliest).getTime()
+      if (Math.abs(dEarliest - dToday) > 30 * 24 * 3600 * 1000) {
+        return new Date(earliest)
       }
-      const entry = map.get(d)!
-      entry.count += 1
-      entry.availableSum += item.availableCount
     }
-    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))
+    return new Date(businessDate(0))
   }, [allAvailableSchedules])
+
+  // 计算当前周的 7 天（周一至周日）
+  const currentWeekDays = useMemo(() => {
+    const d = new Date(anchorDate)
+    const dayOfWeek = d.getDay()
+    const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek
+    const monday = new Date(d)
+    monday.setDate(d.getDate() + diffToMonday + weekOffset * 7)
+
+    const todayStr = businessDate(0)
+    const tomorrowStr = businessDate(1)
+    const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    const days: Array<{
+      date: string
+      label: string
+      monthDay: string
+      weekdayName: string
+      isPast: boolean
+      isToday: boolean
+      isTomorrow: boolean
+      availableSum: number
+      count: number
+    }> = []
+
+    for (let i = 0; i < 7; i++) {
+      const cur = new Date(monday)
+      cur.setDate(monday.getDate() + i)
+      const y = cur.getFullYear()
+      const m = String(cur.getMonth() + 1).padStart(2, '0')
+      const dt = String(cur.getDate()).padStart(2, '0')
+      const dateStr = `${y}-${m}-${dt}`
+      const weekdayName = weekdayNames[cur.getDay()]
+      const isToday = dateStr === todayStr
+      const isTomorrow = dateStr === tomorrowStr
+      const isPast = anchorDate.toISOString().slice(0, 10) === todayStr && dateStr < todayStr
+
+      let availableSum = 0
+      let count = 0
+      for (const s of allAvailableSchedules) {
+        if (s.serviceDate === dateStr) {
+          availableSum += s.availableCount
+          count += 1
+        }
+      }
+
+      days.push({
+        date: dateStr,
+        label: `${m}/${dt} ${weekdayName}`,
+        monthDay: `${m}/${dt}`,
+        weekdayName,
+        isPast,
+        isToday,
+        isTomorrow,
+        availableSum,
+        count,
+      })
+    }
+    return days
+  }, [anchorDate, weekOffset, allAvailableSchedules])
+
+  const weekLabel = useMemo(() => {
+    const first = currentWeekDays[0]
+    const last = currentWeekDays[6]
+    if (!first || !last) return ''
+    const rangeStr = `${first.monthDay} - ${last.monthDay}`
+    if (weekOffset === 0) return `本周 (${rangeStr})`
+    if (weekOffset === 1) return `下周 (${rangeStr})`
+    if (weekOffset === 2) return `第 3 周 (${rangeStr})`
+    return `${rangeStr}`
+  }, [currentWeekDays, weekOffset])
 
   // 动态提取科室列表
   const departmentOptions = useMemo(() => {
@@ -474,234 +537,277 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
 
   return <Dialog title="新建预约" eyebrow="门诊预约 · 号源调度" size="xwide"
     className="appointment-workbench-dialog"
-    description="支持按就诊人、未来排班日期、科室与出诊医生快速导诊并锁定号源。" onClose={onClose}
+    onClose={onClose}
     footer={null}>
     {error && <Alert tone="error">{error}</Alert>}
 
     {/* 顶部单行通栏（T型横梁）：患者信息确认 */}
     <div className="appointment-intake-strip">
-      <div className="appointment-intake-patient">
-        <div className="appointment-intake-section-title">
-          <strong>1. 就诊患者确认</strong>
-          <small>{resident ? '已确认就诊人' : '请检索居民'}</small>
+      {!resident ? (
+        <div className="appointment-intake-search">
+          <PatientIdentitySearch queryKey="appointment-create" search={api.residents.search} selected={resident}
+            onSelect={setResident} onClear={() => setResident(null)} compact
+            showInitialEmpty={false} showSelectedSummary={false} hideResultsWhenSelected
+            emptyTitle="检索就诊居民"
+            emptyCopy="输入居民姓名、手机号、身份证或病历号进行检索。" />
         </div>
-        {!resident ? (
-          <div className="appointment-intake-search">
-            <PatientIdentitySearch queryKey="appointment-create" search={api.residents.search} selected={resident}
-              onSelect={setResident} onClear={() => setResident(null)} compact
-              emptyTitle="检索就诊居民"
-              emptyCopy="输入居民姓名、手机号、身份证或病历号进行检索。" />
-          </div>
-        ) : (
-          <div className="appointment-intake-profile">
-            <span className={`resident-avatar ${resident.gender.toLowerCase()}`}>
-              {resident.fullName.slice(-1)}
+      ) : (
+        <div className="appointment-intake-profile">
+          <span className={`resident-avatar ${resident.gender.toLowerCase()}`}>
+            {resident.fullName.slice(-1)}
+          </span>
+          <div className="appointment-intake-identity">
+            <strong className="appointment-patient-name">{resident.fullName}</strong>
+            <span className="appointment-patient-meta">
+              {genderLabel(resident.gender)} · {age(resident.birthDate)} 岁
             </span>
-            <div className="appointment-intake-identity">
-              <strong className="appointment-patient-name">{resident.fullName}</strong>
-              <span className="appointment-patient-meta">
-                {genderLabel(resident.gender)} · {age(resident.birthDate)} 岁
-              </span>
-            </div>
-            <div className="appointment-intake-meta-pills">
-              <div className="appointment-intake-pill">
-                <span>档案号</span>
-                <strong>{resident.healthRecordNo}</strong>
-              </div>
-              <div className="appointment-intake-pill">
-                <span>提醒手机</span>
-                <strong>{resident.phone || '未留电话'}</strong>
-              </div>
-              {resident.maskedNationalId && (
-                <div className="appointment-intake-pill">
-                  <span>身份证件</span>
-                  <strong>{resident.maskedNationalId}</strong>
-                </div>
-              )}
-            </div>
-            <Button size="sm" variant="text" onClick={() => setResident(null)}>
-              重新选择
-            </Button>
           </div>
-        )}
-      </div>
+          <div className="appointment-intake-meta-pills">
+            <div className="appointment-intake-pill">
+              <span>档案号</span>
+              <strong>{resident.healthRecordNo}</strong>
+            </div>
+            <div className="appointment-intake-pill">
+              <span>提醒手机</span>
+              <strong>{resident.phone || '未留电话'}</strong>
+            </div>
+            {resident.maskedNationalId && (
+              <div className="appointment-intake-pill">
+                <span>身份证件</span>
+                <strong>{resident.maskedNationalId}</strong>
+              </div>
+            )}
+          </div>
+          <Button size="sm" variant="text" onClick={() => setResident(null)}>
+            重新选择
+          </Button>
+        </div>
+      )}
     </div>
 
     {/* 主体工作台：左右协同（T型立柱双栏） */}
     <div className="appointment-create-workbench">
-      {/* 左栏：号源选择全流程区域（日期 -> 班次筛选 -> 差异化号源时段） */}
+      {/* 左栏：号源选择全流程区域（周导航 -> 筛选 -> 紧凑班次 -> 紧随其下的号源时段） */}
       <section className="appointment-workbench-left">
-        {/* 1. 未来排班日历横向胶囊导航 */}
-        <div className="appointment-date-strip-wrapper">
-          <div className="appointment-date-strip">
-            <Button size="sm" variant={selectedDate === 'ALL' ? 'secondary' : 'text'}
-              className={`appointment-date-pill ${selectedDate === 'ALL' ? 'is-active' : ''}`}
-              onClick={() => setSelectedDate('ALL')}>
-              <strong>全部日期</strong>
-              <small>共 {allAvailableSchedules.length} 班次</small>
-            </Button>
-            {dateOptions.map((opt) => (
-              <Button key={opt.date} size="sm" variant={selectedDate === opt.date ? 'secondary' : 'text'}
-                className={`appointment-date-pill ${selectedDate === opt.date ? 'is-active' : ''}`}
-                onClick={() => setSelectedDate(opt.date)}>
-                <strong>{opt.label}</strong>
-                <small>余 {opt.availableSum} 号</small>
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* 2. 多维分类与快捷筛选工具栏 */}
-        <div className="appointment-filter-toolbar">
-          <div className="appointment-filter-row">
-            <div className="appointment-segmented-group">
-              <Button size="sm" variant={selectedClinicType === 'ALL' ? 'secondary' : 'text'}
-                className={`appointment-segmented-btn ${selectedClinicType === 'ALL' ? 'is-active' : ''}`}
-                onClick={() => setSelectedClinicType('ALL')}>全部号别</Button>
-              <Button size="sm" variant={selectedClinicType === 'EXPERT' ? 'secondary' : 'text'}
-                className={`appointment-segmented-btn ${selectedClinicType === 'EXPERT' ? 'is-active' : ''}`}
-                onClick={() => setSelectedClinicType('EXPERT')}>专家门诊</Button>
-              <Button size="sm" variant={selectedClinicType === 'REGULAR' ? 'secondary' : 'text'}
-                className={`appointment-segmented-btn ${selectedClinicType === 'REGULAR' ? 'is-active' : ''}`}
-                onClick={() => setSelectedClinicType('REGULAR')}>普通门诊</Button>
-            </div>
-
-            <div className="appointment-segmented-group">
-              <Button size="sm" variant={selectedDayPart === 'ALL' ? 'secondary' : 'text'}
-                className={`appointment-segmented-btn ${selectedDayPart === 'ALL' ? 'is-active' : ''}`}
-                onClick={() => setSelectedDayPart('ALL')}>全天</Button>
-              <Button size="sm" variant={selectedDayPart === 'MORNING' ? 'secondary' : 'text'}
-                className={`appointment-segmented-btn ${selectedDayPart === 'MORNING' ? 'is-active' : ''}`}
-                onClick={() => setSelectedDayPart('MORNING')}>上午</Button>
-              <Button size="sm" variant={selectedDayPart === 'AFTERNOON' ? 'secondary' : 'text'}
-                className={`appointment-segmented-btn ${selectedDayPart === 'AFTERNOON' ? 'is-active' : ''}`}
-                onClick={() => setSelectedDayPart('AFTERNOON')}>下午</Button>
-            </div>
-
-            <div className="appointment-search-box">
-              <SearchField label="科室或医生"
-                placeholder="搜索科室/医生/拼音 (如: NK、李医生)"
-                value={keyword} onChange={setKeyword} />
-            </div>
-          </div>
-
-          {departmentOptions.length > 1 && (
-            <div className="appointment-dept-chips">
-              <Button size="sm" variant={selectedDept === 'ALL' ? 'secondary' : 'text'}
-                className={`appointment-dept-chip ${selectedDept === 'ALL' ? 'is-active' : ''}`}
-                onClick={() => setSelectedDept('ALL')}>
-                全部科室 ({departmentOptions.length})
-              </Button>
-              {departmentOptions.map((dept) => (
-                <Button key={dept} size="sm" variant={selectedDept === dept ? 'secondary' : 'text'}
-                  className={`appointment-dept-chip ${selectedDept === dept ? 'is-active' : ''}`}
-                  onClick={() => setSelectedDept(dept)}>
-                  {dept}
+        {/* 固定控制区：周排班导航 + 多维筛选（固定在顶部，不随卡片滚动） */}
+        <div className="appointment-workbench-left-controls">
+          {/* 1. 按周排班日历导航（7列等宽无横向滚动条） */}
+          <div className="appointment-week-wrapper">
+            <div className="appointment-week-header">
+              <div className="appointment-week-nav">
+                <Button size="sm" variant="text" disabled={weekOffset <= 0}
+                  className="appointment-week-nav-btn"
+                  onClick={() => setWeekOffset((prev) => Math.max(0, prev - 1))}
+                  title="上一周">
+                  <Icon name="chevron-left" /> 上一周
                 </Button>
-              ))}
+                <strong className="appointment-week-title">{weekLabel}</strong>
+                <Button size="sm" variant="text" disabled={weekOffset >= 3}
+                  className="appointment-week-nav-btn"
+                  onClick={() => setWeekOffset((prev) => prev + 1)}
+                  title="下一周">
+                  下一周 <Icon name="chevron-right" />
+                </Button>
+              </div>
+              <Button size="sm" variant={selectedDate === 'ALL' ? 'secondary' : 'text'}
+                className={`appointment-date-pill ${selectedDate === 'ALL' ? 'is-active' : ''}`}
+                onClick={() => setSelectedDate('ALL')}>
+                <strong>全部日期</strong>
+                <small>共 {allAvailableSchedules.length} 班次</small>
+              </Button>
             </div>
-          )}
-        </div>
 
-        {/* 3. 出诊班次卡片网格 */}
-        <div className="appointment-schedule-container">
-          <div className="appointment-schedule-header">
-            <span>找到 <strong>{shiftGroups.length}</strong> 个出诊班次（共余 {totalSlotsCount} 个号源）</span>
-            <small>点击排班班次，下方联动号源时段，右侧实时核验凭单</small>
-          </div>
-
-          {futureSchedules.isPending ? (
-            <LoadingState label="正在加载未来出诊排班与号源…" />
-          ) : shiftGroups.length === 0 ? (
-            <EmptyState icon="tasks" title="暂无可预约班次"
-              copy="所选日期或科室条件下暂无开放号源，可切换其他日期或重置筛选条件。"
-              action={<Button size="sm" variant="secondary" onClick={() => {
-                setSelectedDate('ALL'); setSelectedDept('ALL'); setSelectedClinicType('ALL'); setSelectedDayPart('ALL'); setKeyword('')
-              }}>重置所有筛选</Button>} />
-          ) : (
-            <div className="appointment-schedule-grid">
-              {shiftGroups.map((group) => {
-                const badge = getClinicTypeBadge(group.representative)
-                const isGroupSelected = activeGroup?.key === group.key
-                const isLow = group.totalAvailable <= 5
+            <div className="appointment-week-calendar">
+              {currentWeekDays.map((day) => {
+                const isActive = selectedDate === day.date
+                const hasSlots = day.availableSum > 0
+                const isDisabled = day.isPast
                 return (
-                  <div key={group.key} role="button" tabIndex={0}
-                    className={`appointment-schedule-card ${isGroupSelected ? 'is-selected' : ''}`}
+                  <div key={day.date} role="button" tabIndex={isDisabled ? -1 : 0} aria-disabled={isDisabled}
+                    className={`appointment-week-day-cell ${isActive ? 'is-active' : ''} ${hasSlots ? 'has-slots' : 'no-slots'} ${isDisabled ? 'is-disabled' : ''}`}
                     onClick={() => {
-                      const target = group.schedules.find((s) => s.availableCount > 0) || group.schedules[0]
-                      if (target) {
-                        setScheduleId(target.id)
-                        setSelectedPoolSlice('')
-                      }
+                      if (isDisabled) return
+                      setSelectedDate((prev) => (prev === day.date ? 'ALL' : day.date))
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
+                      if ((e.key === 'Enter' || e.key === ' ') && !isDisabled) {
                         e.preventDefault()
+                        setSelectedDate((prev) => (prev === day.date ? 'ALL' : day.date))
+                      }
+                    }}>
+                    <div className="appointment-week-day-cell__top">
+                      <span className="appointment-week-day-cell__weekday">{day.weekdayName}</span>
+                      <span className="appointment-week-day-cell__date">{day.monthDay}</span>
+                      {day.isToday && <span className="appointment-week-tag is-today">今天</span>}
+                      {day.isTomorrow && <span className="appointment-week-tag is-tomorrow">明天</span>}
+                    </div>
+                    <div className="appointment-week-day-cell__bottom">
+                      {isDisabled ? (
+                        <span className="appointment-week-day-cell__status is-past">已过</span>
+                      ) : hasSlots ? (
+                        <span className="appointment-week-day-cell__status is-available">余 {day.availableSum} 号</span>
+                      ) : (
+                        <span className="appointment-week-day-cell__status is-empty">无号</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* 2. 多维分类与快捷筛选工具栏 */}
+          <div className="appointment-filter-toolbar">
+            <div className="appointment-filter-row">
+              <div className="appointment-segmented-group">
+                <Button size="sm" variant={selectedClinicType === 'ALL' ? 'secondary' : 'text'}
+                  className={`appointment-segmented-btn ${selectedClinicType === 'ALL' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedClinicType('ALL')}>全部号别</Button>
+                <Button size="sm" variant={selectedClinicType === 'EXPERT' ? 'secondary' : 'text'}
+                  className={`appointment-segmented-btn ${selectedClinicType === 'EXPERT' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedClinicType('EXPERT')}>专家门诊</Button>
+                <Button size="sm" variant={selectedClinicType === 'REGULAR' ? 'secondary' : 'text'}
+                  className={`appointment-segmented-btn ${selectedClinicType === 'REGULAR' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedClinicType('REGULAR')}>普通门诊</Button>
+              </div>
+
+              <div className="appointment-segmented-group">
+                <Button size="sm" variant={selectedDayPart === 'ALL' ? 'secondary' : 'text'}
+                  className={`appointment-segmented-btn ${selectedDayPart === 'ALL' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedDayPart('ALL')}>全天</Button>
+                <Button size="sm" variant={selectedDayPart === 'MORNING' ? 'secondary' : 'text'}
+                  className={`appointment-segmented-btn ${selectedDayPart === 'MORNING' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedDayPart('MORNING')}>上午</Button>
+                <Button size="sm" variant={selectedDayPart === 'AFTERNOON' ? 'secondary' : 'text'}
+                  className={`appointment-segmented-btn ${selectedDayPart === 'AFTERNOON' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedDayPart('AFTERNOON')}>下午</Button>
+              </div>
+
+              <div className="appointment-search-box">
+                <SearchField label="科室或医生"
+                  placeholder="搜索科室/医生/拼音 (如: NK、李医生)"
+                  value={keyword} onChange={setKeyword} />
+              </div>
+            </div>
+
+            {departmentOptions.length > 1 && (
+              <div className="appointment-dept-chips">
+                <Button size="sm" variant={selectedDept === 'ALL' ? 'secondary' : 'text'}
+                  className={`appointment-dept-chip ${selectedDept === 'ALL' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedDept('ALL')}>
+                  全部科室 ({departmentOptions.length})
+                </Button>
+                {departmentOptions.map((dept) => (
+                  <Button key={dept} size="sm" variant={selectedDept === dept ? 'secondary' : 'text'}
+                    className={`appointment-dept-chip ${selectedDept === dept ? 'is-active' : ''}`}
+                    onClick={() => setSelectedDept(dept)}>
+                    {dept}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 独立平滑滚动区：紧凑班次行列表 + 紧随其下的号源时段 */}
+        <div className="appointment-workbench-left-scroll">
+          {/* 3. 出诊班次紧凑精简列表（一屏全览架构） */}
+          <div className="appointment-schedule-container">
+            <div className="appointment-schedule-header">
+              <span>找到 <strong>{shiftGroups.length}</strong> 个出诊班次（共余 {totalSlotsCount} 个号源）</span>
+              <span className="appointment-schedule-header-hint">选中班次后下方即时展开对应号源时段</span>
+            </div>
+
+            {futureSchedules.isPending ? (
+              <LoadingState label="正在加载未来出诊排班与号源…" />
+            ) : shiftGroups.length === 0 ? (
+              <EmptyState icon="tasks" title="暂无可预约班次"
+                copy="所选日期或科室条件下暂无开放号源，可切换其他日期或重置筛选条件。"
+                action={<Button size="sm" variant="secondary" onClick={() => {
+                  setSelectedDate('ALL'); setSelectedDept('ALL'); setSelectedClinicType('ALL'); setSelectedDayPart('ALL'); setKeyword('')
+                }}>重置所有筛选</Button>} />
+            ) : (
+              <div className="appointment-schedule-compact-list" role="radiogroup" aria-label="出诊班次列表">
+                {shiftGroups.map((group) => {
+                  const badge = getClinicTypeBadge(group.representative)
+                  const isGroupSelected = activeGroup?.key === group.key
+                  const isLow = group.totalAvailable <= 5
+                  return (
+                    <div key={group.key} role="radio" aria-checked={isGroupSelected} tabIndex={0}
+                      className={`appointment-shift-row ${isGroupSelected ? 'is-selected' : ''}`}
+                      onClick={() => {
                         const target = group.schedules.find((s) => s.availableCount > 0) || group.schedules[0]
                         if (target) {
                           setScheduleId(target.id)
                           setSelectedPoolSlice('')
                         }
-                      }
-                    }}>
-                    <div className="appointment-schedule-card__top">
-                      <span className="appointment-schedule-card__dept" title={group.departmentName || group.serviceName}>
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          const target = group.schedules.find((s) => s.availableCount > 0) || group.schedules[0]
+                          if (target) {
+                            setScheduleId(target.id)
+                            setSelectedPoolSlice('')
+                          }
+                        }
+                      }}>
+                      <div className="appointment-shift-row__radio">
+                        <span className={`appointment-radio-circle ${isGroupSelected ? 'is-checked' : ''}`} />
+                      </div>
+
+                      <div className="appointment-shift-row__dept" title={group.departmentName || group.serviceName}>
                         {group.departmentName || group.serviceName}
-                      </span>
-                      <div className="appointment-schedule-card__top-badges">
-                        <span className={`appointment-slot-mode-tag ${group.isTimedMode ? 'is-timed' : 'is-pool'}`}>
-                          {group.isTimedMode ? '分时排班' : '号池模式'}
-                        </span>
+                      </div>
+
+                      <div className="appointment-shift-row__doctor">
+                        <strong className="appointment-shift-row__doctor-name">
+                          {group.practitionerName || (group.departmentName ? `${group.departmentName}医师` : '普通医师')}
+                        </strong>
+                        {group.locationName && group.locationName !== group.departmentName && (
+                          <span className="appointment-shift-row__location" title={group.locationName}>
+                            {group.locationName}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="appointment-shift-row__badges">
                         <span className={`appointment-clinic-badge tone-${badge.tone}`}>
                           {badge.label}
                         </span>
-                      </div>
-                    </div>
-
-                    <div className="appointment-schedule-card__doctor">
-                      <strong className="appointment-schedule-card__doctor-name">
-                        {group.practitionerName || '普通门诊'}
-                      </strong>
-                      {group.locationName && (
-                        <span className="appointment-schedule-card__location" title={group.locationName}>
-                          {group.locationName}
+                        <span className={`appointment-slot-mode-tag ${group.isTimedMode ? 'is-timed' : 'is-pool'}`}>
+                          {group.isTimedMode ? '分时排班' : '号池模式'}
                         </span>
-                      )}
-                    </div>
+                      </div>
 
-                    <div className="appointment-schedule-card__time">
-                      <Icon name="calendar" />
-                      <span>{dateTime(group.startAt)} ~ {clock(group.endAt)}</span>
-                    </div>
+                      <div className="appointment-shift-row__time">
+                        <Icon name="calendar" />
+                        <span>{dateTime(group.startAt)} ~ {clock(group.endAt)}</span>
+                      </div>
 
-                    <div className="appointment-schedule-card__footer">
-                      <span className="appointment-schedule-card__fee">
+                      <div className="appointment-shift-row__fee">
                         {group.feeConfigured && group.registrationFee != null
                           ? `¥${group.registrationFee.toFixed(2)}`
                           : '免诊查费'}
-                      </span>
-                      <span className={`appointment-slot-badge ${isLow ? 'is-low' : ''}`}>
-                        {isLow ? `仅余 ${group.totalAvailable} 号` : `余 ${group.totalAvailable} 号`}
-                      </span>
-                    </div>
+                      </div>
 
-                    {isGroupSelected && (
-                      <span className="appointment-card-checked" aria-label="已选中">
-                        <Icon name="check" />
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                      <div className="appointment-shift-row__status">
+                        <span className={`appointment-slot-badge ${isLow ? 'is-low' : ''}`}>
+                          {isLow ? `仅余 ${group.totalAvailable} 号` : `余 ${group.totalAvailable} 号`}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
 
         {/* 4. 根据号源排班模式差异化呈现的号源选择看板 */}
         <div className="appointment-slot-panel">
           <div className="appointment-card-title">
             <div className="appointment-slot-title-group">
-              <strong>专业分时号源</strong>
+              <strong>{activeGroup?.isTimedMode ? '专业分时号源' : '出诊时段号源'}</strong>
               <span className={`appointment-slot-mode-chip ${activeGroup?.isTimedMode ? 'is-timed' : 'is-pool'}`}>
                 {activeGroup?.isTimedMode ? '专业分时模式' : '号池共享模式'}
               </span>
@@ -714,15 +820,13 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
           </div>
 
           {!activeGroup ? (
-            <div className="appointment-ticket-placeholder">
+            <div className="appointment-slot-empty-notice">
               <Icon name="calendar" />
-              <span>请在上方选择出诊班次以查看并选择具体号源</span>
+              <span>请在上方选择出诊班次以查看号源时段</span>
             </div>
           ) : activeGroup.isTimedMode ? (
             <div className="appointment-slot-grid-container">
-              <div className="appointment-slot-tip">
-                <span>点击具体就诊时段锁定号源，精准预约、错峰就诊：</span>
-              </div>
+              <div className="appointment-slot-tip">请选择具体分时号源时段以锁定精确就诊区间：</div>
               <div className="appointment-slot-grid">
                 {activeGroup.schedules.map((slot) => {
                   const isSelected = slot.id === scheduleId
@@ -761,9 +865,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
             </div>
           ) : (
             <div className="appointment-slot-grid-container">
-              <div className="appointment-slot-tip">
-                <span>该班次采用整段共享号池（余 {activeGroup.totalAvailable} 号）。可按需选择期望到达时段：</span>
-              </div>
+              <div className="appointment-slot-tip">当前班次为统一号池（共余 {activeGroup.totalAvailable} 号），可直接预约；也可选择意向分时时段协助窗口错峰分流：</div>
               <div className="appointment-slot-grid">
                 {poolTimeSlices.map((slice) => {
                   const isSelected = selectedPoolSlice === slice
@@ -796,7 +898,8 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
             </div>
           )}
         </div>
-      </section>
+      </div>
+    </section>
 
       {/* 右栏：结果确认和保存区域（类似挂号与收费工作台 CashierPanel） */}
       <section className="appointment-workbench-right">
@@ -804,8 +907,8 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
           {/* 头部 & 金额 Banner */}
           <div className="appointment-confirmation-head">
             <div className="appointment-card-title">
-              <strong>3. 预约核验单预览</strong>
-              <span className="appointment-ticket-status">就诊凭单预览</span>
+              <strong>预约核验</strong>
+              <span className="appointment-ticket-status">就诊凭单</span>
             </div>
             <div className="appointment-confirmation-amount">
               <span className="appointment-confirmation-amount-label">挂号诊查费</span>
@@ -825,7 +928,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
               <div className="appointment-ticket-preview">
                 <div className="appointment-ticket-row">
                   <span>就诊患者</span>
-                  <strong>{resident ? `${resident.fullName} (${genderLabel(resident.gender)} · ${age(resident.birthDate)}岁)` : '尚未选择就诊患者'}</strong>
+                  <strong>{resident ? `${resident.fullName} (${genderLabel(resident.gender)} · ${age(resident.birthDate)}岁)` : <span className="appointment-patient-placeholder">待选择就诊人</span>}</strong>
                 </div>
                 <div className="appointment-ticket-row">
                   <span>就诊科室</span>
@@ -833,7 +936,11 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
                 </div>
                 <div className="appointment-ticket-row">
                   <span>出诊医生</span>
-                  <strong>{selectedSchedule.practitionerName || '普通门诊'}（{getClinicTypeBadge(selectedSchedule).label}）</strong>
+                  <strong>
+                    {selectedSchedule.practitionerName
+                      ? `${selectedSchedule.practitionerName}（${getClinicTypeBadge(selectedSchedule).label}）`
+                      : `${selectedSchedule.departmentName || selectedSchedule.serviceName || '普通门诊'} · 轮值接诊`}
+                  </strong>
                 </div>
                 <div className="appointment-ticket-row appointment-ticket-row--highlight">
                   <span>就诊时段</span>
@@ -851,16 +958,16 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
                 </div>
               </div>
             ) : (
-              <div className="appointment-ticket-placeholder">
+              <div className="appointment-ticket-empty-notice">
                 <Icon name="tasks" />
-                <span>请在左侧选择出诊排班与号源，系统将实时生成预约核验凭单</span>
+                <span>请在左侧选择出诊排班与号源以生成预约凭据</span>
               </div>
             )}
 
             {/* 预约设置表单 */}
             <div className="appointment-confirmation-settings">
               <div className="appointment-card-title">
-                <strong>2. 预约设置</strong>
+                <strong>预约设置</strong>
               </div>
               <div className="appointment-settings-form">
                 <div className="appointment-settings-field">
@@ -902,7 +1009,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
                   })
                 }
               }}>
-              {selectedSchedule ? '确认预约' : '请先选择出诊班次'}
+              确认预约
             </Button>
             <Button variant="secondary" size="md" className="appointment-cancel-btn" onClick={onClose}>
               取消

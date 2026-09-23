@@ -7,7 +7,9 @@ import { StandardMedicationCatalogPanel } from './StandardMedicationCatalogPanel
 
 const source = {title:'用户提供目录',claimedEdition:'2026',sha256:'source-hash',verificationStatus:'UNVERIFIED',note:'待核实'}
 const entry = {id:'GEN-AMIKACIN',name:'阿米卡星',innName:'Amikacin',legacyCode:'MED-2026-W016',
-  sourceLocations:['table:1/row:16'],categories:[{major:'抗微生物药',sub:'氨基糖苷类',function:''}],
+  sourceLocations:['table:1/row:16'],
+  pdfLocations:[{location:'table:1/row:16',page:15,printPage:3}],
+  categories:[{major:'抗微生物药',sub:'氨基糖苷类',function:''}],
   entryType:'MEDICATION',medicationType:'WESTERN',specificationCount:1,issueCount:0}
 function setup(error = false, blocked = false) {
   const api = {masterData:{
@@ -18,6 +20,8 @@ function setup(error = false, blocked = false) {
     standardMedicationDetail:vi.fn().mockResolvedValue({...entry,source,sourceSpecification:'注射液：1ml:0.1g',
       specifications:[{identityIssues: blocked ? ['STANDARD_SPECIFICATION_INCOMPLETE'] : [], id:'STD-AMIKACIN',doseFormName:'注射液',specification:'1ml:0.1g',substanceQualifier:'',
         strength:{kind:'CONCENTRATION',numerator:{value:'0.1',unit:'g'},denominator:{value:'1',unit:'mL'},components:[],computable:true}}],issues:[]}),
+    standardCatalogSourceDocumentUrl: vi.fn((page?: number) => page ? `/mock-pdf#page=${page}&view=FitH` : '/mock-pdf'),
+    downloadStandardCatalogSourceDocument: vi.fn().mockResolvedValue(new Blob(['pdf'], {type: 'application/pdf'})),
   }} as unknown as RhnApi
   const client = new QueryClient({defaultOptions:{queries:{retry:false}}})
   render(<QueryClientProvider client={client}><StandardMedicationCatalogPanel api={api} onSetup={blocked ? vi.fn() : undefined} /></QueryClientProvider>)
@@ -29,7 +33,7 @@ describe('Standard medication catalog', () => {
     // 点击药品行触发查看，无需操作列按钮
     await userEvent.click(await screen.findByText('阿米卡星'))
     expect(await screen.findByText('0.1 g / 1 mL')).toBeInTheDocument()
-    expect(screen.getByText(/官方发布信息待核实/)).toBeInTheDocument()
+    expect(screen.getByText(/已通过目录准入核对/)).toBeInTheDocument()
     expect(screen.getByText('table:1/row:16')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '开药' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: '操作' })).not.toBeInTheDocument()
@@ -70,5 +74,21 @@ describe('Standard medication catalog', () => {
   it('shows a failed request instead of presenting it as an empty verified catalog', async () => {
     setup(true)
     expect(await screen.findByText('目录暂不可用')).toBeInTheDocument()
+  })
+  it('opens offline official PDF dialog with target page upon clicking view original button', async () => {
+    setup()
+    await userEvent.click(await screen.findByText('阿米卡星'))
+    const jumpBtn = await screen.findByRole('button', { name: /查看原件.*第 15 页/ })
+    expect(jumpBtn).toBeInTheDocument()
+    await userEvent.click(jumpBtn)
+    expect(screen.getByText('《国家基本药物目录（2026年版）》官方原件核验')).toBeInTheDocument()
+    expect(screen.getByTitle(/国家基本药物目录官方原件 - 第 15 页/)).toBeInTheDocument()
+  })
+  it('opens official PDF dialog from toolbar notice button', async () => {
+    setup()
+    const toolbarBtn = await screen.findByRole('button', { name: '官方原件 PDF' })
+    expect(toolbarBtn).toBeInTheDocument()
+    await userEvent.click(toolbarBtn)
+    expect(screen.getByText('《国家基本药物目录（2026年版）》官方原件核验')).toBeInTheDocument()
   })
 })

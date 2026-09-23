@@ -87,6 +87,14 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertEquals("REPORT_FOLLOW_UP", context.get("receptionScene").asString());
         assertEquals(10, context.get("receptionSceneContext").get("selectedReportIds").get(0).asInt());
         assertEquals(10, context.get("diagnosticReports").get(0).get("reportId").asInt());
+        assertEquals("1988-08-08", context.get("patient").get("birthDate").asText());
+        assertEquals(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString(),
+                context.get("patient").get("ageCalculationDate").asText());
+        assertEquals("VALID_ON_CURRENT_DATE", context.get("patient").get("birthDateStatus").asText());
+        assertEquals(38, context.get("patient").get("ageYears").asInt());
+        assertEquals("38岁", context.get("patient").get("ageText").asText());
+        assertEquals(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString(),
+                context.get("temporalContext").get("currentDate").asText());
         assertTrue(sent.get("messages").get(0).get("content").asString().contains("不得默认既往体健"));
         assertTrue(requestBody.get().contains("FEMALE"));
         assertTrue(requestBody.get().contains("血常规"));

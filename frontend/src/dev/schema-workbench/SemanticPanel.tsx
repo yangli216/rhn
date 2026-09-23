@@ -5,7 +5,7 @@ import { messageOf, request, type Catalog, type Proposal, type Table } from './a
 
 export function SemanticPanel({ catalog, table, onSelect }: { catalog: Catalog; table: Table; onSelect: (name: string) => void }) {
   const graph = catalog.semantic
-  const [entity, setEntity] = useState(graph.nodes.find(n => n.table === table.physical)?.id ?? graph.nodes[0]?.id ?? '')
+  const [entity, setEntity] = useState(graph.nodes.find(n => n.table === table.physical)?.id ?? '')
   const node = graph.nodes.find(n => n.id === entity)
   const metrics = graph.metrics.filter(m => m.source === entity)
   const dimensions = graph.dimensions.filter(d => d.entity === entity || d.grain === entity)
@@ -15,10 +15,10 @@ export function SemanticPanel({ catalog, table, onSelect }: { catalog: Catalog; 
     <PanelHead title="业务实体、维度与指标" meta={`版本 ${graph.version} · ${graph.nodes.length} 实体 / ${graph.edges.length} 关系 / ${graph.metrics.length} 指标`} />
     <p>与“业务实体数据关系网 · 语义工作台”共用 <code>{graph.statistics.assetPath}</code>。</p>
     <p className="schema-muted">当前表关联实体：{related.map(n => n.label).join('、') || '未纳入统计语义目录'}。物理结构与统计白名单分别表达存储约束和可分析口径。</p>
-    <div className="schema-toolbar"><Select aria-label="统计业务实体" value={entity} clearable={false} onChange={setEntity} options={graph.nodes.map(n => ({ value: n.id, label: n.label, secondaryText: n.table || '未映射物理表' }))} />
+    <div className="schema-toolbar"><Select aria-label="统计业务实体" value={entity} clearable={false} onChange={setEntity} options={[{ value: '', label: '当前表尚未映射统计实体' }, ...graph.nodes.map(n => ({ value: n.id, label: n.label, secondaryText: n.table || '未映射物理表' }))]} />
       {node?.table && <Button variant="secondary" onClick={() => onSelect(node.table ?? '')}>定位物理表</Button>}
       <a href={`/analytics?view=ontology&entity=${encodeURIComponent(entity)}`}>进入统计语义工作台</a></div>
-    {node && <><p>{node.description} · 粒度：{node.grain} · 物理表：<code>{node.table || '尚未映射'}</code></p>
+    {!node ? <EmptyState icon="database" title="当前表尚未映射统计实体" copy="先在业务实体数据关系网中登记实体与物理表的对应关系；这里不会用其他实体代替展示。" /> : <><p>{node.description} · 粒度：{node.grain} · 物理表：<code>{node.table || '尚未映射'}</code></p>
       <RelationshipGraph label="统计语义关系图" nodes={graph.nodes.map(n => ({ id: n.id, label: n.label, detail: n.table || '未映射' }))}
         edges={graph.edges.map(e => ({ id: e.id, source: e.source, target: e.target, label: `${e.cardinality}${e.fanoutRisk ? ' · 有聚合扇出风险' : ''}`,
           detail: e.conditions.map(c => `${c.fromField} = ${c.toField}`).join(' AND ') }))} selected={entity} onSelect={setEntity} />

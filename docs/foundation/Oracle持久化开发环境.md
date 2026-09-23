@@ -36,7 +36,7 @@ mvn -pl rhn-app spring-boot:run -Dspring-boot.run.profiles=oracle-local -Dspring
 
 ## 3. 初始化结果
 
-当前开发 Schema 已按新的空库重建包初始化，Flyway 目标版本为 `1.77.1`。首次重建由两层脚本完成：结构与规范元数据基线，以及开发样例数据：
+当前开发 Schema 已按新的空库重建包初始化，并通过 `1.78.0` 增量治理历史药品。首次重建由两层脚本完成：结构与规范元数据基线，以及开发样例数据：
 
 - 一个开发租户；
 - 一个基层医疗机构和一个临床科室；
@@ -57,7 +57,7 @@ mvn -pl rhn-app spring-boot:run -Dspring-boot.run.profiles=oracle-local -Dspring
 
 PostgreSQL 迁移位于 `db/migration`，Oracle 迁移位于 `db/oracle`，H2 的少量兼容迁移位于 `db/h2`；本地体验数据分别位于 `db/local` 和 `db/oracle-local`。后续新增表结构时必须保持 PostgreSQL 与 Oracle 两套迁移的版本号、说明、字段语义、唯一约束和外键语义一致，并在 H2 存在类型差异时补充最小兼容迁移。
 
-现有 `db/migration`、`db/oracle`、`db/local`、`db/oracle-local` 和 `db/h2` 仍是既有环境的增量升级路径；它们不删除、不改写。面向空库的当前开发重建包位于 `backend/src/main/resources/db/rebuild/`，由 `node scripts/rebuild-database.mjs` 从历史迁移生成，版本为 `1.77.1`。当前 RHN Oracle 开发 Schema 已移除旧数据并按该包重建；其他已有环境仍按原 V 迁移链升级，不能在非空 Schema 上直接执行重建包。详见 [数据库基线](../../backend/src/main/resources/db/README.md)。
+现有 `db/migration`、`db/oracle`、`db/local`、`db/oracle-local` 和 `db/h2` 仍是既有环境的增量升级路径；它们不删除、不改写。面向空库的当前开发重建包位于 `backend/src/main/resources/db/rebuild/`，由 `node scripts/rebuild-database.mjs` 从历史迁移生成，结构与规范基线版本为 `1.78.0`。当前 RHN Oracle 开发 Schema 已按该包重建并应用同版本增量治理；其他已有环境仍按原 V 迁移链升级，不能在非空 Schema 上直接执行重建包。详见 [数据库基线](../../backend/src/main/resources/db/README.md)。
 
 ## 6. 使用边界
 

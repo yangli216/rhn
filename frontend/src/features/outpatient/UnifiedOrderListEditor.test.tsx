@@ -2038,7 +2038,7 @@ describe('UnifiedOrderListEditor', () => {
     await user.click(finishBtn)
     expect(document.querySelector('.doctor-grouping-banner.is-herbal')).not.toBeInTheDocument()
     expect(document.querySelector('.doctor-unified-order-toast')).toHaveTextContent('中药方剂组方已完成')
-    expect(screen.getByRole('combobox', { name: '医嘱类型' })).toHaveTextContent('全部类型')
+    expect(screen.getByRole('combobox', { name: '医嘱类型' })).toHaveTextContent('全部')
 
     // 4. 组方完成后整方属性栏自动恢复为阅读胶囊；点击后进入编辑形态，整方属性区不再冗余显示加药按钮，加药入口统一保留在明细区图标按钮
     const readingBar = screen.getByRole('region', { name: '整方属性（点击或获得焦点可调整）' })

@@ -16,7 +16,7 @@ import { errorMessage, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, StatusBadge, Tabs } from '../../../shared/ui'
 import {
   canApplyClinicalAiSuggestion, clinicalAiContextFingerprint, clinicalAiDraftInput, type ClinicalAiDraftRequest,
-  recordDraftFieldLabels, recordDraftFields, stableClinicalAiFingerprint, mergeAiRecordDraft, mergeAiDiagnoses,
+  recordDraftFieldLabels, aiRecordDraftFields, formatAiRecordDraftValue, stableClinicalAiFingerprint, mergeAiRecordDraft, mergeAiDiagnoses,
 } from './aiDraftAdapter'
 
 interface AiAdoptionIntent {
@@ -426,9 +426,9 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const safetyFeature = capability.features.includes('SAFETY_REMINDERS')
   const planFeature = capability.features.includes('PLAN_RECOMMENDATIONS')
   const auditFeature = capability.features.includes('AUDIT_TRAIL')
-  const recordEntries = suggestion && recordFeature ? recordDraftFields
-    .filter((field) => suggestion.recordDraft[field]?.trim())
-    .map((field) => ({ field, label: recordDraftFieldLabels[field], value: suggestion.recordDraft[field]! })) : []
+  const recordEntries = suggestion && recordFeature ? aiRecordDraftFields
+    .map((field) => ({ field, label: recordDraftFieldLabels[field], value: formatAiRecordDraftValue(field, suggestion.recordDraft[field]) }))
+    .filter((entry) => entry.value !== '') : []
   const diagnosisDrafts = suggestion && diagnosisFeature
     ? suggestion.diagnosisCandidates.map(({ code, display, type }) => ({ code, display, type })) : []
   const applyRecordAndDiagnoses = () => {
@@ -737,7 +737,7 @@ function SuggestionResult({ suggestion, recordEntries, showMissing, showSafety, 
       <header><strong>建议补问 / 补录</strong></header><ul>{suggestion.missingInformation.map((item) => <li key={item}>{item}</li>)}</ul>
     </section>}
     {recordEntries.length > 0 && <section className="doctor-ai-assistant__record">
-      <header><strong>病历草稿建议</strong><small>默认只补充当前空白段落</small></header>
+      <header><strong>病历草稿建议</strong><small>默认只补充当前空白内容</small></header>
       {recordEntries.map((item) => <article key={item.field}><span>{item.label}</span><p>{item.value}</p></article>)}
     </section>}
     {showDiagnoses && (suggestion.diagnosisCandidates.length > 0 || suggestion.differentialDiagnoses.length > 0)
