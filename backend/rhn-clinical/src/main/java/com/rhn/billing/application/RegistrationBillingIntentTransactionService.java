@@ -174,13 +174,17 @@ class RegistrationBillingIntentTransactionService {
         Instant now = Instant.now();
         var resolved = catalog.resolve(context.tenantId(), intent.catalogItemId(), intent.organizationId(), null,
                 "SALE", LocalDate.now(BUSINESS_ZONE));
+        String accountingCategory = resolved.item().accountingCategory() != null
+                && !resolved.item().accountingCategory().isBlank()
+                ? resolved.item().accountingCategory().trim()
+                : "REGISTRATION";
         ChargeItem charge = charges.save(new ChargeItem(context.tenantId(),
                 intent.organizationId(), intent.departmentId(),
                 account.id(), intent.residentId(), null,
                 null, intent.catalogItemId(), "REGISTRATION", intent.id(), "REG-" + intent.id(), BigDecimal.ONE,
                 resolved.item().unitCode(), amount, amount, currency, resolved.price().id(),
                 resolved.price().revision(), resolved.price().sdPriceType(), intent.itemCode(), intent.itemName(),
-                now, context.subjectId(), null));
+                now, context.subjectId(), null, accountingCategory));
         components.save(new ChargeItemComponent(context.tenantId(), charge.id(), intent.catalogItemId(),
                 intent.itemCode(), intent.itemName(), BigDecimal.ONE, resolved.item().unitCode(), BigDecimal.ONE,
                 amount, amount));
@@ -300,7 +304,8 @@ class RegistrationBillingIntentTransactionService {
                     "REGISTRATION_REVERSAL", value.id(), "REG-REV-" + value.id(),
                     original.quantity().abs().negate(), original.unitCode(), original.unitPrice(), amount.negate(),
                     original.currencyCode(), original.priceId(), original.priceRevision(), original.priceType(),
-                    original.itemCodeSnapshot(), original.itemNameSnapshot(), now, context.subjectId(), original.id()));
+                    original.itemCodeSnapshot(), original.itemNameSnapshot(), now, context.subjectId(), original.id(),
+                    original.accountingCategory() != null ? original.accountingCategory() : "REGISTRATION"));
             components.save(new ChargeItemComponent(context.tenantId(), reversal.id(), original.catalogItemId(),
                     original.itemCodeSnapshot(), original.itemNameSnapshot(), original.quantity().abs().negate(),
                     original.unitCode(), BigDecimal.ONE, original.unitPrice(), amount.negate()));

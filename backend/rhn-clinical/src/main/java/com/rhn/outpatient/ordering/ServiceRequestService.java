@@ -143,7 +143,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 item.serviceType(), item.specimenType(), item.examinationType(),
                 input.quantity(), clean(input.clinicalDescription())));
         publish(value, "SERVICE_REQUEST_AUTHORED", "开立诊疗项目",
-                financialEventDetails(value, encounter));
+                financialEventDetails(value, encounter, item.accountingCategory()));
         return response(value);
     }
 
@@ -270,7 +270,8 @@ class ServiceRequestService implements ServiceRequestDirectory {
     }
 
     private Map<String, Object> financialEventDetails(ServiceRequest value,
-                                                       EncounterDirectory.EncounterSnapshot encounter) {
+                                                       EncounterDirectory.EncounterSnapshot encounter,
+                                                       String explicitCategory) {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("encounterId", encounter.id());
         details.put("residentId", encounter.residentId());
@@ -278,6 +279,10 @@ class ServiceRequestService implements ServiceRequestDirectory {
         details.put("encounterDepartmentId", encounter.departmentId());
         details.put("catalogItemId", value.catalogItemId());
         details.put("serviceType", value.serviceTypeSnapshot());
+        String category = explicitCategory != null && !explicitCategory.isBlank()
+                ? explicitCategory.trim()
+                : resolveDefaultCategory(value.serviceTypeSnapshot());
+        details.put("accountingCategory", category);
         details.put("performerDepartmentId", value.performerDepartmentId());
         if (value.specimenTypeSnapshot() != null) details.put("specimenType", value.specimenTypeSnapshot());
         if (value.examinationTypeSnapshot() != null) details.put("examinationType", value.examinationTypeSnapshot());
@@ -297,6 +302,17 @@ class ServiceRequestService implements ServiceRequestDirectory {
 
     private String nextRequestNo() {
         return "SR" + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
+    }
+
+    private String resolveDefaultCategory(String serviceType) {
+        if (serviceType == null) return "TREATMENT";
+        return switch (serviceType) {
+            case "LABORATORY" -> "LABORATORY";
+            case "EXAMINATION", "IMAGING" -> "EXAMINATION";
+            case "NURSING" -> "NURSING";
+            case "BED" -> "BED";
+            default -> "TREATMENT";
+        };
     }
 
     private String clean(String value) {

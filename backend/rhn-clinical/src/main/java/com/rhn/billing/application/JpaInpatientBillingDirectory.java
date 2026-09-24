@@ -117,13 +117,17 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         BigDecimal quantity = BigDecimal.ONE;
         BigDecimal unitPrice = money(command.unitPrice());
         BigDecimal amount = money(command.totalAmount());
+        String accountingCategory = command.accountingCategory() != null && !command.accountingCategory().isBlank()
+                ? command.accountingCategory().trim()
+                : "TREATMENT";
         ChargeItem charge = charges.save(new ChargeItem(
                 command.tenantId(), command.organizationId(), command.departmentId(),
                 account.id(), command.residentId(), command.encounterId(), command.requestId(),
                 command.catalogItemId(), EXECUTION_SOURCE, command.taskId(),
                 command.requestNo() + "-" + command.occurrenceNo(), quantity, command.unitCode(), unitPrice, amount,
                 command.currencyCode(), command.priceId(), command.priceRevision(), command.priceType(),
-                command.itemCode(), command.itemName(), command.completedAt(), command.completedBy(), null));
+                command.itemCode(), command.itemName(), command.completedAt(), command.completedBy(), null,
+                accountingCategory));
         components.save(new ChargeItemComponent(
                 command.tenantId(), charge.id(), command.catalogItemId(), command.itemCode(), command.itemName(),
                 quantity, command.unitCode(), BigDecimal.ONE, unitPrice, amount));
@@ -151,7 +155,8 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
                 command.catalogItemId(), BED_DAY_SOURCE, command.bedDayFactId(),
                 "BED-DAY-" + command.bedDayFactId(), quantity, "床日", unitPrice, unitPrice,
                 command.currencyCode(), command.priceId(), command.priceRevision(), command.priceType(),
-                command.itemCode(), command.itemName(), command.occurredAt(), command.actorId(), null));
+                command.itemCode(), command.itemName(), command.occurredAt(), command.actorId(), null,
+                "BED"));
         components.save(new ChargeItemComponent(
                 command.tenantId(), charge.id(), command.catalogItemId(), command.itemCode(), command.itemName(),
                 quantity, "床日", BigDecimal.ONE, unitPrice, unitPrice));
@@ -400,7 +405,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         return new PostedCharge(value.id(), value.requestId(), value.sourceType(), value.sourceId(),
                 value.requestCode(), value.status(), value.catalogItemId(), value.itemCodeSnapshot(),
                 value.itemNameSnapshot(), value.quantity(), value.unitCode(), value.unitPrice(),
-                value.totalAmount(), value.currencyCode(), value.occurredAt());
+                value.totalAmount(), value.currencyCode(), value.occurredAt(), value.accountingCategory());
     }
 
     private void requireInpatient(PatientAccount account) {

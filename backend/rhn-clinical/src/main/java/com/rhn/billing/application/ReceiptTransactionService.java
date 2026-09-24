@@ -349,6 +349,9 @@ class ReceiptTransactionService {
     }
 
     private String category(ChargeItem value) {
+        if (value.accountingCategory() != null && !value.accountingCategory().isBlank()) {
+            return value.accountingCategory().trim();
+        }
         if ("DIRECT_VISIT_SERVICE".equals(value.sourceType())) return "TREATMENT";
         return "REGISTRATION".equals(value.sourceType()) ? "REGISTRATION" : "MEDICATION";
     }

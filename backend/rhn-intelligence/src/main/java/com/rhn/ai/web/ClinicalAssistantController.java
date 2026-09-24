@@ -1,18 +1,12 @@
 package com.rhn.ai.web;
 
-import com.rhn.ai.api.ClinicalAssistantContracts.Capabilities;
-import com.rhn.ai.api.ClinicalAssistantContracts.Event;
-import com.rhn.ai.api.ClinicalAssistantContracts.EventRequest;
-import com.rhn.ai.api.ClinicalAssistantContracts.GenerateRequest;
-import com.rhn.ai.api.ClinicalAssistantContracts.KnowledgeSearch;
-import com.rhn.ai.api.ClinicalAssistantContracts.KnowledgeSearchRequest;
-import com.rhn.ai.api.ClinicalAssistantContracts.PlanPreflight;
-import com.rhn.ai.api.ClinicalAssistantContracts.PlanPreflightRequest;
-import com.rhn.ai.api.ClinicalAssistantContracts.Suggestion;
-import com.rhn.ai.api.ClinicalAssistantContracts.Transcription;
+import com.rhn.ai.api.ClinicalAssistantContracts;
+import com.rhn.ai.api.ClinicalAssistantContracts.*;
 import com.rhn.ai.application.ClinicalAssistantApplicationService;
 import com.rhn.ai.application.ClinicalAssistantApplicationService.EventRecordingOutcome;
 import com.rhn.ai.application.ClinicalPlanPreflightService;
+import com.rhn.ai.application.ClinicalPlanTemplateAiApplicationService;
+import com.rhn.ai.application.HistoricalPlanResolutionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,13 +32,20 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 class ClinicalAssistantController {
     private final ClinicalAssistantApplicationService service;
     private final ClinicalPlanPreflightService planPreflightService;
+    private final ClinicalPlanTemplateAiApplicationService planTemplateAiService;
+    private final HistoricalPlanResolutionService historicalPlanService;
     private final com.rhn.shared.json.JsonCodec jsonCodec;
 
     ClinicalAssistantController(ClinicalAssistantApplicationService service,
-                                ClinicalPlanPreflightService planPreflightService, com.rhn.shared.json.JsonCodec jsonCodec) {
+                                ClinicalPlanPreflightService planPreflightService,
+                                ClinicalPlanTemplateAiApplicationService planTemplateAiService,
+                                HistoricalPlanResolutionService historicalPlanService,
+                                com.rhn.shared.json.JsonCodec jsonCodec) {
         this.service = service;
         this.jsonCodec = jsonCodec;
         this.planPreflightService = planPreflightService;
+        this.planTemplateAiService = planTemplateAiService;
+        this.historicalPlanService = historicalPlanService;
     }
 
     @GetMapping("/capabilities")
@@ -136,5 +137,27 @@ class ClinicalAssistantController {
     @GetMapping("/suggestions/{suggestionId}/events")
     List<Event> eventHistory(@PathVariable Long suggestionId) {
         return service.eventHistory(suggestionId);
+    }
+
+    @PostMapping("/plan-templates/draft")
+    com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest compilePlanDraft(
+            @Valid @RequestBody ClinicalAssistantContracts.CompilePlanDraftRequest input) {
+        return planTemplateAiService.compilePlanDraftFromInput(input);
+    }
+
+    @PostMapping("/plan-templates/guideline-extract")
+    com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest compileGuidelinePlan(
+            @Valid @RequestBody ClinicalAssistantContracts.CompileGuidelinePlanRequest input) {
+        return planTemplateAiService.compilePlanFromGuideline(input);
+    }
+
+    @GetMapping("/plan-templates/mined-suggestions")
+    List<ClinicalAssistantContracts.MinedPlanSuggestionView> minedPlanSuggestions() {
+        return planTemplateAiService.minePersonalSuggestions();
+    }
+
+    @GetMapping("/encounters/{encounterId}/historical-stable-plan")
+    ClinicalAssistantContracts.HistoricalStablePlanView getHistoricalStablePlan(@PathVariable Long encounterId) {
+        return historicalPlanService.resolveHistoricalStablePlan(encounterId).orElse(null);
     }
 }

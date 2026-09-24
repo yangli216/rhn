@@ -33,7 +33,8 @@ import type {
   MedicationRequest, MedicationSafetyDecision, MedicationSafetyFinding, Prescription, ServiceRequest, SplitPrescriptionPlan,
 } from '../../shared/api/encountersApi'
 import type { TerminateEncounterInput } from '../../shared/api/outpatientFlowApi'
-import type { OutpatientPlanTemplate, OutpatientPlanTemplateScope } from '../../shared/api/outpatientPlanTemplatesApi'
+import type { OutpatientPlanTemplate, OutpatientPlanTemplateScope, MinedPlanSuggestion, HistoricalStablePlan } from '../../shared/api/outpatientPlanTemplatesApi'
+import { AiPlanTemplateDraftModal } from './templates/AiPlanTemplateDraftModal'
 import type {
   OutpatientNoteTemplate, OutpatientNoteTemplateContent,
 } from '../../shared/api/outpatientNoteTemplatesApi'
@@ -50,9 +51,9 @@ import { encounterStatusPresentation } from '../../shared/presentation'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import type { SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import {
-  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState,
+  Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState,
   ObjectContextBar, PageHeader, Panel, PanelHead, Popconfirm, Select, StatusBadge,
-  Tooltip,
+  tableCellClass, TableShell, Tabs, Tooltip,
 } from '../../shared/ui'
 import type { MedicationPlanDraft } from './orders/medicationDraft'
 import { UnifiedOrderListEditor, type AiOrderReviewCommand, type ServicePlanDraft } from './UnifiedOrderListEditor'
@@ -124,6 +125,7 @@ export function draftStateLabels(value: EncounterDraftState) {
 export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
   api: RhnApi; clinicalContext: ClinicalContext; canEdit: boolean
 }) {
+  const navigate = useNavigate()
   const [params] = useSearchParams()
   const linkedResidentId = params.get('residentId')
   const linkedEncounterId = params.get('encounterId')
@@ -200,8 +202,14 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
   return <>
     <PageHeader compact eyebrow="门诊医疗 · 医生工作区" title="门诊医生站"
       description="门诊候诊、叫号调度与接诊状态协同工作台。"
-      actions={canEdit && directVisitSettings.data?.enabled
-        ? <Button onClick={() => setDirectVisitOpen(true)}><Icon name="add" />直接接诊</Button> : undefined} />
+      actions={<>
+        <Button variant="secondary" onClick={() => navigate('/outpatient/plan-templates')}>
+          <Icon name="sparkles" />诊疗方案池
+        </Button>
+        {canEdit && directVisitSettings.data?.enabled && (
+          <Button onClick={() => setDirectVisitOpen(true)}><Icon name="add" />直接接诊</Button>
+        )}
+      </>} />
     {directVisitSettings.error && <Alert>{errorMessage(directVisitSettings.error)}</Alert>}
     {directVisitOpen && (
       <Suspense fallback={null}>
@@ -1858,7 +1866,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       <DiagnosisPanel encounterId={encounter.id} api={api} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
         editing={editing} signed={signed} aiSuggestionSurfaceRef={aiSurfaceRefs.diagnoses}
         actions={
-          editing ? <PlanTemplatePanel diagnoses={diagnoses} setDiagnoses={setDiagnoses}
+          editing ? <PlanTemplatePanel encounterId={encounter.id} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
             medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
             serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts}
             allergies={allergies} api={api} disabled={signed} /> : undefined} />
@@ -1903,8 +1911,9 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   </section>
 }
 
-function PlanTemplatePanel({ diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
+function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
   serviceDrafts, setServiceDrafts, allergies, api, disabled }: {
+  encounterId?: string
   diagnoses: DiagnosisInput[]
   setDiagnoses: Dispatch<SetStateAction<DiagnosisInput[]>>
   medicationDrafts: MedicationPlanDraft[]
@@ -1917,101 +1926,726 @@ function PlanTemplatePanel({ diagnoses, setDiagnoses, medicationDrafts, setMedic
 }) {
   const queryClient = useQueryClient()
   const [managerOpen, setManagerOpen] = useState(false)
+  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'PERSONAL' | 'DEPARTMENT' | 'HOSPITAL' | 'HISTORICAL' | 'MINED'>('ALL')
+  const [searchKeyword, setSearchKeyword] = useState('')
   const [selectedId, setSelectedId] = useState('')
+  const [selectedMinedKey, setSelectedMinedKey] = useState('')
   const [saveOpen, setSaveOpen] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
+  const [aiCompilerOpen, setAiCompilerOpen] = useState(false)
+  const [pendingTemplateToApply, setPendingTemplateToApply] = useState<OutpatientPlanTemplate | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [scope, setScope] = useState<OutpatientPlanTemplateScope>('PERSONAL')
   const [safetyConfirmed, setSafetyConfirmed] = useState(false)
   const [overrideReason, setOverrideReason] = useState('')
   const [notice, setNotice] = useState('')
+
   const templates = useQuery({
-    queryKey: ['outpatient-plan-templates'], queryFn: () => api.outpatientPlanTemplates.list(), enabled: managerOpen,
+    queryKey: ['outpatient-plan-templates'],
+    queryFn: () => api.outpatientPlanTemplates.list(),
+    enabled: managerOpen,
   })
-  const selected = templates.data?.find((value) => value.id === selectedId)
+
+  const minedQuery = useQuery({
+    queryKey: ['outpatient-mined-suggestions'],
+    queryFn: () => api.outpatientPlanTemplates.minedSuggestions(),
+    enabled: managerOpen && (scopeFilter === 'ALL' || scopeFilter === 'MINED'),
+  })
+
+  const historicalPlanQuery = useQuery({
+    queryKey: ['historical-stable-plan', encounterId],
+    queryFn: () => api.outpatientPlanTemplates.getHistoricalStablePlan(encounterId!),
+    enabled: Boolean(encounterId) && managerOpen && (scopeFilter === 'ALL' || scopeFilter === 'HISTORICAL'),
+  })
+
+  const filteredTemplates = useMemo(() => {
+    if (!templates.data) return []
+    return templates.data.filter((value) => {
+      if (scopeFilter !== 'ALL' && value.scopeType !== scopeFilter) return false
+      if (searchKeyword.trim()) {
+        const kw = searchKeyword.toLowerCase()
+        const matchName = value.name.toLowerCase().includes(kw)
+        const matchDesc = value.description?.toLowerCase().includes(kw)
+        const matchGuideline = value.guidelineReference?.toLowerCase().includes(kw)
+        const matchDiag = value.diagnoses.some((d) => d.display.toLowerCase().includes(kw) || d.code.toLowerCase().includes(kw))
+        const matchMed = value.medications.some((m) => m.medicationName.toLowerCase().includes(kw))
+        if (!matchName && !matchDesc && !matchGuideline && !matchDiag && !matchMed) return false
+      }
+      return true
+    })
+  }, [templates.data, scopeFilter, searchKeyword])
+
+  const selected = useMemo(() => {
+    return filteredTemplates.find((v) => v.id === selectedId) || filteredTemplates[0] || null
+  }, [filteredTemplates, selectedId])
+
   useEffect(() => {
-    if (!selectedId && templates.data?.length) setSelectedId(templates.data[0].id)
-    if (selectedId && templates.data && !templates.data.some((value) => value.id === selectedId)) {
-      setSelectedId(templates.data[0]?.id ?? '')
+    if (selected && selected.id !== selectedId) {
+      setSelectedId(selected.id)
     }
-  }, [selectedId, templates.data])
+  }, [selected, selectedId])
+
+  const selectedMined = useMemo(() => {
+    if (!minedQuery.data?.length) return null
+    return minedQuery.data.find((v) => v.patternKey === selectedMinedKey) || minedQuery.data[0] || null
+  }, [minedQuery.data, selectedMinedKey])
+
+  useEffect(() => {
+    if (selectedMined && selectedMined.patternKey !== selectedMinedKey) {
+      setSelectedMinedKey(selectedMined.patternKey)
+    }
+  }, [selectedMined, selectedMinedKey])
+
+  const activeTemplateForApply = pendingTemplateToApply || selected
   const drugAllergies = allergies.filter((item) => item.assertionType === 'ALLERGY' && item.categoryCode === 'DRUG')
-  const matchedAllergies = selected?.medications.flatMap((medication) => drugAllergies.filter((allergy) =>
+  const matchedAllergies = activeTemplateForApply?.medications.flatMap((medication) => drugAllergies.filter((allergy) =>
     allergy.substanceCode?.toLowerCase() === medication.medicationCode.toLowerCase())) ?? []
+
   const draftCount = diagnoses.length + medicationDrafts.length + serviceDrafts.length
+
   const save = useMutation({
     mutationFn: () => api.outpatientPlanTemplates.create({
-      scopeType: scope, name: name.trim(), description: description.trim() || undefined,
+      scopeType: scope,
+      name: name.trim(),
+      description: description.trim() || undefined,
       diagnoses,
       medications: medicationDrafts.filter((item) => Boolean(item.request.medicationId)).map((item) => ({
-        medicationId: item.request.medicationId!, catalogItemId: item.request.catalogItemId,
-        packageId: item.request.packageId, doseValue: item.request.doseValue, doseUnit: item.request.doseUnit,
-        routeCode: item.request.routeCode, frequencyCode: item.request.frequencyCode,
-        durationValue: item.request.durationValue, durationUnit: item.request.durationUnit,
-        quantity: item.request.quantity, quantityUnit: item.request.quantityUnit,
-        substitutionAllowed: item.request.substitutionAllowed, selfProvided: item.request.selfProvided,
-        medicationInstruction: item.request.medicationInstruction, priceType: item.request.priceType,
-        pricingRequired: item.request.pricingRequired, reason: item.request.reason,
+        medicationId: item.request.medicationId!,
+        catalogItemId: item.request.catalogItemId,
+        packageId: item.request.packageId,
+        doseValue: item.request.doseValue,
+        doseUnit: item.request.doseUnit,
+        routeCode: item.request.routeCode,
+        frequencyCode: item.request.frequencyCode,
+        durationValue: item.request.durationValue,
+        durationUnit: item.request.durationUnit,
+        quantity: item.request.quantity,
+        quantityUnit: item.request.quantityUnit,
+        substitutionAllowed: item.request.substitutionAllowed,
+        selfProvided: item.request.selfProvided,
+        medicationInstruction: item.request.medicationInstruction,
+        priceType: item.request.priceType,
+        pricingRequired: item.request.pricingRequired,
+        reason: item.request.reason,
       })),
       services: serviceDrafts.map((item) => ({
-        catalogItemId: item.catalogItemId, quantity: item.quantity, unitCode: item.unitCode,
-        priceType: 'SALE', pricingRequired: true, reason: '门诊诊疗申请',
+        catalogItemId: item.catalogItemId,
+        quantity: item.quantity,
+        unitCode: item.unitCode,
+        priceType: 'SALE',
+        pricingRequired: true,
+        reason: '门诊诊疗申请',
         clinicalDescription: item.clinicalDescription || '常用诊疗方案',
       })),
     }),
     onSuccess: async (value) => {
       await queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
-      setSelectedId(value.id); setSaveOpen(false); setName(''); setDescription('')
-      setNotice(`“${value.name}”已保存为${value.scopeType === 'PERSONAL' ? '个人' : '科室'}常用方案。`)
+      setSelectedId(value.id)
+      setSaveOpen(false)
+      setName('')
+      setDescription('')
+      setNotice(`“${value.name}”已成功保存为${value.scopeType === 'PERSONAL' ? '个人常用方案' : value.scopeType === 'DEPARTMENT' ? '科室路径方案' : '全院/指南标准方案'}。`)
     },
   })
+
   const apply = useMutation({
     mutationFn: (value: OutpatientPlanTemplate) => api.outpatientPlanTemplates.use(value.id),
     onSuccess: (value) => {
       stageTemplate(value, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
         serviceDrafts, setServiceDrafts, overrideReason.trim() || undefined)
-      setApplyOpen(false); setSafetyConfirmed(false); setOverrideReason('')
+      setApplyOpen(false)
+      setSafetyConfirmed(false)
+      setOverrideReason('')
+      setPendingTemplateToApply(null)
       setNotice(`已带入“${value.name}”，新增内容仍是草稿，请核对后保存病历和开立医嘱。`)
       void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
     },
   })
-  const openApply = () => {
-    if (!selected) return
-    setSafetyConfirmed(selected.medications.length === 0)
+
+  const applyHistoricalMutation = useMutation({
+    mutationFn: async (plan: HistoricalStablePlan) => {
+      return await api.outpatientPlanTemplates.create({
+        scopeType: 'PERSONAL',
+        name: plan.conditionTitle,
+        description: plan.summary,
+        sourceType: 'AI_INPUT',
+        diagnoses: plan.diagnoses,
+        medications: plan.medications,
+        services: plan.services,
+      })
+    },
+    onSuccess: (created) => {
+      stageTemplate(created, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
+        serviceDrafts, setServiceDrafts)
+      setNotice(`已成功复用并带入患者既往成熟平稳期处方“${created.name}”！`)
+      void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
+    },
+  })
+
+  const solidifyMinedMutation = useMutation({
+    mutationFn: async (mined: MinedPlanSuggestion) => {
+      return await api.outpatientPlanTemplates.create({
+        scopeType: 'PERSONAL',
+        name: mined.suggestedName,
+        description: mined.description,
+        sourceType: 'AI_MINED',
+        diagnoses: mined.diagnoses,
+        medications: mined.medications,
+        services: mined.services,
+      })
+    },
+    onSuccess: (created) => {
+      setNotice(`已成功将开方习惯沉淀为个人常用方案“${created.name}”！`)
+      void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
+    },
+  })
+
+  const applyMinedMutation = useMutation({
+    mutationFn: async (mined: MinedPlanSuggestion) => {
+      return await api.outpatientPlanTemplates.create({
+        scopeType: 'PERSONAL',
+        name: mined.suggestedName,
+        description: mined.description,
+        sourceType: 'AI_MINED',
+        diagnoses: mined.diagnoses,
+        medications: mined.medications,
+        services: mined.services,
+      })
+    },
+    onSuccess: (created) => {
+      stageTemplate(created, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
+        serviceDrafts, setServiceDrafts)
+      setNotice(`已将高频方案“${created.name}”带入当前处方草稿！`)
+      void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
+    },
+  })
+
+  const openApply = (templateToApply?: OutpatientPlanTemplate) => {
+    const target = templateToApply || selected
+    if (!target) return
+    setPendingTemplateToApply(target)
+    setSafetyConfirmed(target.medications.length === 0)
     setOverrideReason('')
-    setManagerOpen(false)
     setApplyOpen(true)
   }
-  const error = templates.error || save.error || apply.error
+
+  const error = templates.error || save.error || apply.error || applyHistoricalMutation.error || solidifyMinedMutation.error || applyMinedMutation.error
+
+  const scopeTabs: Array<{ value: 'ALL' | 'PERSONAL' | 'DEPARTMENT' | 'HOSPITAL' | 'HISTORICAL' | 'MINED'; label: string; meta?: string }> = [
+    { value: 'ALL', label: '全部方案', meta: templates.data?.length ? `(${templates.data.length})` : undefined },
+    { value: 'PERSONAL', label: '个人高频', meta: templates.data?.filter(t => t.scopeType === 'PERSONAL').length ? `(${templates.data.filter(t => t.scopeType === 'PERSONAL').length})` : undefined },
+    { value: 'DEPARTMENT', label: '科室路径', meta: templates.data?.filter(t => t.scopeType === 'DEPARTMENT').length ? `(${templates.data.filter(t => t.scopeType === 'DEPARTMENT').length})` : undefined },
+    { value: 'HOSPITAL', label: '全院/指南', meta: templates.data?.filter(t => t.scopeType === 'HOSPITAL').length ? `(${templates.data.filter(t => t.scopeType === 'HOSPITAL').length})` : undefined },
+    { value: 'HISTORICAL', label: '复诊成熟方案', meta: historicalPlanQuery.data ? '(1)' : undefined },
+    { value: 'MINED', label: 'AI开方沉淀', meta: minedQuery.data?.length ? `(${minedQuery.data.length})` : undefined },
+  ]
 
   return <>
     <Button size="sm" variant="secondary" disabled={disabled} onClick={() => setManagerOpen(true)}>常用方案</Button>
-    {managerOpen && <Dialog title="常用诊疗方案" eyebrow="诊疗方案" size="wide"
+    {managerOpen && <Dialog title="多层级临床诊疗方案池" eyebrow="分级方案支撑 · AI 赋能基础设施" size="xwide"
       onClose={() => setManagerOpen(false)} footer={<Button variant="secondary" onClick={() => setManagerOpen(false)}>关闭</Button>}>
-      <div className="doctor-plan-template-content doctor-plan-template-content--dialog">
+      <div className="doctor-plan-pool-modal">
         {error && <Alert>{errorMessage(error)}</Alert>}
-        {notice && <div className="doctor-plan-template-notice">{notice}</div>}
-        {templates.isPending ? <LoadingState label="正在加载常用方案…" /> : <>
-          <div className="doctor-plan-template-actions">
-            <select aria-label="选择常用诊疗方案" value={selectedId}
-              onChange={(event) => { setSelectedId(event.target.value); setNotice('') }}>
-              {templates.data?.length ? templates.data.map((value) => <option key={value.id} value={value.id}>
-                {value.scopeType === 'PERSONAL' ? '个人' : '科室'} · {value.name}
-              </option>) : <option value="">暂无常用方案</option>}
-            </select>
-            <Button size="sm" variant="secondary" disabled={!selected} onClick={openApply}>带入草稿</Button>
-            <Button size="sm" disabled={draftCount === 0}
-              onClick={() => { setManagerOpen(false); setSaveOpen(true) }}>保存当前方案</Button>
+        {notice && <div className="doctor-plan-pool-notice">{notice}</div>}
+
+        {/* 顶部工具与多层级筛选栏 */}
+        <div className="doctor-plan-pool-header">
+          <Tabs
+            value={scopeFilter}
+            onChange={(tabId) => { setScopeFilter(tabId); setNotice('') }}
+            label="方案库分类筛选"
+            variant="line"
+            items={scopeTabs}
+          />
+          <div className="doctor-plan-pool-header-actions">
+            <Button size="sm" variant="primary" onClick={() => setAiCompilerOpen(true)}>✨ AI 智能速记/指南建方</Button>
+            <Button size="sm" variant="secondary" disabled={draftCount === 0}
+              onClick={() => { setSaveOpen(true) }}>保存当前方案</Button>
           </div>
-          {selected && <div className="doctor-plan-template-summary">
-            <span>{selected.description || selected.name}</span>
-            <small>诊断 {selected.diagnoses.length} · 药品 {selected.medications.length} · 诊疗项目 {selected.services.length}</small>
-          </div>}
-        </>}
+        </div>
+
+        {/* 宽屏桌面端左右分栏工作区 */}
+        <div className="doctor-plan-pool-split">
+          {/* 左侧栏：方案索引与检索 */}
+          <div className="doctor-plan-pool-sidebar">
+            {scopeFilter !== 'HISTORICAL' && (
+              <input
+                className="doctor-plan-pool-search"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="搜索方案名称、诊断或药品..."
+              />
+            )}
+
+            <div className="doctor-plan-pool-list">
+              {scopeFilter === 'HISTORICAL' ? (
+                historicalPlanQuery.isPending ? <LoadingState label="正在识别复诊平稳方案..." /> :
+                historicalPlanQuery.data ? (
+                  <div className="doctor-plan-item-card is-selected">
+                    <div className="doctor-plan-item-card__top">
+                      <StatusBadge tone="success">复诊长程处方</StatusBadge>
+                      <small className="doctor-plan-card-meta-text">历史平稳期</small>
+                    </div>
+                    <div className="doctor-plan-item-card__title">{historicalPlanQuery.data.conditionTitle}</div>
+                    <div className="doctor-plan-item-card__desc">{historicalPlanQuery.data.summary}</div>
+                    <div className="doctor-plan-item-card__meta">
+                      <span>诊断 {historicalPlanQuery.data.diagnoses.length}</span>
+                      <span>·</span>
+                      <span>药品 {historicalPlanQuery.data.medications.length}</span>
+                      <span>·</span>
+                      <span>诊疗 {historicalPlanQuery.data.services.length}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="doctor-plan-pool-empty-text">
+                    未识别到该患者近180天内的平稳期维持处方
+                  </div>
+                )
+              ) : scopeFilter === 'MINED' ? (
+                minedQuery.isPending ? <LoadingState label="正在聚类开方习惯..." /> :
+                minedQuery.data?.length ? (
+                  minedQuery.data.map((item) => (
+                    <div
+                      key={item.patternKey}
+                      className={`doctor-plan-item-card ${selectedMinedKey === item.patternKey ? 'is-selected' : ''}`}
+                      onClick={() => setSelectedMinedKey(item.patternKey)}
+                    >
+                      <div className="doctor-plan-item-card__top">
+                        <StatusBadge tone="info">近30天开立 {item.occurrenceCount} 次</StatusBadge>
+                        <small className="doctor-plan-card-meta-text">AI 习惯挖掘</small>
+                      </div>
+                      <div className="doctor-plan-item-card__title">{item.suggestedName}</div>
+                      <div className="doctor-plan-item-card__desc">{item.description}</div>
+                      <div className="doctor-plan-item-card__meta">
+                        <span>诊断 {item.diagnoses.length}</span>
+                        <span>·</span>
+                        <span>药品 {item.medications.length}</span>
+                        <span>·</span>
+                        <span>诊疗 {item.services.length}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="doctor-plan-pool-empty-text">
+                    暂无开方聚类习惯推荐
+                  </div>
+                )
+              ) : (
+                templates.isPending ? <LoadingState label="正在加载方案库..." /> :
+                filteredTemplates.length ? (
+                  filteredTemplates.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`doctor-plan-item-card ${selected?.id === item.id ? 'is-selected' : ''}`}
+                      onClick={() => setSelectedId(item.id)}
+                    >
+                      <div className="doctor-plan-item-card__top">
+                        <div className="doctor-plan-card-badges">
+                          <StatusBadge tone={item.scopeType === 'PERSONAL' ? 'neutral' : item.scopeType === 'DEPARTMENT' ? 'info' : 'success'}>
+                            {item.scopeType === 'PERSONAL' ? '个人' : item.scopeType === 'DEPARTMENT' ? '科室' : '全院指南'}
+                          </StatusBadge>
+                          {item.sourceType === 'AI_INPUT' && <StatusBadge tone="info">速记</StatusBadge>}
+                          {item.sourceType === 'AI_GUIDELINE' && <StatusBadge tone="warning">指南抽取</StatusBadge>}
+                          {item.sourceType === 'AI_MINED' && <StatusBadge tone="info">开方沉淀</StatusBadge>}
+                        </div>
+                        <small className="doctor-plan-card-meta-text">已用 {item.useCount} 次</small>
+                      </div>
+                      <div className="doctor-plan-item-card__title">{item.name}</div>
+                      {item.guidelineReference && (
+                        <div className="doctor-plan-card-guideline">
+                          📖 {item.guidelineReference}
+                        </div>
+                      )}
+                      <div className="doctor-plan-item-card__desc">{item.description || item.name}</div>
+                      <div className="doctor-plan-item-card__meta">
+                        <span>诊断 {item.diagnoses.length}</span>
+                        <span>·</span>
+                        <span>药品 {item.medications.length}</span>
+                        <span>·</span>
+                        <span>诊疗 {item.services.length}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="doctor-plan-pool-empty-text">
+                    未找到匹配方案
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* 右侧栏：选中方案明细看板与带入操作 */}
+          <div className="doctor-plan-pool-detail">
+            {scopeFilter === 'HISTORICAL' ? (
+              historicalPlanQuery.data ? (
+                <div className="doctor-plan-pool-detail__body">
+                  <div className="doctor-plan-detail-hero">
+                    <div className="doctor-plan-detail-hero__title">
+                      <span>{historicalPlanQuery.data.conditionTitle}</span>
+                      <StatusBadge tone="success">复诊患者历史成熟方案</StatusBadge>
+                    </div>
+                    <p className="doctor-plan-detail-desc">
+                      {historicalPlanQuery.data.summary}
+                    </p>
+                  </div>
+
+                  {historicalPlanQuery.data.guidanceNotes.length > 0 && (
+                    <div className="doctor-plan-detail-notes">
+                      <strong>💡 处方平稳期分析与品规对齐建议：</strong>
+                      {historicalPlanQuery.data.guidanceNotes.map((note, idx) => (
+                        <div key={idx}>• {note}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="doctor-plan-detail-section">
+                    <div className="doctor-plan-detail-section__title">诊断列表 ({historicalPlanQuery.data.diagnoses.length})</div>
+                    <TableShell className="doctor-plan-table-shell">
+                      <DataTable compact className="doctor-plan-items-table">
+                        <thead>
+                          <tr>
+                            <th className={tableCellClass('status')} style={{ width: '90px' }}>类型</th>
+                            <th className={tableCellClass('text')} style={{ width: '130px' }}>ICD-10 编码</th>
+                            <th className={tableCellClass('text')}>诊断名称</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {historicalPlanQuery.data.diagnoses.length > 0 ? (
+                            historicalPlanQuery.data.diagnoses.map((d) => (
+                              <tr key={d.code}>
+                                <td className={tableCellClass('status')}>
+                                  <StatusBadge tone={d.type === 'PRIMARY' ? 'warning' : 'neutral'}>
+                                    {d.type === 'PRIMARY' ? '主要诊断' : '次要诊断'}
+                                  </StatusBadge>
+                                </td>
+                                <td className={tableCellClass('text')}><code>{d.code}</code></td>
+                                <td className={tableCellClass('text')}><strong>{d.display}</strong></td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={3} className="doctor-plan-table-empty">暂无诊断记录</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </DataTable>
+                    </TableShell>
+                  </div>
+
+                  <div className="doctor-plan-detail-section">
+                    <div className="doctor-plan-detail-section__title">长程处方维持用药 ({historicalPlanQuery.data.medications.length})</div>
+                    <TableShell className="doctor-plan-table-shell">
+                      <DataTable compact className="doctor-plan-items-table">
+                        <thead>
+                          <tr>
+                            <th className={tableCellClass('text')}>药品及品规</th>
+                            <th className={tableCellClass('numeric')}>单次剂量</th>
+                            <th className={tableCellClass('text')}>途径</th>
+                            <th className={tableCellClass('text')}>频次</th>
+                            <th className={tableCellClass('numeric')}>疗程</th>
+                            <th className={tableCellClass('numeric')}>数量</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {historicalPlanQuery.data.medications.length > 0 ? (
+                            historicalPlanQuery.data.medications.map((m, idx) => (
+                              <tr key={idx}>
+                                <td className={tableCellClass('text')}>
+                                  <div><strong>药品编码 #{m.medicationId}</strong></div>
+                                  {m.medicationInstruction && <small className="doctor-plan-item-subtext">{m.medicationInstruction}</small>}
+                                </td>
+                                <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
+                                <td className={tableCellClass('text')}>{m.routeCode || '—'}</td>
+                                <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
+                                <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
+                                <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="doctor-plan-table-empty">暂无维持用药</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </DataTable>
+                    </TableShell>
+                  </div>
+
+                  <div className="doctor-plan-pool-detail__footer">
+                    <span className="doctor-plan-footer-hint">
+                      一键复用将慢病平稳期处方带入草稿，开立前仍执行品规库存和过敏校验。
+                    </span>
+                    <Button
+                      variant="primary"
+                      busy={applyHistoricalMutation.isPending}
+                      onClick={() => applyHistoricalMutation.mutate(historicalPlanQuery.data!)}
+                    >
+                      一键复用带入草稿
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <EmptyState icon="clinical" title="未识别到复诊成熟方案" copy="患者本次就诊暂无近180天内的历史平稳期处方或慢病长程用药记录。" />
+              )
+            ) : scopeFilter === 'MINED' ? (
+              selectedMined ? (
+                <div className="doctor-plan-pool-detail__body">
+                  <div className="doctor-plan-detail-hero">
+                    <div className="doctor-plan-detail-hero__title">
+                      <span>{selectedMined.suggestedName}</span>
+                      <StatusBadge tone="info">近30天高频开立 {selectedMined.occurrenceCount} 次</StatusBadge>
+                    </div>
+                    <p className="doctor-plan-detail-desc">
+                      {selectedMined.description}
+                    </p>
+                  </div>
+
+                  <div className="doctor-plan-detail-section">
+                    <div className="doctor-plan-detail-section__title">诊断组合 ({selectedMined.diagnoses.length})</div>
+                    <TableShell className="doctor-plan-table-shell">
+                      <DataTable compact className="doctor-plan-items-table">
+                        <thead>
+                          <tr>
+                            <th className={tableCellClass('status')} style={{ width: '90px' }}>类型</th>
+                            <th className={tableCellClass('text')} style={{ width: '130px' }}>ICD-10 编码</th>
+                            <th className={tableCellClass('text')}>诊断名称</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedMined.diagnoses.length > 0 ? (
+                            selectedMined.diagnoses.map((d) => (
+                              <tr key={d.code}>
+                                <td className={tableCellClass('status')}>
+                                  <StatusBadge tone={d.type === 'PRIMARY' ? 'warning' : 'neutral'}>
+                                    {d.type === 'PRIMARY' ? '主要诊断' : '次要诊断'}
+                                  </StatusBadge>
+                                </td>
+                                <td className={tableCellClass('text')}><code>{d.code}</code></td>
+                                <td className={tableCellClass('text')}><strong>{d.display}</strong></td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={3} className="doctor-plan-table-empty">暂无诊断记录</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </DataTable>
+                    </TableShell>
+                  </div>
+
+                  <div className="doctor-plan-detail-section">
+                    <div className="doctor-plan-detail-section__title">常用开方药品 ({selectedMined.medications.length})</div>
+                    <TableShell className="doctor-plan-table-shell">
+                      <DataTable compact className="doctor-plan-items-table">
+                        <thead>
+                          <tr>
+                            <th className={tableCellClass('text')}>药品编码</th>
+                            <th className={tableCellClass('numeric')}>单次剂量</th>
+                            <th className={tableCellClass('text')}>途径</th>
+                            <th className={tableCellClass('text')}>频次</th>
+                            <th className={tableCellClass('numeric')}>疗程</th>
+                            <th className={tableCellClass('numeric')}>数量</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedMined.medications.length > 0 ? (
+                            selectedMined.medications.map((m, idx) => (
+                              <tr key={idx}>
+                                <td className={tableCellClass('text')}><strong>药品 #{m.medicationId}</strong></td>
+                                <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
+                                <td className={tableCellClass('text')}>{m.routeCode || '—'}</td>
+                                <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
+                                <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
+                                <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="doctor-plan-table-empty">暂无开方药品</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </DataTable>
+                    </TableShell>
+                  </div>
+
+                  <div className="doctor-plan-pool-detail__footer">
+                    <Button
+                      variant="secondary"
+                      busy={solidifyMinedMutation.isPending}
+                      onClick={() => solidifyMinedMutation.mutate(selectedMined)}
+                    >
+                      固化为个人常用方案
+                    </Button>
+                    <Button
+                      variant="primary"
+                      busy={applyMinedMutation.isPending}
+                      onClick={() => applyMinedMutation.mutate(selectedMined)}
+                    >
+                      直接带入草稿
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <EmptyState icon="clinical" title="暂无高频方案建议" copy="AI 暂未挖掘到可聚类的高频开方组合。" />
+              )
+            ) : (
+              selected ? (
+                <div className="doctor-plan-pool-detail__body">
+                  <div className="doctor-plan-detail-hero">
+                    <div className="doctor-plan-detail-hero__title">
+                      <span>{selected.name}</span>
+                      <StatusBadge tone={selected.scopeType === 'PERSONAL' ? 'neutral' : selected.scopeType === 'DEPARTMENT' ? 'info' : 'success'}>
+                        {selected.scopeType === 'PERSONAL' ? '医生个人方案' : selected.scopeType === 'DEPARTMENT' ? '科室临床路径' : '全院/指南标准方案'}
+                      </StatusBadge>
+                      {selected.sourceType === 'AI_GUIDELINE' && <StatusBadge tone="warning">指南结构化抽取</StatusBadge>}
+                      {selected.sourceType === 'AI_INPUT' && <StatusBadge tone="info">AI 智能速记</StatusBadge>}
+                      {selected.sourceType === 'AI_MINED' && <StatusBadge tone="info">开方习惯沉淀</StatusBadge>}
+                    </div>
+                    {selected.guidelineReference && (
+                      <div className="doctor-plan-detail-guideline">
+                        📖 依据临床规范 / 专家共识：{selected.guidelineReference}
+                      </div>
+                    )}
+                    <p className="doctor-plan-detail-desc">
+                      {selected.description || selected.name}
+                    </p>
+                  </div>
+
+                  <div className="doctor-plan-detail-section">
+                    <div className="doctor-plan-detail-section__title">诊断列表 ({selected.diagnoses.length})</div>
+                    <TableShell className="doctor-plan-table-shell">
+                      <DataTable compact className="doctor-plan-items-table">
+                        <thead>
+                          <tr>
+                            <th className={tableCellClass('status')} style={{ width: '90px' }}>类型</th>
+                            <th className={tableCellClass('text')} style={{ width: '130px' }}>ICD-10 编码</th>
+                            <th className={tableCellClass('text')}>诊断名称</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selected.diagnoses.length > 0 ? (
+                            selected.diagnoses.map((d) => (
+                              <tr key={d.code}>
+                                <td className={tableCellClass('status')}>
+                                  <StatusBadge tone={d.type === 'PRIMARY' ? 'warning' : 'neutral'}>
+                                    {d.type === 'PRIMARY' ? '主要诊断' : '次要诊断'}
+                                  </StatusBadge>
+                                </td>
+                                <td className={tableCellClass('text')}><code>{d.code}</code></td>
+                                <td className={tableCellClass('text')}><strong>{d.display}</strong></td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={3} className="doctor-plan-table-empty">暂无诊断记录</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </DataTable>
+                    </TableShell>
+                  </div>
+
+                  <div className="doctor-plan-detail-section">
+                    <div className="doctor-plan-detail-section__title">处方药品列表 ({selected.medications.length})</div>
+                    <TableShell className="doctor-plan-table-shell">
+                      <DataTable compact className="doctor-plan-items-table">
+                        <thead>
+                          <tr>
+                            <th className={tableCellClass('text')}>药品名称及规格</th>
+                            <th className={tableCellClass('numeric')}>单次剂量</th>
+                            <th className={tableCellClass('text')}>途径</th>
+                            <th className={tableCellClass('text')}>频次</th>
+                            <th className={tableCellClass('numeric')}>疗程</th>
+                            <th className={tableCellClass('numeric')}>数量</th>
+                            <th className={tableCellClass('text')}>用法说明</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selected.medications.length > 0 ? (
+                            selected.medications.map((m) => (
+                              <tr key={m.lineId}>
+                                <td className={tableCellClass('text')}>
+                                  <div><strong>{m.medicationName}</strong></div>
+                                  {m.preparationSpec && <small className="doctor-plan-item-subtext">{m.preparationSpec}</small>}
+                                </td>
+                                <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
+                                <td className={tableCellClass('text')}>{m.routeName || m.routeCode || '—'}</td>
+                                <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
+                                <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
+                                <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
+                                <td className={tableCellClass('text')}><small>{m.medicationInstruction || '—'}</small></td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={7} className="doctor-plan-table-empty">暂无处方药品</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </DataTable>
+                    </TableShell>
+                  </div>
+
+                  <div className="doctor-plan-detail-section">
+                    <div className="doctor-plan-detail-section__title">检查 / 检验 / 治疗项目 ({selected.services.length})</div>
+                    <TableShell className="doctor-plan-table-shell">
+                      <DataTable compact className="doctor-plan-items-table">
+                        <thead>
+                          <tr>
+                            <th className={tableCellClass('text')}>项目名称</th>
+                            <th className={tableCellClass('status')} style={{ width: '90px' }}>类型</th>
+                            <th className={tableCellClass('numeric')} style={{ width: '100px' }}>数量</th>
+                            <th className={tableCellClass('text')}>临床要求</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selected.services.length > 0 ? (
+                            selected.services.map((s, idx) => (
+                              <tr key={idx}>
+                                <td className={tableCellClass('text')}>
+                                  <strong>{s.itemName}</strong> <small className="doctor-plan-card-meta-text">({s.itemCode})</small>
+                                </td>
+                                <td className={tableCellClass('status')}>
+                                  <StatusBadge tone="neutral">
+                                    {s.serviceType === 'LABORATORY' ? '检验' : s.serviceType === 'EXAMINATION' ? '检查' : '治疗'}
+                                  </StatusBadge>
+                                </td>
+                                <td className={tableCellClass('numeric')}>{s.quantity} {s.unitCode}</td>
+                                <td className={tableCellClass('text')}><small>{s.clinicalDescription || '—'}</small></td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="doctor-plan-table-empty">暂无检查检验治疗项目</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </DataTable>
+                    </TableShell>
+                  </div>
+
+                  <div className="doctor-plan-pool-detail__footer">
+                    <span className="doctor-plan-footer-hint">
+                      累计已使用 {selected.useCount} 次 · 带入后仍可在门诊工作台进一步调整
+                    </span>
+                    <Button variant="primary" onClick={() => openApply(selected)}>
+                      带入当前草稿
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <EmptyState icon="clinical" title="暂无诊疗方案" copy="当前筛选条件下没有匹配的方案。" />
+              )
+            )}
+          </div>
+        </div>
       </div>
     </Dialog>}
-    {saveOpen && <Dialog title="保存为常用诊疗方案" eyebrow="门诊医生站 · 效率工具"
+    {saveOpen && <Dialog title="保存为常用诊疗方案" eyebrow="门诊医生站 · 方案沉淀"
       description="保存当前诊断和待确认医嘱；患者病历正文、生命体征及已开立医嘱不会写入模板。"
       onClose={() => !save.isPending && setSaveOpen(false)} footer={<>
         <Button variant="secondary" disabled={save.isPending} onClick={() => setSaveOpen(false)}>取消</Button>
@@ -2019,11 +2653,18 @@ function PlanTemplatePanel({ diagnoses, setDiagnoses, medicationDrafts, setMedic
       </>}>
       <div className="ui-form-grid">
         <FormField label="方案名称" required><input value={name} maxLength={100}
-          onChange={(event) => setName(event.target.value)} placeholder="如：高血压常规复诊" /></FormField>
-        <FormField label="使用范围"><select value={scope}
-          onChange={(event) => setScope(event.target.value as OutpatientPlanTemplateScope)}>
-          <option value="PERSONAL">仅本人</option><option value="DEPARTMENT">本科室</option>
-        </select></FormField>
+          onChange={(event) => setName(event.target.value)} placeholder="如：高血压常规复诊维持方案" /></FormField>
+        <FormField label="使用范围">
+          <Select
+            value={scope}
+            onChange={(val) => setScope(val as OutpatientPlanTemplateScope)}
+            options={[
+              { value: 'PERSONAL', label: '医生个人高频方案' },
+              { value: 'DEPARTMENT', label: '本科室临床路径方案' },
+              { value: 'HOSPITAL', label: '全院临床指南标准方案' },
+            ]}
+          />
+        </FormField>
         <FormField className="ui-form-span-2" label="方案说明"><textarea value={description} maxLength={500}
           onChange={(event) => setDescription(event.target.value)} placeholder="适用场景、注意事项（可选）" /></FormField>
       </div>
@@ -2034,20 +2675,20 @@ function PlanTemplatePanel({ diagnoses, setDiagnoses, medicationDrafts, setMedic
       </div>
       {save.error && <Alert>{errorMessage(save.error)}</Alert>}
     </Dialog>}
-    {applyOpen && selected && <Dialog title={`带入“${selected.name}”`} eyebrow="常用诊疗方案"
+    {applyOpen && activeTemplateForApply && <Dialog title={`带入“${activeTemplateForApply.name}”`} eyebrow="常用诊疗方案"
       description="方案内容只加入当前草稿，不会自动保存病历、开立处方或产生费用。"
       closeOnBackdrop={false} onClose={() => !apply.isPending && setApplyOpen(false)} footer={<>
         <Button variant="secondary" disabled={apply.isPending} onClick={() => setApplyOpen(false)}>取消</Button>
-        <Button busy={apply.isPending} disabled={selected.medications.length > 0
-          && (!safetyConfirmed || matchedAllergies.length > 0 && !overrideReason.trim())}
-          onClick={() => apply.mutate(selected)}>确认带入草稿</Button>
+        <Button busy={apply.isPending} disabled={activeTemplateForApply.medications.length > 0
+          && (!safetyConfirmed || (matchedAllergies.length > 0 && !overrideReason.trim()))}
+          onClick={() => apply.mutate(activeTemplateForApply)}>确认带入草稿</Button>
       </>}>
       <div className="doctor-plan-review">
-        <div><span>诊断</span><strong>{selected.diagnoses.length} 条</strong></div>
-        <div><span>药品</span><strong>{selected.medications.length} 条</strong></div>
-        <div><span>诊疗项目</span><strong>{selected.services.length} 条</strong></div>
+        <div><span>诊断</span><strong>{activeTemplateForApply.diagnoses.length} 条</strong></div>
+        <div><span>药品</span><strong>{activeTemplateForApply.medications.length} 条</strong></div>
+        <div><span>诊疗项目</span><strong>{activeTemplateForApply.services.length} 条</strong></div>
       </div>
-      {selected.medications.length > 0 && <div className="doctor-template-safety-review">
+      {activeTemplateForApply.medications.length > 0 && <div className="doctor-template-safety-review">
         <label><input type="checkbox" checked={safetyConfirmed}
           onChange={(event) => setSafetyConfirmed(event.target.checked)} />
           <span><strong>已核对患者过敏信息及方案内全部药品</strong>
@@ -2059,6 +2700,19 @@ function PlanTemplatePanel({ diagnoses, setDiagnoses, medicationDrafts, setMedic
       </div>}
       {apply.error && <Alert>{errorMessage(apply.error)}</Alert>}
     </Dialog>}
+    {aiCompilerOpen && (
+      <AiPlanTemplateDraftModal
+        api={api}
+        initialScope={scopeFilter === 'DEPARTMENT' ? 'DEPARTMENT' : scopeFilter === 'HOSPITAL' ? 'HOSPITAL' : 'PERSONAL'}
+        onClose={() => setAiCompilerOpen(false)}
+        onSaved={(created) => {
+          void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
+          setSelectedId(created.id)
+          setAiCompilerOpen(false)
+          setNotice(`方案“${created.name}”已通过 AI 编译并成功存入方案池！`)
+        }}
+      />
+    )}
   </>
 }
 

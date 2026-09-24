@@ -25,6 +25,8 @@ class OutpatientPlanTemplate {
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
     @Column(name = "QTY_USE", nullable = false) private long useCount;
     @Column(name = "DT_LAST_USED") private Instant lastUsedAt;
+    @Column(name = "SD_SOURCE_TYPE", nullable = false) private String sourceType;
+    @Column(name = "JSON_GUIDELINE_REF") private String guidelineReference;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
@@ -33,12 +35,21 @@ class OutpatientPlanTemplate {
     protected OutpatientPlanTemplate() {}
 
     OutpatientPlanTemplate(Long tenantId, Long organizationId, Long departmentId, String scopeType,
-                           Long ownerId, String name, String description, int sortOrder, Long actorId, Instant now) {
+                           Long ownerId, String name, String description, int sortOrder,
+                           String sourceType, String guidelineReference, Long actorId, Instant now) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.departmentId = departmentId; this.scopeType = scopeType; this.ownerId = ownerId;
         this.name = name; this.description = description; this.sortOrder = sortOrder;
+        this.sourceType = sourceType == null || sourceType.isBlank() ? "MANUAL" : sourceType;
+        this.guidelineReference = guidelineReference;
         this.status = "ACTIVE"; this.createdBy = actorId; this.updatedBy = actorId;
         this.createdAt = now; this.updatedAt = now;
+    }
+
+    OutpatientPlanTemplate(Long tenantId, Long organizationId, Long departmentId, String scopeType,
+                           Long ownerId, String name, String description, int sortOrder, Long actorId, Instant now) {
+        this(tenantId, organizationId, departmentId, scopeType, ownerId, name, description, sortOrder,
+                "MANUAL", null, actorId, now);
     }
 
     void markUsed(Long actorId, Instant now) {
@@ -47,6 +58,18 @@ class OutpatientPlanTemplate {
 
     void disable(Long actorId, Instant now) {
         status = "INACTIVE"; updatedBy = actorId; updatedAt = now;
+    }
+
+    void update(String scopeType, Long ownerId, String name, String description,
+                int sortOrder, String guidelineReference, Long actorId, Instant now) {
+        this.scopeType = scopeType;
+        this.ownerId = ownerId;
+        this.name = name;
+        this.description = description;
+        this.sortOrder = sortOrder;
+        this.guidelineReference = guidelineReference;
+        this.updatedBy = actorId;
+        this.updatedAt = now;
     }
 
     Long id() { return id; }
@@ -59,6 +82,8 @@ class OutpatientPlanTemplate {
     String name() { return name; }
     String description() { return description; }
     String status() { return status; }
+    String sourceType() { return sourceType; }
+    String guidelineReference() { return guidelineReference; }
     int sortOrder() { return sortOrder; }
     long useCount() { return useCount; }
     Instant lastUsedAt() { return lastUsedAt; }

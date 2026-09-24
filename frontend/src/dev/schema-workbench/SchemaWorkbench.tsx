@@ -13,14 +13,12 @@ import { messageOf, request, WorkbenchError, type Catalog, type Job } from './ap
 type Tab = 'structure' | 'relations' | 'semantic' | 'collaboration' | 'checks' | 'standards' | 'ai'
 const tabs: { value: Tab; label: string }[] = [{ value: 'structure', label: '字段与约束' }, { value: 'relations', label: '表关系' },
   { value: 'semantic', label: '业务语义' }, { value: 'collaboration', label: '人机共建' }, { value: 'checks', label: '结构检查' }, { value: 'standards', label: '设计规范' }, { value: 'ai', label: 'AI 上下文' }]
-const tabFromUrl = (value: string | null): Tab => tabs.some(tab => tab.value === value) ? value as Tab : 'structure'
 
 export function SchemaWorkbench() {
   const [catalog, setCatalog] = useState<Catalog | null>(null), [loading, setLoading] = useState(true)
   const [error, setError] = useState(''), [forbidden, setForbidden] = useState(false), [notice, setNotice] = useState('')
-  const initialParams = new URLSearchParams(window.location.search)
-  const [selected, setSelected] = useState(initialParams.get('table') ?? '')
-  const [tab, setTab] = useState<Tab>(tabFromUrl(initialParams.get('tab'))), [domain, setDomain] = useState('all'), [query, setQuery] = useState(''), [page, setPage] = useState(0)
+  const [selected, setSelected] = useState(new URLSearchParams(window.location.search).get('table') ?? '')
+  const [tab, setTab] = useState<Tab>('structure'), [domain, setDomain] = useState('all'), [query, setQuery] = useState(''), [page, setPage] = useState(0)
   const [relationKind, setRelationKind] = useState('all'), [dirty, setDirty] = useState(false), [pendingTable, setPendingTable] = useState('')
   const [job, setJob] = useState<Job | null>(null), [refreshMode, setRefreshMode] = useState('all')
   const load = useCallback(async () => {
@@ -34,13 +32,6 @@ export function SchemaWorkbench() {
     finally { setLoading(false) }
   }, [])
   useEffect(() => { void load() }, [load])
-  useEffect(() => {
-    const url = new URL(window.location.href)
-    if (selected) url.searchParams.set('table', selected)
-    else url.searchParams.delete('table')
-    url.searchParams.set('tab', tab)
-    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
-  }, [selected, tab])
   useEffect(() => {
     if (!dirty) return
     const prevent = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
@@ -85,7 +76,7 @@ export function SchemaWorkbench() {
   const saved = () => { void load(); setNotice('已保存到项目资料，后续可进入 Git 评审。') }
   return <main className="schema-workbench">
     <MasterDetailPage title="表结构与业务语义工作台" eyebrow="开发工具" description="查看存储结构、关联业务语义，共同维护数据库知识与设计规范。"
-      actions={<><a href="/analytics?view=ontology">统计语义工作台</a><Button busy={job?.status === 'running'} busyLabel="正在采集" disabled={dirty} onClick={() => void refresh()}>刷新结构</Button></>}
+      actions={<><Button variant="secondary" onClick={() => setTab('semantic')}>查看业务语义</Button><Button busy={job?.status === 'running'} busyLabel="正在采集" disabled={dirty} onClick={() => void refresh()}>刷新结构</Button></>}
       feedback={<>{error && <Alert duration={null} onDismiss={() => setError('')}>{error}</Alert>}{notice && <Alert tone="info" onDismiss={() => setNotice('')}>{notice}</Alert>}
         <div className="schema-summary"><span><strong>{catalog?.tables.length ?? '—'}</strong> 张表</span><span><strong>{catalog?.tables.reduce((n, t) => n + t.columns.length, 0) ?? '—'}</strong> 个字段</span>
           <span><strong>{catalog?.relations.filter(r => r.kind === 'foreign-key').length ?? '—'}</strong> 条外键</span><span><strong>{catalog?.semantic.nodes.length ?? '—'}</strong> 个统计实体</span>
@@ -127,7 +118,7 @@ export function SchemaWorkbench() {
                 detail: r.sourceColumns.map((c, i) => `${c} = ${r.targetColumns[i]}`).join(' AND '), tentative: r.kind === 'candidate' || r.reviewState === 'draft' }))} selected={selected} onSelect={selectTable} />
             <details><summary>查看关系依据</summary>{tableRelations.map(r => <p key={r.id}><strong>{r.id}</strong><br />{r.description} {r.evidence} · {schemaReviewPresentation(r.reviewState).label}</p>)}</details>
           </>}
-          {tab === 'semantic' && <SemanticPanel key={selected} catalog={catalog} table={table} onSelect={selectTable} />}
+          {tab === 'semantic' && <SemanticPanel key={selected} catalog={catalog} table={table} onSelect={selectTable} onOpenCollaboration={() => setTab('collaboration')} />}
           <section hidden={tab !== 'collaboration'}><AnnotationEditor key={`${selected}:${table.annotation.revision}`} table={table} tables={catalog.tables} onDirty={setDirty} onSaved={saved} />
             <ProposalReview proposals={catalog.proposals} onSaved={saved} /></section>
           {tab === 'checks' && <ChecksPanel catalog={catalog} selected={selected} onSelect={selectTable} />}

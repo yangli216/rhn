@@ -7,7 +7,8 @@ import java.util.List;
 public interface OutpatientPlanTemplateDirectory {
     List<PlanTemplateSnapshot> visibleForCurrentContext();
 
-    record PlanTemplateSnapshot(Long id, long revision, String name, String description, long useCount,
+    record PlanTemplateSnapshot(Long id, long revision, String scopeType, String sourceType,
+                                String guidelineReference, String name, String description, long useCount,
                                 List<DiagnosisSnapshot> diagnoses,
                                 List<MedicationSnapshot> medications,
                                 List<ServiceSnapshot> services) {
@@ -15,6 +16,14 @@ public interface OutpatientPlanTemplateDirectory {
             diagnoses = diagnoses == null ? List.of() : List.copyOf(diagnoses);
             medications = medications == null ? List.of() : List.copyOf(medications);
             services = services == null ? List.of() : List.copyOf(services);
+        }
+
+        public PlanTemplateSnapshot(Long id, long revision, String name, String description, long useCount,
+                                    List<DiagnosisSnapshot> diagnoses,
+                                    List<MedicationSnapshot> medications,
+                                    List<ServiceSnapshot> services) {
+            this(id, revision, "PERSONAL", "MANUAL", null, name, description, useCount,
+                    diagnoses, medications, services);
         }
     }
 

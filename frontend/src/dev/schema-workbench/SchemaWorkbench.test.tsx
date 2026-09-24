@@ -93,12 +93,24 @@ describe('database collaboration workbench', () => {
     expect(screen.queryByText('单次就诊')).not.toBeInTheDocument()
   })
 
-  it('keeps the selected table and view in a shareable URL', async () => {
-    const user = userEvent.setup(); render(<SchemaWorkbench />)
+  it('keeps table and view navigation inside the workbench without rewriting the URL', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState(null, '', '/schema-workbench.html?source=developer')
+    render(<SchemaWorkbench />)
     await screen.findByRole('table', { name: '表字段' })
     await user.click(screen.getByRole('button', { name: /居民.*RHN_PI_PAT/ }))
     await user.click(screen.getByRole('tab', { name: '结构检查' }))
-    expect(Object.fromEntries(new URLSearchParams(window.location.search))).toMatchObject({ table: 'RHN_PI_PAT', tab: 'checks' })
+    expect(window.location.pathname + window.location.search).toBe('/schema-workbench.html?source=developer')
+  })
+
+  it('opens semantic assets and collaboration inside the development workbench', async () => {
+    const user = userEvent.setup(); render(<SchemaWorkbench />)
+    await screen.findByRole('table', { name: '表字段' })
+    await user.click(screen.getByRole('button', { name: '查看业务语义' }))
+    expect(screen.getByRole('heading', { name: '业务实体、维度与指标' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '统计语义工作台' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '进入人机共建' }))
+    expect(screen.getByRole('heading', { name: '业务说明与关系共建' })).toBeInTheDocument()
   })
 
   it('keeps edits after conflict and requires an explicit choice before changing tables', async () => {

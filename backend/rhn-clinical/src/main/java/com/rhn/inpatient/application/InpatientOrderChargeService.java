@@ -26,6 +26,6 @@ public class InpatientOrderChargeService {
                 task.occurrenceNo(), request.requestNo(), request.catalogItemId(), request.itemCodeSnapshot(),
                 request.itemNameSnapshot(), request.unitCodeSnapshot(), request.unitPrice(), request.totalAmount(),
                 request.currencyCode(), request.priceId(), request.priceRevision(), request.priceType(),
-                task.completedAt(), task.completedBy()));
+                task.completedAt(), task.completedBy(), request.orderCategory()));
     }
 }

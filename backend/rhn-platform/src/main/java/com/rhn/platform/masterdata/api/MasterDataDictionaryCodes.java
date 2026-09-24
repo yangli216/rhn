@@ -21,6 +21,7 @@ public final class MasterDataDictionaryCodes {
     public static final String LAB_METHOD = "BD_LAB_METHOD";
     public static final String EXAM_TYPE = "BD_EXAM_TYPE";
     public static final String SERVICE_VARIANT_METHOD = "BD_SERVICE_VARIANT_METHOD";
+    public static final String ACCOUNTING_CATEGORY = "BD_ACCOUNTING_CATEGORY";
 
     private MasterDataDictionaryCodes() {}
 }

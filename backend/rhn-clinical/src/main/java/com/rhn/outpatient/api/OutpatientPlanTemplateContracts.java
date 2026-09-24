@@ -1,4 +1,4 @@
-package com.rhn.outpatient.template;
+package com.rhn.outpatient.api;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -18,9 +18,16 @@ public final class OutpatientPlanTemplateContracts {
             @NotBlank @Size(max = 100) String name,
             @Size(max = 500) String description,
             Integer sortOrder,
+            @Size(max = 32) String sourceType,
+            @Size(max = 4000) String guidelineReference,
             @Size(max = 20) List<@Valid DiagnosisInput> diagnoses,
             @Size(max = 50) List<@Valid MedicationInput> medications,
-            @Size(max = 50) List<@Valid ServiceInput> services) {}
+            @Size(max = 50) List<@Valid ServiceInput> services) {
+        public SaveRequest(String scopeType, String name, String description, Integer sortOrder,
+                           List<DiagnosisInput> diagnoses, List<MedicationInput> medications, List<ServiceInput> services) {
+            this(scopeType, name, description, sortOrder, "MANUAL", null, diagnoses, medications, services);
+        }
+    }
 
     public record DiagnosisInput(
             @NotBlank @Size(max = 64) String code,
@@ -29,6 +36,7 @@ public final class OutpatientPlanTemplateContracts {
 
     public record MedicationInput(
             @NotNull Long medicationId, Long catalogItemId, Long packageId,
+            String medicationName, String preparationSpec,
             @DecimalMin(value = "0", inclusive = false) BigDecimal doseValue,
             @Size(max = 64) String doseUnit, @Size(max = 64) String routeCode,
             @Size(max = 64) String frequencyCode,
@@ -37,19 +45,49 @@ public final class OutpatientPlanTemplateContracts {
             @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity,
             @Size(max = 64) String quantityUnit, boolean substitutionAllowed, boolean selfProvided,
             @Size(max = 1000) String medicationInstruction, @Size(max = 32) String priceType,
-            Boolean pricingRequired, @Size(max = 1000) String reason) {}
+            Boolean pricingRequired, @Size(max = 1000) String reason) {
+        public MedicationInput(Long medicationId, Long catalogItemId, Long packageId,
+                               BigDecimal doseValue, String doseUnit, String routeCode,
+                               String frequencyCode, BigDecimal durationValue, String durationUnit,
+                               BigDecimal quantity, String quantityUnit, boolean substitutionAllowed,
+                               boolean selfProvided, String medicationInstruction, String priceType,
+                               Boolean pricingRequired, String reason) {
+            this(medicationId, catalogItemId, packageId, null, null, doseValue, doseUnit, routeCode,
+                    frequencyCode, durationValue, durationUnit, quantity, quantityUnit, substitutionAllowed,
+                    selfProvided, medicationInstruction, priceType, pricingRequired, reason);
+        }
+    }
 
     public record ServiceInput(
             @NotNull Long catalogItemId,
+            String itemCode, String itemName, String serviceType,
             @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity,
             @Size(max = 64) String unitCode, @Size(max = 32) String priceType,
             Boolean pricingRequired, @Size(max = 1000) String reason,
-            @Size(max = 2000) String clinicalDescription) {}
+            @Size(max = 2000) String clinicalDescription) {
+        public ServiceInput(Long catalogItemId, BigDecimal quantity, String unitCode,
+                            String priceType, Boolean pricingRequired, String reason,
+                            String clinicalDescription) {
+            this(catalogItemId, null, null, null, quantity, unitCode, priceType, pricingRequired, reason, clinicalDescription);
+        }
+    }
 
     public record RevisionRequest(@NotNull Long expectedRevision) {}
 
+    public record UpdateRequest(
+            @NotNull Long expectedRevision,
+            @NotBlank @Size(max = 16) String scopeType,
+            @NotBlank @Size(max = 100) String name,
+            @Size(max = 500) String description,
+            Integer sortOrder,
+            @Size(max = 4000) String guidelineReference,
+            @Size(max = 20) List<@Valid DiagnosisInput> diagnoses,
+            @Size(max = 50) List<@Valid MedicationInput> medications,
+            @Size(max = 50) List<@Valid ServiceInput> services) {}
+
     public record View(Long id, long revision, String scopeType, String name, String description,
-                       String status, int sortOrder, long useCount, Instant lastUsedAt,
+                       String status, String sourceType, String guidelineReference,
+                       int sortOrder, long useCount, Instant lastUsedAt,
                        List<DiagnosisView> diagnoses, List<MedicationView> medications,
                        List<ServiceView> services, Instant createdAt, Instant updatedAt) {}
 

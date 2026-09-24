@@ -89,6 +89,8 @@ const AppointmentManagementWorkspace = lazy(() => import('../features/outpatient
   .then((module) => ({ default: module.AppointmentManagementWorkspace })))
 const OutpatientFlowWorkspace = lazy(() => import('../features/outpatient/OutpatientFlowWorkspace')
   .then((module) => ({ default: module.OutpatientFlowWorkspace })))
+const OutpatientPlanTemplatesWorkspace = lazy(() => import('../features/outpatient/templates/OutpatientPlanTemplatesWorkspace')
+  .then((module) => ({ default: module.OutpatientPlanTemplatesWorkspace })))
 const InpatientAdmissionWorkspace = lazy(() => import('../features/inpatient/InpatientWorkspace')
   .then((module) => ({ default: module.InpatientAdmissionWorkspace })))
 const InpatientAdmissionQueryWorkspace = lazy(() => import('../features/inpatient/InpatientWorkspace')
@@ -154,6 +156,7 @@ interface NavigationNodeBase {
 interface NavigationItem extends NavigationNodeBase {
   to: string
   end?: boolean
+  fullPageNavigation?: boolean
   children?: never
 }
 
@@ -208,7 +211,7 @@ function workContextKey(context: Pick<WorkContextOption, 'organizationId' | 'dep
   return `${context.organizationId}:${context.departmentId ?? ''}`
 }
 
-const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'inpatient-services', 'billing-management', 'analytics-management']
+const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'inpatient-services', 'billing-management', 'analytics-management', 'platform-ops']
 
 const NAVIGATION_NODES: NavigationNode[] = [
   { id: 'home', label: '工作台', icon: 'home', to: '/', end: true, requiredAuthority: 'PORTAL.ACCESS' },
@@ -222,6 +225,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'outpatient-encounter-query', label: '就诊查询', icon: 'search', to: '/outpatient/encounter-query', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-appointments', label: '预约管理', icon: 'tasks', to: '/outpatient/appointments', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-reception', label: '门诊医生站', icon: 'stethoscope', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
+      { id: 'outpatient-plan-templates', label: '临床诊疗方案池', icon: 'sparkles', badge: '多层级AI', to: '/outpatient/plan-templates', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', badge: '双模式', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
       { id: 'diagnostics', label: '检查检验', icon: 'flask', to: '/diagnostics', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'skin-tests', label: '皮试管理', icon: 'syringe', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
@@ -299,6 +303,10 @@ const NAVIGATION_NODES: NavigationNode[] = [
   },
   {
     id: 'platform-ops', label: '系统运行与运维', icon: 'sparkles', children: [
+      ...(import.meta.env.DEV ? [{
+        id: 'schema-workbench', label: '数据设计工作台', icon: 'database' as const,
+        badge: '开发工具', to: '/schema-workbench.html', requiredAuthority: 'PORTAL.ACCESS', fullPageNavigation: true,
+      }] : []),
       { id: 'ai-assistant', label: 'AI助理配置', icon: 'sparkles', to: '/settings/ai-assistant', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
       { id: 'system-parameters', label: '系统运行参数', icon: 'settings', to: '/settings/system-parameters', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
       { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'settings', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
@@ -395,6 +403,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/outpatient/appointments') return { id: pathname, path: pathname, title: '预约管理', icon: 'tasks', closeable: true }
   if (pathname === '/outpatient/scheduling') return { id: pathname, path: pathname, title: '排班与号源', icon: 'tasks', closeable: true }
   if (pathname === '/outpatient/reception') return { id: pathname, path: pathname, title: '门诊医生站', icon: 'stethoscope', closeable: true }
+  if (pathname === '/outpatient/plan-templates') return { id: pathname, path: pathname, title: '临床诊疗方案池', icon: 'sparkles', closeable: true }
   if (pathname === '/inpatient') return { id: '/inpatient/admissions', path: '/inpatient/admissions', title: '入院登记', icon: 'residents', closeable: true }
   if (pathname === '/inpatient/admissions') return { id: pathname, path: pathname, title: '入院登记', icon: 'residents', closeable: true }
   if (pathname === '/inpatient/admission-query') return { id: pathname, path: pathname, title: '入院登记查询', icon: 'search', closeable: true }
@@ -850,9 +859,7 @@ export function AppShell() {
             openCollapsedDirectoryId={collapsedDirectory?.node.id}
             onHover={handleCollapsedNavigationHover} onHoverEnd={handleCollapsedNavigationHoverEnd} />
         </nav>
-        <div className="sidebar-foot"><span className="status-dot" /><div><strong>Foundation 1.2</strong><span>工作门户底座</span>
-          {import.meta.env.DEV && <a href="/schema-workbench.html">表结构与业务语义工作台</a>}
-        </div></div>
+        <div className="sidebar-foot"><span className="status-dot" aria-hidden="true" /><div><strong>Foundation 1.2</strong><span>工作门户底座</span></div></div>
       </aside>
 
       {collapsedNavigation && hoveredNavigation && !collapsedDirectory && hoveredNavigation.node.to && createPortal(
@@ -976,6 +983,8 @@ export function AppShell() {
                   <Route path="/outpatient/reception" element={<DoctorWorkstation api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext}
                     canEdit={tabAuthorities.has('OUTPATIENT_RECEPTION.ACCESS') || tabAuthorities.has('ROLE_ADMIN')} />} />
+                  <Route path="/outpatient/plan-templates" element={<OutpatientPlanTemplatesWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/inpatient" element={<Navigate to="/inpatient/admissions" replace />} />
                   <Route path="/inpatient/admissions" element={<InpatientAdmissionWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
@@ -1850,14 +1859,17 @@ function NavigationTree({ nodes, pathname, collapsed, expandedDirectories, onTog
       }
 
       if (!directory && node.to) {
+        const content = <>
+          <NavigationGlyph node={node} />
+          <span className="nav-label">{node.label}</span>
+          {node.badge && <StatusBadge>{node.badge}</StatusBadge>}
+        </>
         return <div className="nav-node" key={node.id}>
-          <NavLink to={node.to} end={node.end} className={itemClass} aria-label={node.label}
-            title={collapsed ? undefined : node.label}
-            onClick={onNavigate} {...hoverProps}>
-            <NavigationGlyph node={node} />
-            <span className="nav-label">{node.label}</span>
-            {node.badge && <StatusBadge>{node.badge}</StatusBadge>}
-          </NavLink>
+          {node.fullPageNavigation
+            ? <a href={node.to} className={itemClass} aria-label={node.label}
+              title={collapsed ? undefined : node.label} onClick={onNavigate} {...hoverProps}>{content}</a>
+            : <NavLink to={node.to} end={node.end} className={itemClass} aria-label={node.label}
+              title={collapsed ? undefined : node.label} onClick={onNavigate} {...hoverProps}>{content}</NavLink>}
         </div>
       }
 

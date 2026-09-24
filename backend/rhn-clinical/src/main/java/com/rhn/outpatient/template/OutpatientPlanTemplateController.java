@@ -6,6 +6,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import com.rhn.outpatient.api.OutpatientPlanTemplateContracts;
 
 @RestController
 @RequestMapping("/api/outpatient/plan-templates")
@@ -35,6 +37,13 @@ class OutpatientPlanTemplateController {
 
     @PostMapping("/{id}/use")
     OutpatientPlanTemplateContracts.View use(@PathVariable Long id) { return service.markUsed(id); }
+
+    @PutMapping("/{id}")
+    OutpatientPlanTemplateContracts.View update(
+            @PathVariable Long id,
+            @Valid @RequestBody OutpatientPlanTemplateContracts.UpdateRequest input) {
+        return service.update(id, input);
+    }
 
     @PostMapping("/{id}/disable")
     OutpatientPlanTemplateContracts.View disable(@PathVariable Long id,

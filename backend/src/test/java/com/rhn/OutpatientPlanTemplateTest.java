@@ -12,6 +12,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -109,5 +110,60 @@ class OutpatientPlanTemplateTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.medications[0].categoryCode").value("WESTERN"))
                 .andExpect(jsonPath("$.services[0].itemCode").value("SRV-CBC"))
                 .andExpect(jsonPath("$.services[0].serviceType").value("LABORATORY"));
+    }
+
+    @Test
+    void template_can_be_updated_with_optimistic_locking_and_updated_details() throws Exception {
+        String name = "感冒调整测试-" + UUID.randomUUID().toString().substring(0, 6);
+        JsonNode created = json(mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "scopeType":"PERSONAL","name":"%s","description":"原方案描述",
+                                  "diagnoses":[{"code":"J06.9","display":"急性上呼吸道感染","type":"PRIMARY"}],
+                                  "medications":[],"services":[]
+                                }
+                                """.formatted(name)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+
+        String templateId = created.get("id").asString();
+        long revision = created.get("revision").asLong();
+
+        // 冲突版本更新被拒绝
+        mockMvc.perform(put("/api/outpatient/plan-templates/{id}", templateId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "expectedRevision": %d,
+                                  "scopeType":"PERSONAL","name":"%s-已改名",
+                                  "diagnoses":[{"code":"J06.9","display":"急性上呼吸道感染","type":"PRIMARY"}],
+                                  "medications":[],"services":[]
+                                }
+                                """.formatted(revision + 999, name)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PLAN_TEMPLATE_REVISION_CONFLICT"));
+
+        // 正常更新：修改名称、描述，并将诊断替换为感冒J00，增加血常规服务
+        JsonNode updated = json(mockMvc.perform(put("/api/outpatient/plan-templates/{id}", templateId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "expectedRevision": %d,
+                                  "scopeType":"PERSONAL","name":"%s-已改名","description":"更新后方案描述",
+                                  "diagnoses":[{"code":"J00","display":"急性鼻咽炎(感冒)","type":"PRIMARY"}],
+                                  "medications":[],
+                                  "services":[{
+                                    "catalogItemId":"362387869795101","quantity":1,"unitCode":"次",
+                                    "priceType":"SALE","pricingRequired":true,"reason":"查血常规"
+                                  }]
+                                }
+                                """.formatted(revision, name)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value(name + "-已改名"))
+                .andExpect(jsonPath("$.description").value("更新后方案描述"))
+                .andExpect(jsonPath("$.diagnoses[0].code").value("J00"))
+                .andExpect(jsonPath("$.services[0].itemCode").value("SRV-CBC"))
+                .andReturn().getResponse().getContentAsString());
+
+        assertEquals(1, updated.get("diagnoses").size());
+        assertEquals(1, updated.get("services").size());
     }
 }

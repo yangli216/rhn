@@ -1,5 +1,5 @@
 {
-  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
   "tables": [
     {
       "logical": "meta.outpatient_note_form_version",
@@ -2007,6 +2007,30 @@
           "comment": "更新时间",
           "logical": "updated_at",
           "catalogComment": "更新时间"
+        },
+        {
+          "physical": "SD_SOURCE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'MANUAL'",
+          "ordinal": 18,
+          "comment": "方案来源类型: MANUAL(手工录入), AI_INPUT(AI口述速记), AI_MINED(历史开方聚类), AI_GUIDELINE(指南提取)",
+          "logical": "",
+          "catalogComment": ""
+        },
+        {
+          "physical": "JSON_GUIDELINE_REF",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "指南与专家共识出处元数据JSON",
+          "logical": "",
+          "catalogComment": ""
         }
       ],
       "kind": "BASE TABLE",
@@ -2034,7 +2058,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_META_OP_PLAN_T_SYS_DEPT_OPT_INDEX_C",
+          "name": "FK_META_OP_PLAN_T_SYS_DEPT_OPT_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -2055,7 +2079,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_PLAN_T_SYS_ORG_OPT__INDEX_C",
+          "name": "FK_META_OP_PLAN_T_SYS_ORG_OPT__INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -2071,7 +2095,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_PLAN_T_SYS_TNT_OPT__INDEX_C",
+          "name": "FK_META_OP_PLAN_T_SYS_TNT_OPT__INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -2082,7 +2106,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_PLAN_T_SYS_USER_OPT_INDEX_C",
+          "name": "FK_META_OP_PLAN_T_SYS_USER_OPT_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -2098,7 +2122,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_PLAN_T_SYS_USER_O_1_INDEX_C",
+          "name": "FK_META_OP_PLAN_T_SYS_USER_O_1_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -2155,7 +2179,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_CBD",
+          "name": "PRIMARY_KEY_ECF",
           "columns": [
             {
               "position": 1,
@@ -2166,7 +2190,7 @@
           "unique": true
         },
         {
-          "name": "UK_META_OP_PLAN_T_OPT_OWNER_NA_INDEX_C",
+          "name": "UK_META_OP_PLAN_T_OPT_OWNER_NA_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -2197,7 +2221,7 @@
           "unique": true
         },
         {
-          "name": "UK_META_OP_PLAN_T_OPT_TENANT_I_INDEX_C",
+          "name": "UK_META_OP_PLAN_T_OPT_TENANT_I_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -2220,7 +2244,7 @@
         },
         {
           "name": "CK_META_OP_PLAN_TMPL_OPT_SCOPE",
-          "expression": "\"sd_scope_type\" IN('PERSONAL', 'DEPARTMENT')"
+          "expression": "\"sd_scope_type\" IN('PERSONAL', 'DEPARTMENT', 'HOSPITAL')"
         }
       ],
       "catalogComment": "门诊方案模板；一行代表一条门诊方案模板记录",

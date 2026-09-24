@@ -23,7 +23,16 @@ public interface InpatientBillingDirectory {
     record PostedCharge(
             Long id, Long requestId, String sourceType, Long sourceId, String requestCode, String status,
             Long catalogItemId, String itemCode, String itemName, BigDecimal quantity, String unitCode,
-            BigDecimal unitPrice, BigDecimal totalAmount, String currencyCode, Instant occurredAt) {
+            BigDecimal unitPrice, BigDecimal totalAmount, String currencyCode, Instant occurredAt,
+            String accountingCategory) {
+
+        public PostedCharge(
+                Long id, Long requestId, String sourceType, Long sourceId, String requestCode, String status,
+                Long catalogItemId, String itemCode, String itemName, BigDecimal quantity, String unitCode,
+                BigDecimal unitPrice, BigDecimal totalAmount, String currencyCode, Instant occurredAt) {
+            this(id, requestId, sourceType, sourceId, requestCode, status, catalogItemId, itemCode, itemName,
+                    quantity, unitCode, unitPrice, totalAmount, currencyCode, occurredAt, null);
+        }
     }
 
     record AccountSnapshot(
@@ -70,7 +79,18 @@ public interface InpatientBillingDirectory {
             Long requestId, Long taskId, int occurrenceNo, String requestNo, Long catalogItemId,
             String itemCode, String itemName, String unitCode, BigDecimal unitPrice, BigDecimal totalAmount,
             String currencyCode, Long priceId, Long priceRevision, String priceType,
-            Instant completedAt, Long completedBy) {
+            Instant completedAt, Long completedBy, String accountingCategory) {
+
+        public ExecutedOrderChargeCommand(
+                Long tenantId, Long residentId, Long encounterId, Long organizationId, Long departmentId,
+                Long requestId, Long taskId, int occurrenceNo, String requestNo, Long catalogItemId,
+                String itemCode, String itemName, String unitCode, BigDecimal unitPrice, BigDecimal totalAmount,
+                String currencyCode, Long priceId, Long priceRevision, String priceType,
+                Instant completedAt, Long completedBy) {
+            this(tenantId, residentId, encounterId, organizationId, departmentId, requestId, taskId, occurrenceNo,
+                    requestNo, catalogItemId, itemCode, itemName, unitCode, unitPrice, totalAmount,
+                    currencyCode, priceId, priceRevision, priceType, completedAt, completedBy, null);
+        }
     }
 
     record BedDayChargeCommand(

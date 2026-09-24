@@ -10,6 +10,7 @@ import com.rhn.billing.api.BillingViews.InvoiceView;
 import com.rhn.billing.api.BillingViews.LedgerEntryView;
 import com.rhn.billing.api.BillingViews.PaymentView;
 import com.rhn.billing.api.BillingViews.ReconciliationLineView;
+import com.rhn.billing.domain.ChargeCategory;
 import com.rhn.billing.domain.ChargeItem;
 import com.rhn.billing.domain.ChargeItemComponent;
 import com.rhn.billing.domain.Invoice;
@@ -41,6 +42,7 @@ import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.CatalogOperationalSnapshot;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,6 +83,7 @@ public class BillingApplicationService {
     private final DictionaryAttributeDirectory dictionaryAttributeDirectory;
     private final ExecutionContextProvider contextProvider;
     private final SettlementApplicationService settlements;
+    private final ChargeCategoryResolver categoryResolver;
 
     public BillingApplicationService(
             PatientAccountRepository accountRepository, ChargeItemRepository chargeRepository,
@@ -94,6 +97,27 @@ public class BillingApplicationService {
             DictionaryAttributeDirectory dictionaryAttributeDirectory,
             ExecutionContextProvider contextProvider,
             SettlementApplicationService settlements) {
+        this(accountRepository, chargeRepository, componentRepository, invoiceRepository,
+                invoiceLineRepository, categoryRepository, paymentRepository, ledgerRepository,
+                dispenseDirectory, encounterDirectory, residentDirectory, medicationRequestDirectory,
+                catalogDirectory, eventPublisher, dictionaryAttributeDirectory, contextProvider,
+                settlements, new ChargeCategoryResolver(null));
+    }
+
+    @Autowired
+    public BillingApplicationService(
+            PatientAccountRepository accountRepository, ChargeItemRepository chargeRepository,
+            ChargeItemComponentRepository componentRepository, InvoiceRepository invoiceRepository,
+            InvoiceLineRepository invoiceLineRepository, InvoiceCategorySummaryRepository categoryRepository,
+            PaymentRepository paymentRepository, LedgerEntryRepository ledgerRepository,
+            DispenseBillingDirectory dispenseDirectory,
+            EncounterDirectory encounterDirectory, ResidentDirectory residentDirectory,
+            MedicationRequestDirectory medicationRequestDirectory,
+            CatalogLifecycleDirectory catalogDirectory, DomainEventPublisher eventPublisher,
+            DictionaryAttributeDirectory dictionaryAttributeDirectory,
+            ExecutionContextProvider contextProvider,
+            SettlementApplicationService settlements,
+            ChargeCategoryResolver categoryResolver) {
         this.accountRepository = accountRepository; this.chargeRepository = chargeRepository;
         this.componentRepository = componentRepository; this.invoiceRepository = invoiceRepository;
         this.invoiceLineRepository = invoiceLineRepository; this.categoryRepository = categoryRepository;
@@ -105,6 +129,7 @@ public class BillingApplicationService {
         this.dictionaryAttributeDirectory = dictionaryAttributeDirectory;
         this.contextProvider = contextProvider;
         this.settlements = settlements;
+        this.categoryResolver = categoryResolver != null ? categoryResolver : new ChargeCategoryResolver(null);
     }
 
     @Transactional
@@ -139,13 +164,17 @@ public class BillingApplicationService {
             BigDecimal quantity = reversal ? event.operationQuantity().negate() : event.operationQuantity();
             BigDecimal amount = reversal ? pricing.amount().negate() : pricing.amount();
             BigDecimal unitPrice = pricing.unitPrice();
+            String accountingCategory = reversal
+                    ? (original != null && original.accountingCategory() != null ? original.accountingCategory() : "WESTERN_MED")
+                    : resolveMedicationCategory(pricing.requestId());
             ChargeItem charge = chargeRepository.save(new ChargeItem(context.tenantId(),
                     encounter.organizationId(), encounter.departmentId(), account.id(),
                     encounter.residentId(), encounter.id(), pricing.requestId(), pricing.catalogItemId(),
                     sourceType, event.id(), requestCode, quantity, event.operationUnitCode(), unitPrice, amount,
                     currency, pricing.priceId(), pricing.priceRevision(), pricing.priceType(),
                     pricing.itemCode(), pricing.itemName(),
-                    event.occurredAt(), context.subjectId(), original == null ? null : original.id()));
+                    event.occurredAt(), context.subjectId(), original == null ? null : original.id(),
+                    accountingCategory));
             componentRepository.save(new ChargeItemComponent(context.tenantId(), charge.id(), charge.catalogItemId(),
                     charge.itemCodeSnapshot(), charge.itemNameSnapshot(), quantity, charge.unitCode(),
                     pricing.unitFactor(), unitPrice, amount));
@@ -310,7 +339,7 @@ public class BillingApplicationService {
         for (ChargeItem charge : charges) invoiceLines.add(invoiceLineRepository.save(new InvoiceLine(
                 context.tenantId(), invoice.id(), charge.id(), lineNo++, charge.totalAmount())));
         Map<ChargeCategory, BigDecimal> categoryAmounts = new LinkedHashMap<>();
-        for (ChargeItem charge : charges) categoryAmounts.merge(chargeCategory(charge),
+        for (ChargeItem charge : charges) categoryAmounts.merge(categoryResolver.resolve(context.tenantId(), charge),
                 charge.totalAmount(), BigDecimal::add);
         categoryAmounts.forEach((category, amount) -> categoryRepository.save(new InvoiceCategorySummary(
                 context.tenantId(), invoice.id(), category.code(), category.name(), money(amount))));
@@ -492,12 +521,7 @@ public class BillingApplicationService {
     }
 
     private ChargeCategory chargeCategory(ChargeItem charge) {
-        if ("DIRECT_VISIT_SERVICE".equals(charge.sourceType())) return new ChargeCategory("TREATMENT", "诊疗费");
-        if (charge.sourceType().startsWith("REGISTRATION")) return new ChargeCategory("REGISTRATION", "挂号费");
-        if (charge.sourceType().startsWith("INPATIENT_BED_DAY")) return new ChargeCategory("BED", "床位费");
-        if (charge.sourceType().startsWith("MEDICATION_")) return new ChargeCategory("MEDICATION", "药品费");
-        if (charge.sourceType().startsWith("SERVICE_REQUEST")) return new ChargeCategory("TREATMENT", "诊疗费");
-        return new ChargeCategory("OTHER", "其他费");
+        return categoryResolver.resolve(null, charge);
     }
 
     private ChargePricing reversalPricing(ExecutionContext context, DispenseBillingFact event, ChargeItem original) {
@@ -751,10 +775,25 @@ public class BillingApplicationService {
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(); }
 
+    private String resolveMedicationCategory(Long requestId) {
+        if (requestId == null) return "WESTERN_MED";
+        try {
+            var req = medicationRequestDirectory.requireForPharmacy(requestId);
+            if (req != null && req.medicationType() != null) {
+                return switch (req.medicationType().trim().toUpperCase()) {
+                    case "CHINESE_PATENT", "CHINESE_PATENT_MED" -> "CHINESE_PATENT_MED";
+                    case "HERBAL", "HERBAL_MED" -> "HERBAL_MED";
+                    case "WESTERN", "WESTERN_MED" -> "WESTERN_MED";
+                    default -> "MEDICATION";
+                };
+            }
+        } catch (Exception ignored) {}
+        return "WESTERN_MED";
+    }
+
     private record ChargePricing(Long requestId, Long catalogItemId, Long priceId, Long priceRevision,
                                  String priceType, BigDecimal unitPrice, BigDecimal amount, String currencyCode,
                                  BigDecimal unitFactor, String itemCode, String itemName) {}
-    private record ChargeCategory(String code, String name) {}
 
     public record SynchronizeCommand(String requestCode) {}
     public record IssueInvoiceCommand(String invoiceNo, Instant issuedAt, String settlementScene,

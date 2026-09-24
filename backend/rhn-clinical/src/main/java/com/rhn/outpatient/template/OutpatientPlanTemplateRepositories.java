@@ -13,9 +13,10 @@ interface OutpatientPlanTemplateRepository extends JpaRepository<OutpatientPlanT
     @Query("""
             select value from OutpatientPlanTemplate value
              where value.tenantId = :tenantId and value.organizationId = :organizationId
-               and value.departmentId = :departmentId and value.status = 'ACTIVE'
-               and ((value.scopeType = 'PERSONAL' and value.ownerId = :practitionerId)
-                 or value.scopeType = 'DEPARTMENT')
+               and value.status = 'ACTIVE'
+               and ((value.scopeType = 'PERSONAL' and value.departmentId = :departmentId and value.ownerId = :practitionerId)
+                 or (value.scopeType = 'DEPARTMENT' and value.departmentId = :departmentId)
+                 or (value.scopeType = 'HOSPITAL'))
              order by value.sortOrder asc, value.useCount desc, value.updatedAt desc
             """)
     List<OutpatientPlanTemplate> findVisible(@Param("tenantId") Long tenantId,
@@ -32,16 +33,19 @@ interface OutpatientPlanDiagnosisRepository extends JpaRepository<OutpatientPlan
     List<OutpatientPlanDiagnosis> findByTenantIdAndTemplateIdOrderByLineNo(Long tenantId, Long templateId);
     List<OutpatientPlanDiagnosis> findByTenantIdAndTemplateIdInOrderByTemplateIdAscLineNoAsc(
             Long tenantId, List<Long> templateIds);
+    void deleteByTenantIdAndTemplateId(Long tenantId, Long templateId);
 }
 
 interface OutpatientPlanMedicationRepository extends JpaRepository<OutpatientPlanMedication, Long> {
     List<OutpatientPlanMedication> findByTenantIdAndTemplateIdOrderByLineNo(Long tenantId, Long templateId);
     List<OutpatientPlanMedication> findByTenantIdAndTemplateIdInOrderByTemplateIdAscLineNoAsc(
             Long tenantId, List<Long> templateIds);
+    void deleteByTenantIdAndTemplateId(Long tenantId, Long templateId);
 }
 
 interface OutpatientPlanServiceRepository extends JpaRepository<OutpatientPlanServiceLine, Long> {
     List<OutpatientPlanServiceLine> findByTenantIdAndTemplateIdOrderByLineNo(Long tenantId, Long templateId);
     List<OutpatientPlanServiceLine> findByTenantIdAndTemplateIdInOrderByTemplateIdAscLineNoAsc(
             Long tenantId, List<Long> templateIds);
+    void deleteByTenantIdAndTemplateId(Long tenantId, Long templateId);
 }

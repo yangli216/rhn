@@ -33,7 +33,19 @@ public interface CatalogLifecycleDirectory {
             String code, String name, String unitCode, boolean orderable, boolean chargeable,
             boolean stocked, String status, LocalDate validFrom, LocalDate validTo,
             String serviceType, String specimenType, String examinationType,
-            Long manufacturerId, String manufacturerName) {}
+            Long manufacturerId, String manufacturerName, String accountingCategory) {
+
+        public CatalogItemSnapshot(
+                Long id, Long itemTypeId, String itemType, Long medicationId,
+                String code, String name, String unitCode, boolean orderable, boolean chargeable,
+                boolean stocked, String status, LocalDate validFrom, LocalDate validTo,
+                String serviceType, String specimenType, String examinationType,
+                Long manufacturerId, String manufacturerName) {
+            this(id, itemTypeId, itemType, medicationId, code, name, unitCode, orderable, chargeable,
+                    stocked, status, validFrom, validTo, serviceType, specimenType, examinationType,
+                    manufacturerId, manufacturerName, null);
+        }
+    }
 
     /** Optional package definition when pricing or dispensing is package-specific. */
     record PackageSnapshot(

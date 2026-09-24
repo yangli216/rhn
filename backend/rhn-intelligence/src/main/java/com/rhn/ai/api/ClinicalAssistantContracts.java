@@ -199,4 +199,34 @@ public final class ClinicalAssistantContracts {
     public record Event(Long id, String eventType, String statusFrom, String statusTo,
                         String commandCode, String sectionCode, String contextHash,
                         String detail, Instant occurredAt) {}
+
+    public record CompilePlanDraftRequest(
+            @NotBlank @Size(max = 2000) String naturalInput,
+            @NotBlank @Size(max = 16) String scopeType) {}
+
+    public record CompileGuidelinePlanRequest(
+            @NotBlank @Size(max = 10000) String guidelineText,
+            @NotBlank @Size(max = 200) String guidelineName,
+            @Size(max = 32) String versionYear,
+            @Size(max = 16) String scopeType) {}
+
+    public record MinedPlanSuggestionView(
+            String patternKey,
+            String suggestedName,
+            String description,
+            long occurrenceCount,
+            List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.DiagnosisInput> diagnoses,
+            List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.MedicationInput> medications,
+            List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.ServiceInput> services) {}
+
+    public record HistoricalStablePlanView(
+            Long encounterId,
+            Long sourceEncounterId,
+            Instant sourceEncounterTime,
+            String conditionTitle,
+            String summary,
+            List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.DiagnosisInput> diagnoses,
+            List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.MedicationInput> medications,
+            List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.ServiceInput> services,
+            List<String> guidanceNotes) {}
 }

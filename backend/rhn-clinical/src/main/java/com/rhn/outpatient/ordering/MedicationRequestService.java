@@ -533,14 +533,18 @@ class MedicationRequestService implements MedicationRequestDirectory {
         details.put("chargeUnit", value.packageId() == null ? value.baseUnit() : value.quantityUnit());
         details.put("itemCode", value.itemCodeSnapshot());
         details.put("itemName", value.itemNameSnapshot());
+        String prescriptionCategory = null;
         if (value.requestGroupId() != null) {
             details.put("prescriptionId", value.requestGroupId());
-            prescriptionRepository.findByIdAndTenantId(value.requestGroupId(), value.tenantId())
-                    .ifPresent(prescription -> {
-                        details.put("prescriptionNo", prescription.groupNo());
-                        details.put("prescriptionCategory", prescription.categoryCode());
-                    });
+            var prescriptionOpt = prescriptionRepository.findByIdAndTenantId(value.requestGroupId(), value.tenantId());
+            if (prescriptionOpt.isPresent()) {
+                var prescription = prescriptionOpt.get();
+                prescriptionCategory = prescription.categoryCode();
+                details.put("prescriptionNo", prescription.groupNo());
+                details.put("prescriptionCategory", prescriptionCategory);
+            }
         }
+        details.put("accountingCategory", resolveMedicationCategory(value.medicationTypeSnapshot(), prescriptionCategory));
         if (value.parentRequestId() != null) details.put("parentRequestId", value.parentRequestId());
         if (value.doseValue() != null) details.put("doseValue", value.doseValue());
         if (value.doseUnit() != null) details.put("doseUnit", value.doseUnit());
@@ -576,6 +580,17 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     private boolean sameNumber(BigDecimal left, BigDecimal right) {
         return left == null ? right == null : right != null && left.compareTo(right) == 0;
+    }
+
+    private String resolveMedicationCategory(String medicationType, String prescriptionCategory) {
+        String type = medicationType != null ? medicationType : prescriptionCategory;
+        if (type == null) return "WESTERN_MED";
+        return switch (type.trim().toUpperCase()) {
+            case "CHINESE_PATENT", "CHINESE_PATENT_MED" -> "CHINESE_PATENT_MED";
+            case "HERBAL", "HERBAL_MED" -> "HERBAL_MED";
+            case "WESTERN", "WESTERN_MED" -> "WESTERN_MED";
+            default -> "MEDICATION";
+        };
     }
 
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }

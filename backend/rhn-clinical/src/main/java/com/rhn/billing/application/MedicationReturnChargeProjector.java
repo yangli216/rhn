@@ -77,7 +77,8 @@ public class MedicationReturnChargeProjector {
                 "MEDICATION_RETURN", returnDispenseId, returnNo == null ? "RET-" + returnDispenseId : returnNo,
                 quantity.negate(), unitCode, original.unitPrice(), amount, original.currencyCode(),
                 original.priceId(), original.priceRevision(), original.priceType(), original.itemCodeSnapshot(),
-                original.itemNameSnapshot(), occurredAt, actorId, original.id()));
+                original.itemNameSnapshot(), occurredAt, actorId, original.id(),
+                original.accountingCategory() != null ? original.accountingCategory() : "WESTERN_MED"));
         components.save(new ChargeItemComponent(event.tenantId(), reversal.id(), original.catalogItemId(),
                 original.itemCodeSnapshot(), original.itemNameSnapshot(), quantity.negate(), unitCode,
                 BigDecimal.ONE, original.unitPrice(), amount));

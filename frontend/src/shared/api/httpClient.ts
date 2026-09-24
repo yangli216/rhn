@@ -1,4 +1,5 @@
 import type { ApiError } from '../model'
+import { safeRandomUUID } from '../utils/uuid'
 
 export interface Credentials {
   username: string
@@ -15,7 +16,7 @@ export class ApiClient {
   constructor(private readonly credentials: Credentials | null,
     private readonly tenantId: string,
     private workContext: WorkContextSelection | null = null,
-    private readonly clientSessionId = crypto.randomUUID()) {}
+    private readonly clientSessionId = safeRandomUUID()) {}
 
   setWorkContext(context: WorkContextSelection | null) {
     this.workContext = context
@@ -34,7 +35,7 @@ export class ApiClient {
         ...(!multipart ? { 'Content-Type': 'application/json' } : {}),
         ...(this.credentials ? { Authorization: `Basic ${encodeBasicCredentials(this.credentials)}` } : {}),
         'X-Tenant-Id': this.tenantId,
-        'X-Correlation-Id': crypto.randomUUID(),
+        'X-Correlation-Id': safeRandomUUID(),
         'X-Client-Session-Id': this.clientSessionId,
         ...(this.workContext ? {
           'X-Organization-Id': this.workContext.organizationId,

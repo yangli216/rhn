@@ -447,10 +447,23 @@ public class InpatientBillingService {
     }
 
     private String categoryName(String category) {
-        return switch (category) {
+        if (category == null || category.isBlank()) return "其他费用";
+        return switch (category.trim().toUpperCase()) {
             case "BED" -> "床位费";
             case "ORDER" -> "诊疗及医嘱费";
-            default -> "其他费用";
+            case "REGISTRATION" -> "诊察挂号费";
+            case "TREATMENT", "PROCEDURE" -> "治疗处置费";
+            case "LABORATORY" -> "检验费";
+            case "EXAMINATION", "IMAGING" -> "检查影像费";
+            case "SURGERY" -> "手术费";
+            case "NURSING" -> "护理费";
+            case "BLOOD" -> "输血费";
+            case "MATERIAL" -> "材料费";
+            case "WESTERN_MED" -> "西药费";
+            case "CHINESE_PATENT_MED" -> "中成药费";
+            case "HERBAL_MED" -> "中药饮片费";
+            case "MEDICATION" -> "药品费";
+            default -> category;
         };
     }
 

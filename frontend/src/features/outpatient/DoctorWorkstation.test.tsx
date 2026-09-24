@@ -209,6 +209,16 @@ function createMockApi({
       })),
       create: vi.fn(),
     },
+    outpatientPlanTemplates: {
+      list: vi.fn().mockResolvedValue([]),
+      use: vi.fn(),
+      create: vi.fn(),
+      disable: vi.fn(),
+      compileDraft: vi.fn(),
+      compileGuideline: vi.fn(),
+      minedSuggestions: vi.fn().mockResolvedValue([]),
+      getHistoricalStablePlan: vi.fn().mockResolvedValue(null),
+    },
     unifiedOrders: {
       list: vi.fn().mockResolvedValue([]),
       serviceDefinitions: vi.fn().mockResolvedValue([]),

@@ -3,7 +3,9 @@ import { Alert, Button, DataTable, EmptyState, FormField, PanelHead, Relationshi
 import { schemaReviewPresentation } from '../../shared/presentation'
 import { messageOf, request, type Catalog, type Proposal, type Table } from './api'
 
-export function SemanticPanel({ catalog, table, onSelect }: { catalog: Catalog; table: Table; onSelect: (name: string) => void }) {
+export function SemanticPanel({ catalog, table, onSelect, onOpenCollaboration }: {
+  catalog: Catalog; table: Table; onSelect: (name: string) => void; onOpenCollaboration: () => void
+}) {
   const graph = catalog.semantic
   const [entity, setEntity] = useState(graph.nodes.find(n => n.table === table.physical)?.id ?? '')
   const node = graph.nodes.find(n => n.id === entity)
@@ -17,7 +19,7 @@ export function SemanticPanel({ catalog, table, onSelect }: { catalog: Catalog; 
     <p className="schema-muted">当前表关联实体：{related.map(n => n.label).join('、') || '未纳入统计语义目录'}。物理结构与统计白名单分别表达存储约束和可分析口径。</p>
     <div className="schema-toolbar"><Select aria-label="统计业务实体" value={entity} clearable={false} onChange={setEntity} options={[{ value: '', label: '当前表尚未映射统计实体' }, ...graph.nodes.map(n => ({ value: n.id, label: n.label, secondaryText: n.table || '未映射物理表' }))]} />
       {node?.table && <Button variant="secondary" onClick={() => onSelect(node.table ?? '')}>定位物理表</Button>}
-      <a href={`/analytics?view=ontology&entity=${encodeURIComponent(entity)}`}>进入统计语义工作台</a></div>
+      <Button variant="secondary" onClick={onOpenCollaboration}>进入人机共建</Button></div>
     {!node ? <EmptyState icon="database" title="当前表尚未映射统计实体" copy="先在业务实体数据关系网中登记实体与物理表的对应关系；这里不会用其他实体代替展示。" /> : <><p>{node.description} · 粒度：{node.grain} · 物理表：<code>{node.table || '尚未映射'}</code></p>
       <RelationshipGraph label="统计语义关系图" nodes={graph.nodes.map(n => ({ id: n.id, label: n.label, detail: n.table || '未映射' }))}
         edges={graph.edges.map(e => ({ id: e.id, source: e.source, target: e.target, label: `${e.cardinality}${e.fanoutRisk ? ' · 有聚合扇出风险' : ''}`,

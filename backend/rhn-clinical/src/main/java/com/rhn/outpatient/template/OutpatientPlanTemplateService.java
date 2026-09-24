@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import static com.rhn.outpatient.template.OutpatientPlanTemplateContracts.*;
+import static com.rhn.outpatient.api.OutpatientPlanTemplateContracts.*;
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 import static com.rhn.shared.api.BusinessErrors.forbidden;
@@ -84,7 +84,8 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                 services.findByTenantIdAndTemplateIdInOrderByTemplateIdAscLineNoAsc(
                         context.tenantId(), templateIds));
         return values.stream().map(value -> new PlanTemplateSnapshot(
-                value.id(), value.revision(), value.name(), value.description(), value.useCount(),
+                value.id(), value.revision(), value.scopeType(), value.sourceType(), value.guidelineReference(),
+                value.name(), value.description(), value.useCount(),
                 diagnosisMap.getOrDefault(value.id(), List.of()).stream().map(diagnosis -> new DiagnosisSnapshot(
                         diagnosis.code(), diagnosis.name(), diagnosis.type())).toList(),
                 medicationMap.getOrDefault(value.id(), List.of()).stream().map(line -> new MedicationSnapshot(
@@ -104,7 +105,9 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
     View create(SaveRequest input) {
         ExecutionContext context = requireContext();
         String scope = scope(input.scopeType());
-        Long ownerId = "PERSONAL".equals(scope) ? context.practitionerId() : context.departmentId();
+        Long ownerId = "PERSONAL".equals(scope) ? context.practitionerId()
+                : "DEPARTMENT".equals(scope) ? context.departmentId()
+                : context.organizationId();
         String name = required(input.name(), "PLAN_TEMPLATE_NAME_REQUIRED", "方案名称不能为空");
         List<DiagnosisInput> diagnosisInputs = input.diagnoses() == null ? List.of() : input.diagnoses();
         List<MedicationInput> medicationInputs = input.medications() == null ? List.of() : input.medications();
@@ -116,7 +119,8 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         Instant now = Instant.now();
         OutpatientPlanTemplate value = new OutpatientPlanTemplate(context.tenantId(), context.organizationId(),
                 context.departmentId(), scope, ownerId, name, clean(input.description()),
-                input.sortOrder() == null ? 0 : input.sortOrder(), context.subjectId(), now);
+                input.sortOrder() == null ? 0 : input.sortOrder(), clean(input.sourceType()),
+                clean(input.guidelineReference()), context.subjectId(), now);
         try {
             templates.saveAndFlush(value);
             saveDiagnoses(value, diagnosisInputs);
@@ -152,6 +156,49 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         }
         value.disable(context.subjectId(), Instant.now());
         templates.flush();
+        return loadedView(value);
+    }
+
+    @Transactional
+    View update(Long id, UpdateRequest input) {
+        ExecutionContext context = requireContext();
+        OutpatientPlanTemplate value = requireAccessibleLocked(id, context);
+        if (value.revision() != input.expectedRevision()) {
+            throw conflict("PLAN_TEMPLATE_REVISION_CONFLICT", "常用方案已被更新，请刷新后重试");
+        }
+        if (!"ACTIVE".equals(value.status())) {
+            throw conflict("PLAN_TEMPLATE_INACTIVE", "常用方案已经停用，无法调整");
+        }
+        String scope = scope(input.scopeType());
+        Long ownerId = "PERSONAL".equals(scope) ? context.practitionerId()
+                : "DEPARTMENT".equals(scope) ? context.departmentId()
+                : context.organizationId();
+        String name = required(input.name(), "PLAN_TEMPLATE_NAME_REQUIRED", "方案名称不能为空");
+        List<DiagnosisInput> diagnosisInputs = input.diagnoses() == null ? List.of() : input.diagnoses();
+        List<MedicationInput> medicationInputs = input.medications() == null ? List.of() : input.medications();
+        List<ServiceInput> serviceInputs = input.services() == null ? List.of() : input.services();
+        if (diagnosisInputs.isEmpty() && medicationInputs.isEmpty() && serviceInputs.isEmpty()) {
+            throw badRequest("PLAN_TEMPLATE_EMPTY", "至少选择一条诊断、药品或诊疗项目");
+        }
+        validateDiagnoses(diagnosisInputs, context.tenantId());
+        Instant now = Instant.now();
+        value.update(scope, ownerId, name, clean(input.description()),
+                input.sortOrder() == null ? 0 : input.sortOrder(), clean(input.guidelineReference()),
+                context.subjectId(), now);
+        try {
+            templates.saveAndFlush(value);
+            diagnoses.deleteByTenantIdAndTemplateId(context.tenantId(), value.id());
+            medications.deleteByTenantIdAndTemplateId(context.tenantId(), value.id());
+            services.deleteByTenantIdAndTemplateId(context.tenantId(), value.id());
+            diagnoses.flush();
+            medications.flush();
+            services.flush();
+            saveDiagnoses(value, diagnosisInputs);
+            saveMedications(value, medicationInputs, context);
+            saveServices(value, serviceInputs, context);
+        } catch (DataIntegrityViolationException error) {
+            throw conflict("PLAN_TEMPLATE_NAME_DUPLICATED", "当前范围已经存在同名常用方案");
+        }
         return loadedView(value);
     }
 
@@ -261,8 +308,9 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         OutpatientPlanTemplate value = templates.lockByIdAndTenantId(id, context.tenantId())
                 .orElseThrow(() -> notFound("PLAN_TEMPLATE_NOT_FOUND", "未找到常用诊疗方案"));
         boolean accessible = value.organizationId().equals(context.organizationId())
-                && value.departmentId().equals(context.departmentId())
-                && ("DEPARTMENT".equals(value.scopeType()) || value.ownerId().equals(context.practitionerId()));
+                && ("HOSPITAL".equals(value.scopeType())
+                    || (value.departmentId().equals(context.departmentId())
+                        && ("DEPARTMENT".equals(value.scopeType()) || value.ownerId().equals(context.practitionerId()))));
         if (!accessible) throw forbidden("PLAN_TEMPLATE_FORBIDDEN", "当前工作上下文不能访问该常用方案");
         return value;
     }
@@ -289,7 +337,8 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
     private View view(OutpatientPlanTemplate value, List<OutpatientPlanDiagnosis> diagnosisValues,
                       List<OutpatientPlanMedication> medicationValues, List<OutpatientPlanServiceLine> serviceValues) {
         return new View(value.id(), value.revision(), value.scopeType(), value.name(), value.description(),
-                value.status(), value.sortOrder(), value.useCount(), value.lastUsedAt(),
+                value.status(), value.sourceType(), value.guidelineReference(),
+                value.sortOrder(), value.useCount(), value.lastUsedAt(),
                 diagnosisValues.stream().map(line -> new DiagnosisView(line.code(), line.name(), line.type())).toList(),
                 medicationValues.stream().map(line -> medicationView(value.tenantId(), line)).toList(),
                 serviceValues.stream().map(line -> new ServiceView(line.catalogItemId(), line.itemCode(),
@@ -333,8 +382,8 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
     }
     private String scope(String value) {
         String result = upper(value);
-        if (!List.of("PERSONAL", "DEPARTMENT").contains(result)) {
-            throw badRequest("PLAN_TEMPLATE_SCOPE_INVALID", "方案范围仅支持个人或科室");
+        if (!List.of("PERSONAL", "DEPARTMENT", "HOSPITAL").contains(result)) {
+            throw badRequest("PLAN_TEMPLATE_SCOPE_INVALID", "方案范围仅支持个人、科室或全院");
         }
         return result;
     }

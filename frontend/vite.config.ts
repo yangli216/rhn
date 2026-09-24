@@ -6,6 +6,7 @@ declare const process: { env: Record<string, string | undefined> }
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '')
+  const frontendHost = process.env.RHN_FRONTEND_HOST ?? env.RHN_FRONTEND_HOST ?? '0.0.0.0'
   const frontendPort = Number(process.env.RHN_FRONTEND_PORT ?? env.RHN_FRONTEND_PORT ?? 15176)
   const apiTarget = process.env.RHN_API_TARGET ?? env.RHN_API_TARGET ?? 'http://localhost:18086'
 
@@ -30,10 +31,12 @@ export default defineConfig(({ mode }) => {
       },
     },
     preview: {
+      host: frontendHost,
       port: frontendPort,
       strictPort: true,
     },
     server: {
+      host: frontendHost,
       port: frontendPort,
       strictPort: true,
       proxy: {

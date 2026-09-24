@@ -92,12 +92,17 @@ public class ClinicalOrderChargeProjector {
                 : textOr(payload.text("requestNo"), event.aggregateType() + event.aggregateId());
         Instant occurredAt = event.occurredAt() == null ? Instant.now() : event.occurredAt();
         Long clinicalRequestId = event.aggregateId();
+        String accountingCategory = clean(payload.text("accountingCategory"));
+        if (accountingCategory == null) {
+            accountingCategory = sourceType.startsWith("MEDICATION") ? "WESTERN_MED" : "TREATMENT";
+        }
         ChargeItem charge = charges.save(new ChargeItem(event.tenantId(),
                 organizationId, departmentId,
                 account.id(), residentId, encounterId,
                 clinicalRequestId, catalogItemId, sourceType, event.aggregateId(), requestNo,
                 quantity, unitCode, money(unitPrice), money(totalAmount), currency, priceId, priceRevision,
-                payload.text("priceType"), itemCode, itemName, occurredAt, authoredBy, null));
+                payload.text("priceType"), itemCode, itemName, occurredAt, authoredBy, null,
+                accountingCategory));
         components.save(new ChargeItemComponent(event.tenantId(), charge.id(), catalogItemId, itemCode, itemName,
                 quantity, unitCode, BigDecimal.ONE, money(unitPrice), money(totalAmount)));
         ledger.save(new LedgerEntry(event.tenantId(), account.id(), "CHARGE", "DEBIT", money(totalAmount), currency,
@@ -122,7 +127,8 @@ public class ClinicalOrderChargeProjector {
                 reversalType, event.aggregateId(), "REV-" + original.requestCode(), original.quantity().negate(),
                 original.unitCode(), original.unitPrice(), original.totalAmount().negate(), original.currencyCode(),
                 original.priceId(), original.priceRevision(), original.priceType(), original.itemCodeSnapshot(),
-                original.itemNameSnapshot(), occurredAt, actorId, original.id()));
+                original.itemNameSnapshot(), occurredAt, actorId, original.id(),
+                original.accountingCategory()));
         components.save(new ChargeItemComponent(event.tenantId(), reversal.id(), original.catalogItemId(),
                 original.itemCodeSnapshot(), original.itemNameSnapshot(), original.quantity().negate(),
                 original.unitCode(), BigDecimal.ONE, original.unitPrice(), original.totalAmount().negate()));

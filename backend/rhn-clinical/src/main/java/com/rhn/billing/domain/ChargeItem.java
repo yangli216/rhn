@@ -34,6 +34,7 @@ public class ChargeItem {
     @Column(name = "ID_PRICE") private Long priceId;
     @Column(name = "SN_PRICE_VER") private Long priceRevision;
     @Column(name = "SD_PRICE_TYPE") private String priceType;
+    @Column(name = "SD_ACCTG_CAT") private String accountingCategory;
     @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
     @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
     @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
@@ -51,7 +52,7 @@ public class ChargeItem {
         this(tenantId, null, null, patientAccountId, residentId, encounterId, requestId,
                 catalogItemId, sourceType, sourceId, requestCode, quantity, unitCode, unitPrice, totalAmount,
                 currencyCode, priceId, priceRevision, priceType, itemCodeSnapshot, itemNameSnapshot, occurredAt,
-                enteredBy, reversesChargeItemId);
+                enteredBy, reversesChargeItemId, null);
     }
 
     public ChargeItem(Long tenantId, Long organizationId, Long departmentId,
@@ -61,6 +62,19 @@ public class ChargeItem {
                       String currencyCode, Long priceId, Long priceRevision, String priceType,
                       String itemCodeSnapshot, String itemNameSnapshot, Instant occurredAt,
                       Long enteredBy, Long reversesChargeItemId) {
+        this(tenantId, organizationId, departmentId, patientAccountId, residentId, encounterId, requestId,
+                catalogItemId, sourceType, sourceId, requestCode, quantity, unitCode, unitPrice, totalAmount,
+                currencyCode, priceId, priceRevision, priceType, itemCodeSnapshot, itemNameSnapshot, occurredAt,
+                enteredBy, reversesChargeItemId, null);
+    }
+
+    public ChargeItem(Long tenantId, Long organizationId, Long departmentId,
+                      Long patientAccountId, Long residentId, Long encounterId, Long requestId,
+                      Long catalogItemId, String sourceType, Long sourceId, String requestCode,
+                      BigDecimal quantity, String unitCode, BigDecimal unitPrice, BigDecimal totalAmount,
+                      String currencyCode, Long priceId, Long priceRevision, String priceType,
+                      String itemCodeSnapshot, String itemNameSnapshot, Instant occurredAt,
+                      Long enteredBy, Long reversesChargeItemId, String accountingCategory) {
         this.id = GlobalIds.next(); this.tenantId = tenantId;
         this.organizationId = organizationId; this.departmentId = departmentId;
         this.patientAccountId = patientAccountId;
@@ -72,6 +86,7 @@ public class ChargeItem {
         this.priceType = priceType; this.itemCodeSnapshot = itemCodeSnapshot;
         this.itemNameSnapshot = itemNameSnapshot; this.occurredAt = occurredAt; this.enteredBy = enteredBy;
         this.reversesChargeItemId = reversesChargeItemId;
+        this.accountingCategory = accountingCategory;
     }
 
     public void bindEncounter(Long encounterId) {
@@ -112,4 +127,5 @@ public class ChargeItem {
     public Instant occurredAt() { return occurredAt; }
     public Long enteredBy() { return enteredBy; }
     public Long reversesChargeItemId() { return reversesChargeItemId; }
+    public String accountingCategory() { return accountingCategory; }
 }

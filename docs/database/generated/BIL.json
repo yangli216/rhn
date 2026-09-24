@@ -1,5 +1,5 @@
 {
-  "fingerprint": "27317badc5a12b3a92a5b17968482d1205df4c3deaa3613696dcdaaa8de0007a",
+  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
   "tables": [
     {
       "logical": "bil.cashier_close_event",
@@ -1837,6 +1837,18 @@
           "comment": "科室标识",
           "logical": "department_id",
           "catalogComment": "科室标识"
+        },
+        {
+          "physical": "SD_ACCTG_CAT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 28,
+          "comment": "费用核算归并大类(SD_ACCTG_CAT)",
+          "logical": "",
+          "catalogComment": ""
         }
       ],
       "kind": "BASE TABLE",
@@ -1926,7 +1938,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_CHARGE_ITE_SYS_DEPT_INDEX_9",
+          "name": "FK_BIL_CHARGE_ITE_SYS_DEPT_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -1942,7 +1954,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_CHARGE_ITE_SYS_ORG_INDEX_9",
+          "name": "FK_BIL_CHARGE_ITE_SYS_ORG_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -1979,6 +1991,27 @@
             {
               "position": 2,
               "name": "ID_ENC",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_BIL_CHARGE_ITE_ACCTG_CAT",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_ACCTG_CAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_OCCRD",
               "direction": "A"
             }
           ],
@@ -2069,7 +2102,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_BBCB",
+          "name": "PRIMARY_KEY_BBC",
           "columns": [
             {
               "position": 1,

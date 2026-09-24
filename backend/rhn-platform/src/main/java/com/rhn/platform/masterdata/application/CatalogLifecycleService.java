@@ -219,7 +219,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
             return new CatalogItemSnapshot(service.id(), service.itemTypeId(), "SERVICE", null,
                     service.code(), service.name(), service.unitCode(), service.orderable(), service.chargeable(),
                     false, service.status(), service.validFrom(), service.validTo(), service.serviceType(),
-                    service.specimenType(), service.examinationType(), null, null);
+                    service.specimenType(), service.examinationType(), null, null, service.accountingCategory());
         }
         var product = productRepository.findByIdAndTenantIdAndItemType(catalogItemId, tenantId, "MED_PRODUCT").orElse(null);
         if (product != null) {

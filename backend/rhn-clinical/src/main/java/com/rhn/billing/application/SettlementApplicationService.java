@@ -5,6 +5,7 @@ import com.rhn.billing.api.BillingViews.SettlementLineView;
 import com.rhn.billing.api.BillingViews.SettlementRecordView;
 import com.rhn.billing.api.BillingViews.SettlementTenderView;
 import com.rhn.billing.api.BillingViews.SettlementView;
+import com.rhn.billing.domain.ChargeCategory;
 import com.rhn.billing.domain.ChargeItem;
 import com.rhn.billing.domain.Invoice;
 import com.rhn.billing.domain.InvoiceLine;
@@ -22,6 +23,7 @@ import com.rhn.billing.infrastructure.LedgerEntryRepository;
 import com.rhn.billing.infrastructure.SettlementCategorySummaryRepository;
 import com.rhn.billing.infrastructure.SettlementEventRepository;
 import com.rhn.billing.infrastructure.SettlementLineRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.rhn.billing.infrastructure.SettlementRepository;
 import com.rhn.billing.infrastructure.SettlementTenderRepository;
 import com.rhn.shared.context.ExecutionContext;
@@ -31,6 +33,7 @@ import com.rhn.healthcore.api.ResidentDirectory.ResidentSnapshot;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.EncounterDirectory.EncounterSnapshot;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Propagation;
@@ -64,6 +67,7 @@ public class SettlementApplicationService {
     private final DomainEventPublisher eventPublisher;
     private final ResidentDirectory residentDirectory;
     private final EncounterDirectory encounterDirectory;
+    private final ChargeCategoryResolver categoryResolver;
 
     public SettlementApplicationService(SettlementRepository settlements, SettlementLineRepository lines,
                                         SettlementTenderRepository tenders, SettlementEventRepository events,
@@ -72,10 +76,24 @@ public class SettlementApplicationService {
                                         LedgerEntryRepository ledger, ExecutionContextProvider contextProvider,
                                         DomainEventPublisher eventPublisher, ResidentDirectory residentDirectory,
                                         EncounterDirectory encounterDirectory) {
+        this(settlements, lines, tenders, events, categories, accounts, chargeItems, ledger, contextProvider,
+                eventPublisher, residentDirectory, encounterDirectory, new ChargeCategoryResolver(null));
+    }
+
+    @Autowired
+    public SettlementApplicationService(SettlementRepository settlements, SettlementLineRepository lines,
+                                        SettlementTenderRepository tenders, SettlementEventRepository events,
+                                        SettlementCategorySummaryRepository categories,
+                                        PatientAccountRepository accounts, ChargeItemRepository chargeItems,
+                                        LedgerEntryRepository ledger, ExecutionContextProvider contextProvider,
+                                        DomainEventPublisher eventPublisher, ResidentDirectory residentDirectory,
+                                        EncounterDirectory encounterDirectory,
+                                        ChargeCategoryResolver categoryResolver) {
         this.settlements = settlements; this.lines = lines; this.tenders = tenders; this.events = events;
         this.categories = categories; this.accounts = accounts; this.chargeItems = chargeItems;
         this.ledger = ledger; this.contextProvider = contextProvider; this.eventPublisher = eventPublisher;
         this.residentDirectory = residentDirectory; this.encounterDirectory = encounterDirectory;
+        this.categoryResolver = categoryResolver != null ? categoryResolver : new ChargeCategoryResolver(null);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -97,7 +115,7 @@ public class SettlementApplicationService {
                     line.lineNo(), charge.quantity(), line.amount()));
         }
         Map<ChargeCategory, BigDecimal> categoryAmounts = new LinkedHashMap<>();
-        for (ChargeItem charge : chargeItems) categoryAmounts.merge(chargeCategory(charge),
+        for (ChargeItem charge : chargeItems) categoryAmounts.merge(categoryResolver.resolve(context.tenantId(), charge),
                 charge.totalAmount(), BigDecimal::add);
         categoryAmounts.forEach((category, amount) -> categories.save(new SettlementCategorySummary(
                 context.tenantId(), value.id(), category.code(), category.name(), money(amount), invoice.issuedAt())));
@@ -398,12 +416,7 @@ public class SettlementApplicationService {
         };
     }
     private ChargeCategory chargeCategory(ChargeItem charge) {
-        if ("DIRECT_VISIT_SERVICE".equals(charge.sourceType())) return new ChargeCategory("TREATMENT", "诊疗费");
-        if (charge.sourceType().startsWith("REGISTRATION")) return new ChargeCategory("REGISTRATION", "挂号费");
-        if (charge.sourceType().startsWith("INPATIENT_BED_DAY")) return new ChargeCategory("BED", "床位费");
-        if (charge.sourceType().startsWith("MEDICATION_")) return new ChargeCategory("MEDICATION", "药品费");
-        if (charge.sourceType().startsWith("SERVICE_REQUEST")) return new ChargeCategory("TREATMENT", "诊疗费");
-        return new ChargeCategory("OTHER", "其他费");
+        return categoryResolver.resolve(null, charge);
     }
     private void allocateLines(List<SettlementLine> values, BigDecimal total, BigDecimal insurance, BigDecimal other) {
         BigDecimal insuranceAssigned = BigDecimal.ZERO.setScale(6);
@@ -441,5 +454,4 @@ public class SettlementApplicationService {
     private String terminal(String value, String fallback) { return clean(value) == null ? fallback : clean(value).toUpperCase(); }
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private BigDecimal money(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
-    private record ChargeCategory(String code, String name) {}
 }

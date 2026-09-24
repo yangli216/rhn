@@ -172,7 +172,8 @@ public class DirectRefundApplicationService {
                         original.quantity().negate(), original.unitCode(), original.unitPrice(),
                         reversalAmount, original.currencyCode(), original.priceId(),
                         original.priceRevision(), original.priceType(), original.itemCodeSnapshot(),
-                        original.itemNameSnapshot(), now, context.subjectId(), original.id()
+                        original.itemNameSnapshot(), now, context.subjectId(), original.id(),
+                        original.accountingCategory()
                 ));
 
                 components.save(new ChargeItemComponent(

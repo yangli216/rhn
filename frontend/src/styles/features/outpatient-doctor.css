@@ -2597,3 +2597,517 @@
 
 .doctor-record-panel .doctor-record-heading { flex-wrap: wrap; }
 .doctor-workspace-drawer > .ui-panel__head > .ui-button { margin-left: auto; }
+
+/* ============================================================
+   多层级临床诊疗方案池 (AI 赋能基础设施) 桌面端样式
+   ============================================================ */
+.doctor-plan-pool-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.doctor-plan-pool-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.doctor-plan-pool-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.doctor-plan-pool-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  line-height: var(--line-height-small);
+}
+
+.doctor-plan-pool-tab:hover {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+}
+
+.doctor-plan-pool-tab.is-active {
+  background: var(--color-info-soft);
+  border-color: var(--color-info);
+  color: var(--color-info-strong);
+  font-weight: var(--font-weight-semibold);
+}
+
+.doctor-plan-pool-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doctor-plan-pool-split {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: var(--space-4);
+  height: 520px;
+  overflow: hidden;
+}
+
+.doctor-plan-pool-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-right: 1px solid var(--color-border);
+  padding-right: var(--space-3);
+  height: 100%;
+  overflow: hidden;
+}
+
+.doctor-plan-pool-search {
+  width: 100%;
+}
+
+.doctor-plan-pool-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.doctor-plan-item-card {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-align: left;
+}
+
+.doctor-plan-item-card:hover {
+  border-color: var(--color-info-border);
+  background: var(--color-surface-subtle);
+}
+
+.doctor-plan-item-card.is-selected {
+  border-color: var(--color-info);
+  background: var(--color-info-soft);
+}
+
+.doctor-plan-item-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.doctor-plan-item-card__title {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-body);
+}
+
+.doctor-plan-item-card__desc {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-small);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.doctor-plan-item-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-disabled);
+  margin-top: var(--space-1);
+}
+
+.doctor-plan-pool-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.doctor-plan-pool-detail__body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.doctor-plan-detail-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+}
+
+.doctor-plan-detail-hero__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-h3);
+}
+
+.doctor-plan-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.doctor-plan-detail-section__title {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  line-height: var(--line-height-body);
+}
+
+.doctor-plan-table-shell {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  flex: none;
+  overflow: hidden;
+}
+
+.doctor-plan-items-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.doctor-plan-items-table th {
+  background: var(--color-surface-subtle);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.doctor-plan-items-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  vertical-align: middle;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.doctor-plan-items-table tr:last-child td {
+  border-bottom: none;
+}
+
+.doctor-plan-items-table td.doctor-plan-table-empty {
+  text-align: center;
+  color: var(--color-text-disabled);
+  padding: var(--space-4);
+  font-size: var(--font-size-small);
+}
+
+.doctor-plan-pool-detail__footer {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.doctor-plan-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doctor-plan-pool-notice {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-info-soft);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-small);
+  color: var(--color-info-strong);
+  line-height: var(--line-height-small);
+}
+
+.doctor-plan-pool-tab-count {
+  font-size: var(--font-size-small);
+  opacity: 0.8;
+}
+
+.doctor-plan-pool-empty-text {
+  padding: var(--space-4);
+  color: var(--color-text-disabled);
+  font-size: var(--font-size-small);
+  text-align: center;
+  line-height: var(--line-height-small);
+}
+
+.doctor-plan-card-guideline {
+  font-size: var(--font-size-small);
+  color: var(--color-info-strong);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-small);
+}
+
+.doctor-plan-detail-guideline {
+  font-size: var(--font-size-small);
+  color: var(--color-info-strong);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-small);
+}
+
+.doctor-plan-detail-desc {
+  margin: var(--space-0);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-small);
+}
+
+.doctor-plan-detail-notes {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-small);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  line-height: var(--line-height-small);
+}
+
+.doctor-plan-detail-notes strong {
+  color: var(--color-info-strong);
+}
+
+.doctor-plan-detail-notes div {
+  color: var(--color-text-secondary);
+}
+
+.doctor-plan-tags-row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.doctor-plan-footer-hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-disabled);
+  line-height: var(--line-height-small);
+}
+
+.ai-plan-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ai-plan-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: var(--space-4);
+  min-height: 440px;
+}
+
+.ai-plan-modal-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-right: 1px solid var(--color-border);
+  padding-right: var(--space-4);
+}
+
+.ai-plan-modal-tabs {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.ai-plan-modal-guideline-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-2);
+}
+
+.ai-plan-modal-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.ai-plan-modal-examples-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-small);
+}
+
+.ai-plan-modal-hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-small);
+}
+
+.ai-plan-modal-compile-btn {
+  margin-top: auto;
+}
+
+.ai-plan-modal-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ai-plan-modal-right-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-plan-modal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-disabled);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  text-align: center;
+  line-height: var(--line-height-small);
+}
+
+.ai-plan-modal-empty-icon {
+  font-size: var(--font-size-display);
+  margin-bottom: var(--space-2);
+}
+
+.ai-plan-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+  max-height: 420px;
+  padding-right: var(--space-1);
+}
+
+.ai-plan-modal-section {
+  background: var(--color-surface-subtle);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ai-plan-modal-section-title {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-small);
+}
+
+.ai-plan-modal-row {
+  font-size: var(--font-size-small);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-1) var(--space-0);
+  line-height: var(--line-height-small);
+}
+
+.ai-plan-modal-row-bordered {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ai-plan-modal-row-sub {
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-small);
+}
+
+.ai-plan-modal-row-empty {
+  font-size: var(--font-size-small);
+  color: var(--color-text-disabled);
+  line-height: var(--line-height-small);
+}
+
+.ai-plan-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ai-plan-modal-quick-diags {
+  margin-top: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.ai-plan-modal-subtext {
+  color: var(--color-text-secondary);
+}
+
+.ai-plan-modal-item-code {
+  margin-left: var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+.doctor-plan-card-meta-text {
+  color: var(--color-text-disabled);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.doctor-plan-card-badges {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.doctor-plan-item-subtext {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.doctor-plan-empty-cell {
+  font-size: var(--font-size-small);
+  color: var(--color-text-disabled);
+  padding: var(--space-2) 0;
+}
+
+
