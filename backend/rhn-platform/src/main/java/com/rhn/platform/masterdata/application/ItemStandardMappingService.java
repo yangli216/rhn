@@ -81,6 +81,9 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
                 .filter(value -> normalized.isBlank() || contains(value.code(), normalized)
                         || contains(value.display(), normalized) || contains(value.shortDisplay(), normalized)
                         || contains(value.searchCode(), normalized))
+                .sorted(Comparator.comparingInt((ConceptSnapshot value) -> scoreMatch(value, normalized))
+                        .thenComparing(ConceptSnapshot::display, Comparator.nullsLast(String::compareTo))
+                        .thenComparing(ConceptSnapshot::code))
                 .limit(500)
                 .map(value -> termView(value, system))
                 .toList();
@@ -293,6 +296,22 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
     private boolean contains(String value, String query) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(query);
     }
+    private int scoreMatch(ConceptSnapshot value, String normalized) {
+        if (normalized.isBlank()) return 10;
+        String code = value.code() == null ? "" : value.code().toLowerCase(Locale.ROOT);
+        String display = value.display() == null ? "" : value.display().toLowerCase(Locale.ROOT);
+        String shortDisplay = value.shortDisplay() == null ? "" : value.shortDisplay().toLowerCase(Locale.ROOT);
+        String searchCode = value.searchCode() == null ? "" : value.searchCode().toLowerCase(Locale.ROOT);
+        if (normalized.equals(code)) return 0;
+        if (normalized.equals(shortDisplay)) return 1;
+        if (normalized.equals(display)) return 2;
+        if (code.startsWith(normalized)) return 3;
+        if (shortDisplay.startsWith(normalized)) return 4;
+        if (display.startsWith(normalized)) return 5;
+        if (searchCode.startsWith(normalized)) return 6;
+        return 7;
+    }
+
     private LocalDate earliest(LocalDate left, LocalDate right) {
         if (left == null) return right;
         if (right == null) return left;

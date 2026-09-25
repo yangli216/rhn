@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -71,5 +72,35 @@ class OutpatientNoteTemplateTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("NOTE_TEMPLATE_SPECIALTY_INVALID"));
+    }
+
+    @Test
+    void note_template_supports_manual_update_with_revision_control() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        JsonNode created = json(mockMvc.perform(post("/api/outpatient/note-templates").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"scopeType":"PERSONAL","name":"人工维护-%s",
+                                 "content":{"chiefComplaint":"原主诉"}}
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        mockMvc.perform(put("/api/outpatient/note-templates/{id}", created.get("id").asLong()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"expectedRevision":0,"scopeType":"DEPARTMENT","name":"人工维护-%s-新版",
+                                 "description":"人工编辑后的病历模板","specialtyCode":"GENERAL_PRACTICE",
+                                 "content":{"chiefComplaint":"更新后的主诉","physicalExam":"心肺查体："}}
+                                """.formatted(suffix)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.revision").value(1))
+                .andExpect(jsonPath("$.scopeType").value("DEPARTMENT"))
+                .andExpect(jsonPath("$.content.chiefComplaint").value("更新后的主诉"));
+
+        mockMvc.perform(put("/api/outpatient/note-templates/{id}", created.get("id").asLong()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"expectedRevision":0,"scopeType":"PERSONAL","name":"过期更新",
+                                 "content":{"chiefComplaint":"不会保存"}}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("NOTE_TEMPLATE_REVISION_CONFLICT"));
     }
 }

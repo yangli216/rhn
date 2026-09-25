@@ -140,15 +140,41 @@ class ClinicalAssistantController {
     }
 
     @PostMapping("/plan-templates/draft")
-    com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest compilePlanDraft(
+    com.rhn.ai.api.ClinicalAssistantContracts.PlanTextDraft compilePlanDraft(
             @Valid @RequestBody ClinicalAssistantContracts.CompilePlanDraftRequest input) {
         return planTemplateAiService.compilePlanDraftFromInput(input);
     }
 
+    @PostMapping(path = "/plan-templates/draft/stream", produces = "text/event-stream")
+    void compilePlanDraftStream(@Valid @RequestBody ClinicalAssistantContracts.CompilePlanDraftRequest input,
+                                jakarta.servlet.http.HttpServletRequest request,
+                                jakarta.servlet.http.HttpServletResponse response) {
+        streamPlan(request, response, onDelta -> planTemplateAiService.compilePlanDraftFromInput(input, onDelta));
+    }
+
+    @PostMapping("/plan-templates/draft/convert")
+    com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest convertPlanDraft(
+            @Valid @RequestBody ClinicalAssistantContracts.CompilePlanDraftRequest input) {
+        return planTemplateAiService.convertPlanDraftFromInput(input);
+    }
+
     @PostMapping("/plan-templates/guideline-extract")
-    com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest compileGuidelinePlan(
+    com.rhn.ai.api.ClinicalAssistantContracts.PlanTextDraft compileGuidelinePlan(
             @Valid @RequestBody ClinicalAssistantContracts.CompileGuidelinePlanRequest input) {
         return planTemplateAiService.compilePlanFromGuideline(input);
+    }
+
+    @PostMapping(path = "/plan-templates/guideline-extract/stream", produces = "text/event-stream")
+    void compileGuidelinePlanStream(@Valid @RequestBody ClinicalAssistantContracts.CompileGuidelinePlanRequest input,
+                                    jakarta.servlet.http.HttpServletRequest request,
+                                    jakarta.servlet.http.HttpServletResponse response) {
+        streamPlan(request, response, onDelta -> planTemplateAiService.compilePlanFromGuideline(input, onDelta));
+    }
+
+    @PostMapping("/plan-templates/guideline-extract/convert")
+    com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest convertGuidelinePlan(
+            @Valid @RequestBody ClinicalAssistantContracts.CompileGuidelinePlanRequest input) {
+        return planTemplateAiService.convertPlanFromGuideline(input);
     }
 
     @GetMapping("/plan-templates/mined-suggestions")
@@ -159,5 +185,31 @@ class ClinicalAssistantController {
     @GetMapping("/encounters/{encounterId}/historical-stable-plan")
     ClinicalAssistantContracts.HistoricalStablePlanView getHistoricalStablePlan(@PathVariable Long encounterId) {
         return historicalPlanService.resolveHistoricalStablePlan(encounterId).orElse(null);
+    }
+
+    private void streamPlan(jakarta.servlet.http.HttpServletRequest request,
+                            jakarta.servlet.http.HttpServletResponse response,
+                            java.util.function.Function<java.util.function.Consumer<String>,
+                                    ClinicalAssistantContracts.PlanTextDraft> operation) {
+        response.setContentType("text/event-stream");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Cache-Control", "no-store");
+        response.setHeader("X-Accel-Buffering", "no");
+        try {
+            var result = operation.apply(delta -> sendStreamEvent(response, "delta", java.util.Map.of("text", delta)));
+            sendStreamEvent(response, "complete", result);
+        } catch (RuntimeException exception) {
+            if (!response.isCommitted()) {
+                response.resetBuffer();
+                response.setContentType("application/json");
+                throw exception;
+            }
+            var error = exception instanceof com.rhn.shared.api.BusinessException value ? value : null;
+            sendStreamEvent(response, "error", java.util.Map.of(
+                    "code", error == null ? "AI_PLAN_STREAM_FAILED" : error.code(),
+                    "message", error == null ? "方案生成中断，请重试。" : error.getMessage(),
+                    "correlationId", java.util.Objects.toString(request.getAttribute(
+                            com.rhn.shared.api.CorrelationIds.ATTRIBUTE_NAME), "")));
+        }
     }
 }

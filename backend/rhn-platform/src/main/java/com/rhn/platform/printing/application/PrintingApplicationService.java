@@ -354,6 +354,7 @@ public class PrintingApplicationService implements PrintingService {
             case "ORAL_MEDICATION_CARD" -> "TREATMENT.ORAL_MEDICATION_CARD.PRINT";
             case "INFUSION_LABEL" -> "TREATMENT.INFUSION_LABEL.PRINT";
             case "INFUSION_PATROL_CARD" -> "TREATMENT.INFUSION_PATROL_CARD.PRINT";
+            case "OUTPATIENT_REGISTRATION_TICKET" -> "OP.REGISTRATION.TICKET.PRINT";
             default -> throw notFound("PRINT_TASK_NOT_FOUND", "当前文档类型没有标准打印任务");
         };
     }

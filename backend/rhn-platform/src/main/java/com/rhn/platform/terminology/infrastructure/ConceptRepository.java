@@ -37,8 +37,17 @@ public interface ConceptRepository extends JpaRepository<Concept, Long> {
     List<Concept> findExactDiseaseNames(@Param("systemIds") Collection<Long> systemIds,
             @Param("name") String name, @Param("activeStatus") TerminologyStatus activeStatus, @Param("date") LocalDate date);
 
-    @Query("""
+    @Query(value = """
             select c from Concept c
+            where c.codeSystemId in :systemIds
+              and (:conceptType is null or :conceptType = '' or c.conceptType = :conceptType)
+              and (:status is null or c.status = :status)
+              and (:query is null or :query = '' or lower(c.code) like lower(concat(:query, '%'))
+                   or c.id in :searchIds)
+            order by case when lower(c.code) = lower(:query) then 0 else 1 end
+            """,
+           countQuery = """
+            select count(c) from Concept c
             where c.codeSystemId in :systemIds
               and (:conceptType is null or :conceptType = '' or c.conceptType = :conceptType)
               and (:status is null or c.status = :status)

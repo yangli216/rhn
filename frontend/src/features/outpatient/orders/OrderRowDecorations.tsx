@@ -1,12 +1,13 @@
 import { serviceTypeLabel } from './orderPresentation'
 
-export function OrderTypeBadge({ type }: { type: string }) {
-  const label = type === 'MEDICATION' || type === 'WESTERN' ? '西药'
-    : type === 'CHINESE_PATENT' ? '中成药' : type === 'HERBAL' ? '草药'
-      : serviceTypeLabel(type)
-  const className = ['MEDICATION', 'WESTERN', 'CHINESE_PATENT', 'HERBAL'].includes(type)
-    ? (type === 'CHINESE_PATENT' ? 'is-patent' : type === 'HERBAL' ? 'is-herbal' : 'is-medication')
-    : `is-${type.toLowerCase()}`
+export function OrderTypeBadge({ type }: { type?: string }) {
+  const safeType = type || 'MEDICATION'
+  const label = safeType === 'MEDICATION' || safeType === 'WESTERN' ? '西药'
+    : safeType === 'CHINESE_PATENT' ? '中成药' : safeType === 'HERBAL' ? '草药'
+      : serviceTypeLabel(safeType)
+  const className = ['MEDICATION', 'WESTERN', 'CHINESE_PATENT', 'HERBAL'].includes(safeType)
+    ? (safeType === 'CHINESE_PATENT' ? 'is-patent' : safeType === 'HERBAL' ? 'is-herbal' : 'is-medication')
+    : `is-${safeType.toLowerCase()}`
   return <span className={`doctor-unified-order-kind ${className}`}>{label}</span>
 }
 

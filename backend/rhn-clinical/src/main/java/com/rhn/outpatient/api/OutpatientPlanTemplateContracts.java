@@ -22,12 +22,26 @@ public final class OutpatientPlanTemplateContracts {
             @Size(max = 4000) String guidelineReference,
             @Size(max = 20) List<@Valid DiagnosisInput> diagnoses,
             @Size(max = 50) List<@Valid MedicationInput> medications,
-            @Size(max = 50) List<@Valid ServiceInput> services) {
+            @Size(max = 50) List<@Valid ServiceInput> services,
+            @Size(max = 30) List<@Valid PlanTaskInput> tasks) {
+        public SaveRequest(String scopeType, String name, String description, Integer sortOrder,
+                           String sourceType, String guidelineReference, List<DiagnosisInput> diagnoses,
+                           List<MedicationInput> medications, List<ServiceInput> services) {
+            this(scopeType, name, description, sortOrder, sourceType, guidelineReference,
+                    diagnoses, medications, services, List.of());
+        }
         public SaveRequest(String scopeType, String name, String description, Integer sortOrder,
                            List<DiagnosisInput> diagnoses, List<MedicationInput> medications, List<ServiceInput> services) {
-            this(scopeType, name, description, sortOrder, "MANUAL", null, diagnoses, medications, services);
+            this(scopeType, name, description, sortOrder, "MANUAL", null, diagnoses, medications, services, List.of());
         }
     }
+
+    public record PlanTaskInput(@NotBlank @Size(max = 24) String kind,
+                                @NotBlank @Size(max = 300) String text,
+                                @Size(max = 500) String sourceQuote,
+                                @NotBlank @Size(max = 24) String origin,
+                                @NotBlank @Size(max = 24) String status,
+                                @Size(max = 500) String details) {}
 
     public record DiagnosisInput(
             @NotBlank @Size(max = 64) String code,
@@ -83,13 +97,15 @@ public final class OutpatientPlanTemplateContracts {
             @Size(max = 4000) String guidelineReference,
             @Size(max = 20) List<@Valid DiagnosisInput> diagnoses,
             @Size(max = 50) List<@Valid MedicationInput> medications,
-            @Size(max = 50) List<@Valid ServiceInput> services) {}
+            @Size(max = 50) List<@Valid ServiceInput> services,
+            @Size(max = 30) List<@Valid PlanTaskInput> tasks) {}
 
     public record View(Long id, long revision, String scopeType, String name, String description,
                        String status, String sourceType, String guidelineReference,
                        int sortOrder, long useCount, Instant lastUsedAt,
                        List<DiagnosisView> diagnoses, List<MedicationView> medications,
-                       List<ServiceView> services, Instant createdAt, Instant updatedAt) {}
+                       List<ServiceView> services, List<PlanTaskInput> tasks,
+                       Instant createdAt, Instant updatedAt) {}
 
     public record DiagnosisView(String code, String display, String type) {}
     public record MedicationView(Long lineId, Long medicationId, Long catalogItemId, Long packageId, String editorMode,

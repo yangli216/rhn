@@ -78,6 +78,29 @@ class OutpatientNoteTemplateService {
     }
 
     @Transactional
+    OutpatientNoteTemplateContracts.View update(Long id, OutpatientNoteTemplateContracts.UpdateRequest input) {
+        ExecutionContext context = requireContext();
+        OutpatientNoteTemplate value = requireAccessibleLocked(id, context);
+        if (value.revision() != input.expectedRevision()) {
+            throw conflict("NOTE_TEMPLATE_REVISION_CONFLICT", "病历模板已被更新，请刷新后重试");
+        }
+        String scope = scope(input.scopeType());
+        Long ownerId = "PERSONAL".equals(scope) ? context.practitionerId() : context.departmentId();
+        String name = required(input.name(), "NOTE_TEMPLATE_NAME_REQUIRED", "病历模板名称不能为空");
+        OutpatientNoteTemplateContracts.NoteContent content = normalize(input.content());
+        if (empty(content)) throw badRequest("NOTE_TEMPLATE_EMPTY", "至少填写一个可复用病历段落");
+        value.update(scope, ownerId, specialty(input.specialtyCode()), name, clean(input.description()),
+                jsonCodec.write(content), input.sortOrder() == null ? value.sortOrder() : input.sortOrder(),
+                context.subjectId(), Instant.now());
+        try {
+            repository.flush();
+        } catch (DataIntegrityViolationException error) {
+            throw conflict("NOTE_TEMPLATE_NAME_DUPLICATED", "当前范围已经存在同名病历模板");
+        }
+        return view(value);
+    }
+
+    @Transactional
     OutpatientNoteTemplateContracts.View disable(Long id, long expectedRevision) {
         ExecutionContext context = requireContext();
         OutpatientNoteTemplate value = requireAccessibleLocked(id, context);

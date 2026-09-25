@@ -24,11 +24,24 @@ const tone = (status: string): 'success' | 'danger' | 'info' => ['AVAILABLE', 'O
 export function TraceCodeManagement({ api, siteId, items, bins }: {
   api: RhnApi; siteId: string; items: StockItem[]; bins: StockBin[]
 }) {
+  const [keyword, setKeyword] = useState('')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [selected, setSelected] = useState<InventoryTraceCode>()
+
+  const handleSearch = () => {
+    setQuery(keyword.trim())
+    setPage(1)
+  }
+
+  const handleReset = () => {
+    setKeyword('')
+    setQuery('')
+    setStatus('')
+    setPage(1)
+  }
 
   const values = useQuery({
     queryKey: ['warehouse-trace-codes', siteId, status, query],
@@ -72,9 +85,10 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
       <div className="warehouse-inventory-filters__left">
         <SearchField
           label="搜索追溯码台账"
-          value={query}
-          onChange={(val) => { setQuery(val); setPage(1) }}
-          placeholder="搜索追溯码、药品编码、名称或批号"
+          value={keyword}
+          onChange={setKeyword}
+          onSearch={handleSearch}
+          placeholder="搜索追溯码、药品编码、名称或批号（回车或点击查询）"
         />
         <Select
           value={status}
@@ -85,6 +99,8 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
             ...Object.entries(statusText).map(([value, label]) => ({ value, label, secondaryText: value })),
           ]}
         />
+        <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
+        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
       </div>
       <div className="warehouse-metrics-inline">
         <span className="warehouse-metric-chip">全库 <strong>{metrics.total}</strong></span>

@@ -20,6 +20,47 @@ import java.time.ZoneId;
 public interface ClinicalAiModelGateway {
     SuggestionContent analyze(ModelRequest request, ClinicalAssistantSettings runtimeSettings);
 
+    /** Extracts plan intent only. Catalog identifiers and executable orders are resolved by the application. */
+    PlanIntent compilePlan(PlanInput request, ClinicalAssistantSettings runtimeSettings);
+
+    default PlanIntent compilePlanStreaming(PlanInput request, ClinicalAssistantSettings runtimeSettings,
+                                            java.util.function.Consumer<String> onDelta) {
+        return compilePlan(request, runtimeSettings);
+    }
+
+    record PlanInput(String promptVersion, String mode, String text, List<PlanCandidate> availablePlans,
+                     String currentNarrative, String revisionInstruction) {
+        public PlanInput {
+            availablePlans = availablePlans == null ? List.of() : List.copyOf(availablePlans);
+            currentNarrative = currentNarrative == null ? "" : currentNarrative.trim();
+            revisionInstruction = revisionInstruction == null ? "" : revisionInstruction.trim();
+        }
+        public PlanInput(String promptVersion, String mode, String text, List<PlanCandidate> availablePlans) {
+            this(promptVersion, mode, text, availablePlans, "", "");
+        }
+        public PlanInput(String promptVersion, String mode, String text) {
+            this(promptVersion, mode, text, List.of(), "", "");
+        }
+    }
+
+    record PlanCandidate(Long id, String name, String description, List<String> diagnoses,
+                         List<String> medications, List<String> services, List<String> tasks) {}
+
+    record PlanIntent(String name, String description, String narrative,
+                      List<PlanIntentItem> items, Long referenceTemplateId) {
+        public PlanIntent {
+            items = items == null ? List.of() : List.copyOf(items);
+        }
+        public PlanIntent(String name, String description, List<PlanIntentItem> items, Long referenceTemplateId) {
+            this(name, description, null, items, referenceTemplateId);
+        }
+        public PlanIntent(String name, String description, List<PlanIntentItem> items) {
+            this(name, description, null, items, null);
+        }
+    }
+
+    record PlanIntentItem(String kind, String name, String sourceQuote, String origin, String details) {}
+
     default SuggestionContent analyzeStreaming(ModelRequest request, ClinicalAssistantSettings runtimeSettings,
                                               java.util.function.Consumer<String> onDelta) {
         return analyze(request, runtimeSettings);

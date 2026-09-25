@@ -24,7 +24,7 @@ const context: ClinicalAiDraftContext = {
 
 const template: OutpatientPlanTemplate = {
   id: 'plan-1', revision: 3, scopeType: 'PERSONAL', name: '高血压复诊方案', status: 'ACTIVE',
-  sortOrder: 0, useCount: 2, diagnoses: [], services: [], createdAt: '2026-09-01T00:00:00Z',
+  sortOrder: 0, useCount: 2, diagnoses: [], services: [], tasks: [], createdAt: '2026-09-01T00:00:00Z',
   updatedAt: '2026-09-01T00:00:00Z', medications: [{
     lineId: 'line-1', medicationId: 'med-1', catalogItemId: 'product-1', packageId: 'package-1',
     editorMode: 'regular', categoryCode: 'WESTERN', medicationCode: 'DRUG-AML',

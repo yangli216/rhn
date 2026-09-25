@@ -355,6 +355,32 @@ export function createPrintingApi(client: ApiClient) {
     URL.revokeObjectURL(url)
   }
 
+  async function printPdf(downloadUrl: string) {
+    const blob = await client.download(downloadUrl)
+    const url = URL.createObjectURL(blob)
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.right = '0'
+    iframe.style.bottom = '0'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = '0'
+    iframe.src = url
+    document.body.appendChild(iframe)
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow?.focus()
+        iframe.contentWindow?.print()
+      } catch {
+        window.open(url, '_blank')
+      }
+      setTimeout(() => {
+        iframe.remove()
+        URL.revokeObjectURL(url)
+      }, 60000)
+    }
+  }
+
   return {
     templates: () => client.request<PublishedPrintTemplate[]>('/api/platform/printing/templates'),
     administrationCatalog: () => client.request<PrintAdministrationCatalog>(
@@ -439,6 +465,38 @@ export function createPrintingApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify(deviceId ? { deviceId } : {}),
       }),
     clinicalPrintOutput: (downloadUrl: string) => client.download(downloadUrl),
+    submitTask: (command: {
+      taskCode: string
+      source: { sourceType: string; sourceId: number; encounterId?: number | null }
+      purpose?: PrintPurpose
+      copies?: number
+      idempotencyKey?: string
+    }) => client.request<PrintReceipt>('/api/platform/printing/tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        taskCode: command.taskCode,
+        source: command.source,
+        purpose: command.purpose ?? 'PATIENT_COPY',
+        copies: command.copies ?? 1,
+        idempotencyKey: command.idempotencyKey ?? `TASK-PRINT-${command.taskCode}-${command.source.sourceId}-${Date.now()}`,
+      }),
+    }),
+    registrationTicket: (registrationId: string | number, encounterId?: string | number | null, copies = 1) =>
+      client.request<PrintReceipt>('/api/platform/printing/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          taskCode: 'OP.REGISTRATION.TICKET.PRINT',
+          source: {
+            sourceType: 'PatientRegistration',
+            sourceId: Number(registrationId),
+            encounterId: encounterId ? Number(encounterId) : null,
+          },
+          purpose: 'PATIENT_COPY',
+          copies,
+          idempotencyKey: `REG-PRINT-${registrationId}-${Date.now()}`,
+        }),
+      }),
+    printPdf,
     download,
   }
 }

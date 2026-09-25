@@ -106,7 +106,9 @@ describe('OutpatientFlowWorkspace composite visit', () => {
     const searchField = container.querySelector('.ui-search-field')
     expect(searchField).toBeInTheDocument()
     const searchInput = screen.getByRole('searchbox', { name: '搜索患者' })
-    expect(searchInput).toHaveAttribute('placeholder', '姓名 / 档案号 / 就诊号')
+    expect(searchInput).toHaveAttribute('placeholder', '姓名 / 档案号 / 就诊号（回车或点击查询）')
+    expect(screen.getByRole('button', { name: '查询' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '重置' })).toBeInTheDocument()
 
     // 2. Verify Pagination renders with total and page navigation
     expect(await screen.findByText('共 15 条记录')).toBeInTheDocument()
@@ -129,5 +131,13 @@ describe('OutpatientFlowWorkspace composite visit', () => {
     // All 15 items should now be on page 1
     expect(screen.getByText('患者1')).toBeInTheDocument()
     expect(screen.getByText('患者15')).toBeInTheDocument()
+
+    // 5. Test search keyword does not trigger remote call until Enter or Search button is clicked
+    const callsBefore = vi.mocked(api.outpatientFlow.board).mock.calls.length
+    await user.type(searchInput, '张三')
+    expect(vi.mocked(api.outpatientFlow.board).mock.calls.length).toBe(callsBefore)
+
+    await user.click(screen.getByRole('button', { name: '查询' }))
+    expect(vi.mocked(api.outpatientFlow.board)).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, '张三')
   })
 })

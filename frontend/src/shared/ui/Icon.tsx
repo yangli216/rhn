@@ -53,6 +53,8 @@ export type IconName =
   | 'tasks'
   | 'user'
   | 'warning'
+  | 'globe'
+  | 'send'
 
 export function Icon({ name, className = '', ...props }: SVGAttributes<SVGSVGElement> & { name: IconName }) {
   return <svg className={`ui-icon ${className}`} viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
@@ -114,5 +116,7 @@ function iconPath(name: IconName) {
     case 'tasks': return <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="m8 9 2 2 4-4M8 16h8" /></>
     case 'user': return <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>
     case 'warning': return <><path d="M12 3 2.5 20h19Z" /><path d="M12 9v5M12 17h.01" /></>
+    case 'globe': return <><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></>
+    case 'send': return <><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></>
   }
 }

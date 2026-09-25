@@ -1103,7 +1103,7 @@ function RuleDraftDialog({
         </FormField>
         <div className="qmed-governance__meds-box">
           <div className="qmed-governance__meds-filter">
-            <SearchField label="检索已关联标准药品" value={query} onChange={setQuery} placeholder="检索已关联标准药品" />
+            <SearchField label="检索已关联标准药品" value={query} onChange={setQuery} onSearch={() => void search()} placeholder="检索已关联标准药品（回车或点击检索）" />
             <Button variant="secondary" size="sm" onClick={() => void search()}>检索药品</Button>
             <span className="qmed-count-chip">已选 {ids.length} / 10 项药品</span>
           </div>

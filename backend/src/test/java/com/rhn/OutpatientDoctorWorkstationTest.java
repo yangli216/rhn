@@ -177,6 +177,32 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.medicationInstruction").doesNotExist());
 
+        mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"prescriptionId":"%s","catalogItemId":"362387869795113","packageId":"362387869795403",
+                                 "doseValue":5,"doseUnit":"mg",
+                                 "quantity":1,"quantityUnit":"盒",
+                                 "substitutionAllowed":true,"selfProvided":false,
+                                 "allergyReviewConfirmed":true,"reason":"中文包装单位测试"}
+                                """.formatted(prescriptionId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.quantityUnit").value("盒"))
+                .andExpect(jsonPath("$.packageUnitName").value("盒"))
+                .andExpect(jsonPath("$.packageSpec").value("5mg*14片/盒"));
+
+        mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"prescriptionId":"%s","catalogItemId":"362387869795113","packageId":"362387869795403",
+                                 "doseValue":5,"doseUnit":"mg",
+                                 "quantity":1,"quantityUnit":"box",
+                                 "substitutionAllowed":true,"selfProvided":false,
+                                 "allergyReviewConfirmed":true,"reason":"英文包装编码忽略大小写测试"}
+                                """.formatted(prescriptionId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.quantityUnit").value("box"));
+
         mockMvc.perform(post("/api/residents/{residentId}/allergies/{allergyId}/inactivate", residentId, allergyId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":%d,\"reason\":\"复核后排除\"}".formatted(allergyRevision)))

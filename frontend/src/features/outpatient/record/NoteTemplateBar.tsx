@@ -5,7 +5,7 @@ import { errorMessage, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, Dialog, FormField, Icon, Select, type SelectOption } from '../../../shared/ui'
 
 export type NoteTemplateField = keyof OutpatientNoteTemplateContent
-const noteTemplateFields: Array<{ key: NoteTemplateField; label: string }> = [
+export const noteTemplateFields: Array<{ key: NoteTemplateField; label: string }> = [
   { key: 'chiefComplaint', label: '主诉' },
   { key: 'presentIllness', label: '现病史' },
   { key: 'medicalHistory', label: '既往史' },
@@ -23,11 +23,12 @@ export function mergeNoteTemplateContent(current: OutpatientNoteTemplateContent,
   return next
 }
 
-export function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
+export function NoteTemplateBar({ api, disabled, currentContent, onApply, showApply = true }: {
   api: Pick<RhnApi, 'outpatientNoteTemplates'>
   disabled: boolean
   currentContent: () => OutpatientNoteTemplateContent
   onApply: (template: OutpatientNoteTemplate, fields: Set<NoteTemplateField>, overwrite: boolean) => void
+  showApply?: boolean
 }) {
   const queryClient = useQueryClient()
   const [selectedId, setSelectedId] = useState('')
@@ -42,6 +43,7 @@ export function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
   const templates = useQuery({
     queryKey: ['outpatient-note-templates', 'GENERAL_PRACTICE'],
     queryFn: () => api.outpatientNoteTemplates.list('', 'GENERAL_PRACTICE'),
+    enabled: showApply,
   })
   const selected = templates.data?.find((value) => value.id === selectedId)
   useEffect(() => {
@@ -98,12 +100,12 @@ export function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
 
   return <div className="doctor-note-template-bar">
     <div>
-      <Button size="sm" type="button" variant="secondary" disabled={disabled}
-        onClick={openApply}>模板调入</Button>
+      {showApply && <Button size="sm" type="button" variant="secondary" disabled={disabled}
+        onClick={openApply}>调入病历模板</Button>}
       <Button size="sm" type="button" variant="text" disabled={disabled}
-        onClick={() => setSaveOpen(true)}>存为模板</Button>
+        onClick={() => setSaveOpen(true)}>存为病历模板</Button>
     </div>
-    {templates.isPending && <small>正在加载模板…</small>}
+    {showApply && templates.isPending && <small>正在加载模板…</small>}
     {notice && <span>{notice}</span>}
     {saveOpen && <Dialog title="保存病历模板" eyebrow="门诊病历 · 书写效率"
       description="仅保存主诉、现病史、既往史、查体所见和诊疗计划；患者信息、生命体征、诊断及医嘱不会进入模板。"
@@ -131,7 +133,7 @@ export function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
       </div>
       {save.error && <Alert>{errorMessage(save.error)}</Alert>}
     </Dialog>}
-    {applyOpen && <Dialog title="调入病历模板" eyebrow="门诊病历"
+    {showApply && applyOpen && <Dialog title="调入病历模板" eyebrow="门诊病历"
       description="选择模板和需要调入的段落；确认后只修改当前页面草稿，不会自动保存或签署病历。"
       closeOnBackdrop={false} onClose={() => !apply.isPending && setApplyOpen(false)} footer={<>
         <Button variant="secondary" disabled={apply.isPending} onClick={() => setApplyOpen(false)}>取消</Button>

@@ -6,6 +6,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -32,6 +33,12 @@ class OutpatientNoteTemplateController {
     OutpatientNoteTemplateContracts.View create(
             @Valid @RequestBody OutpatientNoteTemplateContracts.SaveRequest input) {
         return service.create(input);
+    }
+
+    @PutMapping("/{id}")
+    OutpatientNoteTemplateContracts.View update(@PathVariable Long id,
+            @Valid @RequestBody OutpatientNoteTemplateContracts.UpdateRequest input) {
+        return service.update(id, input);
     }
 
     @PostMapping("/{id}/use")

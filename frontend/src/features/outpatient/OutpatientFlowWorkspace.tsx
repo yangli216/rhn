@@ -44,17 +44,29 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
 }) {
   const [dateRange, setDateRange] = useState<DateRange>(getTodayRange)
   const [keyword, setKeyword] = useState('')
+  const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<FlowFilter>('ACTIVE')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(10)
 
+  const handleSearch = () => {
+    setQuery(keyword.trim())
+    setPage(0)
+  }
+
+  const handleReset = () => {
+    setKeyword('')
+    setQuery('')
+    setPage(0)
+  }
+
   useEffect(() => {
     setPage(0)
-  }, [filter, dateRange, keyword])
+  }, [filter, dateRange, query])
 
   const board = useQuery({
-    queryKey: ['outpatient-flow', dateRange.from, dateRange.to, keyword.trim()],
-    queryFn: () => api.outpatientFlow.board(dateRange.from, dateRange.to, undefined, keyword),
+    queryKey: ['outpatient-flow', dateRange.from, dateRange.to, query],
+    queryFn: () => api.outpatientFlow.board(dateRange.from, dateRange.to, undefined, query),
     refetchInterval: 20_000,
   })
   const values = useMemo(() => (board.data?.visits ?? []).filter((value) => {
@@ -98,12 +110,17 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
         ] as [FlowFilter, string][]).map(([value, label]) => <button type="button" key={value}
           className={filter === value ? 'is-active' : ''} onClick={() => setFilter(value)}>{label}</button>)}</nav>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
-        <SearchField
-          label="搜索患者"
-          value={keyword}
-          onChange={setKeyword}
-          placeholder="姓名 / 档案号 / 就诊号"
-        />
+        <div className="outpatient-flow-search-box">
+          <SearchField
+            label="搜索患者"
+            value={keyword}
+            onChange={setKeyword}
+            onSearch={handleSearch}
+            placeholder="姓名 / 档案号 / 就诊号（回车或点击查询）"
+          />
+          <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
+          <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
+        </div>
       </header>
       {board.isPending && <LoadingState label="正在汇总门诊各环节状态…" />}
       {!board.isPending && values.length === 0 && <EmptyState icon="clinical" title="当前筛选下暂无患者"

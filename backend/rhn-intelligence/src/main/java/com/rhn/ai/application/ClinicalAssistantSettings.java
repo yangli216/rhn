@@ -126,7 +126,8 @@ public final class ClinicalAssistantSettings {
                 "RECORD_COMPLETENESS", "CLINICAL_RECORD_DRAFT", "STREAMING_DRAFT", "BACKGROUND_DRAFT", "SAFETY_REMINDERS",
                 "TERMINOLOGY_VALIDATION", "DIFFERENTIAL_DIAGNOSIS", "PLAN_RECOMMENDATIONS",
                 "REPORT_INTERPRETATION", "CLINICAL_FOLLOW_UP", "FACT_CHECK",
-                "DIAGNOSIS_REASONING", "CONVERSATION_FOLLOW_UP", "LONGITUDINAL_HISTORY", "AUDIT_TRAIL"));
+                "DIAGNOSIS_REASONING", "CONVERSATION_FOLLOW_UP", "LONGITUDINAL_HISTORY", "AUDIT_TRAIL",
+                "PLAN_COMPILATION"));
         if (speechAvailable()) features.add("VOICE_TRANSCRIPTION");
         if (knowledgeAvailable()) features.add("KNOWLEDGE_RETRIEVAL");
         return List.copyOf(features);

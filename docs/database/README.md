@@ -29,18 +29,20 @@
 
 没有 Oracle 连接时可先运行 `npm run schema:refresh -- --source expected`。页面会明确显示缺少实库快照；旧快照不会被失败结果覆盖。
 
-## 空库重建与开发样例
+## 数据库基线与开发样例
 
-开发阶段需要重新建立干净数据库时，先停止连接目标 Schema 的服务，再生成并核对重建包：
+数据库脚本已全面压平为 **1.84.0 单一全量基线**。规范文件位于：
+- `db/migration/B1_84_0__rhn_schema_and_metadata.sql` (PostgreSQL / H2 全量结构与标准元数据)
+- `db/oracle/B1_84_0__rhn_schema_and_metadata.sql` (Oracle 全量结构与标准元数据)
+- `db/local/V1_84_1__development_hospital.sql` 及 `db/oracle-local/` (开发医院样例数据)
+- `db/h2/V1_84_2__h2_clob_types.sql` (H2 CLOB 兼容适配)
 
+基线完整性检查命令：
 ```sh
-node scripts/rebuild-database.mjs
 node scripts/rebuild-database.mjs --check
 ```
 
-重建包分为结构与规范基线、开发样例、H2 类型适配三层，当前结构与规范基线版本为 `1.79.0`。Oracle 空库启动时使用 `oracle-local,rebuild-oracle`，PostgreSQL 使用 `rebuild-postgres`，H2 使用 `rebuild`。重建包不包含清库动作，删除旧 Oracle 开发数据必须由 DBA 或明确的开发环境操作完成；应用启动只负责在空 Schema 上执行 Flyway。
-
-现有 `db/migration`、`db/oracle`、`db/local`、`db/oracle-local`、`db/h2` 历史目录继续保留，供已经存在数据的环境增量升级。不要删除 Flyway 历史后在非空库上混用重建包；需要重建时应使用可丢弃的空 Schema，并只导入规范基础数据和开发样例。
+自动化测试（`test` profile）通过 H2 内存库执行 1.84.0 基线与样例初始化；开发与人工验证（`oracle-local` profile）直连本地 Oracle 实例。后续业务结构变更请递增创建 `V1_85_0__*.sql` 迁移脚本并保持双目录对齐。
 
 ## 开发人员与 AI 协同
 

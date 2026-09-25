@@ -11,11 +11,21 @@ public interface OutpatientPlanTemplateDirectory {
                                 String guidelineReference, String name, String description, long useCount,
                                 List<DiagnosisSnapshot> diagnoses,
                                 List<MedicationSnapshot> medications,
-                                List<ServiceSnapshot> services) {
+                                List<ServiceSnapshot> services,
+                                List<OutpatientPlanTemplateContracts.PlanTaskInput> tasks) {
         public PlanTemplateSnapshot {
             diagnoses = diagnoses == null ? List.of() : List.copyOf(diagnoses);
             medications = medications == null ? List.of() : List.copyOf(medications);
             services = services == null ? List.of() : List.copyOf(services);
+            tasks = tasks == null ? List.of() : List.copyOf(tasks);
+        }
+
+        public PlanTemplateSnapshot(Long id, long revision, String scopeType, String sourceType,
+                                    String guidelineReference, String name, String description, long useCount,
+                                    List<DiagnosisSnapshot> diagnoses, List<MedicationSnapshot> medications,
+                                    List<ServiceSnapshot> services) {
+            this(id, revision, scopeType, sourceType, guidelineReference, name, description, useCount,
+                    diagnoses, medications, services, List.of());
         }
 
         public PlanTemplateSnapshot(Long id, long revision, String name, String description, long useCount,
@@ -23,7 +33,7 @@ public interface OutpatientPlanTemplateDirectory {
                                     List<MedicationSnapshot> medications,
                                     List<ServiceSnapshot> services) {
             this(id, revision, "PERSONAL", "MANUAL", null, name, description, useCount,
-                    diagnoses, medications, services);
+                    diagnoses, medications, services, List.of());
         }
     }
 

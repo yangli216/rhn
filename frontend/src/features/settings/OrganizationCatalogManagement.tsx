@@ -21,6 +21,7 @@ export function OrganizationCatalogManagement({ api, organization, canManage }: 
 }) {
   const queryClient = useQueryClient()
   const [catalogType, setCatalogType] = useState<CatalogType>('SERVICE')
+  const [keyword, setKeyword] = useState('')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(20)
@@ -28,6 +29,24 @@ export function OrganizationCatalogManagement({ api, organization, canManage }: 
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
   const [sourcePending, setSourcePending] = useState(false)
+
+  const handleSearch = () => {
+    setQuery(keyword.trim())
+    setPage(0)
+  }
+
+  const handleReset = () => {
+    setKeyword('')
+    setQuery('')
+    setPage(0)
+  }
+
+  const handleCatalogTypeChange = (type: CatalogType) => {
+    setCatalogType(type)
+    setKeyword('')
+    setQuery('')
+    setPage(0)
+  }
 
   const candidates = useQuery({
     queryKey: ['organization-catalog', organization.id, catalogType, query, page, pageSize],
@@ -121,12 +140,14 @@ export function OrganizationCatalogManagement({ api, organization, canManage }: 
     </Panel>
 
     <Panel className="master-data-panel organization-catalog-workspace">
-      <Tabs value={catalogType} onChange={setCatalogType} label="机构目录类型" variant="workspace"
+      <Tabs value={catalogType} onChange={handleCatalogTypeChange} label="机构目录类型" variant="workspace"
         items={[{ value: 'SERVICE', label: '诊疗项目', meta: '开立 · 执行 · 收费' },
           { value: 'MED_PRODUCT', label: '药品产品', meta: '采购 · 库存 · 发药' }]} />
       <div className="master-data-toolbar">
-        <SearchField className="master-data-toolbar__search" label="搜索中心目录" value={query}
-          onChange={setQuery} placeholder="项目名称或编码" />
+        <SearchField className="master-data-toolbar__search" label="搜索中心目录" value={keyword}
+          onChange={setKeyword} onSearch={handleSearch} placeholder="项目名称或编码（回车或点击查询）" />
+        <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
+        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
         <span className="master-data-count">{candidates.isFetching ? '正在刷新…'
           : `${candidates.data?.totalElements ?? 0} 条`}</span>
       </div>

@@ -202,13 +202,44 @@ public final class ClinicalAssistantContracts {
 
     public record CompilePlanDraftRequest(
             @NotBlank @Size(max = 2000) String naturalInput,
-            @NotBlank @Size(max = 16) String scopeType) {}
+            @NotBlank @Size(max = 16) String scopeType,
+            @Size(max = 4000) String confirmedNarrative,
+            @Size(max = 1000) String revisionInstruction,
+            @Size(max = 100) String confirmedName,
+            @Size(max = 30) List<@Valid PlanReviewItem> reviewItems) {
+        public CompilePlanDraftRequest(String naturalInput, String scopeType, String confirmedNarrative) {
+            this(naturalInput, scopeType, confirmedNarrative, null, null, null);
+        }
+    }
 
     public record CompileGuidelinePlanRequest(
             @NotBlank @Size(max = 10000) String guidelineText,
             @NotBlank @Size(max = 200) String guidelineName,
             @Size(max = 32) String versionYear,
-            @Size(max = 16) String scopeType) {}
+            @Size(max = 16) String scopeType,
+            @Size(max = 4000) String confirmedNarrative,
+            @Size(max = 1000) String revisionInstruction) {
+        public CompileGuidelinePlanRequest(String guidelineText, String guidelineName, String versionYear,
+                                           String scopeType, String confirmedNarrative) {
+            this(guidelineText, guidelineName, versionYear, scopeType, confirmedNarrative, null);
+        }
+    }
+
+    /** Human-readable AI draft shown before the doctor authorizes structured conversion. */
+    public record PlanReviewItem(
+            @NotBlank @Size(max = 32) String kind,
+            @NotBlank @Size(max = 300) String text,
+            @Size(max = 500) String sourceQuote,
+            @NotBlank @Size(max = 16) String origin,
+            @Size(max = 500) String details) {}
+
+    public record PlanTextDraft(String scopeType, String name, String narrative,
+                                String sourceType, String guidelineReference,
+                                List<PlanReviewItem> reviewItems) {
+        public PlanTextDraft {
+            reviewItems = reviewItems == null ? List.of() : List.copyOf(reviewItems);
+        }
+    }
 
     public record MinedPlanSuggestionView(
             String patternKey,

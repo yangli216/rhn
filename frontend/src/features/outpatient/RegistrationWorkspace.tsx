@@ -260,7 +260,19 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
 }
 
 
-function ThermalReceiptModal({ receipt, organizationName, departmentName, locationName, feeBreakdown, paymentMethodName, cashTendered, cashChange, onClose }: {
+function ThermalReceiptModal({
+  api,
+  receipt,
+  organizationName,
+  departmentName,
+  locationName,
+  feeBreakdown,
+  paymentMethodName,
+  cashTendered,
+  cashChange,
+  onClose,
+}: {
+  api?: RhnApi
   receipt: ReceptionQueueItem
   organizationName: string
   departmentName: string
@@ -273,13 +285,41 @@ function ThermalReceiptModal({ receipt, organizationName, departmentName, locati
 }) {
   const breakdown = feeBreakdown ?? { baseFee: 0, seniorDiscount: 0, insuranceDeduction: 0, payableAmount: 0 }
   const validUntil = receipt.validUntil
+  const [isPrinting, setIsPrinting] = useState(false)
+  const [printFeedback, setPrintFeedback] = useState<string | null>(null)
+
+  const handlePrint = useCallback(async () => {
+    if (isPrinting) return
+    setIsPrinting(true)
+    setPrintFeedback(null)
+    try {
+      if (api?.printing?.registrationTicket && receipt.registrationId) {
+        try {
+          const result = await api.printing.registrationTicket(receipt.registrationId, receipt.encounterId)
+          if (result?.downloadUrl) {
+            setPrintFeedback('已生成受控热敏凭条，调起打印...')
+            if (api.printing.printPdf) {
+              await api.printing.printPdf(result.downloadUrl)
+            } else {
+              await api.printing.download(result)
+            }
+            return
+          }
+        } catch (platformErr) {
+          console.warn('平台统一小票打印未能完成，降级为本地浏览器打印', platformErr)
+        }
+      }
+      window.print()
+    } finally {
+      setIsPrinting(false)
+    }
+  }, [api, isPrinting, receipt.encounterId, receipt.registrationId])
 
   useEffect(() => {
     const handleModalKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
         e.preventDefault()
-        window.print()
-        onClose()
+        void handlePrint()
       } else if (e.key === 'Escape') {
         e.preventDefault()
         onClose()
@@ -287,13 +327,16 @@ function ThermalReceiptModal({ receipt, organizationName, departmentName, locati
     }
     window.addEventListener('keydown', handleModalKeyDown)
     return () => window.removeEventListener('keydown', handleModalKeyDown)
-  }, [onClose])
+  }, [handlePrint, onClose])
 
   return <Dialog title="门诊挂号热敏凭条" eyebrow="小票打印预览" size="wide" onClose={onClose}
-    footer={<><Button variant="secondary" onClick={onClose}>关闭 (Esc)</Button>
-      <Button onClick={() => { window.print(); onClose() }}><Icon name="print" />立即打印小票 (Enter)</Button></>}>
+    footer={<>
+      {printFeedback && <span className="thermal-receipt-feedback">{printFeedback}</span>}
+      <Button variant="secondary" onClick={onClose}>关闭 (Esc)</Button>
+      <Button busy={isPrinting} onClick={() => void handlePrint()}><Icon name="print" />立即打印小票 (Enter)</Button>
+    </>}>
     <div className="thermal-receipt-container">
-      <article className="thermal-receipt-paper" aria-label="热敏就诊凭条">
+      <article id="registration-receipt-printable" className="thermal-receipt-paper" aria-label="热敏就诊凭条">
         <header>
           <h3>{organizationName}</h3>
           <p>门诊挂号就诊凭条（热敏存根）</p>
@@ -332,7 +375,7 @@ function ThermalReceiptModal({ receipt, organizationName, departmentName, locati
         </dl>
 
         <div className="thermal-receipt-barcode-box">
-          <div className="thermal-receipt-barcode-bars" aria-hidden="true">
+          <div className="thermal-receipt-barcode-bars" aria-hidden="true" style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}>
             {Array.from({ length: 48 }).map((_, i) => <span key={i} />)}
           </div>
           <small>{receipt.registrationNo}</small>
@@ -963,6 +1006,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       const activeSchedule = (schedules.data ?? []).find((s) => s.id === activeReceiptItem.scheduleId) ?? selectedSchedule
       const activeLocation = activeSchedule?.locationName || (activeReceiptItem.serviceName ? `${activeReceiptItem.serviceName} 诊室` : `${clinicalContext.department.name} 诊室`)
       return <ThermalReceiptModal
+        api={api}
         receipt={activeReceiptItem}
         organizationName={clinicalContext.organization.name}
         departmentName={activeReceiptItem.serviceName || targetDepartmentName}

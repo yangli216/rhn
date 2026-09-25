@@ -27,6 +27,7 @@ class OutpatientPlanTemplate {
     @Column(name = "DT_LAST_USED") private Instant lastUsedAt;
     @Column(name = "SD_SOURCE_TYPE", nullable = false) private String sourceType;
     @Column(name = "JSON_GUIDELINE_REF") private String guidelineReference;
+    @Column(name = "JSON_PLAN_TASKS") private String planTasks;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
@@ -61,13 +62,14 @@ class OutpatientPlanTemplate {
     }
 
     void update(String scopeType, Long ownerId, String name, String description,
-                int sortOrder, String guidelineReference, Long actorId, Instant now) {
+                int sortOrder, String guidelineReference, String planTasks, Long actorId, Instant now) {
         this.scopeType = scopeType;
         this.ownerId = ownerId;
         this.name = name;
         this.description = description;
         this.sortOrder = sortOrder;
         this.guidelineReference = guidelineReference;
+        this.planTasks = planTasks;
         this.updatedBy = actorId;
         this.updatedAt = now;
     }
@@ -84,6 +86,8 @@ class OutpatientPlanTemplate {
     String status() { return status; }
     String sourceType() { return sourceType; }
     String guidelineReference() { return guidelineReference; }
+    String planTasks() { return planTasks; }
+    void setPlanTasks(String value) { this.planTasks = value; }
     int sortOrder() { return sortOrder; }
     long useCount() { return useCount; }
     Instant lastUsedAt() { return lastUsedAt; }

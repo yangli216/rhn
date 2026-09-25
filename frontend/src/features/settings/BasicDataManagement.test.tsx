@@ -7,6 +7,8 @@ import {
   MedicationDialog,
   MedicationProductPopover,
   MedicationProductQuickViewDialog,
+  DialogSuspenseFallback,
+  preloadOperationalMasterData,
   serviceSubtypeLabel,
   serviceDuplicateRuleLabel,
   serviceTypeTone,
@@ -157,7 +159,6 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     const handleConfigure = vi.fn()
     const handleEdit = vi.fn()
     const handleAttributes = vi.fn()
-    const handleMappings = vi.fn()
 
     render(
       <ServiceTable
@@ -168,7 +169,6 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
         onConfigure={handleConfigure}
         onEdit={handleEdit}
         onAttributes={handleAttributes}
-        onMappings={handleMappings}
       />,
     )
 
@@ -209,6 +209,9 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
 
     const editBtns = screen.getAllByRole('button', { name: '编辑主档' })
     expect(editBtns.length).toBe(3)
+
+    // 诊疗服务目录中已移除标准映射按钮入口（已迁移为独立标准映射管理功能）
+    expect(screen.queryByRole('button', { name: '标准映射' })).not.toBeInTheDocument()
   })
 
   it('renders ServiceTable in single-line compact mode with inline class and compact indicators', () => {
@@ -221,7 +224,6 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
         onConfigure={vi.fn()}
         onEdit={vi.fn()}
         onAttributes={vi.fn()}
-        onMappings={vi.fn()}
       />,
     )
 
@@ -711,6 +713,41 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(screen.getByRole('tab', { name: /本院药品主档/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /厂家产品与包装/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /临床用药规则基准/ })).toBeInTheDocument()
+  })
+
+  it('renders DialogSuspenseFallback into document.body as a modal backdrop instead of inline flow', () => {
+    const { container } = render(<DialogSuspenseFallback label="正在打开弹窗…" />)
+    expect(container.querySelector('.ui-dialog-backdrop')).not.toBeInTheDocument()
+    const backdrop = document.body.querySelector('.ui-dialog-backdrop')
+    expect(backdrop).toBeInTheDocument()
+    expect(backdrop).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByText('正在打开弹窗…')).toBeInTheDocument()
+  })
+
+  it('triggers preload on mouseEnter and focus for project configuration button', () => {
+    const onConfigure = vi.fn()
+    render(
+      <ServiceTable
+        values={mockServices}
+        loading={false}
+        pagination={<div>分页</div>}
+        onConfigure={onConfigure}
+        onEdit={vi.fn()}
+        onAttributes={vi.fn()}
+      />,
+    )
+    const configureBtns = screen.getAllByRole('button', { name: '项目配置' })
+    expect(configureBtns.length).toBeGreaterThan(0)
+    fireEvent.mouseEnter(configureBtns[0])
+    fireEvent.focus(configureBtns[0])
+    fireEvent.click(configureBtns[0])
+    expect(onConfigure).toHaveBeenCalledWith(mockServices[0])
+  })
+
+  it('provides preloadOperationalMasterData function that resolves correctly', async () => {
+    const module = await preloadOperationalMasterData()
+    expect(module).toHaveProperty('ClinicalServiceConfigurationDialog')
+    expect(module).toHaveProperty('OperationalMasterDataPanel')
   })
 })
 

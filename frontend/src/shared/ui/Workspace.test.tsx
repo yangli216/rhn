@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createRef, useState, type RefObject } from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DataTable, SearchField, TableShell, tableCellClass, Tabs } from './Workspace'
 
 function TabsExample() {
@@ -57,6 +57,27 @@ describe('Workspace primitives', () => {
     const searchbox = screen.getByRole('searchbox', { name: '搜索参数' })
     expect(searchbox).toHaveValue('')
     expect(searchbox).toHaveFocus()
+  })
+
+  it('triggers onSearch callback when pressing Enter and when clearing', async () => {
+    const handleSearch = vi.fn()
+    function SearchWithEnter() {
+      const [value, setValue] = useState('')
+      return <SearchField label="搜索参数" value={value} onChange={setValue} onSearch={handleSearch} placeholder="输入关键词" />
+    }
+    render(<SearchWithEnter />)
+
+    const searchbox = screen.getByRole('searchbox', { name: '搜索参数' })
+    await userEvent.type(searchbox, '测试词')
+    expect(handleSearch).not.toHaveBeenCalled()
+
+    await userEvent.type(searchbox, '{enter}')
+    expect(handleSearch).toHaveBeenCalledTimes(1)
+    expect(handleSearch).toHaveBeenLastCalledWith('测试词')
+
+    await userEvent.click(screen.getByRole('button', { name: '清空搜索参数' }))
+    expect(handleSearch).toHaveBeenCalledTimes(2)
+    expect(handleSearch).toHaveBeenLastCalledWith('')
   })
 
   it('supports shortcut focus through an external ref and restores it after clearing', async () => {

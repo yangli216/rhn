@@ -563,7 +563,8 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
                 || quantityUnit == null || baseUnit == null) {
             throw badRequest("DISPENSE_REQUEST_QUANTITY_INVALID", "接方数量及单位不完整");
         }
-        if (quantityUnit.equals(itemPackage.unitCode())) {
+        if (quantityUnit.equalsIgnoreCase(itemPackage.unitCode())
+                || (itemPackage.unitName() != null && itemPackage.unitName().equalsIgnoreCase(quantityUnit))) {
             return new DispensePlan(requestedQuantity, itemPackage.unitCode(), factor, false);
         }
         BigDecimal[] division = requestedBaseQuantity.divideAndRemainder(factor);

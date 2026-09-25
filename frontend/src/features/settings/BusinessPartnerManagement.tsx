@@ -22,6 +22,7 @@ export function BusinessPartnerManagement({ api, organization }: { api: RhnApi; 
   const queryClient = useQueryClient()
   const [params, setParams] = useSearchParams()
   const tab: PartnerTab = params.get('tab') === 'suppliers' ? 'suppliers' : 'manufacturers'
+  const [keyword, setKeyword] = useState('')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
   const [manufacturerDialog, setManufacturerDialog] = useState<Manufacturer | null | undefined>()
@@ -29,6 +30,16 @@ export function BusinessPartnerManagement({ api, organization }: { api: RhnApi; 
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
   const [pendingId, setPendingId] = useState('')
+
+  const handleSearch = () => {
+    setQuery(keyword.trim())
+  }
+
+  const handleReset = () => {
+    setKeyword('')
+    setQuery('')
+    setStatus('')
+  }
 
   const dictionaries = useQuery({
     queryKey: ['partner-maintenance-dictionaries'],
@@ -49,7 +60,7 @@ export function BusinessPartnerManagement({ api, organization }: { api: RhnApi; 
     .filter((value) => !status || value.sdStatus === status), [manufacturers.data, status])
 
   const switchTab = (next: PartnerTab) => {
-    setParams({ tab: next }); setQuery(''); setStatus(''); setFeedback(''); setOperationError('')
+    setParams({ tab: next }); setKeyword(''); setQuery(''); setStatus(''); setFeedback(''); setOperationError('')
   }
   const refresh = async (message: string) => {
     await queryClient.invalidateQueries({ predicate: (value) => String(value.queryKey[0]).startsWith('partner-') })
@@ -91,12 +102,15 @@ export function BusinessPartnerManagement({ api, organization }: { api: RhnApi; 
             disabled={tab === 'manufacturers' && !dictionaries.data}><Icon name="add" />
             新增{tab === 'manufacturers' ? '生产企业' : '供应商'}</Button>} />
       <div className="partner-toolbar">
-        <SearchField className="partner-toolbar__search" label="搜索业务主体" value={query} onChange={setQuery}
-          placeholder={tab === 'manufacturers' ? '搜索企业名称、简称或编码' : '搜索供应商、编码、证照或联系人'} />
+        <SearchField className="partner-toolbar__search" label="搜索业务主体" value={keyword} onChange={setKeyword}
+          onSearch={handleSearch}
+          placeholder={tab === 'manufacturers' ? '搜索企业名称、简称或编码（回车或点击查询）' : '搜索供应商、编码、证照或联系人（回车或点击查询）'} />
         <Select value={status} onChange={setStatus} placeholder="全部状态" showValue options={[
           { value: 'ACTIVE', label: '已启用' }, { value: 'SUSPENDED', label: '已禁用' },
           { value: 'RETIRED', label: '已停用' },
         ]} />
+        <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
+        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
         <span className="partner-toolbar__count">{count} 条</span>
       </div>
       {tab === 'manufacturers' ? <ManufacturerTable values={visibleManufacturers} loading={manufacturers.isPending}

@@ -10,6 +10,7 @@ public final class PrintTaskCodes {
     public static final String ORAL_MEDICATION_CARD = "TREATMENT.ORAL_MEDICATION_CARD.PRINT";
     public static final String INFUSION_LABEL = "TREATMENT.INFUSION_LABEL.PRINT";
     public static final String INFUSION_PATROL_CARD = "TREATMENT.INFUSION_PATROL_CARD.PRINT";
+    public static final String OUTPATIENT_REGISTRATION_TICKET = "OP.REGISTRATION.TICKET.PRINT";
 
     private PrintTaskCodes() {}
 }

@@ -5,6 +5,9 @@ import com.rhn.ai.api.ClinicalAssistantContracts.RecordDraft;
 import com.rhn.ai.api.ClinicalAssistantContracts.SuggestionContent;
 import com.rhn.ai.application.ClinicalAiModelException;
 import com.rhn.ai.application.ClinicalAiModelGateway.ModelRequest;
+import com.rhn.ai.application.ClinicalAiModelGateway.PlanInput;
+import com.rhn.ai.application.ClinicalAiModelGateway.PlanIntent;
+import com.rhn.ai.application.ClinicalAiModelGateway.PlanIntentItem;
 import com.rhn.ai.application.ClinicalAiMetrics;
 import com.rhn.ai.application.ClinicalAssistantSettings;
 import com.rhn.diagnostics.api.DiagnosticReportResponse;
@@ -49,6 +52,122 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
     @AfterEach
     void stopServer() {
         if (server != null) server.stop(0);
+    }
+
+    @Test
+    void planCompilationCallsConfiguredModelAndParsesOnlyItsStructuredAnswer() throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        startServer(exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            PlanIntent answer = new PlanIntent("随访方案", "待核对",
+                    "复诊与转诊：一周后复诊。", List.of(
+                    new PlanIntentItem("FOLLOW_UP", "一周后复诊", "一周后复诊", "EXPLICIT", null)), null);
+            String response = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", jsonCodec.write(answer))))));
+            byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+
+        PlanIntent result = new OpenAiCompatibleClinicalAiModelGateway(settings("secret-key"), jsonCodec)
+                .compilePlan(new PlanInput("RHN-PLAN-COMPILER-V1", "INPUT", "一周后复诊"), settings("secret-key"));
+
+        assertEquals("一周后复诊", result.items().getFirst().sourceQuote());
+        assertTrue(result.narrative().contains("复诊与转诊"));
+        JsonNode request = jsonCodec.readTree(requestBody.get());
+        assertEquals("test-model", request.get("model").asString());
+        assertTrue(request.get("messages").get(0).get("content").asString().contains("门诊临床诊疗方案编译器"));
+        assertTrue(request.get("messages").get(0).get("content").asString().contains("医生可直接审核和修订的完整门诊文字方案"));
+        assertTrue(request.get("messages").get(1).get("content").asString().contains("一周后复诊"));
+    }
+
+    @Test
+    void planRevisionCarriesTheCurrentDraftAndAllowsStandardizedDiagnosisNames() throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        startServer(exchange -> {
+            calls.incrementAndGet();
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            PlanIntent answer = new PlanIntent("成人上感方案", "已修订", "诊断与评估：急性上呼吸道感染。",
+                    List.of(new PlanIntentItem("DIAGNOSIS", "急性上呼吸道感染，未特指",
+                            "成人风寒感冒推荐方案", "EXPLICIT", "核对门诊表现")), null);
+            String response = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", jsonCodec.write(answer))))));
+            byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+
+        PlanIntent result = new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec)
+                .compilePlan(new PlanInput("RHN-PLAN-COMPILER-V2", "INPUT", "成人风寒感冒推荐方案", List.of(),
+                        "上一版包含血常规", "删除血常规并使用标准诊断名称"), settings(null));
+
+        assertEquals(1, calls.get(), "标准诊断名称不必逐字出现在原始口述中");
+        assertEquals("急性上呼吸道感染，未特指", result.items().getFirst().name());
+        JsonNode sent = jsonCodec.readTree(requestBody.get());
+        String context = sent.get("messages").get(1).get("content").asString();
+        assertTrue(context.contains("上一版包含血常规"));
+        assertTrue(context.contains("删除血常规并使用标准诊断名称"));
+        assertTrue(sent.get("messages").get(0).get("content").asString().contains("规范、可用于 ICD-10"));
+    }
+
+    @Test
+    void planCompilationRechecksAShortInputWhenTheFirstModelAnswerIsEmpty() throws Exception {
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        startServer(exchange -> {
+            int call = calls.incrementAndGet();
+            PlanIntent answer = call == 1
+                    ? new PlanIntent("成人感冒常用方案", "", List.of())
+                    : new PlanIntent("成人感冒常用方案", "待核对", List.of(
+                    new PlanIntentItem("CONDITION", "成人感冒", "成人感冒", "EXPLICIT", null)));
+            String response = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", jsonCodec.write(answer))))));
+            byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+
+        PlanIntent result = new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec)
+                .compilePlan(new PlanInput("RHN-PLAN-COMPILER-V1", "INPUT", "成人感冒常用方案"), settings(null));
+
+        assertEquals(2, calls.get());
+        assertEquals("成人感冒", result.items().getFirst().name());
+    }
+
+    @Test
+    void planCompilationRechecksInvalidEvidenceAndDowngradesUnsupportedItems() throws Exception {
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        AtomicReference<String> secondRequest = new AtomicReference<>();
+        startServer(exchange -> {
+            int call = calls.incrementAndGet();
+            if (call == 2) {
+                secondRequest.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            } else {
+                exchange.getRequestBody().readAllBytes();
+            }
+            PlanIntent answer = call == 1
+                    ? new PlanIntent("感冒方案", "待核对", "治疗方案：可考虑对乙酰氨基酚。", List.of(
+                    new PlanIntentItem("MEDICATION", "对乙酰氨基酚片", "可考虑对乙酰氨基酚", "EXPLICIT", null)), null)
+                    : new PlanIntent("感冒方案", "待核对", "治疗方案：可考虑对乙酰氨基酚。", List.of(
+                    new PlanIntentItem("MEDICATION", "对乙酰氨基酚片", null, "SUGGESTED", null)), null);
+            String response = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", jsonCodec.write(answer))))));
+            byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+
+        PlanIntent result = new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec)
+                .compilePlan(new PlanInput("RHN-PLAN-COMPILER-V2", "INPUT", "成人感冒常用方案"), settings(null));
+
+        assertEquals(2, calls.get());
+        assertEquals("SUGGESTED", result.items().getFirst().origin());
+        assertTrue(jsonCodec.readTree(secondRequest.get()).get("messages").get(2).get("content").asString()
+                .contains("无法逐字核对的原文依据"));
     }
 
     @Test
@@ -206,6 +325,37 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertEquals(json, chunks.toString());
         assertTrue(jsonCodec.readTree(body.get()).path("stream").asBoolean());
         assertTrue(jsonCodec.readTree(body.get()).path("stream_options").path("include_usage").asBoolean());
+    }
+
+    @Test
+    void streamsPlanDraftBeforeProviderCompletesAndParsesReviewItems() throws Exception {
+        var firstDelta = new java.util.concurrent.CountDownLatch(1);
+        var body = new AtomicReference<String>();
+        String json = jsonCodec.write(new PlanIntent("成人上感方案", "待核对", "诊断与评估：上感待核对。",
+                List.of(new PlanIntentItem("CONDITION", "成人上感", "成人上感", "EXPLICIT", "核对病程")), null));
+        startServer(exchange -> {
+            body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
+            exchange.sendResponseHeaders(200, 0);
+            var output = exchange.getResponseBody();
+            output.write(deltaFrame(json.substring(0, 18)).getBytes(StandardCharsets.UTF_8));
+            output.flush();
+            try {
+                if (!firstDelta.await(2, java.util.concurrent.TimeUnit.SECONDS)) throw new IOException("Delta was buffered");
+            } catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
+            output.write((deltaFrame(json.substring(18))
+                    + "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+                    .getBytes(StandardCharsets.UTF_8));
+            exchange.close();
+        });
+        var chunks = new StringBuilder();
+        var result = new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec)
+                .compilePlanStreaming(new PlanInput("RHN-PLAN-COMPILER-V2", "INPUT", "成人上感"),
+                        settings(null), delta -> { chunks.append(delta); firstDelta.countDown(); });
+        assertEquals("成人上感方案", result.name());
+        assertEquals("成人上感", result.items().getFirst().name());
+        assertEquals(json, chunks.toString());
+        assertTrue(jsonCodec.readTree(body.get()).path("stream").asBoolean());
     }
 
     @Test

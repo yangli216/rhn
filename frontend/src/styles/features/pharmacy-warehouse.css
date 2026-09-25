@@ -43,7 +43,7 @@
 .warehouse-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .warehouse-tags span { padding: .15rem .4rem; border-radius: var(--radius-sm); color: var(--color-brand-primary); background: var(--color-brand-soft); font-size: .75rem; white-space: nowrap; }
 .warehouse-inventory-filters { min-height: 3.25rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
-.warehouse-inventory-filters__left { display: flex; align-items: center; gap: var(--space-3); flex: 1; min-width: 20rem; max-width: 36rem; }
+.warehouse-inventory-filters__left { display: flex; align-items: center; gap: var(--space-3); flex: 1; min-width: 20rem; max-width: 48rem; }
 .warehouse-inventory-filters .ui-search-field { margin: 0; flex: 1; min-width: 14rem; height: var(--control-height-sm); }
 .warehouse-inventory-filters .ui-select { width: 8.5rem; flex: none; }
 .warehouse-inventory-filters .ui-select__trigger { height: var(--control-height-sm); min-height: var(--control-height-sm); font-size: var(--font-size-small); padding: 0 var(--space-3); }

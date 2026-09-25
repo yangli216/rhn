@@ -21,13 +21,13 @@ class RebuildDatabaseBaselineTest {
                 + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1";
         var flyway = Flyway.configure().dataSource(url, "sa", "")
                 .locations(
-                        "filesystem:" + path("src/main/resources/db/rebuild/postgresql"),
-                        "filesystem:" + path("src/main/resources/db/rebuild/local"),
-                        "filesystem:" + path("src/main/resources/db/rebuild/h2"))
+                        "classpath:db/migration",
+                        "classpath:db/local",
+                        "classpath:db/h2")
                 .load();
 
         var result = flyway.migrate();
-        assertEquals(3, result.migrationsExecuted);
+        assertEquals(4, result.migrationsExecuted);
         assertEquals(0, flyway.migrate().migrationsExecuted);
 
         try (var connection = DriverManager.getConnection(url, "sa", ""); var sql = connection.createStatement()) {
@@ -36,11 +36,13 @@ class RebuildDatabaseBaselineTest {
                 assertEquals("TABLE", history.getString("type"));
                 assertNull(history.getString("version"));
                 assertTrue(history.next());
-                assertEquals("1.79.0", history.getString("version"));
+                assertEquals("1.84.0", history.getString("version"));
                 assertTrue(history.next());
-                assertEquals("1.79.1", history.getString("version"));
+                assertEquals("1.84.1", history.getString("version"));
                 assertTrue(history.next());
-                assertEquals("1.79.2", history.getString("version"));
+                assertEquals("1.84.2", history.getString("version"));
+                assertTrue(history.next());
+                assertEquals("1.85.0", history.getString("version"));
                 assertFalse(history.next());
             }
             assertTrue(count(sql, "select count(*) from information_schema.tables"
@@ -57,22 +59,23 @@ class RebuildDatabaseBaselineTest {
             assertEquals(4, count(sql, "select count(*) from RHN_BD_MED"
                     + " where SD_STATUS = 'ACTIVE' and CD_MED in"
                     + " ('DEMO-DRUG-FLU-VAC','DEMO-DRUG-MEM','DEMO-DRUG-PEN-G','DEMO-DRUG-HUANGQI')"));
+            assertEquals(45523, count(sql, "select count(*) from RHN_BD_CONCEPT where ID_CODE_SYSTEM = 362387869795001"));
+            assertEquals(1, count(sql, "select count(*) from RHN_BD_CONCEPT where ID_CONCEPT = 362387869795011 and CD_CONCEPT = 'I10'"));
+            assertEquals(89, count(sql, "select count(*) from RHN_BD_CONCEPT_ALIAS where ID_CONCEPT in (select ID_CONCEPT from RHN_BD_CONCEPT where ID_CODE_SYSTEM = 362387869795001)"));
             String jsonType = sql.executeQuery("select JSON_SNAP from RHN_SYS_PRINT_OUTPUT").getMetaData().getColumnTypeName(1);
             assertTrue(jsonType.equalsIgnoreCase("CHARACTER LARGE OBJECT"), jsonType);
         }
     }
 
     @Test
-    void generated_package_is_current_and_declares_the_three_data_layers() throws Exception {
-        Path manifest = path("src/main/resources/db/rebuild/manifest.json");
-        String content = Files.readString(manifest);
-        assertTrue(content.contains("standard-metadata"));
-        assertTrue(content.contains("development-fixture"));
-        assertTrue(content.contains("existing-patient-and-encounter-rows"));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/postgresql/B1_79_0__rhn_schema_and_standard_metadata.sql")));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/oracle/B1_79_0__rhn_schema_and_standard_metadata.sql")));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/local/V1_79_1__development_hospital.sql")));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/rebuild/h2/V1_79_2__h2_clob_types.sql")));
+    void squashed_baseline_is_present_in_canonical_directories() {
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/migration/B1_84_0__rhn_schema_and_metadata.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/oracle/B1_84_0__rhn_schema_and_metadata.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/local/V1_84_1__development_hospital.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/oracle-local/V1_84_1__development_hospital.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/h2/V1_84_2__h2_clob_types.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/migration/V1_85_0__national_healthcare_security_icd10_catalog.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/oracle/V1_85_0__national_healthcare_security_icd10_catalog.sql")));
     }
 
     private static int count(java.sql.Statement sql, String query) throws Exception {

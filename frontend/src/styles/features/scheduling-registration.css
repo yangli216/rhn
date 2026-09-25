@@ -711,6 +711,35 @@
 .registration-shortcuts-hint { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .registration-shortcuts-hint kbd { padding: 1px 5px; background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-family: inherit; font-size: var(--font-size-small); color: var(--color-text-primary); }
 
+.thermal-receipt-feedback { font-size: var(--font-size-small); color: var(--color-brand-primary); margin-right: auto; }
+
+/* 门诊挂号热敏就诊凭条打印媒体适配 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #registration-receipt-printable,
+  #registration-receipt-printable * {
+    visibility: visible;
+  }
+
+  #registration-receipt-printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    box-shadow: none;
+    border: none;
+  }
+
+  #registration-receipt-printable .thermal-receipt-barcode-bars span {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+
 /* Registration workstation: patient strip over schedules and the shared cashier. */
 .registration-workspace-layout { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--layout-panel-gap); margin-bottom: 0; }
 .registration-intake-strip {

@@ -357,7 +357,11 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(await screen.findByRole('heading', { name: '门诊挂号热敏凭条' })).toBeInTheDocument()
     expect(screen.getByText('青禾镇中心卫生院')).toBeInTheDocument()
     expect(screen.getAllByText(/A001/)[0]).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /立即打印小票/ })).toBeInTheDocument()
+    const printBtn = screen.getByRole('button', { name: /立即打印小票/ })
+    expect(printBtn).toBeInTheDocument()
+    expect(document.getElementById('registration-receipt-printable')).toBeInTheDocument()
+    await userEvent.click(printBtn)
+    expect(screen.getByRole('heading', { name: '门诊挂号热敏凭条' })).toBeInTheDocument()
   })
 
   it('displays today registration stream and supports cancelling a waiting registration', async () => {

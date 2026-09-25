@@ -1583,7 +1583,9 @@
     visibility: hidden;
   }
   #triage-ticket-printable,
-  #triage-ticket-printable * {
+  #triage-ticket-printable *,
+  #registration-receipt-printable,
+  #registration-receipt-printable * {
     visibility: visible;
   }
   #triage-ticket-printable {

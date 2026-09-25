@@ -94,13 +94,15 @@
 .outpatient-flow-metrics span, .outpatient-flow-metrics small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .outpatient-flow-metrics strong { grid-row: span 2; align-self: center; font-size: var(--font-size-h2); font-variant-numeric: tabular-nums; }
 .outpatient-flow-board { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; margin-bottom: 0; }
-.outpatient-flow-toolbar { flex: none; min-height: 3.75rem; padding: var(--space-2) var(--space-4); display: grid; grid-template-columns: minmax(10rem, 1fr) auto auto minmax(13rem, 18rem); align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.outpatient-flow-toolbar { flex: none; min-height: 3.75rem; padding: var(--space-2) var(--space-4); display: grid; grid-template-columns: minmax(10rem, 1fr) auto auto minmax(18rem, 24rem); align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
 .outpatient-flow-toolbar > div h2 { margin: 0; font-size: var(--font-size-h3); }
 .outpatient-flow-toolbar > div span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .outpatient-flow-toolbar nav { padding: .2rem; display: flex; border-radius: var(--radius-md); background: var(--color-surface-subtle); }
 .outpatient-flow-toolbar nav button { min-height: 2rem; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); color: var(--color-text-secondary); background: transparent; white-space: nowrap; cursor: pointer; }
 .outpatient-flow-toolbar nav button.is-active { color: var(--color-brand-primary); background: var(--color-surface); box-shadow: var(--shadow-sm); font-weight: var(--font-weight-semibold); }
 .outpatient-flow-toolbar .ui-date-range-picker { min-width: 17.5rem; width: auto; }
+.outpatient-flow-search-box { display: flex; align-items: center; gap: var(--space-2); width: 100%; }
+.outpatient-flow-search-box .ui-search-field { min-width: 0; flex: 1; }
 .outpatient-flow-toolbar .ui-search-field { min-width: 0; width: 100%; }
 .outpatient-flow-board > .ui-loading-state,
 .outpatient-flow-board > .ui-empty-state { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }

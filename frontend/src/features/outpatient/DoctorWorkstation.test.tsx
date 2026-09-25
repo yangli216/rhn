@@ -8,6 +8,7 @@ import type { GenerateClinicalAiSuggestionInput, ClinicalAiSuggestion } from '..
 import type { ClinicalContext } from '../../app/AppShell'
 import type { Encounter, Resident } from '../../shared/model'
 import type { ReceptionQueueItem, RhnApi } from '../../shared/rhnApi'
+import type { OutpatientPlanTemplate } from '../../shared/api/outpatientPlanTemplatesApi'
 import { DoctorWorkstation } from './DoctorWorkstation'
 import { persistOrderDrafts } from './orders/persistOrderDrafts'
 
@@ -371,6 +372,12 @@ describe('DoctorWorkstation reception flow', () => {
     const user = userEvent.setup()
     const startEncounterSpy = vi.fn()
     const api = createMockApi({ startFn: startEncounterSpy })
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([{
+      id: 'plan-1', revision: 1, scopeType: 'PERSONAL', name: '成人急性上呼吸道感染常用方案',
+      description: '基层成人上呼吸道感染常用诊疗方案', status: 'ACTIVE', sourceType: 'AI_INPUT',
+      sortOrder: 0, useCount: 0, diagnoses: [], medications: [], services: [], tasks: [],
+      createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z',
+    }])
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
 
     render(<StrictMode>
@@ -392,15 +399,25 @@ describe('DoctorWorkstation reception flow', () => {
 
     const recordHeading = await screen.findByRole('heading', { name: '门诊病历' })
     expect(recordHeading).toBeInTheDocument()
-    const importTemplate = screen.getByRole('button', { name: '模板调入' })
-    await waitFor(() => expect(importTemplate).toBeEnabled())
-    expect(importTemplate.closest('header')).toContainElement(recordHeading)
-    expect(screen.queryByLabelText('选择病历模板')).not.toBeInTheDocument()
-    await user.click(importTemplate)
-    expect(await screen.findByRole('heading', { name: '调入病历模板' })).toBeInTheDocument()
-    expect(screen.getByLabelText('选择调入模板')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '确认调入' })).toBeEnabled()
-    await user.click(screen.getByRole('button', { name: '取消' }))
+    expect(screen.queryByRole('button', { name: '调入病历模板' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '存为病历模板' }).closest('header')).toContainElement(recordHeading)
+    const clinicalTemplates = screen.getByRole('button', { name: '临床模板' })
+    expect(clinicalTemplates.closest('nav')).toHaveAccessibleName('医生站扩展工具')
+    await user.click(clinicalTemplates)
+    expect(await screen.findByRole('complementary', { name: '临床模板' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '临床模板' })).toBeInTheDocument()
+    await waitFor(() => expect(api.outpatientPlanTemplates.list).toHaveBeenCalled())
+    await waitFor(() => expect(api.outpatientNoteTemplates.list).toHaveBeenCalled())
+    const planDrawer = screen.getByRole('complementary', { name: '临床模板' })
+    expect(screen.getByRole('searchbox', { name: '搜索临床模板' }).closest('.ui-search-field'))
+      .toHaveClass('doctor-plan-pool-search')
+    expect(screen.getByRole('tab', { name: /病历模板/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /诊疗方案/ })).toBeInTheDocument()
+    expect(await screen.findAllByText('基层成人上呼吸道感染常用诊疗方案')).toHaveLength(1)
+    expect(planDrawer.querySelector('.doctor-plan-detail-hero.is-compact'))
+      .toHaveTextContent('成人急性上呼吸道感染常用方案')
+    expect(planDrawer.style.getPropertyValue('--doctor-plan-drawer-height')).not.toBe('')
+    await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
     expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toBeInTheDocument()
 
@@ -409,6 +426,134 @@ describe('DoctorWorkstation reception flow', () => {
     expect(screen.queryByText('编辑状态')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '返回阅读' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('病历书写模式')).not.toBeInTheDocument()
+  })
+
+  it('allows selective checking and applying of plan items to outpatient drafts', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const mockPlan: OutpatientPlanTemplate = {
+      id: 'plan-selective-1',
+      revision: 1,
+      scopeType: 'PERSONAL',
+      name: '上呼吸道感染综合方案',
+      description: '包含诊断、药品和检查的常用方案',
+      status: 'ACTIVE',
+      sourceType: 'AI_INPUT',
+      sortOrder: 0,
+      useCount: 1,
+      diagnoses: [
+        { code: 'J06.900', display: '急性上呼吸道感染', type: 'PRIMARY' },
+        { code: 'R05.x00', display: '咳嗽', type: 'SECONDARY' },
+      ],
+      medications: [
+        {
+          lineId: 'line-med-1',
+          editorMode: 'regular',
+          medicationId: 'MED-001',
+          medicationCode: 'MED-001',
+          medicationName: '阿莫西林胶囊',
+          categoryCode: 'WESTERN',
+          doseValue: 0.5,
+          doseUnit: 'g',
+          routeCode: 'PO',
+          routeName: '口服',
+          frequencyCode: 'TID',
+          durationValue: 3,
+          durationUnit: 'd',
+          quantity: 1,
+          quantityUnit: '盒',
+          substitutionAllowed: true,
+          selfProvided: false,
+        },
+      ],
+      services: [
+        {
+          catalogItemId: 'srv-001',
+          itemCode: 'LAB-CBC',
+          itemName: '血常规',
+          serviceType: 'LABORATORY',
+          quantity: 1,
+          unitCode: '次',
+        },
+      ],
+      tasks: [],
+      createdAt: '2026-09-01T00:00:00Z',
+      updatedAt: '2026-09-01T00:00:00Z',
+    }
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([mockPlan])
+    vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(mockPlan)
+
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+
+    // 打开临床模板抽屉
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    expect(await screen.findByRole('complementary', { name: '临床模板' })).toBeInTheDocument()
+
+    // 默认全选 4 个明细条目（2 诊断 + 1 药品 + 1 检查）
+    const applyButton = screen.getByRole('button', { name: '带入当前草稿 (4)' })
+    expect(applyButton).toBeInTheDocument()
+    expect(applyButton).toBeEnabled()
+
+    // 测试表头全选 Checkbox：点击全选药品表头将其取消
+    const allMedsCheckbox = screen.getByRole('checkbox', { name: '全选处方药品' })
+    expect(allMedsCheckbox).toBeChecked()
+    await user.click(allMedsCheckbox)
+    expect(allMedsCheckbox).not.toBeChecked()
+    expect(screen.getByRole('button', { name: '带入当前草稿 (3)' })).toBeInTheDocument()
+
+    // 重新勾选全选处方药品
+    await user.click(allMedsCheckbox)
+    expect(allMedsCheckbox).toBeChecked()
+    expect(screen.getByRole('button', { name: '带入当前草稿 (4)' })).toBeInTheDocument()
+
+    // 取消勾选“咳嗽”诊断
+    const coughCheckbox = screen.getByRole('checkbox', { name: '选择诊断 咳嗽' })
+    expect(coughCheckbox).toBeChecked()
+    await user.click(coughCheckbox)
+    expect(coughCheckbox).not.toBeChecked()
+
+    // 联动更新为 3 项
+    expect(screen.getByRole('button', { name: '带入当前草稿 (3)' })).toBeInTheDocument()
+
+    // 点击带入：不再二次确认，直接调用 use 接口调入，并自动关闭常用方案抽屉
+    await user.click(screen.getByRole('button', { name: '带入当前草稿 (3)' }))
+
+    // 验证不再弹出二次确认弹窗
+    expect(screen.queryByRole('dialog', { name: /带入/ })).not.toBeInTheDocument()
+
+    // 验证调用了 use 接口
+    await waitFor(() => expect(api.outpatientPlanTemplates.use).toHaveBeenCalledWith('plan-selective-1'))
+
+    // 验证执行调入操作后临床模板抽屉已自动关闭
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: '临床模板' })).not.toBeInTheDocument())
+
+    // 验证草稿中只加入了勾选的诊断“急性上呼吸道感染”，没有加入取消勾选的“咳嗽”
+    expect(screen.getByText('急性上呼吸道感染')).toBeInTheDocument()
+    expect(screen.queryByText('咳嗽')).not.toBeInTheDocument()
+  })
+
+  it('applies selected note sections from the unified clinical template drawer', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+
+    const drawer = await screen.findByRole('complementary', { name: '临床模板' })
+    await user.click(within(drawer).getByRole('tab', { name: /病历模板/ }))
+    expect((await within(drawer).findAllByText('适用于慢病常规复诊')).length).toBeGreaterThan(0)
+
+    const presentIllness = within(drawer).getByRole('checkbox', { name: /现病史/ })
+    expect(presentIllness).toBeChecked()
+    await user.click(presentIllness)
+    await user.click(within(drawer).getByRole('button', { name: '带入病历草稿 (1)' }))
+
+    await waitFor(() => expect(api.outpatientNoteTemplates.use).toHaveBeenCalledWith('note-template-1'))
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: '临床模板' })).not.toBeInTheDocument())
+    expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('复诊')
+    expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('')
   })
 
   it('continues an in-progress encounter directly in editing without starting it again', async () => {

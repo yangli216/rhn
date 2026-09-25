@@ -82,7 +82,7 @@ export function MedicationStandardReadinessPanel({ api, organizationId, onOpenCa
       </Button>)}
     </div>}
     <form className="medication-readiness__toolbar" onSubmit={event => { event.preventDefault(); setSearch(draft.trim()); setPage(0) }}>
-      <SearchField label="搜索标准建设药品" value={draft} onChange={setDraft} placeholder="药品名称、编码或规格" />
+      <SearchField label="搜索标准建设药品" value={draft} onChange={setDraft} onSearch={val => { setSearch(val.trim()); setPage(0) }} placeholder="药品名称、编码或规格（回车或点击查询）" />
       <Select aria-label="标准建设筛选" value={filter} onChange={value => { setFilter(value || 'ALL'); setPage(0) }} options={[
         { value: 'ALL', label: '全部关联状态' }, ...Object.entries(statuses).map(([value, label]) => ({ value, label })),
         ...Object.entries(matchingLabels).map(([value, label]) => ({ value, label })),

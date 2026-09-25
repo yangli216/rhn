@@ -45,6 +45,7 @@ const OrganizationPersonnelManagement = lazy(() => import('../features/settings/
   .then((module) => ({ default: module.OrganizationPersonnelManagement })))
 const BasicDataManagement = lazy(() => import('../features/settings/BasicDataManagement')
   .then((module) => ({ default: module.BasicDataManagement })))
+const StandardMappingWorkspace = lazy(() => import('../features/settings/StandardMappingWorkspace'))
 const OrganizationCatalogManagement = lazy(() => import('../features/settings/OrganizationCatalogManagement')
   .then((module) => ({ default: module.OrganizationCatalogManagement })))
 const GridAddressManagement = lazy(() => import('../features/settings/GridAddressManagement')
@@ -215,18 +216,18 @@ const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'inpatient-services
 
 const NAVIGATION_NODES: NavigationNode[] = [
   { id: 'home', label: '工作台', icon: 'home', to: '/', end: true, requiredAuthority: 'PORTAL.ACCESS' },
-  { id: 'tasks', label: '任务中心', icon: 'tasks', badge: '已接入', to: '/tasks', requiredAuthority: 'TASK.READ' },
+  { id: 'tasks', label: '任务中心', icon: 'tasks', to: '/tasks', requiredAuthority: 'TASK.READ' },
   {
     id: 'outpatient-services', label: '门诊诊疗', icon: 'clinical', children: [
-      { id: 'outpatient-triage', label: '预检分诊', icon: 'emergency', badge: '四级急慢', to: '/outpatient/triage', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
+      { id: 'outpatient-triage', label: '预检分诊', icon: 'emergency', to: '/outpatient/triage', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-flow', label: '门诊流转', icon: 'refresh', to: '/outpatient/flow', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-registration', label: '门诊挂号', icon: 'residents', to: '/outpatient/registration', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-registration-query', label: '挂号查询', icon: 'search', to: '/outpatient/registration-query', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-encounter-query', label: '就诊查询', icon: 'search', to: '/outpatient/encounter-query', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-appointments', label: '预约管理', icon: 'tasks', to: '/outpatient/appointments', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-reception', label: '门诊医生站', icon: 'stethoscope', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
-      { id: 'outpatient-plan-templates', label: '临床诊疗方案池', icon: 'sparkles', badge: '多层级AI', to: '/outpatient/plan-templates', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
-      { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', badge: '双模式', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
+      { id: 'outpatient-plan-templates', label: '临床模板库', icon: 'sparkles', to: '/outpatient/plan-templates', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
+      { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
       { id: 'diagnostics', label: '检查检验', icon: 'flask', to: '/diagnostics', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'skin-tests', label: '皮试管理', icon: 'syringe', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
       { id: 'treatments', label: '治疗执行', icon: 'syringe', to: '/treatments', requiredAuthority: 'TREATMENT.ACCESS' },
@@ -253,31 +254,32 @@ const NAVIGATION_NODES: NavigationNode[] = [
   },
   {
     id: 'patient-services', label: '患者服务', icon: 'residents', children: [
-      { id: 'residents', label: '居民中心', icon: 'residents', badge: 'MPI', to: '/residents', requiredAuthority: 'RESIDENT.ACCESS' },
-      { id: 'care-management', label: '连续照护', icon: 'clinical', badge: 'M4.1', to: '/care-management', requiredAuthority: 'CARE_MANAGEMENT.ACCESS' },
+      { id: 'residents', label: '居民中心', icon: 'residents', to: '/residents', requiredAuthority: 'RESIDENT.ACCESS' },
+      { id: 'care-management', label: '连续照护', icon: 'clinical', to: '/care-management', requiredAuthority: 'CARE_MANAGEMENT.ACCESS' },
     ],
   },
   {
     id: 'pharmacy-management', label: '药事管理', icon: 'pharmacy', children: [
-      { id: 'pharmacy', label: '门诊发药', icon: 'pharmacy', badge: 'M3.3', to: '/pharmacy', end: true, requiredAuthority: 'PHARMACY.ACCESS' },
+      { id: 'pharmacy', label: '门诊发药', icon: 'pharmacy', to: '/pharmacy', end: true, requiredAuthority: 'PHARMACY.ACCESS' },
       { id: 'pharmacy-review', label: '处方审方', icon: 'pharmacy', to: '/pharmacy/review', requiredAuthority: 'PHARMACY.ACCESS' },
       { id: 'pharmacy-returns', label: '退药管理', icon: 'pharmacy', to: '/pharmacy/returns', requiredAuthority: 'PHARMACY.ACCESS' },
       { id: 'pharmacy-query', label: '发药查询', icon: 'search', to: '/pharmacy/query', requiredAuthority: 'PHARMACY.ACCESS' },
       { id: 'pharmacy-ward-delivery', label: '病区配送', icon: 'pharmacy', to: '/pharmacy/ward-delivery', requiredAuthority: 'PHARMACY.ACCESS' },
-      { id: 'warehouse', label: '库房管理', icon: 'pharmacy', badge: '基础', to: '/pharmacy/warehouse', requiredAuthority: 'PHARMACY_WAREHOUSE.ACCESS' },
+      { id: 'warehouse', label: '库房管理', icon: 'pharmacy', to: '/pharmacy/warehouse', requiredAuthority: 'PHARMACY_WAREHOUSE.ACCESS' },
     ],
   },
   {
     id: 'analytics-management', label: '统计分析', icon: 'roadmap', children: [
       { id: 'analytics-registration', label: '门诊挂号统计', icon: 'residents', to: '/analytics/registration', requiredAuthority: 'PORTAL.ACCESS' },
       { id: 'analytics-workload', label: '门诊就诊工作量', icon: 'clinical', to: '/analytics/workload', requiredAuthority: 'PORTAL.ACCESS' },
-      { id: 'analytics-explore', label: 'AI 智能探索分析', icon: 'sparkles', badge: '即席分析', to: '/analytics/explore', requiredAuthority: 'PORTAL.ACCESS' },
+      { id: 'analytics-explore', label: 'AI 智能探索分析', icon: 'sparkles', to: '/analytics/explore', requiredAuthority: 'PORTAL.ACCESS' },
     ],
   },
   {
     id: 'center-master-data', label: '中心主数据', icon: 'database', children: [
       { id: 'medications', label: '药品知识与目录', icon: 'pill', to: '/settings/medications', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'services', label: '诊疗服务目录', icon: 'clinical', to: '/settings/services', requiredAuthority: 'MASTER_DATA.MANAGE' },
+      { id: 'standard-mappings', label: '标准映射管理', icon: 'roadmap', to: '/settings/standard-mappings', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'diseases', label: '疾病与诊断标准', icon: 'database', to: '/settings/diseases', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'operations', label: '耗材与运营主数据', icon: 'card', to: '/settings/operations', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'business-partners', label: '厂商与供应商', icon: 'pharmacy', to: '/settings/partners', requiredAuthority: 'BUSINESS_PARTNER.ACCESS' },
@@ -305,7 +307,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
     id: 'platform-ops', label: '系统运行与运维', icon: 'sparkles', children: [
       ...(import.meta.env.DEV ? [{
         id: 'schema-workbench', label: '数据设计工作台', icon: 'database' as const,
-        badge: '开发工具', to: '/schema-workbench.html', requiredAuthority: 'PORTAL.ACCESS', fullPageNavigation: true,
+        to: '/schema-workbench.html', requiredAuthority: 'PORTAL.ACCESS', fullPageNavigation: true,
       }] : []),
       { id: 'ai-assistant', label: 'AI助理配置', icon: 'sparkles', to: '/settings/ai-assistant', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
       { id: 'system-parameters', label: '系统运行参数', icon: 'settings', to: '/settings/system-parameters', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
@@ -403,7 +405,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/outpatient/appointments') return { id: pathname, path: pathname, title: '预约管理', icon: 'tasks', closeable: true }
   if (pathname === '/outpatient/scheduling') return { id: pathname, path: pathname, title: '排班与号源', icon: 'tasks', closeable: true }
   if (pathname === '/outpatient/reception') return { id: pathname, path: pathname, title: '门诊医生站', icon: 'stethoscope', closeable: true }
-  if (pathname === '/outpatient/plan-templates') return { id: pathname, path: pathname, title: '临床诊疗方案池', icon: 'sparkles', closeable: true }
+  if (pathname === '/outpatient/plan-templates') return { id: pathname, path: pathname, title: '临床模板库', icon: 'sparkles', closeable: true }
   if (pathname === '/inpatient') return { id: '/inpatient/admissions', path: '/inpatient/admissions', title: '入院登记', icon: 'residents', closeable: true }
   if (pathname === '/inpatient/admissions') return { id: pathname, path: pathname, title: '入院登记', icon: 'residents', closeable: true }
   if (pathname === '/inpatient/admission-query') return { id: pathname, path: pathname, title: '入院登记查询', icon: 'search', closeable: true }
@@ -414,6 +416,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/settings/master-data') return { id: pathname, path: pathname, title: '基础数据中心', icon: 'database', closeable: true }
   if (pathname === '/settings/medications') return { id: pathname, path: pathname, title: '药品知识与目录', icon: 'pill', closeable: true }
   if (pathname === '/settings/services') return { id: pathname, path: pathname, title: '诊疗服务目录', icon: 'clinical', closeable: true }
+  if (pathname === '/settings/standard-mappings') return { id: pathname, path: pathname, title: '标准映射管理', icon: 'roadmap', closeable: true }
   if (pathname === '/settings/diseases') return { id: pathname, path: pathname, title: '疾病与诊断标准', icon: 'database', closeable: true }
   if (pathname === '/settings/operations') return { id: pathname, path: pathname, title: '耗材与运营主数据', icon: 'card', closeable: true }
   if (pathname === '/settings/organization-catalog') return { id: pathname, path: pathname, title: '机构项目管理', icon: 'card', closeable: true }
@@ -1007,6 +1010,8 @@ export function AppShell() {
                     organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/services" element={<BasicDataManagement api={tabSlot.api} scope="service"
                     organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/settings/standard-mappings" element={<StandardMappingWorkspace api={tabSlot.api}
+                    organization={tabSlot.clinicalContext.organization} />} />
                   <Route path="/settings/diseases" element={<BasicDataManagement api={tabSlot.api} scope="disease"
                     organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/operations" element={<BasicDataManagement api={tabSlot.api} scope="operations"
@@ -1862,7 +1867,6 @@ function NavigationTree({ nodes, pathname, collapsed, expandedDirectories, onTog
         const content = <>
           <NavigationGlyph node={node} />
           <span className="nav-label">{node.label}</span>
-          {node.badge && <StatusBadge>{node.badge}</StatusBadge>}
         </>
         return <div className="nav-node" key={node.id}>
           {node.fullPageNavigation

@@ -26,7 +26,8 @@ import {
 import '../../styles/features/operational-master-data.css'
 import './clinical-medication-standards.css'
 
-const MedicationCompositionDialog = lazy(() => import('./MedicationCompositionDialog')
+export const preloadMedicationComposition = () => import('./MedicationCompositionDialog')
+const MedicationCompositionDialog = lazy(() => preloadMedicationComposition()
   .then((module) => ({ default: module.MedicationCompositionDialog })))
 const ClinicalMedicationStandardsPanel = lazy(() => import('./ClinicalMedicationStandardsPanel')
   .then((module) => ({ default: module.ClinicalMedicationStandardsPanel })))
@@ -36,10 +37,31 @@ const StandardMedicationCatalogPanel = lazy(() => import('./StandardMedicationCa
   .then((module) => ({ default: module.StandardMedicationCatalogPanel })))
 const ItemAttributeConfigurationPanel = lazy(() => import('./ItemAttributeConfigurationPanel')
   .then((module) => ({ default: module.ItemAttributeConfigurationPanel })))
-const OperationalMasterDataPanel = lazy(() => import('./OperationalMasterDataPanel')
+export const preloadOperationalMasterData = () => import('./OperationalMasterDataPanel')
+const OperationalMasterDataPanel = lazy(() => preloadOperationalMasterData()
   .then((module) => ({ default: module.OperationalMasterDataPanel })))
-const ClinicalServiceConfigurationDialog = lazy(() => import('./OperationalMasterDataPanel')
+const ClinicalServiceConfigurationDialog = lazy(() => preloadOperationalMasterData()
   .then((module) => ({ default: module.ClinicalServiceConfigurationDialog })))
+
+export function DialogSuspenseFallback({ label = '正在打开弹窗…' }: { label?: string }) {
+  const content = (
+    <div className="ui-dialog-backdrop" aria-busy="true">
+      <div
+        className="ui-dialog"
+        style={{
+          width: 'auto',
+          minWidth: '18rem',
+          maxWidth: '90vw',
+          textAlign: 'center',
+          padding: 'var(--space-6)',
+        }}
+      >
+        <LoadingState label={label} />
+      </div>
+    </div>
+  )
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content
+}
 
 export type BasicDataScope = 'all' | 'medication' | 'service' | 'disease' | 'operations'
 type Tab = 'disease' | 'service' | 'medication' | 'operations' | 'attribute'
@@ -72,6 +94,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
   const [diseaseMode, setDiseaseMode] = useState<DiseaseMode>('terms')
   const [serviceDensity, setServiceDensity] = useState<'two-line' | 'single-line'>('two-line')
   const [medicationMode, setMedicationMode] = useState<MedicationMode>('standard')
+  const [keyword, setKeyword] = useState('')
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -80,6 +103,19 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
   const [dialog, setDialog] = useState<ReactNode>()
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
+
+  const handleSearch = () => {
+    setQuery(keyword.trim())
+    setPage(0)
+  }
+
+  const handleReset = () => {
+    setKeyword('')
+    setQuery('')
+    setTypeFilter('')
+    setStatusFilter('')
+    setPage(0)
+  }
 
   const dictionaries = useQuery({
     queryKey: ['master-data-dictionaries'],
@@ -132,8 +168,15 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
     enabled: tab === 'medication' || tab === 'operations',
   })
 
-  useEffect(() => { setTypeFilter(''); setStatusFilter(''); setQuery(''); setPage(0) }, [diseaseMode, tab])
+  useEffect(() => { setTypeFilter(''); setStatusFilter(''); setKeyword(''); setQuery(''); setPage(0) }, [diseaseMode, tab])
   useEffect(() => { setPage(0) }, [pageSize, query, statusFilter, typeFilter, medicationMode])
+  useEffect(() => {
+    if (tab === 'service') {
+      void preloadOperationalMasterData()
+    } else if (tab === 'medication') {
+      void preloadMedicationComposition()
+    }
+  }, [tab])
 
   const invalidate = async (message: string) => {
     setDialog(undefined); setFeedback(message); setOperationError('')
@@ -229,15 +272,18 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
           { value: 'rules', label: '临床用药规则基准', meta: '合理用药 · 频次/途径/剂量换算' },
         ]} />}
       {tab !== 'attribute' && tab !== 'operations' && !(tab === 'medication' && ['standard', 'semantics', 'readiness', 'rules'].includes(medicationMode)) && <div className="master-data-toolbar">
-        <SearchField className="master-data-toolbar__search" label="搜索基础数据" value={query} onChange={setQuery}
-          placeholder={tab === 'disease' && diseaseMode === 'management' ? '管理项目名称、编码或说明'
-            : tab === 'disease' ? '名称、别名、编码或检索码'
-            : tab === 'service' ? '项目名称、编码或分类'
-            : medicationMode === 'product' ? '产品名、生产厂家、批准文号或通用名'
-            : '通用名、别名、剂型或编码'} />
+        <SearchField className="master-data-toolbar__search" label="搜索基础数据" value={keyword} onChange={setKeyword}
+          onSearch={handleSearch}
+          placeholder={tab === 'disease' && diseaseMode === 'management' ? '管理项目名称、编码或说明（回车或点击查询）'
+            : tab === 'disease' ? '名称、别名、编码或检索码（回车或点击查询）'
+            : tab === 'service' ? '项目名称、编码或分类（回车或点击查询）'
+            : medicationMode === 'product' ? '产品名、生产厂家、批准文号或通用名（回车或点击查询）'
+            : '通用名、别名、剂型或编码（回车或点击查询）'} />
         <Select value={typeFilter} onChange={setTypeFilter} showValue placeholder="全部类型" options={typeOptions} />
         <Select value={statusFilter} onChange={setStatusFilter} showValue placeholder="全部状态"
           options={options(dictionaries.data, 'BD_MASTER_STATUS')} />
+        <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
+        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
         {tab === 'service' && <div className="service-density-switcher" role="group" aria-label="列表密度">
           <button type="button"
             className={`service-density-btn ${serviceDensity === 'two-line' ? 'is-active' : ''}`}
@@ -291,9 +337,6 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
             value.id, value.revision, input, organization.id).then(() => invalidate('诊疗项目已更新')).catch(fail)} />)}
         onAttributes={(value) => setDialog(<AttributeManagementDialog api={api} organization={organization}
           subjectType="CATALOG_ITEM" targetId={value.id} itemName={value.name}
-          onClose={() => setDialog(undefined)} />)}
-        onMappings={(value) => setDialog(<StandardMappingDialog api={api} subjectType="CATALOG_ITEM"
-          targetId={value.id} itemName={value.name} systemType="SERVICE"
           onClose={() => setDialog(undefined)} />)} />}
       {tab === 'medication' && (medicationMode === 'readiness' || medicationMode === 'semantics') && (
         <Suspense fallback={<LoadingState label="正在加载药品标准建设情况…" />}>
@@ -372,7 +415,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
       </div>
     </Panel>
     {dialog && (
-      <Suspense fallback={<LoadingState label="正在打开弹窗…" />}>
+      <Suspense fallback={<DialogSuspenseFallback />}>
         {dialog}
       </Suspense>
     )}
@@ -498,13 +541,13 @@ export function serviceTypeTone(serviceType: string): 'info' | 'success' | 'warn
   }
 }
 
-export function ServiceTable({ values, loading, pagination, density = 'two-line', onConfigure, onEdit, onAttributes, onMappings }: {
+export function ServiceTable({ values, loading, pagination, density = 'two-line', onConfigure, onEdit, onAttributes }: {
   values?: ServiceCatalogItem[]; loading: boolean;
   pagination: ReactNode;
   density?: 'two-line' | 'single-line';
   onConfigure: (value: ServiceCatalogItem) => void;
   onEdit: (value: ServiceCatalogItem) => void;
-  onAttributes: (value: ServiceCatalogItem) => void; onMappings: (value: ServiceCatalogItem) => void
+  onAttributes: (value: ServiceCatalogItem) => void;
 }) {
   if (loading) return <LoadingState label="正在加载诊疗项目…" />
   if (!values?.length) return <EmptyState icon="clinical" title="未找到诊疗项目" copy="请调整筛选条件或新增项目。" />
@@ -595,10 +638,17 @@ export function ServiceTable({ values, loading, pagination, density = 'two-line'
         <td className="service-col-actions">
           <RowActions>
             {['LABORATORY', 'EXAMINATION'].includes(value.sdServiceType) && (
-              <Button size="sm" variant="text" onClick={() => onConfigure(value)}>项目配置</Button>
+              <Button
+                size="sm"
+                variant="text"
+                onMouseEnter={() => void preloadOperationalMasterData()}
+                onFocus={() => void preloadOperationalMasterData()}
+                onClick={() => onConfigure(value)}
+              >
+                项目配置
+              </Button>
             )}
             <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑主档</Button>
-            <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
             <Button size="sm" variant="text" onClick={() => onAttributes(value)}>类型扩展属性</Button>
           </RowActions>
         </td>
@@ -1579,7 +1629,7 @@ function downloadBlob(blob: Blob, fileName: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-function StandardMappingDialog({ api, subjectType, targetId, itemName, systemType, onClose }: {
+export function StandardMappingDialog({ api, subjectType, targetId, itemName, systemType, onClose }: {
   api: RhnApi; subjectType: ItemAttributeSubjectType; targetId: string; itemName: string
   systemType: 'SERVICE' | 'MEDICATION'; onClose: () => void
 }) {
@@ -2167,6 +2217,7 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
 }) {
   const queryClient = useQueryClient()
   const [itemType, setItemType] = useState<'SERVICE' | 'MED_PRODUCT'>(initialItemType)
+  const [keyword, setKeyword] = useState('')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(20)
@@ -2174,6 +2225,25 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
   const [pending, setPending] = useState(false)
   const [operationError, setOperationError] = useState('')
   const [feedback, setFeedback] = useState('')
+
+  const handleSearch = () => {
+    setQuery(keyword.trim())
+    setPage(0)
+  }
+
+  const handleReset = () => {
+    setKeyword('')
+    setQuery('')
+    setPage(0)
+  }
+
+  const handleItemTypeChange = (value: string) => {
+    setItemType(value as 'SERVICE' | 'MED_PRODUCT')
+    setKeyword('')
+    setQuery('')
+    setPage(0)
+  }
+
   const candidates = useQuery({
     queryKey: ['master-data-adoption-candidates', organization.id, itemType, query, page, pageSize],
     queryFn: () => api.masterData.adoptionCandidates(organization.id, itemType, query, page, pageSize),
@@ -2212,9 +2282,13 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
           <Button size="sm" variant="text" disabled={!selectable.length} onClick={() => setSelected((current) => {
             const next = new Map(current); selectable.forEach((value) => next.set(value.id, value)); return next
           })}>选择本页待调入项</Button></header>
-          <Tabs value={itemType} onChange={(value) => setItemType(value as 'SERVICE' | 'MED_PRODUCT')}
+          <Tabs value={itemType} onChange={handleItemTypeChange}
             label="目录类型" variant="line" items={[{ value: 'SERVICE', label: '诊疗项目' }, { value: 'MED_PRODUCT', label: '药品产品' }]} />
-          <SearchField label="搜索中心目录" value={query} onChange={setQuery} placeholder="项目名称或编码" />
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+            <SearchField label="搜索中心目录" value={keyword} onChange={setKeyword} onSearch={handleSearch} placeholder="项目名称或编码（回车或点击查询）" />
+            <Button size="sm" variant="primary" type="button" onClick={handleSearch}>查询</Button>
+            <Button size="sm" variant="secondary" type="button" onClick={handleReset}>重置</Button>
+          </div>
           {candidates.isPending ? <LoadingState label="正在读取中心目录…" /> : !values.length
             ? <EmptyState icon="clinical" title="没有匹配项目" copy="请调整搜索条件。" />
             : <div className="master-data-catalog-candidates">{values.map((value) => {
@@ -2263,7 +2337,7 @@ function capabilityShortLabels(value: OrganizationAdoption) {
     .filter((key) => value[key]).map((key) => short[key])
 }
 
-function MappingSummary({ value }: { value: ItemTermMapping }) {
+export function MappingSummary({ value }: { value: ItemTermMapping }) {
   return <article><header><StatusBadge>{mappingTypeLabel(value.mappingType)}</StatusBadge>
     {value.primaryMapping && <StatusBadge tone="success">主要映射</StatusBadge>}</header>
     <strong>{value.termDisplay}</strong><code>{value.termCode}</code>
@@ -2271,14 +2345,14 @@ function MappingSummary({ value }: { value: ItemTermMapping }) {
     <footer><span>{equivalenceLabel(value.equivalence)}</span><span>{value.validFrom} — {value.validTo || '长期'}</span></footer></article>
 }
 
-function mappingTypeLabel(value: StandardMappingType) {
+export function mappingTypeLabel(value: StandardMappingType) {
   return ({ CLINICAL: '临床标准', INSURANCE: '医保目录', REGULATORY: '监管标准', LOCAL: '地方 / 院内' } as const)[value]
 }
-function equivalenceLabel(value: StandardEquivalence) {
+export function equivalenceLabel(value: StandardEquivalence) {
   return ({ EXACT: '完全匹配', EQUIVALENT: '语义等价', WIDER: '本地范围更宽',
     NARROWER: '本地范围更窄', RELATED: '相关但不等价' } as const)[value]
 }
-function mappingStatusLabel(value: ItemTermMapping['status']) {
+export function mappingStatusLabel(value: ItemTermMapping['status']) {
   return ({ ACTIVE: '有效', SUSPENDED: '已暂停', RETIRED: '已停用', SUPERSEDED: '已替代' } as const)[value]
 }
 
@@ -2623,6 +2697,7 @@ function DiseaseManagementMembersDialog({ program, api, dictionaries, codeSystem
   onClose: () => void
   onSave: (rules: DiseaseManagementRule[], exceptions: DiseaseManagementExceptionInput[]) => void
 }) {
+  const [keyword, setKeyword] = useState('')
   const [query, setQuery] = useState('')
   const [domain, setDomain] = useState('')
   const [page, setPage] = useState(0)
@@ -2633,6 +2708,18 @@ function DiseaseManagementMembersDialog({ program, api, dictionaries, codeSystem
     conceptId: item.conceptId, inclusionMode: item.inclusionMode, note: '', display: item.display,
     code: item.code, systemName: item.systemName, domainText: item.sdDiagnosisDomainText,
   }])))
+
+  const handleSearch = () => {
+    setQuery(keyword.trim())
+    setPage(0)
+  }
+
+  const handleReset = () => {
+    setKeyword('')
+    setQuery('')
+    setPage(0)
+  }
+
   useEffect(() => setPage(0), [domain, query])
   const search = useQuery({
     queryKey: ['disease-management-scope-search', query, domain, page],
@@ -2704,8 +2791,10 @@ function DiseaseManagementMembersDialog({ program, api, dictionaries, codeSystem
             const next = new Map(current); next.delete(item.conceptId); return next
           })}>移除</Button></div>)}</div>}
         <div className="disease-management-member-toolbar">
-          <SearchField label="查找精确疾病" value={query} onChange={setQuery} placeholder="至少输入 2 个字符，支持名称、编码或拼音码" />
-          <Select value={domain} onChange={setDomain} placeholder="全部诊断体系" options={domainOptions} />
+          <SearchField label="查找精确疾病" value={keyword} onChange={setKeyword} onSearch={handleSearch} placeholder="至少输入 2 个字符（回车或点击检索）" />
+          <Select value={domain} onChange={(val) => { setDomain(val); setPage(0) }} placeholder="全部诊断体系" options={domainOptions} />
+          <Button size="sm" variant="primary" type="button" onClick={handleSearch}>检索</Button>
+          <Button size="sm" variant="secondary" type="button" onClick={handleReset}>重置</Button>
           <span>{query.trim().length < 2 ? '输入关键词后检索' : search.isFetching ? '正在检索…' : `共 ${search.data?.totalElements ?? 0} 条`}</span>
         </div>
         {query.trim().length >= 2 && <div className="disease-search-results">
@@ -3463,7 +3552,7 @@ function StaticSelectControl({ id, name, className, value, onChange, options: va
       aria-describedby={ariaDescribedBy} aria-invalid={ariaInvalid} aria-required={ariaRequired} />
   </div>
 }
-function Table({ headers, children, compact = false, footer, className = '' }: {
+export function Table({ headers, children, compact = false, footer, className = '' }: {
   headers: string[]; children: ReactNode; compact?: boolean; footer?: ReactNode; className?: string
 }) {
   return <TableShell scrollClassName="master-data-table-wrap" footer={footer}>

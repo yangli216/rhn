@@ -37,6 +37,10 @@ export interface SaveOutpatientNoteTemplateInput {
   content: OutpatientNoteTemplateContent
 }
 
+export interface UpdateOutpatientNoteTemplateInput extends SaveOutpatientNoteTemplateInput {
+  expectedRevision: number
+}
+
 export function createOutpatientNoteTemplatesApi(client: ApiClient) {
   return {
     list: (keyword = '', specialtyCode = 'GENERAL_PRACTICE') => {
@@ -46,6 +50,9 @@ export function createOutpatientNoteTemplatesApi(client: ApiClient) {
     },
     create: (input: SaveOutpatientNoteTemplateInput) => client.request<OutpatientNoteTemplate>(
       '/api/outpatient/note-templates', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    update: (id: string, input: UpdateOutpatientNoteTemplateInput) => client.request<OutpatientNoteTemplate>(
+      `/api/outpatient/note-templates/${id}`, { method: 'PUT', body: JSON.stringify(input) },
     ),
     use: (id: string) => client.request<OutpatientNoteTemplate>(
       `/api/outpatient/note-templates/${id}/use`, { method: 'POST' },

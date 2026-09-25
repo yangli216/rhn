@@ -86,14 +86,17 @@ export function Tabs<T extends string>({
 export function SearchField({
   value,
   onChange,
+  onSearch,
   label,
   clearable = true,
   inputRef: externalInputRef,
   className = '',
+  onKeyDown,
   ...props
 }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> & {
   value: string
   onChange: (value: string) => void
+  onSearch?: (value: string) => void
   label: string
   clearable?: boolean
   inputRef?: RefObject<HTMLInputElement | null>
@@ -105,10 +108,25 @@ export function SearchField({
   return <label className={`ui-search-field ${className}`}>
     <span className="visually-hidden">{label}</span>
     <Icon name="search" />
-    <input {...props} ref={resolvedInputRef} aria-label={props['aria-label'] ?? label} type="search" value={value} onChange={(event) => onChange(event.target.value)} />
+    <input
+      {...props}
+      ref={resolvedInputRef}
+      aria-label={props['aria-label'] ?? label}
+      type="search"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' && !event.nativeEvent.isComposing && onSearch) {
+          event.preventDefault()
+          onSearch(value)
+        }
+        onKeyDown?.(event)
+      }}
+    />
     {clearable && value && <button type="button" aria-label={`清空${label}`} title={`清空${label}`}
       onClick={() => {
         onChange('')
+        onSearch?.('')
         resolvedInputRef.current?.focus()
       }}><Icon name="close" /></button>}
   </label>

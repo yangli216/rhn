@@ -7,6 +7,7 @@ import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.json.JsonCodec;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import static com.rhn.outpatient.api.OutpatientPlanTemplateContracts.*;
 import static com.rhn.shared.api.BusinessErrors.badRequest;
@@ -28,6 +30,9 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
     private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
+    private static final Set<String> TASK_KINDS = Set.of("DIAGNOSIS", "MEDICATION", "LABORATORY",
+            "EXAMINATION", "EDUCATION", "FOLLOW_UP", "CONDITION");
+    private static final Set<String> TASK_STATUSES = Set.of("MATCHED", "NEEDS_REVIEW", "UNMATCHED");
     private final OutpatientPlanTemplateRepository templates;
     private final OutpatientPlanDiagnosisRepository diagnoses;
     private final OutpatientPlanMedicationRepository medications;
@@ -36,6 +41,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
     private final MedicationRouteDirectory medicationRouteDirectory;
     private final TerminologyDirectory terminologyDirectory;
     private final ExecutionContextProvider contextProvider;
+    private final JsonCodec jsonCodec;
 
     OutpatientPlanTemplateService(OutpatientPlanTemplateRepository templates,
                                   OutpatientPlanDiagnosisRepository diagnoses,
@@ -44,11 +50,12 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                                   CatalogLifecycleDirectory catalogDirectory,
                                   MedicationRouteDirectory medicationRouteDirectory,
                                   TerminologyDirectory terminologyDirectory,
-                                  ExecutionContextProvider contextProvider) {
+                                  ExecutionContextProvider contextProvider, JsonCodec jsonCodec) {
         this.templates = templates; this.diagnoses = diagnoses; this.medications = medications;
         this.services = services; this.catalogDirectory = catalogDirectory;
         this.medicationRouteDirectory = medicationRouteDirectory;
         this.terminologyDirectory = terminologyDirectory; this.contextProvider = contextProvider;
+        this.jsonCodec = jsonCodec;
     }
 
     @Transactional(readOnly = true)
@@ -97,7 +104,8 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                         line.reason())).toList(),
                 serviceMap.getOrDefault(value.id(), List.of()).stream().map(line -> new ServiceSnapshot(
                         line.catalogItemId(), line.itemCode(), line.itemName(), line.serviceType(),
-                        line.quantity(), line.unitCode(), line.reason(), line.clinicalDescription())).toList()
+                        line.quantity(), line.unitCode(), line.reason(), line.clinicalDescription())).toList(),
+                readTasks(value.planTasks())
         )).toList();
     }
 
@@ -113,14 +121,17 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         List<MedicationInput> medicationInputs = input.medications() == null ? List.of() : input.medications();
         List<ServiceInput> serviceInputs = input.services() == null ? List.of() : input.services();
         if (diagnosisInputs.isEmpty() && medicationInputs.isEmpty() && serviceInputs.isEmpty()) {
-            throw badRequest("PLAN_TEMPLATE_EMPTY", "至少选择一条诊断、药品或诊疗项目");
+            if (input.tasks() == null || input.tasks().isEmpty())
+                throw badRequest("PLAN_TEMPLATE_EMPTY", "至少选择一条方案任务");
         }
         validateDiagnoses(diagnosisInputs, context.tenantId());
+        List<PlanTaskInput> taskInputs = validateTasks(input.tasks());
         Instant now = Instant.now();
         OutpatientPlanTemplate value = new OutpatientPlanTemplate(context.tenantId(), context.organizationId(),
                 context.departmentId(), scope, ownerId, name, clean(input.description()),
                 input.sortOrder() == null ? 0 : input.sortOrder(), clean(input.sourceType()),
                 clean(input.guidelineReference()), context.subjectId(), now);
+        value.setPlanTasks(jsonCodec.write(taskInputs));
         try {
             templates.saveAndFlush(value);
             saveDiagnoses(value, diagnosisInputs);
@@ -178,13 +189,15 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         List<MedicationInput> medicationInputs = input.medications() == null ? List.of() : input.medications();
         List<ServiceInput> serviceInputs = input.services() == null ? List.of() : input.services();
         if (diagnosisInputs.isEmpty() && medicationInputs.isEmpty() && serviceInputs.isEmpty()) {
-            throw badRequest("PLAN_TEMPLATE_EMPTY", "至少选择一条诊断、药品或诊疗项目");
+            if (input.tasks() == null || input.tasks().isEmpty())
+                throw badRequest("PLAN_TEMPLATE_EMPTY", "至少选择一条方案任务");
         }
         validateDiagnoses(diagnosisInputs, context.tenantId());
+        List<PlanTaskInput> taskInputs = validateTasks(input.tasks());
         Instant now = Instant.now();
         value.update(scope, ownerId, name, clean(input.description()),
                 input.sortOrder() == null ? 0 : input.sortOrder(), clean(input.guidelineReference()),
-                context.subjectId(), now);
+                jsonCodec.write(taskInputs), context.subjectId(), now);
         try {
             templates.saveAndFlush(value);
             diagnoses.deleteByTenantIdAndTemplateId(context.tenantId(), value.id());
@@ -284,6 +297,23 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         }
     }
 
+    private List<PlanTaskInput> validateTasks(List<PlanTaskInput> values) {
+        if (values == null) return List.of();
+        for (PlanTaskInput value : values) {
+            if (!TASK_KINDS.contains(upper(value.kind()))
+                    || !TASK_STATUSES.contains(upper(value.status()))
+                    || !Set.of("EXPLICIT", "SUGGESTED").contains(upper(value.origin()))) {
+                throw badRequest("PLAN_TEMPLATE_TASK_INVALID", "方案任务类型或核对状态无效");
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    private List<PlanTaskInput> readTasks(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        return List.of(jsonCodec.read(json, PlanTaskInput[].class));
+    }
+
     private void validateStoredDiagnoses(Long tenantId, List<OutpatientPlanDiagnosis> values) {
         for (OutpatientPlanDiagnosis value : values) {
             requireActiveDiagnosis(tenantId, value.code(), true);
@@ -344,6 +374,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                 serviceValues.stream().map(line -> new ServiceView(line.catalogItemId(), line.itemCode(),
                         line.itemName(), line.serviceType(), line.quantity(), line.unitCode(), line.priceType(),
                         line.pricingRequired(), line.reason(), line.clinicalDescription())).toList(),
+                readTasks(value.planTasks()),
                 value.createdAt(), value.updatedAt());
     }
 

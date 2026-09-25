@@ -171,7 +171,16 @@ class MedicationRequestService implements MedicationRequestDirectory {
         if (baseUnit == null) throw conflict("MEDICATION_BASE_UNIT_MISSING", "药品尚未配置可用于申请数量的基本单位");
         String expectedUnit = itemPackage == null ? baseUnit : itemPackage.unitCode();
         String quantityUnit = clean(input.quantityUnit()) == null ? expectedUnit : clean(input.quantityUnit());
-        if (!expectedUnit.equals(quantityUnit)) {
+        boolean unitMatches;
+        if (itemPackage != null) {
+            unitMatches = expectedUnit.equalsIgnoreCase(quantityUnit)
+                    || (itemPackage.unitName() != null && itemPackage.unitName().equalsIgnoreCase(quantityUnit));
+        } else {
+            unitMatches = expectedUnit.equalsIgnoreCase(quantityUnit)
+                    || (clean(medication.preparationUnit()) != null && clean(medication.preparationUnit()).equalsIgnoreCase(quantityUnit))
+                    || (item != null && clean(item.unitCode()) != null && clean(item.unitCode()).equalsIgnoreCase(quantityUnit));
+        }
+        if (!unitMatches) {
             throw badRequest("MEDICATION_REQUEST_QUANTITY_UNIT_INVALID", "申请数量单位必须与当前通用药品或产品包装一致");
         }
         BigDecimal packageFactor = itemPackage == null ? BigDecimal.ONE : itemPackage.quantityFactor();

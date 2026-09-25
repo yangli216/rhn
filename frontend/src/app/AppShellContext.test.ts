@@ -148,6 +148,10 @@ describe('AppShell work context routing', () => {
       title: '诊疗服务目录',
       icon: 'clinical',
     })
+    expect(tabForPath('/settings/standard-mappings')).toMatchObject({
+      title: '标准映射管理',
+      icon: 'roadmap',
+    })
     expect(tabForPath('/settings/diseases')).toMatchObject({
       title: '疾病与诊断标准',
       icon: 'database',

@@ -55,6 +55,13 @@ class OutpatientNoteTemplate {
         useCount++; lastUsedAt = now; updatedBy = actorId; updatedAt = now;
     }
 
+    void update(String scopeType, Long ownerId, String specialtyCode, String name,
+                String description, String contentJson, int sortOrder, Long actorId, Instant now) {
+        this.scopeType = scopeType; this.ownerId = ownerId; this.specialtyCode = specialtyCode;
+        this.name = name; this.description = description; this.contentJson = contentJson;
+        this.sortOrder = sortOrder; this.updatedBy = actorId; this.updatedAt = now;
+    }
+
     void disable(Long actorId, Instant now) {
         status = "INACTIVE"; updatedBy = actorId; updatedAt = now;
     }

@@ -33,6 +33,7 @@ interface AppointmentEventRepository extends JpaRepository<AppointmentEvent, Lon
 }
 
 interface PatientRegistrationRepository extends JpaRepository<PatientRegistration, Long> {
+    Optional<PatientRegistration> findByIdAndTenantId(Long id, Long tenantId);
     Optional<PatientRegistration> findByTenantIdAndIdempotencyCode(Long tenantId, String idempotencyCode);
     Optional<PatientRegistration> findByTenantIdAndEncounterId(Long tenantId, Long encounterId);
     List<PatientRegistration> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);

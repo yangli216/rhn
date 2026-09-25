@@ -27,6 +27,15 @@ public final class OutpatientNoteTemplateContracts {
 
     public record RevisionRequest(@NotNull Long expectedRevision) {}
 
+    public record UpdateRequest(
+            @NotNull Long expectedRevision,
+            @NotBlank @Size(max = 16) String scopeType,
+            @NotBlank @Size(max = 100) String name,
+            @Size(max = 500) String description,
+            @Size(max = 64) String specialtyCode,
+            Integer sortOrder,
+            @NotNull @Valid NoteContent content) {}
+
     public record View(
             Long id, long revision, String scopeType, String name, String description,
             String specialtyCode, String documentType, String contentSchema, NoteContent content,

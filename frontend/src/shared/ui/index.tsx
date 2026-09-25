@@ -131,7 +131,7 @@ export function PanelHead({ title, meta, actions, className = '' }: {
   actions?: ReactNode
   className?: string
 }) {
-  return <header className={`ui-panel__head ${className}`}>
+  return <header className={`ui-panel__head ${actions ? 'has-actions' : ''} ${className}`}>
     <h2>{title}</h2>
     {meta && <span className="ui-panel__meta">{meta}</span>}
     {actions}

@@ -2,7 +2,7 @@ import { useClinicalAiDraft, type AiRecordUndo } from './record/useClinicalAiDra
 import { DiagnosisPanel } from './record/DiagnosisPanel'
 import { ClinicalVitalsFields } from './record/ClinicalVitalsFields'
 import { StructuredNoteForm, ClinicalRecordReadView } from './record/StructuredNoteFields'
-import { NoteTemplateBar, mergeNoteTemplateContent, type NoteTemplateField } from './record/NoteTemplateBar'
+import { NoteTemplateBar, mergeNoteTemplateContent, noteTemplateFields, type NoteTemplateField } from './record/NoteTemplateBar'
 export { mergeNoteTemplateContent, type NoteTemplateField } from './record/NoteTemplateBar'
 import { createClinicalDraftSaver } from './record/saveClinicalDraft'
 import { clinicalRecordContent, createRecordSchema, diagnosisDraftSignature,
@@ -19,6 +19,7 @@ import { isAbnormalObservation } from './ai/receptionSceneAssessment'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import type { ClinicalContext } from '../../app/AppShell'
@@ -33,8 +34,8 @@ import type {
   MedicationRequest, MedicationSafetyDecision, MedicationSafetyFinding, Prescription, ServiceRequest, SplitPrescriptionPlan,
 } from '../../shared/api/encountersApi'
 import type { TerminateEncounterInput } from '../../shared/api/outpatientFlowApi'
-import type { OutpatientPlanTemplate, OutpatientPlanTemplateScope, MinedPlanSuggestion, HistoricalStablePlan } from '../../shared/api/outpatientPlanTemplatesApi'
-import { AiPlanTemplateDraftModal } from './templates/AiPlanTemplateDraftModal'
+import type { OutpatientPlanTemplate, MinedPlanSuggestion, HistoricalStablePlan } from '../../shared/api/outpatientPlanTemplatesApi'
+import { planSourceReferenceLabel, planTaskKindLabel } from './templates/planTaskPresentation'
 import type {
   OutpatientNoteTemplate, OutpatientNoteTemplateContent,
 } from '../../shared/api/outpatientNoteTemplatesApi'
@@ -53,7 +54,7 @@ import type { SettlementPaymentCommand } from '../../shared/billing/SettlementPa
 import {
   Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState,
   ObjectContextBar, PageHeader, Panel, PanelHead, Popconfirm, Select, StatusBadge,
-  tableCellClass, TableShell, Tabs, Tooltip,
+  SearchField, tableCellClass, TableShell, Tabs, Tooltip,
 } from '../../shared/ui'
 import type { MedicationPlanDraft } from './orders/medicationDraft'
 import { UnifiedOrderListEditor, type AiOrderReviewCommand, type ServicePlanDraft } from './UnifiedOrderListEditor'
@@ -204,7 +205,7 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
       description="门诊候诊、叫号调度与接诊状态协同工作台。"
       actions={<>
         <Button variant="secondary" onClick={() => navigate('/outpatient/plan-templates')}>
-          <Icon name="sparkles" />诊疗方案池
+          <Icon name="sparkles" />临床模板库
         </Button>
         {canEdit && directVisitSettings.data?.enabled && (
           <Button onClick={() => setDirectVisitOpen(true)}><Icon name="add" />直接接诊</Button>
@@ -477,7 +478,7 @@ export function QueueRow({ item, busy, canEdit, onEnter, onView }: {
   </article>
 }
 
-type WorkTool = 'assistant' | 'history' | 'results' | 'coordination' | 'allergy'
+type WorkTool = 'assistant' | 'plans' | 'history' | 'results' | 'coordination' | 'allergy'
 type GuardedPatientAction = 'queue' | 'suspend' | 'complete' | 'terminate'
 type HistoryRecordField = 'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'treatmentPlan'
 type HistoryCopyField = HistoryRecordField | `diagnosis:${string}`
@@ -521,6 +522,8 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   const [aiDiagnoses, setAiDiagnoses] = useState<HTMLDivElement | null>(null)
   const [aiPlans, setAiPlans] = useState<HTMLDivElement | null>(null)
   const [aiDetail, setAiDetail] = useState<HTMLDivElement | null>(null)
+  const [planTemplateDrawerHost, setPlanTemplateDrawerHost] = useState<HTMLDivElement | null>(null)
+  const workspaceDrawerRef = useRef<HTMLElement | null>(null)
   const aiSurfaceRefs = useMemo<ClinicalAiSurfaceRefs>(() => ({
     note: setAiNote, diagnoses: setAiDiagnoses, plans: setAiPlans,
   }), [])
@@ -599,8 +602,31 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     setAiContext(null)
     setAiDraft(null)
     setAiAdoptionBusy(false)
-    setActiveTool((current) => current === 'assistant' || current === 'allergy' ? null : current)
+    setActiveTool((current) => current === 'assistant' || current === 'plans' || current === 'allergy' ? null : current)
   }, [encounter?.id])
+  useEffect(() => {
+    if (outpatientNote?.status === 'SIGNED') {
+      setActiveTool((current) => current === 'plans' ? null : current)
+    }
+  }, [outpatientNote?.status])
+  useEffect(() => {
+    const drawer = workspaceDrawerRef.current
+    if (activeTool !== 'plans' || !drawer) return
+
+    const updateVisibleHeight = () => {
+      const availableHeight = Math.max(1, Math.floor(window.innerHeight - drawer.getBoundingClientRect().top - 16))
+      drawer.style.setProperty('--doctor-plan-drawer-height', `${availableHeight}px`)
+    }
+    updateVisibleHeight()
+    window.addEventListener('resize', updateVisibleHeight)
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateVisibleHeight)
+    if (drawer.parentElement) resizeObserver?.observe(drawer.parentElement)
+    return () => {
+      window.removeEventListener('resize', updateVisibleHeight)
+      resizeObserver?.disconnect()
+      drawer.style.removeProperty('--doctor-plan-drawer-height')
+    }
+  }, [activeTool])
   useEffect(() => {
     if (!hasUnsavedDraft) return
     const preventUnload = (event: BeforeUnloadEvent) => event.preventDefault()
@@ -714,7 +740,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   }, [canEdit, encounter, entryIntent, resume, start])
   const enterReading = () => {
     setEditing(false)
-    setActiveTool((current) => current === 'assistant' || current === 'coordination' ? null : current)
+    setActiveTool((current) => current === 'assistant' || current === 'plans' || current === 'coordination' ? null : current)
   }
   return <section className="doctor-patient-workspace">
     <ObjectContextBar avatar={resident.fullName.slice(-1)} title={resident.fullName}
@@ -824,7 +850,9 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                 onRequestEditing={enterEditing} onRequestReading={enterReading} onRefresh={refresh}
                 aiPreConsultation={currentEnhancedItem?.aiPreConsultation}
                 triageVitals={effectiveTriageVitals}
-                historyEncounters={encounters.data ?? []} />
+                historyEncounters={encounters.data ?? []}
+                planTemplateDrawerHost={planTemplateDrawerHost}
+                onClosePlanDrawer={() => setActiveTool(null)} />
           </main>
           {editing && encounter.status === 'IN_PROGRESS' && aiContext?.encounterId === encounter.id
             && aiContext.residentId === encounter.residentId && (
@@ -844,13 +872,14 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                   historyEncounters={encounters.data ?? []} />
               </Suspense>
             )}
-          {activeTool && <aside className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}${activeTool === 'allergy' ? ' is-allergy' : ''}`}
+          {activeTool && <aside ref={workspaceDrawerRef} className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}${activeTool === 'plans' ? ' is-plans' : ''}${activeTool === 'allergy' ? ' is-allergy' : ''}`}
             aria-label={toolLabel(activeTool)}>
             <PanelHead title={toolLabel(activeTool)}
               actions={<Button variant="text" aria-label="关闭扩展工具" disabled={activeTool === 'assistant' && aiAdoptionBusy}
                 onClick={() => setActiveTool(null)}><Icon name="close" /></Button>} />
             <div className="doctor-workspace-drawer__content">
               {activeTool === 'assistant' && <div ref={setAiDetail} />}
+              {activeTool === 'plans' && <div ref={setPlanTemplateDrawerHost} className="doctor-plan-drawer-host" />}
               {activeTool === 'history' && <HistoryPanel encounters={encounters.data ?? []}
                 currentEncounterId={encounter.id} api={api} allergies={allergies.data ?? []} allergyReady={allergyState === 'READY'} copyDisabled={!editing || encounter.status !== 'IN_PROGRESS' || outpatientNote?.status === 'SIGNED'}
                 onCopy={(draft) => { setHistoryCopy({ ...draft, targetEncounterId: encounter.id, targetResidentId: encounter.residentId }); setActiveTool(null) }} />}
@@ -866,6 +895,9 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
             {editing && encounter.status === 'IN_PROGRESS' && <ToolButton icon="sparkles" label="智医助理"
               active={activeTool === 'assistant'}
               onClick={() => !aiAdoptionBusy && setActiveTool(toggleTool(activeTool, 'assistant'))} />}
+            {editing && encounter.status === 'IN_PROGRESS' && outpatientNote?.status !== 'SIGNED'
+              && <ToolButton icon="stethoscope" label="临床模板" active={activeTool === 'plans'}
+                onClick={() => setActiveTool(toggleTool(activeTool, 'plans'))} />}
             <ToolButton icon="roadmap" label="就诊历史" active={activeTool === 'history'} onClick={() => setActiveTool(toggleTool(activeTool, 'history'))} />
             <ToolButton icon="clinical" label="检验结果" active={activeTool === 'results'} onClick={() => setActiveTool(toggleTool(activeTool, 'results'))} />
             {editing && <ToolButton icon="tasks" label="皮试管理" active={false}
@@ -1022,12 +1054,12 @@ function toggleTool(current: WorkTool | null, next: WorkTool): WorkTool | null {
 }
 
 function toolLabel(value: WorkTool) {
-  return ({ assistant: '智医助理', history: '就诊历史', results: '检验检查结果', coordination: '协同业务',
+  return ({ assistant: '智医助理', plans: '临床模板', history: '就诊历史', results: '检验检查结果', coordination: '协同业务',
     allergy: '过敏信息' } as const)[value]
 }
 
 function ToolButton({ icon, label, active, onClick }: {
-  icon: 'sparkles' | 'roadmap' | 'clinical' | 'tasks' | 'organization'; label: string; active: boolean; onClick: () => void
+  icon: 'sparkles' | 'stethoscope' | 'roadmap' | 'clinical' | 'tasks' | 'organization'; label: string; active: boolean; onClick: () => void
 }) {
   const labelLines = Array.from({ length: Math.ceil(label.length / 2) }, (_, index) => label.slice(index * 2, index * 2 + 2))
   return <Button variant={active ? 'secondary' : 'text'} aria-label={label}
@@ -1441,7 +1473,8 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, onRegisterSaveDraft, onSaveDraftNotice,
   editing, canEdit, completionMode, enteringEdit, onRequestEditing,
   onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters, aiSurfaceRefs, aiFieldStream,
-  aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange, currentDepartmentName }: {
+  aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange, currentDepartmentName, planTemplateDrawerHost,
+  onClosePlanDrawer }: {
   encounter: Encounter; birthDate?: string; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
   completionMode: OutpatientCompletionMode
   api: RhnApi; historyCopy: HistoryCopyDraft | null
@@ -1461,6 +1494,8 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   triageVitals?: VitalsSummary
   historyEncounters?: Encounter[]
   currentDepartmentName?: string
+  planTemplateDrawerHost?: HTMLDivElement | null
+  onClosePlanDrawer?: () => void
 }) {
   const queryClient = useQueryClient()
   const [diagnoses, setDiagnoses] = useState<DiagnosisInput[]>([])
@@ -1781,7 +1816,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       <PanelHead className="doctor-record-heading" title="门诊病历"
         meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
         actions={<>{editing && <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
-          onApply={applyNoteTemplate} />}
+          onApply={applyNoteTemplate} showApply={false} />}
           {editing && !signed && <div ref={aiSurfaceRefs.note} className="doctor-record-ai-slot" />}
           {document && signed && <>
             {canEdit && <Button size="sm" variant="secondary" onClick={openAmendment}>发起更正</Button>}
@@ -1864,12 +1899,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
     </div>
     <aside className="doctor-clinical-aside" aria-label="诊断与医嘱工作区">
       <DiagnosisPanel encounterId={encounter.id} api={api} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
-        editing={editing} signed={signed} aiSuggestionSurfaceRef={aiSurfaceRefs.diagnoses}
-        actions={
-          editing ? <PlanTemplatePanel encounterId={encounter.id} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
-            medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
-            serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts}
-            allergies={allergies} api={api} disabled={signed} /> : undefined} />
+        editing={editing} signed={signed} aiSuggestionSurfaceRef={aiSurfaceRefs.diagnoses} />
       <OrdersPanel aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
         onTreatmentKeysChange={onTreatmentKeysChange} encounter={encounter} allergies={allergies} api={api} editing={editing}
         aiSuggestionSurfaceRef={editing && !signed ? aiSurfaceRefs.plans : undefined}
@@ -1877,6 +1907,16 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} onBusyChange={setOrderBusy}
         currentDepartmentName={currentDepartmentName} />
     </aside>
+    {editing && !signed && planTemplateDrawerHost && createPortal(
+      <PlanTemplatePanel encounterId={encounter.id} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
+        medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
+        serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts}
+        onApplyNoteTemplate={applyNoteTemplate}
+        api={api}
+        onClose={onClosePlanDrawer}
+        onNotice={(msg) => onSaveDraftNotice?.({ message: msg, tone: 'success' })} />,
+      planTemplateDrawerHost,
+    )}
     {notePrintOpen && document && <ControlledPrintDialog api={api} title="打印门诊病历"
       description={`已签署版本 V${document.currentVersion} · 每次生成和重打都会留痕。`}
       sourceLabel={`${document.title} · V${document.currentVersion}`}
@@ -1912,7 +1952,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
 }
 
 function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
-  serviceDrafts, setServiceDrafts, allergies, api, disabled }: {
+  serviceDrafts, setServiceDrafts, api, onApplyNoteTemplate, onClose, onNotice }: {
   encounterId?: string
   diagnoses: DiagnosisInput[]
   setDiagnoses: Dispatch<SetStateAction<DiagnosisInput[]>>
@@ -1920,43 +1960,59 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
   setMedicationDrafts: Dispatch<SetStateAction<MedicationPlanDraft[]>>
   serviceDrafts: ServicePlanDraft[]
   setServiceDrafts: Dispatch<SetStateAction<ServicePlanDraft[]>>
-  allergies: AllergyIntolerance[]
   api: RhnApi
-  disabled: boolean
+  onApplyNoteTemplate: (template: OutpatientNoteTemplate, fields: Set<NoteTemplateField>, overwrite: boolean) => void
+  onClose?: () => void
+  onNotice?: (msg: string) => void
 }) {
   const queryClient = useQueryClient()
-  const [managerOpen, setManagerOpen] = useState(false)
+  const [templateKind, setTemplateKind] = useState<'ALL' | 'NOTE' | 'PLAN'>('ALL')
+  const [selectedKind, setSelectedKind] = useState<'NOTE' | 'PLAN'>('PLAN')
   const [scopeFilter, setScopeFilter] = useState<'ALL' | 'PERSONAL' | 'DEPARTMENT' | 'HOSPITAL' | 'HISTORICAL' | 'MINED'>('ALL')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [selectedId, setSelectedId] = useState('')
+  const [selectedNoteId, setSelectedNoteId] = useState('')
+  const [checkedNoteFields, setCheckedNoteFields] = useState<Set<NoteTemplateField>>(new Set())
+  const [overwriteNoteFields, setOverwriteNoteFields] = useState(false)
   const [selectedMinedKey, setSelectedMinedKey] = useState('')
-  const [saveOpen, setSaveOpen] = useState(false)
-  const [applyOpen, setApplyOpen] = useState(false)
-  const [aiCompilerOpen, setAiCompilerOpen] = useState(false)
   const [pendingTemplateToApply, setPendingTemplateToApply] = useState<OutpatientPlanTemplate | null>(null)
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [scope, setScope] = useState<OutpatientPlanTemplateScope>('PERSONAL')
-  const [safetyConfirmed, setSafetyConfirmed] = useState(false)
-  const [overrideReason, setOverrideReason] = useState('')
   const [notice, setNotice] = useState('')
+
+  // 标准方案明细勾选状态
+  const [checkedDiagnosisCodes, setCheckedDiagnosisCodes] = useState<Set<string>>(new Set())
+  const [checkedMedicationKeys, setCheckedMedicationKeys] = useState<Set<string>>(new Set())
+  const [checkedServiceKeys, setCheckedServiceKeys] = useState<Set<string>>(new Set())
+
+  // 复诊方案明细勾选状态
+  const [checkedHistDiagnosisCodes, setCheckedHistDiagnosisCodes] = useState<Set<string>>(new Set())
+  const [checkedHistMedicationKeys, setCheckedHistMedicationKeys] = useState<Set<string>>(new Set())
+  const [checkedHistServiceKeys, setCheckedHistServiceKeys] = useState<Set<string>>(new Set())
+
+  // AI 挖掘方案明细勾选状态
+  const [checkedMinedDiagnosisCodes, setCheckedMinedDiagnosisCodes] = useState<Set<string>>(new Set())
+  const [checkedMinedMedicationKeys, setCheckedMinedMedicationKeys] = useState<Set<string>>(new Set())
+  const [checkedMinedServiceKeys, setCheckedMinedServiceKeys] = useState<Set<string>>(new Set())
 
   const templates = useQuery({
     queryKey: ['outpatient-plan-templates'],
     queryFn: () => api.outpatientPlanTemplates.list(),
-    enabled: managerOpen,
+  })
+
+  const noteTemplates = useQuery({
+    queryKey: ['outpatient-note-templates', 'GENERAL_PRACTICE'],
+    queryFn: () => api.outpatientNoteTemplates.list('', 'GENERAL_PRACTICE'),
   })
 
   const minedQuery = useQuery({
     queryKey: ['outpatient-mined-suggestions'],
     queryFn: () => api.outpatientPlanTemplates.minedSuggestions(),
-    enabled: managerOpen && (scopeFilter === 'ALL' || scopeFilter === 'MINED'),
+    enabled: false,
   })
 
   const historicalPlanQuery = useQuery({
     queryKey: ['historical-stable-plan', encounterId],
     queryFn: () => api.outpatientPlanTemplates.getHistoricalStablePlan(encounterId!),
-    enabled: Boolean(encounterId) && managerOpen && (scopeFilter === 'ALL' || scopeFilter === 'HISTORICAL'),
+    enabled: Boolean(encounterId) && (scopeFilter === 'ALL' || scopeFilter === 'HISTORICAL'),
   })
 
   const filteredTemplates = useMemo(() => {
@@ -1976,15 +2032,61 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
     })
   }, [templates.data, scopeFilter, searchKeyword])
 
+  const filteredNoteTemplates = useMemo(() => {
+    if (!noteTemplates.data) return []
+    const keyword = searchKeyword.trim().toLowerCase()
+    return noteTemplates.data.filter((value) => !keyword
+      || value.name.toLowerCase().includes(keyword)
+      || value.description?.toLowerCase().includes(keyword)
+      || noteTemplateFields.some(({ key }) => value.content[key]?.toLowerCase().includes(keyword)))
+  }, [noteTemplates.data, searchKeyword])
+
   const selected = useMemo(() => {
     return filteredTemplates.find((v) => v.id === selectedId) || filteredTemplates[0] || null
   }, [filteredTemplates, selectedId])
+
+  const selectedNote = useMemo(() => filteredNoteTemplates.find((value) => value.id === selectedNoteId)
+    || filteredNoteTemplates[0] || null, [filteredNoteTemplates, selectedNoteId])
+
+  useEffect(() => {
+    if (templateKind !== 'ALL') return
+    if (selectedKind === 'PLAN' && !filteredTemplates.length && filteredNoteTemplates.length) setSelectedKind('NOTE')
+    if (selectedKind === 'NOTE' && !filteredNoteTemplates.length && filteredTemplates.length) setSelectedKind('PLAN')
+  }, [filteredNoteTemplates.length, filteredTemplates.length, selectedKind, templateKind])
 
   useEffect(() => {
     if (selected && selected.id !== selectedId) {
       setSelectedId(selected.id)
     }
   }, [selected, selectedId])
+
+  useEffect(() => {
+    if (selectedNote && selectedNote.id !== selectedNoteId) setSelectedNoteId(selectedNote.id)
+  }, [selectedNote, selectedNoteId])
+
+  useEffect(() => {
+    if (!selectedNote) {
+      setCheckedNoteFields(new Set())
+      return
+    }
+    setCheckedNoteFields(new Set(noteTemplateFields
+      .filter(({ key }) => Boolean(selectedNote.content[key]?.trim()))
+      .map(({ key }) => key)))
+    setOverwriteNoteFields(false)
+  }, [selectedNote?.id])
+
+  // 方案切换时默认全选明细项
+  useEffect(() => {
+    if (selected) {
+      setCheckedDiagnosisCodes(new Set(selected.diagnoses.map((d) => d.code)))
+      setCheckedMedicationKeys(new Set(selected.medications.map((m, idx) => m.lineId || `${m.medicationId}-${idx}`)))
+      setCheckedServiceKeys(new Set(selected.services.map((s, idx) => `${s.catalogItemId || s.itemCode || ''}-${idx}`)))
+    } else {
+      setCheckedDiagnosisCodes(new Set())
+      setCheckedMedicationKeys(new Set())
+      setCheckedServiceKeys(new Set())
+    }
+  }, [selected?.id])
 
   const selectedMined = useMemo(() => {
     if (!minedQuery.data?.length) return null
@@ -1997,69 +2099,56 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
     }
   }, [selectedMined, selectedMinedKey])
 
-  const activeTemplateForApply = pendingTemplateToApply || selected
-  const drugAllergies = allergies.filter((item) => item.assertionType === 'ALLERGY' && item.categoryCode === 'DRUG')
-  const matchedAllergies = activeTemplateForApply?.medications.flatMap((medication) => drugAllergies.filter((allergy) =>
-    allergy.substanceCode?.toLowerCase() === medication.medicationCode.toLowerCase())) ?? []
+  // 挖掘方案切换时默认全选
+  useEffect(() => {
+    if (selectedMined) {
+      setCheckedMinedDiagnosisCodes(new Set(selectedMined.diagnoses.map((d) => d.code)))
+      setCheckedMinedMedicationKeys(new Set(selectedMined.medications.map((m, idx) => `${m.medicationId}-${idx}`)))
+      setCheckedMinedServiceKeys(new Set(selectedMined.services.map((s, idx) => `${s.catalogItemId || s.itemCode || ''}-${idx}`)))
+    } else {
+      setCheckedMinedDiagnosisCodes(new Set())
+      setCheckedMinedMedicationKeys(new Set())
+      setCheckedMinedServiceKeys(new Set())
+    }
+  }, [selectedMined?.patternKey])
 
-  const draftCount = diagnoses.length + medicationDrafts.length + serviceDrafts.length
-
-  const save = useMutation({
-    mutationFn: () => api.outpatientPlanTemplates.create({
-      scopeType: scope,
-      name: name.trim(),
-      description: description.trim() || undefined,
-      diagnoses,
-      medications: medicationDrafts.filter((item) => Boolean(item.request.medicationId)).map((item) => ({
-        medicationId: item.request.medicationId!,
-        catalogItemId: item.request.catalogItemId,
-        packageId: item.request.packageId,
-        doseValue: item.request.doseValue,
-        doseUnit: item.request.doseUnit,
-        routeCode: item.request.routeCode,
-        frequencyCode: item.request.frequencyCode,
-        durationValue: item.request.durationValue,
-        durationUnit: item.request.durationUnit,
-        quantity: item.request.quantity,
-        quantityUnit: item.request.quantityUnit,
-        substitutionAllowed: item.request.substitutionAllowed,
-        selfProvided: item.request.selfProvided,
-        medicationInstruction: item.request.medicationInstruction,
-        priceType: item.request.priceType,
-        pricingRequired: item.request.pricingRequired,
-        reason: item.request.reason,
-      })),
-      services: serviceDrafts.map((item) => ({
-        catalogItemId: item.catalogItemId,
-        quantity: item.quantity,
-        unitCode: item.unitCode,
-        priceType: 'SALE',
-        pricingRequired: true,
-        reason: '门诊诊疗申请',
-        clinicalDescription: item.clinicalDescription || '常用诊疗方案',
-      })),
-    }),
-    onSuccess: async (value) => {
-      await queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
-      setSelectedId(value.id)
-      setSaveOpen(false)
-      setName('')
-      setDescription('')
-      setNotice(`“${value.name}”已成功保存为${value.scopeType === 'PERSONAL' ? '个人常用方案' : value.scopeType === 'DEPARTMENT' ? '科室路径方案' : '全院/指南标准方案'}。`)
-    },
-  })
+  // 复诊方案加载或切换时默认全选
+  useEffect(() => {
+    if (historicalPlanQuery.data) {
+      setCheckedHistDiagnosisCodes(new Set(historicalPlanQuery.data.diagnoses.map((d) => d.code)))
+      setCheckedHistMedicationKeys(new Set(historicalPlanQuery.data.medications.map((m, idx) => `${m.medicationId}-${idx}`)))
+      setCheckedHistServiceKeys(new Set(historicalPlanQuery.data.services.map((s, idx) => `${s.catalogItemId || (s as any).serviceCode || ''}-${idx}`)))
+    } else {
+      setCheckedHistDiagnosisCodes(new Set())
+      setCheckedHistMedicationKeys(new Set())
+      setCheckedHistServiceKeys(new Set())
+    }
+  }, [historicalPlanQuery.data?.encounterId, historicalPlanQuery.data?.sourceEncounterId])
 
   const apply = useMutation({
     mutationFn: (value: OutpatientPlanTemplate) => api.outpatientPlanTemplates.use(value.id),
     onSuccess: (value) => {
-      stageTemplate(value, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
-        serviceDrafts, setServiceDrafts, overrideReason.trim() || undefined)
-      setApplyOpen(false)
-      setSafetyConfirmed(false)
-      setOverrideReason('')
+      const target = pendingTemplateToApply || value
+      stageTemplate(target, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
+        serviceDrafts, setServiceDrafts)
       setPendingTemplateToApply(null)
-      setNotice(`已带入“${value.name}”，新增内容仍是草稿，请核对后保存病历和开立医嘱。`)
+      const msg = `已带入“${value.name}”，新增内容仍是草稿，请核对后保存病历和开立医嘱。`
+      setNotice(msg)
+      onNotice?.(msg)
       void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
+      onClose?.()
+    },
+  })
+
+  const applyNote = useMutation({
+    mutationFn: (value: OutpatientNoteTemplate) => api.outpatientNoteTemplates.use(value.id),
+    onSuccess: (value) => {
+      onApplyNoteTemplate(value, checkedNoteFields, overwriteNoteFields)
+      const msg = `已带入病历模板“${value.name}”的 ${checkedNoteFields.size} 个段落，请结合患者情况核对。`
+      setNotice(msg)
+      onNotice?.(msg)
+      void queryClient.invalidateQueries({ queryKey: ['outpatient-note-templates'] })
+      onClose?.()
     },
   })
 
@@ -2078,8 +2167,11 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
     onSuccess: (created) => {
       stageTemplate(created, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
         serviceDrafts, setServiceDrafts)
-      setNotice(`已成功复用并带入患者既往成熟平稳期处方“${created.name}”！`)
+      const msg = `已成功复用并带入患者既往成熟平稳期处方“${created.name}”！`
+      setNotice(msg)
+      onNotice?.(msg)
       void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
+      onClose?.()
     },
   })
 
@@ -2116,21 +2208,65 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
     onSuccess: (created) => {
       stageTemplate(created, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
         serviceDrafts, setServiceDrafts)
-      setNotice(`已将高频方案“${created.name}”带入当前处方草稿！`)
+      const msg = `已将高频方案“${created.name}”带入当前处方草稿！`
+      setNotice(msg)
+      onNotice?.(msg)
       void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
+      onClose?.()
     },
   })
 
-  const openApply = (templateToApply?: OutpatientPlanTemplate) => {
-    const target = templateToApply || selected
-    if (!target) return
-    setPendingTemplateToApply(target)
-    setSafetyConfirmed(target.medications.length === 0)
-    setOverrideReason('')
-    setApplyOpen(true)
+  // 勾选计数与调入处理
+  const totalCheckedStandard = checkedDiagnosisCodes.size + checkedMedicationKeys.size + checkedServiceKeys.size
+
+  const handleApplyStandard = () => {
+    if (!selected) return
+    const templateToApply: OutpatientPlanTemplate = {
+      ...selected,
+      diagnoses: selected.diagnoses.filter((d) => checkedDiagnosisCodes.has(d.code)),
+      medications: selected.medications.filter((m, idx) => checkedMedicationKeys.has(m.lineId || `${m.medicationId}-${idx}`)),
+      services: selected.services.filter((s, idx) => checkedServiceKeys.has(`${s.catalogItemId || s.itemCode || ''}-${idx}`)),
+    }
+    setPendingTemplateToApply(templateToApply)
+    apply.mutate(templateToApply)
   }
 
-  const error = templates.error || save.error || apply.error || applyHistoricalMutation.error || solidifyMinedMutation.error || applyMinedMutation.error
+  const totalCheckedHist = checkedHistDiagnosisCodes.size + checkedHistMedicationKeys.size + checkedHistServiceKeys.size
+
+  const handleApplyHistorical = () => {
+    if (!historicalPlanQuery.data) return
+    const filtered: HistoricalStablePlan = {
+      ...historicalPlanQuery.data,
+      diagnoses: historicalPlanQuery.data.diagnoses.filter((d) => checkedHistDiagnosisCodes.has(d.code)),
+      medications: historicalPlanQuery.data.medications.filter((m, idx) => checkedHistMedicationKeys.has(`${m.medicationId}-${idx}`)),
+      services: historicalPlanQuery.data.services.filter((s, idx) => checkedHistServiceKeys.has(`${s.catalogItemId || (s as any).serviceCode || ''}-${idx}`)),
+    }
+    applyHistoricalMutation.mutate(filtered)
+  }
+
+  const totalCheckedMined = checkedMinedDiagnosisCodes.size + checkedMinedMedicationKeys.size + checkedMinedServiceKeys.size
+
+  const handleApplyMined = () => {
+    if (!selectedMined) return
+    const filtered: MinedPlanSuggestion = {
+      ...selectedMined,
+      diagnoses: selectedMined.diagnoses.filter((d) => checkedMinedDiagnosisCodes.has(d.code)),
+      medications: selectedMined.medications.filter((m, idx) => checkedMinedMedicationKeys.has(`${m.medicationId}-${idx}`)),
+      services: selectedMined.services.filter((s, idx) => checkedMinedServiceKeys.has(`${s.catalogItemId || s.itemCode || ''}-${idx}`)),
+    }
+    applyMinedMutation.mutate(filtered)
+  }
+
+  const error = templates.error || noteTemplates.error || apply.error || applyNote.error
+    || applyHistoricalMutation.error || solidifyMinedMutation.error || applyMinedMutation.error
+
+  const showingNoteTemplate = templateKind === 'NOTE'
+    || (templateKind === 'ALL' && selectedKind === 'NOTE')
+  const kindTabs: Array<{ value: 'ALL' | 'NOTE' | 'PLAN'; label: string; meta?: string }> = [
+    { value: 'ALL', label: '全部', meta: `(${(templates.data?.length ?? 0) + (noteTemplates.data?.length ?? 0)})` },
+    { value: 'NOTE', label: '病历模板', meta: noteTemplates.data?.length ? `(${noteTemplates.data.length})` : undefined },
+    { value: 'PLAN', label: '诊疗方案', meta: templates.data?.length ? `(${templates.data.length})` : undefined },
+  ]
 
   const scopeTabs: Array<{ value: 'ALL' | 'PERSONAL' | 'DEPARTMENT' | 'HOSPITAL' | 'HISTORICAL' | 'MINED'; label: string; meta?: string }> = [
     { value: 'ALL', label: '全部方案', meta: templates.data?.length ? `(${templates.data.length})` : undefined },
@@ -2138,30 +2274,79 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
     { value: 'DEPARTMENT', label: '科室路径', meta: templates.data?.filter(t => t.scopeType === 'DEPARTMENT').length ? `(${templates.data.filter(t => t.scopeType === 'DEPARTMENT').length})` : undefined },
     { value: 'HOSPITAL', label: '全院/指南', meta: templates.data?.filter(t => t.scopeType === 'HOSPITAL').length ? `(${templates.data.filter(t => t.scopeType === 'HOSPITAL').length})` : undefined },
     { value: 'HISTORICAL', label: '复诊成熟方案', meta: historicalPlanQuery.data ? '(1)' : undefined },
-    { value: 'MINED', label: 'AI开方沉淀', meta: minedQuery.data?.length ? `(${minedQuery.data.length})` : undefined },
   ]
 
   return <>
-    <Button size="sm" variant="secondary" disabled={disabled} onClick={() => setManagerOpen(true)}>常用方案</Button>
-    {managerOpen && <Dialog title="多层级临床诊疗方案池" eyebrow="分级方案支撑 · AI 赋能基础设施" size="xwide"
-      onClose={() => setManagerOpen(false)} footer={<Button variant="secondary" onClick={() => setManagerOpen(false)}>关闭</Button>}>
-      <div className="doctor-plan-pool-modal">
+      <div className="doctor-plan-pool-modal is-drawer">
         {error && <Alert>{errorMessage(error)}</Alert>}
         {notice && <div className="doctor-plan-pool-notice">{notice}</div>}
 
-        {/* 顶部工具与多层级筛选栏 */}
+        {/* 顶部模板类型、方案范围与确认操作 */}
         <div className="doctor-plan-pool-header">
-          <Tabs
-            value={scopeFilter}
-            onChange={(tabId) => { setScopeFilter(tabId); setNotice('') }}
-            label="方案库分类筛选"
-            variant="line"
-            items={scopeTabs}
-          />
+          <div className="doctor-clinical-template-filters">
+            <Tabs
+              value={templateKind}
+              onChange={(tabId) => {
+                setTemplateKind(tabId)
+                if (tabId !== 'PLAN') setScopeFilter('ALL')
+                if (tabId === 'NOTE') setSelectedKind('NOTE')
+                if (tabId === 'PLAN') setSelectedKind('PLAN')
+                setNotice('')
+              }}
+              label="临床模板类型"
+              variant="line"
+              items={kindTabs}
+            />
+            {templateKind === 'PLAN' && <Tabs
+              value={scopeFilter}
+              onChange={(tabId) => { setScopeFilter(tabId); setNotice('') }}
+              label="诊疗方案范围"
+              variant="line"
+              items={scopeTabs}
+            />}
+          </div>
           <div className="doctor-plan-pool-header-actions">
-            <Button size="sm" variant="primary" onClick={() => setAiCompilerOpen(true)}>✨ AI 智能速记/指南建方</Button>
-            <Button size="sm" variant="secondary" disabled={draftCount === 0}
-              onClick={() => { setSaveOpen(true) }}>保存当前方案</Button>
+            {showingNoteTemplate ? (
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={!selectedNote || checkedNoteFields.size === 0}
+                busy={applyNote.isPending}
+                onClick={() => selectedNote && applyNote.mutate(selectedNote)}
+              >
+                {checkedNoteFields.size > 0 ? `带入病历草稿 (${checkedNoteFields.size})` : '带入病历草稿'}
+              </Button>
+            ) : scopeFilter === 'HISTORICAL' ? (
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={!historicalPlanQuery.data || totalCheckedHist === 0}
+                busy={applyHistoricalMutation.isPending}
+                onClick={handleApplyHistorical}
+              >
+                {totalCheckedHist > 0 ? `一键复用带入草稿 (${totalCheckedHist})` : '一键复用带入草稿'}
+              </Button>
+            ) : scopeFilter === 'MINED' ? (
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={!selectedMined || totalCheckedMined === 0}
+                busy={applyMinedMutation.isPending}
+                onClick={handleApplyMined}
+              >
+                {totalCheckedMined > 0 ? `直接带入草稿 (${totalCheckedMined})` : '直接带入草稿'}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={!selected || totalCheckedStandard === 0}
+                busy={apply.isPending}
+                onClick={handleApplyStandard}
+              >
+                {totalCheckedStandard > 0 ? `带入当前草稿 (${totalCheckedStandard})` : '带入当前草稿'}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -2169,17 +2354,80 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
         <div className="doctor-plan-pool-split">
           {/* 左侧栏：方案索引与检索 */}
           <div className="doctor-plan-pool-sidebar">
-            {scopeFilter !== 'HISTORICAL' && (
-              <input
+            {(templateKind !== 'PLAN' || scopeFilter !== 'HISTORICAL') && (
+              <SearchField
                 className="doctor-plan-pool-search"
+                label="搜索临床模板"
                 value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="搜索方案名称、诊断或药品..."
+                onChange={setSearchKeyword}
+                placeholder="搜索模板、诊断、药品或病历内容..."
               />
             )}
 
             <div className="doctor-plan-pool-list">
-              {scopeFilter === 'HISTORICAL' ? (
+              {templateKind === 'NOTE' ? (
+                noteTemplates.isPending ? <LoadingState label="正在加载病历模板..." /> :
+                filteredNoteTemplates.length ? filteredNoteTemplates.map((item) => (
+                  <button key={item.id} type="button"
+                    className={`doctor-plan-item-card ${selectedNote?.id === item.id ? 'is-selected' : ''}`}
+                    onClick={() => { setSelectedNoteId(item.id); setSelectedKind('NOTE') }}>
+                    <div className="doctor-plan-item-card__top">
+                      <div className="doctor-plan-card-badges">
+                        <StatusBadge tone="info">病历模板</StatusBadge>
+                        <StatusBadge tone="neutral">{item.scopeType === 'PERSONAL' ? '个人' : '科室'}</StatusBadge>
+                      </div>
+                      <small className="doctor-plan-card-meta-text">已用 {item.useCount} 次</small>
+                    </div>
+                    <div className="doctor-plan-item-card__title">{item.name}</div>
+                    <div className="doctor-plan-item-card__desc">{item.description || '门诊病历段落模板'}</div>
+                    <div className="doctor-plan-item-card__meta">
+                      <span>可用段落 {noteTemplateFields.filter(({ key }) => item.content[key]?.trim()).length}</span>
+                    </div>
+                  </button>
+                )) : <div className="doctor-plan-pool-empty-text">未找到匹配的病历模板</div>
+              ) : templateKind === 'ALL' ? (
+                noteTemplates.isPending || templates.isPending ? <LoadingState label="正在加载临床模板..." /> :
+                filteredNoteTemplates.length || filteredTemplates.length ? <>
+                  {filteredNoteTemplates.map((item) => (
+                    <button key={`note-${item.id}`} type="button"
+                      className={`doctor-plan-item-card ${selectedKind === 'NOTE' && selectedNote?.id === item.id ? 'is-selected' : ''}`}
+                      onClick={() => { setSelectedNoteId(item.id); setSelectedKind('NOTE') }}>
+                      <div className="doctor-plan-item-card__top">
+                        <div className="doctor-plan-card-badges">
+                          <StatusBadge tone="info">病历模板</StatusBadge>
+                          <StatusBadge tone="neutral">{item.scopeType === 'PERSONAL' ? '个人' : '科室'}</StatusBadge>
+                        </div>
+                        <small className="doctor-plan-card-meta-text">已用 {item.useCount} 次</small>
+                      </div>
+                      <div className="doctor-plan-item-card__title">{item.name}</div>
+                      <div className="doctor-plan-item-card__desc">{item.description || '门诊病历段落模板'}</div>
+                      <div className="doctor-plan-item-card__meta">
+                        <span>病历段落 {noteTemplateFields.filter(({ key }) => item.content[key]?.trim()).length}</span>
+                      </div>
+                    </button>
+                  ))}
+                  {filteredTemplates.map((item) => (
+                    <button key={`plan-${item.id}`} type="button"
+                      className={`doctor-plan-item-card ${selectedKind === 'PLAN' && selected?.id === item.id ? 'is-selected' : ''}`}
+                      onClick={() => { setSelectedId(item.id); setSelectedKind('PLAN') }}>
+                      <div className="doctor-plan-item-card__top">
+                        <div className="doctor-plan-card-badges">
+                          <StatusBadge tone="success">诊疗方案</StatusBadge>
+                          <StatusBadge tone="neutral">{item.scopeType === 'PERSONAL' ? '个人' : item.scopeType === 'DEPARTMENT' ? '科室' : '全院'}</StatusBadge>
+                        </div>
+                        <small className="doctor-plan-card-meta-text">已用 {item.useCount} 次</small>
+                      </div>
+                      <div className="doctor-plan-item-card__title">{item.name}</div>
+                      <div className="doctor-plan-item-card__desc">{item.description || item.name}</div>
+                      <div className="doctor-plan-item-card__meta">
+                        <span>诊断 {item.diagnoses.length}</span><span>·</span>
+                        <span>药品 {item.medications.length}</span><span>·</span>
+                        <span>诊疗 {item.services.length}</span>
+                      </div>
+                    </button>
+                  ))}
+                </> : <div className="doctor-plan-pool-empty-text">未找到匹配的临床模板</div>
+              ) : scopeFilter === 'HISTORICAL' ? (
                 historicalPlanQuery.isPending ? <LoadingState label="正在识别复诊平稳方案..." /> :
                 historicalPlanQuery.data ? (
                   <div className="doctor-plan-item-card is-selected">
@@ -2278,7 +2526,45 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
 
           {/* 右侧栏：选中方案明细看板与带入操作 */}
           <div className="doctor-plan-pool-detail">
-            {scopeFilter === 'HISTORICAL' ? (
+            {showingNoteTemplate ? (
+              selectedNote ? <div className="doctor-plan-pool-detail__body">
+                <div className="doctor-plan-detail-hero is-compact">
+                  <div className="doctor-plan-detail-hero__title">
+                    <span>{selectedNote.name}</span>
+                    <StatusBadge tone="info">病历模板</StatusBadge>
+                    <StatusBadge tone="neutral">{selectedNote.scopeType === 'PERSONAL' ? '医生个人' : '科室共享'}</StatusBadge>
+                  </div>
+                  {selectedNote.description && <p className="doctor-plan-detail-desc">{selectedNote.description}</p>}
+                </div>
+
+                <label className="doctor-note-template-mode">
+                  <input type="checkbox" checked={overwriteNoteFields} disabled={applyNote.isPending}
+                    onChange={(event) => setOverwriteNoteFields(event.target.checked)} />
+                  <span><strong>覆盖所选段落已有内容</strong><small>默认只填充当前为空的病历段落，避免覆盖医生已书写内容。</small></span>
+                </label>
+
+                <div className="doctor-plan-detail-section">
+                  <div className="doctor-plan-detail-section__title">选择带入的病历段落 ({checkedNoteFields.size})</div>
+                  <div className="doctor-note-template-preview is-workspace">
+                    {noteTemplateFields.filter(({ key }) => selectedNote.content[key]?.trim()).map(({ key, label }) => (
+                      <label key={key} className={checkedNoteFields.has(key) ? undefined : 'is-row-unchecked'}>
+                        <input type="checkbox" checked={checkedNoteFields.has(key)}
+                          onChange={() => setCheckedNoteFields((current) => {
+                            const next = new Set(current)
+                            if (next.has(key)) next.delete(key); else next.add(key)
+                            return next
+                          })} />
+                        <span><strong>{label}</strong><small>{selectedNote.content[key]}</small></span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="doctor-plan-pool-detail__footer">
+                  <span className="doctor-plan-footer-hint">只修改当前病历草稿，不会生成诊断、药品或检查医嘱，也不会自动保存。</span>
+                </div>
+              </div> : <EmptyState icon="clinical" title="暂无病历模板" copy="当前筛选条件下没有匹配的病历模板。" />
+            ) : scopeFilter === 'HISTORICAL' ? (
               historicalPlanQuery.data ? (
                 <div className="doctor-plan-pool-detail__body">
                   <div className="doctor-plan-detail-hero">
@@ -2306,6 +2592,22 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       <DataTable compact className="doctor-plan-items-table">
                         <thead>
                           <tr>
+                            <th className={tableCellClass('control')}>
+                              <input
+                                type="checkbox"
+                                aria-label="全选诊断"
+                                checked={historicalPlanQuery.data.diagnoses.length > 0 && historicalPlanQuery.data.diagnoses.every((d) => checkedHistDiagnosisCodes.has(d.code))}
+                                onChange={() => {
+                                  const isAll = historicalPlanQuery.data!.diagnoses.length > 0 && historicalPlanQuery.data!.diagnoses.every((d) => checkedHistDiagnosisCodes.has(d.code))
+                                  if (isAll) {
+                                    setCheckedHistDiagnosisCodes(new Set())
+                                  } else {
+                                    setCheckedHistDiagnosisCodes(new Set(historicalPlanQuery.data!.diagnoses.map((d) => d.code)))
+                                  }
+                                }}
+                                disabled={historicalPlanQuery.data.diagnoses.length === 0}
+                              />
+                            </th>
                             <th className={tableCellClass('status')} style={{ width: '90px' }}>类型</th>
                             <th className={tableCellClass('text')} style={{ width: '130px' }}>ICD-10 编码</th>
                             <th className={tableCellClass('text')}>诊断名称</th>
@@ -2313,20 +2615,38 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                         </thead>
                         <tbody>
                           {historicalPlanQuery.data.diagnoses.length > 0 ? (
-                            historicalPlanQuery.data.diagnoses.map((d) => (
-                              <tr key={d.code}>
-                                <td className={tableCellClass('status')}>
-                                  <StatusBadge tone={d.type === 'PRIMARY' ? 'warning' : 'neutral'}>
-                                    {d.type === 'PRIMARY' ? '主要诊断' : '次要诊断'}
-                                  </StatusBadge>
-                                </td>
-                                <td className={tableCellClass('text')}><code>{d.code}</code></td>
-                                <td className={tableCellClass('text')}><strong>{d.display}</strong></td>
-                              </tr>
-                            ))
+                            historicalPlanQuery.data.diagnoses.map((d) => {
+                              const isChecked = checkedHistDiagnosisCodes.has(d.code)
+                              return (
+                                <tr key={d.code} className={isChecked ? undefined : 'is-row-unchecked'}>
+                                  <td className={tableCellClass('control')}>
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`选择诊断 ${d.display}`}
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        setCheckedHistDiagnosisCodes((prev) => {
+                                          const next = new Set(prev)
+                                          if (next.has(d.code)) next.delete(d.code)
+                                          else next.add(d.code)
+                                          return next
+                                        })
+                                      }}
+                                    />
+                                  </td>
+                                  <td className={tableCellClass('status')}>
+                                    <StatusBadge tone={d.type === 'PRIMARY' ? 'warning' : 'neutral'}>
+                                      {d.type === 'PRIMARY' ? '主要诊断' : '次要诊断'}
+                                    </StatusBadge>
+                                  </td>
+                                  <td className={tableCellClass('text')}><code>{d.code}</code></td>
+                                  <td className={tableCellClass('text')}><strong>{d.display}</strong></td>
+                                </tr>
+                              )
+                            })
                           ) : (
                             <tr>
-                              <td colSpan={3} className="doctor-plan-table-empty">暂无诊断记录</td>
+                              <td colSpan={4} className="doctor-plan-table-empty">暂无诊断记录</td>
                             </tr>
                           )}
                         </tbody>
@@ -2340,6 +2660,22 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       <DataTable compact className="doctor-plan-items-table">
                         <thead>
                           <tr>
+                            <th className={tableCellClass('control')}>
+                              <input
+                                type="checkbox"
+                                aria-label="全选维持用药"
+                                checked={historicalPlanQuery.data.medications.length > 0 && historicalPlanQuery.data.medications.every((m, idx) => checkedHistMedicationKeys.has(`${m.medicationId}-${idx}`))}
+                                onChange={() => {
+                                  const isAll = historicalPlanQuery.data!.medications.length > 0 && historicalPlanQuery.data!.medications.every((m, idx) => checkedHistMedicationKeys.has(`${m.medicationId}-${idx}`))
+                                  if (isAll) {
+                                    setCheckedHistMedicationKeys(new Set())
+                                  } else {
+                                    setCheckedHistMedicationKeys(new Set(historicalPlanQuery.data!.medications.map((m, idx) => `${m.medicationId}-${idx}`)))
+                                  }
+                                }}
+                                disabled={historicalPlanQuery.data.medications.length === 0}
+                              />
+                            </th>
                             <th className={tableCellClass('text')}>药品及品规</th>
                             <th className={tableCellClass('numeric')}>单次剂量</th>
                             <th className={tableCellClass('text')}>途径</th>
@@ -2350,22 +2686,41 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                         </thead>
                         <tbody>
                           {historicalPlanQuery.data.medications.length > 0 ? (
-                            historicalPlanQuery.data.medications.map((m, idx) => (
-                              <tr key={idx}>
-                                <td className={tableCellClass('text')}>
-                                  <div><strong>药品编码 #{m.medicationId}</strong></div>
-                                  {m.medicationInstruction && <small className="doctor-plan-item-subtext">{m.medicationInstruction}</small>}
-                                </td>
-                                <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
-                                <td className={tableCellClass('text')}>{m.routeCode || '—'}</td>
-                                <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
-                                <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
-                                <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
-                              </tr>
-                            ))
+                            historicalPlanQuery.data.medications.map((m, idx) => {
+                              const medKey = `${m.medicationId}-${idx}`
+                              const isChecked = checkedHistMedicationKeys.has(medKey)
+                              return (
+                                <tr key={medKey} className={isChecked ? undefined : 'is-row-unchecked'}>
+                                  <td className={tableCellClass('control')}>
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`选择维持用药 #${m.medicationId}`}
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        setCheckedHistMedicationKeys((prev) => {
+                                          const next = new Set(prev)
+                                          if (next.has(medKey)) next.delete(medKey)
+                                          else next.add(medKey)
+                                          return next
+                                        })
+                                      }}
+                                    />
+                                  </td>
+                                  <td className={tableCellClass('text')}>
+                                    <div><strong>药品编码 #{m.medicationId}</strong></div>
+                                    {m.medicationInstruction && <small className="doctor-plan-item-subtext">{m.medicationInstruction}</small>}
+                                  </td>
+                                  <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
+                                  <td className={tableCellClass('text')}>{m.routeCode || '—'}</td>
+                                  <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
+                                  <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
+                                  <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
+                                </tr>
+                              )
+                            })
                           ) : (
                             <tr>
-                              <td colSpan={6} className="doctor-plan-table-empty">暂无维持用药</td>
+                              <td colSpan={7} className="doctor-plan-table-empty">暂无维持用药</td>
                             </tr>
                           )}
                         </tbody>
@@ -2377,13 +2732,6 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                     <span className="doctor-plan-footer-hint">
                       一键复用将慢病平稳期处方带入草稿，开立前仍执行品规库存和过敏校验。
                     </span>
-                    <Button
-                      variant="primary"
-                      busy={applyHistoricalMutation.isPending}
-                      onClick={() => applyHistoricalMutation.mutate(historicalPlanQuery.data!)}
-                    >
-                      一键复用带入草稿
-                    </Button>
                   </div>
                 </div>
               ) : (
@@ -2408,6 +2756,22 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       <DataTable compact className="doctor-plan-items-table">
                         <thead>
                           <tr>
+                            <th className={tableCellClass('control')}>
+                              <input
+                                type="checkbox"
+                                aria-label="全选诊断"
+                                checked={selectedMined.diagnoses.length > 0 && selectedMined.diagnoses.every((d) => checkedMinedDiagnosisCodes.has(d.code))}
+                                onChange={() => {
+                                  const isAll = selectedMined.diagnoses.length > 0 && selectedMined.diagnoses.every((d) => checkedMinedDiagnosisCodes.has(d.code))
+                                  if (isAll) {
+                                    setCheckedMinedDiagnosisCodes(new Set())
+                                  } else {
+                                    setCheckedMinedDiagnosisCodes(new Set(selectedMined.diagnoses.map((d) => d.code)))
+                                  }
+                                }}
+                                disabled={selectedMined.diagnoses.length === 0}
+                              />
+                            </th>
                             <th className={tableCellClass('status')} style={{ width: '90px' }}>类型</th>
                             <th className={tableCellClass('text')} style={{ width: '130px' }}>ICD-10 编码</th>
                             <th className={tableCellClass('text')}>诊断名称</th>
@@ -2415,20 +2779,38 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                         </thead>
                         <tbody>
                           {selectedMined.diagnoses.length > 0 ? (
-                            selectedMined.diagnoses.map((d) => (
-                              <tr key={d.code}>
-                                <td className={tableCellClass('status')}>
-                                  <StatusBadge tone={d.type === 'PRIMARY' ? 'warning' : 'neutral'}>
-                                    {d.type === 'PRIMARY' ? '主要诊断' : '次要诊断'}
-                                  </StatusBadge>
-                                </td>
-                                <td className={tableCellClass('text')}><code>{d.code}</code></td>
-                                <td className={tableCellClass('text')}><strong>{d.display}</strong></td>
-                              </tr>
-                            ))
+                            selectedMined.diagnoses.map((d) => {
+                              const isChecked = checkedMinedDiagnosisCodes.has(d.code)
+                              return (
+                                <tr key={d.code} className={isChecked ? undefined : 'is-row-unchecked'}>
+                                  <td className={tableCellClass('control')}>
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`选择诊断 ${d.display}`}
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        setCheckedMinedDiagnosisCodes((prev) => {
+                                          const next = new Set(prev)
+                                          if (next.has(d.code)) next.delete(d.code)
+                                          else next.add(d.code)
+                                          return next
+                                        })
+                                      }}
+                                    />
+                                  </td>
+                                  <td className={tableCellClass('status')}>
+                                    <StatusBadge tone={d.type === 'PRIMARY' ? 'warning' : 'neutral'}>
+                                      {d.type === 'PRIMARY' ? '主要诊断' : '次要诊断'}
+                                    </StatusBadge>
+                                  </td>
+                                  <td className={tableCellClass('text')}><code>{d.code}</code></td>
+                                  <td className={tableCellClass('text')}><strong>{d.display}</strong></td>
+                                </tr>
+                              )
+                            })
                           ) : (
                             <tr>
-                              <td colSpan={3} className="doctor-plan-table-empty">暂无诊断记录</td>
+                              <td colSpan={4} className="doctor-plan-table-empty">暂无诊断记录</td>
                             </tr>
                           )}
                         </tbody>
@@ -2442,6 +2824,22 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       <DataTable compact className="doctor-plan-items-table">
                         <thead>
                           <tr>
+                            <th className={tableCellClass('control')}>
+                              <input
+                                type="checkbox"
+                                aria-label="全选开方药品"
+                                checked={selectedMined.medications.length > 0 && selectedMined.medications.every((m, idx) => checkedMinedMedicationKeys.has(`${m.medicationId}-${idx}`))}
+                                onChange={() => {
+                                  const isAll = selectedMined.medications.length > 0 && selectedMined.medications.every((m, idx) => checkedMinedMedicationKeys.has(`${m.medicationId}-${idx}`))
+                                  if (isAll) {
+                                    setCheckedMinedMedicationKeys(new Set())
+                                  } else {
+                                    setCheckedMinedMedicationKeys(new Set(selectedMined.medications.map((m, idx) => `${m.medicationId}-${idx}`)))
+                                  }
+                                }}
+                                disabled={selectedMined.medications.length === 0}
+                              />
+                            </th>
                             <th className={tableCellClass('text')}>药品编码</th>
                             <th className={tableCellClass('numeric')}>单次剂量</th>
                             <th className={tableCellClass('text')}>途径</th>
@@ -2452,19 +2850,38 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                         </thead>
                         <tbody>
                           {selectedMined.medications.length > 0 ? (
-                            selectedMined.medications.map((m, idx) => (
-                              <tr key={idx}>
-                                <td className={tableCellClass('text')}><strong>药品 #{m.medicationId}</strong></td>
-                                <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
-                                <td className={tableCellClass('text')}>{m.routeCode || '—'}</td>
-                                <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
-                                <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
-                                <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
-                              </tr>
-                            ))
+                            selectedMined.medications.map((m, idx) => {
+                              const medKey = `${m.medicationId}-${idx}`
+                              const isChecked = checkedMinedMedicationKeys.has(medKey)
+                              return (
+                                <tr key={medKey} className={isChecked ? undefined : 'is-row-unchecked'}>
+                                  <td className={tableCellClass('control')}>
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`选择开方药品 #${m.medicationId}`}
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        setCheckedMinedMedicationKeys((prev) => {
+                                          const next = new Set(prev)
+                                          if (next.has(medKey)) next.delete(medKey)
+                                          else next.add(medKey)
+                                          return next
+                                        })
+                                      }}
+                                    />
+                                  </td>
+                                  <td className={tableCellClass('text')}><strong>药品 #{m.medicationId}</strong></td>
+                                  <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
+                                  <td className={tableCellClass('text')}>{m.routeCode || '—'}</td>
+                                  <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
+                                  <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
+                                  <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
+                                </tr>
+                              )
+                            })
                           ) : (
                             <tr>
-                              <td colSpan={6} className="doctor-plan-table-empty">暂无开方药品</td>
+                              <td colSpan={7} className="doctor-plan-table-empty">暂无开方药品</td>
                             </tr>
                           )}
                         </tbody>
@@ -2480,13 +2897,6 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                     >
                       固化为个人常用方案
                     </Button>
-                    <Button
-                      variant="primary"
-                      busy={applyMinedMutation.isPending}
-                      onClick={() => applyMinedMutation.mutate(selectedMined)}
-                    >
-                      直接带入草稿
-                    </Button>
                   </div>
                 </div>
               ) : (
@@ -2495,7 +2905,7 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
             ) : (
               selected ? (
                 <div className="doctor-plan-pool-detail__body">
-                  <div className="doctor-plan-detail-hero">
+                  <div className="doctor-plan-detail-hero is-compact">
                     <div className="doctor-plan-detail-hero__title">
                       <span>{selected.name}</span>
                       <StatusBadge tone={selected.scopeType === 'PERSONAL' ? 'neutral' : selected.scopeType === 'DEPARTMENT' ? 'info' : 'success'}>
@@ -2507,13 +2917,20 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                     </div>
                     {selected.guidelineReference && (
                       <div className="doctor-plan-detail-guideline">
-                        📖 依据临床规范 / 专家共识：{selected.guidelineReference}
+                        📖 用户录入的条文来源（未核验）：{planSourceReferenceLabel(selected.guidelineReference)}
                       </div>
                     )}
-                    <p className="doctor-plan-detail-desc">
-                      {selected.description || selected.name}
-                    </p>
                   </div>
+
+                  {!!selected.tasks?.length && <div className="doctor-plan-detail-section">
+                    <div className="doctor-plan-detail-section__title">诊疗任务与原文依据 ({selected.tasks.length})</div>
+                    {selected.tasks.map((task, index) => <div key={`${task.kind}-${index}`} className="ai-plan-modal-row ai-plan-modal-row-bordered">
+                      <div><strong>{planTaskKindLabel[task.kind]} · {task.text}</strong><small className="ai-plan-modal-row-sub">{task.sourceQuote ? `原文：“${task.sourceQuote}”` : '模型建议，原文未明确提出'}</small></div>
+                      <StatusBadge tone={task.status === 'MATCHED' ? 'success' : task.status === 'UNMATCHED' ? 'danger' : 'warning'}>
+                        {task.status === 'MATCHED' ? '目录已匹配' : task.status === 'UNMATCHED' ? '未匹配' : '待核对'}
+                      </StatusBadge>
+                    </div>)}
+                  </div>}
 
                   <div className="doctor-plan-detail-section">
                     <div className="doctor-plan-detail-section__title">诊断列表 ({selected.diagnoses.length})</div>
@@ -2521,6 +2938,22 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       <DataTable compact className="doctor-plan-items-table">
                         <thead>
                           <tr>
+                            <th className={tableCellClass('control')}>
+                              <input
+                                type="checkbox"
+                                aria-label="全选诊断"
+                                checked={selected.diagnoses.length > 0 && selected.diagnoses.every((d) => checkedDiagnosisCodes.has(d.code))}
+                                onChange={() => {
+                                  const isAll = selected.diagnoses.length > 0 && selected.diagnoses.every((d) => checkedDiagnosisCodes.has(d.code))
+                                  if (isAll) {
+                                    setCheckedDiagnosisCodes(new Set())
+                                  } else {
+                                    setCheckedDiagnosisCodes(new Set(selected.diagnoses.map((d) => d.code)))
+                                  }
+                                }}
+                                disabled={selected.diagnoses.length === 0}
+                              />
+                            </th>
                             <th className={tableCellClass('status')} style={{ width: '90px' }}>类型</th>
                             <th className={tableCellClass('text')} style={{ width: '130px' }}>ICD-10 编码</th>
                             <th className={tableCellClass('text')}>诊断名称</th>
@@ -2528,20 +2961,38 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                         </thead>
                         <tbody>
                           {selected.diagnoses.length > 0 ? (
-                            selected.diagnoses.map((d) => (
-                              <tr key={d.code}>
-                                <td className={tableCellClass('status')}>
-                                  <StatusBadge tone={d.type === 'PRIMARY' ? 'warning' : 'neutral'}>
-                                    {d.type === 'PRIMARY' ? '主要诊断' : '次要诊断'}
-                                  </StatusBadge>
-                                </td>
-                                <td className={tableCellClass('text')}><code>{d.code}</code></td>
-                                <td className={tableCellClass('text')}><strong>{d.display}</strong></td>
-                              </tr>
-                            ))
+                            selected.diagnoses.map((d) => {
+                              const isChecked = checkedDiagnosisCodes.has(d.code)
+                              return (
+                                <tr key={d.code} className={isChecked ? undefined : 'is-row-unchecked'}>
+                                  <td className={tableCellClass('control')}>
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`选择诊断 ${d.display}`}
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        setCheckedDiagnosisCodes((prev) => {
+                                          const next = new Set(prev)
+                                          if (next.has(d.code)) next.delete(d.code)
+                                          else next.add(d.code)
+                                          return next
+                                        })
+                                      }}
+                                    />
+                                  </td>
+                                  <td className={tableCellClass('status')}>
+                                    <StatusBadge tone={d.type === 'PRIMARY' ? 'warning' : 'neutral'}>
+                                      {d.type === 'PRIMARY' ? '主要诊断' : '次要诊断'}
+                                    </StatusBadge>
+                                  </td>
+                                  <td className={tableCellClass('text')}><code>{d.code}</code></td>
+                                  <td className={tableCellClass('text')}><strong>{d.display}</strong></td>
+                                </tr>
+                              )
+                            })
                           ) : (
                             <tr>
-                              <td colSpan={3} className="doctor-plan-table-empty">暂无诊断记录</td>
+                              <td colSpan={4} className="doctor-plan-table-empty">暂无诊断记录</td>
                             </tr>
                           )}
                         </tbody>
@@ -2555,6 +3006,22 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       <DataTable compact className="doctor-plan-items-table">
                         <thead>
                           <tr>
+                            <th className={tableCellClass('control')}>
+                              <input
+                                type="checkbox"
+                                aria-label="全选处方药品"
+                                checked={selected.medications.length > 0 && selected.medications.every((m, idx) => checkedMedicationKeys.has(m.lineId || `${m.medicationId}-${idx}`))}
+                                onChange={() => {
+                                  const isAll = selected.medications.length > 0 && selected.medications.every((m, idx) => checkedMedicationKeys.has(m.lineId || `${m.medicationId}-${idx}`))
+                                  if (isAll) {
+                                    setCheckedMedicationKeys(new Set())
+                                  } else {
+                                    setCheckedMedicationKeys(new Set(selected.medications.map((m, idx) => m.lineId || `${m.medicationId}-${idx}`)))
+                                  }
+                                }}
+                                disabled={selected.medications.length === 0}
+                              />
+                            </th>
                             <th className={tableCellClass('text')}>药品名称及规格</th>
                             <th className={tableCellClass('numeric')}>单次剂量</th>
                             <th className={tableCellClass('text')}>途径</th>
@@ -2566,23 +3033,42 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                         </thead>
                         <tbody>
                           {selected.medications.length > 0 ? (
-                            selected.medications.map((m) => (
-                              <tr key={m.lineId}>
-                                <td className={tableCellClass('text')}>
-                                  <div><strong>{m.medicationName}</strong></div>
-                                  {m.preparationSpec && <small className="doctor-plan-item-subtext">{m.preparationSpec}</small>}
-                                </td>
-                                <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
-                                <td className={tableCellClass('text')}>{m.routeName || m.routeCode || '—'}</td>
-                                <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
-                                <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
-                                <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
-                                <td className={tableCellClass('text')}><small>{m.medicationInstruction || '—'}</small></td>
-                              </tr>
-                            ))
+                            selected.medications.map((m, idx) => {
+                              const medKey = m.lineId || `${m.medicationId}-${idx}`
+                              const isChecked = checkedMedicationKeys.has(medKey)
+                              return (
+                                <tr key={medKey} className={isChecked ? undefined : 'is-row-unchecked'}>
+                                  <td className={tableCellClass('control')}>
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`选择药品 ${m.medicationName}`}
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        setCheckedMedicationKeys((prev) => {
+                                          const next = new Set(prev)
+                                          if (next.has(medKey)) next.delete(medKey)
+                                          else next.add(medKey)
+                                          return next
+                                        })
+                                      }}
+                                    />
+                                  </td>
+                                  <td className={tableCellClass('text')}>
+                                    <div><strong>{m.medicationName}</strong></div>
+                                    {m.preparationSpec && <small className="doctor-plan-item-subtext">{m.preparationSpec}</small>}
+                                  </td>
+                                  <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
+                                  <td className={tableCellClass('text')}>{m.routeName || m.routeCode || '—'}</td>
+                                  <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
+                                  <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
+                                  <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
+                                  <td className={tableCellClass('text')}><small>{m.medicationInstruction || '—'}</small></td>
+                                </tr>
+                              )
+                            })
                           ) : (
                             <tr>
-                              <td colSpan={7} className="doctor-plan-table-empty">暂无处方药品</td>
+                              <td colSpan={8} className="doctor-plan-table-empty">暂无处方药品</td>
                             </tr>
                           )}
                         </tbody>
@@ -2596,6 +3082,22 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       <DataTable compact className="doctor-plan-items-table">
                         <thead>
                           <tr>
+                            <th className={tableCellClass('control')}>
+                              <input
+                                type="checkbox"
+                                aria-label="全选检查检验治疗项目"
+                                checked={selected.services.length > 0 && selected.services.every((s, idx) => checkedServiceKeys.has(`${s.catalogItemId || s.itemCode || ''}-${idx}`))}
+                                onChange={() => {
+                                  const isAll = selected.services.length > 0 && selected.services.every((s, idx) => checkedServiceKeys.has(`${s.catalogItemId || s.itemCode || ''}-${idx}`))
+                                  if (isAll) {
+                                    setCheckedServiceKeys(new Set())
+                                  } else {
+                                    setCheckedServiceKeys(new Set(selected.services.map((s, idx) => `${s.catalogItemId || s.itemCode || ''}-${idx}`)))
+                                  }
+                                }}
+                                disabled={selected.services.length === 0}
+                              />
+                            </th>
                             <th className={tableCellClass('text')}>项目名称</th>
                             <th className={tableCellClass('status')} style={{ width: '90px' }}>类型</th>
                             <th className={tableCellClass('numeric')} style={{ width: '100px' }}>数量</th>
@@ -2604,23 +3106,42 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                         </thead>
                         <tbody>
                           {selected.services.length > 0 ? (
-                            selected.services.map((s, idx) => (
-                              <tr key={idx}>
-                                <td className={tableCellClass('text')}>
-                                  <strong>{s.itemName}</strong> <small className="doctor-plan-card-meta-text">({s.itemCode})</small>
-                                </td>
-                                <td className={tableCellClass('status')}>
-                                  <StatusBadge tone="neutral">
-                                    {s.serviceType === 'LABORATORY' ? '检验' : s.serviceType === 'EXAMINATION' ? '检查' : '治疗'}
-                                  </StatusBadge>
-                                </td>
-                                <td className={tableCellClass('numeric')}>{s.quantity} {s.unitCode}</td>
-                                <td className={tableCellClass('text')}><small>{s.clinicalDescription || '—'}</small></td>
-                              </tr>
-                            ))
+                            selected.services.map((s, idx) => {
+                              const srvKey = `${s.catalogItemId || s.itemCode || ''}-${idx}`
+                              const isChecked = checkedServiceKeys.has(srvKey)
+                              return (
+                                <tr key={srvKey} className={isChecked ? undefined : 'is-row-unchecked'}>
+                                  <td className={tableCellClass('control')}>
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`选择项目 ${s.itemName}`}
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        setCheckedServiceKeys((prev) => {
+                                          const next = new Set(prev)
+                                          if (next.has(srvKey)) next.delete(srvKey)
+                                          else next.add(srvKey)
+                                          return next
+                                        })
+                                      }}
+                                    />
+                                  </td>
+                                  <td className={tableCellClass('text')}>
+                                    <strong>{s.itemName}</strong> <small className="doctor-plan-card-meta-text">({s.itemCode})</small>
+                                  </td>
+                                  <td className={tableCellClass('status')}>
+                                    <StatusBadge tone="neutral">
+                                      {s.serviceType === 'LABORATORY' ? '检验' : s.serviceType === 'EXAMINATION' ? '检查' : '治疗'}
+                                    </StatusBadge>
+                                  </td>
+                                  <td className={tableCellClass('numeric')}>{s.quantity} {s.unitCode}</td>
+                                  <td className={tableCellClass('text')}><small>{s.clinicalDescription || '—'}</small></td>
+                                </tr>
+                              )
+                            })
                           ) : (
                             <tr>
-                              <td colSpan={4} className="doctor-plan-table-empty">暂无检查检验治疗项目</td>
+                              <td colSpan={5} className="doctor-plan-table-empty">暂无检查检验治疗项目</td>
                             </tr>
                           )}
                         </tbody>
@@ -2632,9 +3153,6 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                     <span className="doctor-plan-footer-hint">
                       累计已使用 {selected.useCount} 次 · 带入后仍可在门诊工作台进一步调整
                     </span>
-                    <Button variant="primary" onClick={() => openApply(selected)}>
-                      带入当前草稿
-                    </Button>
                   </div>
                 </div>
               ) : (
@@ -2644,75 +3162,6 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
           </div>
         </div>
       </div>
-    </Dialog>}
-    {saveOpen && <Dialog title="保存为常用诊疗方案" eyebrow="门诊医生站 · 方案沉淀"
-      description="保存当前诊断和待确认医嘱；患者病历正文、生命体征及已开立医嘱不会写入模板。"
-      onClose={() => !save.isPending && setSaveOpen(false)} footer={<>
-        <Button variant="secondary" disabled={save.isPending} onClick={() => setSaveOpen(false)}>取消</Button>
-        <Button busy={save.isPending} disabled={!name.trim()} onClick={() => save.mutate()}>确认保存</Button>
-      </>}>
-      <div className="ui-form-grid">
-        <FormField label="方案名称" required><input value={name} maxLength={100}
-          onChange={(event) => setName(event.target.value)} placeholder="如：高血压常规复诊维持方案" /></FormField>
-        <FormField label="使用范围">
-          <Select
-            value={scope}
-            onChange={(val) => setScope(val as OutpatientPlanTemplateScope)}
-            options={[
-              { value: 'PERSONAL', label: '医生个人高频方案' },
-              { value: 'DEPARTMENT', label: '本科室临床路径方案' },
-              { value: 'HOSPITAL', label: '全院临床指南标准方案' },
-            ]}
-          />
-        </FormField>
-        <FormField className="ui-form-span-2" label="方案说明"><textarea value={description} maxLength={500}
-          onChange={(event) => setDescription(event.target.value)} placeholder="适用场景、注意事项（可选）" /></FormField>
-      </div>
-      <div className="doctor-plan-review">
-        <div><span>诊断</span><strong>{diagnoses.length} 条</strong></div>
-        <div><span>待确认药品</span><strong>{medicationDrafts.length} 条</strong></div>
-        <div><span>待确认诊疗项目</span><strong>{serviceDrafts.length} 条</strong></div>
-      </div>
-      {save.error && <Alert>{errorMessage(save.error)}</Alert>}
-    </Dialog>}
-    {applyOpen && activeTemplateForApply && <Dialog title={`带入“${activeTemplateForApply.name}”`} eyebrow="常用诊疗方案"
-      description="方案内容只加入当前草稿，不会自动保存病历、开立处方或产生费用。"
-      closeOnBackdrop={false} onClose={() => !apply.isPending && setApplyOpen(false)} footer={<>
-        <Button variant="secondary" disabled={apply.isPending} onClick={() => setApplyOpen(false)}>取消</Button>
-        <Button busy={apply.isPending} disabled={activeTemplateForApply.medications.length > 0
-          && (!safetyConfirmed || (matchedAllergies.length > 0 && !overrideReason.trim()))}
-          onClick={() => apply.mutate(activeTemplateForApply)}>确认带入草稿</Button>
-      </>}>
-      <div className="doctor-plan-review">
-        <div><span>诊断</span><strong>{activeTemplateForApply.diagnoses.length} 条</strong></div>
-        <div><span>药品</span><strong>{activeTemplateForApply.medications.length} 条</strong></div>
-        <div><span>诊疗项目</span><strong>{activeTemplateForApply.services.length} 条</strong></div>
-      </div>
-      {activeTemplateForApply.medications.length > 0 && <div className="doctor-template-safety-review">
-        <label><input type="checkbox" checked={safetyConfirmed}
-          onChange={(event) => setSafetyConfirmed(event.target.checked)} />
-          <span><strong>已核对患者过敏信息及方案内全部药品</strong>
-            <small>带入后开立时仍会执行药品有效性、机构目录、价格和过敏规则校验。</small></span></label>
-        {matchedAllergies.length > 0 && <FormField label="命中过敏原，继续带入的临床理由" required>
-          <textarea value={overrideReason} maxLength={1000} onChange={(event) => setOverrideReason(event.target.value)}
-            placeholder={`命中：${[...new Set(matchedAllergies.map((item) => item.substanceDisplay))].join('、')}`} />
-        </FormField>}
-      </div>}
-      {apply.error && <Alert>{errorMessage(apply.error)}</Alert>}
-    </Dialog>}
-    {aiCompilerOpen && (
-      <AiPlanTemplateDraftModal
-        api={api}
-        initialScope={scopeFilter === 'DEPARTMENT' ? 'DEPARTMENT' : scopeFilter === 'HOSPITAL' ? 'HOSPITAL' : 'PERSONAL'}
-        onClose={() => setAiCompilerOpen(false)}
-        onSaved={(created) => {
-          void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
-          setSelectedId(created.id)
-          setAiCompilerOpen(false)
-          setNotice(`方案“${created.name}”已通过 AI 编译并成功存入方案池！`)
-        }}
-      />
-    )}
   </>
 }
 

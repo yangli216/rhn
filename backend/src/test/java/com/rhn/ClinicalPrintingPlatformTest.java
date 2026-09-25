@@ -25,7 +25,7 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
         JsonNode catalog = json(mockMvc.perform(get("/api/platform/printing/administration/catalog")
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.documentDefinitions.length()").value(8))
+                .andExpect(jsonPath("$.documentDefinitions.length()").value(9))
                 .andExpect(jsonPath("$.mediaProfiles.length()").value(7))
                 .andExpect(jsonPath("$.mediaProfiles[*].mediaCode", org.hamcrest.Matchers.hasItems(
                         "A4_PORTRAIT", "A5_PORTRAIT", "THERMAL_80_CONTINUOUS", "LABEL_70X50",
@@ -92,7 +92,7 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
         JsonNode business = json(mockMvc.perform(get("/api/platform/printing/administration/business")
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tasks.length()").value(8))
+                .andExpect(jsonPath("$.tasks.length()").value(9))
                 .andExpect(jsonPath("$.organizationName").isNotEmpty())
                 .andReturn().getResponse().getContentAsString());
         JsonNode task = find(business.get("tasks"), "taskCode", "TREATMENT.ORAL_MEDICATION_CARD.PRINT");
