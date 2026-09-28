@@ -424,10 +424,10 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
                 List.of(), List.of(new OutpatientPlanTemplateDirectory.MedicationSnapshot(
                 601L, 61L, 62L, null, "WESTERN", "AMOX", "阿莫西林", "0.25g", null,
                 new BigDecimal("0.5"), "g", "PO", "BID", new BigDecimal("5"), "DAY",
-                new BigDecimal("10"), "片", "饭后服用", false, "SALE", true, "感染待排")),
+                new BigDecimal("10"), "片", "饭后服用", true, false, "SALE", true, "感染待排")),
                 List.of(new OutpatientPlanTemplateDirectory.ServiceSnapshot(
                         63L, "CT-CHEST", "胸部CT", "EXAMINATION", BigDecimal.ONE, "次",
-                        "肺部病变待排", "胸部影像学检查")));
+                        "SALE", true, "肺部病变待排", "胸部影像学检查")));
         var history = new OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot(
                 70L, 1, Instant.parse("2026-08-08T08:00:00Z"), List.of(),
                 List.of(new OutpatientClinicalHistoryDirectory.MedicationFact(

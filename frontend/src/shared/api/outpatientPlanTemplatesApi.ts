@@ -293,10 +293,35 @@ export interface HistoricalStablePlan {
   conditionTitle: string
   summary: string
   diagnoses: DiagnosisInput[]
-  medications: Array<Omit<OutpatientPlanTemplateMedication,
-    'lineId' | 'editorMode' | 'categoryCode' | 'medicationCode' | 'medicationName' | 'preparationSpec' | 'productName'>>
-  services: CreateServiceRequestInput[]
+  medications: CompiledPlanMedicationItem[]
+  services: CompiledPlanServiceItem[]
   guidanceNotes: string[]
+}
+
+export type HistoricalPlanDifferenceStatus = 'CONSISTENT' | 'MISSING_IN_HISTORY' | 'MISSING_IN_STANDARD' | 'CONFLICT'
+
+export interface HistoricalPlanDifference {
+  key: string
+  category: 'DIAGNOSIS' | 'MEDICATION' | 'SERVICE'
+  status: HistoricalPlanDifferenceStatus
+  historicalIndex?: number
+  standardIndex?: number
+  historicalDisplay?: string
+  standardDisplay?: string
+  reason: string
+}
+
+export interface HistoricalPlanComparison {
+  historicalPlan: HistoricalStablePlan
+  standardPlan: {
+    id: string
+    revision: number
+    name: string
+    diagnoses: DiagnosisInput[]
+    medications: CompiledPlanMedicationItem[]
+    services: CompiledPlanServiceItem[]
+  }
+  differences: HistoricalPlanDifference[]
 }
 
 export interface UpdateOutpatientPlanTemplateInput {
@@ -415,5 +440,7 @@ export function createOutpatientPlanTemplatesApi(client: ApiClient) {
       client.request<MinedPlanSuggestion[]>('/api/ai/clinical-assistant/plan-templates/mined-suggestions'),
     getHistoricalStablePlan: (encounterId: string) =>
       client.request<HistoricalStablePlan | null>(`/api/ai/clinical-assistant/encounters/${encounterId}/historical-stable-plan`),
+    compareHistoricalPlan: (encounterId: string, templateId: string) =>
+      client.request<HistoricalPlanComparison>(`/api/ai/clinical-assistant/encounters/${encounterId}/historical-plan-comparison?templateId=${encodeURIComponent(templateId)}`),
   }
 }

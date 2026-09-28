@@ -84,6 +84,50 @@ class OutpatientPlanTemplateTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void tcm_disease_and_syndrome_identity_is_persisted_and_cross_domain_code_is_rejected() throws Exception {
+        String name = "中医感冒方案-" + UUID.randomUUID().toString().substring(0, 6);
+        mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"scopeType":"DEPARTMENT","name":"%s","diagnoses":[
+                                  {"codeSystem":"RHN.BD.CS.TCM_DISEASE","diagnosisDomain":"TCM_DISEASE",
+                                   "code":"GM_BING","display":"客户端旧名称","type":"PRIMARY"},
+                                  {"codeSystem":"RHN.BD.CS.TCM_SYNDROME","diagnosisDomain":"TCM_SYNDROME",
+                                   "code":"FH_SF_ZHENG","display":"客户端旧名称","type":"SECONDARY"}]}
+                                """.formatted(name)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.diagnoses[0].codeSystem").value("RHN.BD.CS.TCM_DISEASE"))
+                .andExpect(jsonPath("$.diagnoses[0].diagnosisDomain").value("TCM_DISEASE"))
+                .andExpect(jsonPath("$.diagnoses[0].display").value("感冒病"))
+                .andExpect(jsonPath("$.diagnoses[1].codeSystem").value("RHN.BD.CS.TCM_SYNDROME"))
+                .andExpect(jsonPath("$.diagnoses[1].diagnosisDomain").value("TCM_SYNDROME"))
+                .andExpect(jsonPath("$.diagnoses[1].display").value("风寒束表证"));
+
+        assertEquals("TCM_DISEASE", jdbcTemplate.queryForObject("""
+                select SD_DIAG_DOMAIN from RHN_META_OP_PLAN_DIAG
+                where ID_OP_PLAN_TMPL=(select ID_OP_PLAN_TMPL from RHN_META_OP_PLAN_TMPL where NA_TMPL=?)
+                  and SN_LINE=1
+                """, String.class, name));
+
+        mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"scopeType":"DEPARTMENT","name":"跨域错误方案","diagnoses":[
+                                  {"codeSystem":"WHO.BD.CS.ICD10","diagnosisDomain":"TCM_DISEASE",
+                                   "code":"I10","display":"原发性高血压","type":"PRIMARY"}]}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PLAN_TEMPLATE_DIAGNOSIS_DOMAIN_MISMATCH"));
+
+        mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"scopeType":"DEPARTMENT","name":"未知诊断体系方案","diagnoses":[
+                                  {"codeSystem":"UNKNOWN.DIAGNOSIS.SYSTEM",
+                                   "code":"I10","display":"原发性高血压","type":"PRIMARY"}]}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PLAN_TEMPLATE_DIAGNOSIS_DOMAIN_INVALID"));
+    }
+
+    @Test
     void medication_and_service_snapshots_are_resolved_from_current_master_data() throws Exception {
         String name = "高血压用药与复查-" + UUID.randomUUID().toString().substring(0, 6);
         mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())

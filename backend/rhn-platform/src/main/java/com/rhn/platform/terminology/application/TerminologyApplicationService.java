@@ -274,15 +274,24 @@ public class TerminologyApplicationService implements TerminologyDirectory {
     @Transactional(readOnly = true)
     public Optional<TerminologyConceptSnapshot> findDiseaseByExactName(Long tenantId, String codeSystemCode,
                                                                       String name, LocalDate atDate) {
-        if (name == null || name.isBlank()) return Optional.empty();
+        var matches = findDiseasesByExactName(tenantId, codeSystemCode, name, atDate);
+        return matches.size() == 1 ? Optional.of(matches.getFirst()) : Optional.empty();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TerminologyConceptSnapshot> findDiseasesByExactName(Long tenantId, String codeSystemCode,
+                                                                   String name, LocalDate atDate) {
+        if (name == null || name.isBlank()) return List.of();
         String normalized = name.trim();
         var systemIds = visibleDiseaseSystems(tenantId).stream()
                 .filter(system -> codeSystemCode.equals(system.code())).map(CodeSystem::id).toList();
-        if (systemIds.isEmpty()) return Optional.empty();
-        var matches = conceptRepository.findExactDiseaseNames(systemIds, normalized, TerminologyStatus.ACTIVE, atDate).stream()
+        if (systemIds.isEmpty()) return List.of();
+        return conceptRepository.findExactDiseaseNames(systemIds, normalized, TerminologyStatus.ACTIVE, atDate).stream()
                 .map(value -> findConcept(tenantId, codeSystemCode, value.code(), atDate))
-                .flatMap(Optional::stream).distinct().toList();
-        return matches.size() == 1 ? Optional.of(matches.getFirst()) : Optional.empty();
+                .flatMap(Optional::stream).distinct()
+                .sorted(java.util.Comparator.comparing(TerminologyConceptSnapshot::code))
+                .toList();
     }
 
     @Override

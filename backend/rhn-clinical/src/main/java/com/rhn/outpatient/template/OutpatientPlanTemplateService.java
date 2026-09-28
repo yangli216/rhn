@@ -30,6 +30,10 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
     private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
+    private static final Map<String, String> DIAGNOSIS_SYSTEMS = Map.of(
+            "WESTERN_MEDICINE", ICD10_SYSTEM,
+            "TCM_DISEASE", "RHN.BD.CS.TCM_DISEASE",
+            "TCM_SYNDROME", "RHN.BD.CS.TCM_SYNDROME");
     private static final Set<String> TASK_KINDS = Set.of("DIAGNOSIS", "MEDICATION", "LABORATORY",
             "EXAMINATION", "EDUCATION", "FOLLOW_UP", "CONDITION");
     private static final Set<String> TASK_STATUSES = Set.of("MATCHED", "NEEDS_REVIEW", "UNMATCHED");
@@ -94,17 +98,19 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                 value.id(), value.revision(), value.scopeType(), value.sourceType(), value.guidelineReference(),
                 value.name(), value.description(), value.useCount(),
                 diagnosisMap.getOrDefault(value.id(), List.of()).stream().map(diagnosis -> new DiagnosisSnapshot(
-                        diagnosis.code(), diagnosis.name(), diagnosis.type())).toList(),
+                        diagnosis.codeSystem(), diagnosis.diagnosisDomain(), diagnosis.code(),
+                        diagnosis.name(), diagnosis.type())).toList(),
                 medicationMap.getOrDefault(value.id(), List.of()).stream().map(line -> new MedicationSnapshot(
                         line.id(), line.medicationId(), line.catalogItemId(), line.packageId(), line.categoryCode(),
                         line.medicationCode(), line.medicationName(), line.preparationSpec(), line.productName(),
                         line.doseValue(), line.doseUnit(), line.routeCode(), line.frequencyCode(),
                         line.durationValue(), line.durationUnit(), line.quantity(), line.quantityUnit(),
-                        line.medicationInstruction(), line.selfProvided(), line.priceType(), line.pricingRequired(),
-                        line.reason())).toList(),
+                        line.medicationInstruction(), line.substitutionAllowed(), line.selfProvided(), line.priceType(),
+                        line.pricingRequired(), line.reason())).toList(),
                 serviceMap.getOrDefault(value.id(), List.of()).stream().map(line -> new ServiceSnapshot(
                         line.catalogItemId(), line.itemCode(), line.itemName(), line.serviceType(),
-                        line.quantity(), line.unitCode(), line.reason(), line.clinicalDescription())).toList(),
+                        line.quantity(), line.unitCode(), line.priceType(), line.pricingRequired(), line.reason(),
+                        line.clinicalDescription())).toList(),
                 readTasks(value.planTasks())
         )).toList();
     }
@@ -124,7 +130,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
             if (input.tasks() == null || input.tasks().isEmpty())
                 throw badRequest("PLAN_TEMPLATE_EMPTY", "至少选择一条方案任务");
         }
-        validateDiagnoses(diagnosisInputs, context.tenantId());
+        diagnosisInputs = normalizeDiagnoses(diagnosisInputs, context.tenantId());
         List<PlanTaskInput> taskInputs = validateTasks(input.tasks());
         Instant now = Instant.now();
         OutpatientPlanTemplate value = new OutpatientPlanTemplate(context.tenantId(), context.organizationId(),
@@ -192,7 +198,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
             if (input.tasks() == null || input.tasks().isEmpty())
                 throw badRequest("PLAN_TEMPLATE_EMPTY", "至少选择一条方案任务");
         }
-        validateDiagnoses(diagnosisInputs, context.tenantId());
+        diagnosisInputs = normalizeDiagnoses(diagnosisInputs, context.tenantId());
         List<PlanTaskInput> taskInputs = validateTasks(input.tasks());
         Instant now = Instant.now();
         value.update(scope, ownerId, name, clean(input.description()),
@@ -220,7 +226,8 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         for (int index = 0; index < inputs.size(); index++) {
             DiagnosisInput input = inputs.get(index);
             values.add(new OutpatientPlanDiagnosis(template.tenantId(), template.id(), index + 1,
-                    input.code().trim(), input.display().trim(), upper(input.type())));
+                    input.codeSystem(), input.diagnosisDomain(), input.code().trim(),
+                    input.display().trim(), upper(input.type())));
         }
         diagnoses.saveAll(values);
     }
@@ -283,18 +290,55 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         services.saveAll(values);
     }
 
-    private void validateDiagnoses(List<DiagnosisInput> inputs, Long tenantId) {
+    private List<DiagnosisInput> normalizeDiagnoses(List<DiagnosisInput> inputs, Long tenantId) {
         long primary = inputs.stream().filter(value -> "PRIMARY".equals(upper(value.type()))).count();
         if (primary > 1) throw badRequest("PLAN_TEMPLATE_PRIMARY_DIAGNOSIS_INVALID", "常用方案最多包含一个主要诊断");
         if (inputs.stream().anyMatch(value -> !List.of("PRIMARY", "SECONDARY").contains(upper(value.type())))) {
             throw badRequest("PLAN_TEMPLATE_DIAGNOSIS_TYPE_INVALID", "诊断类型仅支持主要诊断或次要诊断");
         }
-        if (inputs.stream().map(value -> value.code().trim().toUpperCase(Locale.ROOT)).distinct().count() != inputs.size()) {
+        List<DiagnosisInput> normalized = new ArrayList<>();
+        for (DiagnosisInput input : inputs) {
+            String requestedDomain = clean(input.diagnosisDomain());
+            String requestedSystem = clean(input.codeSystem());
+            if (requestedDomain == null && requestedSystem == null) {
+                requestedDomain = "WESTERN_MEDICINE";
+                requestedSystem = ICD10_SYSTEM;
+            } else if (requestedSystem == null) {
+                requestedSystem = DIAGNOSIS_SYSTEMS.get(requestedDomain);
+                if (requestedSystem == null) {
+                    throw badRequest("PLAN_TEMPLATE_DIAGNOSIS_DOMAIN_INVALID", "诊断领域无效");
+                }
+            } else if (requestedDomain == null) {
+                String targetSystem = requestedSystem;
+                requestedDomain = DIAGNOSIS_SYSTEMS.entrySet().stream()
+                        .filter(entry -> entry.getValue().equals(targetSystem))
+                        .map(Map.Entry::getKey).findFirst().orElse(null);
+            }
+            if (requestedDomain == null) {
+                throw badRequest("PLAN_TEMPLATE_DIAGNOSIS_DOMAIN_INVALID", "诊断编码体系不属于受支持的诊断领域");
+            }
+            try {
+                var concept = terminologyDirectory.requireConcept(tenantId, requestedSystem,
+                        input.code().trim().toUpperCase(Locale.ROOT), LocalDate.now());
+                var disease = terminologyDirectory.requireDisease(tenantId, concept.id(), LocalDate.now());
+                if (!requestedSystem.equals(disease.systemCode())
+                        || requestedDomain != null && !requestedDomain.equals(disease.diagnosisDomain())) {
+                    throw badRequest("PLAN_TEMPLATE_DIAGNOSIS_DOMAIN_MISMATCH",
+                            "诊断编码体系、诊断领域与所选标准诊断不一致");
+                }
+                normalized.add(new DiagnosisInput(disease.systemCode(), disease.diagnosisDomain(),
+                        disease.code(), disease.display(), upper(input.type())));
+            } catch (BusinessException exception) {
+                if ("PLAN_TEMPLATE_DIAGNOSIS_DOMAIN_MISMATCH".equals(exception.code())) throw exception;
+                throw badRequest("PLAN_TEMPLATE_DIAGNOSIS_INVALID",
+                        "诊断编码 " + input.code() + " 不在指定诊断目录中");
+            }
+        }
+        if (normalized.stream().map(value -> value.codeSystem() + "|" + value.code())
+                .distinct().count() != normalized.size()) {
             throw badRequest("PLAN_TEMPLATE_DIAGNOSIS_DUPLICATED", "常用方案中不能包含重复诊断");
         }
-        for (DiagnosisInput input : inputs) {
-            requireActiveDiagnosis(tenantId, input.code(), false);
-        }
+        return List.copyOf(normalized);
     }
 
     private List<PlanTaskInput> validateTasks(List<PlanTaskInput> values) {
@@ -316,15 +360,27 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
 
     private void validateStoredDiagnoses(Long tenantId, List<OutpatientPlanDiagnosis> values) {
         for (OutpatientPlanDiagnosis value : values) {
-            requireActiveDiagnosis(tenantId, value.code(), true);
+            requireActiveDiagnosis(tenantId, value.codeSystem(), value.diagnosisDomain(), value.code(), true);
         }
     }
 
-    private void requireActiveDiagnosis(Long tenantId, String code, boolean reuse) {
+    private void requireActiveDiagnosis(Long tenantId, String codeSystem, String diagnosisDomain,
+                                        String code, boolean reuse) {
         try {
-            terminologyDirectory.requireConcept(tenantId, ICD10_SYSTEM,
+            var concept = terminologyDirectory.requireConcept(tenantId, codeSystem,
                     code.trim().toUpperCase(Locale.ROOT), LocalDate.now());
+            var disease = terminologyDirectory.requireDisease(tenantId, concept.id(), LocalDate.now());
+            if (!codeSystem.equals(disease.systemCode()) || !diagnosisDomain.equals(disease.diagnosisDomain())) {
+                if (reuse) {
+                    throw conflict("PLAN_TEMPLATE_DIAGNOSIS_IDENTITY_INVALID",
+                            "常用方案中的诊断编码体系与诊断领域不一致，请维护方案后再使用");
+                }
+                throw badRequest("PLAN_TEMPLATE_DIAGNOSIS_DOMAIN_MISMATCH",
+                        "诊断编码体系、诊断领域与所选标准诊断不一致");
+            }
         } catch (BusinessException exception) {
+            if ("PLAN_TEMPLATE_DIAGNOSIS_IDENTITY_INVALID".equals(exception.code())
+                    || "PLAN_TEMPLATE_DIAGNOSIS_DOMAIN_MISMATCH".equals(exception.code())) throw exception;
             if (reuse) {
                 throw conflict("PLAN_TEMPLATE_DIAGNOSIS_INACTIVE",
                         "常用方案中的诊断编码 " + code + " 已失效，请维护方案后再使用");
@@ -369,7 +425,8 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         return new View(value.id(), value.revision(), value.scopeType(), value.name(), value.description(),
                 value.status(), value.sourceType(), value.guidelineReference(),
                 value.sortOrder(), value.useCount(), value.lastUsedAt(),
-                diagnosisValues.stream().map(line -> new DiagnosisView(line.code(), line.name(), line.type())).toList(),
+                diagnosisValues.stream().map(line -> new DiagnosisView(line.codeSystem(), line.diagnosisDomain(),
+                        line.code(), line.name(), line.type())).toList(),
                 medicationValues.stream().map(line -> medicationView(value.tenantId(), line)).toList(),
                 serviceValues.stream().map(line -> new ServiceView(line.catalogItemId(), line.itemCode(),
                         line.itemName(), line.serviceType(), line.quantity(), line.unitCode(), line.priceType(),

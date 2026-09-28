@@ -18,6 +18,7 @@ type ClinicalRecordContract = components['schemas']['RecordClinicalDataRequest']
 
 export type DiagnosisInput = DiagnosisInputContract & {
   conceptId?: string
+  codeSystem?: string
   diagnosisDomain?: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME'
   type: 'PRIMARY' | 'SECONDARY'
   diagnosisGroupId?: string

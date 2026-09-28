@@ -1987,6 +1987,9 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
   const [checkedHistDiagnosisCodes, setCheckedHistDiagnosisCodes] = useState<Set<string>>(new Set())
   const [checkedHistMedicationKeys, setCheckedHistMedicationKeys] = useState<Set<string>>(new Set())
   const [checkedHistServiceKeys, setCheckedHistServiceKeys] = useState<Set<string>>(new Set())
+  const [comparisonTemplateId, setComparisonTemplateId] = useState('')
+  const [checkedComparisonKeys, setCheckedComparisonKeys] = useState<Set<string>>(new Set())
+  const [comparisonSources, setComparisonSources] = useState<Map<string, 'HISTORICAL' | 'STANDARD'>>(new Map())
 
   // AI 挖掘方案明细勾选状态
   const [checkedMinedDiagnosisCodes, setCheckedMinedDiagnosisCodes] = useState<Set<string>>(new Set())
@@ -2013,6 +2016,13 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
     queryKey: ['historical-stable-plan', encounterId],
     queryFn: () => api.outpatientPlanTemplates.getHistoricalStablePlan(encounterId!),
     enabled: Boolean(encounterId) && (scopeFilter === 'ALL' || scopeFilter === 'HISTORICAL'),
+  })
+
+  const historicalComparisonQuery = useQuery({
+    queryKey: ['historical-plan-comparison', encounterId, comparisonTemplateId],
+    queryFn: () => api.outpatientPlanTemplates.compareHistoricalPlan(encounterId!, comparisonTemplateId),
+    enabled: Boolean(encounterId && comparisonTemplateId && historicalPlanQuery.data)
+      && scopeFilter === 'HISTORICAL',
   })
 
   const filteredTemplates = useMemo(() => {
@@ -2125,6 +2135,26 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
     }
   }, [historicalPlanQuery.data?.encounterId, historicalPlanQuery.data?.sourceEncounterId])
 
+  useEffect(() => {
+    const candidates = templates.data ?? []
+    if (!historicalPlanQuery.data || candidates.length === 0) return
+    if (candidates.some((item) => item.id === comparisonTemplateId)) return
+    const historyCodes = new Set(historicalPlanQuery.data.diagnoses.map((item) => item.code.toUpperCase()))
+    const ranked = [...candidates].sort((left, right) => {
+      const rightMatches = right.diagnoses.filter((item) => historyCodes.has(item.code.toUpperCase())).length
+      const leftMatches = left.diagnoses.filter((item) => historyCodes.has(item.code.toUpperCase())).length
+      return rightMatches - leftMatches || right.useCount - left.useCount || left.id.localeCompare(right.id)
+    })
+    setComparisonTemplateId(ranked[0]?.id ?? '')
+  }, [comparisonTemplateId, historicalPlanQuery.data, templates.data])
+
+  useEffect(() => {
+    const differences = historicalComparisonQuery.data?.differences ?? []
+    setCheckedComparisonKeys(new Set(differences.map((item) => item.key)))
+    setComparisonSources(new Map(differences.map((item) => [item.key,
+      item.historicalIndex === undefined ? 'STANDARD' : 'HISTORICAL'])))
+  }, [historicalComparisonQuery.data])
+
   const apply = useMutation({
     mutationFn: (value: OutpatientPlanTemplate) => api.outpatientPlanTemplates.use(value.id),
     onSuccess: (value) => {
@@ -2232,9 +2262,37 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
   }
 
   const totalCheckedHist = checkedHistDiagnosisCodes.size + checkedHistMedicationKeys.size + checkedHistServiceKeys.size
+  const effectiveHistoricalSelectionCount = historicalComparisonQuery.data
+    ? checkedComparisonKeys.size : totalCheckedHist
 
   const handleApplyHistorical = () => {
     if (!historicalPlanQuery.data) return
+    const comparison = historicalComparisonQuery.data
+    if (comparison) {
+      const standard = comparison.standardPlan
+      const diagnoses: HistoricalStablePlan['diagnoses'] = []
+      const medications: HistoricalStablePlan['medications'] = []
+      const services: HistoricalStablePlan['services'] = []
+      comparison.differences.filter((item) => checkedComparisonKeys.has(item.key)).forEach((item) => {
+        const source = comparisonSources.get(item.key) ?? 'HISTORICAL'
+        const index = source === 'HISTORICAL' ? item.historicalIndex : item.standardIndex
+        if (index === undefined) return
+        if (item.category === 'DIAGNOSIS') diagnoses.push(source === 'HISTORICAL'
+          ? comparison.historicalPlan.diagnoses[index] : standard.diagnoses[index])
+        if (item.category === 'MEDICATION') medications.push(source === 'HISTORICAL'
+          ? comparison.historicalPlan.medications[index] : standard.medications[index])
+        if (item.category === 'SERVICE') services.push(source === 'HISTORICAL'
+          ? comparison.historicalPlan.services[index] : standard.services[index])
+      })
+      const uniqueDiagnoses = [...new Map(diagnoses.map((item) => [`${item.codeSystem ?? ''}|${item.code}`, item])).values()]
+      const uniqueMedications = [...new Map(medications.map((item) => [`${item.medicationId}|${item.catalogItemId ?? ''}|${item.packageId ?? ''}`, item])).values()]
+      const uniqueServices = [...new Map(services.map((item) => [item.catalogItemId, item])).values()]
+      applyHistoricalMutation.mutate({ ...comparison.historicalPlan,
+        conditionTitle: `${comparison.historicalPlan.conditionTitle} + ${standard.name}`,
+        summary: `已逐项比较历史稳定方案与“${standard.name}”，仅带入医生勾选的项目。`,
+        diagnoses: uniqueDiagnoses, medications: uniqueMedications, services: uniqueServices })
+      return
+    }
     const filtered: HistoricalStablePlan = {
       ...historicalPlanQuery.data,
       diagnoses: historicalPlanQuery.data.diagnoses.filter((d) => checkedHistDiagnosisCodes.has(d.code)),
@@ -2258,7 +2316,8 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
   }
 
   const error = templates.error || noteTemplates.error || apply.error || applyNote.error
-    || applyHistoricalMutation.error || solidifyMinedMutation.error || applyMinedMutation.error
+    || historicalComparisonQuery.error || applyHistoricalMutation.error
+    || solidifyMinedMutation.error || applyMinedMutation.error
 
   const showingNoteTemplate = templateKind === 'NOTE'
     || (templateKind === 'ALL' && selectedKind === 'NOTE')
@@ -2320,11 +2379,12 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
               <Button
                 size="sm"
                 variant="primary"
-                disabled={!historicalPlanQuery.data || totalCheckedHist === 0}
+                disabled={!historicalPlanQuery.data || effectiveHistoricalSelectionCount === 0}
                 busy={applyHistoricalMutation.isPending}
                 onClick={handleApplyHistorical}
               >
-                {totalCheckedHist > 0 ? `一键复用带入草稿 (${totalCheckedHist})` : '一键复用带入草稿'}
+                {effectiveHistoricalSelectionCount > 0
+                  ? `合并带入草稿 (${effectiveHistoricalSelectionCount})` : '合并带入草稿'}
               </Button>
             ) : scopeFilter === 'MINED' ? (
               <Button
@@ -2430,21 +2490,30 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
               ) : scopeFilter === 'HISTORICAL' ? (
                 historicalPlanQuery.isPending ? <LoadingState label="正在识别复诊平稳方案..." /> :
                 historicalPlanQuery.data ? (
-                  <div className="doctor-plan-item-card is-selected">
-                    <div className="doctor-plan-item-card__top">
-                      <StatusBadge tone="success">复诊长程处方</StatusBadge>
-                      <small className="doctor-plan-card-meta-text">历史平稳期</small>
+                  <>
+                    <FormField label="对照标准方案">
+                      <Select value={comparisonTemplateId} onChange={setComparisonTemplateId}
+                        clearable={false} searchable options={(templates.data ?? []).map((item) => ({
+                          value: item.id, label: item.name,
+                          secondaryText: `${item.diagnoses.length} 个诊断 / ${item.medications.length} 个药品`,
+                        }))} placeholder="选择院内标准方案" />
+                    </FormField>
+                    <div className="doctor-plan-item-card is-selected">
+                      <div className="doctor-plan-item-card__top">
+                        <StatusBadge tone="success">复诊长程处方</StatusBadge>
+                        <small className="doctor-plan-card-meta-text">历史平稳期</small>
+                      </div>
+                      <div className="doctor-plan-item-card__title">{historicalPlanQuery.data.conditionTitle}</div>
+                      <div className="doctor-plan-item-card__desc">{historicalPlanQuery.data.summary}</div>
+                      <div className="doctor-plan-item-card__meta">
+                        <span>诊断 {historicalPlanQuery.data.diagnoses.length}</span>
+                        <span>·</span>
+                        <span>药品 {historicalPlanQuery.data.medications.length}</span>
+                        <span>·</span>
+                        <span>诊疗 {historicalPlanQuery.data.services.length}</span>
+                      </div>
                     </div>
-                    <div className="doctor-plan-item-card__title">{historicalPlanQuery.data.conditionTitle}</div>
-                    <div className="doctor-plan-item-card__desc">{historicalPlanQuery.data.summary}</div>
-                    <div className="doctor-plan-item-card__meta">
-                      <span>诊断 {historicalPlanQuery.data.diagnoses.length}</span>
-                      <span>·</span>
-                      <span>药品 {historicalPlanQuery.data.medications.length}</span>
-                      <span>·</span>
-                      <span>诊疗 {historicalPlanQuery.data.services.length}</span>
-                    </div>
-                  </div>
+                  </>
                 ) : (
                   <div className="doctor-plan-pool-empty-text">
                     未识别到该患者近180天内的平稳期维持处方
@@ -2576,6 +2645,62 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       {historicalPlanQuery.data.summary}
                     </p>
                   </div>
+
+                  {comparisonTemplateId && (historicalComparisonQuery.isPending
+                    ? <LoadingState label="正在计算历史与标准方案差异..." />
+                    : historicalComparisonQuery.data && (
+                      <div className="doctor-plan-detail-section">
+                        <div className="doctor-plan-detail-section__title">
+                          与“{historicalComparisonQuery.data.standardPlan.name}”逐项比较
+                        </div>
+                        <TableShell className="doctor-plan-table-shell">
+                          <DataTable compact className="doctor-plan-items-table">
+                            <thead><tr>
+                              <th className={tableCellClass('control')}>选择</th>
+                              <th className={tableCellClass('status')}>类型</th>
+                              <th className={tableCellClass('status')}>差异</th>
+                              <th className={tableCellClass('text')}>历史稳定方案</th>
+                              <th className={tableCellClass('text')}>院内标准方案</th>
+                              <th className={tableCellClass('text')}>采用</th>
+                            </tr></thead>
+                            <tbody>{historicalComparisonQuery.data.differences.map((item) => {
+                              const checked = checkedComparisonKeys.has(item.key)
+                              const source = comparisonSources.get(item.key)
+                                ?? (item.historicalIndex === undefined ? 'STANDARD' : 'HISTORICAL')
+                              const sourceOptions = [
+                                ...(item.historicalIndex === undefined ? [] : [{ value: 'HISTORICAL', label: '历史方案' }]),
+                                ...(item.standardIndex === undefined ? [] : [{ value: 'STANDARD', label: '标准方案' }]),
+                              ]
+                              return <tr key={item.key} className={checked ? undefined : 'is-row-unchecked'}>
+                                <td className={tableCellClass('control')}><input type="checkbox"
+                                  aria-label={`选择差异项 ${item.historicalDisplay || item.standardDisplay || item.key}`}
+                                  checked={checked} onChange={() => setCheckedComparisonKeys((current) => {
+                                    const next = new Set(current)
+                                    if (next.has(item.key)) next.delete(item.key); else next.add(item.key)
+                                    return next
+                                  })} /></td>
+                                <td className={tableCellClass('status')}>{item.category === 'DIAGNOSIS' ? '诊断'
+                                  : item.category === 'MEDICATION' ? '药品' : '诊疗'}</td>
+                                <td className={tableCellClass('status')}><StatusBadge tone={item.status === 'CONSISTENT'
+                                  ? 'success' : item.status === 'CONFLICT' ? 'warning' : 'neutral'}>
+                                  {item.status === 'CONSISTENT' ? '一致' : item.status === 'CONFLICT' ? '冲突'
+                                    : item.status === 'MISSING_IN_HISTORY' ? '历史缺失' : '标准缺失'}
+                                </StatusBadge></td>
+                                <td className={tableCellClass('text')}>{item.historicalDisplay || '—'}</td>
+                                <td className={tableCellClass('text')}>{item.standardDisplay || '—'}
+                                  <small className="doctor-plan-item-subtext">{item.reason}</small></td>
+                                <td className={tableCellClass('text')}><Select aria-label={`选择 ${item.key} 的采用来源`}
+                                  value={source} onChange={(value) => setComparisonSources((current) => {
+                                    const next = new Map(current)
+                                    next.set(item.key, value as 'HISTORICAL' | 'STANDARD')
+                                    return next
+                                  })} options={sourceOptions} clearable={false} searchable={false} /></td>
+                              </tr>
+                            })}</tbody>
+                          </DataTable>
+                        </TableShell>
+                      </div>
+                    ))}
 
                   {historicalPlanQuery.data.guidanceNotes.length > 0 && (
                     <div className="doctor-plan-detail-notes">

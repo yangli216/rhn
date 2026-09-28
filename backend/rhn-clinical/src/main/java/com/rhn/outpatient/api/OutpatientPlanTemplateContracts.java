@@ -44,9 +44,15 @@ public final class OutpatientPlanTemplateContracts {
                                 @Size(max = 500) String details) {}
 
     public record DiagnosisInput(
+            @Size(max = 64) String codeSystem,
+            @Size(max = 32) String diagnosisDomain,
             @NotBlank @Size(max = 64) String code,
             @NotBlank @Size(max = 200) String display,
-            @NotBlank @Size(max = 24) String type) {}
+            @NotBlank @Size(max = 24) String type) {
+        public DiagnosisInput(String code, String display, String type) {
+            this(null, null, code, display, type);
+        }
+    }
 
     public record MedicationInput(
             @NotNull Long medicationId, Long catalogItemId, Long packageId,
@@ -107,7 +113,8 @@ public final class OutpatientPlanTemplateContracts {
                        List<ServiceView> services, List<PlanTaskInput> tasks,
                        Instant createdAt, Instant updatedAt) {}
 
-    public record DiagnosisView(String code, String display, String type) {}
+    public record DiagnosisView(String codeSystem, String diagnosisDomain,
+                                String code, String display, String type) {}
     public record MedicationView(Long lineId, Long medicationId, Long catalogItemId, Long packageId, String editorMode,
                                  String categoryCode, String medicationCode, String medicationName,
                                  String preparationSpec, String productName, BigDecimal doseValue,

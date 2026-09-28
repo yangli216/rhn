@@ -76,6 +76,8 @@ public class ClinicalAssistantApplicationService {
     private final ResidentDirectory residentDirectory;
     private final TerminologyDirectory terminologyDirectory;
     private final OutpatientPlanTemplateDirectory planDirectory;
+    private final DiagnosisNormalizationService diagnosisNormalizer;
+    private final ClinicalPlanRetrievalService planRetrieval;
     private final OutpatientClinicalHistoryDirectory historyDirectory;
     private final ExecutionContextProvider contextProvider;
     private final AiSuggestionRepository suggestions;
@@ -95,6 +97,8 @@ public class ClinicalAssistantApplicationService {
                                                ResidentDirectory residentDirectory,
                                                TerminologyDirectory terminologyDirectory,
                                                OutpatientPlanTemplateDirectory planDirectory,
+                                               DiagnosisNormalizationService diagnosisNormalizer,
+                                               ClinicalPlanRetrievalService planRetrieval,
                                                OutpatientClinicalHistoryDirectory historyDirectory,
                                                ExecutionContextProvider contextProvider,
                                                AiSuggestionRepository suggestions,
@@ -112,6 +116,8 @@ public class ClinicalAssistantApplicationService {
         this.residentDirectory = residentDirectory;
         this.terminologyDirectory = terminologyDirectory;
         this.planDirectory = planDirectory;
+        this.diagnosisNormalizer = diagnosisNormalizer;
+        this.planRetrieval = planRetrieval;
         this.historyDirectory = historyDirectory;
         this.contextProvider = contextProvider;
         this.suggestions = suggestions;
@@ -219,6 +225,7 @@ public class ClinicalAssistantApplicationService {
         Instant now = Instant.now();
         var temporalContext = new ClinicalAiModelGateway.TemporalContext(now, access.encounter().registeredAt());
         ServerContext serverContext = loadServerContext(access);
+        List<ClinicalPlanRetrievalService.Match> planMatches = retrievePlans(input, serverContext.plans());
         if (input.receptionSceneContext() != null && input.receptionSceneContext().selectedReportIds() != null
                 && !serverContext.reports().stream().map(DiagnosticReportResponse::id).toList()
                 .containsAll(input.receptionSceneContext().selectedReportIds())) {
@@ -227,8 +234,8 @@ public class ClinicalAssistantApplicationService {
         SuggestionContent priorSuggestion = requirePriorSuggestion(access, input, serverContext, now, runtime);
         String contextHash = contextHash(access, input);
         Analysis analysis = runtime.mode() == ClinicalAssistantSettings.Mode.MODEL
-                ? analyzeWithModel(input, serverContext, priorSuggestion, runtime, temporalContext, onDelta)
-                : analyzeLocally(access, input, serverContext);
+                ? analyzeWithModel(input, serverContext, planMatches, priorSuggestion, runtime, temporalContext, onDelta)
+                : analyzeLocally(access, input, serverContext, planMatches);
         SuggestionContent content = analysis.content();
 
         Map<String, Object> evidence = new LinkedHashMap<>();
@@ -242,6 +249,9 @@ public class ClinicalAssistantApplicationService {
         evidence.put("clinicalDraftHash", clinicalDraftHash(access, input));
         evidence.put("serverContextHash", serverContext.hash());
         evidence.put("presentInputFields", presentInputFields(input));
+        evidence.put("planRetrieval", planMatches.stream().map(match -> Map.of(
+                "templateId", match.plan().id(), "score", match.score(),
+                "clinicalScore", match.clinicalScore(), "reasons", match.evidence())).toList());
         evidence.put("clinicalWriteInvoked", false);
 
         AiSuggestion value = suggestions.save(new AiSuggestion(access.context().tenantId(), access.encounter().residentId(),
@@ -345,12 +355,13 @@ public class ClinicalAssistantApplicationService {
                 .toList();
     }
 
-    private Analysis analyzeLocally(Access access, GenerateRequest input, ServerContext serverContext) {
+    private Analysis analyzeLocally(Access access, GenerateRequest input, ServerContext serverContext,
+                                    List<ClinicalPlanRetrievalService.Match> planMatches) {
         Draft draft = input.draft();
         List<String> missing = missingInformation(draft);
         List<SafetyAlert> alerts = safetyAlerts(draft, serverContext.allergies());
         List<DiagnosisCandidate> candidates = diagnosisCandidates(access.context().tenantId(), draft, alerts);
-        List<RecommendedPlan> plans = recommendedPlans(input, candidates, serverContext.plans());
+        List<RecommendedPlan> plans = recommendedPlans(planMatches, candidates);
         String summary = "已核对病历完整性、生命体征、过敏风险及 " + draft.diagnoses().size()
                 + " 条诊断编码；发现 " + missing.size() + " 项待补充信息、" + alerts.size()
                 + " 项优先核对内容，并匹配 " + plans.size() + " 个院内既有方案。";
@@ -362,6 +373,7 @@ public class ClinicalAssistantApplicationService {
     }
 
     private Analysis analyzeWithModel(GenerateRequest input, ServerContext serverContext,
+                                      List<ClinicalPlanRetrievalService.Match> planMatches,
                                       SuggestionContent priorSuggestion, ClinicalAssistantSettings runtime,
                                       ClinicalAiModelGateway.TemporalContext temporalContext,
                                       java.util.function.Consumer<String> onDelta) {
@@ -370,7 +382,9 @@ public class ClinicalAssistantApplicationService {
             var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION,
                     clean(input.question()), clean(input.voiceTranscript()), input.draft(),
                     serverContext.resident(), serverContext.allergies(),
-                    serverContext.plans(), serverContext.reports(), serverContext.clinicalHistory(), priorSuggestion, input.receptionScene(), input.receptionSceneContext())
+                    planMatches.stream().map(ClinicalPlanRetrievalService.Match::plan).toList(),
+                    serverContext.reports(), serverContext.clinicalHistory(), priorSuggestion,
+                    input.receptionScene(), input.receptionSceneContext())
                     .withTemporalContext(temporalContext);
             raw = onDelta == null ? modelGateway.analyze(request, runtime)
                     : modelGateway.analyzeStreaming(request, runtime, onDelta);
@@ -396,7 +410,8 @@ public class ClinicalAssistantApplicationService {
         List<String> missing = distinctStrings(merge(missingInformation(input.draft()), raw.missingInformation()), 10, 300);
         List<DiagnosisCandidate> candidates = validatedDiagnosisCandidates(raw.diagnosisCandidates(), 3);
         List<DiagnosisCandidate> differentials = validatedDiagnosisCandidates(raw.differentialDiagnoses(), 5);
-        List<RecommendedPlan> plans = validatedPlans(raw.recommendedPlans(), serverContext.plans());
+        List<RecommendedPlan> plans = validatedPlans(raw.recommendedPlans(),
+                planMatches.stream().map(ClinicalPlanRetrievalService.Match::plan).toList());
         RecordDraft recordDraft = enrichRecordDraftFromInput(validatedRecordDraft(raw.recordDraft()), input);
         String summary = clipped(raw.summary(), 1000);
         if (blank(summary)) {
@@ -407,7 +422,8 @@ public class ClinicalAssistantApplicationService {
         if (!raw.treatmentRecommendations().isEmpty()) {
             var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION, clean(input.question()),
                     clean(input.voiceTranscript()), input.draft(), serverContext.resident(), serverContext.allergies(),
-                    serverContext.plans(), serverContext.reports(), serverContext.clinicalHistory(), content,
+                    planMatches.stream().map(ClinicalPlanRetrievalService.Match::plan).toList(),
+                    serverContext.reports(), serverContext.clinicalHistory(), content,
                     input.receptionScene(), input.receptionSceneContext()).withTemporalContext(temporalContext);
             var treatment = treatmentService.recommend(raw.treatmentRecommendations(), request, runtime);
             List<SafetyAlert> completeAlerts = new ArrayList<>(alerts);
@@ -537,23 +553,17 @@ public class ClinicalAssistantApplicationService {
         return result;
     }
 
-    private List<RecommendedPlan> recommendedPlans(GenerateRequest input, List<DiagnosisCandidate> candidates,
-                                                    List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> availablePlans) {
-        String text = normalized(String.join(" ", safe(input.question()), safe(input.draft().chiefComplaint()),
-                safe(input.draft().presentIllness()), candidates.stream()
-                        .map(value -> value.code() + " " + value.display()).reduce("", (a, b) -> a + " " + b)));
+    private List<RecommendedPlan> recommendedPlans(List<ClinicalPlanRetrievalService.Match> matches,
+                                                    List<DiagnosisCandidate> candidates) {
         Set<String> diagnosisCodes = candidates.stream().map(value -> value.code().toUpperCase(Locale.ROOT))
                 .collect(java.util.stream.Collectors.toSet());
-        return availablePlans.stream()
-                .map(plan -> new ScoredPlan(plan, planScore(plan, text, diagnosisCodes)))
-                .filter(value -> value.score() > 0)
-                .sorted(Comparator.comparingInt(ScoredPlan::score).reversed()
-                        .thenComparing(value -> value.plan().useCount(), Comparator.reverseOrder()))
+        return matches.stream().filter(value -> value.clinicalScore() > 0)
                 .limit(3)
                 .map(value -> new RecommendedPlan(value.plan().id(), value.plan().name(), value.plan().description(),
                         value.plan().diagnoses().stream().anyMatch(item -> diagnosisCodes.contains(item.code().toUpperCase(Locale.ROOT)))
                                 ? "与当前已录入且通过术语校验的诊断匹配；仅推荐既有方案，未生成药品剂量。"
-                                : "与本次辅助重点或病历关键词匹配；带入前需由医生完整核对。"))
+                                : "与本次病历关键词匹配（" + String.join("、", value.evidence())
+                                  + "）；带入前需由医生完整核对。"))
                 .toList();
     }
 
@@ -564,17 +574,17 @@ public class ClinicalAssistantApplicationService {
         Long tenantId = contextProvider.requireCurrent().tenantId();
         for (DiagnosisCandidate value : values) {
             if (value == null || result.size() >= limit) continue;
-            var concept = blank(value.code()) ? java.util.Optional.<com.rhn.platform.terminology.api.TerminologyConceptSnapshot>empty()
-                    : terminologyDirectory.findConcept(tenantId, ICD10_SYSTEM, value.code().trim().toUpperCase(Locale.ROOT), LocalDate.now());
-            if (concept.isEmpty() && !blank(value.display())) concept = terminologyDirectory
-                    .findDiseaseByExactName(tenantId, ICD10_SYSTEM, value.display(), LocalDate.now());
-            concept.ifPresent(mapped -> {
-                if (!seen.add(mapped.code())) return;
+            String source = blank(value.code()) ? value.display() : value.code();
+            var resolution = diagnosisNormalizer.normalize(tenantId, ICD10_SYSTEM, "WESTERN_MEDICINE",
+                    source, LocalDate.now());
+            if (resolution.matched()) {
+                var mapped = resolution.concept();
+                if (!seen.add(mapped.code())) continue;
                 String type = "PRIMARY".equals(value.type()) ? "PRIMARY" : "SECONDARY";
                 result.add(new DiagnosisCandidate(mapped.code(), mapped.display(), type,
                         Double.isFinite(value.confidence()) ? Math.max(0, Math.min(value.confidence(), 1)) : 0,
                         clipped(value.rationale(), 500)));
-            });
+            }
         }
         return List.copyOf(result);
     }
@@ -721,16 +731,17 @@ public class ClinicalAssistantApplicationService {
         return List.copyOf(result);
     }
 
-    private int planScore(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot plan, String text,
-                          Set<String> diagnosisCodes) {
-        int score = 0;
-        for (var diagnosis : plan.diagnoses()) {
-            if (diagnosisCodes.contains(diagnosis.code().toUpperCase(Locale.ROOT))) score += 10;
-            if (!blank(diagnosis.display()) && text.contains(normalized(diagnosis.display()))) score += 4;
-        }
-        if (!blank(plan.name()) && text.contains(normalized(plan.name()))) score += 3;
-        if (!blank(plan.description()) && text.contains(normalized(plan.description()))) score += 1;
-        return score;
+    private List<ClinicalPlanRetrievalService.Match> retrievePlans(GenerateRequest input,
+            List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> visiblePlans) {
+        String text = String.join(" ", safe(input.question()), safe(input.voiceTranscript()),
+                safe(input.draft().chiefComplaint()), safe(input.draft().presentIllness()),
+                safe(input.draft().medicalHistory()), safe(input.draft().treatmentPlan()));
+        List<ClinicalPlanRetrievalService.DiagnosisIdentity> diagnoses = input.draft().diagnoses().stream()
+                .map(value -> new ClinicalPlanRetrievalService.DiagnosisIdentity(
+                        ICD10_SYSTEM, "WESTERN_MEDICINE", value.code())).toList();
+        return planRetrieval.retrieve(visiblePlans,
+                new ClinicalPlanRetrievalService.Query(text, diagnoses, null),
+                ClinicalPlanRetrievalService.MODEL_CANDIDATE_LIMIT);
     }
 
     private Access requireAccess(Long encounterId, boolean requireActive) {
@@ -948,8 +959,6 @@ public class ClinicalAssistantApplicationService {
                                  List<OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot> clinicalHistory,
                                  String hash) {}
     private record Analysis(SuggestionContent content, String riskLevel) {}
-    private record ScoredPlan(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot plan, int score) {}
-
     public enum EventRecordingOutcome {
         RECORDED, ADOPTION_REJECTED_EXPIRED, ADOPTION_REJECTED_SERVER_CONTEXT_CHANGED
     }

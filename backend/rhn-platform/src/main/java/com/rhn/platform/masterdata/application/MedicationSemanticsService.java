@@ -67,6 +67,17 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
                 }).orElse(new Composition(null, null, List.of()));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> ingredientIds(Long tenantId, Long medicationId) {
+        if (!Objects.equals(contexts.requireCurrent().tenantId(), tenantId)) {
+            throw forbidden("MEDICATION_SEMANTICS_TENANT_INVALID", "无权读取其他租户的药品语义");
+        }
+        requireMedication(tenantId, medicationId);
+        return composition(tenantId, medicationId).components().stream()
+                .map(Component::ingredientId).distinct().sorted().toList();
+    }
+
     @Transactional
     public Composition saveComposition(Long medicationId, Composition input) {
         var context = contexts.requireCurrent();

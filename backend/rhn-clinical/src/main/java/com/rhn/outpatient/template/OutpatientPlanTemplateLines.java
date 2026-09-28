@@ -15,16 +15,21 @@ class OutpatientPlanDiagnosis {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_OP_PLAN_TMPL", nullable = false) private Long templateId;
     @Column(name = "SN_LINE", nullable = false) private int lineNo;
+    @Column(name = "CD_CODE_SYSTEM", nullable = false) private String codeSystem;
+    @Column(name = "SD_DIAG_DOMAIN", nullable = false) private String diagnosisDomain;
     @Column(name = "CD_DIAG", nullable = false) private String code;
     @Column(name = "NA_DIAG", nullable = false) private String name;
     @Column(name = "SD_DIAG_TYPE", nullable = false) private String type;
 
     protected OutpatientPlanDiagnosis() {}
-    OutpatientPlanDiagnosis(Long tenantId, Long templateId, int lineNo, String code, String name, String type) {
+    OutpatientPlanDiagnosis(Long tenantId, Long templateId, int lineNo, String codeSystem,
+                            String diagnosisDomain, String code, String name, String type) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.templateId = templateId;
-        this.lineNo = lineNo; this.code = code; this.name = name; this.type = type;
+        this.lineNo = lineNo; this.codeSystem = codeSystem; this.diagnosisDomain = diagnosisDomain;
+        this.code = code; this.name = name; this.type = type;
     }
     Long templateId() { return templateId; } int lineNo() { return lineNo; } String code() { return code; }
+    String codeSystem() { return codeSystem; } String diagnosisDomain() { return diagnosisDomain; }
     String name() { return name; } String type() { return type; }
 }
 

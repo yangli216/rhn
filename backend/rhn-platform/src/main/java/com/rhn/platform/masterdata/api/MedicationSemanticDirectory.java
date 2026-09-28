@@ -13,6 +13,9 @@ public interface MedicationSemanticDirectory {
                     BigDecimal dose, String doseUnit, BigDecimal duration, String durationUnit,
                     LocalDate businessDate);
 
+    /** Current authoritative ingredient identities for deterministic medication comparison. */
+    List<String> ingredientIds(Long tenantId, Long medicationId);
+
     record Ingredient(String id, String code, String display, String system, String systemVersion, String source) {}
     record Component(String ingredientId, BigDecimal numeratorValue, String numeratorUnit,
                      BigDecimal denominatorValue, String denominatorUnit) {}

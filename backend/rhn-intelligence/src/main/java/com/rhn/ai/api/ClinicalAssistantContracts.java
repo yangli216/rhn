@@ -260,4 +260,15 @@ public final class ClinicalAssistantContracts {
             List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.MedicationInput> medications,
             List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.ServiceInput> services,
             List<String> guidanceNotes) {}
+
+    public record HistoricalPlanComparisonView(
+            HistoricalStablePlanView historicalPlan,
+            com.rhn.outpatient.api.OutpatientPlanTemplateDirectory.PlanTemplateSnapshot standardPlan,
+            List<PlanDifferenceView> differences) {}
+
+    public record PlanDifferenceView(
+            String key, String category, String status,
+            Integer historicalIndex, Integer standardIndex,
+            String historicalDisplay, String standardDisplay,
+            String reason) {}
 }

@@ -7,6 +7,7 @@ import com.rhn.ai.application.ClinicalAssistantApplicationService.EventRecording
 import com.rhn.ai.application.ClinicalPlanPreflightService;
 import com.rhn.ai.application.ClinicalPlanTemplateAiApplicationService;
 import com.rhn.ai.application.HistoricalPlanResolutionService;
+import com.rhn.ai.application.HistoricalPlanComparisonService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,18 +36,21 @@ class ClinicalAssistantController {
     private final ClinicalPlanPreflightService planPreflightService;
     private final ClinicalPlanTemplateAiApplicationService planTemplateAiService;
     private final HistoricalPlanResolutionService historicalPlanService;
+    private final HistoricalPlanComparisonService historicalPlanComparisonService;
     private final com.rhn.shared.json.JsonCodec jsonCodec;
 
     ClinicalAssistantController(ClinicalAssistantApplicationService service,
                                 ClinicalPlanPreflightService planPreflightService,
                                 ClinicalPlanTemplateAiApplicationService planTemplateAiService,
                                 HistoricalPlanResolutionService historicalPlanService,
+                                HistoricalPlanComparisonService historicalPlanComparisonService,
                                 com.rhn.shared.json.JsonCodec jsonCodec) {
         this.service = service;
         this.jsonCodec = jsonCodec;
         this.planPreflightService = planPreflightService;
         this.planTemplateAiService = planTemplateAiService;
         this.historicalPlanService = historicalPlanService;
+        this.historicalPlanComparisonService = historicalPlanComparisonService;
     }
 
     @GetMapping("/capabilities")
@@ -185,6 +190,12 @@ class ClinicalAssistantController {
     @GetMapping("/encounters/{encounterId}/historical-stable-plan")
     ClinicalAssistantContracts.HistoricalStablePlanView getHistoricalStablePlan(@PathVariable Long encounterId) {
         return historicalPlanService.resolveHistoricalStablePlan(encounterId).orElse(null);
+    }
+
+    @GetMapping("/encounters/{encounterId}/historical-plan-comparison")
+    ClinicalAssistantContracts.HistoricalPlanComparisonView compareHistoricalPlan(
+            @PathVariable Long encounterId, @RequestParam Long templateId) {
+        return historicalPlanComparisonService.compare(encounterId, templateId);
     }
 
     private void streamPlan(jakarta.servlet.http.HttpServletRequest request,

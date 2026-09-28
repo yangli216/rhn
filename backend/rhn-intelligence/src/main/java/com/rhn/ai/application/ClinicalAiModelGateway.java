@@ -44,7 +44,13 @@ public interface ClinicalAiModelGateway {
     }
 
     record PlanCandidate(Long id, String name, String description, List<String> diagnoses,
-                         List<String> medications, List<String> services, List<String> tasks) {}
+                         List<String> medications, List<String> services, List<String> tasks,
+                         List<String> retrievalEvidence) {
+        public PlanCandidate(Long id, String name, String description, List<String> diagnoses,
+                             List<String> medications, List<String> services, List<String> tasks) {
+            this(id, name, description, diagnoses, medications, services, tasks, List.of());
+        }
+    }
 
     record PlanIntent(String name, String description, String narrative,
                       List<PlanIntentItem> items, Long referenceTemplateId) {

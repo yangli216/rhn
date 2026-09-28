@@ -219,6 +219,7 @@ function createMockApi({
       compileGuideline: vi.fn(),
       minedSuggestions: vi.fn().mockResolvedValue([]),
       getHistoricalStablePlan: vi.fn().mockResolvedValue(null),
+      compareHistoricalPlan: vi.fn(),
     },
     unifiedOrders: {
       list: vi.fn().mockResolvedValue([]),
@@ -531,6 +532,85 @@ describe('DoctorWorkstation reception flow', () => {
     // 验证草稿中只加入了勾选的诊断“急性上呼吸道感染”，没有加入取消勾选的“咳嗽”
     expect(screen.getByText('急性上呼吸道感染')).toBeInTheDocument()
     expect(screen.queryByText('咳嗽')).not.toBeInTheDocument()
+  })
+
+  it('merges selected historical and standard plan differences into one reviewed draft', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const historicalPlan = {
+      encounterId: 'encounter-101', sourceEncounterId: 'encounter-88',
+      conditionTitle: '高血压复诊稳定方案', summary: '近三次方案稳定',
+      diagnoses: [{ codeSystem: 'WHO.BD.CS.ICD10', diagnosisDomain: 'WESTERN_MEDICINE' as const,
+        code: 'I10', display: '原发性高血压', type: 'PRIMARY' as const }],
+      medications: [{ medicationId: 'med-1', medicationName: '氨氯地平片', catalogItemId: 'catalog-h',
+        packageId: 'package-h', doseValue: 5, doseUnit: 'mg', routeCode: 'ORAL', frequencyCode: 'QD',
+        durationValue: 30, durationUnit: '天', quantity: 1, quantityUnit: '盒',
+        substitutionAllowed: true, selfProvided: false }],
+      services: [], guidanceNotes: [],
+    }
+    const standardPlan: OutpatientPlanTemplate = {
+      id: 'plan-standard-1', revision: 3, scopeType: 'HOSPITAL', name: '高血压院内标准方案',
+      description: '院内标准方案', status: 'ACTIVE', sourceType: 'MANUAL', sortOrder: 0, useCount: 10,
+      diagnoses: [{ codeSystem: 'WHO.BD.CS.ICD10', diagnosisDomain: 'WESTERN_MEDICINE',
+        code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
+      medications: [{ lineId: 'line-standard-1', editorMode: 'regular', categoryCode: 'WESTERN',
+        medicationCode: 'AMLODIPINE', medicationId: 'med-1', medicationName: '氨氯地平片',
+        catalogItemId: 'catalog-s', packageId: 'package-s', doseValue: 10, doseUnit: 'mg',
+        routeCode: 'ORAL', frequencyCode: 'QD', durationValue: 30, durationUnit: '天',
+        quantity: 1, quantityUnit: '盒', substitutionAllowed: false, selfProvided: false }],
+      services: [{ catalogItemId: 'service-1', itemCode: 'LAB-RENAL', itemName: '肾功能',
+        serviceType: 'LABORATORY', quantity: 1, unitCode: '次' }],
+      tasks: [], createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z',
+    }
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([standardPlan])
+    vi.mocked(api.outpatientPlanTemplates.getHistoricalStablePlan).mockResolvedValue(historicalPlan)
+    vi.mocked(api.outpatientPlanTemplates.compareHistoricalPlan).mockResolvedValue({
+      historicalPlan,
+      standardPlan: {
+        id: standardPlan.id, revision: standardPlan.revision, name: standardPlan.name,
+        diagnoses: standardPlan.diagnoses,
+        medications: standardPlan.medications,
+        services: standardPlan.services,
+      },
+      differences: [
+        { key: 'DX:I10', category: 'DIAGNOSIS', status: 'CONSISTENT', historicalIndex: 0,
+          standardIndex: 0, historicalDisplay: '原发性高血压', standardDisplay: '原发性高血压',
+          reason: '历史方案与标准方案一致' },
+        { key: 'MED:med-1:med-1', category: 'MEDICATION', status: 'CONFLICT', historicalIndex: 0,
+          standardIndex: 0, historicalDisplay: '氨氯地平片 5mg', standardDisplay: '氨氯地平片 10mg',
+          reason: '药品剂量不同' },
+        { key: 'SERVICE:service-1', category: 'SERVICE', status: 'MISSING_IN_HISTORY', standardIndex: 0,
+          standardDisplay: '肾功能', reason: '标准方案存在，历史稳定方案未包含' },
+      ],
+    })
+    vi.mocked(api.outpatientPlanTemplates.create).mockImplementation(async (input) => ({
+      ...standardPlan, id: 'merged-plan-1', name: input.name, description: input.description,
+      diagnoses: input.diagnoses, medications: input.medications as OutpatientPlanTemplate['medications'],
+      services: input.services as OutpatientPlanTemplate['services'],
+    }))
+
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    const drawer = await screen.findByRole('complementary', { name: '临床模板' })
+    await user.click(within(drawer).getByRole('tab', { name: /诊疗方案/ }))
+    await user.click(within(drawer).getByRole('tab', { name: /复诊成熟方案/ }))
+
+    await waitFor(() => expect(api.outpatientPlanTemplates.compareHistoricalPlan)
+      .toHaveBeenCalledWith('encounter-101', 'plan-standard-1'))
+    expect(await within(drawer).findByText('氨氯地平片 10mg')).toBeInTheDocument()
+    await user.click(within(drawer).getByRole('combobox', { name: '选择 MED:med-1:med-1 的采用来源' }))
+    await user.click(await screen.findByRole('option', { name: '标准方案' }))
+    await user.click(within(drawer).getByRole('checkbox', { name: '选择差异项 肾功能' }))
+    await user.click(within(drawer).getByRole('button', { name: '合并带入草稿 (2)' }))
+
+    await waitFor(() => expect(api.outpatientPlanTemplates.create).toHaveBeenCalledWith(expect.objectContaining({
+      diagnoses: [expect.objectContaining({ code: 'I10' })],
+      medications: [expect.objectContaining({ medicationId: 'med-1', doseValue: 10,
+        catalogItemId: 'catalog-s', substitutionAllowed: false })],
+      services: [],
+    })))
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: '临床模板' })).not.toBeInTheDocument())
   })
 
   it('applies selected note sections from the unified clinical template drawer', async () => {

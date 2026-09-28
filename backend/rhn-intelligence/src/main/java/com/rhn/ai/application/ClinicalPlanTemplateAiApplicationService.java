@@ -11,10 +11,7 @@ import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.PlanTaskInput;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.ServiceInput;
 import com.rhn.outpatient.api.OutpatientPlanTemplateDirectory;
-import com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory;
 import com.rhn.platform.masterdata.api.ServiceCatalogDirectory;
-import com.rhn.platform.terminology.api.TerminologyDirectory;
-import com.rhn.platform.terminology.api.TerminologyConceptSnapshot;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -34,7 +31,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
@@ -45,31 +41,36 @@ import static com.rhn.shared.api.BusinessErrors.forbidden;
 public class ClinicalPlanTemplateAiApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ClinicalPlanTemplateAiApplicationService.class);
     private static final String PROMPT_VERSION = "RHN-PLAN-COMPILER-V2";
-    private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private static final Set<String> KINDS = Set.of("DIAGNOSIS", "MEDICATION", "LABORATORY",
             "EXAMINATION", "EDUCATION", "FOLLOW_UP", "CONDITION");
 
-    private final OutpatientPrescriptionInventoryDirectory inventory;
+    private final MedicationIntentParser medicationParser;
+    private final MedicationCandidateMatchingService medicationMatcher;
     private final ServiceCatalogDirectory serviceCatalog;
-    private final TerminologyDirectory terminologyDirectory;
+    private final DiagnosisNormalizationService diagnosisNormalizer;
+    private final ClinicalPlanRetrievalService planRetrieval;
     private final OutpatientPlanTemplateDirectory planDirectory;
     private final ExecutionContextProvider contextProvider;
     private final ClinicalAiRuntimePolicy runtimePolicy;
     private final ClinicalAiModelGateway modelGateway;
     private final JsonCodec jsonCodec;
 
-    public ClinicalPlanTemplateAiApplicationService(OutpatientPrescriptionInventoryDirectory inventory,
+    public ClinicalPlanTemplateAiApplicationService(MedicationIntentParser medicationParser,
+                                                     MedicationCandidateMatchingService medicationMatcher,
                                                      ServiceCatalogDirectory serviceCatalog,
-                                                     TerminologyDirectory terminologyDirectory,
+                                                     DiagnosisNormalizationService diagnosisNormalizer,
+                                                     ClinicalPlanRetrievalService planRetrieval,
                                                      OutpatientPlanTemplateDirectory planDirectory,
                                                      ExecutionContextProvider contextProvider,
                                                      ClinicalAiRuntimePolicy runtimePolicy,
                                                      ClinicalAiModelGateway modelGateway,
                                                      JsonCodec jsonCodec) {
-        this.inventory = inventory;
+        this.medicationParser = medicationParser;
+        this.medicationMatcher = medicationMatcher;
         this.serviceCatalog = serviceCatalog;
-        this.terminologyDirectory = terminologyDirectory;
+        this.diagnosisNormalizer = diagnosisNormalizer;
+        this.planRetrieval = planRetrieval;
         this.planDirectory = planDirectory;
         this.contextProvider = contextProvider;
         this.runtimePolicy = runtimePolicy;
@@ -136,9 +137,11 @@ public class ClinicalPlanTemplateAiApplicationService {
                     "方案编译需要在当前工作上下文启用并配置真实模型服务。", HttpStatus.SERVICE_UNAVAILABLE);
         }
         List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> visiblePlans = planDirectory.visibleForCurrentContext();
-        List<ClinicalAiModelGateway.PlanCandidate> availablePlans = visiblePlans.stream()
-                .sorted((left, right) -> Long.compare(right.useCount(), left.useCount()))
-                .limit(30).map(this::candidate).toList();
+        List<ClinicalPlanRetrievalService.Match> retrievedPlans = planRetrieval.retrieve(visiblePlans,
+                new ClinicalPlanRetrievalService.Query(text, scope),
+                ClinicalPlanRetrievalService.MODEL_CANDIDATE_LIMIT);
+        List<ClinicalAiModelGateway.PlanCandidate> availablePlans = retrievedPlans.stream()
+                .map(match -> candidate(match.plan(), match.evidence())).toList();
         ClinicalAiModelGateway.PlanIntent intent;
         try {
             var request = new ClinicalAiModelGateway.PlanInput(PROMPT_VERSION, mode, text, availablePlans,
@@ -193,15 +196,17 @@ public class ClinicalPlanTemplateAiApplicationService {
         if (!"DIAGNOSIS".equals(item.kind())) {
             return new PlanReviewItem(item.kind(), item.name(), item.sourceQuote(), item.origin(), item.details());
         }
-        var concept = findIcd10Concept(tenantId, item.name(), today);
-        if (concept.isPresent()) {
-            var matched = concept.get();
+        var resolution = diagnosisNormalizer.normalize(tenantId, null, null, item.name(), today);
+        if (resolution.matched()) {
+            var matched = resolution.concept();
             return new PlanReviewItem("DIAGNOSIS", matched.display() + " [" + matched.code() + "]",
                     item.sourceQuote(), item.origin(), item.details());
         }
         String details = item.details();
         details = (details == null || details.isBlank() ? "" : details + "；")
-                + "尚未匹配院内 ICD-10 术语，请通过对话补充或调整诊断";
+                + (resolution.status() == DiagnosisNormalizationService.Status.AMBIGUOUS
+                ? "存在多个同名标准诊断，请通过对话补充编码或选择具体诊断"
+                : "尚未匹配院内 ICD-10 术语或指定诊断域的标准术语，请通过对话补充或调整诊断");
         return new PlanReviewItem("CONDITION", item.name(), item.sourceQuote(), item.origin(), clipped(details, 500));
     }
 
@@ -210,9 +215,11 @@ public class ClinicalPlanTemplateAiApplicationService {
         ExecutionContext context = requireContext();
         ClinicalAiModelGateway.PlanIntent intent;
         List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> visiblePlans = planDirectory.visibleForCurrentContext();
-        List<ClinicalAiModelGateway.PlanCandidate> availablePlans = visiblePlans.stream()
-                .sorted((left, right) -> Long.compare(right.useCount(), left.useCount()))
-                .limit(30).map(this::candidate).toList();
+        List<ClinicalPlanRetrievalService.Match> retrievedPlans = planRetrieval.retrieve(visiblePlans,
+                new ClinicalPlanRetrievalService.Query(text, scope),
+                ClinicalPlanRetrievalService.MODEL_CANDIDATE_LIMIT);
+        List<ClinicalAiModelGateway.PlanCandidate> availablePlans = retrievedPlans.stream()
+                .map(match -> candidate(match.plan(), match.evidence())).toList();
         if (reviewedItems != null) {
             if (reviewedItems.isEmpty()) {
                 throw badRequest("AI_PLAN_REVIEW_ITEMS_EMPTY", "请至少保留一个诊疗项目后再匹配院内目录");
@@ -271,17 +278,23 @@ public class ClinicalPlanTemplateAiApplicationService {
             if (doctorConfirmedItems || value.explicit()) {
                 switch (value.kind()) {
                     case "DIAGNOSIS" -> {
-                        var concept = findIcd10Concept(context.tenantId(), value.name(), today);
-                        if (concept.isPresent()) {
-                            var matched = concept.get();
+                        var resolution = diagnosisNormalizer.normalize(context.tenantId(), null, null,
+                                value.name(), today);
+                        if (resolution.matched()) {
+                            var matched = resolution.concept();
                             if (diagnosisCodes.add(matched.code())) {
-                                diagnoses.add(new DiagnosisInput(matched.code(), matched.display(),
+                                diagnoses.add(new DiagnosisInput(resolution.codeSystem(), resolution.diagnosisDomain(),
+                                        matched.code(), matched.display(),
                                         diagnoses.isEmpty() ? "PRIMARY" : "SECONDARY"));
                             }
                             status = "MATCHED";
                         } else {
-                            status = "UNMATCHED";
-                            details = appendDetails(details, "未匹配到唯一的 ICD-10 标准诊断");
+                            status = resolution.status() == DiagnosisNormalizationService.Status.AMBIGUOUS
+                                    ? "NEEDS_REVIEW" : "UNMATCHED";
+                            details = appendDetails(details, resolution.status()
+                                    == DiagnosisNormalizationService.Status.AMBIGUOUS
+                                    ? "同名标准诊断不唯一，请明确诊断编码"
+                                    : "未匹配到指定诊断域中的标准诊断");
                         }
                     }
                     case "LABORATORY", "EXAMINATION" -> {
@@ -307,41 +320,26 @@ public class ClinicalPlanTemplateAiApplicationService {
                         }
                     }
                     case "MEDICATION" -> {
-                        var matches = inventory.findOrderableMedications(context.tenantId(),
-                                context.organizationId(), context.departmentId(), value.name()).stream()
-                                .filter(candidate -> "ACTIVE".equals(candidate.sdStatus())
-                                        && (value.name().equalsIgnoreCase(candidate.name())
-                                        || value.name().equalsIgnoreCase(candidate.code())))
-                                .toList();
-                        if (matches.size() == 1 && matches.getFirst().products() != null
-                                && matches.getFirst().products().size() == 1) {
-                            var matched = matches.getFirst();
-                            var product = matched.products().getFirst();
-                            var availability = inventory.inspectMedicationAvailability(context.tenantId(),
-                                    context.organizationId(), context.departmentId(), product.id(), null);
-                            if (availability != null && availability.routeConfigured()
-                                    && availability.stockItemConfigured()) {
-                                if (medicationProductIds.add(product.id())) {
-                                    medications.add(new MedicationInput(
-                                            matched.id(), product.id(), availability.effectivePackageId(),
-                                            matched.name(), matched.preparationSpec(),
-                                            matched.defaultDose(), matched.defaultDoseUnit(), matched.defaultRoute(),
-                                            matched.defaultFrequency(), null, null, BigDecimal.ONE,
-                                            availability.packageUnitCode() == null
-                                                    ? matched.preparationUnit() : availability.packageUnitCode(),
-                                            false, false, null, "SALE", true, value.details()));
-                                }
-                                status = "MATCHED";
-                            } else {
-                                status = "UNMATCHED";
-                                details = appendDetails(details, "当前科室未配置可发药的库存品规");
+                        var parsed = medicationParser.parse(value.name(), value.details());
+                        var match = medicationMatcher.match(context.tenantId(), context.organizationId(),
+                                context.departmentId(), parsed);
+                        if (match.status() == MedicationCandidateMatchingService.Status.UNIQUE_MATCH) {
+                            var medication = match.medication();
+                            var product = match.product();
+                            var itemPackage = match.itemPackage();
+                            if (medicationProductIds.add(product.id())) {
+                                medications.add(new MedicationInput(medication.id(), product.id(), itemPackage.id(),
+                                        medication.name(), medication.preparationSpec(), parsed.doseValue(),
+                                        parsed.doseUnit(), parsed.routeCode(), parsed.frequencyCode(),
+                                        parsed.durationValue(), parsed.durationUnit(), parsed.quantity(),
+                                        itemPackage.unitCode(), true, false, parsed.sourceText(), "SALE", true,
+                                        value.name()));
                             }
-                        } else if (matches.isEmpty()) {
-                            status = "UNMATCHED";
-                            details = appendDetails(details, "当前科室库存未找到同名通用药品");
+                            status = "MATCHED";
                         } else {
-                            status = "NEEDS_REVIEW";
-                            details = appendDetails(details, "当前科室存在多个同名在库品规，请通过对话明确具体药品");
+                            status = match.status() == MedicationCandidateMatchingService.Status.UNAVAILABLE
+                                    ? "UNMATCHED" : "NEEDS_REVIEW";
+                            details = appendDetails(details, match.evidence());
                         }
                     }
                     default -> { }
@@ -416,12 +414,14 @@ public class ClinicalPlanTemplateAiApplicationService {
     private record ValidatedItem(String kind, String name, String sourceQuote, String origin,
                                  String details, boolean explicit) {}
 
-    private ClinicalAiModelGateway.PlanCandidate candidate(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot plan) {
+    private ClinicalAiModelGateway.PlanCandidate candidate(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot plan,
+                                                            List<String> retrievalEvidence) {
         return new ClinicalAiModelGateway.PlanCandidate(plan.id(), plan.name(), clipped(plan.description(), 180),
                 plan.diagnoses().stream().limit(8).map(OutpatientPlanTemplateDirectory.DiagnosisSnapshot::display).toList(),
                 plan.medications().stream().limit(8).map(OutpatientPlanTemplateDirectory.MedicationSnapshot::medicationName).toList(),
                 plan.services().stream().limit(8).map(OutpatientPlanTemplateDirectory.ServiceSnapshot::itemName).toList(),
-                plan.tasks().stream().limit(8).map(com.rhn.outpatient.api.OutpatientPlanTemplateContracts.PlanTaskInput::text).toList());
+                plan.tasks().stream().limit(8).map(com.rhn.outpatient.api.OutpatientPlanTemplateContracts.PlanTaskInput::text).toList(),
+                retrievalEvidence);
     }
 
     private boolean occursInPlan(ValidatedItem item, OutpatientPlanTemplateDirectory.PlanTemplateSnapshot plan) {
@@ -453,25 +453,6 @@ public class ClinicalPlanTemplateAiApplicationService {
         if (value == null) return null;
         String clean = value.trim();
         return clean.length() <= max ? clean : clean.substring(0, max);
-    }
-
-    private Optional<TerminologyConceptSnapshot> findIcd10Concept(long tenantId, String name, LocalDate today) {
-        if (name == null || name.isBlank()) return Optional.empty();
-        String cleanName = name.replaceAll("\\[.*?\\]|\\(.*?\\)", "").trim();
-        var concept = terminologyDirectory.findDiseaseByExactName(tenantId, ICD10_SYSTEM, name, today);
-        if (concept.isEmpty() && !cleanName.equals(name) && !cleanName.isBlank()) {
-            concept = terminologyDirectory.findDiseaseByExactName(tenantId, ICD10_SYSTEM, cleanName, today);
-        }
-        if (concept.isEmpty()) {
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("[A-Z]\\d{2}(\\.\\d+)?").matcher(name);
-            if (m.find()) {
-                concept = terminologyDirectory.findConcept(tenantId, ICD10_SYSTEM, m.group().toUpperCase(Locale.ROOT), today);
-            }
-        }
-        if (concept.isEmpty() && !cleanName.isBlank()) {
-            concept = terminologyDirectory.findConcept(tenantId, ICD10_SYSTEM, cleanName.toUpperCase(Locale.ROOT), today);
-        }
-        return concept;
     }
 
     private ExecutionContext requireContext() {

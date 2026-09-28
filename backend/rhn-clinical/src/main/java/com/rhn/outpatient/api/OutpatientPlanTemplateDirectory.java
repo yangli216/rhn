@@ -37,7 +37,12 @@ public interface OutpatientPlanTemplateDirectory {
         }
     }
 
-    record DiagnosisSnapshot(String code, String display, String type) {}
+    record DiagnosisSnapshot(String codeSystem, String diagnosisDomain,
+                             String code, String display, String type) {
+        public DiagnosisSnapshot(String code, String display, String type) {
+            this("WHO.BD.CS.ICD10", "WESTERN_MEDICINE", code, display, type);
+        }
+    }
 
     record MedicationSnapshot(Long lineId, Long medicationId, Long catalogItemId, Long packageId,
                               String categoryCode, String medicationCode, String medicationName,
@@ -45,9 +50,10 @@ public interface OutpatientPlanTemplateDirectory {
                               BigDecimal doseValue, String doseUnit, String routeCode,
                               String frequencyCode, BigDecimal durationValue, String durationUnit,
                               BigDecimal quantity, String quantityUnit, String medicationInstruction,
-                              boolean selfProvided, String priceType, boolean pricingRequired, String reason) {}
+                              boolean substitutionAllowed, boolean selfProvided,
+                              String priceType, boolean pricingRequired, String reason) {}
 
     record ServiceSnapshot(Long catalogItemId, String itemCode, String itemName, String serviceType,
-                           BigDecimal quantity, String unitCode, String reason,
+                           BigDecimal quantity, String unitCode, String priceType, boolean pricingRequired, String reason,
                            String clinicalDescription) {}
 }
