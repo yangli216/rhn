@@ -1,5 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ServiceCatalogItem } from '../../shared/rhnApi'
 import {
   ServiceTable,
@@ -203,8 +204,8 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(screen.getAllByText('允许单开').length).toBe(2)
     expect(screen.getByText(/仅组合使用.*孕期提醒/)).toBeInTheDocument()
 
-    // 操作按钮（检验/检查具备“项目配置”，处置不具备）
-    const configureBtns = screen.getAllByRole('button', { name: '项目配置' })
+    // 操作按钮（检验/检查具备“执行与收费”，处置不具备）
+    const configureBtns = screen.getAllByRole('button', { name: '执行与收费' })
     expect(configureBtns.length).toBe(2) // 检验 srv-001 和检查 srv-003
 
     const editBtns = screen.getAllByRole('button', { name: '编辑主档' })
@@ -349,8 +350,9 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(skinTestMarker).not.toHaveAttribute('title')
     expect(screen.queryByText('20分钟')).not.toBeInTheDocument()
 
-    // 操作列中已移除重复的“加产品”按钮
+    // 操作列中已移除重复的“加产品”按钮，且已移除“标准映射”按钮
     expect(screen.queryByRole('button', { name: '加产品' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '标准映射' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '+产品' })).toBeInTheDocument()
 
     // 厂家产品微标与点击轻量查看（不跳转页面）
@@ -462,38 +464,43 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
   })
 
   it('uses standardized controls and the compact workspace layout in MedicationDialog', () => {
-    render(<MedicationDialog
-      dictionaries={{
-        BD_MEDICATION_TYPE: [{ code: 'WESTERN', name: '西药' }],
-        BD_DOSE_FORM: [{ code: 'INJECTION', name: '注射剂' }],
-        BD_STORAGE_TYPE: [{ code: 'ROOM_TEMPERATURE', name: '常温' }],
-        BD_ANTIMICROBIAL_LEVEL: [{ code: 'RESTRICTED', name: '限制使用级' }],
-      } as any}
-      frequencies={[{ id: 'freq-1', code: 'QD', name: '每日一次', executionTimes: ['08:00'] } as any]}
-      routes={[{ id: 'route-1', code: 'IV', name: '静脉滴注' } as any]}
-      value={{
-        id: 'med-1',
-        code: 'DEMO-DRUG-CRO',
-        name: '头孢曲松钠',
-        sdMedicationType: 'WESTERN',
-        sdDoseForm: 'INJECTION',
-        preparationSpec: '1g/瓶',
-        preparationUnit: '瓶',
-        strengthValue: 1,
-        strengthUnit: 'g',
-        defaultDose: 1,
-        defaultDoseUnit: 'g',
-        antimicrobial: true,
-        sdAntimicrobialLevel: 'RESTRICTED',
-        antimicrobialOutpatientAllowed: true,
-        skinTestRequired: true,
-        skinTestMethod: 'INTRADERMAL',
-        skinTestSolutionMode: 'DILUTED_SOLUTION',
-        sdStatus: 'ACTIVE',
-      } as any}
-      onClose={vi.fn()}
-      onSave={vi.fn()}
-    />)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MedicationDialog
+          dictionaries={{
+            BD_MEDICATION_TYPE: [{ code: 'WESTERN', name: '西药' }],
+            BD_DOSE_FORM: [{ code: 'INJECTION', name: '注射剂' }],
+            BD_STORAGE_TYPE: [{ code: 'ROOM_TEMPERATURE', name: '常温' }],
+            BD_ANTIMICROBIAL_LEVEL: [{ code: 'RESTRICTED', name: '限制使用级' }],
+          } as any}
+          frequencies={[{ id: 'freq-1', code: 'QD', name: '每日一次', executionTimes: ['08:00'] } as any]}
+          routes={[{ id: 'route-1', code: 'IV', name: '静脉滴注' } as any]}
+          value={{
+            id: 'med-1',
+            code: 'DEMO-DRUG-CRO',
+            name: '头孢曲松钠',
+            sdMedicationType: 'WESTERN',
+            sdDoseForm: 'INJECTION',
+            preparationSpec: '1g/瓶',
+            preparationUnit: '瓶',
+            strengthValue: 1,
+            strengthUnit: 'g',
+            defaultDose: 1,
+            defaultDoseUnit: 'g',
+            antimicrobial: true,
+            sdAntimicrobialLevel: 'RESTRICTED',
+            antimicrobialOutpatientAllowed: true,
+            skinTestRequired: true,
+            skinTestMethod: 'INTRADERMAL',
+            skinTestSolutionMode: 'DILUTED_SOLUTION',
+            sdStatus: 'ACTIVE',
+          } as any}
+          onClose={vi.fn()}
+          onSave={vi.fn()}
+        />
+      </QueryClientProvider>,
+    )
 
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveClass('medication-knowledge-dialog')
@@ -505,33 +512,40 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(screen.getByRole('button', { name: '根据当前含量重新生成制剂规格' })).toHaveClass('ui-button')
   })
 
-  it('preserves immutable code and attributes when saving in edit mode for MedicationDialog', () => {
+  it('preserves immutable code and attributes when saving in edit mode for MedicationDialog', async () => {
     const handleSave = vi.fn()
-    render(<MedicationDialog
-      dictionaries={{
-        BD_MEDICATION_TYPE: [{ code: 'WESTERN', name: '西药' }],
-        BD_DOSE_FORM: [{ code: 'TABLET', name: '片剂' }],
-        BD_STORAGE_TYPE: [{ code: 'ROOM_TEMPERATURE', name: '常温' }],
-      } as any}
-      frequencies={[]}
-      routes={[]}
-      value={{
-        id: 'med-1',
-        code: 'DRUG-AML',
-        name: '氨氯地平',
-        sdMedicationType: 'WESTERN',
-        sdDoseForm: 'TABLET',
-        sdStatus: 'ACTIVE',
-      } as any}
-      onClose={vi.fn()}
-      onSave={handleSave}
-    />)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MedicationDialog
+          dictionaries={{
+            BD_MEDICATION_TYPE: [{ code: 'WESTERN', name: '西药' }],
+            BD_DOSE_FORM: [{ code: 'TABLET', name: '片剂' }],
+            BD_STORAGE_TYPE: [{ code: 'ROOM_TEMPERATURE', name: '常温' }],
+          } as any}
+          frequencies={[]}
+          routes={[]}
+          value={{
+            id: 'med-1',
+            code: 'DRUG-AML',
+            name: '氨氯地平',
+            sdMedicationType: 'WESTERN',
+            sdDoseForm: 'TABLET',
+            sdStatus: 'ACTIVE',
+          } as any}
+          onClose={vi.fn()}
+          onSave={handleSave}
+        />
+      </QueryClientProvider>,
+    )
 
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
-    expect(handleSave).toHaveBeenCalledWith(expect.objectContaining({
-      code: 'DRUG-AML',
-      name: '氨氯地平',
-    }))
+    await waitFor(() => {
+      expect(handleSave).toHaveBeenCalledWith(expect.objectContaining({
+        code: 'DRUG-AML',
+        name: '氨氯地平',
+      }))
+    })
   })
 
   it('renders MedicationProductQuickViewDialog and handles actions correctly', () => {
@@ -705,14 +719,14 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     // 验证消除了基础数据类型一级大 Tab
     expect(screen.queryByRole('tablist', { name: '基础数据类型' })).not.toBeInTheDocument()
 
-    // 验证直接呈现单层 5 个扁平化药品视角 Tab（方案 A 顺序与规范化命名）
+    // 验证直接呈现单层 5 个扁平化药品视角 Tab（方案 A 顺序与简化后的 4 字规范命名）
     const medicationTablist = screen.getByRole('tablist', { name: '药品目录视图' })
     expect(medicationTablist).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /标准参考目录/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /药品标准对齐治理/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /本院药品主档/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /厂家产品与包装/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /临床用药规则基准/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /标准目录/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /标准对齐/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /药品主档/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /产品包装/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /用药规则/ })).toBeInTheDocument()
   })
 
   it('renders DialogSuspenseFallback into document.body as a modal backdrop instead of inline flow', () => {
@@ -736,18 +750,153 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
         onAttributes={vi.fn()}
       />,
     )
-    const configureBtns = screen.getAllByRole('button', { name: '项目配置' })
+    const configureBtns = screen.getAllByRole('button', { name: '执行与收费' })
     expect(configureBtns.length).toBeGreaterThan(0)
     fireEvent.mouseEnter(configureBtns[0])
     fireEvent.focus(configureBtns[0])
     fireEvent.click(configureBtns[0])
     expect(onConfigure).toHaveBeenCalledWith(mockServices[0])
+    expect(screen.queryByRole('button', { name: '类型扩展属性' })).not.toBeInTheDocument()
   })
 
   it('provides preloadOperationalMasterData function that resolves correctly', async () => {
     const module = await preloadOperationalMasterData()
     expect(module).toHaveProperty('ClinicalServiceConfigurationDialog')
     expect(module).toHaveProperty('OperationalMasterDataPanel')
+  })
+
+  it('dynamically loads and saves item attributes inside MedicationDialog', async () => {
+    const mockMaintenance = {
+      subjectType: 'MEDICATION',
+      targetId: 'med-1',
+      businessDate: '2026-09-28',
+      schema: {
+        itemTypeId: 'WESTERN',
+        itemTypeName: '西药',
+        attributes: [
+          {
+            definitionId: 'attr-storage',
+            code: 'STORAGE_CONDITION',
+            name: '储运温湿度要求',
+            dataType: 'TEXT',
+            required: true,
+            variability: 'BASE_ONLY',
+            storageMode: 'ROW',
+            status: 'ACTIVE',
+            cardinality: 'SINGLE',
+            schema: {},
+          },
+          {
+            definitionId: 'attr-special-alert',
+            code: 'SPECIAL_ALERT',
+            name: '机构特殊警戒提示',
+            dataType: 'TEXT',
+            required: false,
+            variability: 'OVERRIDABLE',
+            storageMode: 'ROW',
+            status: 'ACTIVE',
+            cardinality: 'SINGLE',
+            schema: {},
+          },
+        ],
+      },
+      baseValues: [
+        {
+          id: 'val-1',
+          subjectType: 'MEDICATION',
+          targetId: 'med-1',
+          definitionId: 'attr-storage',
+          revision: 1,
+          value: '阴凉干燥保存',
+          validFrom: '2026-01-01',
+        },
+      ],
+      overrides: [
+        {
+          id: 'ovr-1',
+          subjectType: 'MEDICATION',
+          targetId: 'med-1',
+          definitionId: 'attr-special-alert',
+          revision: 1,
+          scopeType: 'ORGANIZATION',
+          organizationId: 'org-main',
+          valueMode: 'OVERRIDE',
+          value: '急诊常备用药',
+          validFrom: '2026-01-01',
+        },
+      ],
+      effectiveValues: [],
+      termMappings: [],
+    }
+
+    const mockApi = {
+      masterData: {
+        itemAttributeMaintenance: vi.fn().mockResolvedValue(mockMaintenance),
+        saveItemAttributeValue: vi.fn().mockResolvedValue({}),
+        saveItemAttributeOverride: vi.fn().mockResolvedValue({}),
+      },
+      dictionaries: {
+        get: vi.fn().mockResolvedValue({ items: [] }),
+      },
+    }
+
+    const handleSave = vi.fn().mockResolvedValue({})
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MedicationDialog
+          api={mockApi as any}
+          organization={{ id: 'org-main', name: '总院' } as any}
+          dictionaries={{
+            BD_MEDICATION_TYPE: [{ code: 'WESTERN', name: '西药' }],
+            BD_DOSE_FORM: [{ code: 'TABLET', name: '片剂' }],
+            BD_STORAGE_TYPE: [{ code: 'ROOM_TEMPERATURE', name: '常温' }],
+          } as any}
+          frequencies={[]}
+          routes={[]}
+          value={{
+            id: 'med-1',
+            code: 'DRUG-AML',
+            name: '氨氯地平',
+            sdMedicationType: 'WESTERN',
+            sdDoseForm: 'TABLET',
+            sdStatus: 'ACTIVE',
+          } as any}
+          onClose={vi.fn()}
+          onSave={handleSave}
+        />
+      </QueryClientProvider>,
+    )
+
+    // Verify dynamic attribute inputs are rendered
+    await waitFor(() => {
+      expect(screen.getByText('储运温湿度要求')).toBeInTheDocument()
+      expect(screen.getByText('机构特殊警戒提示')).toBeInTheDocument()
+    })
+
+    const alertInput = screen.getByDisplayValue('急诊常备用药')
+    expect(alertInput).toBeInTheDocument()
+
+    // Modify the override attribute
+    fireEvent.change(alertInput, { target: { value: 'VIP病房特需' } })
+
+    // Submit dialog
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    await waitFor(() => {
+      expect(handleSave).toHaveBeenCalledWith(expect.objectContaining({
+        code: 'DRUG-AML',
+        name: '氨氯地平',
+      }))
+      expect(mockApi.masterData.saveItemAttributeOverride).toHaveBeenCalledWith(expect.objectContaining({
+        subjectType: 'MEDICATION',
+        targetId: 'med-1',
+        definitionId: 'attr-special-alert',
+        organizationId: 'org-main',
+        value: 'VIP病房特需',
+      }))
+    })
   })
 })
 

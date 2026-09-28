@@ -127,15 +127,58 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
   const laboratory = service.sdServiceType === 'LABORATORY'
   const examination = service.sdServiceType === 'EXAMINATION'
   const supportedType = laboratory || examination
-  const configurationMatchesType = Boolean(value && (laboratory
-    ? value.serviceType === 'LABORATORY' && value.laboratory && !value.examination
-    : examination && value.serviceType === 'EXAMINATION' && value.examination && !value.laboratory))
+  // 严格判定真正的类型冲突（主档与执行配置交叉不匹配）
+  const isTypeConflict = Boolean(value && (
+    (laboratory && (value.serviceType === 'EXAMINATION' || (value.examination && !value.laboratory))) ||
+    (examination && (value.serviceType === 'LABORATORY' || (value.laboratory && !value.examination)))
+  ))
+
+  // 缺省安全兜底：若项目尚未初始化对应执行配置，自动补齐骨架对象供看板与原地编辑表单正常可用
+  const resolvedValue = useMemo(() => {
+    if (!value) return undefined
+    if (examination && !value.examination) {
+      return {
+        ...value,
+        serviceType: 'EXAMINATION',
+        examination: {
+          serviceId: service.id,
+          revision: 0,
+          examinationType: service.examinationType || '',
+          bodySiteRequired: false,
+          multiBodySite: false,
+          maxBodySiteCount: service.maxBodySiteCount,
+          preparationDescription: service.attention || '',
+          sitePricingMode: 'SINGLE',
+          includedSiteCount: 1,
+          additionalSiteQuantity: 1,
+          maxChargeableSiteCount: service.maxBodySiteCount || 1,
+          variants: [],
+          attachments: [],
+        },
+      } as ClinicalConfiguration
+    }
+    if (laboratory && !value.laboratory) {
+      return {
+        ...value,
+        serviceType: 'LABORATORY',
+        laboratory: {
+          serviceId: service.id,
+          revision: 0,
+          fastingRequired: false,
+          pointOfCare: false,
+          collectionDescription: service.attention || '',
+          specimens: [],
+        },
+      } as ClinicalConfiguration
+    }
+    return value
+  }, [value, examination, laboratory, service])
   const description = laboratory
     ? '统一维护检验方法、报告要求、标本容器、分管规则和试管加收；这里是该检验项目的唯一业务配置入口。'
     : '统一维护检查准备、允许部位与方式、多部位计价和附加收费；这里是该检查项目的唯一业务配置入口。'
 
   if (dialog) return <>{dialog}</>
-  return <Dialog title={`${service.name} · 项目配置`} eyebrow="诊疗项目 · 执行与收费" size="xwide"
+  return <Dialog title={`${service.name} · 执行与收费`} eyebrow="诊疗项目 · 执行与收费" size="xwide"
     className="clinical-project-dialog" onClose={onClose}
     description={description}
     footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
@@ -147,22 +190,22 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
     {configuration.isPending || services.isPending || units.isPending
       ? <LoadingState label="正在加载项目执行与收费配置…" />
       : !supportedType ? <Alert>当前项目类型不支持检验检查业务配置。</Alert>
-        : value && !configurationMatchesType ? <Alert>项目类型与执行配置不一致，已停止展示和编辑，请联系管理员修复主数据。</Alert>
-          : value && <ClinicalWorkspace api={api} value={value} services={allServices} dictionaries={dictionaries}
+        : isTypeConflict ? <Alert>项目类型与执行配置不一致，已停止展示和编辑，请联系管理员修复主数据。</Alert>
+          : resolvedValue && <ClinicalWorkspace api={api} value={resolvedValue} services={allServices} dictionaries={dictionaries}
           unitCodes={allUnits.filter((item) => item.status === 'ACTIVE')}
           onSaveLaboratoryProfile={(input) => execute('检验项目基本配置已更新',
-            api.masterData.updateLaboratoryProfile(service.id, value.laboratory!.revision, input))}
+            api.masterData.updateLaboratoryProfile(service.id, resolvedValue.laboratory?.revision ?? 0, input))}
           onSaveExaminationProfile={(input) => execute('检查项目基本配置已更新',
-            api.masterData.updateExaminationProfile(service.id, value.examination!.revision, input))}
+            api.masterData.updateExaminationProfile(service.id, resolvedValue.examination?.revision ?? 0, input))}
           onEditProfile={() => setDialog(laboratory
-            ? <LaboratoryProfileDialog value={value.laboratory!} dictionaries={dictionaries} units={allUnits}
+            ? <LaboratoryProfileDialog value={resolvedValue.laboratory!} dictionaries={dictionaries} units={allUnits}
               onClose={() => setDialog(undefined)} onSave={(input) => execute('检验项目基本配置已更新',
-                api.masterData.updateLaboratoryProfile(service.id, value.laboratory!.revision, input))} />
-            : <ExaminationProfileDialog value={value.examination!} dictionaries={dictionaries}
+                api.masterData.updateLaboratoryProfile(service.id, resolvedValue.laboratory?.revision ?? 0, input))} />
+            : <ExaminationProfileDialog value={resolvedValue.examination!} dictionaries={dictionaries}
               services={allServices} currentServiceId={service.id} onClose={() => setDialog(undefined)}
               onSave={(input) => execute('检查项目基本配置已更新',
-                api.masterData.updateExaminationProfile(service.id, value.examination!.revision, input))} />)}
-          onSpecimen={(row) => setDialog(<SpecimenDialog value={row} configuration={value}
+                api.masterData.updateExaminationProfile(service.id, resolvedValue.examination?.revision ?? 0, input))} />)}
+          onSpecimen={(row) => setDialog(<SpecimenDialog value={row} configuration={resolvedValue}
             units={allUnits} services={allServices} onClose={() => setDialog(undefined)}
             onSave={(input) => execute(row ? '标本配置已更新' : '标本配置已新增', row
               ? api.masterData.updateSpecimenConfiguration(service.id, row, input)

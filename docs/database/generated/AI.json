@@ -1,5 +1,5 @@
 {
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "tables": [
     {
       "logical": "ai.ai_suggestion_event",
@@ -200,7 +200,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_AI_SUGGEST_EVT_AI_SUGGE_AI__INDEX_C",
+          "name": "FK_AI_SUGGEST_EVT_AI_SUGGE_AI__INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -216,7 +216,7 @@
           "unique": false
         },
         {
-          "name": "FK_AI_SUGGEST_EVT_SYS_PRAC_AI__INDEX_C",
+          "name": "FK_AI_SUGGEST_EVT_SYS_PRAC_AI__INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -232,7 +232,7 @@
           "unique": false
         },
         {
-          "name": "FK_AI_SUGGEST_EVT_SYS_TNT_AI_E_INDEX_C",
+          "name": "FK_AI_SUGGEST_EVT_SYS_TNT_AI_E_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -243,7 +243,7 @@
           "unique": false
         },
         {
-          "name": "FK_AI_SUGGEST_EVT_SYS_USER_AI__INDEX_C",
+          "name": "FK_AI_SUGGEST_EVT_SYS_USER_AI__INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -343,7 +343,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_CEB6",
+          "name": "PRIMARY_KEY_FA8",
           "columns": [
             {
               "position": 1,
@@ -354,7 +354,7 @@
           "unique": true
         },
         {
-          "name": "UK_AI_SUGGEST_EVT_AI_EVENT_COM_INDEX_C",
+          "name": "UK_AI_SUGGEST_EVT_AI_EVENT_COM_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -375,7 +375,7 @@
           "unique": true
         },
         {
-          "name": "UK_AI_SUGGEST_EVT_AI_EVENT_TEN_INDEX_C",
+          "name": "UK_AI_SUGGEST_EVT_AI_EVENT_TEN_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -820,7 +820,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_AI_SUGGEST_PI_PAT_AI_SUGGES_INDEX_7",
+          "name": "FK_AI_SUGGEST_PI_PAT_AI_SUGGES_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -836,7 +836,7 @@
           "unique": false
         },
         {
-          "name": "FK_AI_SUGGEST_SYS_DEPT_AI_SUGG_INDEX_7",
+          "name": "FK_AI_SUGGEST_SYS_DEPT_AI_SUGG_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -857,7 +857,7 @@
           "unique": false
         },
         {
-          "name": "FK_AI_SUGGEST_SYS_ORG_AI_SUGGE_INDEX_7",
+          "name": "FK_AI_SUGGEST_SYS_ORG_AI_SUGGE_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -873,7 +873,7 @@
           "unique": false
         },
         {
-          "name": "FK_AI_SUGGEST_SYS_PRAC_AI_SUGG_INDEX_7",
+          "name": "FK_AI_SUGGEST_SYS_PRAC_AI_SUGG_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -889,7 +889,7 @@
           "unique": false
         },
         {
-          "name": "FK_AI_SUGGEST_SYS_TNT_AI_SUGGE_INDEX_7",
+          "name": "FK_AI_SUGGEST_SYS_TNT_AI_SUGGE_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -900,7 +900,7 @@
           "unique": false
         },
         {
-          "name": "FK_AI_SUGGEST_SYS_USER_AI_SUGG_INDEX_7",
+          "name": "FK_AI_SUGGEST_SYS_USER_AI_SUGG_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -916,7 +916,7 @@
           "unique": false
         },
         {
-          "name": "FK_AI_SUGGEST_VIS_ENC_AI_SUGGE_INDEX_7",
+          "name": "FK_AI_SUGGEST_VIS_ENC_AI_SUGGE_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -1120,7 +1120,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_7B7",
+          "name": "PRIMARY_KEY_6766",
           "columns": [
             {
               "position": 1,
@@ -1131,7 +1131,7 @@
           "unique": true
         },
         {
-          "name": "UK_AI_SUGGEST_AI_SUGGESTION_CO_INDEX_7",
+          "name": "UK_AI_SUGGEST_AI_SUGGESTION_CO_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -1147,7 +1147,7 @@
           "unique": true
         },
         {
-          "name": "UK_AI_SUGGEST_AI_SUGGESTION_TE_INDEX_7",
+          "name": "UK_AI_SUGGEST_AI_SUGGESTION_TE_INDEX_6",
           "columns": [
             {
               "position": 1,

@@ -287,29 +287,34 @@ function ThermalReceiptModal({
   const validUntil = receipt.validUntil
   const [isPrinting, setIsPrinting] = useState(false)
   const [printFeedback, setPrintFeedback] = useState<string | null>(null)
+  const [printError, setPrintError] = useState<string | null>(null)
 
   const handlePrint = useCallback(async () => {
     if (isPrinting) return
     setIsPrinting(true)
     setPrintFeedback(null)
+    setPrintError(null)
     try {
-      if (api?.printing?.registrationTicket && receipt.registrationId) {
-        try {
-          const result = await api.printing.registrationTicket(receipt.registrationId, receipt.encounterId)
-          if (result?.downloadUrl) {
-            setPrintFeedback('已生成受控热敏凭条，调起打印...')
-            if (api.printing.printPdf) {
-              await api.printing.printPdf(result.downloadUrl)
-            } else {
-              await api.printing.download(result)
-            }
-            return
-          }
-        } catch (platformErr) {
-          console.warn('平台统一小票打印未能完成，降级为本地浏览器打印', platformErr)
-        }
+      if (!api?.printing?.registrationTicket) {
+        throw new Error('系统受控打印服务未就绪，请联系管理员检查打印配置')
       }
-      window.print()
+      if (!receipt.registrationId) {
+        throw new Error('当前挂号记录缺少有效登记标识，无法调起受控打印任务')
+      }
+      setPrintFeedback('正在向统一受控打印平台提交凭条生成任务...')
+      const result = await api.printing.registrationTicket(receipt.registrationId, receipt.encounterId)
+      if (!result?.downloadUrl) {
+        throw new Error('受控打印平台未返回有效凭条输出文档，请重试')
+      }
+      setPrintFeedback(`已生成受控热敏凭条 (版本 V${result.templateVersion || 1})，调起打印...`)
+      if (api.printing.printPdf) {
+        await api.printing.printPdf(result.downloadUrl)
+      } else {
+        await api.printing.download(result)
+      }
+    } catch (err) {
+      setPrintFeedback(null)
+      setPrintError(errorMessage(err) || '受控小票打印任务失败，请检查打印服务或配置')
     } finally {
       setIsPrinting(false)
     }
@@ -323,18 +328,29 @@ function ThermalReceiptModal({
       } else if (e.key === 'Escape') {
         e.preventDefault()
         onClose()
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault()
+        void handlePrint()
       }
     }
     window.addEventListener('keydown', handleModalKeyDown)
     return () => window.removeEventListener('keydown', handleModalKeyDown)
   }, [handlePrint, onClose])
 
-  return <Dialog title="门诊挂号热敏凭条" eyebrow="小票打印预览" size="wide" onClose={onClose}
+  return <Dialog title="门诊挂号热敏凭条" eyebrow="小票打印预览" size="wide" className="thermal-receipt-dialog" onClose={onClose}
     footer={<>
       {printFeedback && <span className="thermal-receipt-feedback">{printFeedback}</span>}
       <Button variant="secondary" onClick={onClose}>关闭 (Esc)</Button>
-      <Button busy={isPrinting} onClick={() => void handlePrint()}><Icon name="print" />立即打印小票 (Enter)</Button>
+      <Button busy={isPrinting} onClick={() => void handlePrint()}>
+        <Icon name="print" />
+        {printError ? '重试打印 (Enter)' : '立即打印小票 (Enter)'}
+      </Button>
     </>}>
+    {Boolean(printError) && (
+      <Alert tone="error">
+        {printError}
+      </Alert>
+    )}
     <div className="thermal-receipt-container">
       <article id="registration-receipt-printable" className="thermal-receipt-paper" aria-label="热敏就诊凭条">
         <header>

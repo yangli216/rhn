@@ -11,7 +11,7 @@ import {
   type ItemPackage,
   type MedicationProductSetupInput, type ProductInput, type RhnApi, type ServiceCatalogItem, type ServiceInput,
   type ItemAttributeJson, type ItemAttributeOverride, type ItemAttributeSchema,
-  type ItemAttributeSubjectType, type ItemAttributeValue, type MasterDataImportBatch,
+  type ItemAttributeSubjectType, type ItemAttributeValue, type ItemAttributeMaintenance, type MasterDataImportBatch,
   type MasterDataImportRow, type MasterDataImportType, type ItemTermMapping,
   type StandardEquivalence, type StandardMappingType,
   type CatalogLifecycle, type LifecycleAdoptionInput, type LifecyclePriceInput,
@@ -216,7 +216,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
         dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
         onSave={(input) => api.masterData.createDiseaseManagementProgram(input)
           .then(() => invalidate('疾病管理项目已创建')).catch(fail)} />)
-      if (tab === 'service') setDialog(<ServiceDialog dictionaries={dictionaries.data!}
+      if (tab === 'service') setDialog(<ServiceDialog api={api} organization={organization} dictionaries={dictionaries.data!}
         onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createService(input, organization.id)
           .then(() => invalidate('诊疗项目已创建')).catch(fail)} />)
       if (tab === 'medication') setMedicationMode('standard')
@@ -255,21 +255,21 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
             { value: 'service', label: '诊疗项目', meta: '开立 · 执行 · 收费' },
             { value: 'medication', label: '药品目录', meta: '知识 · 产品 · 包装' },
             { value: 'operations', label: '运营主数据', meta: '组套 · 耗材 · 计量' },
-            { value: 'attribute', label: '属性配置', meta: '定义 · 装配 · 继承' },
+            { value: 'attribute', label: '扩展属性', meta: '定义 · 装配 · 继承' },
           ]} />
       )}
       {tab === 'disease' && <Tabs value={diseaseMode} onChange={setDiseaseMode} label="疾病维护视图"
         variant="line" className="disease-management-mode" actions={scope !== 'all' ? pageActions : undefined} items={[
           { value: 'terms', label: '疾病术语' },
-          { value: 'management', label: '管理分类与规则' },
+          { value: 'management', label: '管理规则' },
         ]} />}
       {tab === 'medication' && <Tabs value={medicationMode === 'semantics' ? 'readiness' : medicationMode} onChange={setMedicationMode} label="药品目录视图"
         variant="line" className="medication-management-mode" actions={scope !== 'all' ? pageActions : undefined} items={[
-          { value: 'standard', label: '标准参考目录', meta: '国家标准 · 来源核验与原件追溯' },
-          { value: 'readiness', label: '药品标准对齐治理', meta: '全院对齐 · 存量映射与缺口排查' },
-          { value: 'knowledge', label: '本院药品主档', meta: '通用名规范 · 剂型与给药途径' },
-          { value: 'product', label: '厂家产品与包装', meta: '商业产品 · 生产企业与批准文号' },
-          { value: 'rules', label: '临床用药规则基准', meta: '合理用药 · 频次/途径/剂量换算' },
+          { value: 'standard', label: '标准目录' },
+          { value: 'readiness', label: '标准对齐' },
+          { value: 'knowledge', label: '药品主档' },
+          { value: 'product', label: '产品包装' },
+          { value: 'rules', label: '用药规则' },
         ]} />}
       {tab !== 'attribute' && tab !== 'operations' && !(tab === 'medication' && ['standard', 'semantics', 'readiness', 'rules'].includes(medicationMode)) && <div className="master-data-toolbar">
         <SearchField className="master-data-toolbar__search" label="搜索基础数据" value={keyword} onChange={setKeyword}
@@ -332,12 +332,9 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
         onConfigure={(value) => setDialog(<ClinicalServiceConfigurationDialog api={api} service={value}
           organizationId={organization.id} dictionaries={dictionaries.data!}
           onClose={() => setDialog(undefined)} />)}
-        onEdit={(value) => setDialog(<ServiceDialog dictionaries={dictionaries.data!} value={value}
+        onEdit={(value) => setDialog(<ServiceDialog api={api} organization={organization} dictionaries={dictionaries.data!} value={value}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.updateService(
-            value.id, value.revision, input, organization.id).then(() => invalidate('诊疗项目已更新')).catch(fail)} />)}
-        onAttributes={(value) => setDialog(<AttributeManagementDialog api={api} organization={organization}
-          subjectType="CATALOG_ITEM" targetId={value.id} itemName={value.name}
-          onClose={() => setDialog(undefined)} />)} />}
+            value.id, value.revision, input, organization.id).then(() => invalidate('诊疗项目已更新')).catch(fail)} />)} />}
       {tab === 'medication' && (medicationMode === 'readiness' || medicationMode === 'semantics') && (
         <Suspense fallback={<LoadingState label="正在加载药品标准建设情况…" />}>
           <MedicationStandardReadinessPanel api={api} compact={scope !== 'all'} organizationId={organization.id} onOpenCatalog={() => setMedicationMode('standard')} />
@@ -366,17 +363,11 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
         loading={medications.isPending} pagination={pagination}
         mode={medicationMode} onModeChange={setMedicationMode}
         routes={routes.data ?? []} frequencies={frequencies.data ?? []}
-        onEdit={(value) => setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
+        onEdit={(value) => setDialog(<MedicationDialog api={api} organization={organization} dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
           routes={routes.data ?? []} value={value}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.updateMedication(
             value.id, value.revision, input, organization.id).then(() => invalidate('药品知识已更新')).catch(fail)} />)}
-        onAttributes={(value) => setDialog(<AttributeManagementDialog api={api} organization={organization}
-          subjectType="MEDICATION" targetId={value.id} itemName={value.name}
-          onClose={() => setDialog(undefined)} />)}
         onComposition={(value) => setDialog(<MedicationCompositionDialog api={api} medication={value} onClose={() => setDialog(undefined)} />)}
-        onMappings={(value) => setDialog(<StandardMappingDialog api={api} subjectType="MEDICATION"
-          targetId={value.id} itemName={value.name} systemType="MEDICATION"
-          onClose={() => setDialog(undefined)} />)}
         onProduct={(value) => {
           if (value.standardReference?.status !== 'LINKED') {
             setFeedback(`请先在标准参考目录中为「${value.name}」关联标准规格，再建立产品。`)
@@ -541,13 +532,13 @@ export function serviceTypeTone(serviceType: string): 'info' | 'success' | 'warn
   }
 }
 
-export function ServiceTable({ values, loading, pagination, density = 'two-line', onConfigure, onEdit, onAttributes }: {
+export function ServiceTable({ values, loading, pagination, density = 'two-line', onConfigure, onEdit, onAttributes: _onAttributes }: {
   values?: ServiceCatalogItem[]; loading: boolean;
   pagination: ReactNode;
   density?: 'two-line' | 'single-line';
   onConfigure: (value: ServiceCatalogItem) => void;
   onEdit: (value: ServiceCatalogItem) => void;
-  onAttributes: (value: ServiceCatalogItem) => void;
+  onAttributes?: (value: ServiceCatalogItem) => void;
 }) {
   if (loading) return <LoadingState label="正在加载诊疗项目…" />
   if (!values?.length) return <EmptyState icon="clinical" title="未找到诊疗项目" copy="请调整筛选条件或新增项目。" />
@@ -637,6 +628,7 @@ export function ServiceTable({ values, loading, pagination, density = 'two-line'
 
         <td className="service-col-actions">
           <RowActions>
+            <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑主档</Button>
             {['LABORATORY', 'EXAMINATION'].includes(value.sdServiceType) && (
               <Button
                 size="sm"
@@ -645,11 +637,9 @@ export function ServiceTable({ values, loading, pagination, density = 'two-line'
                 onFocus={() => void preloadOperationalMasterData()}
                 onClick={() => onConfigure(value)}
               >
-                项目配置
+                执行与收费
               </Button>
             )}
-            <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑主档</Button>
-            <Button size="sm" variant="text" onClick={() => onAttributes(value)}>类型扩展属性</Button>
           </RowActions>
         </td>
       </tr>
@@ -659,15 +649,15 @@ export function ServiceTable({ values, loading, pagination, density = 'two-line'
 
 export function MedicationTable({
   values, loading, pagination, mode = 'knowledge', routes, frequencies,
-  onModeChange, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onViewProducts, onComposition,
+  onModeChange, onEdit, onAttributes: _onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onViewProducts, onComposition,
 }: {
   values?: MedicationKnowledge[]; loading: boolean; pagination: ReactNode;
   mode?: 'knowledge' | 'product';
   routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
   onModeChange?: (mode: 'knowledge' | 'product') => void;
   onEdit: (value: MedicationKnowledge) => void;
-  onAttributes: (value: MedicationKnowledge) => void;
-  onMappings: (value: MedicationKnowledge) => void;
+  onAttributes?: (value: MedicationKnowledge) => void;
+  onMappings?: (value: MedicationKnowledge) => void;
   onProduct: (value: MedicationKnowledge) => void;
   onEditProduct: (product: MedicationProduct, medication: MedicationKnowledge) => void;
   onPackage: (product: MedicationProduct, medication: MedicationKnowledge) => void;
@@ -714,7 +704,7 @@ export function MedicationTable({
       frequencies={frequencies}
       onModeChange={onModeChange}
       onEdit={onEdit}
-      onAttributes={onAttributes}
+      onAttributes={_onAttributes}
       onMappings={onMappings}
       onComposition={onComposition}
       onProduct={onProduct}
@@ -739,13 +729,13 @@ export function MedicationTable({
 
 export function MedicationKnowledgeTable({
   values, pagination, routes, frequencies, onModeChange: _onModeChange,
-  onEdit, onAttributes, onMappings, onProduct, activePopoverMedicationId, onTogglePopover, onViewProducts, onComposition
+  onEdit, onAttributes: _onAttributes, onMappings: _onMappings, onProduct, activePopoverMedicationId, onTogglePopover, onViewProducts, onComposition
 }: {
   values: MedicationKnowledge[]; pagination: ReactNode; routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
   onModeChange?: (mode: 'knowledge' | 'product') => void;
   onEdit: (value: MedicationKnowledge) => void;
-  onAttributes: (value: MedicationKnowledge) => void;
-  onMappings: (value: MedicationKnowledge) => void;
+  onAttributes?: (value: MedicationKnowledge) => void;
+  onMappings?: (value: MedicationKnowledge) => void;
   onProduct: (value: MedicationKnowledge) => void;
   activePopoverMedicationId?: string;
   onTogglePopover?: (value: MedicationKnowledge, el: HTMLElement) => void;
@@ -851,9 +841,7 @@ export function MedicationKnowledgeTable({
         <td className="medication-col-actions">
           <RowActions>
             <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑知识</Button>
-            <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
             {onComposition && <Button size="sm" variant="text" onClick={() => onComposition(value)}>成分与含量</Button>}
-            <Button size="sm" variant="text" onClick={() => onAttributes(value)}>扩展属性</Button>
           </RowActions>
         </td>
       </tr>
@@ -2356,7 +2344,7 @@ export function mappingStatusLabel(value: ItemTermMapping['status']) {
   return ({ ACTIVE: '有效', SUSPENDED: '已暂停', RETIRED: '已停用', SUPERSEDED: '已替代' } as const)[value]
 }
 
-function AttributeManagementDialog({ api, organization, subjectType, targetId, itemName, onClose }: {
+export function AttributeManagementDialog({ api, organization, subjectType, targetId, itemName, onClose }: {
   api: RhnApi; organization: Organization; subjectType: ItemAttributeSubjectType
   targetId: string; itemName: string; onClose: () => void
 }) {
@@ -2818,22 +2806,224 @@ function DiseaseManagementMembersDialog({ program, api, dictionaries, codeSystem
   </Dialog>
 }
 
-function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries: DictionaryMap;
-  value?: ServiceCatalogItem; onClose: () => void; onSave: (input: ServiceInput) => void }) {
+function DynamicAttributeField({
+  api,
+  attribute,
+  value,
+  onChange,
+}: {
+  api?: RhnApi
+  attribute: ItemAttributeSchema
+  value: string
+  onChange: (val: string) => void
+}) {
+  const dictionary = useQuery({
+    queryKey: ['master-data-attribute-dictionary', attribute.dictionaryId],
+    queryFn: () => api!.dictionaries.get(attribute.dictionaryId!),
+    enabled: Boolean(api && attribute.dataType === 'DICT_REF' && attribute.dictionaryId),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const itemSchema = attribute.cardinality === 'MULTIPLE' && attribute.schema.items
+    && typeof attribute.schema.items === 'object' && !Array.isArray(attribute.schema.items)
+    ? attribute.schema.items as Record<string, ItemAttributeJson> : attribute.schema
+  const enumeration = Array.isArray(itemSchema.enum) ? itemSchema.enum.map(String) : []
+  const options = attribute.dataType === 'DICT_REF'
+    ? (dictionary.data?.items ?? [])
+        .filter((item) => item.sdDictItemStatus === 'ACTIVE')
+        .map((item) => ({ value: item.code, label: item.name, secondaryText: item.code }))
+    : enumeration.map((item) => ({ value: item, label: item, secondaryText: item }))
+
+  const label = `${attribute.name}${attribute.unitCode ? ` (${attribute.unitCode})` : ''}`
+
+  return (
+    <FormField label={label} required={attribute.required} hint={attribute.description}>
+      {options.length > 0 ? (
+        <Select
+          value={value}
+          onChange={onChange}
+          placeholder="请选择"
+          showValue
+          options={options}
+          loading={dictionary.isPending}
+          clearable={!attribute.required}
+        />
+      ) : attribute.dataType === 'BOOLEAN' ? (
+        <Select
+          value={value}
+          onChange={onChange}
+          placeholder="请选择"
+          options={[{ value: 'true', label: '是' }, { value: 'false', label: '否' }]}
+          clearable={!attribute.required}
+        />
+      ) : attribute.dataType === 'DATE' ? (
+        <input
+          type="date"
+          value={value}
+          required={attribute.required}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : ['INTEGER', 'DECIMAL'].includes(attribute.dataType) ? (
+        <input
+          type="number"
+          step={attribute.dataType === 'INTEGER' ? '1' : 'any'}
+          value={value}
+          required={attribute.required}
+          placeholder={attribute.description || '请输入数字'}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : (
+        <input
+          type="text"
+          value={value}
+          required={attribute.required}
+          placeholder={attribute.description || '请输入'}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </FormField>
+  )
+}
+
+function DynamicItemAttributesSection({
+  api,
+  maintenance,
+  organization,
+  values,
+  onChange,
+  isLoading,
+}: {
+  api?: RhnApi
+  maintenance?: ItemAttributeMaintenance
+  organization?: Organization
+  values: Record<string, string>
+  onChange: (definitionId: string, val: string) => void
+  isLoading?: boolean
+}) {
+  if (isLoading) {
+    return (
+      <FormSection title="扩展属性" description="正在加载当前项目类型装配的扩展属性…">
+        <LoadingState label="正在加载扩展属性…" />
+      </FormSection>
+    )
+  }
+
+  const attributes = (maintenance?.schema?.attributes ?? []).filter((item) => item.storageMode !== 'PROJECTED')
+
+  if (!attributes.length) {
+    return (
+      <FormSection title="扩展属性" description="当前项目类型装配的长尾自定义扩展属性。">
+        <p className="master-data-attribute-empty-hint" style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-small)', margin: 'var(--space-2) 0' }}>
+          当前项目类型未装配自定义扩展属性。
+        </p>
+      </FormSection>
+    )
+  }
+
+  return (
+    <FormSection title="扩展属性" description="当前项目类型装配的扩展属性，可直接在主档中维护业务值。">
+      <FormGrid columns={3}>
+        {attributes.map((attr) => {
+          const base = maintenance?.baseValues.find((b) => b.definitionId === attr.definitionId)
+          const override = maintenance?.overrides.find((o) => o.definitionId === attr.definitionId && o.organizationId === organization?.id)
+          const initialVal = attributeRaw(override?.value ?? base?.value ?? attr.defaultValue, attr)
+          const currentVal = values[attr.definitionId] ?? initialVal
+          return (
+            <DynamicAttributeField
+              key={attr.definitionId}
+              api={api}
+              attribute={attr}
+              value={currentVal}
+              onChange={(val) => onChange(attr.definitionId, val)}
+            />
+          )
+        })}
+      </FormGrid>
+    </FormSection>
+  )
+}
+
+function ServiceDialog({ api, organization, dictionaries, value, onClose, onSave }: {
+  api?: RhnApi; organization?: Organization; dictionaries: DictionaryMap;
+  value?: ServiceCatalogItem; onClose: () => void; onSave: (input: ServiceInput) => void | Promise<unknown>
+}) {
+  const queryClient = useQueryClient()
+  const [attrValues, setAttrValues] = useState<Record<string, string>>({})
+  const maintenanceQuery = useQuery({
+    queryKey: ['master-data-item-attributes', 'CATALOG_ITEM', value?.id, today()],
+    queryFn: () => api!.masterData.itemAttributeMaintenance('CATALOG_ITEM', value!.id, today()),
+    enabled: Boolean(api && value?.id),
+    staleTime: 60 * 1000,
+  })
+
+  const saveAttributes = async () => {
+    if (!api || !value?.id || !maintenanceQuery.data) return
+    const attributes = (maintenanceQuery.data.schema?.attributes ?? []).filter((item) => item.storageMode !== 'PROJECTED')
+    const promises: Promise<unknown>[] = []
+    for (const attr of attributes) {
+      const base = maintenanceQuery.data.baseValues.find((b) => b.definitionId === attr.definitionId)
+      const override = maintenanceQuery.data.overrides.find((o) => o.definitionId === attr.definitionId && o.organizationId === organization?.id)
+      const initialRaw = attributeRaw(override?.value ?? base?.value ?? attr.defaultValue, attr)
+      const currentRaw = attrValues[attr.definitionId]
+      if (currentRaw !== undefined && currentRaw !== initialRaw) {
+        if (!currentRaw.trim() && attr.required) {
+          throw new Error(`请填写必填扩展属性：${attr.name}`)
+        }
+        if (attr.variability === 'BASE_ONLY') {
+          promises.push(api.masterData.saveItemAttributeValue({
+            subjectType: 'CATALOG_ITEM',
+            targetId: value.id,
+            definitionId: attr.definitionId,
+            valueId: base?.id,
+            expectedRevision: base?.revision,
+            value: parseAttributeRaw(currentRaw, attr),
+            validFrom: base?.validFrom ?? today(),
+            validTo: base?.validTo,
+            reason: '主档编辑维护扩展属性',
+            requestCode: crypto.randomUUID(),
+          }))
+        } else {
+          promises.push(api.masterData.saveItemAttributeOverride({
+            subjectType: 'CATALOG_ITEM',
+            targetId: value.id,
+            definitionId: attr.definitionId,
+            overrideId: override?.id,
+            expectedRevision: override?.revision,
+            scopeType: 'ORGANIZATION',
+            organizationId: organization?.id || '',
+            valueMode: 'OVERRIDE',
+            value: parseAttributeRaw(currentRaw, attr),
+            validFrom: override?.validFrom ?? today(),
+            validTo: override?.validTo,
+            reason: '主档编辑维护扩展属性',
+            requestCode: crypto.randomUUID(),
+          }))
+        }
+      }
+    }
+    if (promises.length > 0) {
+      await Promise.all(promises)
+      await queryClient.invalidateQueries({ queryKey: ['master-data-item-attributes', 'CATALOG_ITEM', value.id] })
+    }
+  }
+
   return <DataFormDialog title={value ? '编辑诊疗项目' : '新增诊疗项目'} eyebrow="临床服务目录" onClose={onClose}
-    size="xwide" description="维护项目主档身份和目录属性；检验检查的执行、部位与收费规则从项目列表的“项目配置”进入。"
-    onSubmit={(form) => onSave({ code: (value?.code || text(form, 'code')).trim(), name: text(form, 'name'), unitCode: optionalText(form, 'unitCode'),
-      orderable: checked(form, 'orderable'), chargeable: checked(form, 'chargeable'), sdStatus: (value?.sdStatus ?? 'ACTIVE'),
-      validFrom: text(form, 'validFrom'), validTo: optionalText(form, 'validTo'), sdServiceType: value?.sdServiceType || text(form, 'sdServiceType'),
-      serviceSubtype: optionalText(form, 'serviceSubtype'), sdUsageType: text(form, 'sdUsageType'),
-      medicalTechnology: checked(form, 'medicalTechnology'), combinationItem: checked(form, 'combinationItem'),
-      singleOrder: checked(form, 'singleOrder'), specimenType: value?.specimenType,
-      examinationType: value?.examinationType, accountingCategory: optionalText(form, 'accountingCategory'),
-      sdDuplicateRule: optionalText(form, 'sdDuplicateRule'), multiSitePrice: value?.multiSitePrice,
-      freeSiteCount: value?.freeSiteCount, maxBodySiteCount: value?.maxBodySiteCount,
-      mutualRecognitionCode: optionalText(form, 'mutualRecognitionCode'),
-      pregnancyAlert: checked(form, 'pregnancyAlert'), attention: optionalText(form, 'attention'),
-      examinationNotes: value?.examinationNotes })}>
+    size="xwide" description="维护项目主档身份和目录属性；检验检查的执行、部位与收费规则从项目列表的“执行与收费”进入。"
+    onSubmit={async (form) => {
+      await onSave({ code: (value?.code || text(form, 'code')).trim(), name: text(form, 'name'), unitCode: optionalText(form, 'unitCode'),
+        orderable: checked(form, 'orderable'), chargeable: checked(form, 'chargeable'), sdStatus: (value?.sdStatus ?? 'ACTIVE'),
+        validFrom: text(form, 'validFrom'), validTo: optionalText(form, 'validTo'), sdServiceType: value?.sdServiceType || text(form, 'sdServiceType'),
+        serviceSubtype: optionalText(form, 'serviceSubtype'), sdUsageType: text(form, 'sdUsageType'),
+        medicalTechnology: checked(form, 'medicalTechnology'), combinationItem: checked(form, 'combinationItem'),
+        singleOrder: checked(form, 'singleOrder'), specimenType: value?.specimenType,
+        examinationType: value?.examinationType, accountingCategory: optionalText(form, 'accountingCategory'),
+        sdDuplicateRule: optionalText(form, 'sdDuplicateRule'), multiSitePrice: value?.multiSitePrice,
+        freeSiteCount: value?.freeSiteCount, maxBodySiteCount: value?.maxBodySiteCount,
+        mutualRecognitionCode: optionalText(form, 'mutualRecognitionCode'),
+        pregnancyAlert: checked(form, 'pregnancyAlert'), attention: optionalText(form, 'attention'),
+        examinationNotes: value?.examinationNotes })
+      await saveAttributes()
+    }}>
     <FormSection title="标准身份" description="编码创建后保持稳定，名称与目录属性可继续维护。">
       <FormGrid columns={3}>
         <FormField label="项目编码" required><input name="code" defaultValue={value?.code} disabled={Boolean(value)}
@@ -2849,7 +3039,7 @@ function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries:
           defaultValue={value?.sdUsageType ?? 'COMMON'} />
       </FormGrid>
     </FormSection>
-    <FormSection title="目录属性与能力" description="这里只维护中心级目录属性；检验标本、检查部位、多部位计价与附加收费在该项目的“项目配置”中统一维护。">
+    <FormSection title="目录属性与能力" description="这里只维护中心级目录属性；检验标本、检查部位、多部位计价与附加收费在该项目的“执行与收费”中统一维护。">
       <FormGrid columns={4}>
         <FormField label="计价单位"><input name="unitCode" defaultValue={value?.unitCode ?? '次'} /></FormField>
         <FormField label="费用归并"><input name="accountingCategory" defaultValue={value?.accountingCategory}
@@ -2876,6 +3066,16 @@ function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries:
           placeholder="录入开立或执行时需要关注的事项" rows={2} /></FormField>
       </FormGrid>
     </FormSection>
+    {value?.id && (
+      <DynamicItemAttributesSection
+        api={api}
+        maintenance={maintenanceQuery.data}
+        organization={organization}
+        values={attrValues}
+        onChange={(defId, val) => setAttrValues((prev) => ({ ...prev, [defId]: val }))}
+        isLoading={maintenanceQuery.isPending}
+      />
+    )}
   </DataFormDialog>
 }
 
@@ -2914,7 +3114,7 @@ export function StandardMedicationSetupDialog({ api, entry, spec, organization, 
       {item.name} · {item.preparationSpec} · {item.code} · {item.products.length} 个产品
     </Button>)}
   </Dialog>
-  if (!medication) return <MedicationDialog key={prior?.id ?? spec.id} dictionaries={dictionaries}
+  if (!medication) return <MedicationDialog key={prior?.id ?? spec.id} api={api} organization={organization} dictionaries={dictionaries}
     frequencies={frequencies} routes={routes} value={prior} initialValue={standardMedicationDraft(entry, spec)}
     onClose={onClose} onSave={async (input) => {
       const saved = await api.masterData.saveStandardMedication(spec.id, input, organization.id, prior)
@@ -2927,9 +3127,87 @@ export function StandardMedicationSetupDialog({ api, entry, spec, organization, 
     }} />
 }
 
-export function MedicationDialog({ dictionaries, frequencies, routes, value, initialValue, onClose, onSave }: { dictionaries: DictionaryMap;
-  frequencies: ActiveOrderFrequency[]; routes: MedicationRoute[]; value?: MedicationKnowledge; initialValue?: Partial<MedicationInput>;
-  onClose: () => void; onSave: (input: MedicationInput) => void | Promise<unknown> }) {
+export function MedicationDialog({
+  api,
+  organization,
+  dictionaries,
+  frequencies,
+  routes,
+  value,
+  initialValue,
+  onClose,
+  onSave,
+}: {
+  api?: RhnApi
+  organization?: Organization
+  dictionaries: DictionaryMap
+  frequencies: ActiveOrderFrequency[]
+  routes: MedicationRoute[]
+  value?: MedicationKnowledge
+  initialValue?: Partial<MedicationInput>
+  onClose: () => void
+  onSave: (input: MedicationInput) => void | Promise<unknown>
+}) {
+  const queryClient = useQueryClient()
+  const [attrValues, setAttrValues] = useState<Record<string, string>>({})
+  const maintenanceQuery = useQuery({
+    queryKey: ['master-data-item-attributes', 'MEDICATION', value?.id, today()],
+    queryFn: () => api!.masterData.itemAttributeMaintenance('MEDICATION', value!.id, today()),
+    enabled: Boolean(api && value?.id),
+    staleTime: 60 * 1000,
+  })
+
+  const saveAttributes = async () => {
+    if (!api || !value?.id || !maintenanceQuery.data) return
+    const attributes = (maintenanceQuery.data.schema?.attributes ?? []).filter((item) => item.storageMode !== 'PROJECTED')
+    const promises: Promise<unknown>[] = []
+    for (const attr of attributes) {
+      const base = maintenanceQuery.data.baseValues.find((b) => b.definitionId === attr.definitionId)
+      const override = maintenanceQuery.data.overrides.find((o) => o.definitionId === attr.definitionId && o.organizationId === organization?.id)
+      const initialRaw = attributeRaw(override?.value ?? base?.value ?? attr.defaultValue, attr)
+      const currentRaw = attrValues[attr.definitionId]
+      if (currentRaw !== undefined && currentRaw !== initialRaw) {
+        if (!currentRaw.trim() && attr.required) {
+          throw new Error(`请填写必填扩展属性：${attr.name}`)
+        }
+        if (attr.variability === 'BASE_ONLY') {
+          promises.push(api.masterData.saveItemAttributeValue({
+            subjectType: 'MEDICATION',
+            targetId: value.id,
+            definitionId: attr.definitionId,
+            valueId: base?.id,
+            expectedRevision: base?.revision,
+            value: parseAttributeRaw(currentRaw, attr),
+            validFrom: base?.validFrom ?? today(),
+            validTo: base?.validTo,
+            reason: '主档编辑维护扩展属性',
+            requestCode: crypto.randomUUID(),
+          }))
+        } else {
+          promises.push(api.masterData.saveItemAttributeOverride({
+            subjectType: 'MEDICATION',
+            targetId: value.id,
+            definitionId: attr.definitionId,
+            overrideId: override?.id,
+            expectedRevision: override?.revision,
+            scopeType: 'ORGANIZATION',
+            organizationId: organization?.id || '',
+            valueMode: 'OVERRIDE',
+            value: parseAttributeRaw(currentRaw, attr),
+            validFrom: override?.validFrom ?? today(),
+            validTo: override?.validTo,
+            reason: '主档编辑维护扩展属性',
+            requestCode: crypto.randomUUID(),
+          }))
+        }
+      }
+    }
+    if (promises.length > 0) {
+      await Promise.all(promises)
+      await queryClient.invalidateQueries({ queryKey: ['master-data-item-attributes', 'MEDICATION', value.id] })
+    }
+  }
+
   const initial = value ?? initialValue
   const standardId = initialValue?.standardSpecificationId ?? value?.standardReference?.specificationId
   const standardLocked = Boolean(standardId)
@@ -3017,36 +3295,39 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, ini
   return <DataFormDialog title={value ? '编辑通用药品知识' : initialValue ? '建立本院药品 · 1/2 药品属性' : '新增通用药品知识'} eyebrow="药品知识层" onClose={onClose}
     size="xwide" className="medication-knowledge-dialog"
     description="通用药品知识不包含厂家和价格信息，产品、包装与机构目录在后续层级维护。"
-    onSubmit={(form) => onSave({ standardSpecificationId: standardId, code: (initial?.code || text(form, 'code')).trim(), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
-      sdMedicationType: medicationType, sdDoseForm: standardLocked ? initialValue?.sdDoseForm ?? initial?.sdDoseForm : optionalText(form, 'sdDoseForm'),
-      preparationSpec: optionalText(form, 'preparationSpec') || preparationSpec || undefined,
-      preparationUnit: optionalText(form, 'preparationUnit') || preparationUnit || undefined,
-      strengthValue: herbal ? undefined : (optionalNumber(form, 'strengthValue') ?? (strengthValue ? Number(strengthValue) : undefined)),
-      strengthUnit: herbal ? undefined : (optionalText(form, 'strengthUnit') || strengthUnit || undefined),
-      sdStorageType: optionalText(form, 'sdStorageType'),
-      prescriptionDrug: checked(form, 'prescriptionDrug'), essentialDrug: checked(form, 'essentialDrug'),
-      antimicrobial: western && antimicrobial,
-      sdAntimicrobialLevel: western && antimicrobial ? antimicrobialLevel : undefined,
-      antimicrobialOutpatientAllowed: western && antimicrobial ? antimicrobialOutpatientAllowed : undefined,
-      antimicrobialConsultationRequired: western && antimicrobial ? antimicrobialConsultationRequired : undefined,
-      antimicrobialEmergencyAllowed: western && antimicrobial ? antimicrobialEmergencyAllowed : undefined,
-      antimicrobialMaxDays: western && antimicrobial && antimicrobialOutpatientAllowed
-        ? optionalNumber(form, 'antimicrobialMaxDays') : undefined,
-      skinTestRequired: western && skinTestRequired,
-      skinTestMethod: western && skinTestRequired
-        ? optionalText(form, 'skinTestMethod') as MedicationInput['skinTestMethod'] : undefined,
-      skinTestSolutionMode: western && skinTestRequired
-        ? optionalText(form, 'skinTestSolutionMode') as MedicationInput['skinTestSolutionMode'] : undefined,
-      skinTestObservationMinutes: western && skinTestRequired ? optionalNumber(form, 'skinTestObservationMinutes') : undefined,
-      skinTestResultValidityHours: western && skinTestRequired ? optionalNumber(form, 'skinTestResultValidityHours') : undefined,
-      skinTestInstructions: western && skinTestRequired ? optionalText(form, 'skinTestInstructions') : undefined,
-      defaultDose: optionalNumber(form, 'defaultDose'),
-      defaultDoseUnit: optionalNumber(form, 'defaultDose') === undefined ? undefined : effectiveDoseUnit || optionalText(form, 'defaultDoseUnit'),
-      defaultRoute: defaultRoute || undefined,
-      defaultFrequency: vaccine ? undefined : defaultFrequency || undefined,
-      chronicDiseaseDrug: (western || chinesePatent) && checked(form, 'chronicDiseaseDrug'),
-      singleOrder: checked(form, 'singleOrder'),
-      sdStatus: initial?.sdStatus ?? 'ACTIVE' })}>
+    onSubmit={async (form) => {
+      await onSave({ standardSpecificationId: standardId, code: (initial?.code || text(form, 'code')).trim(), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
+        sdMedicationType: medicationType, sdDoseForm: standardLocked ? initialValue?.sdDoseForm ?? initial?.sdDoseForm : optionalText(form, 'sdDoseForm'),
+        preparationSpec: optionalText(form, 'preparationSpec') || preparationSpec || undefined,
+        preparationUnit: optionalText(form, 'preparationUnit') || preparationUnit || undefined,
+        strengthValue: herbal ? undefined : (optionalNumber(form, 'strengthValue') ?? (strengthValue ? Number(strengthValue) : undefined)),
+        strengthUnit: herbal ? undefined : (optionalText(form, 'strengthUnit') || strengthUnit || undefined),
+        sdStorageType: optionalText(form, 'sdStorageType'),
+        prescriptionDrug: checked(form, 'prescriptionDrug'), essentialDrug: checked(form, 'essentialDrug'),
+        antimicrobial: western && antimicrobial,
+        sdAntimicrobialLevel: western && antimicrobial ? antimicrobialLevel : undefined,
+        antimicrobialOutpatientAllowed: western && antimicrobial ? antimicrobialOutpatientAllowed : undefined,
+        antimicrobialConsultationRequired: western && antimicrobial ? antimicrobialConsultationRequired : undefined,
+        antimicrobialEmergencyAllowed: western && antimicrobial ? antimicrobialEmergencyAllowed : undefined,
+        antimicrobialMaxDays: western && antimicrobial && antimicrobialOutpatientAllowed
+          ? optionalNumber(form, 'antimicrobialMaxDays') : undefined,
+        skinTestRequired: western && skinTestRequired,
+        skinTestMethod: western && skinTestRequired
+          ? optionalText(form, 'skinTestMethod') as MedicationInput['skinTestMethod'] : undefined,
+        skinTestSolutionMode: western && skinTestRequired
+          ? optionalText(form, 'skinTestSolutionMode') as MedicationInput['skinTestSolutionMode'] : undefined,
+        skinTestObservationMinutes: western && skinTestRequired ? optionalNumber(form, 'skinTestObservationMinutes') : undefined,
+        skinTestResultValidityHours: western && skinTestRequired ? optionalNumber(form, 'skinTestResultValidityHours') : undefined,
+        skinTestInstructions: western && skinTestRequired ? optionalText(form, 'skinTestInstructions') : undefined,
+        defaultDose: optionalNumber(form, 'defaultDose'),
+        defaultDoseUnit: optionalNumber(form, 'defaultDose') === undefined ? undefined : effectiveDoseUnit || optionalText(form, 'defaultDoseUnit'),
+        defaultRoute: defaultRoute || undefined,
+        defaultFrequency: vaccine ? undefined : defaultFrequency || undefined,
+        chronicDiseaseDrug: (western || chinesePatent) && checked(form, 'chronicDiseaseDrug'),
+        singleOrder: checked(form, 'singleOrder'),
+        sdStatus: initial?.sdStatus ?? 'ACTIVE' })
+      await saveAttributes()
+    }}>
     {standardLocked && <Alert tone="info">已关联标准规格 {standardId}，剂型、规格及已定义含量沿用标准目录。默认用量仅用于录入，不代表安全上限。</Alert>}
     <FormSection title="药品身份" description="药品类型决定可维护的业务属性，创建后不可直接修改；类型调整需新建主档并处理替代关系。">
       <FormGrid columns={4}>
@@ -3202,6 +3483,16 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, ini
       </FormGrid>
     </FormSection>}
     {!knownType && <Alert>当前药品类型尚未建立专属模板，本次仅按通用字段维护；请在扩展属性配置中补充类型规则。</Alert>}
+    {value?.id && (
+      <DynamicItemAttributesSection
+        api={api}
+        maintenance={maintenanceQuery.data}
+        organization={organization}
+        values={attrValues}
+        onChange={(defId, val) => setAttrValues((prev) => ({ ...prev, [defId]: val }))}
+        isLoading={maintenanceQuery.isPending}
+      />
+    )}
   </DataFormDialog>
 }
 

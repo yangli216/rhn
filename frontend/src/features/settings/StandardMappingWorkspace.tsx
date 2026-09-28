@@ -39,10 +39,10 @@ export type StandardMappingDomain = 'SERVICE' | 'MEDICATION' | 'DIAGNOSIS' | 'CO
 const today = () => new Date().toISOString().slice(0, 10)
 
 const domainTabs: Array<{ value: StandardMappingDomain; label: string }> = [
-  { value: 'SERVICE', label: '诊疗服务 (医保诊疗/医疗规范)' },
-  { value: 'MEDICATION', label: '药品主档 (国家医保药品/西成药)' },
-  { value: 'DIAGNOSIS', label: '疾病诊断 (国家临床版ICD-10/医保)' },
-  { value: 'CONSUMABLE', label: '医用耗材 (国家医保耗材代码)' },
+  { value: 'SERVICE', label: '诊疗服务' },
+  { value: 'MEDICATION', label: '药品主档' },
+  { value: 'DIAGNOSIS', label: '疾病诊断' },
+  { value: 'CONSUMABLE', label: '医用耗材' },
 ]
 
 export function StandardMappingWorkspace({

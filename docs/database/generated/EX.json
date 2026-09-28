@@ -1,5 +1,5 @@
 {
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "tables": [
     {
       "logical": "ex.care_request",
@@ -891,7 +891,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_12686",
+          "name": "PRIMARY_KEY_1268",
           "columns": [
             {
               "position": 1,
@@ -2212,7 +2212,7 @@
           "name": "UK_EX_DIAG_REPORT_DIAGNOSTIC_1",
           "columns": [
             "ID_TNT",
-            "CD_ENDPOINT",
+            "CD_ENDPT",
             "ID_EXT_REPORT",
             "SN_REPORT_VER"
           ]
@@ -2318,7 +2318,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_REP_SYS_DEPT_INDEX_1",
+          "name": "FK_EX_DIAG_REP_SYS_DEPT_INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -2339,7 +2339,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_REP_SYS_ORG_INDEX_1",
+          "name": "FK_EX_DIAG_REP_SYS_ORG_INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -2418,7 +2418,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_D51C",
+          "name": "PRIMARY_KEY_D51",
           "columns": [
             {
               "position": 1,
@@ -5098,7 +5098,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_EX_MED_REQ_BD_CONCE_MEDICAT_INDEX_7",
+          "name": "FK_EX_MED_REQ_BD_CONCE_MEDICAT_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -5109,7 +5109,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_MED_REQ_BD_ORDER_MED_REQ_INDEX_7",
+          "name": "FK_EX_MED_REQ_BD_ORDER_MED_REQ_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -5157,7 +5157,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_76F",
+          "name": "PRIMARY_KEY_68AF",
           "columns": [
             {
               "position": 1,
@@ -5168,7 +5168,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_MED_REQ_MED_REQUEST_TENA_INDEX_7",
+          "name": "UK_EX_MED_REQ_MED_REQUEST_TENA_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -8299,7 +8299,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_EX_TREAT_EXEC_BD_ORDER_TREA_INDEX_D",
+          "name": "FK_EX_TREAT_EXEC_BD_ORDER_TREA_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -8315,7 +8315,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_TREAT_EXEC_BIL_STL_TREAT_INDEX_D",
+          "name": "FK_EX_TREAT_EXEC_BIL_STL_TREAT_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -8331,7 +8331,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_TREAT_EXEC_EX_CARE_TREAT_INDEX_D",
+          "name": "FK_EX_TREAT_EXEC_EX_CARE_TREAT_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -8347,7 +8347,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_TREAT_EXEC_EX_CARE_TRE_1_INDEX_D",
+          "name": "FK_EX_TREAT_EXEC_EX_CARE_TRE_1_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -8363,7 +8363,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_TREAT_EXEC_EX_TREAT_TREA_INDEX_D",
+          "name": "FK_EX_TREAT_EXEC_EX_TREAT_TREA_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -8379,7 +8379,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_TREAT_EXEC_SYS_TNT_TREAT_INDEX_D",
+          "name": "FK_EX_TREAT_EXEC_SYS_TNT_TREAT_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -8411,7 +8411,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_D84",
+          "name": "PRIMARY_KEY_2FC",
           "columns": [
             {
               "position": 1,
@@ -8422,7 +8422,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_TREAT_EXEC_TREAT_ITEM_SO_INDEX_D",
+          "name": "UK_EX_TREAT_EXEC_TREAT_ITEM_SO_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -8443,7 +8443,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_TREAT_EXEC_TREAT_ITEM_TE_INDEX_D",
+          "name": "UK_EX_TREAT_EXEC_TREAT_ITEM_TE_INDEX_2",
           "columns": [
             {
               "position": 1,

@@ -306,30 +306,41 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  gap: 12px;
+  gap: var(--space-3);
   overflow: hidden;
 }
 
-.clinical-medication-standards__rules-view > .ui-alert {
+.clinical-rules__inline-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 12px;
+  background: var(--color-brand-soft);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-border));
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-small);
+  line-height: 1.45;
   flex: none;
 }
 
-/* 临床用药规则基准视图 */
-.clinical-medication-standards__rules-view {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  gap: 12px;
-  overflow: hidden;
-}
-
-.clinical-medication-standards__rules-view > .ui-alert {
+.clinical-rules__inline-banner .ui-icon {
+  color: var(--color-brand-primary);
+  font-size: 1rem;
   flex: none;
 }
 
 .clinical-rules__category-bar {
   flex: none;
+}
+
+.clinical-rules__category-bar .ui-tabs {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.clinical-rules__category-bar .ui-tabs__tab {
+  min-height: 36px;
+  padding: 0 var(--space-4);
 }
 
 .clinical-rules__active-view {
@@ -345,20 +356,25 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 14px 16px;
-  background: var(--color-surface);
+  gap: var(--space-2);
+  /* 扁平化单层设计：去除重复的白色卡片背景与外框，消除线条层级冗余 */
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
   box-sizing: border-box;
 }
 
 .clinical-medication-standards__card-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
   flex: none;
-  margin-bottom: 12px;
+  margin-bottom: 2px;
 }
 
 .clinical-medication-standards__card-header h4 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   margin: 0;
   color: var(--color-text-primary);
@@ -366,7 +382,7 @@
 
 .clinical-medication-standards__card-header p {
   color: var(--color-text-secondary);
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 12.5px;
   line-height: 1.4;
 }
@@ -377,8 +393,9 @@
   flex: 1;
   min-height: 0;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
+  background: var(--color-surface);
 }
 
 .clinical-medication-standards__card-table .ui-table-scroll {

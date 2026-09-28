@@ -713,31 +713,7 @@
 
 .thermal-receipt-feedback { font-size: var(--font-size-small); color: var(--color-brand-primary); margin-right: auto; }
 
-/* 门诊挂号热敏就诊凭条打印媒体适配 */
-@media print {
-  body * {
-    visibility: hidden;
-  }
 
-  #registration-receipt-printable,
-  #registration-receipt-printable * {
-    visibility: visible;
-  }
-
-  #registration-receipt-printable {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 80mm;
-    box-shadow: none;
-    border: none;
-  }
-
-  #registration-receipt-printable .thermal-receipt-barcode-bars span {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-}
 
 
 /* Registration workstation: patient strip over schedules and the shared cashier. */
@@ -1277,11 +1253,20 @@
 .appointment-workbench-left-scroll {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding-right: var(--space-2);
+}
+
+.appointment-availability-workspace {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(22rem, 1.12fr) minmax(16rem, 0.88fr);
+  align-items: stretch;
+  padding-block: var(--space-3);
+  border-block: 1px solid var(--color-border);
 }
 
 .appointment-workbench-right {
@@ -1387,14 +1372,20 @@
 }
 
 .appointment-slot-panel {
-  margin-top: var(--space-2);
-  padding: var(--space-3) var(--space-3-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  min-width: 0;
+  min-height: 0;
+  padding: 0 0 0 var(--space-3);
+  border-left: 1px solid var(--color-border);
+  background: transparent;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2-5);
+  gap: var(--space-1);
+}
+
+.appointment-slot-panel > .appointment-card-title {
+  min-height: var(--control-height-sm);
+  margin: 0;
+  padding: 0 0 var(--space-1);
 }
 
 .appointment-slot-title-group {
@@ -1422,47 +1413,67 @@
   border: 1px solid var(--color-border);
 }
 
-.appointment-slot-tip {
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-1);
+.appointment-slot-grid-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
 }
 
 .appointment-slot-grid {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
-  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--space-0);
+  overflow-y: auto;
+  padding-right: var(--space-1);
+  scrollbar-gutter: auto;
 }
 
 .appointment-slot-cell {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface);
+  min-height: var(--control-height-md);
+  border: 0;
+  border-left: 3px solid transparent;
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   transition: all 0.12s ease;
   position: relative;
   outline: none;
 }
 
 .appointment-slot-cell:hover:not(.is-full) {
-  border-color: var(--color-brand-primary);
-  background: var(--color-brand-soft);
+  background: var(--color-surface-subtle);
 }
 
 .appointment-slot-cell.is-selected {
-  border-color: var(--color-brand-primary);
-  background: var(--color-brand-soft);
-  outline: 2px solid var(--color-brand-primary);
+  border-left-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-soft) 55%, var(--color-surface));
+}
+
+.appointment-slot-cell + .appointment-slot-cell {
+  border-top: 1px solid var(--color-border);
+}
+
+.appointment-slot-cell:focus-visible {
+  box-shadow: var(--focus-ring);
 }
 
 .appointment-slot-cell.is-full {
   opacity: 0.5;
   cursor: not-allowed;
   background: var(--color-surface-soft);
+}
+
+.appointment-slot-cell__radio {
+  flex: 0 0 1.25rem;
+  display: grid;
+  place-items: center;
 }
 
 .appointment-slot-cell__time {
@@ -1475,15 +1486,12 @@
 }
 
 .appointment-slot-cell__meta {
+  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1);
   font-size: var(--font-size-small);
-}
-
-.appointment-slot-cell__check {
-  color: var(--color-brand-primary);
 }
 
 .appointment-ticket-time-highlight {
@@ -1495,23 +1503,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-}
-
-.appointment-slot-mode-tag {
-  padding: var(--space-0-5) var(--space-1-5);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-medium);
-}
-
-.appointment-slot-mode-tag.is-timed {
-  background: var(--color-brand-soft);
-  color: var(--color-brand-primary);
-}
-
-.appointment-slot-mode-tag.is-pool {
-  background: var(--color-surface-soft);
-  color: var(--color-text-secondary);
 }
 
 .appointment-workbench-sidebar {
@@ -1698,10 +1689,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3) var(--space-2-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-subtle);
+  padding: 0 0 var(--space-2);
+  background: transparent;
   flex-shrink: 0;
 }
 
@@ -1764,7 +1753,10 @@
 .appointment-week-day-cell.is-active {
   border-color: var(--color-brand-primary);
   background: var(--color-brand-soft);
-  outline: 2px solid var(--color-brand-primary);
+}
+
+.appointment-week-day-cell:focus-visible {
+  box-shadow: var(--focus-ring);
 }
 
 .appointment-week-day-cell.is-disabled {
@@ -1835,9 +1827,9 @@
 
 .appointment-date-pill {
   flex: 0 0 auto;
-  min-width: 6.5rem;
+  min-width: 7.25rem;
   min-height: 2.25rem;
-  padding: var(--space-1) var(--space-2-5);
+  padding: var(--space-1) var(--space-3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1878,10 +1870,9 @@
 
 .appointment-filter-toolbar {
   flex-shrink: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: var(--space-3) 0;
+  border-block: 1px solid var(--color-border);
+  background: transparent;
   display: grid;
   gap: var(--space-2-5);
 }
@@ -1962,73 +1953,77 @@
 }
 
 .appointment-schedule-container {
-  padding: 0;
+  min-height: 0;
+  min-width: 0;
+  padding: 0 var(--space-4) 0 0;
   border: none;
   background: transparent;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .appointment-schedule-header {
+  min-height: var(--control-height-sm);
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-  padding: var(--space-1) 0;
+  padding: 0 0 var(--space-1);
 }
 
 .appointment-schedule-header strong {
-  color: var(--color-brand-primary);
+  color: var(--color-text-primary);
   font-size: var(--font-size-body);
 }
 
-.appointment-schedule-header-hint {
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-}
-
-/* Compact Shift List View (One-Screen Layout, Scroll-inside-List, Visible Slots Below) */
+/* Compact shift navigation beside the slot picker. */
 .appointment-schedule-compact-list {
-  max-height: 12.5rem;
-  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  padding: var(--space-2);
+  background: transparent;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+  scrollbar-gutter: auto;
 }
 
 .appointment-shift-row {
+  min-height: var(--control-height-md);
   display: grid;
-  grid-template-columns: 1.75rem minmax(6rem, 1fr) minmax(9rem, 1.3fr) minmax(9rem, 1.2fr) minmax(13rem, 1.8fr) minmax(5rem, 0.7fr) minmax(5.5rem, 0.8fr);
+  grid-template-columns: 1.25rem minmax(7rem, 1fr) minmax(10.5rem, 1.4fr) auto auto;
+  grid-template-areas: "radio doctor time fee status";
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid transparent;
+  background: transparent;
   cursor: pointer;
   transition: all 0.12s ease;
   font-size: var(--font-size-small);
   outline: none;
 }
 
+.appointment-shift-row + .appointment-shift-row {
+  border-top: 1px solid var(--color-border);
+}
+
 .appointment-shift-row:hover {
-  border-color: var(--color-brand-primary);
-  background: var(--color-brand-soft);
+  background: var(--color-surface-subtle);
 }
 
 .appointment-shift-row.is-selected {
-  border-color: var(--color-brand-primary);
+  border-left-color: var(--color-brand-primary);
   background: color-mix(in srgb, var(--color-brand-soft) 55%, var(--color-surface));
-  outline: 2px solid var(--color-brand-primary);
+}
+
+.appointment-shift-row:focus-visible {
+  box-shadow: var(--focus-ring);
 }
 
 .appointment-shift-row__radio {
+  grid-area: radio;
   display: grid;
   place-items: center;
 }
@@ -2060,15 +2055,8 @@
   transform: translate(-50%, -50%);
 }
 
-.appointment-shift-row__dept {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .appointment-shift-row__doctor {
+  grid-area: doctor;
   display: flex;
   align-items: baseline;
   gap: var(--space-1-5);
@@ -2079,6 +2067,8 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -2090,23 +2080,20 @@
   text-overflow: ellipsis;
 }
 
-.appointment-shift-row__badges {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  white-space: nowrap;
-}
-
 .appointment-shift-row__time {
+  grid-area: time;
   display: flex;
   align-items: center;
   gap: var(--space-1-5);
   color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
 .appointment-shift-row__fee {
+  grid-area: fee;
   font-weight: var(--font-weight-bold);
   color: var(--color-brand-primary);
   white-space: nowrap;
@@ -2114,6 +2101,7 @@
 }
 
 .appointment-shift-row__status {
+  grid-area: status;
   text-align: right;
   white-space: nowrap;
 }

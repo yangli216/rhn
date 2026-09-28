@@ -1,5 +1,5 @@
 {
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "tables": [
     {
       "logical": "sc.appointment_event",
@@ -715,7 +715,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_SC_APPT_PI_PAT_APPOINTMENT__INDEX_3",
+          "name": "FK_SC_APPT_PI_PAT_APPOINTMENT__INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -731,7 +731,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_APPT_SC_SCHED_APPOINTMEN_INDEX_3",
+          "name": "FK_SC_APPT_SC_SCHED_APPOINTMEN_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -747,7 +747,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_APPT_SC_SVC_S_APPOINTMEN_INDEX_3",
+          "name": "FK_SC_APPT_SC_SVC_S_APPOINTMEN_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -800,7 +800,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_APPT_SYS_PRAC_APPOINTMEN_INDEX_3",
+          "name": "FK_SC_APPT_SYS_PRAC_APPOINTMEN_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -816,7 +816,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_APPT_SYS_TNT_APPOINTMENT_INDEX_3",
+          "name": "FK_SC_APPT_SYS_TNT_APPOINTMENT_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -827,7 +827,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_APPT_SYS_USER_APPOINTMEN_INDEX_3",
+          "name": "FK_SC_APPT_SYS_USER_APPOINTMEN_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -843,7 +843,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_APPT_SYS_USER_APPT_UPDAT_INDEX_3",
+          "name": "FK_SC_APPT_SYS_USER_APPT_UPDAT_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -958,7 +958,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_379",
+          "name": "PRIMARY_KEY_43DB",
           "columns": [
             {
               "position": 1,
@@ -969,7 +969,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_APPT_APPOINTMENT_IDEMPOT_INDEX_3",
+          "name": "UK_SC_APPT_APPOINTMENT_IDEMPOT_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -985,7 +985,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_APPT_APPOINTMENT_NO_INDEX_3",
+          "name": "UK_SC_APPT_APPOINTMENT_NO_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -1001,7 +1001,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_APPT_APPOINTMENT_SLOT_HO_INDEX_3",
+          "name": "UK_SC_APPT_APPOINTMENT_SLOT_HO_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -1017,7 +1017,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_APPT_APPOINTMENT_TENANT__INDEX_3",
+          "name": "UK_SC_APPT_APPOINTMENT_TENANT__INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -1033,7 +1033,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_APPT_APPT_RESCHEDULED_FR_INDEX_3",
+          "name": "UK_SC_APPT_APPT_RESCHEDULED_FR_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -2848,7 +2848,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_SC_QUEUE_TICKET_CUR_LOC_INDEX_B",
+          "name": "FK_SC_QUEUE_TICKET_CUR_LOC_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -2864,7 +2864,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_QUEUE_TICKET_ENC_INDEX_B",
+          "name": "FK_SC_QUEUE_TICKET_ENC_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -2885,7 +2885,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_QUEUE_TICKET_PAT_INDEX_B",
+          "name": "FK_SC_QUEUE_TICKET_PAT_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -2901,7 +2901,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_QUEUE_TICKET_QUEUE_INDEX_B",
+          "name": "FK_SC_QUEUE_TICKET_QUEUE_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3037,7 +3037,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_B31D",
+          "name": "PRIMARY_KEY_2F11",
           "columns": [
             {
               "position": 1,
@@ -3048,7 +3048,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_QUEUE_TICKET_CODE_INDEX_B",
+          "name": "UK_SC_QUEUE_TICKET_CODE_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3074,7 +3074,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_QUEUE_TICKET_IDEMP_INDEX_B",
+          "name": "UK_SC_QUEUE_TICKET_IDEMP_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3090,7 +3090,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_QUEUE_TICKET_ID_INDEX_B",
+          "name": "UK_SC_QUEUE_TICKET_ID_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3106,7 +3106,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_QUEUE_TICKET_SEQ_INDEX_B",
+          "name": "UK_SC_QUEUE_TICKET_SEQ_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3132,7 +3132,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_QUEUE_TICKET_SOURCE_INDEX_B",
+          "name": "UK_SC_QUEUE_TICKET_SOURCE_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3740,7 +3740,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_SC_SCHED_GEN_R_SC_SCHED_SCH_INDEX_A",
+          "name": "FK_SC_SCHED_GEN_R_SC_SCHED_SCH_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -3756,7 +3756,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_SCHED_GEN_R_SYS_TNT_SCHE_INDEX_A",
+          "name": "FK_SC_SCHED_GEN_R_SYS_TNT_SCHE_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -3788,7 +3788,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_ADE",
+          "name": "PRIMARY_KEY_EA5",
           "columns": [
             {
               "position": 1,
@@ -3799,7 +3799,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_SCHED_GEN_R_SCHED_RUN_RE_INDEX_A",
+          "name": "UK_SC_SCHED_GEN_R_SCHED_RUN_RE_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -3815,7 +3815,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_SCHED_GEN_R_SCHED_RUN_TE_INDEX_A",
+          "name": "UK_SC_SCHED_GEN_R_SCHED_RUN_TE_INDEX_E",
           "columns": [
             {
               "position": 1,

@@ -1,5 +1,5 @@
 {
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "tables": [
     {
       "logical": "vis.allergy_intolerance",
@@ -361,7 +361,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_VIS_ALLERGY_IN_PI_PAT_ALLER_INDEX_F",
+          "name": "FK_VIS_ALLERGY_IN_PI_PAT_ALLER_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -414,7 +414,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_ALLERGY_IN_SYS_PRAC_ALL_INDEX_F",
+          "name": "FK_VIS_ALLERGY_IN_SYS_PRAC_ALL_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -430,7 +430,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_ALLERGY_IN_SYS_PRAC_A_1_INDEX_F",
+          "name": "FK_VIS_ALLERGY_IN_SYS_PRAC_A_1_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -446,7 +446,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_ALLERGY_IN_SYS_TNT_ALLE_INDEX_F",
+          "name": "FK_VIS_ALLERGY_IN_SYS_TNT_ALLE_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -457,7 +457,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_ALLERGY_IN_SYS_USER_ALL_INDEX_F",
+          "name": "FK_VIS_ALLERGY_IN_SYS_USER_ALL_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -473,7 +473,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_ALLERGY_IN_SYS_USER_A_1_INDEX_F",
+          "name": "FK_VIS_ALLERGY_IN_SYS_USER_A_1_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -489,7 +489,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_ALLERGY_IN_VIS_ENC_ALLE_INDEX_F",
+          "name": "FK_VIS_ALLERGY_IN_VIS_ENC_ALLE_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -510,7 +510,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_ALLERGY_TERM_INDEX_F",
+          "name": "FK_VIS_ALLERGY_TERM_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -615,7 +615,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_FC0E",
+          "name": "PRIMARY_KEY_A50",
           "columns": [
             {
               "position": 1,
@@ -626,7 +626,7 @@
           "unique": true
         },
         {
-          "name": "UK_VIS_ALLERGY_IN_ALLERGY_TENA_INDEX_F",
+          "name": "UK_VIS_ALLERGY_IN_ALLERGY_TENA_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -3650,7 +3650,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_VIS_ENC_DIAG_BD_CONCE_ENC_D_INDEX_B",
+          "name": "FK_VIS_ENC_DIAG_BD_CONCE_ENC_D_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -3714,7 +3714,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_ENC_DIAG_SYS_TNT_DIAGNO_INDEX_B",
+          "name": "FK_VIS_ENC_DIAG_SYS_TNT_DIAGNO_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -3725,7 +3725,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_ENC_DIAG_SYS_USER_ENC_D_INDEX_B",
+          "name": "FK_VIS_ENC_DIAG_SYS_USER_ENC_D_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -3741,7 +3741,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_ENC_DIAG_VIS_ENC_DIAGNO_INDEX_B",
+          "name": "FK_VIS_ENC_DIAG_VIS_ENC_DIAGNO_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -3898,7 +3898,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_BD7",
+          "name": "PRIMARY_KEY_37",
           "columns": [
             {
               "position": 1,
@@ -3909,7 +3909,7 @@
           "unique": true
         },
         {
-          "name": "UK_VIS_ENC_DIAG_ENCOUNTER_DIAG_INDEX_B",
+          "name": "UK_VIS_ENC_DIAG_ENCOUNTER_DIAG_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -4711,7 +4711,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_7",
+          "name": "PRIMARY_KEY_714",
           "columns": [
             {
               "position": 1,
@@ -6991,7 +6991,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_VIS_INP_BED_DA_SYS_TNT_IP_B_INDEX_4",
+          "name": "FK_VIS_INP_BED_DA_SYS_TNT_IP_B_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7002,7 +7002,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_INP_BED_DA_VIS_CARE_IP__INDEX_4",
+          "name": "FK_VIS_INP_BED_DA_VIS_CARE_IP__INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7018,7 +7018,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_INP_BED_DA_VIS_ENC_IP_1_INDEX_4",
+          "name": "FK_VIS_INP_BED_DA_VIS_ENC_IP_1_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7034,7 +7034,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_INP_BED_DA_VIS_ENC_IP_B_INDEX_4",
+          "name": "FK_VIS_INP_BED_DA_VIS_ENC_IP_B_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7050,7 +7050,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_INP_BED_DA_VIS_INP_IP_B_INDEX_4",
+          "name": "FK_VIS_INP_BED_DA_VIS_INP_IP_B_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7145,7 +7145,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_4A23",
+          "name": "PRIMARY_KEY_B81",
           "columns": [
             {
               "position": 1,
@@ -7156,7 +7156,7 @@
           "unique": true
         },
         {
-          "name": "UK_VIS_INP_BED_DA_IP_BDAY_COMM_INDEX_4",
+          "name": "UK_VIS_INP_BED_DA_IP_BDAY_COMM_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7172,7 +7172,7 @@
           "unique": true
         },
         {
-          "name": "UK_VIS_INP_BED_DA_IP_BDAY_EPIS_INDEX_4",
+          "name": "UK_VIS_INP_BED_DA_IP_BDAY_EPIS_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7193,7 +7193,7 @@
           "unique": true
         },
         {
-          "name": "UK_VIS_INP_BED_DA_IP_BDAY_TENA_INDEX_4",
+          "name": "UK_VIS_INP_BED_DA_IP_BDAY_TENA_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -9180,7 +9180,7 @@
         {
           "name": "UK_VIS_INP_NURS_R_INR_EVIDENCE",
           "columns": [
-            "ID_CRYPTO_EVID_INTEGRITY"
+            "ID_CRYPTO_EVID_INTGR"
           ]
         },
         {
@@ -10891,7 +10891,7 @@
         {
           "name": "UK_VIS_INP_SHIFT_ISH_EVIDENCE",
           "columns": [
-            "ID_CRYPTO_EVID_INTEGRITY"
+            "ID_CRYPTO_EVID_INTGR"
           ]
         },
         {
@@ -11400,7 +11400,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_VIS_OBS_PI_PAT_OBSERVATION__INDEX_6",
+          "name": "FK_VIS_OBS_PI_PAT_OBSERVATION__INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -11453,7 +11453,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_OBS_SYS_TNT_OBSERVATION_INDEX_6",
+          "name": "FK_VIS_OBS_SYS_TNT_OBSERVATION_INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -11464,7 +11464,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_OBS_VIS_ENC_OBSERVATION_INDEX_6",
+          "name": "FK_VIS_OBS_VIS_ENC_OBSERVATION_INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -11548,7 +11548,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_603",
+          "name": "PRIMARY_KEY_D18E",
           "columns": [
             {
               "position": 1,
@@ -11559,7 +11559,7 @@
           "unique": true
         },
         {
-          "name": "UK_VIS_OBS_OBSERVATION_TENANT__INDEX_6",
+          "name": "UK_VIS_OBS_OBSERVATION_TENANT__INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -14733,7 +14733,7 @@
       "kind": "foreign-key",
       "targetTable": "RHN_AUD_CRYPTO_EVID",
       "deleteRule": "NO ACTION",
-      "cardinality": "MANY_TO_ONE",
+      "cardinality": "ONE_TO_ONE",
       "reviewState": "database",
       "evidence": "迁移验证库外键",
       "description": ""
@@ -14919,7 +14919,7 @@
       "kind": "foreign-key",
       "targetTable": "RHN_AUD_CRYPTO_EVID",
       "deleteRule": "NO ACTION",
-      "cardinality": "MANY_TO_ONE",
+      "cardinality": "ONE_TO_ONE",
       "reviewState": "database",
       "evidence": "迁移验证库外键",
       "description": ""

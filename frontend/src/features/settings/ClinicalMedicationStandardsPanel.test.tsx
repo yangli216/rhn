@@ -21,7 +21,7 @@ it('shows structural frequency identities while keeping PRN without a daily rate
   const references = vi.fn().mockResolvedValue({ scope: { status: 'ACTIVE' }, totals: {}, coverage: [], limitations: [], content: [], totalElements: 0, totalPages: 0, historicalCount: 0, potentialCount: 0, inspectedAt: '2026-09-21T00:00:00Z' })
   render(<QueryClientProvider client={client}><ClinicalMedicationStandardsPanel api={{ masterData: { clinicalMedicationStandards, medicationStandardReadiness }, clinicalSemanticImpact: { references } } as unknown as RhnApi} /></QueryClientProvider>)
   expect(await screen.findByText('药品标准建设情况')).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('tab', { name: /临床用药规则基准/ }))
+  await userEvent.click(screen.getByRole('tab', { name: /用药规则/ }))
   await screen.findByText('TIMES_PER_DAY:2/1:DAY')
   expect(screen.getByText('2 次 / 1 天')).toBeInTheDocument()
   expect(screen.getByText('每日钟点与平均频率分别确认')).toBeInTheDocument()
@@ -31,7 +31,7 @@ it('shows structural frequency identities while keeping PRN without a daily rate
   for (const [name, kind, conceptId, tabPattern] of [
     ['每日两次', 'FREQUENCY', 'bid', /频次标准/],
     ['口服', 'ROUTE', 'oral', /给药途径/],
-    ['毫克', 'UNIT', 'UCUM:mg', /临床剂量单位/],
+    ['毫克', 'UNIT', 'UCUM:mg', /剂量单位/],
   ] as const) {
     await userEvent.click(screen.getByRole('tab', { name: tabPattern }))
     if (kind === 'UNIT') {
@@ -68,17 +68,17 @@ it('allows switching seamlessly between readiness and clinical rules views', asy
 
   expect(await screen.findByText('药品标准建设情况')).toBeInTheDocument()
   expect(await screen.findByText('全量统计，筛选不改变分母')).toBeInTheDocument()
-  expect(screen.queryByText('频次标准 · 1')).not.toBeInTheDocument()
+  expect(screen.queryByText('频次标准 (1)')).not.toBeInTheDocument()
 
   // 切换到临床规则基准
-  await userEvent.click(screen.getByRole('tab', { name: /临床用药规则基准/ }))
-  expect(await screen.findByText('频次标准 · 1')).toBeInTheDocument()
-  expect(screen.getByText('给药途径 · 1')).toBeInTheDocument()
-  expect(screen.getByText('临床剂量单位 · 1')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('tab', { name: /用药规则/ }))
+  expect(await screen.findByText('频次标准 (1)')).toBeInTheDocument()
+  expect(screen.getByText('给药途径 (1)')).toBeInTheDocument()
+  expect(screen.getByText('剂量单位 (1)')).toBeInTheDocument()
   expect(screen.queryByText('全量统计，筛选不改变分母')).not.toBeInTheDocument()
 
   // 切回药品标准建设
-  await userEvent.click(screen.getByRole('tab', { name: /药品标准建设与对齐/ }))
+  await userEvent.click(screen.getByRole('tab', { name: /标准对齐/ }))
   expect(await screen.findByText('药品标准建设情况')).toBeInTheDocument()
   expect(await screen.findByText('全量统计，筛选不改变分母')).toBeInTheDocument()
 })

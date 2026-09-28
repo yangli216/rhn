@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -1271,7 +1271,7 @@
       "logical": "meta.outpatient_plan_template",
       "domain": "META",
       "comment": "门诊方案模板；一行代表一条门诊方案模板记录",
-      "columns": 19
+      "columns": 20
     },
     {
       "physical": "RHN_EX_OP_REFER_EVT",

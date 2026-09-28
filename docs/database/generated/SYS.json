@@ -1,5 +1,5 @@
 {
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "tables": [
     {
       "logical": "sys.access_permission",
@@ -6441,7 +6441,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_SYS_PARAM_CHG_SYS_PARA_PARA_INDEX_F",
+          "name": "FK_SYS_PARAM_CHG_SYS_PARA_PARA_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -6452,7 +6452,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_PARAM_CHG_SYS_PARA_PA_1_INDEX_F",
+          "name": "FK_SYS_PARAM_CHG_SYS_PARA_PA_1_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -6463,7 +6463,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_PARAM_CHG_SYS_TNT_PARAM_INDEX_F",
+          "name": "FK_SYS_PARAM_CHG_SYS_TNT_PARAM_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -6490,7 +6490,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_FA16",
+          "name": "PRIMARY_KEY_48C",
           "columns": [
             {
               "position": 1,
@@ -6501,7 +6501,7 @@
           "unique": true
         },
         {
-          "name": "UK_SYS_PARAM_CHG_PARAMETER_CHA_INDEX_F",
+          "name": "UK_SYS_PARAM_CHG_PARAMETER_CHA_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -6945,7 +6945,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_576",
+          "name": "PRIMARY_KEY_5764",
           "columns": [
             {
               "position": 1,
@@ -11032,7 +11032,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_SYS_ANN_SYS_DEPT_ANNOUNCEME_INDEX_6",
+          "name": "FK_SYS_ANN_SYS_DEPT_ANNOUNCEME_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -11053,7 +11053,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_ANN_SYS_ORG_ANNOUNCEMEN_INDEX_6",
+          "name": "FK_SYS_ANN_SYS_ORG_ANNOUNCEMEN_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -11069,7 +11069,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_ANN_SYS_TNT_ANNOUNCEMEN_INDEX_6",
+          "name": "FK_SYS_ANN_SYS_TNT_ANNOUNCEMEN_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -11080,7 +11080,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_ANN_SYS_USER_ANNOUNCEME_INDEX_6",
+          "name": "FK_SYS_ANN_SYS_USER_ANNOUNCEME_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -11096,7 +11096,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_ANN_SYS_USER_ANNOUNCE_1_INDEX_6",
+          "name": "FK_SYS_ANN_SYS_USER_ANNOUNCE_1_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -11112,7 +11112,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_ANN_SYS_USER_ANNOUNCE_2_INDEX_6",
+          "name": "FK_SYS_ANN_SYS_USER_ANNOUNCE_2_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -11185,7 +11185,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_616",
+          "name": "PRIMARY_KEY_CAA",
           "columns": [
             {
               "position": 1,
@@ -11196,7 +11196,7 @@
           "unique": true
         },
         {
-          "name": "UK_SYS_ANN_ANNOUNCEMENT_TENANT_INDEX_6",
+          "name": "UK_SYS_ANN_ANNOUNCEMENT_TENANT_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -13252,7 +13252,7 @@
           "name": "UK_SYS_PRINT_BATCH_IDEM",
           "columns": [
             "ID_TNT",
-            "ID_IDEMPOTENCY"
+            "ID_IDEMP"
           ]
         }
       ],

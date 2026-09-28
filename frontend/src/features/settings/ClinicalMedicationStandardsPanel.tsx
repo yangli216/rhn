@@ -4,7 +4,7 @@ import type { UsageImpactSelection } from '../../shared/api/clinicalSemanticImpa
 import { useQuery } from '@tanstack/react-query'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, DataTable, LoadingState, StatusBadge, TableShell, Tabs, tableCellClass } from '../../shared/ui'
+import { Alert, Button, DataTable, Icon, LoadingState, StatusBadge, TableShell, Tabs, tableCellClass } from '../../shared/ui'
 import './clinical-medication-standards.css'
 import { MedicationStandardReadinessPanel } from './MedicationStandardReadinessPanel'
 
@@ -65,13 +65,11 @@ export function ClinicalMedicationStandardsPanel({
               items={[
                 {
                   value: 'readiness',
-                  label: '药品标准建设与对齐',
-                  meta: '全院药品对齐 · 缺口治理 · 来源核验',
+                  label: '标准对齐',
                 },
                 {
                   value: 'rules',
-                  label: '临床用药规则基准',
-                  meta: `频次 ${value.frequencies.length} · 途径 ${value.routes.length} · 单位 ${value.doseUnits.length}`,
+                  label: '用药规则',
                 },
               ]}
             />
@@ -90,31 +88,29 @@ export function ClinicalMedicationStandardsPanel({
 
         {tab === 'rules' && (
           <div className="clinical-medication-standards__rules-view">
-            <Alert tone="info">
-              默认剂量不代表安全上限。按需、单次和日历用药不推算固定日剂量；包装数量不直接参与临床剂量换算。
-            </Alert>
+            <div className="clinical-rules__inline-banner" role="note">
+              <Icon name="info" />
+              <span>默认剂量不代表安全上限。按需、单次和日历用药不推算固定日剂量；包装数量不直接参与临床剂量换算。</span>
+            </div>
 
             <div className="clinical-rules__category-bar">
               <Tabs
                 value={ruleCategory}
                 onChange={setRuleCategory}
-                label="规则基准类型切换"
-                variant="cards"
+                label="用药规则分类"
+                variant="line"
                 items={[
                   {
                     value: 'frequency',
-                    label: `频次标准 · ${value.frequencies.length}`,
-                    meta: '日频率推算 · 执行时点排程能力',
+                    label: `频次标准 (${value.frequencies.length})`,
                   },
                   {
                     value: 'route',
-                    label: `给药途径 · ${value.routes.length}`,
-                    meta: '受控途径概念 · 标准编码与来源版本',
+                    label: `给药途径 (${value.routes.length})`,
                   },
                   {
                     value: 'unit',
-                    label: `临床剂量单位 · ${value.doseUnits.length}`,
-                    meta: '质量与体积物理维度 · 规范换算比率',
+                    label: `剂量单位 (${value.doseUnits.length})`,
                   },
                 ]}
               />

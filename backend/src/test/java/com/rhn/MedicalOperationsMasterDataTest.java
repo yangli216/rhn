@@ -57,6 +57,13 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.serviceType").value("LABORATORY"))
                 .andExpect(jsonPath("$.laboratory").exists())
                 .andExpect(jsonPath("$.examination").doesNotExist());
+
+        mockMvc.perform(get("/api/platform/master-data/operations/services/362387890000233/clinical-configuration")
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serviceType").value("EXAMINATION"))
+                .andExpect(jsonPath("$.examination").exists())
+                .andExpect(jsonPath("$.laboratory").doesNotExist());
     }
 
     @Test

@@ -335,6 +335,10 @@ describe('OutpatientRegistrationWorkspace', () => {
       },
       encounters: { byResident: vi.fn().mockResolvedValue([encounter]) },
       organization: { departments: vi.fn().mockResolvedValue([]) },
+      printing: {
+        registrationTicket: vi.fn().mockResolvedValue({ downloadUrl: '/api/platform/printing/outputs/1/content', templateVersion: 1 }),
+        printPdf: vi.fn().mockResolvedValue(undefined),
+      },
     } as unknown as RhnApi
     const clinicalContext = {
       organization: { id: 'org-1', name: '青禾镇中心卫生院' },
@@ -361,7 +365,65 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(printBtn).toBeInTheDocument()
     expect(document.getElementById('registration-receipt-printable')).toBeInTheDocument()
     await userEvent.click(printBtn)
-    expect(screen.getByRole('heading', { name: '门诊挂号热敏凭条' })).toBeInTheDocument()
+    expect(api.printing.registrationTicket).toHaveBeenCalledWith(receipt.registrationId, receipt.encounterId)
+    expect(api.printing.printPdf).toHaveBeenCalledWith('/api/platform/printing/outputs/1/content')
+
+    // Escape closes modal
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: '门诊挂号热敏凭条' })).not.toBeInTheDocument()
+    })
+  })
+
+  it('displays explicit error alert in modal when controlled printing fails', async () => {
+    const registrationIntent = {
+      id: 'intent-err-1', revision: 1, residentId: resident.id, organizationId: 'org-1', departmentId: 'dept-1',
+      scheduleId: schedule.id, slotHoldId: 'hold-1', encounterId: encounter.id,
+      idempotencyCode: 'REG-INTENT-err-1', registrationSource: 'WINDOW', visitType: 'GENERAL',
+      settlementMode: 'SELF_PAY',
+      status: 'COMPLETED', feeAmount: 0, currencyCode: 'CNY', completionAttempts: 1,
+      createdAt: '2026-08-29T01:59:00Z', updatedAt: '2026-08-29T02:00:00Z', duplicate: false,
+    } as RegistrationBillingIntent
+    const api = {
+      residents: { get: vi.fn().mockResolvedValue(resident), search: vi.fn(),
+        profile: vi.fn().mockResolvedValue({ resident, demographicProfile: {}, addresses: [],
+          relatedPersons: [], coverages: [], employments: [] }) },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([receipt]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: {
+        createRegistrationIntent: vi.fn().mockResolvedValue(registrationIntent),
+        registrationIntent: vi.fn().mockResolvedValue(registrationIntent),
+      },
+      encounters: { byResident: vi.fn().mockResolvedValue([encounter]) },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+      printing: {
+        registrationTicket: vi.fn().mockRejectedValue(new Error('打印服务离线或网络异常')),
+      },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '青禾镇中心卫生院' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration?residentId=resident-1']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    await screen.findByText(/健康档案号/)
+    await userEvent.click(await screen.findByRole('button', { name: /确认挂号/ }))
+    expect(await screen.findByRole('heading', { name: '门诊挂号热敏凭条' })).toBeInTheDocument()
+
+    const printBtn = screen.getByRole('button', { name: /立即打印小票/ })
+    await userEvent.click(printBtn)
+
+    // Should clearly show the error alert
+    expect(await screen.findByText(/打印服务离线或网络异常/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /重试打印/ })).toBeInTheDocument()
   })
 
   it('displays today registration stream and supports cancelling a waiting registration', async () => {

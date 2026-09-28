@@ -17,9 +17,10 @@ type TemplateSelection = { kind: 'DRAFT' | 'PUBLISHED'; id: string }
 type PrintFieldPreset = {
   key: string
   label: string
-  group: '患者信息' | '业务内容' | '执行与追溯'
+  group: '患者信息' | '业务内容' | '执行与追溯' | '机构信息' | '排队信息' | '就诊信息' | '费用信息' | '时间信息'
   type?: 'text' | 'barcode'
   sample: string
+  bold?: boolean
   widthMm?: number
   heightMm?: number
 }
@@ -44,6 +45,9 @@ const SAMPLE_DATA = {
   authoredBy: '陈医生', authoredAt: '2026-09-12 10:12', signedBy: '陈医生', signedAt: '2026-09-12 10:20',
   content: { chiefComplaint: '发热、咽痛三天', presentIllness: '三天前无明显诱因出现发热。', pastHistory: '否认重大疾病史。', allergyHistory: '青霉素过敏', physicalExam: 'T 38.2℃，咽部充血。', diagnosis: '急性上呼吸道感染', treatmentPlan: '对症治疗，复诊随访。' },
   medications: [{ medicationName: '阿莫西林胶囊', specification: '0.25g×24粒', quantity: '2', quantityUnit: '盒', doseValue: '0.5', doseUnit: 'g', routeCode: 'PO', frequencyCode: 'TID', instruction: '饭后服用' }],
+  ticketNo: 'A001', registrationNo: 'GH20260912001', residentName: '张晓宁', locationName: '全科门诊1诊室',
+  practitionerName: '陈医生', serviceName: '普通门诊', sdDayPartText: '当日出诊', payableAmount: '10.00',
+  paymentMethodName: '自费/医保', registeredAtText: '2026-09-12 10:30', validUntilText: '当日当班有效',
 }
 
 const PATIENT_FIELDS: PrintFieldPreset[] = [
@@ -83,6 +87,24 @@ const FIELD_PRESETS: Record<string, PrintFieldPreset[]> = {
     { key: 'authoredBy', label: '开方医生', group: '执行与追溯', sample: '陈医生' },
     { key: 'authoredAt', label: '开立时间', group: '执行与追溯', sample: '2026-09-12 10:12' }],
   LABORATORY_APPLICATION: [], EXAMINATION_APPLICATION: [], TREATMENT_APPLICATION: [],
+  OUTPATIENT_REGISTRATION_TICKET: [
+    { key: 'organizationName', label: '机构名称', group: '业务内容', sample: '青禾镇中心卫生院' },
+    { key: 'ticketNo', label: '候诊排队序号', group: '业务内容', sample: 'A001' },
+    { key: 'registrationNo', label: '挂号单号', group: '业务内容', sample: 'GH20260912001' },
+    { key: 'residentName', label: '患者姓名', group: '患者信息', sample: '张晓宁' },
+    { key: 'gender', label: '性别', group: '患者信息', sample: '女' },
+    { key: 'healthRecordNo', label: '健康档案号', group: '患者信息', sample: 'HR20260912001' },
+    { key: 'departmentName', label: '就诊科室', group: '业务内容', sample: '全科医疗科' },
+    { key: 'locationName', label: '诊室地址', group: '业务内容', sample: '全科门诊1诊室' },
+    { key: 'practitionerName', label: '接诊医生', group: '业务内容', sample: '陈医生' },
+    { key: 'serviceName', label: '诊疗项目', group: '业务内容', sample: '普通门诊' },
+    { key: 'sdDayPartText', label: '就诊时段', group: '业务内容', sample: '当日出诊' },
+    { key: 'payableAmount', label: '自费实收金额', group: '业务内容', sample: '10.00' },
+    { key: 'paymentMethodName', label: '支付方式', group: '业务内容', sample: '现金/移动支付' },
+    { key: 'registeredAtText', label: '挂号时间', group: '执行与追溯', sample: '2026-09-12 10:30' },
+    { key: 'validUntilText', label: '效期截止', group: '执行与追溯', sample: '当日当班有效' },
+    { key: 'barcode', label: '凭条条形码', group: '执行与追溯', sample: 'GH20260912001', type: 'barcode', widthMm: 50, heightMm: 13 },
+  ],
   ORAL_MEDICATION_CARD: [...PATIENT_FIELDS,
     { key: 'medicationName', label: '药品名称', group: '业务内容', sample: '阿莫西林胶囊' },
     { key: 'specification', label: '规格', group: '业务内容', sample: '0.25g×24粒' },
@@ -645,6 +667,25 @@ function defaultCanvasConfig(definition: PrintDocumentDefinition, media: PrintMe
     { type: 'text', xMm: 2, yMm: 30, widthMm: width - 4, heightMm: 6, template: '{{routeName}}  {{frequencyName}}  {{scheduledAtText}}', fontSize: 9 },
     { type: 'text', xMm: 2, yMm: 38, widthMm: width - 33, heightMm: 6, template: '{{instruction}}', fontSize: 8 },
     { type: 'barcode', xMm: width - 30, yMm: Math.min(38, height - 14), widthMm: 28, heightMm: 12, path: 'barcode', showText: true },
+  ] }
+  if (definition.documentType === 'OUTPATIENT_REGISTRATION_TICKET') return { ...base, elements: [
+    { type: 'text', xMm: 2, yMm: 2, widthMm: width - 4, heightMm: 6, template: '{{organizationName}}', fontSize: 12, bold: true, align: 'CENTER' },
+    { type: 'text', xMm: 2, yMm: 9, widthMm: width - 4, heightMm: 5, text: '门诊挂号就诊凭条（热敏存根）', fontSize: 8, align: 'CENTER' },
+    { type: 'line', xMm: 2, yMm: 15, widthMm: width - 4, heightMm: 0 },
+    { type: 'text', xMm: 2, yMm: 17, widthMm: width - 4, heightMm: 5, text: '候诊排队序号', fontSize: 8, align: 'CENTER' },
+    { type: 'text', xMm: 2, yMm: 22, widthMm: width - 4, heightMm: 14, template: '{{ticketNo}}', fontSize: 26, bold: true, align: 'CENTER' },
+    { type: 'line', xMm: 2, yMm: 37, widthMm: width - 4, heightMm: 0 },
+    { type: 'text', xMm: 3, yMm: 39, widthMm: width - 6, heightMm: 5, template: '挂号单号：{{registrationNo}}', fontSize: 8 },
+    { type: 'text', xMm: 3, yMm: 45, widthMm: width - 6, heightMm: 5, template: '患者姓名：{{residentName}}', fontSize: 8, bold: true },
+    { type: 'text', xMm: 3, yMm: 51, widthMm: width - 6, heightMm: 5, template: '就诊科室：{{departmentName}}', fontSize: 8, bold: true },
+    { type: 'text', xMm: 3, yMm: 57, widthMm: width - 6, heightMm: 5, template: '诊室地址：{{locationName}}', fontSize: 8, bold: true },
+    { type: 'text', xMm: 3, yMm: 63, widthMm: width - 6, heightMm: 5, template: '接诊医生：{{practitionerName}}', fontSize: 8 },
+    { type: 'text', xMm: 3, yMm: 69, widthMm: width - 6, heightMm: 5, template: '自费实收：¥{{payableAmount}} ({{paymentMethodName}})', fontSize: 8, bold: true },
+    { type: 'text', xMm: 3, yMm: 75, widthMm: width - 6, heightMm: 5, template: '挂号时间：{{registeredAtText}}', fontSize: 8 },
+    { type: 'line', xMm: 2, yMm: 82, widthMm: width - 4, heightMm: 0 },
+    { type: 'barcode', xMm: Math.max(2, (width - 50) / 2), yMm: 84, widthMm: 50, heightMm: 13, path: 'barcode', showText: true },
+    { type: 'line', xMm: 2, yMm: 99, widthMm: width - 4, heightMm: 0 },
+    { type: 'text', xMm: 2, yMm: 101, widthMm: width - 4, heightMm: 4, text: '请凭本凭条前往候诊区，关注大屏幕叫号', fontSize: 7, align: 'CENTER' },
   ] }
   const fields = (FIELD_PRESETS[definition.documentType] ?? PATIENT_FIELDS).filter((field) => field.type !== 'barcode').slice(0, 5)
   return { ...base, elements: [

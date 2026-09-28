@@ -275,7 +275,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
       expect(screen.getByText('可用标本、采血管与同次分管规则')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('全血细胞分析+CRP · 项目配置')).toBeInTheDocument()
+    expect(screen.getByText('全血细胞分析+CRP · 执行与收费')).toBeInTheDocument()
     expect(screen.getByText('EDTA抗凝采血管(紫色)')).toBeInTheDocument()
     expect(screen.getByText('⚡ 同次采血分管沙盒')).toBeInTheDocument()
 
@@ -309,7 +309,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
       expect(screen.getByText('多部位阶梯计费矩阵')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('胸部多层螺旋CT平扫 · 项目配置')).toBeInTheDocument()
+    expect(screen.getByText('胸部多层螺旋CT平扫 · 执行与收费')).toBeInTheDocument()
     expect(screen.getByText(/阶梯 1 · 首部位/)).toBeInTheDocument()
     expect(screen.getByText(/阶梯 2 · 超出部位加收规则/)).toBeInTheDocument()
 

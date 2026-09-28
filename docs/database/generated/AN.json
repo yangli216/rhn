@@ -1,5 +1,5 @@
 {
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "tables": [
     {
       "legacy": "an_audit_evt",
@@ -254,7 +254,7 @@
           "nullable": false,
           "defaultValue": null,
           "ordinal": 5,
-          "comment": "目录定义 JSON",
+          "comment": "",
           "logical": "json_definition",
           "catalogComment": "目录定义 JSON"
         },
@@ -480,7 +480,7 @@
           "nullable": false,
           "defaultValue": null,
           "ordinal": 7,
-          "comment": "分析定义 JSON",
+          "comment": "",
           "logical": "json_spec",
           "catalogComment": "分析定义 JSON"
         },

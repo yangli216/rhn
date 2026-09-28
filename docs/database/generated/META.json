@@ -1,5 +1,5 @@
 {
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "tables": [
     {
       "logical": "meta.outpatient_note_form_version",
@@ -214,7 +214,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_META_OP_NOTE_F_SYS_DEPT_ONF_INDEX_2",
+          "name": "FK_META_OP_NOTE_F_SYS_DEPT_ONF_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -235,7 +235,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_NOTE_F_SYS_ORG_ONFV_INDEX_2",
+          "name": "FK_META_OP_NOTE_F_SYS_ORG_ONFV_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -251,7 +251,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_NOTE_F_SYS_TNT_ONFV_INDEX_2",
+          "name": "FK_META_OP_NOTE_F_SYS_TNT_ONFV_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -262,7 +262,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_NOTE_F_SYS_USER_ONF_INDEX_2",
+          "name": "FK_META_OP_NOTE_F_SYS_USER_ONF_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -319,7 +319,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_2EF",
+          "name": "PRIMARY_KEY_AF",
           "columns": [
             {
               "position": 1,
@@ -330,7 +330,7 @@
           "unique": true
         },
         {
-          "name": "UK_META_OP_NOTE_F_ONFV_FORM_VE_INDEX_2",
+          "name": "UK_META_OP_NOTE_F_ONFV_FORM_VE_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -361,7 +361,7 @@
           "unique": true
         },
         {
-          "name": "UK_META_OP_NOTE_F_ONFV_TENANT__INDEX_2",
+          "name": "UK_META_OP_NOTE_F_ONFV_TENANT__INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -684,7 +684,7 @@
             "ID_ORG",
             "SD_SCOPE_TYPE",
             "ID_OWNER",
-            "CD_SPECIALTY",
+            "CD_SPECLTY",
             "SD_DOC_TYPE",
             "NA_TMPL"
           ]
@@ -699,7 +699,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_META_OP_NOTE_T_SYS_DEPT_ONT_INDEX_C",
+          "name": "FK_META_OP_NOTE_T_SYS_DEPT_ONT_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -720,7 +720,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_NOTE_T_SYS_ORG_ONT__INDEX_C",
+          "name": "FK_META_OP_NOTE_T_SYS_ORG_ONT__INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -736,7 +736,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_NOTE_T_SYS_TNT_ONT__INDEX_C",
+          "name": "FK_META_OP_NOTE_T_SYS_TNT_ONT__INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -747,7 +747,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_NOTE_T_SYS_USER_ONT_INDEX_C",
+          "name": "FK_META_OP_NOTE_T_SYS_USER_ONT_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -763,7 +763,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_OP_NOTE_T_SYS_USER_O_1_INDEX_C",
+          "name": "FK_META_OP_NOTE_T_SYS_USER_O_1_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -830,7 +830,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_C8",
+          "name": "PRIMARY_KEY_47",
           "columns": [
             {
               "position": 1,
@@ -841,7 +841,7 @@
           "unique": true
         },
         {
-          "name": "UK_META_OP_NOTE_T_ONT_OWNER_NA_INDEX_C",
+          "name": "UK_META_OP_NOTE_T_ONT_OWNER_NA_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -882,7 +882,7 @@
           "unique": true
         },
         {
-          "name": "UK_META_OP_NOTE_T_ONT_TENANT_I_INDEX_C",
+          "name": "UK_META_OP_NOTE_T_ONT_TENANT_I_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -2031,6 +2031,18 @@
           "comment": "指南与专家共识出处元数据JSON",
           "logical": "",
           "catalogComment": ""
+        },
+        {
+          "physical": "JSON_PLAN_TASKS",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "待核对的结构化方案任务及输入依据JSON",
+          "logical": "",
+          "catalogComment": ""
         }
       ],
       "kind": "BASE TABLE",
@@ -2179,7 +2191,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_ECF",
+          "name": "PRIMARY_KEY_EC",
           "columns": [
             {
               "position": 1,
@@ -3425,7 +3437,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_META_PRINT_TMP_META_PRI_PRI_INDEX_D",
+          "name": "FK_META_PRINT_TMP_META_PRI_PRI_INDEX_7",
           "columns": [
             {
               "position": 1,
@@ -3436,7 +3448,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_PRINT_VER_DOC_INDEX_D",
+          "name": "FK_META_PRINT_VER_DOC_INDEX_7",
           "columns": [
             {
               "position": 1,
@@ -3447,7 +3459,7 @@
           "unique": false
         },
         {
-          "name": "FK_META_PRINT_VER_MEDIA_INDEX_D",
+          "name": "FK_META_PRINT_VER_MEDIA_INDEX_7",
           "columns": [
             {
               "position": 1,
@@ -3458,7 +3470,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_DA6",
+          "name": "PRIMARY_KEY_726",
           "columns": [
             {
               "position": 1,
@@ -3469,7 +3481,7 @@
           "unique": true
         },
         {
-          "name": "UK_META_PRINT_TMP_PRINT_TEMP_1_INDEX_D",
+          "name": "UK_META_PRINT_TMP_PRINT_TEMP_1_INDEX_7",
           "columns": [
             {
               "position": 1,

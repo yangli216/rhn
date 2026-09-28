@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../app/AppShell'
 import {
@@ -257,6 +257,25 @@ function shortDate(value: string) {
   }).format(new Date(value))
 }
 
+function handleVerticalRadioNavigation(event: KeyboardEvent<HTMLElement>) {
+  if (event.altKey || event.ctrlKey || event.metaKey) return false
+  if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return false
+
+  const group = event.currentTarget.closest<HTMLElement>('[role="radiogroup"]')
+  const options = Array.from(group?.querySelectorAll<HTMLElement>('[role="radio"]') ?? [])
+    .filter((option) => option.getAttribute('aria-disabled') !== 'true')
+  const currentIndex = options.indexOf(event.currentTarget)
+  if (currentIndex < 0 || options.length === 0) return false
+
+  const nextIndex = event.key === 'Home' ? 0
+    : event.key === 'End' ? options.length - 1
+      : (currentIndex + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length
+  event.preventDefault()
+  options[nextIndex]?.focus()
+  options[nextIndex]?.click()
+  return true
+}
+
 interface ShiftGroup {
   key: string
   representative: ServiceSchedule
@@ -358,6 +377,10 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
   const [selectedPoolSlice, setSelectedPoolSlice] = useState<string>('')
   const [source, setSource] = useState<AppointmentSource>('WINDOW')
   const [reason, setReason] = useState('')
+  const scheduleSearchRef = useRef<HTMLInputElement>(null)
+  const shiftGroupRef = useRef<HTMLDivElement>(null)
+  const slotGroupRef = useRef<HTMLDivElement>(null)
+  const confirmButtonRef = useRef<HTMLButtonElement>(null)
 
   // 自主拉取未来 14 天全部可用排班，避免受限于外层列表的过滤日期
   const futureFrom = useMemo(() => businessDate(0), [])
@@ -535,8 +558,17 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
     return generatePoolTimeSlices(activeGroup.startAt, activeGroup.endAt)
   }, [activeGroup])
 
+  const focusSelectedOption = (group: HTMLDivElement | null) => {
+    const options = Array.from(group?.querySelectorAll<HTMLElement>('[role="radio"]') ?? [])
+      .filter((option) => option.getAttribute('aria-disabled') !== 'true')
+    const selected = options.find((option) => option.getAttribute('aria-checked') === 'true')
+    const target = selected ?? options[0]
+    target?.focus()
+  }
+
   return <Dialog title="新建预约" eyebrow="门诊预约 · 号源调度" size="xwide"
     className="appointment-workbench-dialog"
+    initialFocusRef={scheduleSearchRef}
     onClose={onClose}
     footer={null}>
     {error && <Alert tone="error">{error}</Alert>}
@@ -686,7 +718,17 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
               <div className="appointment-search-box">
                 <SearchField label="科室或医生"
                   placeholder="搜索科室/医生/拼音 (如: NK、李医生)"
-                  value={keyword} onChange={setKeyword} />
+                  inputRef={scheduleSearchRef}
+                  value={keyword} onChange={setKeyword}
+                  onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing || !['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return
+                    const options = Array.from(shiftGroupRef.current?.querySelectorAll<HTMLElement>('[role="radio"]') ?? [])
+                    const selected = options.find((option) => option.getAttribute('aria-checked') === 'true')
+                    const target = event.key === 'ArrowUp' ? options.at(-1) : selected ?? options[0]
+                    if (!target) return
+                    event.preventDefault()
+                    target.focus()
+                  }} />
               </div>
             </div>
 
@@ -709,31 +751,34 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
           </div>
         </div>
 
-        {/* 独立平滑滚动区：紧凑班次行列表 + 紧随其下的号源时段 */}
+        {/* 独立平滑滚动区：左侧班次导航 + 右侧号源时段 */}
         <div className="appointment-workbench-left-scroll">
-          {/* 3. 出诊班次紧凑精简列表（一屏全览架构） */}
-          <div className="appointment-schedule-container">
-            <div className="appointment-schedule-header">
-              <span>找到 <strong>{shiftGroups.length}</strong> 个出诊班次（共余 {totalSlotsCount} 个号源）</span>
-              <span className="appointment-schedule-header-hint">选中班次后下方即时展开对应号源时段</span>
-            </div>
+          <div className="appointment-availability-workspace">
+            {/* 3. 出诊班次紧凑导航列表 */}
+            <section className="appointment-schedule-container" aria-labelledby="appointment-shift-heading">
+              <div className="appointment-schedule-header">
+                <span><strong id="appointment-shift-heading">可预约班次</strong> · {shiftGroups.length} 个，共余 {totalSlotsCount} 号</span>
+              </div>
 
-            {futureSchedules.isPending ? (
-              <LoadingState label="正在加载未来出诊排班与号源…" />
-            ) : shiftGroups.length === 0 ? (
-              <EmptyState icon="tasks" title="暂无可预约班次"
-                copy="所选日期或科室条件下暂无开放号源，可切换其他日期或重置筛选条件。"
-                action={<Button size="sm" variant="secondary" onClick={() => {
-                  setSelectedDate('ALL'); setSelectedDept('ALL'); setSelectedClinicType('ALL'); setSelectedDayPart('ALL'); setKeyword('')
-                }}>重置所有筛选</Button>} />
-            ) : (
-              <div className="appointment-schedule-compact-list" role="radiogroup" aria-label="出诊班次列表">
-                {shiftGroups.map((group) => {
-                  const badge = getClinicTypeBadge(group.representative)
+              {futureSchedules.isPending ? (
+                <LoadingState label="正在加载未来出诊排班与号源…" />
+              ) : shiftGroups.length === 0 ? (
+                <EmptyState icon="tasks" title="暂无可预约班次"
+                  copy="所选日期或科室条件下暂无开放号源，可切换其他日期或重置筛选条件。"
+                  action={<Button size="sm" variant="secondary" onClick={() => {
+                    setSelectedDate('ALL'); setSelectedDept('ALL'); setSelectedClinicType('ALL'); setSelectedDayPart('ALL'); setKeyword('')
+                  }}>重置所有筛选</Button>} />
+              ) : (
+                <div ref={shiftGroupRef} className="appointment-schedule-compact-list" role="radiogroup" aria-label="出诊班次列表">
+                  {shiftGroups.map((group) => {
                   const isGroupSelected = activeGroup?.key === group.key
                   const isLow = group.totalAvailable <= 5
+                  const practitioner = group.practitionerName || (group.departmentName ? `${group.departmentName}医师` : '普通医师')
+                  const feeLabel = group.feeConfigured && group.registrationFee != null
+                    ? `¥${group.registrationFee.toFixed(2)}` : '免诊查费'
                   return (
-                    <div key={group.key} role="radio" aria-checked={isGroupSelected} tabIndex={0}
+                    <div key={group.key} role="radio" aria-checked={isGroupSelected} tabIndex={isGroupSelected ? 0 : -1}
+                      aria-label={`${practitioner}，${dateTime(group.startAt)}至${clock(group.endAt)}，${feeLabel}，余${group.totalAvailable}号`}
                       className={`appointment-shift-row ${isGroupSelected ? 'is-selected' : ''}`}
                       onClick={() => {
                         const target = group.schedules.find((s) => s.availableCount > 0) || group.schedules[0]
@@ -743,26 +788,25 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
                         }
                       }}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
+                        if (handleVerticalRadioNavigation(e)) return
+                        if (e.key === 'ArrowLeft') {
                           e.preventDefault()
-                          const target = group.schedules.find((s) => s.availableCount > 0) || group.schedules[0]
-                          if (target) {
-                            setScheduleId(target.id)
-                            setSelectedPoolSlice('')
-                          }
+                          scheduleSearchRef.current?.focus()
+                          return
+                        }
+                        if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          e.currentTarget.click()
+                          requestAnimationFrame(() => focusSelectedOption(slotGroupRef.current))
                         }
                       }}>
                       <div className="appointment-shift-row__radio">
                         <span className={`appointment-radio-circle ${isGroupSelected ? 'is-checked' : ''}`} />
                       </div>
 
-                      <div className="appointment-shift-row__dept" title={group.departmentName || group.serviceName}>
-                        {group.departmentName || group.serviceName}
-                      </div>
-
                       <div className="appointment-shift-row__doctor">
                         <strong className="appointment-shift-row__doctor-name">
-                          {group.practitionerName || (group.departmentName ? `${group.departmentName}医师` : '普通医师')}
+                          {practitioner}
                         </strong>
                         {group.locationName && group.locationName !== group.departmentName && (
                           <span className="appointment-shift-row__location" title={group.locationName}>
@@ -771,24 +815,12 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
                         )}
                       </div>
 
-                      <div className="appointment-shift-row__badges">
-                        <span className={`appointment-clinic-badge tone-${badge.tone}`}>
-                          {badge.label}
-                        </span>
-                        <span className={`appointment-slot-mode-tag ${group.isTimedMode ? 'is-timed' : 'is-pool'}`}>
-                          {group.isTimedMode ? '分时排班' : '号池模式'}
-                        </span>
-                      </div>
-
                       <div className="appointment-shift-row__time">
-                        <Icon name="calendar" />
                         <span>{dateTime(group.startAt)} ~ {clock(group.endAt)}</span>
                       </div>
 
                       <div className="appointment-shift-row__fee">
-                        {group.feeConfigured && group.registrationFee != null
-                          ? `¥${group.registrationFee.toFixed(2)}`
-                          : '免诊查费'}
+                        {feeLabel}
                       </div>
 
                       <div className="appointment-shift-row__status">
@@ -798,65 +830,63 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
                       </div>
                     </div>
                   )
-                })}
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* 4. 根据号源排班模式差异化呈现的号源选择看板 */}
+            <section className="appointment-slot-panel" aria-labelledby="appointment-slot-heading">
+              <div className="appointment-card-title">
+                <div className="appointment-slot-title-group">
+                  <strong id="appointment-slot-heading">{activeGroup?.isTimedMode ? '专业分时号源' : '出诊时段号源'}</strong>
+                  <span className={`appointment-slot-mode-chip ${activeGroup?.isTimedMode ? 'is-timed' : 'is-pool'}`}>
+                    {activeGroup?.isTimedMode ? '专业分时模式' : '号池共享模式'}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
 
-        {/* 4. 根据号源排班模式差异化呈现的号源选择看板 */}
-        <div className="appointment-slot-panel">
-          <div className="appointment-card-title">
-            <div className="appointment-slot-title-group">
-              <strong>{activeGroup?.isTimedMode ? '专业分时号源' : '出诊时段号源'}</strong>
-              <span className={`appointment-slot-mode-chip ${activeGroup?.isTimedMode ? 'is-timed' : 'is-pool'}`}>
-                {activeGroup?.isTimedMode ? '专业分时模式' : '号池共享模式'}
-              </span>
-            </div>
-            {activeGroup && (
-              <small className="appointment-slot-sub">
-                {activeGroup.practitionerName || activeGroup.serviceName} · 共余 {activeGroup.totalAvailable} 号
-              </small>
-            )}
-          </div>
-
-          {!activeGroup ? (
-            <div className="appointment-slot-empty-notice">
-              <Icon name="calendar" />
-              <span>请在上方选择出诊班次以查看号源时段</span>
-            </div>
-          ) : activeGroup.isTimedMode ? (
+              {!activeGroup ? (
+                <div className="appointment-slot-empty-notice">
+                  <Icon name="calendar" />
+                  <span>请在左侧选择出诊班次以查看号源时段</span>
+                </div>
+              ) : activeGroup.isTimedMode ? (
             <div className="appointment-slot-grid-container">
-              <div className="appointment-slot-tip">请选择具体分时号源时段以锁定精确就诊区间：</div>
-              <div className="appointment-slot-grid">
+              <div ref={slotGroupRef} className="appointment-slot-grid" role="radiogroup" aria-label="可选分时号源">
                 {activeGroup.schedules.map((slot) => {
                   const isSelected = slot.id === scheduleId
                   const isFull = slot.availableCount <= 0
                   return (
-                    <div key={slot.id} role="button" tabIndex={isFull ? -1 : 0}
+                    <div key={slot.id} role="radio" aria-checked={isSelected} tabIndex={!isFull && isSelected ? 0 : -1}
                       aria-disabled={isFull}
                       className={`appointment-slot-cell ${isSelected ? 'is-selected' : ''} ${isFull ? 'is-full' : ''}`}
                       onClick={() => {
                         if (!isFull) setScheduleId(slot.id)
                       }}
                       onKeyDown={(e) => {
+                        if (handleVerticalRadioNavigation(e)) return
+                        if (e.key === 'ArrowLeft') {
+                          e.preventDefault()
+                          focusSelectedOption(shiftGroupRef.current)
+                          return
+                        }
                         if (!isFull && (e.key === 'Enter' || e.key === ' ')) {
                           e.preventDefault()
-                          setScheduleId(slot.id)
+                          e.currentTarget.click()
+                          requestAnimationFrame(() => confirmButtonRef.current?.focus())
                         }
                       }}>
+                      <div className="appointment-slot-cell__radio">
+                        <span className={`appointment-radio-circle ${isSelected ? 'is-checked' : ''}`} />
+                      </div>
                       <div className="appointment-slot-cell__time">
-                        <Icon name="calendar" />
                         <span>{clock(slot.startAt)} - {clock(slot.endAt)}</span>
                       </div>
                       <div className="appointment-slot-cell__meta">
                         <span className={`appointment-slot-badge ${slot.availableCount <= 3 ? 'is-low' : ''}`}>
                           {isFull ? '约满' : `余 ${slot.availableCount} 号`}
                         </span>
-                        {isSelected && (
-                          <span className="appointment-slot-cell__check">
-                            <Icon name="check" />
-                          </span>
-                        )}
                       </div>
                     </div>
                   )
@@ -865,41 +895,46 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
             </div>
           ) : (
             <div className="appointment-slot-grid-container">
-              <div className="appointment-slot-tip">当前班次为统一号池（共余 {activeGroup.totalAvailable} 号），可直接预约；也可选择意向分时时段协助窗口错峰分流：</div>
-              <div className="appointment-slot-grid">
-                {poolTimeSlices.map((slice) => {
+              <div ref={slotGroupRef} className="appointment-slot-grid" role="radiogroup" aria-label="意向就诊时段">
+                {poolTimeSlices.map((slice, index) => {
                   const isSelected = selectedPoolSlice === slice
                   return (
-                    <div key={slice} role="button" tabIndex={0}
+                    <div key={slice} role="radio" aria-checked={isSelected}
+                      tabIndex={isSelected || (!selectedPoolSlice && index === 0) ? 0 : -1}
                       className={`appointment-slot-cell ${isSelected ? 'is-selected' : ''}`}
                       onClick={() => setSelectedPoolSlice(slice)}
                       onKeyDown={(e) => {
+                        if (handleVerticalRadioNavigation(e)) return
+                        if (e.key === 'ArrowLeft') {
+                          e.preventDefault()
+                          focusSelectedOption(shiftGroupRef.current)
+                          return
+                        }
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
-                          setSelectedPoolSlice(slice)
+                          e.currentTarget.click()
+                          requestAnimationFrame(() => confirmButtonRef.current?.focus())
                         }
                       }}>
+                      <div className="appointment-slot-cell__radio">
+                        <span className={`appointment-radio-circle ${isSelected ? 'is-checked' : ''}`} />
+                      </div>
                       <div className="appointment-slot-cell__time">
-                        <Icon name="calendar" />
                         <span>{slice}</span>
                       </div>
                       <div className="appointment-slot-cell__meta">
                         <span className="appointment-slot-badge">可选时段</span>
-                        {isSelected && (
-                          <span className="appointment-slot-cell__check">
-                            <Icon name="check" />
-                          </span>
-                        )}
                       </div>
                     </div>
                   )
                 })}
               </div>
             </div>
-          )}
+              )}
+            </section>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
       {/* 右栏：结果确认和保存区域（类似挂号与收费工作台 CashierPanel） */}
       <section className="appointment-workbench-right">
@@ -993,7 +1028,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
 
           {/* 底部确认与保存操作区 */}
           <div className="appointment-confirmation-footer">
-            <Button variant="primary" size="lg" className="appointment-confirm-btn" busy={busy}
+            <Button ref={confirmButtonRef} variant="primary" size="lg" className="appointment-confirm-btn" busy={busy}
               disabled={!resident || !selectedSchedule}
               onClick={() => {
                 if (resident && selectedSchedule) {

@@ -1,5 +1,5 @@
 {
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "tables": [
     {
       "logical": "aud.audit_log",
@@ -583,7 +583,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_AUD_CRYPTO_EVI_AUD_CRYP_CRY_INDEX_A",
+          "name": "FK_AUD_CRYPTO_EVI_AUD_CRYP_CRY_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -599,7 +599,7 @@
           "unique": false
         },
         {
-          "name": "FK_AUD_CRYPTO_EVI_SYS_TNT_CRYP_INDEX_A",
+          "name": "FK_AUD_CRYPTO_EVI_SYS_TNT_CRYP_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -683,7 +683,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_AA19",
+          "name": "PRIMARY_KEY_992",
           "columns": [
             {
               "position": 1,
@@ -694,7 +694,7 @@
           "unique": true
         },
         {
-          "name": "UK_AUD_CRYPTO_EVI_CRYPTO_EVIDE_INDEX_A",
+          "name": "UK_AUD_CRYPTO_EVI_CRYPTO_EVIDE_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1016,7 +1016,7 @@
       ],
       "indexes": [
         {
-          "name": "PRIMARY_KEY_B",
+          "name": "PRIMARY_KEY_B6B",
           "columns": [
             {
               "position": 1,
@@ -1619,7 +1619,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_B6B",
+          "name": "PRIMARY_KEY_B6B3",
           "columns": [
             {
               "position": 1,
@@ -2846,7 +2846,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_AF2",
+          "name": "PRIMARY_KEY_9A4",
           "columns": [
             {
               "position": 1,
@@ -3016,7 +3016,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_F27",
+          "name": "PRIMARY_KEY_A4",
           "columns": [
             {
               "position": 1,
@@ -3500,7 +3500,7 @@
       ],
       "indexes": [
         {
-          "name": "PRIMARY_KEY_C9",
+          "name": "PRIMARY_KEY_C99",
           "columns": [
             {
               "position": 1,
@@ -4155,7 +4155,7 @@
       "uniqueKeys": [],
       "indexes": [
         {
-          "name": "FK_INTAKE_FEEDBACK_INDEX_3",
+          "name": "FK_INTAKE_FEEDBACK_INDEX_7",
           "columns": [
             {
               "position": 1,
@@ -4239,7 +4239,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_33B",
+          "name": "PRIMARY_KEY_73B7",
           "columns": [
             {
               "position": 1,
@@ -5075,7 +5075,7 @@
       "kind": "foreign-key",
       "targetTable": "RHN_AUD_CRYPTO_EVID",
       "deleteRule": "NO ACTION",
-      "cardinality": "MANY_TO_ONE",
+      "cardinality": "ONE_TO_ONE",
       "reviewState": "database",
       "evidence": "迁移验证库外键",
       "description": ""
@@ -5094,7 +5094,7 @@
       "kind": "foreign-key",
       "targetTable": "RHN_AUD_CRYPTO_EVID",
       "deleteRule": "NO ACTION",
-      "cardinality": "MANY_TO_ONE",
+      "cardinality": "ONE_TO_ONE",
       "reviewState": "database",
       "evidence": "迁移验证库外键",
       "description": ""

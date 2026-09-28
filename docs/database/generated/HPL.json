@@ -1,5 +1,5 @@
 {
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "tables": [
     {
       "logical": "hpl.care_task_event",
@@ -205,7 +205,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_HPL_CARE_TASK_HPL_CARE_CARE_INDEX_2",
+          "name": "FK_HPL_CARE_TASK_HPL_CARE_CARE_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -221,7 +221,7 @@
           "unique": false
         },
         {
-          "name": "FK_HPL_CARE_TASK_SYS_PRAC_CA_2_INDEX_2",
+          "name": "FK_HPL_CARE_TASK_SYS_PRAC_CA_2_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -237,7 +237,7 @@
           "unique": false
         },
         {
-          "name": "FK_HPL_CARE_TASK_SYS_TNT_CAR_1_INDEX_2",
+          "name": "FK_HPL_CARE_TASK_SYS_TNT_CAR_1_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -248,7 +248,7 @@
           "unique": false
         },
         {
-          "name": "FK_HPL_CARE_TASK_SYS_USER_CA_1_INDEX_2",
+          "name": "FK_HPL_CARE_TASK_SYS_USER_CA_1_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -311,7 +311,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_2CBA",
+          "name": "PRIMARY_KEY_6A92",
           "columns": [
             {
               "position": 1,
@@ -322,7 +322,7 @@
           "unique": true
         },
         {
-          "name": "UK_HPL_CARE_TASK_CARE_TASK_EVE_INDEX_2",
+          "name": "UK_HPL_CARE_TASK_CARE_TASK_EVE_INDEX_6",
           "columns": [
             {
               "position": 1,

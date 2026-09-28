@@ -1,5 +1,5 @@
 {
-  "fingerprint": "320bc539a8d3bb5f4e445a7bcc6c4b35f182540c692ca2cff20ed735ced8d910",
+  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
   "tables": [
     {
       "logical": "bd.catalog_change_batch_row",
@@ -205,7 +205,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_CATALOG_CHG_BD_CATAL_CAT_INDEX_E",
+          "name": "FK_BD_CATALOG_CHG_BD_CATAL_CAT_INDEX_7",
           "columns": [
             {
               "position": 1,
@@ -221,7 +221,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_CATALOG_CHG_BD_CATAL_C_1_INDEX_E",
+          "name": "FK_BD_CATALOG_CHG_BD_CATAL_C_1_INDEX_7",
           "columns": [
             {
               "position": 1,
@@ -237,7 +237,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_CATALOG_CHG_SYS_TNT_CA_1_INDEX_E",
+          "name": "FK_BD_CATALOG_CHG_SYS_TNT_CA_1_INDEX_7",
           "columns": [
             {
               "position": 1,
@@ -274,7 +274,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_E30",
+          "name": "PRIMARY_KEY_7",
           "columns": [
             {
               "position": 1,
@@ -285,7 +285,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_CATALOG_CHG_CATALOG_CH_2_INDEX_E",
+          "name": "UK_BD_CATALOG_CHG_CATALOG_CH_2_INDEX_7",
           "columns": [
             {
               "position": 1,
@@ -3076,7 +3076,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_DICT_ATTR_D_BD_DICT_DICT_INDEX_4",
+          "name": "FK_BD_DICT_ATTR_D_BD_DICT_DICT_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3087,7 +3087,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_DICT_ATTR_D_BD_DICT_DI_1_INDEX_4",
+          "name": "FK_BD_DICT_ATTR_D_BD_DICT_DI_1_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3098,7 +3098,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_DICT_ATTR_D_SYS_USER_DIC_INDEX_4",
+          "name": "FK_BD_DICT_ATTR_D_SYS_USER_DIC_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3109,7 +3109,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_DICT_ATTR_D_SYS_USER_D_1_INDEX_4",
+          "name": "FK_BD_DICT_ATTR_D_SYS_USER_D_1_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3157,7 +3157,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_435E",
+          "name": "PRIMARY_KEY_28",
           "columns": [
             {
               "position": 1,
@@ -3168,7 +3168,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_DICT_ATTR_D_DICT_ATTR_CO_INDEX_4",
+          "name": "UK_BD_DICT_ATTR_D_DICT_ATTR_CO_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -3897,7 +3897,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_3B86",
+          "name": "PRIMARY_KEY_354F",
           "columns": [
             {
               "position": 1,
@@ -6340,7 +6340,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_ITEM_INDEX_F",
+          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_ITEM_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -6351,7 +6351,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_IT_1_INDEX_F",
+          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_IT_1_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -6362,7 +6362,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_IT_2_INDEX_F",
+          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_IT_2_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -6373,7 +6373,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_IT_3_INDEX_F",
+          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_IT_3_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -6384,7 +6384,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_IT_4_INDEX_F",
+          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_IT_4_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -6395,7 +6395,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_IT_5_INDEX_F",
+          "name": "FK_BD_ITEM_ATTR_C_BD_ITEM_IT_5_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -6406,7 +6406,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_C_SYS_TNT_ITEM_INDEX_F",
+          "name": "FK_BD_ITEM_ATTR_C_SYS_TNT_ITEM_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -6470,7 +6470,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_FF516",
+          "name": "PRIMARY_KEY_EADC",
           "columns": [
             {
               "position": 1,
@@ -6481,7 +6481,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_ITEM_ATTR_C_ITEM_ATTR_CH_INDEX_F",
+          "name": "UK_BD_ITEM_ATTR_C_ITEM_ATTR_CH_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -6881,7 +6881,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_ITEM_ATTR_D_BD_DICT_ITEM_INDEX_4",
+          "name": "FK_BD_ITEM_ATTR_D_BD_DICT_ITEM_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -6892,7 +6892,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_D_SYS_TNT_ITEM_INDEX_4",
+          "name": "FK_BD_ITEM_ATTR_D_SYS_TNT_ITEM_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -6924,7 +6924,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_41D",
+          "name": "PRIMARY_KEY_F9",
           "columns": [
             {
               "position": 1,
@@ -6935,7 +6935,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_ITEM_ATTR_D_ITEM_ATTR_DE_INDEX_4",
+          "name": "UK_BD_ITEM_ATTR_D_ITEM_ATTR_DE_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -6951,7 +6951,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_ITEM_ATTR_D_ITEM_ATTR__1_INDEX_4",
+          "name": "UK_BD_ITEM_ATTR_D_ITEM_ATTR__1_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -7269,7 +7269,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_ITEM_ATTR_O_BD_ITEM_ITEM_INDEX_4",
+          "name": "FK_BD_ITEM_ATTR_O_BD_ITEM_ITEM_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7285,7 +7285,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_O_BD_ITEM_IT_1_INDEX_4",
+          "name": "FK_BD_ITEM_ATTR_O_BD_ITEM_IT_1_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7296,7 +7296,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_O_SYS_DEPT_ITE_INDEX_4",
+          "name": "FK_BD_ITEM_ATTR_O_SYS_DEPT_ITE_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7317,7 +7317,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_O_SYS_ORG_ITEM_INDEX_4",
+          "name": "FK_BD_ITEM_ATTR_O_SYS_ORG_ITEM_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7333,7 +7333,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_O_SYS_TNT_ITEM_INDEX_4",
+          "name": "FK_BD_ITEM_ATTR_O_SYS_TNT_ITEM_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -7401,7 +7401,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_42",
+          "name": "PRIMARY_KEY_B",
           "columns": [
             {
               "position": 1,
@@ -7412,7 +7412,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_ITEM_ATTR_O_ITEM_ATTR_OV_INDEX_4",
+          "name": "UK_BD_ITEM_ATTR_O_ITEM_ATTR_OV_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -8038,7 +8038,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_ITEM_ATTR_V_BD_ITEM_ITEM_INDEX_6",
+          "name": "FK_BD_ITEM_ATTR_V_BD_ITEM_ITEM_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -8049,7 +8049,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_V_BD_ITEM_IT_1_INDEX_6",
+          "name": "FK_BD_ITEM_ATTR_V_BD_ITEM_IT_1_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -8060,7 +8060,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_ATTR_V_SYS_TNT_ITEM_INDEX_6",
+          "name": "FK_BD_ITEM_ATTR_V_SYS_TNT_ITEM_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -8097,7 +8097,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_65",
+          "name": "PRIMARY_KEY_4F",
           "columns": [
             {
               "position": 1,
@@ -8108,7 +8108,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_ITEM_ATTR_V_ITEM_ATTR_VA_INDEX_6",
+          "name": "UK_BD_ITEM_ATTR_V_ITEM_ATTR_VA_INDEX_4",
           "columns": [
             {
               "position": 1,
@@ -10252,7 +10252,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_ITEM_TYPE_A_BD_ITEM_ITEM_INDEX_A",
+          "name": "FK_BD_ITEM_TYPE_A_BD_ITEM_ITEM_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -10263,7 +10263,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_ITEM_TYPE_A_BD_ITEM_IT_1_INDEX_A",
+          "name": "FK_BD_ITEM_TYPE_A_BD_ITEM_IT_1_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -10311,7 +10311,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_A2",
+          "name": "PRIMARY_KEY_B0B",
           "columns": [
             {
               "position": 1,
@@ -10322,7 +10322,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_ITEM_TYPE_A_ITEM_TYPE_AT_INDEX_A",
+          "name": "UK_BD_ITEM_TYPE_A_ITEM_TYPE_AT_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -11854,7 +11854,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_IMPORT_ROW_BD_IMPOR_MD_I_INDEX_2",
+          "name": "FK_BD_IMPORT_ROW_BD_IMPOR_MD_I_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -11870,7 +11870,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_IMPORT_ROW_SYS_TNT_MD_IM_INDEX_2",
+          "name": "FK_BD_IMPORT_ROW_SYS_TNT_MD_IM_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -11923,7 +11923,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_2B",
+          "name": "PRIMARY_KEY_3D",
           "columns": [
             {
               "position": 1,
@@ -11934,7 +11934,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_IMPORT_ROW_MD_IMPORT_ROW_INDEX_2",
+          "name": "UK_BD_IMPORT_ROW_MD_IMPORT_ROW_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -19687,7 +19687,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_F0",
+          "name": "PRIMARY_KEY_49D0",
           "columns": [
             {
               "position": 1,
@@ -20465,7 +20465,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_76",
+          "name": "PRIMARY_KEY_769",
           "columns": [
             {
               "position": 1,

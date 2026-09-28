@@ -46,6 +46,7 @@ const OrganizationPersonnelManagement = lazy(() => import('../features/settings/
 const BasicDataManagement = lazy(() => import('../features/settings/BasicDataManagement')
   .then((module) => ({ default: module.BasicDataManagement })))
 const StandardMappingWorkspace = lazy(() => import('../features/settings/StandardMappingWorkspace'))
+const ItemAttributeWorkspace = lazy(() => import('../features/settings/ItemAttributeWorkspace'))
 const OrganizationCatalogManagement = lazy(() => import('../features/settings/OrganizationCatalogManagement')
   .then((module) => ({ default: module.OrganizationCatalogManagement })))
 const GridAddressManagement = lazy(() => import('../features/settings/GridAddressManagement')
@@ -312,6 +313,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'ai-assistant', label: 'AI助理配置', icon: 'sparkles', to: '/settings/ai-assistant', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
       { id: 'system-parameters', label: '系统运行参数', icon: 'settings', to: '/settings/system-parameters', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
       { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'settings', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
+      { id: 'item-attributes', label: '主数据扩展配置', icon: 'settings', to: '/settings/item-attributes', requiredAuthority: 'CONFIGURATION.ACCESS' },
       { id: 'presence', label: '在线用户', icon: 'user', to: '/settings/presence', requiredAuthority: 'PRESENCE.USER.READ' },
     ],
   },
@@ -417,6 +419,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/settings/medications') return { id: pathname, path: pathname, title: '药品知识与目录', icon: 'pill', closeable: true }
   if (pathname === '/settings/services') return { id: pathname, path: pathname, title: '诊疗服务目录', icon: 'clinical', closeable: true }
   if (pathname === '/settings/standard-mappings') return { id: pathname, path: pathname, title: '标准映射管理', icon: 'roadmap', closeable: true }
+  if (pathname === '/settings/item-attributes') return { id: pathname, path: pathname, title: '扩展属性管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/diseases') return { id: pathname, path: pathname, title: '疾病与诊断标准', icon: 'database', closeable: true }
   if (pathname === '/settings/operations') return { id: pathname, path: pathname, title: '耗材与运营主数据', icon: 'card', closeable: true }
   if (pathname === '/settings/organization-catalog') return { id: pathname, path: pathname, title: '机构项目管理', icon: 'card', closeable: true }
@@ -1012,6 +1015,8 @@ export function AppShell() {
                     organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/standard-mappings" element={<StandardMappingWorkspace api={tabSlot.api}
                     organization={tabSlot.clinicalContext.organization} />} />
+                  <Route path="/settings/item-attributes" element={<ItemAttributeWorkspace api={tabSlot.api}
+                    onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/diseases" element={<BasicDataManagement api={tabSlot.api} scope="disease"
                     organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/operations" element={<BasicDataManagement api={tabSlot.api} scope="operations"

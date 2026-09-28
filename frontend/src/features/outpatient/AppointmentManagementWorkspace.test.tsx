@@ -225,6 +225,26 @@ describe('AppointmentManagementWorkspace', () => {
     expect(await inDialog.findByText('李医生')).toBeInTheDocument()
     expect(await inDialog.findByText('张建国')).toBeInTheDocument()
 
+    const searchInput = inDialog.getByPlaceholderText(/搜索科室\/医生\/拼音/)
+    const shiftGroup = inDialog.getByRole('radiogroup', { name: '出诊班次列表' })
+    const shiftOptions = within(shiftGroup).getAllByRole('radio')
+    expect(searchInput).toHaveFocus()
+    expect(shiftOptions.filter((option) => option.tabIndex === 0)).toHaveLength(1)
+    await user.keyboard('{ArrowDown}')
+    expect(shiftOptions[0]).toHaveFocus()
+    await user.keyboard('{ArrowDown}')
+    expect(shiftOptions[1]).toHaveFocus()
+    expect(shiftOptions[1]).toHaveAttribute('aria-checked', 'true')
+    await user.keyboard('{Home}')
+    expect(shiftOptions[0]).toHaveFocus()
+    await user.keyboard('{ArrowRight}')
+    const poolOptions = within(inDialog.getByRole('radiogroup', { name: '意向就诊时段' })).getAllByRole('radio')
+    await waitFor(() => expect(poolOptions[0]).toHaveFocus())
+    await user.keyboard('{ArrowLeft}')
+    expect(shiftOptions[0]).toHaveFocus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(poolOptions[0]).toHaveFocus())
+
     // Filter by '专家门诊'
     const expertBtn = inDialog.getByRole('button', { name: '专家门诊' })
     await user.click(expertBtn)
@@ -240,7 +260,6 @@ describe('AppointmentManagementWorkspace', () => {
     // Filter by search keyword
     const allBtn = inDialog.getByRole('button', { name: '全部号别' })
     await user.click(allBtn)
-    const searchInput = inDialog.getByPlaceholderText(/搜索科室\/医生\/拼音/)
     await user.type(searchInput, 'ZJG')
     expect(inDialog.getByText('张建国')).toBeInTheDocument()
     expect(inDialog.queryByText('李医生')).not.toBeInTheDocument()
@@ -332,13 +351,23 @@ describe('AppointmentManagementWorkspace', () => {
     const inDialog = within(dialog)
 
     // Verify shift displays timed mode
-    expect(await inDialog.findByText('分时排班')).toBeInTheDocument()
     expect(inDialog.getByText('专业分时号源')).toBeInTheDocument()
     expect(inDialog.getByText('专业分时模式')).toBeInTheDocument()
 
     // Verify both timed slots are rendered
     expect(inDialog.getAllByText(/08:00 - 08:30/).length).toBeGreaterThanOrEqual(1)
     expect(inDialog.getByText('08:30 - 09:00')).toBeInTheDocument()
+
+    const timedSlotGroup = inDialog.getByRole('radiogroup', { name: '可选分时号源' })
+    const timedSlotOptions = within(timedSlotGroup).getAllByRole('radio')
+    expect(timedSlotOptions.filter((option) => option.tabIndex === 0)).toHaveLength(1)
+    timedSlotOptions[0].focus()
+    await user.keyboard('{ArrowDown}')
+    expect(timedSlotOptions[1]).toHaveFocus()
+    expect(timedSlotOptions[1]).toHaveAttribute('aria-checked', 'true')
+    await user.keyboard('{Home}')
+    expect(timedSlotOptions[0]).toHaveFocus()
+    expect(timedSlotOptions[0]).toHaveAttribute('aria-checked', 'true')
 
     // Select resident
     const searchInput = inDialog.getByPlaceholderText('输入姓名、身份证、卡号或健康档案号')
@@ -348,15 +377,16 @@ describe('AppointmentManagementWorkspace', () => {
     const candidate = await inDialog.findByText('刘德华')
     await user.click(candidate)
 
-    // Click second timed slot
-    const slot2Cell = inDialog.getByText('08:30 - 09:00')
-    await user.click(slot2Cell)
+    // Choose the second timed slot and move directly to confirmation
+    timedSlotOptions[1].focus()
+    await user.keyboard('{Enter}')
+    const submitBtn = inDialog.getByRole('button', { name: '确认预约' })
+    await waitFor(() => expect(submitBtn).toHaveFocus())
 
     // Verify ticket preview updated to slot 2
     expect(inDialog.getAllByText(/08:30 - 09:00/).length).toBeGreaterThanOrEqual(2)
 
     // Submit appointment
-    const submitBtn = inDialog.getByRole('button', { name: '确认预约' })
     await user.click(submitBtn)
 
     await waitFor(() => {
@@ -437,9 +467,17 @@ describe('AppointmentManagementWorkspace', () => {
     const inDialog = within(dialog)
 
     // Verify T-layout components
-    expect(await inDialog.findByText('号池模式')).toBeInTheDocument()
+    expect(dialog.querySelectorAll('.appointment-availability-workspace > section')).toHaveLength(2)
     expect(inDialog.getByText('号池共享模式')).toBeInTheDocument()
     expect(inDialog.getAllByText('可选时段').length).toBeGreaterThanOrEqual(1)
+
+    const poolSlotGroup = inDialog.getByRole('radiogroup', { name: '意向就诊时段' })
+    const poolSlotOptions = within(poolSlotGroup).getAllByRole('radio')
+    expect(poolSlotOptions.filter((option) => option.tabIndex === 0)).toHaveLength(1)
+    poolSlotOptions[0].focus()
+    await user.keyboard('{ArrowDown}')
+    expect(poolSlotOptions[1]).toHaveFocus()
+    expect(poolSlotOptions[1]).toHaveAttribute('aria-checked', 'true')
 
     // Select resident in top strip
     const searchInput = inDialog.getByPlaceholderText('输入姓名、身份证、卡号或健康档案号')
@@ -453,9 +491,11 @@ describe('AppointmentManagementWorkspace', () => {
     expect(await inDialog.findByText('13800007777')).toBeInTheDocument()
     expect(inDialog.getByText('HR7777')).toBeInTheDocument()
 
-    // Pick a pool time slice in left slot area
-    const sliceBtn = inDialog.getAllByText('可选时段')[0]
-    await user.click(sliceBtn)
+    // Pick a pool time slice and move directly to confirmation
+    poolSlotOptions[0].focus()
+    await user.keyboard('{Enter}')
+    const submitBtn = inDialog.getByRole('button', { name: '确认预约' })
+    await waitFor(() => expect(submitBtn).toHaveFocus())
 
     // Fill appointment reason in right settings area
     const reasonInput = inDialog.getByPlaceholderText(/如复诊配药/)
@@ -466,7 +506,6 @@ describe('AppointmentManagementWorkspace', () => {
     expect(inDialog.getAllByText('¥25.00').length).toBeGreaterThanOrEqual(2)
 
     // Submit appointment via right confirmation footer
-    const submitBtn = inDialog.getByRole('button', { name: '确认预约' })
     await user.click(submitBtn)
 
     await waitFor(() => {
