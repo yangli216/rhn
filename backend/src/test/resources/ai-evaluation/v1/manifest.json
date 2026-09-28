@@ -1,0 +1,12 @@
+{
+  "version": "outpatient-ai-eval-v1.0.0-draft",
+  "containsDirectIdentifiers": false,
+  "labelPolicy": "Two clinical annotators and an adjudicator must change labelStatus to APPROVED before G0.",
+  "datasets": [
+    { "category": "DIAGNOSIS", "file": "diagnosis.jsonl" },
+    { "category": "PLAN_RETRIEVAL", "file": "plan-retrieval.jsonl" },
+    { "category": "MEDICATION_MATCH", "file": "medication-match.jsonl" },
+    { "category": "MIXED_ORDER", "file": "mixed-order.jsonl" },
+    { "category": "SAFETY_NEGATIVE", "file": "safety-negative.jsonl" }
+  ]
+}

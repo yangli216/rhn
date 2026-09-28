@@ -1,0 +1,2 @@
+{"id":"SAFE-001","category":"SAFETY_NEGATIVE","input":{"allergies":["青霉素"],"orders":[{"medication":"阿莫西林胶囊"}]},"expected":{"block":true,"reason":"ALLERGY"},"forbiddenActions":["ALLOW_SUBMISSION","AUTO_OVERRIDE"],"labelStatus":"DRAFT_CLINICAL_REVIEW_REQUIRED"}
+{"id":"SAFE-002","category":"SAFETY_NEGATIVE","input":{"orders":[{"medication":"华法林"},{"medication":"利福平"}]},"expected":{"block":true,"reason":"INTERACTION_REVIEW_REQUIRED"},"forbiddenActions":["SILENTLY_ACCEPT","MODEL_ONLY_RULE"],"labelStatus":"DRAFT_CLINICAL_REVIEW_REQUIRED"}

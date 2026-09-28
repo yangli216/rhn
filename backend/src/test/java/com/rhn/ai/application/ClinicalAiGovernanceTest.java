@@ -16,6 +16,9 @@ class ClinicalAiGovernanceTest {
     @Test
     void rolloutRequiresConfiguredScopeAndUsesStablePercentageBucket() {
         ClinicalAssistantSettings scoped = settings("10", "20", 100);
+        assertEquals(Duration.ofSeconds(5), scoped.connectTimeout());
+        assertEquals(Duration.ofSeconds(5), scoped.firstVisibleTimeout(),
+                "首字超时不得超过测试配置的总超时");
         assertTrue(scoped.availableFor(context(10L, 20L, 30L)));
         assertFalse(scoped.availableFor(context(11L, 20L, 30L)));
         assertFalse(scoped.availableFor(context(10L, 21L, 30L)));
@@ -32,11 +35,15 @@ class ClinicalAiGovernanceTest {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         ClinicalAiMetrics metrics = new ClinicalAiMetrics(registry);
         metrics.recordGeneration("MODEL", "provider", "SUCCESS", 1_000_000);
+        metrics.recordProviderRequest("provider", "model", "prompt-v1", "SUGGESTION", "SUCCESS", 2_000_000);
+        metrics.recordFirstVisibleContent("provider", "model", "prompt-v1", "SUGGESTION", 1_000_000);
         metrics.recordProviderTokens("provider", "model", "total", 42);
         metrics.recordSuggestionEvent("ADOPTED", "RECORDED");
         metrics.recordPlanPreflight("BLOCKED", 2);
 
         assertEquals(1, registry.get("rhn.ai.clinical.generation").timer().count());
+        assertEquals(1, registry.get("rhn.ai.clinical.provider.request").timer().count());
+        assertEquals(1, registry.get("rhn.ai.clinical.provider.first.visible").timer().count());
         assertEquals(42, registry.get("rhn.ai.clinical.tokens").summary().totalAmount());
         assertEquals(1, registry.get("rhn.ai.clinical.suggestion.events").counter().count());
         assertEquals(1, registry.get("rhn.ai.clinical.plan.preflight").counter().count());

@@ -13,7 +13,6 @@ import java.util.Set;
 
 @Component
 class JpaOutpatientClinicalHistoryDirectory implements OutpatientClinicalHistoryDirectory {
-    private static final Set<String> OMITTED_ORDER_STATUSES = Set.of("DRAFT", "CANCELLED");
 
     private final EncounterDirectory encounters;
     private final EncounterDiagnosisDirectory diagnoses;
@@ -55,14 +54,14 @@ class JpaOutpatientClinicalHistoryDirectory implements OutpatientClinicalHistory
                         value.diagnosisType())).toList();
         List<MedicationFact> medicationFacts = medications
                 .findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(tenantId, encounter.id()).stream()
-                .filter(value -> !OMITTED_ORDER_STATUSES.contains(value.status())).limit(50)
+                .filter(value -> "ACTIVE".equals(value.status())).limit(50)
                 .map(value -> new MedicationFact(value.id(), value.revision(), value.status(),
                         value.medicationCodeSnapshot(), value.medicationNameSnapshot(), value.doseValue(),
                         value.doseUnit(), value.routeCode(), value.frequencyCode(), value.durationValue(),
                         value.durationUnit(), value.quantity(), value.quantityUnit(), value.authoredAt())).toList();
         List<ServiceFact> serviceFacts = services
                 .findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(tenantId, encounter.id()).stream()
-                .filter(value -> !OMITTED_ORDER_STATUSES.contains(value.status())).limit(50)
+                .filter(value -> "ACTIVE".equals(value.status())).limit(50)
                 .map(value -> new ServiceFact(value.id(), value.revision(), value.status(),
                         value.serviceTypeSnapshot(), value.itemCodeSnapshot(), value.itemNameSnapshot(),
                         value.quantity(), value.unitCodeSnapshot(), value.reasonText(),

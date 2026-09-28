@@ -17,7 +17,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -25,6 +24,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
@@ -66,37 +67,24 @@ public class HistoricalPlanResolutionService {
             return Optional.empty();
         }
 
-        // Analyze frequency and long-term nature of medications across visits
-        Map<String, Integer> medicationCounts = new LinkedHashMap<>();
-        Map<String, OutpatientClinicalHistoryDirectory.MedicationFact> latestFacts = new LinkedHashMap<>();
-        Set<String> acuteTerms = Set.of("布洛芬", "阿莫西林", "头孢", "感冒", "退热", "止痛", "对乙酰氨基酚");
+        Map<MedicationSignature, Set<Long>> encounterIdsByMedication = new LinkedHashMap<>();
+        Map<MedicationSignature, OutpatientClinicalHistoryDirectory.MedicationFact> latestFacts = new LinkedHashMap<>();
 
         for (var pastEncounter : history) {
             for (var med : pastEncounter.medications()) {
-                if (med.name() == null || med.name().isBlank()) continue;
-                String normalized = med.name().trim();
-                boolean isAcute = acuteTerms.stream().anyMatch(normalized::contains);
-                // Chronic drugs usually have duration >= 14d or repeated usage
-                if (!isAcute || (med.durationValue() != null && med.durationValue().compareTo(BigDecimal.valueOf(14)) >= 0)) {
-                    medicationCounts.put(normalized, medicationCounts.getOrDefault(normalized, 0) + 1);
-                    latestFacts.putIfAbsent(normalized, med);
-                }
+                if (!isCompleteActiveFact(med)) continue;
+                MedicationSignature signature = MedicationSignature.from(med);
+                encounterIdsByMedication.computeIfAbsent(signature, ignored -> new LinkedHashSet<>())
+                        .add(pastEncounter.encounterId());
+                latestFacts.putIfAbsent(signature, med);
             }
         }
 
-        // Filter medications that appear repeatedly or are clearly chronic maintenance
-        List<OutpatientClinicalHistoryDirectory.MedicationFact> stableMeds = new ArrayList<>();
-        for (var entry : medicationCounts.entrySet()) {
-            if (entry.getValue() >= 2 || history.size() == 1) {
-                var fact = latestFacts.get(entry.getKey());
-                if (fact != null) stableMeds.add(fact);
-            }
-        }
-
-        if (stableMeds.isEmpty() && !latestFacts.isEmpty()) {
-            // Fallback: take up to 2 most recent medications from previous visit
-            stableMeds.addAll(latestFacts.values().stream().limit(2).toList());
-        }
+        List<OutpatientClinicalHistoryDirectory.MedicationFact> stableMeds = encounterIdsByMedication.entrySet().stream()
+                .filter(entry -> entry.getValue().size() >= 2)
+                .map(entry -> latestFacts.get(entry.getKey()))
+                .filter(java.util.Objects::nonNull)
+                .toList();
 
         if (stableMeds.isEmpty()) {
             return Optional.empty();
@@ -109,70 +97,53 @@ public class HistoricalPlanResolutionService {
             for (var d : latestPastEncounter.diagnoses()) {
                 diagnoses.add(new DiagnosisInput(d.code(), d.display(), d.type() == null ? "PRIMARY" : d.type()));
             }
-        } else {
-            diagnoses.add(new DiagnosisInput("I10", "高血压（慢病维持）", "PRIMARY"));
         }
 
-        // Map stable medications into actual orderable MedicationInput
         List<MedicationInput> medicationInputs = new ArrayList<>();
         List<String> guidanceNotes = new ArrayList<>();
-        guidanceNotes.add("已从患者近180天历史就诊中识别出平稳维持期处方组合。");
+        guidanceNotes.add("仅纳入在至少两次已完成就诊中以相同用法重复出现的有效历史医嘱。");
 
         for (var fact : stableMeds) {
             try {
-                var candidates = inventory.findOrderableMedications(
-                        context.tenantId(), context.organizationId(), context.departmentId(), fact.name());
-                boolean matched = false;
-                for (var candidate : candidates) {
-                    if (!"ACTIVE".equals(candidate.sdStatus())) continue;
-                    for (var product : candidate.products()) {
-                        if (!product.orderable() || product.organizationAdoption() == null
-                                || !product.organizationAdoption().orderable()
-                                || !product.organizationAdoption().dispensable()) continue;
-
-                        var stock = inventory.inspectMedicationAvailability(
-                                context.tenantId(), context.organizationId(), context.departmentId(), product.id(), null);
-                        if (stock == null || !stock.routeConfigured() || !stock.stockItemConfigured()) continue;
-
-                        Long packageId = stock.effectivePackageId() != null ? stock.effectivePackageId()
-                                : !product.packages().isEmpty() ? product.packages().getFirst().id() : 1L;
-
-                        medicationInputs.add(new MedicationInput(
-                                candidate.id(),
-                                product.id(),
-                                packageId,
-                                fact.doseValue() != null ? fact.doseValue() : BigDecimal.ONE,
-                                fact.doseUnit() != null ? fact.doseUnit() : "片",
-                                fact.routeCode() != null ? fact.routeCode() : "PO",
-                                fact.frequencyCode() != null ? fact.frequencyCode() : "QD",
-                                fact.durationValue() != null ? fact.durationValue() : BigDecimal.valueOf(30),
-                                fact.durationUnit() != null ? fact.durationUnit() : "d",
-                                fact.quantity() != null ? fact.quantity() : BigDecimal.ONE,
-                                fact.quantityUnit() != null ? fact.quantityUnit() : "盒",
-                                true,
-                                false,
-                                "复诊原方案维持用药，遵医嘱执行",
-                                "SALE",
-                                true,
-                                "慢病平稳期原方案续方"
-                        ));
-                        matched = true;
-                        break;
-                    }
-                    if (matched) break;
-                }
-                if (!matched) {
-                    guidanceNotes.add("既往用药“" + fact.name() + "”当前科室未查询到可用库存品规，建议医生评估替换。");
+                List<ResolvedMedication> matches = inventory.findOrderableMedications(
+                                context.tenantId(), context.organizationId(), context.departmentId(), fact.name()).stream()
+                        .filter(candidate -> exactMedicationMatch(fact, candidate.code(), candidate.name()))
+                        .filter(candidate -> "ACTIVE".equals(candidate.sdStatus()))
+                        .flatMap(candidate -> candidate.products().stream()
+                                .filter(product -> product.orderable() && "ACTIVE".equals(product.sdStatus()))
+                                .filter(product -> product.organizationAdoption() != null
+                                        && product.organizationAdoption().orderable()
+                                        && product.organizationAdoption().dispensable())
+                                .map(product -> resolve(context, candidate, product.id())))
+                        .flatMap(Optional::stream)
+                        .collect(Collectors.collectingAndThen(
+                                Collectors.toMap(ResolvedMedication::key, Function.identity(), (left, right) -> left,
+                                        LinkedHashMap::new), values -> List.copyOf(values.values())));
+                if (matches.size() == 1) {
+                    ResolvedMedication match = matches.getFirst();
+                    medicationInputs.add(new MedicationInput(
+                            match.medicationId(), match.catalogItemId(), match.packageId(),
+                            match.medicationName(), match.preparationSpec(),
+                            fact.doseValue(), fact.doseUnit(), fact.routeCode(), fact.frequencyCode(),
+                            fact.durationValue(), fact.durationUnit(), fact.quantity(), fact.quantityUnit(),
+                            false, false, "按既往已完成就诊中的原始用法带入，需医生重新核对",
+                            "SALE", true, "复诊历史事实复用"));
+                } else if (matches.isEmpty()) {
+                    guidanceNotes.add("既往用药“" + fact.name() + "”缺少当前科室唯一可用的药品、品规或包装映射，仅供查看，未带入草稿。");
+                } else {
+                    guidanceNotes.add("既往用药“" + fact.name() + "”存在多个可用品规或包装，仅供查看，需医生重新选择。");
                 }
             } catch (RuntimeException e) {
-                log.warn("Failed inspecting inventory for historical fact: {}", fact.name(), e);
+                log.warn("Failed inspecting inventory for historical fact, medicationCode={}", fact.code(), e);
+                guidanceNotes.add("既往用药“" + fact.name() + "”目录核对失败，仅供查看，未带入草稿。");
             }
         }
 
-        String conditionTitle = !diagnoses.isEmpty() ? diagnoses.getFirst().display() + " 平稳维持方案" : "既往慢病成熟方案";
+        String conditionTitle = !diagnoses.isEmpty() ? diagnoses.getFirst().display() + " 历史重复方案" : "既往重复用药事实";
         String summary = String.format(Locale.ROOT,
-                "参考前次就诊（%s 开立），包含 %d 项平稳长期用药，可直接复核后快速开立。",
+                "参考前次就诊（%s），识别 %d 项重复历史用药，其中 %d 项完成当前目录、品规、包装和库存核对。",
                 latestPastEncounter.registeredAt() != null ? latestPastEncounter.registeredAt().toString().substring(0, 10) : "近期",
+                stableMeds.size(),
                 medicationInputs.size());
 
         return Optional.of(new HistoricalStablePlanView(
@@ -186,5 +157,73 @@ public class HistoricalPlanResolutionService {
                 List.of(),
                 guidanceNotes
         ));
+    }
+
+    private Optional<ResolvedMedication> resolve(ExecutionContext context,
+                                                  OutpatientPrescriptionInventoryDirectory.OrderableMedicationView medication,
+                                                  Long productId) {
+        var stock = inventory.inspectMedicationAvailability(context.tenantId(), context.organizationId(),
+                context.departmentId(), productId, null);
+        if (stock == null || !stock.routeConfigured() || !stock.stockItemConfigured()
+                || stock.effectivePackageId() == null || stock.packageFactor() == null
+                || stock.packageFactor().signum() <= 0 || stock.availablePackageQuantity() == null
+                || stock.availablePackageQuantity().signum() <= 0) {
+            return Optional.empty();
+        }
+        return Optional.of(new ResolvedMedication(medication.id(), productId, stock.effectivePackageId(),
+                medication.name(), medication.preparationSpec()));
+    }
+
+    private static boolean exactMedicationMatch(OutpatientClinicalHistoryDirectory.MedicationFact fact,
+                                                String candidateCode, String candidateName) {
+        if (!blank(fact.code()) && fact.code().trim().equalsIgnoreCase(trim(candidateCode))) return true;
+        return fact.name().trim().equalsIgnoreCase(trim(candidateName));
+    }
+
+    private static boolean isCompleteActiveFact(OutpatientClinicalHistoryDirectory.MedicationFact fact) {
+        return fact != null && "ACTIVE".equals(fact.status()) && !blank(fact.name())
+                && positive(fact.doseValue()) && !blank(fact.doseUnit())
+                && !blank(fact.routeCode()) && !blank(fact.frequencyCode())
+                && positive(fact.durationValue()) && !blank(fact.durationUnit())
+                && positive(fact.quantity()) && !blank(fact.quantityUnit());
+    }
+
+    private static boolean positive(BigDecimal value) {
+        return value != null && value.signum() > 0;
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private static String trim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private record MedicationSignature(String codeOrName, BigDecimal doseValue, String doseUnit,
+                                       String routeCode, String frequencyCode, BigDecimal durationValue,
+                                       String durationUnit, BigDecimal quantity, String quantityUnit) {
+        private static MedicationSignature from(OutpatientClinicalHistoryDirectory.MedicationFact fact) {
+            String identity = !blank(fact.code()) ? fact.code().trim().toUpperCase(Locale.ROOT)
+                    : fact.name().trim().toUpperCase(Locale.ROOT);
+            return new MedicationSignature(identity, normalized(fact.doseValue()), normalized(fact.doseUnit()),
+                    normalized(fact.routeCode()), normalized(fact.frequencyCode()), normalized(fact.durationValue()),
+                    normalized(fact.durationUnit()), normalized(fact.quantity()), normalized(fact.quantityUnit()));
+        }
+
+        private static BigDecimal normalized(BigDecimal value) {
+            return value.stripTrailingZeros();
+        }
+
+        private static String normalized(String value) {
+            return value.trim().toUpperCase(Locale.ROOT);
+        }
+    }
+
+    private record ResolvedMedication(Long medicationId, Long catalogItemId, Long packageId,
+                                      String medicationName, String preparationSpec) {
+        private String key() {
+            return medicationId + ":" + catalogItemId + ":" + packageId;
+        }
     }
 }

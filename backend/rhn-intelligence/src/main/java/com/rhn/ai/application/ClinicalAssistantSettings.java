@@ -20,6 +20,8 @@ public final class ClinicalAssistantSettings {
     private final Duration suggestionTtl;
     private final URI endpoint;
     private final String apiKey;
+    private final Duration connectTimeout;
+    private final Duration firstVisibleTimeout;
     private final Duration requestTimeout;
     private final int maxOutputTokens;
     private final URI speechEndpoint;
@@ -39,6 +41,8 @@ public final class ClinicalAssistantSettings {
                                      @Value("${rhn.ai.suggestion-ttl:PT30M}") Duration suggestionTtl,
                                      @Value("${rhn.ai.endpoint:}") String endpoint,
                                      @Value("${rhn.ai.api-key:}") String apiKey,
+                                     @Value("${rhn.ai.connect-timeout:PT5S}") Duration connectTimeout,
+                                     @Value("${rhn.ai.first-visible-timeout:PT8S}") Duration firstVisibleTimeout,
                                      @Value("${rhn.ai.request-timeout:PT45S}") Duration requestTimeout,
                                      @Value("${rhn.ai.max-output-tokens:3000}") int maxOutputTokens,
                                      @Value("${rhn.ai.speech-endpoint:}") String speechEndpoint,
@@ -63,6 +67,8 @@ public final class ClinicalAssistantSettings {
         this.apiKey = clean(apiKey, null);
         this.requestTimeout = requestTimeout == null || requestTimeout.isNegative() || requestTimeout.isZero()
                 ? Duration.ofSeconds(45) : requestTimeout;
+        this.connectTimeout = validTimeout(connectTimeout, Duration.ofSeconds(5), this.requestTimeout);
+        this.firstVisibleTimeout = validTimeout(firstVisibleTimeout, Duration.ofSeconds(8), this.requestTimeout);
         this.maxOutputTokens = Math.max(512, Math.min(maxOutputTokens, 8000));
         this.speechEndpoint = endpointUri(speechEndpoint);
         this.speechModel = clean(speechModel, "gpt-transcribe");
@@ -73,6 +79,18 @@ public final class ClinicalAssistantSettings {
         this.enabledOrganizationIds = ids(enabledOrganizationIds);
         this.enabledDepartmentIds = ids(enabledDepartmentIds);
         this.rolloutPercentage = Math.max(0, Math.min(rolloutPercentage, 100));
+    }
+
+    public ClinicalAssistantSettings(String mode, String provider, String model, Duration suggestionTtl,
+                                     String endpoint, String apiKey, Duration requestTimeout, int maxOutputTokens,
+                                     String speechEndpoint, String speechModel, int maxAudioBytes,
+                                     String knowledgeEndpoint, String knowledgeApiKey, int maxKnowledgeResults,
+                                     String enabledOrganizationIds, String enabledDepartmentIds, int rolloutPercentage) {
+        this(mode, provider, model, suggestionTtl, endpoint, apiKey,
+                defaultTimeout(requestTimeout, Duration.ofSeconds(5)),
+                defaultTimeout(requestTimeout, Duration.ofSeconds(8)), requestTimeout, maxOutputTokens,
+                speechEndpoint, speechModel, maxAudioBytes, knowledgeEndpoint, knowledgeApiKey,
+                maxKnowledgeResults, enabledOrganizationIds, enabledDepartmentIds, rolloutPercentage);
     }
 
     public ClinicalAssistantSettings(String mode, String provider, String model, Duration suggestionTtl,
@@ -90,6 +108,8 @@ public final class ClinicalAssistantSettings {
     public Duration suggestionTtl() { return suggestionTtl; }
     public URI endpoint() { return endpoint; }
     public String apiKey() { return apiKey; }
+    public Duration connectTimeout() { return connectTimeout; }
+    public Duration firstVisibleTimeout() { return firstVisibleTimeout; }
     public Duration requestTimeout() { return requestTimeout; }
     public int maxOutputTokens() { return maxOutputTokens; }
     public URI speechEndpoint() { return speechEndpoint; }
@@ -166,6 +186,17 @@ public final class ClinicalAssistantSettings {
 
     private static String clean(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private static Duration validTimeout(Duration value, Duration fallback, Duration upperBound) {
+        Duration result = value == null || value.isNegative() || value.isZero() ? fallback : value;
+        return result.compareTo(upperBound) > 0 ? upperBound : result;
+    }
+
+    private static Duration defaultTimeout(Duration requestTimeout, Duration preferred) {
+        Duration total = requestTimeout == null || requestTimeout.isNegative() || requestTimeout.isZero()
+                ? Duration.ofSeconds(45) : requestTimeout;
+        return preferred.compareTo(total) > 0 ? total : preferred;
     }
 
     private static Set<Long> ids(String value) {

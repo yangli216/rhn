@@ -319,12 +319,16 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
             exchange.close();
         });
         var chunks = new StringBuilder();
-        var result = new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec)
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        var result = new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec,
+                java.net.http.HttpClient.newHttpClient(), new ClinicalAiMetrics(registry))
                 .analyzeStreaming(request(), settings(null), delta -> { chunks.append(delta); firstDelta.countDown(); });
         assertEquals("合成测试摘要", result.summary());
         assertEquals(json, chunks.toString());
         assertTrue(jsonCodec.readTree(body.get()).path("stream").asBoolean());
         assertTrue(jsonCodec.readTree(body.get()).path("stream_options").path("include_usage").asBoolean());
+        assertEquals(1, registry.get("rhn.ai.clinical.provider.first.visible").timer().count());
+        assertEquals(1, registry.get("rhn.ai.clinical.provider.request").tag("outcome", "SUCCESS").timer().count());
     }
 
     @Test
@@ -384,7 +388,7 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
     }
 
     @Test
-    void enforcesDeadlineWhenProviderStallsAfterSendingHeaders() throws Exception {
+    void enforcesFirstVisibleDeadlineWhenProviderStallsAfterSendingHeaders() throws Exception {
         var release = new java.util.concurrent.CountDownLatch(1);
         startServer(exchange -> {
             exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
@@ -396,14 +400,15 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
             finally { exchange.close(); }
         });
         var active = new ClinicalAssistantSettings("MODEL", "test", "test-model", Duration.ofMinutes(30),
-                settings(null).endpoint().toString(), null, Duration.ofMillis(300), 1200,
-                "", "gpt-transcribe", 1024, "", "", 5);
+                settings(null).endpoint().toString(), null, Duration.ofMillis(100), Duration.ofMillis(150),
+                Duration.ofMillis(600), 1200, "", "gpt-transcribe", 1024, "", "", 5,
+                "", "", 100);
         try {
             var error = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(Duration.ofSeconds(2), () ->
                     assertThrows(ClinicalAiModelException.class, () ->
                             new OpenAiCompatibleClinicalAiModelGateway(active, jsonCodec)
                                     .analyzeStreaming(request(), active, delta -> { })));
-            assertEquals(ClinicalAiModelException.Reason.TIMEOUT, error.reason());
+            assertEquals(ClinicalAiModelException.Reason.FIRST_VISIBLE_TIMEOUT, error.reason());
         } finally { release.countDown(); }
     }
 

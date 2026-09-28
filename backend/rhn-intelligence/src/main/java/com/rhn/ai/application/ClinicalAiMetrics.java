@@ -31,6 +31,25 @@ public final class ClinicalAiMetrics {
                 .register(registry).record(tokens);
     }
 
+    public void recordProviderRequest(String provider, String model, String promptVersion,
+                                      String requestKind, String outcome, long elapsedNanos) {
+        Timer.builder("rhn.ai.clinical.provider.request")
+                .description("Clinical AI provider request latency and classified outcome")
+                .tag("provider", tag(provider)).tag("model", tag(model))
+                .tag("prompt", tag(promptVersion)).tag("kind", tag(requestKind))
+                .tag("outcome", tag(outcome)).register(registry)
+                .record(Duration.ofNanos(Math.max(0, elapsedNanos)));
+    }
+
+    public void recordFirstVisibleContent(String provider, String model, String promptVersion,
+                                          String requestKind, long elapsedNanos) {
+        Timer.builder("rhn.ai.clinical.provider.first.visible")
+                .description("Time until the first non-empty model content is available to the client")
+                .tag("provider", tag(provider)).tag("model", tag(model))
+                .tag("prompt", tag(promptVersion)).tag("kind", tag(requestKind))
+                .register(registry).record(Duration.ofNanos(Math.max(0, elapsedNanos)));
+    }
+
     public void recordSuggestionEvent(String eventType, String outcome) {
         registry.counter("rhn.ai.clinical.suggestion.events", "event", tag(eventType), "outcome", tag(outcome))
                 .increment();

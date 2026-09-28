@@ -41,6 +41,8 @@ public class ClinicalAiRuntimePolicy {
                 text(tenantId, "model", fallback.model()),
                 Duration.ofMinutes(number(tenantId, "suggestion-ttl-minutes", fallback.suggestionTtl().toMinutes())),
                 text(tenantId, "endpoint", uri(fallback.endpoint())), apiKey,
+                Duration.ofSeconds(number(tenantId, "connect-timeout-seconds", fallback.connectTimeout().toSeconds())),
+                Duration.ofSeconds(number(tenantId, "first-visible-timeout-seconds", fallback.firstVisibleTimeout().toSeconds())),
                 Duration.ofSeconds(number(tenantId, "request-timeout-seconds", fallback.requestTimeout().toSeconds())),
                 (int) number(tenantId, "max-output-tokens", fallback.maxOutputTokens()),
                 speechEndpoint,

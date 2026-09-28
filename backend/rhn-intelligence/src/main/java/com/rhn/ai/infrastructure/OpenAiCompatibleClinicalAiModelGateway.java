@@ -4,6 +4,7 @@ import com.rhn.ai.api.ClinicalAssistantContracts.SuggestionContent;
 import com.rhn.ai.application.ClinicalAiModelException;
 import com.rhn.ai.application.ClinicalAiModelGateway;
 import com.rhn.ai.application.ClinicalAiMetrics;
+import com.rhn.ai.application.ClinicalAiCircuitBreaker;
 import com.rhn.ai.application.ClinicalAssistantSettings;
 import com.rhn.diagnostics.api.DiagnosticReportResponse;
 import com.rhn.shared.json.JsonCodec;
@@ -136,28 +137,37 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
     private final JsonCodec jsonCodec;
     private final HttpClient httpClient;
     private final ClinicalAiMetrics metrics;
+    private final ClinicalAiCircuitBreaker circuitBreaker;
 
     @Autowired
     OpenAiCompatibleClinicalAiModelGateway(ClinicalAssistantSettings settings, JsonCodec jsonCodec,
-                                            ClinicalAiMetrics metrics) {
-        this(settings, jsonCodec, HttpClient.newBuilder().connectTimeout(settings.requestTimeout()).build(), metrics);
+                                            ClinicalAiMetrics metrics, ClinicalAiCircuitBreaker circuitBreaker) {
+        this(settings, jsonCodec, HttpClient.newBuilder().connectTimeout(settings.connectTimeout()).build(),
+                metrics, circuitBreaker);
     }
 
     OpenAiCompatibleClinicalAiModelGateway(ClinicalAssistantSettings settings, JsonCodec jsonCodec) {
-        this(settings, jsonCodec, HttpClient.newBuilder().connectTimeout(settings.requestTimeout()).build(), null);
+        this(settings, jsonCodec, HttpClient.newBuilder().connectTimeout(settings.connectTimeout()).build(), null, null);
     }
 
     OpenAiCompatibleClinicalAiModelGateway(ClinicalAssistantSettings settings, JsonCodec jsonCodec,
                                            HttpClient httpClient) {
-        this(settings, jsonCodec, httpClient, null);
+        this(settings, jsonCodec, httpClient, null, null);
     }
 
     OpenAiCompatibleClinicalAiModelGateway(ClinicalAssistantSettings settings, JsonCodec jsonCodec,
                                            HttpClient httpClient, ClinicalAiMetrics metrics) {
+        this(settings, jsonCodec, httpClient, metrics, null);
+    }
+
+    OpenAiCompatibleClinicalAiModelGateway(ClinicalAssistantSettings settings, JsonCodec jsonCodec,
+                                           HttpClient httpClient, ClinicalAiMetrics metrics,
+                                           ClinicalAiCircuitBreaker circuitBreaker) {
         this.settings = settings;
         this.jsonCodec = jsonCodec;
         this.httpClient = httpClient;
         this.metrics = metrics;
+        this.circuitBreaker = circuitBreaker;
     }
 
     @Override
@@ -167,8 +177,10 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             throw new ClinicalAiModelException(Reason.CONFIGURATION, null, "模型服务配置不完整", null);
         }
         HttpRequest.Builder builder = requestBuilder(request, active, false);
+        long started = System.nanoTime();
 
         try {
+            beforeRequest(active);
             HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 int status = response.statusCode();
@@ -180,16 +192,24 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             SuggestionContent content = jsonCodec.read(extractContent(response.body()), SuggestionContent.class);
             if (content == null) throw new ClinicalAiModelException(Reason.INVALID_RESPONSE, null,
                     "模型服务返回空结果", null);
+            recordRequest(active, request.promptVersion(), "SUGGESTION", "SUCCESS", started);
             return content;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            recordRequest(active, request.promptVersion(), "SUGGESTION", Reason.INTERRUPTED.name(), started);
             throw new ClinicalAiModelException(Reason.INTERRUPTED, null, "模型请求被中断", exception);
         } catch (HttpTimeoutException exception) {
+            recordRequest(active, request.promptVersion(), "SUGGESTION", Reason.TIMEOUT.name(), started);
             throw new ClinicalAiModelException(Reason.TIMEOUT, null, "模型请求超时", exception);
         } catch (IOException exception) {
+            recordRequest(active, request.promptVersion(), "SUGGESTION", Reason.CONNECTION.name(), started);
             throw new ClinicalAiModelException(Reason.CONNECTION, null, "模型服务连接失败", exception);
         } catch (RuntimeException exception) {
-            if (exception instanceof ClinicalAiModelException modelException) throw modelException;
+            if (exception instanceof ClinicalAiModelException modelException) {
+                recordRequest(active, request.promptVersion(), "SUGGESTION", modelException.reason().name(), started);
+                throw modelException;
+            }
+            recordRequest(active, request.promptVersion(), "SUGGESTION", Reason.INVALID_RESPONSE.name(), started);
             throw new ClinicalAiModelException(Reason.INVALID_RESPONSE, null, "模型结构化结果解析失败", exception);
         }
     }
@@ -239,7 +259,9 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
 
     private PlanIntent requestPlanIntent(PlanInput request, ClinicalAssistantSettings active, String correctionInstruction) {
         HttpRequest.Builder builder = planRequestBuilder(request, active, correctionInstruction, false);
+        long started = System.nanoTime();
         try {
+            beforeRequest(active);
             HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 int status = response.statusCode();
@@ -248,16 +270,25 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                 throw new ClinicalAiModelException(reason, status, "模型服务返回非成功状态：" + status, null);
             }
             recordUsage(response.body(), active);
-            return validatePlanIntent(jsonCodec.read(extractContent(response.body()), PlanIntent.class));
+            PlanIntent result = validatePlanIntent(jsonCodec.read(extractContent(response.body()), PlanIntent.class));
+            recordRequest(active, request.promptVersion(), "PLAN", "SUCCESS", started);
+            return result;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            recordRequest(active, request.promptVersion(), "PLAN", Reason.INTERRUPTED.name(), started);
             throw new ClinicalAiModelException(Reason.INTERRUPTED, null, "模型请求被中断", exception);
         } catch (HttpTimeoutException exception) {
+            recordRequest(active, request.promptVersion(), "PLAN", Reason.TIMEOUT.name(), started);
             throw new ClinicalAiModelException(Reason.TIMEOUT, null, "模型请求超时", exception);
         } catch (IOException exception) {
+            recordRequest(active, request.promptVersion(), "PLAN", Reason.CONNECTION.name(), started);
             throw new ClinicalAiModelException(Reason.CONNECTION, null, "模型服务连接失败", exception);
         } catch (RuntimeException exception) {
-            if (exception instanceof ClinicalAiModelException modelException) throw modelException;
+            if (exception instanceof ClinicalAiModelException modelException) {
+                recordRequest(active, request.promptVersion(), "PLAN", modelException.reason().name(), started);
+                throw modelException;
+            }
+            recordRequest(active, request.promptVersion(), "PLAN", Reason.INVALID_RESPONSE.name(), started);
             throw new ClinicalAiModelException(Reason.INVALID_RESPONSE, null, "模型方案结构解析失败", exception);
         }
     }
@@ -303,7 +334,12 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
         });
         long started = System.nanoTime();
         java.util.concurrent.atomic.AtomicBoolean timedOut = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicBoolean firstVisibleTimedOut = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicBoolean firstVisible = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicReference<java.util.concurrent.ScheduledFuture<?>> firstVisibleDeadline =
+                new java.util.concurrent.atomic.AtomicReference<>();
         try {
+            beforeRequest(active);
             var response = httpClient.send(planRequestBuilder(request, active, null, true).build(),
                     HttpResponse.BodyHandlers.ofInputStream());
             try (var input = response.body()) {
@@ -318,6 +354,13 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                     timedOut.set(true);
                     try { input.close(); } catch (IOException ignored) { }
                 }, Math.max(0, remaining), java.util.concurrent.TimeUnit.NANOSECONDS);
+                firstVisibleDeadline.set(deadline.schedule(() -> {
+                    if (firstVisible.compareAndSet(false, true)) {
+                        firstVisibleTimedOut.set(true);
+                        try { input.close(); } catch (IOException ignored) { }
+                    }
+                }, Math.max(0, Math.min(remaining, active.firstVisibleTimeout().toNanos())),
+                        java.util.concurrent.TimeUnit.NANOSECONDS));
                 var reader = new java.io.BufferedReader(new java.io.InputStreamReader(
                         input, java.nio.charset.StandardCharsets.UTF_8));
                 StringBuilder content = new StringBuilder();
@@ -343,28 +386,44 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                         if (!delta.isEmpty()) {
                             content.append(delta);
                             if (content.length() > 262144) throw new IllegalArgumentException("模型流式结果过大");
+                            recordFirstVisible(active, request.promptVersion(), "PLAN", started, firstVisible);
+                            var firstDeadline = firstVisibleDeadline.get();
+                            if (firstDeadline != null) firstDeadline.cancel(false);
                             onDelta.accept(delta);
                         }
                         String reason = choice.path("finish_reason").asString("");
                         if (!reason.isBlank()) finishReason = reason;
                     }
                 }
+                if (firstVisibleTimedOut.get()) throw new ClinicalAiModelException(Reason.FIRST_VISIBLE_TIMEOUT, null,
+                        "模型流式首个可见内容超时", null);
                 if (timedOut.get()) throw new HttpTimeoutException("模型流式请求超时");
                 if ("length".equals(finishReason)) throw new ClinicalAiModelException(Reason.OUTPUT_LIMIT, null,
                         "模型输出被长度上限截断", null);
                 if (!done || !"stop".equals(finishReason)) throw new IllegalArgumentException("模型流式结果未完整结束");
-                return validatePlanIntent(jsonCodec.read(content.toString(), PlanIntent.class));
+                PlanIntent result = validatePlanIntent(jsonCodec.read(content.toString(), PlanIntent.class));
+                recordRequest(active, request.promptVersion(), "PLAN", "SUCCESS", started);
+                return result;
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            recordRequest(active, request.promptVersion(), "PLAN", Reason.INTERRUPTED.name(), started);
             throw new ClinicalAiModelException(Reason.INTERRUPTED, null, "模型请求被中断", exception);
         } catch (HttpTimeoutException exception) {
+            recordRequest(active, request.promptVersion(), "PLAN", Reason.TIMEOUT.name(), started);
             throw new ClinicalAiModelException(Reason.TIMEOUT, null, "模型请求超时", exception);
         } catch (IOException exception) {
-            throw new ClinicalAiModelException(timedOut.get() ? Reason.TIMEOUT : Reason.CONNECTION, null,
+            Reason reason = firstVisibleTimedOut.get() ? Reason.FIRST_VISIBLE_TIMEOUT
+                    : timedOut.get() ? Reason.TIMEOUT : Reason.CONNECTION;
+            recordRequest(active, request.promptVersion(), "PLAN", reason.name(), started);
+            throw new ClinicalAiModelException(reason, null,
                     "模型流式连接中断", exception);
         } catch (RuntimeException exception) {
-            if (exception instanceof ClinicalAiModelException modelException) throw modelException;
+            if (exception instanceof ClinicalAiModelException modelException) {
+                recordRequest(active, request.promptVersion(), "PLAN", modelException.reason().name(), started);
+                throw modelException;
+            }
+            recordRequest(active, request.promptVersion(), "PLAN", Reason.INVALID_RESPONSE.name(), started);
             throw new ClinicalAiModelException(Reason.INVALID_RESPONSE, null, "模型流式方案解析失败", exception);
         } finally {
             deadline.shutdownNow();
@@ -417,7 +476,12 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
         });
         long started = System.nanoTime();
         java.util.concurrent.atomic.AtomicBoolean timedOut = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicBoolean firstVisibleTimedOut = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicBoolean firstVisible = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicReference<java.util.concurrent.ScheduledFuture<?>> firstVisibleDeadline =
+                new java.util.concurrent.atomic.AtomicReference<>();
         try {
+            beforeRequest(active);
             var response = httpClient.send(requestBuilder(request, active, true).build(), HttpResponse.BodyHandlers.ofInputStream());
             try (var input = response.body()) {
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -431,6 +495,13 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                     timedOut.set(true);
                     try { input.close(); } catch (IOException ignored) { }
                 }, Math.max(0, remaining), java.util.concurrent.TimeUnit.NANOSECONDS);
+                firstVisibleDeadline.set(deadline.schedule(() -> {
+                    if (firstVisible.compareAndSet(false, true)) {
+                        firstVisibleTimedOut.set(true);
+                        try { input.close(); } catch (IOException ignored) { }
+                    }
+                }, Math.max(0, Math.min(remaining, active.firstVisibleTimeout().toNanos())),
+                        java.util.concurrent.TimeUnit.NANOSECONDS));
                 var reader = new java.io.BufferedReader(new java.io.InputStreamReader(input, java.nio.charset.StandardCharsets.UTF_8));
                 StringBuilder content = new StringBuilder();
                 StringBuilder event = new StringBuilder();
@@ -455,30 +526,45 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                         if (!delta.isEmpty()) {
                             content.append(delta);
                             if (content.length() > 262144) throw new IllegalArgumentException("模型流式结果过大");
+                            recordFirstVisible(active, request.promptVersion(), "SUGGESTION", started, firstVisible);
+                            var firstDeadline = firstVisibleDeadline.get();
+                            if (firstDeadline != null) firstDeadline.cancel(false);
                             onDelta.accept(delta);
                         }
                         String reason = choice.path("finish_reason").asString("");
                         if (!reason.isBlank()) finishReason = reason;
                     }
                 }
+                if (firstVisibleTimedOut.get()) throw new ClinicalAiModelException(Reason.FIRST_VISIBLE_TIMEOUT, null,
+                        "模型流式首个可见内容超时", null);
                 if (timedOut.get()) throw new HttpTimeoutException("模型流式请求超时");
                 if ("length".equals(finishReason)) throw new ClinicalAiModelException(Reason.OUTPUT_LIMIT, null,
                         "模型输出被长度上限截断", null);
                 if (!done || !"stop".equals(finishReason)) throw new IllegalArgumentException("模型流式结果未完整结束");
                 SuggestionContent result = jsonCodec.read(content.toString(), SuggestionContent.class);
                 if (result == null) throw new IllegalArgumentException("模型返回空结果");
+                recordRequest(active, request.promptVersion(), "SUGGESTION", "SUCCESS", started);
                 return result;
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            recordRequest(active, request.promptVersion(), "SUGGESTION", Reason.INTERRUPTED.name(), started);
             throw new ClinicalAiModelException(Reason.INTERRUPTED, null, "模型请求被中断", exception);
         } catch (HttpTimeoutException exception) {
+            recordRequest(active, request.promptVersion(), "SUGGESTION", Reason.TIMEOUT.name(), started);
             throw new ClinicalAiModelException(Reason.TIMEOUT, null, "模型请求超时", exception);
         } catch (IOException exception) {
-            throw new ClinicalAiModelException(timedOut.get() ? Reason.TIMEOUT : Reason.CONNECTION, null,
+            Reason reason = firstVisibleTimedOut.get() ? Reason.FIRST_VISIBLE_TIMEOUT
+                    : timedOut.get() ? Reason.TIMEOUT : Reason.CONNECTION;
+            recordRequest(active, request.promptVersion(), "SUGGESTION", reason.name(), started);
+            throw new ClinicalAiModelException(reason, null,
                     "模型流式连接中断", exception);
         } catch (RuntimeException exception) {
-            if (exception instanceof ClinicalAiModelException modelException) throw modelException;
+            if (exception instanceof ClinicalAiModelException modelException) {
+                recordRequest(active, request.promptVersion(), "SUGGESTION", modelException.reason().name(), started);
+                throw modelException;
+            }
+            recordRequest(active, request.promptVersion(), "SUGGESTION", Reason.INVALID_RESPONSE.name(), started);
             throw new ClinicalAiModelException(Reason.INVALID_RESPONSE, null, "模型流式结果解析失败", exception);
         } finally {
             deadline.shutdownNow();
@@ -506,6 +592,37 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
         JsonNode value = usage.get(field);
         if (value != null && value.canConvertToLong()) {
             metrics.recordProviderTokens(active.provider(), active.model(), kind, value.asLong());
+        }
+    }
+
+    private void recordRequest(ClinicalAssistantSettings active, String promptVersion,
+                               String requestKind, String outcome, long started) {
+        if (circuitBreaker != null) {
+            if ("SUCCESS".equals(outcome)) {
+                circuitBreaker.recordSuccess(active.provider(), active.model());
+            } else {
+                try {
+                    circuitBreaker.recordFailure(active.provider(), active.model(), Reason.valueOf(outcome));
+                } catch (IllegalArgumentException ignored) {
+                    // Non-provider outcomes do not contribute to the circuit state.
+                }
+            }
+        }
+        if (metrics != null) {
+            metrics.recordProviderRequest(active.provider(), active.model(), promptVersion,
+                    requestKind, outcome, System.nanoTime() - started);
+        }
+    }
+
+    private void beforeRequest(ClinicalAssistantSettings active) {
+        if (circuitBreaker != null) circuitBreaker.beforeRequest(active.provider(), active.model());
+    }
+
+    private void recordFirstVisible(ClinicalAssistantSettings active, String promptVersion, String requestKind,
+                                    long started, java.util.concurrent.atomic.AtomicBoolean recorded) {
+        if (metrics != null && recorded.compareAndSet(false, true)) {
+            metrics.recordFirstVisibleContent(active.provider(), active.model(), promptVersion,
+                    requestKind, System.nanoTime() - started);
         }
     }
 
