@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
+import '../../styles/features/diagnostic-execution.css'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { AnnouncementCategory, AnnouncementDraft, AnnouncementPriority, AnnouncementScope,
   AnnouncementStatus, RhnApi, SystemAnnouncement } from '../../shared/rhnApi'

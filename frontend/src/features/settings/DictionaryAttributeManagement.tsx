@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import '../../styles/features/treatment-skintest.css'
 import { useSearchParams } from 'react-router-dom'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {

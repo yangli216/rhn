@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import '../../styles/features/treatment-skintest.css'
 import { useMemo, useState, type FormEvent } from 'react'
 import type { ClinicalContext } from '../../app/AppShell'
 import {

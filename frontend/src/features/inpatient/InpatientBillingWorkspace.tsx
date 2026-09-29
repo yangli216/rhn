@@ -1,4 +1,5 @@
 import type { ClinicalContext } from '../../app/AppShell'
+import '../../styles/features/inpatient.css'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, EmptyState, PageHeader } from '../../shared/ui'
 import { InpatientBillingPanel } from './InpatientBillingPanel'

@@ -104,14 +104,14 @@ export function CallingControlHub({
             </div>
           ) : currentServingPatient ? (
             <div className="calling-broadcast-indicator is-inservice">
-              <span className="status-dot tone-success" />
+              <span className="waiting-status-dot tone-success" />
               <span>
                 当前接诊：<strong>{currentServingPatient.ticketNo}</strong> {currentServingPatient.residentName}
               </span>
             </div>
           ) : (
             <div className="calling-broadcast-indicator is-idle">
-              <span className="status-dot tone-neutral" />
+              <span className="waiting-status-dot tone-neutral" />
               <span>诊室空闲，等待呼叫患者</span>
             </div>
           )}

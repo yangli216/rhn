@@ -1548,7 +1548,6 @@
 .master-data-form-grid .ui-field { margin: 0; }
 .master-data-form-grid--2 .span-2 { grid-column: 1 / -1; }
 .master-data-form-grid--3 .span-2, .master-data-form-grid--4 .span-2 { grid-column: span 2; }
-.master-data-field-hint { margin: calc(var(--space-2) * -1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .master-data-form-grid--3 .span-3, .master-data-form-grid--4 .span-4, .master-data-form-grid .span-full { grid-column: 1 / -1; }
 .master-data-select-field, .master-data-select-field .ui-select { min-width: 0; width: 100%; }
 .master-data-attribute-dialog { margin-top: var(--space-5); }
@@ -1958,12 +1957,11 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 .parameter-validation-empty strong, .parameter-validation-empty span { display: block; }
 .parameter-validation-empty strong { font-size: var(--font-size-small); }
 .parameter-validation-empty span { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: 0.75rem; }
-.parameter-toggle input { width: 1.125rem; height: 1.125rem; accent-color: var(--color-brand-primary); }
+.parameter-toggle input { width: 1.125rem; height: 1.125rem; flex: none; margin: 0.125rem 0 0; accent-color: var(--color-brand-primary); }
 .parameter-policy-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .parameter-policy-fields--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .parameter-toggle-grid { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
 .parameter-toggle { min-height: 4.5rem; padding: var(--space-3); display: flex; align-items: flex-start; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); cursor: pointer; }
-.parameter-toggle input { flex: none; margin: 0.125rem 0 0; }
 .parameter-toggle > span { min-width: 0; flex: 1; display: block; }
 .parameter-toggle strong, .parameter-toggle small { display: block; }
 .parameter-toggle strong { font-size: var(--font-size-small); white-space: nowrap; }

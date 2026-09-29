@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react'
+import '../../styles/features/inpatient.css'
 import type { ReceiptView, Settlement } from '../api/billingApi'
 import { Button, Dialog, StatusBadge } from '../ui'
 import { Icon } from '../ui/Icon'

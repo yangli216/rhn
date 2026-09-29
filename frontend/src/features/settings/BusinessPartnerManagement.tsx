@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import '../../styles/features/treatment-skintest.css'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Organization } from '../../shared/model'

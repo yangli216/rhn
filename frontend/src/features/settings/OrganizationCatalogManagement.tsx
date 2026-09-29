@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import '../../styles/features/operational-master-data.css'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Organization } from '../../shared/model'
 import {

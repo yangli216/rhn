@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import '../../styles/features/treatment-skintest.css'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { DICTIONARY_SYSTEM_ENUM, errorMessage, systemEnumItems,

@@ -414,14 +414,6 @@
 .action-danger { color: var(--color-danger) !important; }
 
 /* === 周排班矩阵工作台与详情抽屉样式 === */
-.schedule-matrix-panel {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  margin-bottom: var(--space-4);
-}
 .schedule-matrix-panel__head {
   padding: var(--space-3) var(--space-5);
   display: flex;
@@ -464,12 +456,6 @@
 }
 
 /* 矩阵网格容器与滚动 */
-.schedule-matrix-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-}
 .schedule-matrix {
   min-width: 78rem;
   display: flex;
@@ -504,9 +490,6 @@
   border-right: 1px solid var(--color-border);
   position: relative;
 }
-.schedule-matrix__day-header:last-child {
-  border-right: none;
-}
 .schedule-matrix__day-header.is-today {
   background: var(--color-brand-soft);
   color: var(--color-brand-primary);
@@ -537,9 +520,6 @@
   grid-template-columns: minmax(13rem, 1.2fr) repeat(7, minmax(8.5rem, 1fr));
   border-bottom: 1px solid var(--color-border);
 }
-.schedule-matrix__row:hover {
-  background: var(--color-surface-subtle);
-}
 .schedule-matrix__resource-cell {
   padding: var(--space-3) var(--space-4);
   border-right: 1px solid var(--color-border);
@@ -553,10 +533,6 @@
   font-size: var(--font-size-body);
   color: var(--color-text-primary);
 }
-.schedule-matrix__resource-cell small {
-  font-size: var(--font-size-tiny);
-  color: var(--color-text-secondary);
-}
 
 /* 单元格 */
 .schedule-matrix__cell {
@@ -568,12 +544,6 @@
   min-height: 7.5rem;
   background: var(--color-surface);
   position: relative;
-}
-.schedule-matrix__cell:last-child {
-  border-right: none;
-}
-.schedule-matrix__cell.is-today-cell {
-  background: var(--color-brand-soft);
 }
 
 /* 班次卡片 */

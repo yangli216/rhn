@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import '../../styles/features/operational-master-data.css'
+import '../../styles/features/treatment-skintest.css'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
   errorMessage, PARAMETER_SYSTEM_ENUM, systemEnumItems,

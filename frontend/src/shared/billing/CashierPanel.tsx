@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { PanelHead } from '../ui'
+import '../../styles/features/billing-settlement.css'
 
 export interface CashierPanelProps {
   title: string

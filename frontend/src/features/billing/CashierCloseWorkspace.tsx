@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../app/AppShell'
+import '../../styles/features/billing-settlement.css'
 import type { CashierClose } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'

@@ -210,17 +210,17 @@
   animation: pulse-ring 1.5s infinite;
 }
 
-.status-dot {
+.waiting-status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
 
-.status-dot.tone-success {
+.waiting-status-dot.tone-success {
   background: var(--color-success);
 }
 
-.status-dot.tone-neutral {
+.waiting-status-dot.tone-neutral {
   background: var(--color-text-secondary);
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
+import '../../styles/features/billing-settlement.css'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { RefundItemPreCheckView } from '../../shared/api/billingApi'
@@ -505,4 +506,3 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
     </div>}
   </>
 }
-

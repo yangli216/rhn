@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import '../../styles/features/outpatient-doctor.css'
 import { useEffect, useState, type FormEvent } from 'react'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { RhnApi } from '../../shared/rhnApi'
