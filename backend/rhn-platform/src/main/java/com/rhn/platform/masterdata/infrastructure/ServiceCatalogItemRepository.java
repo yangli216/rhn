@@ -36,6 +36,7 @@ public interface ServiceCatalogItemRepository extends JpaRepository<ServiceCatal
               and (:serviceType is null or :serviceType = '' or s.serviceType = :serviceType)
               and (:status is null or :status = '' or s.status = :status)
               and (:query is null or :query = '' or lower(s.code) like lower(concat(:query, '%'))
+                   or lower(s.name) like lower(concat('%', :query, '%'))
                    or lower(coalesce(s.serviceSubtype, '')) like lower(concat('%', :query, '%'))
                    or lower(coalesce(s.specimenType, '')) like lower(concat('%', :query, '%'))
                    or lower(coalesce(s.examinationType, '')) like lower(concat('%', :query, '%'))

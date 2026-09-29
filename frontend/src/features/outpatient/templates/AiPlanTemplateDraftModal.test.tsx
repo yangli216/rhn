@@ -51,10 +51,13 @@ describe('AiPlanTemplateDraftModal', () => {
       ],
     }))
     expect(await screen.findByRole('region', { name: '临床方案审核清单' })).toBeInTheDocument()
-    expect(screen.getByText('诊断与适用条件')).toBeInTheDocument()
+    expect(screen.getByText('诊断与评估')).toBeInTheDocument()
     expect(screen.getByText('检验检查')).toBeInTheDocument()
     expect(screen.getByText('急性上呼吸道感染 [J06.9]')).toBeInTheDocument()
-    expect(screen.getByText('结合症状核对')).toBeVisible()
+    const infoBtn = screen.getByRole('button', { name: '查看 急性上呼吸道感染 [J06.9] 依据' })
+    expect(infoBtn).toBeInTheDocument()
+    await user.hover(infoBtn)
+    expect(await screen.findByText('结合症状核对')).toBeInTheDocument()
     expect(screen.getByText('ICD-10 标准诊断')).toBeInTheDocument()
     expect(screen.queryByText('AI 建议')).not.toBeInTheDocument()
     expect(screen.queryByText('原文明确')).not.toBeInTheDocument()
@@ -295,5 +298,138 @@ describe('AiPlanTemplateDraftModal', () => {
     // 点击输入框使其失去焦点
     await user.click(inputArea)
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('supports in-place catalog search and alignment for unmatched medication tasks', async () => {
+    const compileDraftStream = vi.fn().mockResolvedValue({
+      scopeType: 'PERSONAL', name: '扁桃体炎方案', narrative: '用药建议。',
+      sourceType: 'AI_INPUT', reviewItems: [
+        { kind: 'MEDICATION', text: '阿莫西林胶囊', origin: 'SUGGESTED' },
+      ],
+    })
+    const convertDraft = vi.fn().mockResolvedValue({
+      scopeType: 'PERSONAL', name: '扁桃体炎方案',
+      diagnoses: [{ code: 'J03.9', display: '急性扁桃体炎，未特指', type: 'PRIMARY' }],
+      medications: [],
+      services: [],
+      tasks: [
+        { kind: 'MEDICATION', text: '阿莫西林胶囊', origin: 'SUGGESTED', status: 'UNMATCHED', details: '缺少在库唯一规格' },
+      ],
+    })
+    const searchMedicationProducts = vi.fn().mockResolvedValue({
+      content: [{
+        id: 'prod-001',
+        medicationId: 'med-001',
+        name: '阿莫西林胶囊 (哈药)',
+        preparationSpec: '0.25g*24粒',
+        doseUnit: '粒',
+        packageUnit: '盒',
+      }],
+      totalElements: 1,
+    })
+    const api = {
+      clinicalAi: { capabilities: vi.fn().mockResolvedValue({
+        mode: 'MODEL', available: true, model: 'qwen-test', features: ['PLAN_COMPILATION'],
+      }) },
+      outpatientPlanTemplates: { compileDraftStream, reviseDraftStream: vi.fn(), convertDraft },
+      masterData: { searchMedicationProducts },
+    } as unknown as RhnApi
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}>
+      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+    </QueryClientProvider>)
+
+    const user = userEvent.setup()
+    await user.type(screen.getByPlaceholderText(/请输入您的问题或描述症状/), '急性扁桃体炎')
+    await user.click(await screen.findByRole('button', { name: '发送' }))
+    await user.click(await screen.findByRole('button', { name: '确认方案并匹配院内目录' }))
+
+    // 检查用药卡片中显示待对齐状态
+    expect(await screen.findByText('未在库 / 待对齐')).toBeInTheDocument()
+    expect(screen.getByText('阿莫西林胶囊')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认存入方案池' })).toBeDisabled()
+
+    // 点击对齐在库药品
+    await user.click(screen.getByRole('button', { name: /对齐在库药品/ }))
+    expect(searchMedicationProducts).toHaveBeenCalledWith('阿莫西林胶囊', '', 'ACTIVE', '', 0, 8)
+
+    // 选用候选药品
+    const chooseBtn = await screen.findByRole('button', { name: '选用' })
+    await user.click(chooseBtn)
+
+    // 验证变为在库已对齐，保存按钮可用
+    expect(await screen.findByText('在库已对齐')).toBeInTheDocument()
+    expect(screen.getByText('阿莫西林胶囊 (哈药)')).toBeInTheDocument()
+    expect(screen.queryByText('未在库 / 待对齐')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认存入方案池' })).toBeEnabled()
+  })
+
+  it('directly displays education and follow-up guidance text in editable textarea without tooltip', async () => {
+    const compileDraftStream = vi.fn().mockResolvedValue({
+      scopeType: 'PERSONAL',
+      name: '小儿积食咳嗽方案',
+      narrative: '诊断与评估：小儿功能性消化不良；健康宣教：饮食清淡易消化。',
+      sourceType: 'AI_INPUT',
+      reviewItems: [
+        { kind: 'DIAGNOSIS', text: '小儿功能性消化不良 [K30]', origin: 'SUGGESTED' },
+        { kind: 'EDUCATION', text: '饮食调整指导', details: '清淡易消化饮食，避免生冷油腻' },
+        { kind: 'FOLLOW_UP', text: '病情监测与复诊', details: '3天后若症状未缓解请及时复诊' },
+      ],
+    })
+    const convertDraft = vi.fn().mockResolvedValue({
+      scopeType: 'PERSONAL',
+      name: '小儿积食咳嗽方案',
+      diagnoses: [{ code: 'K30', display: '小儿功能性消化不良', type: 'PRIMARY' }],
+      medications: [],
+      services: [],
+      tasks: [],
+    })
+    const api = {
+      clinicalAi: {
+        capabilities: vi.fn().mockResolvedValue({
+          mode: 'MODEL', available: true, model: 'qwen-test', features: ['PLAN_COMPILATION'],
+        }),
+      },
+      outpatientPlanTemplates: { compileDraftStream, reviseDraftStream: vi.fn(), convertDraft },
+    } as unknown as RhnApi
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}>
+      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+    </QueryClientProvider>)
+
+    const user = userEvent.setup()
+    await user.type(screen.getByPlaceholderText(/请输入您的问题或描述症状/), '小儿积食咳嗽')
+    await user.click(await screen.findByRole('button', { name: '发送' }))
+
+    // 验证方案待审阅状态，且没有全文修订Tab与适用条件独立胶囊
+    expect(await screen.findByText('方案待审阅')).toBeInTheDocument()
+    expect(screen.queryByText('全文修订')).not.toBeInTheDocument()
+    expect(screen.queryByText('适用条件')).not.toBeInTheDocument()
+
+    // 验证宣教与随访项目直接展示可编辑文本框，而不是隐藏在 ⓘ 图标中
+    expect(screen.getByText('宣教与随访')).toBeInTheDocument()
+    expect(screen.getByText('饮食调整指导')).toBeInTheDocument()
+    expect(screen.getByText('病情监测与复诊')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '查看 饮食调整指导 依据' })).not.toBeInTheDocument()
+
+    const educationInput = screen.getByRole('textbox', { name: '饮食调整指导内容' })
+    expect(educationInput).toHaveValue('清淡易消化饮食，避免生冷油腻')
+
+    // 医生可以直接编辑宣教内容
+    await user.clear(educationInput)
+    await user.type(educationInput, '清淡饮食，少量多餐')
+    expect(educationInput).toHaveValue('清淡饮食，少量多餐')
+
+    // 进入系统方案核对
+    await user.click(screen.getByRole('button', { name: '确认方案并匹配院内目录' }))
+    expect(convertDraft).toHaveBeenCalledWith(
+      '小儿积食咳嗽',
+      expect.any(String),
+      '小儿积食咳嗽方案',
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'EDUCATION', details: '清淡饮食，少量多餐' }),
+      ]),
+      'PERSONAL',
+    )
   })
 })

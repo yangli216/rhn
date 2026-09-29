@@ -40,4 +40,5 @@ public class MedicationStandardSource {
     public String entryCode() { return entryCode; }
     public String specificationCode() { return specificationCode; }
     public String sourceHash() { return sourceHash; }
+    public String bindingClaim() { return bindingClaim; }
 }

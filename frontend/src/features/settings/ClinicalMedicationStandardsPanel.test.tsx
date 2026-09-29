@@ -20,7 +20,7 @@ it('shows structural frequency identities while keeping PRN without a daily rate
     summary: {totalActive: 0, referenceStatuses: {LINKED: 0}, sourceUnverified: 0, conversionUnavailable: 0}, content: [], totalElements: 0, totalPages: 0 })
   const references = vi.fn().mockResolvedValue({ scope: { status: 'ACTIVE' }, totals: {}, coverage: [], limitations: [], content: [], totalElements: 0, totalPages: 0, historicalCount: 0, potentialCount: 0, inspectedAt: '2026-09-21T00:00:00Z' })
   render(<QueryClientProvider client={client}><ClinicalMedicationStandardsPanel api={{ masterData: { clinicalMedicationStandards, medicationStandardReadiness }, clinicalSemanticImpact: { references } } as unknown as RhnApi} /></QueryClientProvider>)
-  expect(await screen.findByText('药品标准建设情况')).toBeInTheDocument()
+  expect(await screen.findByText('药品主档标准关联情况')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('tab', { name: /用药规则/ }))
   await screen.findByText('TIMES_PER_DAY:2/1:DAY')
   expect(screen.getByText('2 次 / 1 天')).toBeInTheDocument()
@@ -66,7 +66,7 @@ it('allows switching seamlessly between readiness and clinical rules views', asy
     </QueryClientProvider>
   )
 
-  expect(await screen.findByText('药品标准建设情况')).toBeInTheDocument()
+  expect(await screen.findByText('药品主档标准关联情况')).toBeInTheDocument()
   expect(await screen.findByText('全量统计，筛选不改变分母')).toBeInTheDocument()
   expect(screen.queryByText('频次标准 (1)')).not.toBeInTheDocument()
 
@@ -78,8 +78,7 @@ it('allows switching seamlessly between readiness and clinical rules views', asy
   expect(screen.queryByText('全量统计，筛选不改变分母')).not.toBeInTheDocument()
 
   // 切回药品标准建设
-  await userEvent.click(screen.getByRole('tab', { name: /标准对齐/ }))
-  expect(await screen.findByText('药品标准建设情况')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('tab', { name: /主档标准关联/ }))
+  expect(await screen.findByText('药品主档标准关联情况')).toBeInTheDocument()
   expect(await screen.findByText('全量统计，筛选不改变分母')).toBeInTheDocument()
 })
-

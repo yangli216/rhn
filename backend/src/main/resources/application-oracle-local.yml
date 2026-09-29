@@ -39,6 +39,9 @@ rhn:
     secret-encryption-key-id: ${RHN_SECRET_ENCRYPTION_KEY_ID:oracle-local-development}
   presence:
     store: ${RHN_PRESENCE_STORE:memory}
+  search:
+    projection:
+      rebuild-on-startup: ${RHN_SEARCH_REBUILD_ON_STARTUP:false}
 
 springdoc:
   api-docs:

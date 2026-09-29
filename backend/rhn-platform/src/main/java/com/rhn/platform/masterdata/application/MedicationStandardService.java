@@ -7,6 +7,7 @@ import com.rhn.platform.masterdata.domain.Medication;
 import com.rhn.platform.masterdata.infrastructure.MedicationStandardSourceRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
 import tools.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.List;
@@ -98,9 +99,13 @@ public class MedicationStandardService {
             requireCurrent(links.getFirst());
             return;
         }
-        sources.saveAndFlush(new MedicationStandardSource(tenant, medicationId, summary.path("catalogId").asString(),
-                summary.path("catalogVersion").asString(), spec.path("entryId").asString(), specificationId,
-                summary.path("contentHash").asString(), actor, existingLocalRecord));
+        try {
+            sources.saveAndFlush(new MedicationStandardSource(tenant, medicationId, summary.path("catalogId").asString(),
+                    summary.path("catalogVersion").asString(), spec.path("entryId").asString(), specificationId,
+                    summary.path("contentHash").asString(), actor, existingLocalRecord));
+        } catch (DataIntegrityViolationException concurrent) {
+            throw conflict("STANDARD_MEDICATION_REUSE_REQUIRED", "标准规格已有药品档案，请刷新并复用已有档案");
+        }
     }
 
     public MedicationStandardReference reference(Long tenant, Long medicationId) {

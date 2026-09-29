@@ -65,7 +65,7 @@ export function ClinicalMedicationStandardsPanel({
               items={[
                 {
                   value: 'readiness',
-                  label: '标准对齐',
+                  label: '主档标准关联',
                 },
                 {
                   value: 'rules',

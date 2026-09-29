@@ -21,6 +21,30 @@ class OutpatientPlanTemplateTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbcTemplate;
 
     @Test
+    void plan_can_link_a_visible_note_template_as_a_combined_clinical_solution() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        JsonNode note = json(mockMvc.perform(post("/api/outpatient/note-templates").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"scopeType":"DEPARTMENT","name":"上感病历-%s",
+                                 "content":{"chiefComplaint":"发热、咳嗽","presentIllness":"起病经过："}}
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        JsonNode plan = json(mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"scopeType":"DEPARTMENT","name":"上感整体方案-%s","noteTemplateId":"%s",
+                                 "diagnoses":[{"code":"J06.9","display":"急性上呼吸道感染","type":"PRIMARY"}]}
+                                """.formatted(suffix, note.get("id").asText())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.noteTemplateId").value(note.get("id").asLong()))
+                .andReturn().getResponse().getContentAsString());
+
+        assertEquals(note.get("id").asLong(), jdbcTemplate.queryForObject(
+                "select ID_OP_NOTE_TMPL from RHN_META_OP_PLAN_TMPL where ID_OP_PLAN_TMPL=?",
+                Long.class, plan.get("id").asLong()));
+    }
+
+    @Test
     void personal_and_department_templates_are_structured_reusable_and_soft_disabled() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String name = "高血压复诊-" + suffix;

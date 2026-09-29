@@ -224,7 +224,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
   </>
 
   const headerMeta = scope === 'medication'
-    ? { eyebrow: '药品知识库与标准体系', title: '药品知识与目录', description: '统一维护国家参考目录追溯、全院在用药品标准对齐、临床通用知识与生产企业包装主档。' }
+    ? { eyebrow: '药品知识库与标准体系', title: '药品知识与目录', description: '统一维护国家参考目录追溯、全院在用药品主档标准关联、临床通用知识与生产企业包装主档。' }
     : scope === 'service'
       ? { eyebrow: '诊疗服务主档', title: '诊疗服务目录', description: '统一维护集团/区域共享的诊疗服务目录主档与开立收费标准；本院开展与定价请至「机构项目管理」维护。' }
       : scope === 'disease'
@@ -266,7 +266,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
       {tab === 'medication' && <Tabs value={medicationMode === 'semantics' ? 'readiness' : medicationMode} onChange={setMedicationMode} label="药品目录视图"
         variant="line" className="medication-management-mode" actions={scope !== 'all' ? pageActions : undefined} items={[
           { value: 'standard', label: '标准目录' },
-          { value: 'readiness', label: '标准对齐' },
+          { value: 'readiness', label: '主档标准关联' },
           { value: 'knowledge', label: '药品主档' },
           { value: 'product', label: '产品包装' },
           { value: 'rules', label: '用药规则' },
@@ -347,12 +347,16 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
       )}
       {tab === 'medication' && medicationMode === 'standard' && (
         <Suspense fallback={<LoadingState label="正在加载标准药品目录…" />}>
-          <StandardMedicationCatalogPanel api={api}
+          <StandardMedicationCatalogPanel api={api} organizationId={organization.id}
             setupDisabled={!dictionaries.data || manufacturers.isPending || frequencies.isPending || routes.isPending}
             onSetup={(entry, spec) => setDialog(<StandardMedicationSetupDialog key={spec.id} api={api}
               entry={entry} spec={spec} organization={organization} dictionaries={dictionaries.data!}
               manufacturers={manufacturers.data ?? []} frequencies={frequencies.data ?? []} routes={routes.data ?? []}
-              onClose={() => { setDialog(undefined); void queryClient.invalidateQueries({queryKey:['master-data-medications']}) }}
+              onClose={() => {
+                setDialog(undefined)
+                void queryClient.invalidateQueries({queryKey:['master-data-medications']})
+                void queryClient.invalidateQueries({queryKey:['standard-medication-usage']})
+              }}
               onComplete={async (medication) => {
                 setQuery(medication.code); setTypeFilter(''); setStatusFilter(''); setMedicationMode('product')
                 await invalidate('药品来源、厂家产品、包装和本院价格已建档，请到药库调入经营目录')

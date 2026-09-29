@@ -12,7 +12,9 @@ import { draftToBatchItem, persistOrderDrafts } from './orders/persistOrderDraft
 export { createRecordSchema, diagnosisDraftSignature, moveDiagnosis, normalizeDiagnosisOrder,
   structuredFormSignature, validateStructuredForm } from './record/clinicalRecordDraft'
 export { draftToBatchItem, persistOrderDrafts } from './orders/persistOrderDrafts'
-import { OrderDocumentSummary, orderDocuments, documentMissing } from './OrderDocuments'
+import { OrderDocumentSummary, orderDocuments } from './OrderDocuments'
+import { buildDefaultDocumentInfo, getPrimaryDiagnosis } from './orders/orderDocumentDefaults'
+import { OrderDocumentReviewCard } from './orders/OrderDocumentReviewCard'
 import type { ClinicalAiFieldStream } from '../../shared/api/clinicalAiStream'
 import { HistoryPrescriptionReference } from './ai/HistoryPrescriptionReference'
 import { isAbnormalObservation } from './ai/receptionSceneAssessment'
@@ -31,7 +33,7 @@ import type {
 } from '../../shared/api/outpatientReferralsApi'
 import type {
   ClinicalRecordInput, CompleteEncounterInput, DiagnosisInput,
-  MedicationRequest, MedicationSafetyDecision, MedicationSafetyFinding, Prescription, ServiceRequest, SplitPrescriptionPlan,
+  MedicationRequest, MedicationSafetyDecision, MedicationSafetyFinding, OrderDocumentInfo, Prescription, ServiceRequest, SplitPrescriptionPlan,
 } from '../../shared/api/encountersApi'
 import type { TerminateEncounterInput } from '../../shared/api/outpatientFlowApi'
 import type { OutpatientPlanTemplate, MinedPlanSuggestion, HistoricalStablePlan } from '../../shared/api/outpatientPlanTemplatesApi'
@@ -1976,6 +1978,7 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
   const [overwriteNoteFields, setOverwriteNoteFields] = useState(false)
   const [selectedMinedKey, setSelectedMinedKey] = useState('')
   const [pendingTemplateToApply, setPendingTemplateToApply] = useState<OutpatientPlanTemplate | null>(null)
+  const [includeLinkedNoteTemplate, setIncludeLinkedNoteTemplate] = useState(false)
   const [notice, setNotice] = useState('')
 
   // 标准方案明细勾选状态
@@ -2057,6 +2060,9 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
 
   const selectedNote = useMemo(() => filteredNoteTemplates.find((value) => value.id === selectedNoteId)
     || filteredNoteTemplates[0] || null, [filteredNoteTemplates, selectedNoteId])
+  const selectedLinkedNoteTemplate = useMemo(() => selected?.noteTemplateId
+    ? noteTemplates.data?.find((value) => value.id === selected.noteTemplateId) || null
+    : null, [noteTemplates.data, selected?.noteTemplateId])
 
   useEffect(() => {
     if (templateKind !== 'ALL') return
@@ -2091,10 +2097,12 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
       setCheckedDiagnosisCodes(new Set(selected.diagnoses.map((d) => d.code)))
       setCheckedMedicationKeys(new Set(selected.medications.map((m, idx) => m.lineId || `${m.medicationId}-${idx}`)))
       setCheckedServiceKeys(new Set(selected.services.map((s, idx) => `${s.catalogItemId || s.itemCode || ''}-${idx}`)))
+      setIncludeLinkedNoteTemplate(Boolean(selected.noteTemplateId))
     } else {
       setCheckedDiagnosisCodes(new Set())
       setCheckedMedicationKeys(new Set())
       setCheckedServiceKeys(new Set())
+      setIncludeLinkedNoteTemplate(false)
     }
   }, [selected?.id])
 
@@ -2156,13 +2164,23 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
   }, [historicalComparisonQuery.data])
 
   const apply = useMutation({
-    mutationFn: (value: OutpatientPlanTemplate) => api.outpatientPlanTemplates.use(value.id),
-    onSuccess: (value) => {
-      const target = pendingTemplateToApply || value
+    mutationFn: async (value: OutpatientPlanTemplate) => {
+      const plan = await api.outpatientPlanTemplates.use(value.id)
+      const linked = includeLinkedNoteTemplate && value.noteTemplateId
+        ? noteTemplates.data?.find((item) => item.id === value.noteTemplateId) : undefined
+      const note = linked ? await api.outpatientNoteTemplates.use(linked.id) : undefined
+      return { plan, note }
+    },
+    onSuccess: ({ plan, note }) => {
+      const target = pendingTemplateToApply || plan
       stageTemplate(target, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
         serviceDrafts, setServiceDrafts)
+      if (note) {
+        onApplyNoteTemplate(note, new Set(noteTemplateFields
+          .filter(({ key }) => Boolean(note.content[key]?.trim())).map(({ key }) => key)), false)
+      }
       setPendingTemplateToApply(null)
-      const msg = `已带入“${value.name}”，新增内容仍是草稿，请核对后保存病历和开立医嘱。`
+      const msg = `已带入“${plan.name}”${note ? `及配套病历模板“${note.name}”` : ''}，新增内容仍是草稿，请核对后保存病历和开立医嘱。`
       setNotice(msg)
       onNotice?.(msg)
       void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
@@ -2248,6 +2266,7 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
 
   // 勾选计数与调入处理
   const totalCheckedStandard = checkedDiagnosisCodes.size + checkedMedicationKeys.size + checkedServiceKeys.size
+    + (includeLinkedNoteTemplate && selectedLinkedNoteTemplate ? 1 : 0)
 
   const handleApplyStandard = () => {
     if (!selected) return
@@ -2480,6 +2499,7 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       <div className="doctor-plan-item-card__title">{item.name}</div>
                       <div className="doctor-plan-item-card__desc">{item.description || item.name}</div>
                       <div className="doctor-plan-item-card__meta">
+                        {item.noteTemplateId && <><span>病历 1</span><span>·</span></>}
                         <span>诊断 {item.diagnoses.length}</span><span>·</span>
                         <span>药品 {item.medications.length}</span><span>·</span>
                         <span>诊疗 {item.services.length}</span>
@@ -2576,6 +2596,7 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       )}
                       <div className="doctor-plan-item-card__desc">{item.description || item.name}</div>
                       <div className="doctor-plan-item-card__meta">
+                        {item.noteTemplateId && <><span>病历 1</span><span>·</span></>}
                         <span>诊断 {item.diagnoses.length}</span>
                         <span>·</span>
                         <span>药品 {item.medications.length}</span>
@@ -3047,6 +3068,21 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                     )}
                   </div>
 
+                  {selected.noteTemplateId && <div className="doctor-plan-detail-section">
+                    <div className="doctor-plan-detail-section__title">配套病历模板</div>
+                    <label className="doctor-note-template-mode">
+                      <input type="checkbox" checked={includeLinkedNoteTemplate}
+                        disabled={!selectedLinkedNoteTemplate || apply.isPending}
+                        onChange={(event) => setIncludeLinkedNoteTemplate(event.target.checked)} />
+                      <span>
+                        <strong>{selectedLinkedNoteTemplate?.name || '关联的病历模板当前不可用'}</strong>
+                        <small>{selectedLinkedNoteTemplate
+                          ? `整体带入 ${noteTemplateFields.filter(({ key }) => selectedLinkedNoteTemplate.content[key]?.trim()).map(({ label }) => label).join('、')}`
+                          : '可能已停用或超出当前科室可见范围；诊断和医嘱仍可单独带入。'}</small>
+                      </span>
+                    </label>
+                  </div>}
+
                   {!!selected.tasks?.length && <div className="doctor-plan-detail-section">
                     <div className="doctor-plan-detail-section__title">诊疗任务与原文依据 ({selected.tasks.length})</div>
                     {selected.tasks.map((task, index) => <div key={`${task.kind}-${index}`} className="ai-plan-modal-row ai-plan-modal-row-bordered">
@@ -3374,6 +3410,17 @@ function medicationSafetyReviewKey(reviews: MedicationSafetyDecision[]) {
   })))
 }
 
+function prescriptionReviewTitle(categoryCode: string, index: number) {
+  const prefix = categoryCode === 'HERBAL' ? '草' : categoryCode === 'CHINESE_PATENT' ? '成' : '西'
+  return `${prefix}${index}`
+}
+
+function serviceReviewTitle(serviceType: ServiceRequest['serviceType'], index: number) {
+  const prefix = serviceType === 'LABORATORY' ? '检' : serviceType === 'EXAMINATION' ? '查'
+    : serviceType === 'TREATMENT' ? '治' : '处'
+  return `${prefix}${index}`
+}
+
 function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicationDrafts,
   serviceDrafts, setServiceDrafts, editing, onBusyChange, aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange,
   aiSuggestionSurfaceRef, currentDepartmentName }: {
@@ -3394,19 +3441,24 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   const [reviewOpen, setReviewOpen] = useState(false)
   const [documentKey, setDocumentKey] = useState<string | null>(null)
   const [documentDirty, setDocumentDirty] = useState(false)
-  const documentNavigation = useRef<((key: string | null) => void) | null>(null)
+  const [reviewDocumentInfos, setReviewDocumentInfos] = useState<Record<string, OrderDocumentInfo>>({})
   const documentReturnFocus = useRef<HTMLElement | null>(null)
   const openDocument = (key: string) => {
-    if (documentNavigation.current) { documentNavigation.current(key); return }
-    if (!documentReturnFocus.current) documentReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     setDocumentKey(key)
+    setReviewOpen(true)
   }
 
   const [safetyReviews, setSafetyReviews] = useState<MedicationSafetyDecision[]>([])
   const [safetyReasons, setSafetyReasons] = useState<Record<string, string>>({})
   const [safetyReviewNotice, setSafetyReviewNotice] = useState('')
+  const safetyPreviewKey = useRef('')
   useEffect(() => {
-    if (!reviewOpen) { setSafetyReasons({}); setSafetyReviewNotice('') }
+    if (!reviewOpen) {
+      setSafetyReasons({})
+      setSafetyReviewNotice('')
+      setReviewDocumentInfos({})
+      safetyPreviewKey.current = ''
+    }
   }, [reviewOpen])
   const [ordersHovered, setOrdersHovered] = useState(false)
   const [printPrescription, setPrintPrescription] = useState<Prescription | null>(null)
@@ -3416,10 +3468,22 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
     setSafetyReviews([])
     setDocumentKey(null)
     setDocumentDirty(false)
+    setReviewDocumentInfos({})
   }, [encounter.id])
   const prescriptions = useQuery({ queryKey: ['doctor-prescriptions', encounter.id], queryFn: () => api.encounters.prescriptions(encounter.id) })
   const services = useQuery({ queryKey: ['doctor-services', encounter.id], queryFn: () => api.encounters.serviceRequests(encounter.id) })
   const medications = useQuery({ queryKey: ['doctor-medications', encounter.id], queryFn: () => api.encounters.medicationRequests(encounter.id) })
+  const frequencies = useQuery({
+    queryKey: ['outpatient-order-frequencies', encounter.organizationId, encounter.departmentId],
+    queryFn: () => api.masterData.activeOrderFrequencies(
+      encounter.organizationId, encounter.departmentId, 'OUTPATIENT', 'MEDICATION'),
+    staleTime: 5 * 60 * 1000,
+  })
+  const routes = useQuery({
+    queryKey: ['outpatient-medication-routes'],
+    queryFn: () => api.masterData.activeMedicationRoutes('OUTPATIENT'),
+    staleTime: 5 * 60 * 1000,
+  })
   const treatmentKeys = [
     ...medicationDrafts.map((item) => `MEDICATION:${item.request.catalogItemId}`),
     ...serviceDrafts.map((item) => `${item.serviceType}:${item.catalogItemId}`),
@@ -3464,12 +3528,49 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   })
   const confirmPlan = useMutation({
     mutationFn: async ({ acknowledged }: { acknowledged: boolean }) => {
+      const defaultPrescriptionInfo = buildDefaultDocumentInfo(encounter, 'prescription')
+      const defaultServiceInfo = buildDefaultDocumentInfo(encounter, 'service')
+      const existingPrescriptionIds = new Set((prescriptions.data ?? []).map((value) => value.id))
+      const existingServiceIds = new Set((services.data ?? []).map((value) => value.id))
+
       if (medicationDrafts.length > 0 || serviceDrafts.length > 0) {
         await persistOrderDrafts(encounter.id, medicationDrafts, serviceDrafts, api, [], false)
         setMedicationDrafts([])
         setServiceDrafts([])
         await refresh()
       }
+
+      const [latestPrescriptions, latestServices] = await Promise.all([
+        api.encounters.prescriptions(encounter.id).catch(() => []),
+        api.encounters.serviceRequests(encounter.id).catch(() => []),
+      ])
+
+      const draftPrescriptions = latestPrescriptions.filter((p) => p.status === 'DRAFT')
+      const newPrescriptionIndexes = new Map(draftPrescriptions
+        .filter((prescription) => !existingPrescriptionIds.has(prescription.id))
+        .map((prescription, index) => [prescription.id, index]))
+      for (const rx of draftPrescriptions) {
+        const previewIndex = newPrescriptionIndexes.get(rx.id)
+        const customInfo = reviewDocumentInfos[`prescription:${rx.id}`]
+          || (previewIndex === undefined ? undefined : reviewDocumentInfos[`preview-plan-${previewIndex}`])
+          || reviewDocumentInfos[rx.categoryCode]
+        const targetInfo = customInfo || (rx.documentInfo?.diagnoses?.length ? rx.documentInfo : defaultPrescriptionInfo)
+        if (targetInfo && JSON.stringify(targetInfo) !== JSON.stringify(rx.documentInfo)) {
+          await api.encounters.updatePrescriptionDocumentInfo(encounter.id, rx.id, rx.revision, targetInfo)
+        }
+      }
+
+      const activeServices = latestServices.filter((s) => s.status === 'ACTIVE' && s.documentInfoEditable !== false)
+      for (let sIdx = 0; sIdx < activeServices.length; sIdx++) {
+        const svc = activeServices[sIdx]
+        const customInfo = reviewDocumentInfos[`service:${svc.id}`]
+          || (!existingServiceIds.has(svc.id) ? reviewDocumentInfos[`draft-service:${svc.catalogItemId}`] : undefined)
+        const targetInfo = customInfo || (svc.documentInfo?.diagnoses?.length ? svc.documentInfo : defaultServiceInfo)
+        if (targetInfo && JSON.stringify(targetInfo) !== JSON.stringify(svc.documentInfo)) {
+          await api.encounters.updateServiceDocumentInfo(encounter.id, svc.id, svc.revision, targetInfo)
+        }
+      }
+
       const latest = await api.encounters.prescriptions(encounter.id)
       const draftsToSubmit = latest.filter((value) => value.status === 'DRAFT'
         && value.medicationRequests.some((request) => request.status === 'DRAFT'))
@@ -3508,9 +3609,63 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
       }
       setSafetyReviews([])
       setReviewOpen(false)
+      setReviewDocumentInfos({})
       await refresh()
     },
   })
+
+  const saveOnlyDocumentInfos = useMutation({
+    mutationFn: async () => {
+      const allDocs = orderDocuments(prescriptions.data ?? [], services.data ?? [])
+      for (const doc of allDocs) {
+        const customInfo = reviewDocumentInfos[doc.key]
+        if (customInfo && JSON.stringify(customInfo) !== JSON.stringify(doc.value.documentInfo)) {
+          if (doc.kind === 'prescription') {
+            await api.encounters.updatePrescriptionDocumentInfo(encounter.id, doc.value.id, doc.value.revision, customInfo)
+          } else {
+            await api.encounters.updateServiceDocumentInfo(encounter.id, doc.value.id, doc.value.revision, customInfo)
+          }
+        }
+      }
+    },
+    onSuccess: async () => {
+      setReviewOpen(false)
+      setReviewDocumentInfos({})
+      await refresh()
+    },
+  })
+
+  const previewSafetyReview = useMutation({
+    mutationFn: async (drafts: Prescription[]) => Promise.all(drafts.map((prescription) =>
+      api.encounters.evaluatePrescriptionSafety(encounter.id, prescription.id))),
+    onSuccess: (evaluations) => {
+      setSafetyReviews(evaluations.filter(needsMedicationSafetyAcknowledgement))
+      setSafetyReasons({})
+      setSafetyReviewNotice('')
+    },
+  })
+
+  const applyAllPrimaryDiagnosis = () => {
+    const primary = getPrimaryDiagnosis(encounter)
+    if (!primary) return
+    const primaryLink = [{ code: primary.code, display: primary.display, primary: true }]
+    setReviewDocumentInfos((curr) => {
+      const next = { ...curr }
+      const allDocs = orderDocuments(prescriptions.data ?? [], services.data ?? [])
+      allDocs.forEach((doc) => {
+        next[doc.key] = { ...(next[doc.key] || doc.value.documentInfo || buildDefaultDocumentInfo(encounter, doc.kind)), diagnoses: primaryLink }
+      })
+      ;(splitPreview.data ?? []).forEach((_, idx) => {
+        next[`preview-plan-${idx}`] = { ...(next[`preview-plan-${idx}`] || buildDefaultDocumentInfo(encounter, 'prescription')), diagnoses: primaryLink }
+      })
+      serviceDrafts.forEach((service) => {
+        const key = `draft-service:${service.catalogItemId}`
+        next[key] = { ...(next[key] || buildDefaultDocumentInfo(encounter, 'service',
+          service.clinicalDescription)), diagnoses: primaryLink }
+      })
+      return next
+    })
+  }
   useEffect(() => onBusyChange(confirmPlan.isPending || saveDraftOrders.isPending || documentDirty), [confirmPlan.isPending, saveDraftOrders.isPending, documentDirty, onBusyChange])
   const persistedDraftCount = (prescriptions.data ?? []).reduce((sum, value) => sum
     + (value.status === 'DRAFT' ? value.medicationRequests.filter((request) => request.status === 'DRAFT').length : 0), 0)
@@ -3525,10 +3680,32 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   const safetyReasonMissing = safetyReviews.some((review) => medicationSafetyNeedsReason(review)
     && !safetyReasons[review.prescriptionId]?.trim())
   const documents = orderDocuments(prescriptions.data ?? [], services.data ?? [])
-  const incompleteDocuments = documents.filter(doc => documentMissing(doc).length > 0)
+  const persistedServiceDocuments = documents.filter((document) => document.kind === 'service')
+  const persistedDraftPrescriptions = (prescriptions.data ?? []).filter((prescription) => prescription.status === 'DRAFT'
+    && prescription.medicationRequests.some((request) => request.status === 'DRAFT'))
+  const persistedDraftSignature = persistedDraftPrescriptions
+    .map((prescription) => `${prescription.id}:${prescription.revision}`).join('|')
+  useEffect(() => {
+    if (!reviewOpen || !persistedDraftSignature || safetyPreviewKey.current === persistedDraftSignature) return
+    safetyPreviewKey.current = persistedDraftSignature
+    previewSafetyReview.mutate(persistedDraftPrescriptions)
+  }, [reviewOpen, persistedDraftSignature])
+  const previewPrescriptionDocumentCount = medicationDrafts.length > 0
+    ? (splitPreview.data?.length ?? splitSummary.reduce((sum, item) => sum + item.prescriptionCount, 0)) : 0
+  const pendingPrescriptionDocumentCount = previewPrescriptionDocumentCount + persistedDraftPrescriptions.length
+  const reviewDocumentCount = planCount === 0 ? documents.length
+    : pendingPrescriptionDocumentCount + serviceDrafts.length + persistedServiceDocuments.length
+  const reviewItemCount = planCount === 0
+    ? documents.reduce((sum, document) => sum + document.items.length, 0)
+    : medicationDrafts.length + persistedDraftCount + serviceDrafts.length
+      + persistedServiceDocuments.reduce((sum, document) => sum + document.items.length, 0)
   const documentRows = Object.fromEntries(documents.flatMap(doc => doc.items.map(item => [item.id, {
     key: doc.key, label: doc.shortLabel, selected: doc.key === documentKey,
   }])))
+  const routeDisplay = (code?: string, fallback?: string) => fallback
+    || routes.data?.find((route) => route.code === code)?.name || code || '—'
+  const frequencyDisplay = (code?: string, fallback?: string) => fallback
+    || frequencies.data?.find((frequency) => frequency.code === code)?.name || code || '—'
 
   return <Panel className={`doctor-orders-panel ${!hasAnyOrders ? 'is-empty' : ''} ${ordersHovered ? 'is-hovered' : ''}`}
     onFocusCapture={(event) => {
@@ -3563,43 +3740,37 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
           onCancelService={(item) => cancelService.mutate(item)}
           onPrint={setPrintPrescription} onPrintService={setPrintServiceRequest} />}
     </div>
-    {reviewOpen && <Dialog title="审核诊疗方案" eyebrow="本次就诊" size="wide" closeOnBackdrop={false}
-      onClose={() => { if (!confirmPlan.isPending) { setReviewOpen(false); setSafetyReviews([]) } }}
-      footer={<><Button variant="secondary" disabled={confirmPlan.isPending}
-        onClick={() => { setReviewOpen(false); setSafetyReviews([]) }}>返回修改</Button>
-        <Button busy={confirmPlan.isPending} disabled={saveDraftOrders.isPending || safetyBlocked || safetyReasonMissing
-          || (planCount === 0 && safetyReviews.length === 0)}
-          onClick={() => confirmPlan.mutate({ acknowledged: safetyReviews.length > 0 })}>
-          {safetyBlocked ? '当前处方不可开立' : safetyReviews.length > 0 ? '已知晓风险，继续开立' : '确认保存并开立'}
-        </Button></>}>
+    {reviewOpen && <Dialog title="医嘱开立核查" size="xwide" closeOnBackdrop={false}
+      onClose={() => { if (!confirmPlan.isPending && !saveOnlyDocumentInfos.isPending) { setReviewOpen(false); setSafetyReviews([]); setReviewDocumentInfos({}) } }}
+      footer={<>
+        <Button variant="secondary" disabled={confirmPlan.isPending || saveOnlyDocumentInfos.isPending}
+          onClick={() => { setReviewOpen(false); setSafetyReviews([]); setReviewDocumentInfos({}) }}>
+          {planCount > 0 ? '返回修改' : '关闭'}
+        </Button>
+        {planCount > 0 ? (
+          <Button busy={confirmPlan.isPending} disabled={saveDraftOrders.isPending || previewSafetyReview.isPending
+            || safetyBlocked || safetyReasonMissing
+            || (planCount === 0 && safetyReviews.length === 0)}
+            onClick={() => confirmPlan.mutate({ acknowledged: safetyReviews.length > 0 })}>
+            {safetyBlocked ? '当前处方不可开立' : safetyReviews.length > 0 ? '已知晓风险，继续开立' : '确认保存并开立'}
+          </Button>
+        ) : (
+          <Button busy={saveOnlyDocumentInfos.isPending} disabled={saveOnlyDocumentInfos.isPending || Object.keys(reviewDocumentInfos).length === 0}
+            onClick={() => saveOnlyDocumentInfos.mutate()}>
+            保存分单属性
+          </Button>
+        )}
+      </>}>
       <div className="doctor-split-review-container">
-        {(medicationDrafts.length > 0 || serviceDrafts.length > 0) && <section className="doctor-document-review">
-          <strong>新医嘱将在保存后生成单据</strong>
-          <p>需要指定关联诊断、外配、特病或检查目的时，可先保存分单再完善。</p>
-          <Button size="sm" variant="secondary" busy={saveDraftOrders.isPending} disabled={confirmPlan.isPending}
-            onClick={async () => {
-              try {
-                await saveDraftOrders.mutateAsync()
-                const latest = orderDocuments(queryClient.getQueryData<Prescription[]>(['doctor-prescriptions', encounter.id]) ?? [],
-                  queryClient.getQueryData<ServiceRequest[]>(['doctor-services', encounter.id]) ?? [])
-                setReviewOpen(false)
-                const target = latest.find(doc => documentMissing(doc).length > 0) || latest[0]
-                if (target) openDocument(target.key)
-              } catch { /* The mutation error is shown in this review. */ }
-            }}>保存分单并完善</Button>
-          {saveDraftOrders.error && <Alert>{errorMessage(saveDraftOrders.error)}</Alert>}
-        </section>}
-        {incompleteDocuments.length > 0 && <section className="doctor-document-review" aria-label="单据信息核对">
-          <strong>单据信息待完善</strong>
-          <p>请核对关联诊断和检查目的；外配、特病仅在适用时填写。</p>
-          {incompleteDocuments.map(doc => <div key={doc.key}><span>{doc.label}：缺少{documentMissing(doc).join('、')}</span>
-            <Button size="sm" variant="text" onClick={() => { setReviewOpen(false); openDocument(doc.key) }}>去完善</Button></div>)}
-        </section>}
-
         {hasUnverifiedAllergyDraft && <Alert tone="warning">
           患者药物过敏信息尚未核验；本次提交是否允许继续由机构的过敏核验参数控制，请尽快补充核验记录。
         </Alert>}
         {confirmPlan.error && <Alert>{errorMessage(confirmPlan.error)}</Alert>}
+        {saveOnlyDocumentInfos.error && <Alert>{errorMessage(saveOnlyDocumentInfos.error)}</Alert>}
+        {previewSafetyReview.error && <Alert>{errorMessage(previewSafetyReview.error)}</Alert>}
+        {previewSafetyReview.isPending && <p className="doctor-safety-review-loading" role="status">
+          正在进行合理用药审查…
+        </p>}
 
         {safetyReviews.length > 0 && <section className="doctor-medication-safety-review" aria-label="合理用药审查">
           <header>
@@ -3615,8 +3786,8 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
           {safetyReviewNotice && <Alert tone="warning">{safetyReviewNotice}</Alert>}
           {safetyBlocked && <Alert>存在阻断或无法完成的正式审查，请返回修改处方或补齐信息后重新检查。</Alert>}
           <div className="doctor-medication-safety-review__grid">
-            {safetyReviews.flatMap((review) => review.findings.map((finding) => (
-              <article key={`${review.evaluationId ?? review.prescriptionId}-${finding.findingId}`}
+            {safetyReviews.flatMap((review, reviewIndex) => review.findings.map((finding, findingIndex) => (
+              <article key={`${review.evaluationId ?? review.prescriptionId}-${finding.findingId}-${reviewIndex}-${findingIndex}`}
                 className={`is-${finding.severity.toLowerCase()}`}>
                 <div className="doctor-medication-safety-review__finding-head">
                   <StatusBadge tone={finding.severity === 'CRITICAL' || finding.severity === 'HIGH' ? 'danger' : 'warning'}>
@@ -3664,126 +3835,193 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
         </section>}
 
         <div className="doctor-split-overview-bar">
-          <div className="doctor-split-stat">
-            <span>待开立药品</span>
-            <strong>{medicationDrafts.length} <small>项</small></strong>
+          <div className="doctor-split-overview-summary">
+            <strong>{reviewDocumentCount} 张单据</strong>
+            <span>{reviewItemCount} 项医嘱</span>
           </div>
-          <div className="doctor-split-stat">
-            <span>预估生成处方</span>
-            <strong>{(splitPreview.data?.length ?? splitSummary.reduce((sum, i) => sum + i.prescriptionCount, 0))} <small>张</small></strong>
-          </div>
-          <div className="doctor-split-stat">
-            <span>处置与检查检验</span>
-            <strong>{serviceDrafts.length} <small>项</small></strong>
-          </div>
-          {persistedDraftCount > 0 && <div className="doctor-split-stat">
-            <span>已有待提交草稿</span>
-            <strong>{persistedDraftCount} <small>条</small></strong>
-          </div>}
+          {encounter.diagnoses.length > 0 && (
+            <div className="doctor-split-overview-actions">
+              <Button size="sm" variant="secondary" onClick={applyAllPrimaryDiagnosis}>
+                全部关联主诊断
+              </Button>
+            </div>
+          )}
         </div>
 
         {splitPreview.isLoading && <LoadingState />}
 
-        {splitPreview.data && splitPreview.data.length > 0 ? (
-          <div className="doctor-split-prescriptions-grid">
-            {splitPreview.data.map((plan, pIdx) => (
-              <div key={pIdx} className="doctor-prescription-preview-card">
-                <div className="doctor-prescription-preview-card__head">
-                  <div className="doctor-prescription-preview-card__title">
-                    <StatusBadge tone={plan.routeGroupType === 'INFUSION' ? 'warning' : plan.categoryCode === 'HERBAL' ? 'success' : 'info'}>
-                      {plan.title}
-                    </StatusBadge>
-                    <span className="doctor-prescription-preview-card__site">
-                      <Icon name="organization" /> {plan.stockSiteName || '默认药房'}
-                    </span>
-                  </div>
-                  <span className="doctor-prescription-preview-card__count">
-                    {plan.categoryCode === 'HERBAL' ? `${plan.items.length} 味` : `${plan.items.length}/5 种`}
-                  </span>
-                </div>
+        <div className="doctor-split-prescriptions-grid">
+          {/* 1. 待开立药品的自动分方预览卡片 */}
+          {(splitPreview.data ?? []).map((plan, pIdx) => {
+            const cardKey = `preview-plan-${pIdx}`
+            const kind = plan.categoryCode === 'HERBAL' ? 'herbal'
+              : plan.categoryCode === 'CHINESE_PATENT' ? 'patent' : 'western'
+            const categoryIndex = (splitPreview.data ?? []).slice(0, pIdx + 1)
+              .filter((candidate) => candidate.categoryCode === plan.categoryCode).length
+            const currentInfo = reviewDocumentInfos[cardKey] || buildDefaultDocumentInfo(encounter, 'prescription')
+            const items = plan.items.map((pi, iIdx) => {
+              const matchDraft = medicationDrafts.find((d) => d.request.medicationId === pi.item.medicationId
+                || d.request.catalogItemId === pi.item.catalogItemId)
+              return {
+                id: iIdx,
+                name: matchDraft?.medicationName || pi.item.medicationInstruction || '药品',
+                spec: matchDraft?.productSpec || matchDraft?.preparationSpec || '',
+                manufacturer: matchDraft?.manufacturerName,
+                doseText: pi.item.doseValue ? `${pi.item.doseValue} ${pi.item.doseUnit || ''}` : '—',
+                routeAndFreqText: [routeDisplay(pi.item.routeCode, matchDraft?.routeName),
+                  frequencyDisplay(pi.item.frequencyCode),
+                  pi.item.durationValue ? `${pi.item.durationValue}${pi.item.durationUnit || '天'}` : ''].filter(Boolean).join(' · '),
+                instruction: matchDraft?.request.medicationInstruction,
+                quantityText: `${pi.item.quantity} ${pi.item.quantityUnit || '盒'}`,
+                isInfusionGroup: Boolean(pi.groupKey),
+                isGroupLeader: pi.groupLeader,
+              }
+            })
+            return (
+              <OrderDocumentReviewCard
+                key={cardKey}
+                cardKey={cardKey}
+                title={prescriptionReviewTitle(plan.categoryCode, categoryIndex)}
+                kind={kind}
+                deptOrSite={plan.stockSiteName || '默认药房'}
+                items={items}
+                info={currentInfo}
+                onChangeInfo={(next) => setReviewDocumentInfos((curr) => ({ ...curr, [cardKey]: next }))}
+                encounter={encounter}
+              />
+            )
+          })}
 
-                {plan.ruleReasons && plan.ruleReasons.length > 0 && (
-                  <div className="doctor-prescription-preview-card__tags">
-                    {plan.ruleReasons.map((reason, rIdx) => (
-                      <span key={rIdx} className="doctor-split-rule-tag">
-                        <Icon name="success" /> {reason}
-                      </span>
-                    ))}
-                  </div>
-                )}
+          {/* 2. 待开立的检查、检验和处置单据 */}
+          {serviceDrafts.map((service, serviceIndex) => {
+            const cardKey = `draft-service:${service.catalogItemId}`
+            const serviceType: ServiceRequest['serviceType'] = service.serviceType === 'LABORATORY'
+              || service.serviceType === 'EXAMINATION' || service.serviceType === 'TREATMENT'
+              ? service.serviceType : 'OTHER'
+            const kind = serviceType === 'LABORATORY' ? 'lab'
+              : serviceType === 'EXAMINATION' ? 'exam' : 'treatment'
+            const sameTypeIndex = serviceDrafts.slice(0, serviceIndex + 1)
+              .filter((item) => (item.serviceType || 'OTHER') === serviceType).length
+            const currentInfo = reviewDocumentInfos[cardKey]
+              || buildDefaultDocumentInfo(encounter, 'service', service.clinicalDescription)
+            const items = [{
+              id: service.id,
+              name: service.itemName,
+              quantityText: `${service.quantity} ${service.unitCode || '项'}`,
+              note: service.clinicalDescription,
+            }]
+            return (
+              <OrderDocumentReviewCard
+                key={cardKey}
+                cardKey={cardKey}
+                title={serviceReviewTitle(serviceType, sameTypeIndex)}
+                kind={kind}
+                deptOrSite={serviceType === 'LABORATORY' ? '检验科'
+                  : serviceType === 'EXAMINATION' ? '检查科室' : currentDepartmentName || '门诊'}
+                items={items}
+                info={currentInfo}
+                onChangeInfo={(next) => setReviewDocumentInfos((curr) => ({ ...curr, [cardKey]: next }))}
+                encounter={encounter}
+              />
+            )
+          })}
 
-                <table className="doctor-prescription-preview-table">
-                  <thead>
-                    <tr>
-                      <th>药品名称</th>
-                      <th>剂量</th>
-                      <th>途径/频次</th>
-                      <th>数量</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {plan.items.map((pi, iIdx) => {
-                      const matchDraft = medicationDrafts.find(d => d.request.medicationId === pi.item.medicationId
-                        || d.request.catalogItemId === pi.item.catalogItemId);
-                      return (
-                        <tr key={iIdx} className={pi.groupKey ? 'is-infusion-row' : ''}>
-                          <td>
-                            <strong>{matchDraft?.medicationName || pi.item.medicationInstruction || '药品'}</strong>
-                            <small>{matchDraft?.preparationSpec || ''}</small>
-                            {pi.groupLeader && <span className="doctor-split-group-badge">输液组首药</span>}
-                          </td>
-                          <td>{pi.item.doseValue ? `${pi.item.doseValue} ${pi.item.doseUnit || ''}` : '—'}</td>
-                          <td>{pi.item.routeCode || '—'} · {pi.item.frequencyCode || '—'}</td>
-                          <td>{pi.item.quantity} {pi.item.quantityUnit || '盒'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ))}
+          {/* 3. 此前已保存、仍待提交的处方草稿 */}
+          {persistedDraftPrescriptions
+            .map((rx, rxIdx) => {
+              const cardKey = `prescription:${rx.id}`
+              const kind = rx.categoryCode === 'CHINESE_PATENT' ? 'patent'
+                : rx.categoryCode === 'HERBAL' ? 'herbal' : 'western'
+              const categoryIndex = persistedDraftPrescriptions.slice(0, rxIdx + 1)
+                .filter((candidate) => candidate.categoryCode === rx.categoryCode).length
+              const currentInfo = reviewDocumentInfos[cardKey]
+                || (rx.documentInfo?.diagnoses?.length ? rx.documentInfo : buildDefaultDocumentInfo(encounter, 'prescription'))
+              const items = rx.medicationRequests.filter((m) => m.status !== 'CANCELLED').map((m) => ({
+                id: m.id,
+                name: m.itemName || m.medicationName,
+                spec: m.packageSpec || m.preparationSpec,
+                manufacturer: m.manufacturerName,
+                doseText: m.doseValue ? `${m.doseValue} ${m.doseUnit || ''}` : '—',
+                routeAndFreqText: [routeDisplay(m.routeCode, m.routeName),
+                  frequencyDisplay(m.frequencyCode, m.frequencyName),
+                  m.durationValue ? `${m.durationValue}${m.durationUnit || '天'}` : ''].filter(Boolean).join(' · '),
+                instruction: m.medicationInstruction,
+                quantityText: `${m.quantity} ${m.quantityUnit || '盒'}`,
+              }))
+              return (
+                <OrderDocumentReviewCard
+                  key={cardKey}
+                  cardKey={cardKey}
+                  title={prescriptionReviewTitle(rx.categoryCode, categoryIndex)}
+                  kind={kind}
+                  deptOrSite={rx.categoryCode === 'CHINESE_PATENT' ? '中成药房' : rx.categoryCode === 'HERBAL' ? '中药房' : '西药房'}
+                  items={items}
+                  info={currentInfo}
+                  onChangeInfo={(next) => setReviewDocumentInfos((curr) => ({ ...curr, [cardKey]: next }))}
+                  encounter={encounter}
+                />
+              )
+            })}
 
-            {serviceDrafts.length > 0 && (
-              <div className="doctor-prescription-preview-card is-service-card">
-                <div className="doctor-prescription-preview-card__head">
-                  <div className="doctor-prescription-preview-card__title">
-                    <StatusBadge tone="neutral">门诊检查检验处置单</StatusBadge>
-                    <span className="doctor-prescription-preview-card__site">门诊诊疗</span>
-                  </div>
-                  <span className="doctor-prescription-preview-card__count">{serviceDrafts.length} 项</span>
-                </div>
-                <table className="doctor-prescription-preview-table">
-                  <thead>
-                    <tr>
-                      <th>项目名称</th>
-                      <th>数量</th>
-                      <th>临床说明</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {serviceDrafts.map((svc) => (
-                      <tr key={svc.id}>
-                        <td><strong>{svc.itemName}</strong></td>
-                        <td>{svc.quantity} {svc.unitCode || '项'}</td>
-                        <td>{svc.clinicalDescription || '门诊诊疗申请'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="doctor-plan-review">
-            <div><span>西药 / 中成药</span><strong>{medicationDrafts.filter((item) => item.editorMode === 'regular').length} 条</strong></div>
-            <div><span>草药</span><strong>{medicationDrafts.filter((item) => item.editorMode === 'herbal').length} 条</strong></div>
-            <div><span>检验检查与治疗</span><strong>{serviceDrafts.length} 条</strong></div>
-            {splitSummary.length > 0 && <p className="doctor-prescription-split-summary">
-              预计处方：{splitSummary.map((item) => `${prescriptionCategoryLabel(item.categoryCode)} ${item.medicationCount} 种 / ${item.prescriptionCount} 张`).join('；')}
-            </p>}
-            {persistedDraftCount > 0 && <p>已有待提交医嘱 {persistedDraftCount} 条</p>}
-          </div>
-        )}
+          {/* 4. 服务申请创建后即为 ACTIVE；无待开立医嘱时也展示已提交处方供整单核查。 */}
+          {documents.filter((document) => document.kind === 'service'
+            || (planCount === 0 && document.value.status !== 'DRAFT')).map((doc) => {
+            const cardKey = doc.key
+            const isPrescription = doc.kind === 'prescription'
+            const rx = isPrescription ? (doc.value as Prescription) : undefined
+            const svc = !isPrescription ? (doc.value as ServiceRequest) : undefined
+            const kind = isPrescription
+              ? (rx?.categoryCode === 'CHINESE_PATENT' ? 'patent' : rx?.categoryCode === 'HERBAL' ? 'herbal' : 'western')
+              : (svc?.serviceType === 'LABORATORY' ? 'lab' : svc?.serviceType === 'EXAMINATION' ? 'exam' : 'treatment')
+            const currentInfo = reviewDocumentInfos[cardKey]
+              || (doc.value.documentInfo?.diagnoses?.length
+                ? doc.value.documentInfo
+                : buildDefaultDocumentInfo(encounter, isPrescription ? 'prescription' : 'service'))
+            const items = isPrescription && rx
+              ? rx.medicationRequests.filter((m) => m.status !== 'CANCELLED').map((m) => ({
+                  id: m.id,
+                  name: m.itemName || m.medicationName,
+                  spec: m.packageSpec || m.preparationSpec,
+                  manufacturer: m.manufacturerName,
+                  doseText: m.doseValue ? `${m.doseValue} ${m.doseUnit || ''}` : '—',
+                  routeAndFreqText: [routeDisplay(m.routeCode, m.routeName),
+                    frequencyDisplay(m.frequencyCode, m.frequencyName),
+                    m.durationValue ? `${m.durationValue}${m.durationUnit || '天'}` : ''].filter(Boolean).join(' · '),
+                  instruction: m.medicationInstruction,
+                  quantityText: `${m.quantity} ${m.quantityUnit || '盒'}`,
+                }))
+              : svc
+              ? [{
+                  id: svc.id,
+                  name: svc.itemName,
+                  quantityText: `${svc.quantity} ${svc.unitCode || '项'}`,
+                  note: [svc.specimenType, svc.clinicalDescription].filter(Boolean).join(' · '),
+                }]
+              : []
+            const readOnly = isPrescription ? rx?.status !== 'DRAFT' : svc?.documentInfoEditable === false
+            const typeIndex = documents.slice(0, documents.indexOf(doc) + 1).filter((candidate) => isPrescription && rx
+              ? candidate.kind === 'prescription' && (candidate.value as Prescription).categoryCode === rx.categoryCode
+              : candidate.kind === 'service' && (candidate.value as ServiceRequest).serviceType === svc?.serviceType).length
+            return (
+              <OrderDocumentReviewCard
+                key={cardKey}
+                cardKey={cardKey}
+                title={isPrescription && rx ? prescriptionReviewTitle(rx.categoryCode, typeIndex)
+                  : svc ? serviceReviewTitle(svc.serviceType, typeIndex) : doc.shortLabel}
+                kind={kind}
+                deptOrSite={isPrescription
+                  ? (rx?.categoryCode === 'CHINESE_PATENT' ? '中成药房' : rx?.categoryCode === 'HERBAL' ? '中药房' : '西药房')
+                  : svc?.serviceType === 'LABORATORY' ? '检验科'
+                    : svc?.serviceType === 'EXAMINATION' ? '检查科室' : currentDepartmentName || '门诊'}
+                items={items}
+                info={currentInfo}
+                onChangeInfo={(next) => setReviewDocumentInfos((curr) => ({ ...curr, [cardKey]: next }))}
+                encounter={encounter}
+                readOnly={readOnly}
+              />
+            )
+          })}
+        </div>
       </div>
     </Dialog>}
     {printPrescription && <ControlledPrintDialog api={api} title="打印门诊处方"

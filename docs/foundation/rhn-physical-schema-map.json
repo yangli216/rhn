@@ -28144,6 +28144,45 @@
     ]
   },
   {
+    "logical": "bd.standard_specification_disposition",
+    "legacy": "standard_specification_disposition",
+    "physical": "RHN_BD_SPEC_DISP",
+    "domain": "BD",
+    "comment": "标准目录不完整规格的机构处置事件，一行代表一次待补充或不采用决定",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_SPEC_DISP",
+        "comment": "规格处置事件标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "identity_hash",
+        "physical": "HASH_IDTY",
+        "comment": "目录标识版本及内容和来源文件指纹组合哈希"
+      },
+      {
+        "logical": "standard_specification_id",
+        "physical": "ID_STD_SPEC",
+        "comment": "标准规格编码"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "规格处置递增序号，用于并发控制"
+      },
+      {
+        "logical": "event",
+        "physical": "JSON_EVENT",
+        "comment": "不可变处置结果，含状态、说明、操作人和时间"
+      }
+    ]
+  },
+  {
     "logical": "aud.medication_knowledge_draft",
     "legacy": "medication_knowledge_draft",
     "physical": "RHN_AUD_MED_KNOW_DRAFT",

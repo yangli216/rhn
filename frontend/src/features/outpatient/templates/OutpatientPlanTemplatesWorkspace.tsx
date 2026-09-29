@@ -73,11 +73,13 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
         const matchGuideline = value.guidelineReference?.toLowerCase().includes(kw)
         const matchDiag = value.diagnoses.some((d) => d.display.toLowerCase().includes(kw) || d.code.toLowerCase().includes(kw))
         const matchMed = value.medications.some((m) => m.medicationName.toLowerCase().includes(kw))
-        if (!matchName && !matchDesc && !matchGuideline && !matchDiag && !matchMed) return false
+        const matchNote = noteTemplatesQuery.data?.some((note) => note.id === value.noteTemplateId
+          && note.name.toLowerCase().includes(kw))
+        if (!matchName && !matchDesc && !matchGuideline && !matchDiag && !matchMed && !matchNote) return false
       }
       return true
     })
-  }, [templatesQuery.data, scopeFilter, searchKeyword])
+  }, [noteTemplatesQuery.data, templatesQuery.data, scopeFilter, searchKeyword])
 
   const selectedTemplate = useMemo(() => {
     return filteredTemplates.find((v) => v.id === selectedId) || filteredTemplates[0] || null
@@ -93,6 +95,9 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
 
   const selectedNoteTemplate = useMemo(() => filteredNoteTemplates.find((value) => value.id === selectedId)
     || filteredNoteTemplates[0] || null, [filteredNoteTemplates, selectedId])
+  const selectedLinkedNoteTemplate = useMemo(() => selectedTemplate?.noteTemplateId
+    ? noteTemplatesQuery.data?.find((value) => value.id === selectedTemplate.noteTemplateId) || null
+    : null, [noteTemplatesQuery.data, selectedTemplate?.noteTemplateId])
 
   useEffect(() => {
     if (templateType === 'PLAN' && selectedTemplate && selectedTemplate.id !== selectedId) {
@@ -394,6 +399,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                 )}
                 <div className="doctor-plan-item-card__desc">{item.description || item.name}</div>
                 <div className="doctor-plan-item-card__meta">
+                  {item.noteTemplateId && <><span>病历 1</span><span>·</span></>}
                   <span>诊断 {item.diagnoses.length}</span>
                   <span>·</span>
                   <span>药品 {item.medications.length}</span>
@@ -524,6 +530,21 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                 )}
               </div>
             )}
+
+            {selectedTemplate.noteTemplateId && <div className="doctor-plan-detail-section">
+              <div className="doctor-plan-detail-section__title">配套病历模板</div>
+              <div className="plan-template-linked-note-card">
+                <StatusBadge tone={selectedLinkedNoteTemplate ? 'info' : 'warning'}>
+                  {selectedLinkedNoteTemplate ? '整体方案组成' : '当前不可用'}
+                </StatusBadge>
+                <div>
+                  <strong>{selectedLinkedNoteTemplate?.name || '关联病历模板已停用或不可见'}</strong>
+                  <small>{selectedLinkedNoteTemplate
+                    ? noteTemplateFields.filter(({ key }) => selectedLinkedNoteTemplate.content[key]?.trim()).map(({ label }) => label).join('、')
+                    : '请人工编辑方案并重新选择可用病历模板。'}</small>
+                </div>
+              </div>
+            </div>}
 
             {!!selectedTemplate.tasks?.length && <div className="doctor-plan-detail-section">
               <div className="doctor-plan-detail-section__title">诊疗任务与原文依据 ({selectedTemplate.tasks.length})</div>

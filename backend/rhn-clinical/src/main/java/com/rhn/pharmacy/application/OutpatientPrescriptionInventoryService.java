@@ -173,8 +173,11 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                     boolean directoryMatch = matchingMedicationIds.contains(medView.id())
                             || matchingProductIds.contains(si.catalogItemId());
                     boolean businessFieldMatch = startsWith(medView.code(), normalizedQuery)
+                            || contains(medView.name(), normalizedQuery)
+                            || contains(medView.aliasName(), normalizedQuery)
                             || contains(medView.preparationSpec(), normalizedQuery)
                             || matchedProduct != null && (startsWith(matchedProduct.code(), normalizedQuery)
+                                    || contains(matchedProduct.name(), normalizedQuery)
                                     || startsWith(matchedProduct.approvalCode(), normalizedQuery)
                                     || startsWith(matchedProduct.registrationCode(), normalizedQuery)
                                     || startsWith(matchedProduct.purchaseCode(), normalizedQuery));

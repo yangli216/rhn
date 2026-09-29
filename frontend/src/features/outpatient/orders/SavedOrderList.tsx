@@ -3,7 +3,7 @@ import type { MedicationRequest, Prescription, ServiceRequest } from '../../../s
 import type { SkinTestWorkItem } from '../../../shared/api/treatmentApi'
 import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
-import { OrderDocumentInlineEditor, documentMissing, type OrderDocument } from '../OrderDocuments'
+import { documentMissing, type OrderDocument } from '../OrderDocuments'
 import { canPrintPrescription } from './dispensableOptions'
 import { resolveExecutingDepartment } from './orderPresentation'
 import { extractSpecialMethod, parseHerbalInstruction } from './herbalInstructions'
@@ -15,7 +15,7 @@ import type { SavedOrderEntry, DraftOrderEntry } from './orderEntries'
 import type { GroupingComposerTarget } from './orderListTypes'
 
 export function SavedOrderList({ savedEntries, draftEntries, allDocuments, prescriptions,
-  documentRows, activeDocKey, handleSelectDoc, onSavedDocument, encounter, api, readOnly, busy,
+  documentRows, activeDocKey, handleSelectDoc: _handleSelectDoc, onSavedDocument: _onSavedDocument, encounter: _encounter, api: _api, readOnly, busy,
   documentEditing, currentDept, onCancelService, onPrintService, onCancelMedication, onPrint,
   skinTestByRequest, groupingComposerTarget, groupingSession, isComposerActive, composer }: {
   savedEntries: SavedOrderEntry[]
@@ -79,26 +79,11 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   subtotal={subtotal}
                   missingFields={missingFields}
                   isSelected={activeDocKey === entryDocKey || Boolean(documentRows[svc.id]?.selected)}
-                  isEditing={activeDocKey === entryDocKey}
-                  onToggleEdit={() => handleSelectDoc(activeDocKey === entryDocKey ? null : entryDocKey)}
                   canPrint={svc.status === 'ACTIVE'}
                   onPrint={() => onPrintService(svc)}
                   canCancel={svc.status !== 'CANCELLED'}
                   onCancel={() => onCancelService(svc)}
                 />
-                {activeDocKey === entryDocKey && doc && (
-                  <OrderDocumentInlineEditor
-                    document={doc}
-                    encounter={encounter}
-                    api={api}
-                    readOnly={readOnly}
-                    onSaved={async () => {
-                      if (onSavedDocument) await onSavedDocument()
-                      handleSelectDoc(null)
-                    }}
-                    onClose={() => handleSelectDoc(null)}
-                  />
-                )}
               </Fragment>
             )
           } else {
@@ -124,8 +109,6 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   subtotal={subtotal}
                   missingFields={missingFields}
                   isSelected={activeDocKey === entryDocKey || docItems.some((e) => documentRows[e.value.id]?.selected)}
-                  isEditing={activeDocKey === entryDocKey}
-                  onToggleEdit={() => handleSelectDoc(activeDocKey === entryDocKey ? null : entryDocKey)}
                   canPrint={Boolean(rx && firstActive && canPrintPrescription(rx))}
                   onPrint={() => rx && onPrint(rx)}
                   canCancel={docItems.some((e) => e.value.status !== 'CANCELLED')}
@@ -141,19 +124,6 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                     />
                   )}
                 </OrderDocumentGroupHeader>
-                {activeDocKey === entryDocKey && doc && (
-                  <OrderDocumentInlineEditor
-                    document={doc}
-                    encounter={encounter}
-                    api={api}
-                    readOnly={readOnly}
-                    onSaved={async () => {
-                      if (onSavedDocument) await onSavedDocument()
-                      handleSelectDoc(null)
-                    }}
-                    onClose={() => handleSelectDoc(null)}
-                  />
-                )}
                 {isHerbal && (
                   <HerbalPrescriptionMatrix
                     items={docItems.map((e) => {

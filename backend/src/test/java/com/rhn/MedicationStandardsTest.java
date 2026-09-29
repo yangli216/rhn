@@ -42,10 +42,10 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
         for (var value : result.path("summary").path("referenceStatuses")) sum += value.asLong();
         assertThat(sum).isEqualTo(count);
         mockMvc.perform(get(BASE+"/clinical-semantics/readiness").with(rhnWorkContext())
-                .param("query", linked.path("code").asString()).param("filter", "SOURCE_UNVERIFIED"))
+                .param("query", linked.path("code").asString()).param("filter", "LINKED"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.summary.totalActive").value(count))
                 .andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.content[0].standardReference.status").value("LINKED"))
-                .andExpect(jsonPath("$.content[0].standardReference.sourceVerificationStatus").value("UNVERIFIED"))
+                .andExpect(jsonPath("$.content[0].standardReference.sourceVerificationStatus").value("VERIFIED"))
                 .andExpect(jsonPath("$.content[0].presentationConversionStatus").value("COMPUTABLE"))
                 .andExpect(jsonPath("$.content[0].conversionReasons").isEmpty());
         assertThat(readiness.inspect(-1L, "", "ALL", 0, 20).summary().totalActive()).isZero();
@@ -166,6 +166,15 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
         var created = json(mockMvc.perform(post(BASE+"/medications").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(input().toString()))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.standardReference.specificationId").value(SPEC))
                 .andReturn().getResponse().getContentAsString());
+        var entryId = references.specification(SPEC).path("entryId").asString();
+        var usage = json(mockMvc.perform(get(BASE + "/medication-standard-catalog/entries/" + entryId + "/medications")
+                .with(rhnWorkContext()).param("organizationId", ORGANIZATION)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        var specificationUsage = usage.path("specifications").valueStream()
+                .filter(value -> SPEC.equals(value.path("specificationId").asString())).findFirst().orElseThrow();
+        assertThat(specificationUsage.path("records")).hasSize(1);
+        assertThat(specificationUsage.path("records").get(0).path("id").asString()).isEqualTo(created.path("id").asString());
+        assertThat(specificationUsage.path("records").get(0).path("relationType").asString()).isEqualTo("CANONICAL");
         body=input(); body.put("expectedRevision",created.path("revision").asLong()); body.put("preparationSpec","0.5g");
         mockMvc.perform(put(BASE+"/medications/"+created.path("id").asString()).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body.toString()))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("MEDICATION_STANDARD_IDENTITY_MISMATCH"));

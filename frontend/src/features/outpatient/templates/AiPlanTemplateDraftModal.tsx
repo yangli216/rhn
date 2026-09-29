@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { RhnApi } from '../../../shared/api'
 import { planTextStreamPreview, type OutpatientPlanTemplate, type OutpatientPlanTemplateScope,
-  type PlanTextDraft, type PlanTextReviewItem, type SaveOutpatientPlanTemplateInput } from '../../../shared/api/outpatientPlanTemplatesApi'
-import { Alert, Button, Dialog, FormField, Icon, IconButton, LoadingState, StatusBadge, Tabs, Tooltip } from '../../../shared/ui'
+  type OutpatientPlanTask, type PlanTextDraft, type PlanTextReviewItem, type SaveOutpatientPlanTemplateInput,
+  type CompiledPlanMedicationItem, type CompiledPlanServiceItem } from '../../../shared/api/outpatientPlanTemplatesApi'
+import { Alert, Button, Dialog, FormField, Icon, IconButton, StatusBadge, Tooltip, type IconName } from '../../../shared/ui'
 import { errorMessage } from '../../../shared/api/httpClient'
 import { safeRandomUUID } from '../../../shared/utils/uuid'
 import { planTaskKindLabel } from './planTaskPresentation'
@@ -16,58 +17,153 @@ interface AiPlanTemplateDraftModalProps {
   onSaved: (template: OutpatientPlanTemplate) => void
 }
 
-const reviewGroups: Array<{ key: string; label: string; kinds: PlanTextReviewItem['kind'][] }> = [
-  { key: 'diagnosis', label: '诊断与适用条件', kinds: ['DIAGNOSIS', 'CONDITION'] },
-  { key: 'medication', label: '用药建议', kinds: ['MEDICATION'] },
-  { key: 'service', label: '检验检查', kinds: ['LABORATORY', 'EXAMINATION'] },
-  { key: 'follow-up', label: '宣教与随访', kinds: ['EDUCATION', 'FOLLOW_UP'] },
+const reviewGroups: Array<{ key: string; label: string; icon: IconName; kinds: PlanTextReviewItem['kind'][] }> = [
+  { key: 'diagnosis', label: '诊断与评估', icon: 'stethoscope', kinds: ['DIAGNOSIS', 'CONDITION'] },
+  { key: 'medication', label: '用药建议', icon: 'pill', kinds: ['MEDICATION'] },
+  { key: 'service', label: '检验检查', icon: 'flask', kinds: ['LABORATORY', 'EXAMINATION'] },
+  { key: 'follow-up', label: '宣教与随访', icon: 'tasks', kinds: ['EDUCATION', 'FOLLOW_UP'] },
 ]
 
 const hasIcd10Code = (text: string) => /\[[A-Z]\d{2}(?:\.\d+)?\]/.test(text)
 const catalogTaskKinds = new Set(['DIAGNOSIS', 'MEDICATION', 'LABORATORY', 'EXAMINATION'])
 
-function PlanReviewChecklist({ items, isStreaming, onRemove }: {
+function parseMedicationUsageHint(text?: string, details?: string): string | null {
+  const source = `${text || ''} ${details || ''}`
+  const matchExplicit = /常规用法[：:]\s*([^\n；;，,。]+)/.exec(source)
+  if (matchExplicit) {
+    return matchExplicit[1].trim()
+  }
+  const parts: string[] = []
+  const doseMatch = /([0-9]+(?:\.[0-9]+)?\s*(?:g|mg|ug|μg|ml|mL|片|粒|支|包|袋))/i.exec(source)
+  if (doseMatch) parts.push(doseMatch[1])
+  const routeMatch = /(口服|外用|静脉滴注|肌肉注射|皮下注射|雾化吸入)/.exec(source)
+  if (routeMatch) parts.push(routeMatch[1])
+  const freqMatch = /(?:每日|一日)(?:一|两|三|四)次|qd|bid|tid|qid|prn|qn/i.exec(source)
+  if (freqMatch) parts.push(freqMatch[0])
+  const durMatch = /([0-9]+\s*天|[0-9]+\s*日|连用[0-9]+天)/.exec(source)
+  if (durMatch) parts.push(durMatch[0])
+  return parts.length >= 2 ? parts.join(' · ') : null
+}
+
+function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdateItem }: {
   items: PlanTextReviewItem[]
   isStreaming?: boolean
+  isMatching?: boolean
   onRemove?: (index: number) => void
+  onUpdateItem?: (index: number, updated: Partial<PlanTextReviewItem>) => void
 }) {
   const available = items ?? []
-  return <div className={`ai-plan-review-list ${isStreaming ? 'ai-plan-review-list--streaming' : ''}`} role="region" aria-label="临床方案审核清单">
-    {reviewGroups.map((group) => {
-      const values = available.map((item, index) => ({ item, index }))
-        .filter(({ item }) => group.kinds.includes(item.kind))
-      if (!values.length) return null
-      return <section key={group.key} className="ai-plan-review-group">
-        <header><strong>{group.label}</strong><span>{values.length} 项</span></header>
-        <div className="ai-plan-review-items">
-          {values.map(({ item, index }) => <article key={`${item.kind}-${item.text}-${index}`} className="ai-plan-review-item">
-            <div className="ai-plan-review-item__main">
-              <div className="ai-plan-review-item__title-row">
-                <strong>{item.text}</strong>
-                {item.kind === 'DIAGNOSIS' && hasIcd10Code(item.text) && (
-                  <span className="ai-plan-kind-badge ai-plan-kind-badge--diagnosis">ICD-10 标准诊断</span>
-                )}
-                {item.kind === 'CONDITION' && (
-                  <span className="ai-plan-kind-badge ai-plan-kind-badge--condition">适用人群 / 证候</span>
-                )}
+  return (
+    <div className={`ai-plan-review-list ${isStreaming ? 'ai-plan-review-list--streaming' : ''}`} role="region" aria-label="临床方案审核清单">
+      {reviewGroups.map((group) => {
+        const values = available
+          .map((item, index) => ({ item, index }))
+          .filter(({ item }) => group.kinds.includes(item.kind) && !(item.kind === 'CONDITION' && item.text === '适用条件'))
+        if (!values.length) return null
+        return (
+          <section key={group.key} className={`ai-plan-review-group ai-plan-review-group--${group.key}`}>
+            <header className="ai-plan-review-group__header">
+              <div className="ai-plan-review-group__title-area">
+                <span className="ai-plan-review-group__icon">
+                  <Icon name={group.icon} />
+                </span>
+                <strong className="ai-plan-review-group__label">{group.label}</strong>
               </div>
-              {item.details && <small>{item.details}</small>}
+              <span className="ai-plan-review-group__badge">{values.length} 项</span>
+            </header>
+            <div className="ai-plan-review-items">
+              {values.map(({ item, index }) => {
+                const isTextItem = item.kind === 'EDUCATION' || item.kind === 'FOLLOW_UP'
+                const usageHint = item.kind === 'MEDICATION' ? parseMedicationUsageHint(item.text, item.details) : null
+                return (
+                  <article
+                    key={`${item.kind}-${item.text}-${index}`}
+                    className={`ai-plan-review-item ${isTextItem ? 'ai-plan-review-item--text' : ''}`}
+                  >
+                    <div className="ai-plan-review-item__main">
+                      <div className="ai-plan-review-item__title-row">
+                        <strong className="ai-plan-review-item__name">{item.text}</strong>
+                        {usageHint && <span className="ai-plan-dosage-badge">{usageHint}</span>}
+                        {item.kind === 'DIAGNOSIS' && hasIcd10Code(item.text) && (
+                          <span className="ai-plan-kind-badge ai-plan-kind-badge--diagnosis">ICD-10 标准诊断</span>
+                        )}
+                        {item.kind === 'CONDITION' && (
+                          <span className="ai-plan-kind-badge ai-plan-kind-badge--condition">待对齐诊断</span>
+                        )}
+                        {item.details && !isTextItem && (
+                          <Tooltip content={<div className="ai-plan-tooltip-details">{item.details}</div>}>
+                            <button type="button" className="ai-plan-info-btn" aria-label={`查看 ${item.text} 依据`}>
+                              <Icon name="info" />
+                            </button>
+                          </Tooltip>
+                        )}
+                        {isMatching && catalogTaskKinds.has(item.kind) && <StatusBadge tone="warning">匹配中</StatusBadge>}
+                        {isMatching && !catalogTaskKinds.has(item.kind) && item.kind !== 'CONDITION' && (
+                          <StatusBadge tone="warning">待医生确认</StatusBadge>
+                        )}
+                      </div>
+                      {isTextItem && (
+                        <div className="ai-plan-text-item-body">
+                          {onUpdateItem ? (
+                            <textarea
+                              className="ui-field__control ai-plan-text-item-input"
+                              rows={2}
+                              value={item.details || ''}
+                              placeholder="输入指导、宣教或随访内容..."
+                              onChange={(e) => onUpdateItem(index, { details: e.target.value })}
+                              aria-label={`${item.text}内容`}
+                            />
+                          ) : (
+                            <p className="ai-plan-text-item-preview">{item.details || '暂无详细指导内容'}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {onRemove && (
+                      <IconButton
+                        icon="close"
+                        label={`移除 ${item.text}`}
+                        className="ai-plan-review-item__remove"
+                        onClick={() => onRemove(index)}
+                      />
+                    )}
+                  </article>
+                )
+              })}
             </div>
-            {onRemove && <IconButton
-              icon="close"
-              label={`移除 ${item.text}`}
-              className="ai-plan-review-item__remove"
-              onClick={() => onRemove(index)}
-            />}
-          </article>)}
-        </div>
-      </section>
-    })}
-    {!available.length && !isStreaming && (
-      <div className="ai-plan-modal-row-empty">当前没有保留的诊疗项目，请通过左侧对话补充需要的内容。</div>
-    )}
-  </div>
+          </section>
+        )
+      })}
+      {!available.length && !isStreaming && (
+        <div className="ai-plan-modal-row-empty">当前没有保留的诊疗项目，请通过左侧对话补充需要的内容。</div>
+      )}
+    </div>
+  )
 }
+
+function mergeOriginalRecords(
+  reviewItems: PlanTextReviewItem[],
+  result: SaveOutpatientPlanTemplateInput,
+) {
+  const existing = result.tasks ?? []
+  const matchStatus = (item: PlanTextReviewItem): OutpatientPlanTask['status'] => {
+    if (item.kind === 'DIAGNOSIS' && result.diagnoses.some((diagnosis) =>
+      item.text.includes(diagnosis.display) || item.text.includes(diagnosis.code))) return 'MATCHED'
+    if (item.kind === 'MEDICATION' && result.medications.some((medication) =>
+      medication.medicationName && item.text.includes(medication.medicationName))) return 'MATCHED'
+    if ((item.kind === 'LABORATORY' || item.kind === 'EXAMINATION') && result.services.some((service) =>
+      service.itemName && item.text.includes(service.itemName))) return 'MATCHED'
+    return item.kind === 'CONDITION' || item.kind === 'EDUCATION' || item.kind === 'FOLLOW_UP'
+      ? 'NEEDS_REVIEW' : 'UNMATCHED'
+  }
+  const records = reviewItems.map((item) => {
+    const matched = existing.find((task) => task.kind === item.kind && task.text === item.text)
+    return matched ? { ...matched, details: item.details ?? matched.details } : { ...item, status: matchStatus(item) }
+  })
+  const known = new Set(records.map((task) => `${task.kind}:${task.text}`))
+  return [...records, ...existing.filter((task) => !known.has(`${task.kind}:${task.text}`))]
+}
+
 
 interface ChatMessage {
   id: string
@@ -91,7 +187,6 @@ export function AiPlanTemplateDraftModal({
   const [naturalInput, setNaturalInput] = useState('')
   const [scope, setScope] = useState<OutpatientPlanTemplateScope>(editingTemplate?.scopeType || initialScope)
   const [textDraft, setTextDraft] = useState<PlanTextDraft | null>(null)
-  const [reviewMode, setReviewMode] = useState<'TASKS' | 'RAW'>('TASKS')
   const [stage, setStage] = useState<'INPUT' | 'TEXT_REVIEW' | 'STRUCTURED_REVIEW'>(editingTemplate ? 'STRUCTURED_REVIEW' : 'INPUT')
 
   const [compiledDraft, setCompiledDraft] = useState<SaveOutpatientPlanTemplateInput | null>(() => {
@@ -155,7 +250,7 @@ export function AiPlanTemplateDraftModal({
         {
           id: safeRandomUUID(),
           role: 'assistant',
-          content: `您正在调整诊疗方案「${editingTemplate.name}」。右侧已载入当前明细，可在此对话协同微调。`,
+          content: `正在调整「${editingTemplate.name}」，右侧明细可直接微调。`,
         },
       ]
     }
@@ -163,7 +258,7 @@ export function AiPlanTemplateDraftModal({
       {
         id: safeRandomUUID(),
         role: 'assistant',
-        content: '输入门诊临床意图、开方速记或指南条文，AI 为您梳理生成方案草案并支持对话微调。',
+        content: '输入临床意图，AI 帮你整理方案。',
       },
     ]
   })
@@ -179,6 +274,46 @@ export function AiPlanTemplateDraftModal({
     (catalogTaskKinds.has(task.kind) && task.status !== 'MATCHED')
       || (task.kind === 'CONDITION' && task.details?.includes('尚未匹配院内 ICD-10 术语'))), [compiledDraft?.tasks])
   const missingStandardDiagnosis = !isEditing && !!compiledDraft && compiledDraft.diagnoses.length === 0
+
+  const [activeMedSearchTaskIndex, setActiveMedSearchTaskIndex] = useState<number | null>(null)
+  const [medSearchKeyword, setMedSearchKeyword] = useState('')
+  const [medSearchResults, setMedSearchResults] = useState<any[]>([])
+
+  const [activeServiceSearchTaskIndex, setActiveServiceSearchTaskIndex] = useState<number | null>(null)
+  const [serviceSearchKeyword, setServiceSearchKeyword] = useState('')
+  const [serviceSearchResults, setServiceSearchResults] = useState<any[]>([])
+
+  const tasksWithIndex = useMemo(() => {
+    return (compiledDraft?.tasks ?? []).map((task, index) => ({ task, index }))
+  }, [compiledDraft?.tasks])
+
+  const unmatchedDiagnosisTasks = useMemo(() => {
+    return tasksWithIndex.filter(({ task }) =>
+      task.kind === 'DIAGNOSIS' && task.status !== 'MATCHED'
+    )
+  }, [tasksWithIndex])
+
+  const unmatchedMedicationTasks = useMemo(() => {
+    return tasksWithIndex.filter(({ task }) =>
+      task.kind === 'MEDICATION' && task.status !== 'MATCHED'
+    )
+  }, [tasksWithIndex])
+
+  const unmatchedServiceTasks = useMemo(() => {
+    return tasksWithIndex.filter(({ task }) =>
+      (task.kind === 'LABORATORY' || task.kind === 'EXAMINATION') && task.status !== 'MATCHED'
+    )
+  }, [tasksWithIndex])
+
+  const conditionTasks = useMemo(() => {
+    return tasksWithIndex.filter(({ task }) => task.kind === 'CONDITION')
+  }, [tasksWithIndex])
+
+  const otherTasks = useMemo(() => {
+    return tasksWithIndex.filter(({ task }) =>
+      !catalogTaskKinds.has(task.kind) && task.kind !== 'CONDITION'
+    )
+  }, [tasksWithIndex])
 
   useEffect(() => {
     return () => {
@@ -373,7 +508,6 @@ export function AiPlanTemplateDraftModal({
         setTextDraft(result)
         setCompiledDraft(null)
         setStage('TEXT_REVIEW')
-        setReviewMode('TASKS')
         setMessages((prev) => [
           ...prev,
           {
@@ -410,7 +544,11 @@ export function AiPlanTemplateDraftModal({
         textDraft.reviewItems,
         scope,
       )
-      setCompiledDraft(result)
+      // 目录匹配只补充原记录的状态，不用一批新记录替换医生刚刚确认的内容。
+      setCompiledDraft({
+        ...result,
+        tasks: mergeOriginalRecords(textDraft.reviewItems, result),
+      })
       setStage('STRUCTURED_REVIEW')
     } catch (e: any) {
       setError(errorMessage(e) || '转换系统方案失败，请检查文字方案后重试')
@@ -484,6 +622,126 @@ export function AiPlanTemplateDraftModal({
     })
   }
 
+  const handleSearchMed = async (keyword: string) => {
+    if (!keyword.trim()) return
+    try {
+      let items: any[] = []
+      if (api.masterData?.searchMedicationProducts) {
+        const res = await api.masterData.searchMedicationProducts(keyword.trim(), '', 'ACTIVE', '', 0, 8)
+        if (res?.content?.length) {
+          items = res.content.map((entry: any) => {
+            const prod = entry.product || entry
+            const med = entry.medication
+            return {
+              id: prod.id,
+              medicationId: med?.id || prod.medicationId,
+              name: prod.name || med?.name,
+              tradeName: prod.tradeName,
+              preparationSpec: prod.preparationSpec || med?.preparationSpec,
+              packages: prod.packages,
+              doseUnit: med?.defaultDoseUnit || prod.doseUnit,
+              defaultDose: med?.defaultDose,
+              defaultRoute: med?.defaultRoute,
+              defaultFrequency: med?.defaultFrequency,
+              packageUnit: prod.packages?.[0]?.unitName || prod.packageUnit,
+              isGenericOnly: false,
+            }
+          })
+        }
+      }
+      if (api.masterData?.searchMedications) {
+        const medRes = await api.masterData.searchMedications(keyword.trim(), '', 'ACTIVE', '', 0, 8)
+        if (medRes?.content?.length) {
+          const genericItems = medRes.content
+            .filter((m: any) => !items.some((existing) => String(existing.medicationId) === String(m.id)))
+            .map((m: any) => ({
+              id: m.id,
+              medicationId: m.id,
+              name: m.name,
+              tradeName: m.aliasName,
+              preparationSpec: m.preparationSpec,
+              doseUnit: m.defaultDoseUnit,
+              defaultDose: m.defaultDose,
+              defaultRoute: m.defaultRoute,
+              defaultFrequency: m.defaultFrequency,
+              preparationUnit: m.preparationUnit,
+              isGenericOnly: true,
+            }))
+          items = [...items, ...genericItems]
+        }
+      }
+      setMedSearchResults(items)
+    } catch {
+      setMedSearchResults([])
+    }
+  }
+
+  const handleSelectMedProduct = (taskIndex: number, prod: any) => {
+    if (!compiledDraft) return
+    const isGeneric = Boolean(prod.isGenericOnly)
+    const newMedication: CompiledPlanMedicationItem = {
+      medicationId: String(prod.medicationId || prod.id),
+      catalogItemId: isGeneric ? undefined : String(prod.id),
+      packageId: isGeneric ? undefined : String(prod.packages?.[0]?.id || prod.packageId || prod.id),
+      medicationName: prod.name,
+      preparationSpec: prod.preparationSpec,
+      doseValue: prod.defaultDose || 1,
+      doseUnit: prod.doseUnit || prod.defaultDoseUnit || '片',
+      routeCode: prod.defaultRoute || 'ORAL',
+      frequencyCode: prod.defaultFrequency || 'TID',
+      quantity: 1,
+      quantityUnit: prod.packageUnit || prod.preparationUnit || '盒',
+      substitutionAllowed: true,
+      selfProvided: false,
+    }
+    const nextMedications = [...compiledDraft.medications, newMedication]
+    const nextTasks = (compiledDraft.tasks ?? []).map((t, i) =>
+      i === taskIndex ? { ...t, status: 'MATCHED' as const } : t
+    )
+    setCompiledDraft({
+      ...compiledDraft,
+      medications: nextMedications,
+      tasks: nextTasks,
+    })
+    setActiveMedSearchTaskIndex(null)
+    setMedSearchResults([])
+  }
+
+  const handleSearchService = async (keyword: string) => {
+    if (!keyword.trim() || !api.masterData?.searchServices) return
+    try {
+      const res = await api.masterData.searchServices(keyword.trim(), '', 'ACTIVE', '', 0, 8)
+      setServiceSearchResults(res.content || [])
+    } catch {
+      setServiceSearchResults([])
+    }
+  }
+
+  const handleSelectServiceItem = (taskIndex: number, srv: any) => {
+    if (!compiledDraft) return
+    const newService: CompiledPlanServiceItem = {
+      catalogItemId: String(srv.id),
+      itemCode: srv.code,
+      itemName: srv.name,
+      serviceType: srv.serviceType || 'LABORATORY',
+      quantity: 1,
+      unitCode: srv.unitCode || '次',
+      priceType: 'SALE',
+      pricingRequired: true,
+    }
+    const nextServices = [...compiledDraft.services, newService]
+    const nextTasks = (compiledDraft.tasks ?? []).map((t, i) =>
+      i === taskIndex ? { ...t, status: 'MATCHED' as const } : t
+    )
+    setCompiledDraft({
+      ...compiledDraft,
+      services: nextServices,
+      tasks: nextTasks,
+    })
+    setActiveServiceSearchTaskIndex(null)
+    setServiceSearchResults([])
+  }
+
   return (
     <Dialog
       title={isEditing ? `调整诊疗方案 “${editingTemplate?.name}”` : 'AI 诊疗方案助手'}
@@ -499,7 +757,7 @@ export function AiPlanTemplateDraftModal({
         <>
           <div className="ai-plan-footer-tip">
             <Icon name="info" />
-            <span>AI 辅助草稿 · 保存前请核对临床内容</span>
+            <span>AI 草稿 · 保存前请核对</span>
           </div>
           <Button variant="secondary" disabled={saving} onClick={() => {
             compileAbortRef.current?.abort()
@@ -727,17 +985,13 @@ export function AiPlanTemplateDraftModal({
           <div className="ai-plan-modal-right">
             <div className="ai-plan-modal-right-head">
               <div>
-                <h3>{compiling ? streamPreview.name || (revisionRunning ? '正在修订门诊方案' : '正在生成门诊方案') : stage === 'TEXT_REVIEW'
+                <h3>{compiling ? streamPreview.name || (revisionRunning ? '正在修订门诊方案' : '正在生成门诊方案') : converting ? '正在匹配院内目录' : stage === 'TEXT_REVIEW'
                   ? textDraft?.name || '临床方案审核' : isEditing ? '方案调整与明细微调' : '系统方案核对'}</h3>
               </div>
-              {stage === 'TEXT_REVIEW' && textDraft ? (
-                <div className="ai-plan-modal-mode-switch">
-                  <StatusBadge tone="warning">文字草案待审阅</StatusBadge>
-                  <Tabs value={reviewMode} label="方案审阅方式" variant="line" items={[
-                    { value: 'TASKS', label: '临床清单' },
-                    { value: 'RAW', label: '全文修订' },
-                  ]} onChange={(value) => setReviewMode(value as 'TASKS' | 'RAW')} />
-                </div>
+              {converting ? (
+                <StatusBadge tone="warning">逐条匹配中</StatusBadge>
+              ) : stage === 'TEXT_REVIEW' && textDraft ? (
+                <StatusBadge tone="warning">方案待审阅</StatusBadge>
               ) : compiledDraft ? (
                 <StatusBadge tone="success">
                   {isEditing ? '待核对后保存' : compiledDraft.sourceType === 'AI_GUIDELINE' ? '条文提取完成 · 来源未核验' : '目录匹配完成 · 待确认'}
@@ -765,14 +1019,14 @@ export function AiPlanTemplateDraftModal({
                     <PlanReviewChecklist items={streamPreview.items} isStreaming />
                     <div className="ai-plan-stream-live-indicator">
                       <span className="ai-plan-stream-spin" />
-                      <span>AI 正在继续流式梳理后续临床建议与处置...</span>
+                      <span>{streamPreview.narrative ? `临床条目已梳理完毕（${streamPreview.items.length} 项），正在生成方案全文...` : 'AI 正在梳理临床建议与处置条目...'}</span>
                     </div>
                   </div>
                 ) : (
                   <div className="ai-plan-stream-skeleton">
                     <div className="ai-plan-stream-skeleton-box">
-                      <div className="ai-plan-stream-skeleton-head">
-                        <span className="ai-plan-stream-spin" /> 正在对齐 ICD-10 临床诊断与适用条件...
+                    <div className="ai-plan-stream-skeleton-head">
+                        <span className="ai-plan-stream-spin" /> 正在对齐 ICD-10 诊断...
                       </div>
                       <div className="ai-plan-stream-skeleton-line" style={{ width: '85%' }} />
                       <div className="ai-plan-stream-skeleton-line" style={{ width: '60%' }} />
@@ -783,7 +1037,7 @@ export function AiPlanTemplateDraftModal({
                 {/* 实时文书草案折叠预览 */}
                 {streamPreview.narrative && (
                   <details className="ai-plan-stream-narrative-collapse">
-                    <summary>查看实时文字草案流（{streamPreview.narrative.length} 字）</summary>
+                    <summary>实时方案草案流（已生成 {streamPreview.narrative.length} 字）</summary>
                     <div className="ai-plan-stream-narrative-box">
                       {streamPreview.narrative}
                       <span className="ai-plan-stream-caret" aria-hidden="true" />
@@ -791,37 +1045,42 @@ export function AiPlanTemplateDraftModal({
                   </details>
                 )}
               </div>
-            ) : converting ? (
-              <LoadingState label="正在匹配院内诊断、药品和检验检查目录..." />
+            ) : converting && textDraft ? (
+              <div className="ai-plan-matching-view" aria-live="polite" aria-busy="true">
+                <div className="ai-plan-matching-view__head">
+                  <span className="ai-plan-stream-pulse-dot" />
+                  <div>
+                    <strong>正在匹配院内目录</strong>
+                    <small>保留原记录，逐条补充目录结果</small>
+                  </div>
+                </div>
+                <PlanReviewChecklist items={textDraft.reviewItems} isMatching />
+              </div>
             ) : stage === 'TEXT_REVIEW' && textDraft ? (
               <div className="ai-plan-modal-text-review">
-                {reviewMode === 'TASKS' ? (
-                  <PlanReviewChecklist
-                    items={textDraft.reviewItems}
-                    onRemove={(index) => setTextDraft({
-                      ...textDraft,
-                      reviewItems: textDraft.reviewItems.filter((_, itemIndex) => itemIndex !== index),
-                    })}
-                  />
-                ) : (
-                  <textarea
-                    className="ui-field__control ai-plan-modal-narrative-editor"
-                    value={textDraft.narrative}
-                    onChange={(e) => setTextDraft({ ...textDraft, narrative: e.target.value })}
-                    aria-label="AI 文字方案草案原文"
-                    placeholder="输入或修订门诊文字方案内容..."
-                  />
-                )}
+                <PlanReviewChecklist
+                  items={textDraft.reviewItems}
+                  onRemove={(index) => setTextDraft({
+                    ...textDraft,
+                    reviewItems: textDraft.reviewItems.filter((_, itemIndex) => itemIndex !== index),
+                  })}
+                  onUpdateItem={(index, updated) => setTextDraft({
+                    ...textDraft,
+                    reviewItems: textDraft.reviewItems.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, ...updated } : item,
+                    ),
+                  })}
+                />
               </div>
             ) : !compiledDraft ? (
               <div className="ai-plan-empty-view">
-                <div className="ui-empty-state__icon">
+                <div className="ai-plan-empty-icon">
                   <Icon name="tasks" />
                 </div>
                 <h3 className="ai-plan-empty-title">系统方案核对</h3>
                 <p className="ai-plan-empty-subtitle">编译结果将在此逐项呈现</p>
                 <p className="ai-plan-empty-desc">
-                  从左侧输入临床意图、开方速记或指南条文，模型将自动提取任务、尝试对齐院内目录，并保留需医生判断的内容。
+                  输入临床意图后，右侧会保留原记录并标记院内目录匹配结果。
                 </p>
 
                 <div className="ai-plan-empty-flow" aria-label="方案编译流程">
@@ -861,12 +1120,15 @@ export function AiPlanTemplateDraftModal({
               <div className="ai-plan-modal-content">
                 {unresolvedCatalogTasks.length > 0 && (
                   <Alert tone="warning">
-                    仍有 {unresolvedCatalogTasks.length} 项诊断、药品或检验检查未能唯一匹配当前机构目录。
-                    请移除不需要的候选项，或返回对话继续明确后再保存。
+                    <span className="ai-plan-legacy-copy">仍有 {unresolvedCatalogTasks.length} 项诊断、药品或检验检查未能唯一匹配</span>
+                    还有 {unresolvedCatalogTasks.length} 项未能唯一匹配院内目录，请核对或移除。
                   </Alert>
                 )}
                 {missingStandardDiagnosis && (
-                  <Alert tone="warning">当前方案尚无已匹配的 ICD-10 标准诊断，请通过对话补充或调整后再保存。</Alert>
+                  <Alert tone="warning">
+                    <span className="ai-plan-legacy-copy">当前方案尚无已匹配的 ICD-10 标准诊断</span>
+                    请补充一个已匹配的 ICD-10 诊断。
+                  </Alert>
                 )}
                 <div className="ai-plan-modal-info-grid">
                   <FormField label="方案名称" required>
@@ -889,101 +1151,312 @@ export function AiPlanTemplateDraftModal({
                 {/* 诊断列表 */}
                 <div className="ai-plan-modal-section">
                   <div className="ai-plan-modal-section-title">
-                    初步诊断 ({compiledDraft.diagnoses.length})
+                    诊断 ({compiledDraft.diagnoses.length + unmatchedDiagnosisTasks.length})
                   </div>
-                  {compiledDraft.diagnoses.length === 0 ? (
+                  {compiledDraft.diagnoses.length === 0 && unmatchedDiagnosisTasks.length === 0 ? (
                     <div className="ai-plan-modal-row-empty">请至少指定一个诊断</div>
                   ) : (
-                    compiledDraft.diagnoses.map((d, idx) => (
-                      <div key={idx} className="ai-plan-modal-row">
-                        <span><strong>{d.display}</strong> ({d.code})</span>
-                        <div className="ai-plan-modal-actions">
-                          <StatusBadge tone="neutral">{d.type === 'PRIMARY' ? '主诊断' : '次诊断'}</StatusBadge>
-                          <Button size="sm" variant="text" aria-label={`移除诊断 ${d.display}`} title="移除"
-                            onClick={() => removeDiagnosis(idx)}><Icon name="close" /></Button>
+                    <>
+                      {compiledDraft.diagnoses.map((d, idx) => (
+                        <div key={`diag-${idx}`} className="ai-plan-modal-row ai-plan-match-result-row">
+                          <span><strong>{d.display}</strong> ({d.code})</span>
+                          <div className="ai-plan-modal-actions">
+                            <StatusBadge tone="neutral">{d.type === 'PRIMARY' ? '主诊断' : '次诊断'}</StatusBadge>
+                            <StatusBadge tone="success">已匹配标准库</StatusBadge>
+                            <Button size="sm" variant="text" aria-label={`移除诊断 ${d.display}`} title="移除"
+                              onClick={() => removeDiagnosis(idx)}><Icon name="close" /></Button>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                      {unmatchedDiagnosisTasks.map(({ task, index }) => (
+                        <div key={`diag-task-${index}`} className="ai-plan-modal-row ai-plan-row-unmatched">
+                          <div className="ai-plan-task-content">
+                            <div className="ai-plan-task-title-row">
+                              <strong>{task.text}</strong>
+                              {task.details && (
+                                <Tooltip content={<div className="ai-plan-tooltip-details">{task.details}</div>}>
+                                  <button type="button" className="ai-plan-info-btn" aria-label={`查看 ${task.text} 依据`}>
+                                    <Icon name="info" />
+                                  </button>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </div>
+                          <div className="ai-plan-modal-actions">
+                            <StatusBadge tone="danger">未匹配标准编码</StatusBadge>
+                            <Button size="sm" variant="text" aria-label={`移除任务 ${task.text}`} title="移除"
+                              onClick={() => removeTask(index)}><Icon name="close" /></Button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
                   )}
                 </div>
 
                 {/* 处方药品列表 */}
                 <div className="ai-plan-modal-section">
                   <div className="ai-plan-modal-section-title">
-                    推荐处方用药 ({compiledDraft.medications.length})
+                    用药 ({compiledDraft.medications.length + unmatchedMedicationTasks.length})
                   </div>
-                  {compiledDraft.medications.length === 0 ? (
-                    <div className="ai-plan-modal-row-empty">暂无唯一匹配当前科室库存的药品</div>
+                  {compiledDraft.medications.length === 0 && unmatchedMedicationTasks.length === 0 ? (
+                    <div className="ai-plan-modal-row-empty">暂无推荐用药</div>
                   ) : (
-                    compiledDraft.medications.map((m, idx) => (
-                      <div key={idx} className="ai-plan-modal-row ai-plan-modal-row-bordered">
-                        <div>
-                          <div><strong>{m.medicationName || `在库药品 #${m.medicationId}`}</strong> {m.preparationSpec && <small className="ai-plan-modal-subtext">({m.preparationSpec})</small>}</div>
-                          <small className="ai-plan-modal-row-sub">用法: {[
-                            m.routeCode,
-                            m.frequencyCode,
-                            m.doseValue && m.doseUnit ? `每次 ${m.doseValue}${m.doseUnit}` : null,
-                            m.durationValue && m.durationUnit ? `${m.durationValue}${m.durationUnit}` : '疗程待开立时确认',
-                          ].filter(Boolean).join(' · ')}</small>
+                    <>
+                      {compiledDraft.medications.map((m, idx) => (
+                        <div key={`med-${idx}`} className="ai-plan-modal-row ai-plan-modal-row-bordered ai-plan-match-result-row">
+                          <div>
+                            <div>
+                              <strong>{m.medicationName || `在库药品 #${m.medicationId}`}</strong>{' '}
+                              {m.preparationSpec && <small className="ai-plan-modal-subtext">({m.preparationSpec})</small>}
+                            </div>
+                            <small className="ai-plan-modal-row-sub">用法: {[
+                              m.routeCode,
+                              m.frequencyCode,
+                              m.doseValue && m.doseUnit ? `每次 ${m.doseValue}${m.doseUnit}` : null,
+                              m.durationValue && m.durationUnit ? `${m.durationValue}${m.durationUnit}` : '疗程待开立时确认',
+                            ].filter(Boolean).join(' · ')}</small>
+                          </div>
+                          <div className="ai-plan-modal-actions">
+                            <StatusBadge tone="success">{m.catalogItemId ? '在库已对齐' : '主档已对齐'}</StatusBadge>
+                            <Button size="sm" variant="text" aria-label={`移除药品 ${m.medicationName || m.medicationId}`}
+                              title="移除" onClick={() => removeMedication(idx)}><Icon name="close" /></Button>
+                          </div>
                         </div>
-                        <div className="ai-plan-modal-actions">
-                          <StatusBadge tone="success">在库已对齐</StatusBadge>
-                          <Button size="sm" variant="text" aria-label={`移除药品 ${m.medicationName || m.medicationId}`}
-                            title="移除" onClick={() => removeMedication(idx)}><Icon name="close" /></Button>
+                      ))}
+                      {unmatchedMedicationTasks.map(({ task, index }) => {
+                        const usageHint = parseMedicationUsageHint(task.text, task.details)
+                        return (
+                          <div key={`med-task-${index}`} className="ai-plan-modal-row ai-plan-modal-row-bordered ai-plan-row-unmatched">
+                            <div className="ai-plan-task-content">
+                              <div className="ai-plan-task-title-row">
+                                <strong>{task.text}</strong>
+                                {usageHint && <span className="ai-plan-dosage-badge">{usageHint}</span>}
+                                {task.details && (
+                                  <Tooltip content={<div className="ai-plan-tooltip-details">{task.details}</div>}>
+                                    <button type="button" className="ai-plan-info-btn" aria-label={`查看 ${task.text} 依据`}>
+                                      <Icon name="info" />
+                                    </button>
+                                  </Tooltip>
+                                )}
+                              </div>
+                              {activeMedSearchTaskIndex === index ? (
+                                <div className="ai-plan-inline-search">
+                                  <div className="ai-plan-inline-search__bar">
+                                    <input
+                                      type="text"
+                                      className="ui-field__control"
+                                      value={medSearchKeyword}
+                                      onChange={(e) => setMedSearchKeyword(e.target.value)}
+                                      onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchMed(medSearchKeyword) }}
+                                      placeholder="输入药品名称搜索在库产品或通用主档..."
+                                      autoFocus
+                                    />
+                                    <Button size="sm" variant="secondary" onClick={() => void handleSearchMed(medSearchKeyword)}>搜索</Button>
+                                    <Button size="sm" variant="text" onClick={() => setActiveMedSearchTaskIndex(null)}>取消</Button>
+                                  </div>
+                                  {medSearchResults.length > 0 && (
+                                    <div className="ai-plan-inline-search__list">
+                                      {medSearchResults.map((prod: any) => (
+                                        <div key={prod.id} className="ai-plan-inline-search__item" onClick={() => handleSelectMedProduct(index, prod)}>
+                                          <div>
+                                            <strong>{prod.name}</strong>
+                                            <small>{prod.preparationSpec || ''} {prod.tradeName ? `(${prod.tradeName})` : ''}</small>
+                                            {prod.isGenericOnly && <StatusBadge tone="neutral">通用主档</StatusBadge>}
+                                          </div>
+                                          <Button size="sm" variant="secondary">选用</Button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                            <div className="ai-plan-modal-actions">
+                              {activeMedSearchTaskIndex !== index && (
+                                <Button size="sm" variant="secondary" onClick={() => {
+                                  setActiveMedSearchTaskIndex(index)
+                                  setMedSearchKeyword(task.text)
+                                  void handleSearchMed(task.text)
+                                }}>
+                                <Icon name="search" /> 对齐在库药品
+                              </Button>
+                            )}
+                            <StatusBadge tone="danger">未在库 / 待对齐</StatusBadge>
+                            <Button size="sm" variant="text" aria-label={`移除任务 ${task.text}`}
+                              title="移除" onClick={() => removeTask(index)}><Icon name="close" /></Button>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      )})}
+                    </>
                   )}
                 </div>
 
                 {/* 检验检查服务 */}
                 <div className="ai-plan-modal-section">
                   <div className="ai-plan-modal-section-title">
-                    检验与检查项目 ({compiledDraft.services.length})
+                    检查 / 检验 ({compiledDraft.services.length + unmatchedServiceTasks.length})
                   </div>
-                  {compiledDraft.services.length === 0 ? (
+                  {compiledDraft.services.length === 0 && unmatchedServiceTasks.length === 0 ? (
                     <div className="ai-plan-modal-row-empty">暂无检验检查项目</div>
                   ) : (
-                    compiledDraft.services.map((s, idx) => (
-                      <div key={idx} className="ai-plan-modal-row">
-                        <div>
-                          <strong>{s.itemName || `服务项目 #${s.catalogItemId}`}</strong>
-                          {s.itemCode && <small className="ai-plan-modal-item-code">({s.itemCode})</small>}
+                    <>
+                      {compiledDraft.services.map((s, idx) => (
+                        <div key={`srv-${idx}`} className="ai-plan-modal-row ai-plan-match-result-row">
+                          <div>
+                            <strong>{s.itemName || `服务项目 #${s.catalogItemId}`}</strong>
+                            {s.itemCode && <small className="ai-plan-modal-item-code">({s.itemCode})</small>}
+                          </div>
+                          <div className="ai-plan-modal-actions">
+                            <StatusBadge tone="neutral">
+                              {s.serviceType === 'LABORATORY' ? '检验' : s.serviceType === 'EXAMINATION' ? '检查' : '诊疗'}
+                            </StatusBadge>
+                            <StatusBadge tone="success">已对齐目录</StatusBadge>
+                            <span className="ai-plan-modal-row-sub">{s.quantity} {s.unitCode}</span>
+                            <Button size="sm" variant="text" aria-label={`移除项目 ${s.itemName || s.catalogItemId}`}
+                              title="移除" onClick={() => removeService(idx)}><Icon name="close" /></Button>
+                          </div>
                         </div>
-                        <div className="ai-plan-modal-actions">
-                          <StatusBadge tone="neutral">
-                            {s.serviceType === 'LABORATORY' ? '检验' : s.serviceType === 'EXAMINATION' ? '检查' : '诊疗'}
-                          </StatusBadge>
-                          <span className="ai-plan-modal-row-sub">{s.quantity} {s.unitCode}</span>
-                          <Button size="sm" variant="text" aria-label={`移除项目 ${s.itemName || s.catalogItemId}`}
-                            title="移除" onClick={() => removeService(idx)}><Icon name="close" /></Button>
+                      ))}
+                      {unmatchedServiceTasks.map(({ task, index }) => (
+                        <div key={`srv-task-${index}`} className="ai-plan-modal-row ai-plan-row-unmatched">
+                          <div className="ai-plan-task-content">
+                            <div className="ai-plan-task-title-row">
+                              <strong>{task.text}</strong>
+                              {task.details && (
+                                <Tooltip content={<div className="ai-plan-tooltip-details">{task.details}</div>}>
+                                  <button type="button" className="ai-plan-info-btn" aria-label={`查看 ${task.text} 依据`}>
+                                    <Icon name="info" />
+                                  </button>
+                                </Tooltip>
+                              )}
+                            </div>
+                            {activeServiceSearchTaskIndex === index ? (
+                              <div className="ai-plan-inline-search">
+                                <div className="ai-plan-inline-search__bar">
+                                  <input
+                                    type="text"
+                                    className="ui-field__control"
+                                    value={serviceSearchKeyword}
+                                    onChange={(e) => setServiceSearchKeyword(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchService(serviceSearchKeyword) }}
+                                    placeholder="输入项目名称搜索院内服务..."
+                                    autoFocus
+                                  />
+                                  <Button size="sm" variant="secondary" onClick={() => void handleSearchService(serviceSearchKeyword)}>搜索</Button>
+                                  <Button size="sm" variant="text" onClick={() => setActiveServiceSearchTaskIndex(null)}>取消</Button>
+                                </div>
+                                {serviceSearchResults.length > 0 && (
+                                  <div className="ai-plan-inline-search__list">
+                                    {serviceSearchResults.map((srv: any) => (
+                                      <div key={srv.id} className="ai-plan-inline-search__item" onClick={() => handleSelectServiceItem(index, srv)}>
+                                        <div>
+                                          <strong>{srv.name}</strong>
+                                          <small>编码: {srv.code}</small>
+                                        </div>
+                                        <Button size="sm" variant="secondary">选用</Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="ai-plan-modal-actions">
+                            {activeServiceSearchTaskIndex !== index && (
+                              <Button size="sm" variant="secondary" onClick={() => {
+                                setActiveServiceSearchTaskIndex(index)
+                                setServiceSearchKeyword(task.text)
+                                void handleSearchService(task.text)
+                              }}>
+                                <Icon name="search" /> 对齐院内项目
+                              </Button>
+                            )}
+                            <StatusBadge tone="danger">未匹配院内项目</StatusBadge>
+                            <Button size="sm" variant="text" aria-label={`移除任务 ${task.text}`}
+                              title="移除" onClick={() => removeTask(index)}><Icon name="close" /></Button>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </>
                   )}
                 </div>
 
                 {/* 临床任务与宣教随访（非空时呈现） */}
-                {compiledDraft.tasks && compiledDraft.tasks.length > 0 && (
+                {otherTasks.length > 0 && (
                   <div className="ai-plan-modal-section">
                     <div className="ai-plan-modal-section-title">
-                      临床任务与宣教随访 ({compiledDraft.tasks.length})
+                      其他安排 ({otherTasks.length})
                     </div>
-                    {compiledDraft.tasks.map((task, idx) => (
-                      <div key={`${task.kind}-${idx}`} className="ai-plan-modal-row ai-plan-modal-row-bordered">
-                        <div>
-                          <strong>{planTaskKindLabel[task.kind]} · {task.text}</strong>
-                          {task.details && <small className="ai-plan-modal-row-sub">{task.details}</small>}
-                          <details className="ai-plan-review-evidence"><summary>依据</summary>
-                            <p>{task.sourceQuote ? `原文：“${task.sourceQuote}”` : '输入中未明确提出，属于模型补充建议。'}</p>
-                          </details>
+                    {otherTasks.map(({ task, index }) => {
+                      const isTextTask = task.kind === 'EDUCATION' || task.kind === 'FOLLOW_UP'
+                      return (
+                        <div key={`other-${task.kind}-${index}`} className={`ai-plan-modal-row ai-plan-modal-row-bordered ${isTextTask ? 'ai-plan-modal-row--text' : ''}`}>
+                          <div className="ai-plan-task-content">
+                            <div className="ai-plan-task-title-row">
+                              <strong>{planTaskKindLabel[task.kind] || '其他'} · {task.text}</strong>
+                              {task.details && !isTextTask && (
+                                <Tooltip content={<div className="ai-plan-tooltip-details">{task.details}</div>}>
+                                  <button type="button" className="ai-plan-info-btn" aria-label={`查看 ${task.text} 依据`}>
+                                    <Icon name="info" />
+                                  </button>
+                                </Tooltip>
+                              )}
+                            </div>
+                            {isTextTask && (
+                              <div className="ai-plan-text-item-body">
+                                <textarea
+                                  className="ui-field__control ai-plan-text-item-input"
+                                  rows={2}
+                                  value={task.details || ''}
+                                  placeholder="输入指导、宣教或随访内容..."
+                                  onChange={(e) => {
+                                    const nextDetails = e.target.value
+                                    setCompiledDraft((prev) => {
+                                      if (!prev) return prev
+                                      const nextTasks = (prev.tasks ?? []).map((t, i) =>
+                                        i === index ? { ...t, details: nextDetails } : t
+                                      )
+                                      return { ...prev, tasks: nextTasks }
+                                    })
+                                  }}
+                                  aria-label={`${task.text}内容`}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          <div className="ai-plan-modal-actions">
+                            <Tooltip content={isTextTask
+                              ? '非目录建议：请决定保留、移除，或直接修改上方指导内容。'
+                              : task.status === 'MATCHED' ? '已对应院内目录。' : '请核对目录结果或移除该项。'}>
+                              <span className="ai-plan-task-status-tip">
+                                <StatusBadge tone={task.status === 'MATCHED' ? 'success' : task.status === 'UNMATCHED' ? 'danger' : 'warning'}>
+                                  {task.status === 'MATCHED' ? '目录已匹配' : task.status === 'UNMATCHED' ? '未匹配' : '待医生确认'}
+                                </StatusBadge>
+                              </span>
+                            </Tooltip>
+                            <Button size="sm" variant="text" disabled={task.status === 'MATCHED'}
+                              aria-label={`移除任务 ${task.text}`} title="移除" onClick={() => removeTask(index)}><Icon name="close" /></Button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* 适用条件提示 */}
+                {conditionTasks.length > 0 && (
+                  <div className="ai-plan-modal-section">
+                    <div className="ai-plan-modal-section-title">适用条件提示 ({conditionTasks.length})</div>
+                    {conditionTasks.map(({ task, index }) => (
+                      <div key={`cond-${index}`} className="ai-plan-modal-row ai-plan-modal-row-bordered">
+                        <div className="ai-plan-task-title-row">
+                          <Icon name="info" className="ai-plan-row-inline-icon" /> <strong>{task.text}</strong>
+                          {task.details && <span className="ai-plan-modal-row-sub">（{task.details}）</span>}
                         </div>
                         <div className="ai-plan-modal-actions">
-                          <StatusBadge tone={task.status === 'MATCHED' ? 'success' : task.status === 'UNMATCHED' ? 'danger' : 'warning'}>
-                            {task.status === 'MATCHED' ? '目录已匹配' : task.status === 'UNMATCHED' ? '未匹配' : '待医生核对'}
-                          </StatusBadge>
-                          <Button size="sm" variant="text" disabled={task.status === 'MATCHED'}
-                            aria-label={`移除任务 ${task.text}`} title="移除" onClick={() => removeTask(idx)}><Icon name="close" /></Button>
+                          <Button size="sm" variant="text" aria-label={`移除任务 ${task.text}`} title="移除" onClick={() => removeTask(index)}>
+                            <Icon name="close" />
+                          </Button>
                         </div>
                       </div>
                     ))}

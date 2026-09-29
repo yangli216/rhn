@@ -61,7 +61,10 @@ public class MedicationIntentParser {
         if (clean == null) return null;
         clean = DOSE.matcher(clean).replaceAll("");
         for (String token : FREQUENCIES.keySet()) clean = clean.replaceAll("(?i)" + Pattern.quote(token), "");
-        return clean.replaceAll("[，,；;：:]+$", "").trim();
+        for (String token : ROUTES.keySet()) clean = clean.replaceAll("(?i)" + Pattern.quote(token), "");
+        clean = DURATION.matcher(clean).replaceAll("");
+        clean = QUANTITY.matcher(clean).replaceAll("");
+        return clean.replaceAll("[，,；;：:0-9.]+$", "").trim();
     }
 
     private List<String> splitIngredients(String value) {

@@ -42,6 +42,7 @@ export interface OutpatientPlanTemplate {
   status: 'ACTIVE' | 'INACTIVE'
   sourceType?: OutpatientPlanTemplateSourceType
   guidelineReference?: string
+  noteTemplateId?: string
   sortOrder: number
   useCount: number
   lastUsedAt?: string
@@ -71,6 +72,7 @@ export interface SaveOutpatientPlanTemplateInput {
   description?: string
   sourceType?: OutpatientPlanTemplateSourceType
   guidelineReference?: string
+  noteTemplateId?: string
   sortOrder?: number
   diagnoses: DiagnosisInput[]
   medications: CompiledPlanMedicationItem[]
@@ -330,6 +332,7 @@ export interface UpdateOutpatientPlanTemplateInput {
   name: string
   description?: string
   guidelineReference?: string
+  noteTemplateId?: string
   sortOrder?: number
   diagnoses: DiagnosisInput[]
   medications: CompiledPlanMedicationItem[]

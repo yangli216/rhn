@@ -13,6 +13,17 @@ export interface OrderDocument {
   items: Array<{ id: string; name: string }>
 }
 
+function serviceDocumentType(value: ServiceRequest) {
+  if (value.serviceType === 'LABORATORY') return '检验'
+  if (value.serviceType === 'EXAMINATION') return '检查'
+  if (value.serviceType === 'TREATMENT') return '治疗'
+  return '处置'
+}
+
+function requiresExaminationPurpose(value: ServiceRequest) {
+  return value.serviceType === 'LABORATORY' || value.serviceType === 'EXAMINATION'
+}
+
 export function orderDocuments(prescriptions: Prescription[], services: ServiceRequest[]): OrderDocument[] {
   const sort = <T extends { authoredAt: string; id: string }>(items: T[]) => [...items].sort((a, b) =>
     a.authoredAt.localeCompare(b.authoredAt) || String(a.id).localeCompare(String(b.id)))
@@ -22,8 +33,8 @@ export function orderDocuments(prescriptions: Prescription[], services: ServiceR
     items: value.medicationRequests.filter(item => item.status !== 'CANCELLED').map(item => ({ id: item.id, name: item.itemName || item.medicationName })),
   }))
   const counters: Record<string, number> = {}
-  const svc = sort(services).filter(value => ['LABORATORY', 'EXAMINATION'].includes(value.serviceType)).map((value): OrderDocument => {
-    const type = value.serviceType === 'LABORATORY' ? '检验' : '检查'
+  const svc = sort(services).map((value): OrderDocument => {
+    const type = serviceDocumentType(value)
     const index = counters[type] = (counters[type] || 0) + 1
     return { key: `service:${value.id}`, kind: 'service', value, label: `${type}单${index}`, shortLabel: `${type}${index}`,
       items: [{ id: value.id, name: value.itemName }] }
@@ -36,7 +47,8 @@ export function documentMissing(doc: OrderDocument): string[] {
   if (doc.kind === 'service' && (doc.value as ServiceRequest).documentInfoEditable === false) return []
   const info = doc.value.documentInfo
   return [!info?.diagnoses.length ? '关联诊断' : '',
-    doc.kind === 'service' && !info?.examinationPurpose?.trim() ? '检查目的' : ''].filter(Boolean)
+    doc.kind === 'service' && requiresExaminationPurpose(doc.value as ServiceRequest)
+      && !info?.examinationPurpose?.trim() ? '检查目的' : ''].filter(Boolean)
 }
 
 export function OrderDocumentSummary({ documents, selectedKey, onSelect }: {
@@ -192,7 +204,7 @@ export function OrderDocumentInlineEditor({ document: doc, encounter, api, readO
           </div>
         )}
 
-        {doc.kind === 'service' && (
+        {doc.kind === 'service' && requiresExaminationPurpose(doc.value as ServiceRequest) && (
           <div className="doctor-order-inline-form-row">
             <label className="doctor-order-inline-field">
               <span>检查目的</span>
@@ -309,7 +321,8 @@ export function OrderDocumentEditor({ document: doc, documents, encounter, api, 
         <label>门诊特病病种<input value={info.specialDisease || ''} maxLength={120}
           placeholder="填写已确认的特病病种，无则留空" onChange={event => change({ specialDisease: event.target.value })} /></label>
         <p className="doctor-document-hint">外配和特病为单据标记；收费、药房发药和医保待遇仍按现有流程办理。</p>
-        {doc.kind === 'service' && <label>检查目的<textarea rows={4} value={info.examinationPurpose || ''} maxLength={2000}
+        {doc.kind === 'service' && requiresExaminationPurpose(doc.value as ServiceRequest)
+          && <label>检查目的<textarea rows={4} value={info.examinationPurpose || ''} maxLength={2000}
           placeholder="说明需要明确或排除的问题，与项目部位、标本及临床说明分开记录"
           onChange={event => change({ examinationPurpose: event.target.value })} /></label>}
       </fieldset>

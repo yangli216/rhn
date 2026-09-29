@@ -1423,11 +1423,20 @@ export function createMasterDataApi(client: ApiClient) {
       })}`),
     standardMedicationCandidates: (id: string, organizationId: string) => client.request<MedicationKnowledge[]>(
       `/api/platform/master-data/medication-standard-catalog/specifications/${encodeURIComponent(id)}/medications${queryString({organizationId})}`),
+    standardMedicationUsage: (entryId: string, organizationId: string) => client.request<StandardMedicationEntryUsage>(
+      `/api/platform/master-data/medication-standard-catalog/entries/${encodeURIComponent(entryId)}/medications${queryString({organizationId})}`),
     saveStandardMedication: (id: string, input: MedicationInput, organizationId: string, prior?: MedicationKnowledge) =>
       client.request<MedicationKnowledge>(`/api/platform/master-data/medication-standard-catalog/specifications/${encodeURIComponent(id)}/medications${queryString({organizationId})}`,
         {method: 'POST', body: JSON.stringify({medication: input, medicationId: prior?.id, expectedRevision: prior?.revision})}),
     standardMedicationDetail: (id: string) => client.request<StandardMedicationDetail>(
       `/api/platform/master-data/medication-standard-catalog/${encodeURIComponent(id)}`),
+    standardSpecificationDispositions: () => client.request<StandardSpecificationDispositionView>(
+      '/api/platform/master-data/medication-standard-catalog/specification-dispositions'),
+    changeStandardSpecificationDisposition: (id: string, input: {
+      identity: StandardCatalogIdentity; expectedRevision: number; status: StandardSpecificationDispositionEvent['status']; note: string
+    }) => client.request<StandardSpecificationDispositionEvent>(
+      `/api/platform/master-data/medication-standard-catalog/specification-dispositions/${encodeURIComponent(id)}`,
+      {method: 'POST', body: JSON.stringify(input)}),
     standardCatalogSourceDocumentUrl: (page?: number) => {
       const base = '/api/platform/master-data/medication-standard-catalog/source-document'
       return page ? `${base}#page=${page}&view=FitH` : base
@@ -1760,5 +1769,19 @@ export interface StandardMedicationSpecification {
 }
 export interface StandardMedicationDetail extends StandardMedicationEntry {
   source: StandardMedicationSource; specifications: StandardMedicationSpecification[];
-  issues: {reason: string; sourceText: string}[]
+  issues: {reason: string; sourceText: string; specificationId?: string; entryId?: string}[]
+}
+export interface StandardSpecificationDispositionEvent {
+  id: string; identity: StandardCatalogIdentity; specificationId: string; revision: number
+  status: 'SUPPLEMENT_REQUIRED' | 'NOT_ADOPTED'; note: string; actorId: string; actor: string; recordedAt: string
+}
+export interface StandardSpecificationDispositionView {
+  identity: StandardCatalogIdentity; specifications: StandardSpecificationDispositionEvent[]
+}
+export interface StandardMedicationRecord {
+  id: string; code: string; name: string; specification?: string; status: string; productCount: number
+  relationType: 'CANONICAL' | 'HISTORICAL'
+}
+export interface StandardMedicationEntryUsage {
+  entryId: string; specifications: {specificationId: string; records: StandardMedicationRecord[]}[]
 }

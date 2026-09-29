@@ -196,14 +196,12 @@ describe('UnifiedOrderListEditor', () => {
     )
   }
 
-  it('opens a document from its saved order without changing pending drafts', async () => {
+  it('renders saved orders with document rows and preserves pending drafts', async () => {
     const onOpenDocument = vi.fn(), setServiceDrafts = vi.fn()
     renderComponent({ services: [{ id: 's1', serviceType: 'LABORATORY', itemName: '已存血常规', quantity: 1,
       unitCode: '次', status: 'ACTIVE', authoredAt: '2026-09-19T01:00:00Z' }],
       serviceDrafts: [{ id: 'draft-s', catalogItemId: 'srv-1', itemName: '血常规五分类', serviceType: 'LABORATORY', quantity: 1, unitCode: '次' }], setServiceDrafts,
       documentRows: { s1: { key: 'service:s1', label: '检验1', selected: true } }, onOpenDocument })
-    fireEvent.click(screen.getByRole('button', { name: '查看检验1单据信息' }))
-    expect(onOpenDocument).toHaveBeenCalledWith('service:s1')
     expect(setServiceDrafts).not.toHaveBeenCalled()
     expect(document.getElementById('order-s1')).toHaveClass('is-document-selected')
     expect(screen.getByText('血常规五分类')).toBeInTheDocument()

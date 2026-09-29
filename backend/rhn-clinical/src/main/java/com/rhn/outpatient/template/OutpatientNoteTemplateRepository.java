@@ -30,4 +30,6 @@ interface OutpatientNoteTemplateRepository extends JpaRepository<OutpatientNoteT
     @Query("select value from OutpatientNoteTemplate value where value.id = :id and value.tenantId = :tenantId")
     Optional<OutpatientNoteTemplate> lockByIdAndTenantId(@Param("id") Long id,
                                                           @Param("tenantId") Long tenantId);
+
+    Optional<OutpatientNoteTemplate> findByIdAndTenantId(Long id, Long tenantId);
 }

@@ -27,6 +27,7 @@ class OutpatientPlanTemplate {
     @Column(name = "DT_LAST_USED") private Instant lastUsedAt;
     @Column(name = "SD_SOURCE_TYPE", nullable = false) private String sourceType;
     @Column(name = "JSON_GUIDELINE_REF") private String guidelineReference;
+    @Column(name = "ID_OP_NOTE_TMPL") private Long noteTemplateId;
     @Column(name = "JSON_PLAN_TASKS") private String planTasks;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
@@ -37,12 +38,14 @@ class OutpatientPlanTemplate {
 
     OutpatientPlanTemplate(Long tenantId, Long organizationId, Long departmentId, String scopeType,
                            Long ownerId, String name, String description, int sortOrder,
-                           String sourceType, String guidelineReference, Long actorId, Instant now) {
+                           String sourceType, String guidelineReference, Long noteTemplateId,
+                           Long actorId, Instant now) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.departmentId = departmentId; this.scopeType = scopeType; this.ownerId = ownerId;
         this.name = name; this.description = description; this.sortOrder = sortOrder;
         this.sourceType = sourceType == null || sourceType.isBlank() ? "MANUAL" : sourceType;
         this.guidelineReference = guidelineReference;
+        this.noteTemplateId = noteTemplateId;
         this.status = "ACTIVE"; this.createdBy = actorId; this.updatedBy = actorId;
         this.createdAt = now; this.updatedAt = now;
     }
@@ -50,7 +53,7 @@ class OutpatientPlanTemplate {
     OutpatientPlanTemplate(Long tenantId, Long organizationId, Long departmentId, String scopeType,
                            Long ownerId, String name, String description, int sortOrder, Long actorId, Instant now) {
         this(tenantId, organizationId, departmentId, scopeType, ownerId, name, description, sortOrder,
-                "MANUAL", null, actorId, now);
+                "MANUAL", null, null, actorId, now);
     }
 
     void markUsed(Long actorId, Instant now) {
@@ -62,13 +65,15 @@ class OutpatientPlanTemplate {
     }
 
     void update(String scopeType, Long ownerId, String name, String description,
-                int sortOrder, String guidelineReference, String planTasks, Long actorId, Instant now) {
+                int sortOrder, String guidelineReference, Long noteTemplateId, String planTasks,
+                Long actorId, Instant now) {
         this.scopeType = scopeType;
         this.ownerId = ownerId;
         this.name = name;
         this.description = description;
         this.sortOrder = sortOrder;
         this.guidelineReference = guidelineReference;
+        this.noteTemplateId = noteTemplateId;
         this.planTasks = planTasks;
         this.updatedBy = actorId;
         this.updatedAt = now;
@@ -86,6 +91,7 @@ class OutpatientPlanTemplate {
     String status() { return status; }
     String sourceType() { return sourceType; }
     String guidelineReference() { return guidelineReference; }
+    Long noteTemplateId() { return noteTemplateId; }
     String planTasks() { return planTasks; }
     void setPlanTasks(String value) { this.planTasks = value; }
     int sortOrder() { return sortOrder; }

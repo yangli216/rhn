@@ -20,6 +20,7 @@ public final class OutpatientPlanTemplateContracts {
             Integer sortOrder,
             @Size(max = 32) String sourceType,
             @Size(max = 4000) String guidelineReference,
+            Long noteTemplateId,
             @Size(max = 20) List<@Valid DiagnosisInput> diagnoses,
             @Size(max = 50) List<@Valid MedicationInput> medications,
             @Size(max = 50) List<@Valid ServiceInput> services,
@@ -28,11 +29,19 @@ public final class OutpatientPlanTemplateContracts {
                            String sourceType, String guidelineReference, List<DiagnosisInput> diagnoses,
                            List<MedicationInput> medications, List<ServiceInput> services) {
             this(scopeType, name, description, sortOrder, sourceType, guidelineReference,
-                    diagnoses, medications, services, List.of());
+                    null, diagnoses, medications, services, List.of());
+        }
+        public SaveRequest(String scopeType, String name, String description, Integer sortOrder,
+                           String sourceType, String guidelineReference, List<DiagnosisInput> diagnoses,
+                           List<MedicationInput> medications, List<ServiceInput> services,
+                           List<PlanTaskInput> tasks) {
+            this(scopeType, name, description, sortOrder, sourceType, guidelineReference,
+                    null, diagnoses, medications, services, tasks);
         }
         public SaveRequest(String scopeType, String name, String description, Integer sortOrder,
                            List<DiagnosisInput> diagnoses, List<MedicationInput> medications, List<ServiceInput> services) {
-            this(scopeType, name, description, sortOrder, "MANUAL", null, diagnoses, medications, services, List.of());
+            this(scopeType, name, description, sortOrder, "MANUAL", null, null,
+                    diagnoses, medications, services, List.of());
         }
     }
 
@@ -101,6 +110,7 @@ public final class OutpatientPlanTemplateContracts {
             @Size(max = 500) String description,
             Integer sortOrder,
             @Size(max = 4000) String guidelineReference,
+            Long noteTemplateId,
             @Size(max = 20) List<@Valid DiagnosisInput> diagnoses,
             @Size(max = 50) List<@Valid MedicationInput> medications,
             @Size(max = 50) List<@Valid ServiceInput> services,
@@ -108,6 +118,7 @@ public final class OutpatientPlanTemplateContracts {
 
     public record View(Long id, long revision, String scopeType, String name, String description,
                        String status, String sourceType, String guidelineReference,
+                       Long noteTemplateId,
                        int sortOrder, long useCount, Instant lastUsedAt,
                        List<DiagnosisView> diagnoses, List<MedicationView> medications,
                        List<ServiceView> services, List<PlanTaskInput> tasks,

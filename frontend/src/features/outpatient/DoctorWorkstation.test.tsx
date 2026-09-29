@@ -182,7 +182,11 @@ function createMockApi({
         mode: 'SHADOW', decision: 'PASS', findings: [], ruleExecutions: [], failureCodes: [],
       }),
       submitPrescription: vi.fn(),
+      updatePrescriptionDocumentInfo: vi.fn().mockImplementation((_encounterId, id, revision, documentInfo) =>
+        Promise.resolve({ id, revision: revision + 1, documentInfo })),
       serviceRequests: vi.fn().mockResolvedValue([]),
+      updateServiceDocumentInfo: vi.fn().mockImplementation((_encounterId, id, revision, documentInfo) =>
+        Promise.resolve({ id, revision: revision + 1, documentInfo })),
       medicationRequests: vi.fn().mockResolvedValue([]),
       orderableMedications: vi.fn().mockResolvedValue([]),
     },
@@ -532,6 +536,34 @@ describe('DoctorWorkstation reception flow', () => {
     // 验证草稿中只加入了勾选的诊断“急性上呼吸道感染”，没有加入取消勾选的“咳嗽”
     expect(screen.getByText('急性上呼吸道感染')).toBeInTheDocument()
     expect(screen.queryByText('咳嗽')).not.toBeInTheDocument()
+  })
+
+  it('applies a linked note template together with diagnosis and orders as one solution', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const plan: OutpatientPlanTemplate = {
+      id: 'plan-with-note', revision: 1, scopeType: 'PERSONAL', name: '复诊整体方案',
+      noteTemplateId: 'note-template-1', status: 'ACTIVE', sourceType: 'MANUAL', sortOrder: 0, useCount: 0,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
+      medications: [], services: [], tasks: [], createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z',
+    }
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([plan])
+    vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(plan)
+
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    const drawer = await screen.findByRole('complementary', { name: '临床模板' })
+
+    expect(within(drawer).getByText('配套病历模板')).toBeInTheDocument()
+    expect(within(drawer).getAllByText('常规复诊').length).toBeGreaterThan(0)
+    await user.click(within(drawer).getByRole('button', { name: '带入当前草稿 (2)' }))
+
+    await waitFor(() => expect(api.outpatientPlanTemplates.use).toHaveBeenCalledWith('plan-with-note'))
+    await waitFor(() => expect(api.outpatientNoteTemplates.use).toHaveBeenCalledWith('note-template-1'))
+    expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('复诊')
+    expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('病情平稳')
+    expect(screen.getByText('原发性高血压')).toBeInTheDocument()
   })
 
   it('merges selected historical and standard plan differences into one reviewed draft', async () => {
@@ -1119,6 +1151,49 @@ describe('DoctorWorkstation reception flow', () => {
     }))
   })
 
+  it('shows an active laboratory document while reviewing a pending prescription', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const medicationRequest = {
+      id: 'med-draft-1', revision: 0, prescriptionId: 'rx-draft-1', status: 'DRAFT',
+      medicationId: 'medication-1', medicationName: '连花清瘟胶囊', itemName: '连花清瘟胶囊 0.35g',
+      medicationSnapshot: {}, quantity: 1, quantityUnit: '盒', doseValue: 1, doseUnit: '片',
+      routeCode: 'ORAL', frequencyCode: 'QD', selfProvided: false, substitutionAllowed: false,
+      itemAttributeSnapshot: {}, itemAttributeHash: 'hash-med', standardMappings: [],
+      authoredAt: '2026-09-28T08:10:00Z',
+    } as any
+    const prescription = {
+      id: 'rx-draft-1', revision: 0, residentId: 'resident-1', encounterId: 'encounter-101',
+      prescriptionNo: 'RX-001', categoryCode: 'CHINESE_PATENT', status: 'DRAFT',
+      performerOrganizationId: 'org-1', performerDepartmentId: 'dept-1',
+      authoredAt: '2026-09-28T08:10:00Z', medicationRequests: [medicationRequest],
+    } as any
+    const laboratoryRequest = {
+      id: 'service-lab-1', revision: 0, residentId: 'resident-1', encounterId: 'encounter-101',
+      requestNo: 'LAB-001', status: 'ACTIVE', catalogItemId: 'catalog-lab-1', businessDate: '2026-09-28',
+      itemCode: 'LAB-CBC', itemName: '血常规', unitCode: '次', adoptionId: 'adoption-1', adoptionRevision: 1,
+      quantity: 1, itemAttributeSnapshot: {}, itemAttributeHash: 'hash-lab',
+      itemAttributeResolvedAt: '2026-09-28T08:10:00Z', standardMappings: [], serviceType: 'LABORATORY',
+      clinicalDescription: '明确感染类型', authoredAt: '2026-09-28T08:11:00Z', documentInfoEditable: true,
+      documentInfo: { diagnoses: [{ code: 'J06.9', display: '急性上呼吸道感染，未特指', primary: true }],
+        externalPrescription: false, specialDisease: '', examinationPurpose: '明确感染类型' },
+    } as any
+    api.encounters.prescriptions = vi.fn().mockResolvedValue([prescription])
+    api.encounters.medicationRequests = vi.fn().mockResolvedValue([medicationRequest])
+    api.encounters.serviceRequests = vi.fn().mockResolvedValue([laboratoryRequest])
+
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: '审核开立' }))
+
+    const review = await screen.findByRole('dialog', { name: '医嘱开立核查' })
+    expect(within(review).getByText('2 张单据')).toBeInTheDocument()
+    expect(within(review).getByText('2 项医嘱')).toBeInTheDocument()
+    expect(within(review).getByText('检1')).toBeInTheDocument()
+    expect(within(review).getByText('血常规')).toBeInTheDocument()
+    expect(within(review).getByText('明确感染类型')).toBeInTheDocument()
+  })
+
   it('shows shadow medication safety findings before submitting a draft prescription', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
@@ -1158,12 +1233,12 @@ describe('DoctorWorkstation reception flow', () => {
     renderStation(api)
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
     await user.click(await screen.findByRole('button', { name: '审核开立' }))
-    await user.click(screen.getByRole('button', { name: '确认保存并开立' }))
 
     expect(await screen.findByRole('region', { name: '合理用药审查' })).toHaveTextContent('儿童及特定年龄禁忌用药核对')
     expect(screen.getByRole('region', { name: '合理用药审查' })).toHaveTextContent('6岁')
     expect(screen.getByRole('region', { name: '合理用药审查' })).toHaveTextContent('左氧氟沙星片')
     expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
+    expect(api.encounters.evaluatePrescriptionSafety).toHaveBeenCalledWith('encounter-101', 'rx-child')
 
     await user.click(screen.getByRole('button', { name: '已知晓风险，继续开立' }))
     await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-child', 0))
@@ -1206,7 +1281,6 @@ describe('DoctorWorkstation reception flow', () => {
     renderStation(api)
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
     await user.click(await screen.findByRole('button', { name: '审核开立' }))
-    await user.click(screen.getByRole('button', { name: '确认保存并开立' }))
     return screen.findByRole('region', { name: '合理用药审查' })
   }
 
@@ -1225,7 +1299,7 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(screen.getByRole('button', { name: '审核开立' }))
     await user.click(screen.getByRole('button', { name: '确认保存并开立' }))
     await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-pair', 0))
-    expect(api.encounters.evaluatePrescriptionSafety).toHaveBeenCalledTimes(2)
+    expect(api.encounters.evaluatePrescriptionSafety).toHaveBeenCalledTimes(3)
   })
 
   it('shows paired drugs and evidence, requires a reason, and sends it only after a fresh equivalent evaluation', async () => {
@@ -1693,7 +1767,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.click(within(orderTable).getByRole('button', { name: '确认所选（1）' }))
     await waitFor(() => expect(within(orderTable).queryByLabelText('AI 医嘱待确认')).not.toBeInTheDocument())
     expect(orderTable.querySelector('.doctor-unified-order-row.is-draft')).toHaveTextContent('血常规')
-    expect(await screen.findByRole('dialog', { name: '审核诊疗方案' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: '医嘱开立核查' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '确认保存并开立' })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: '返回修改' }))
     expect(api.clinicalAi.recordEvent).toHaveBeenCalledWith(expect.stringMatching(/^ai-/),

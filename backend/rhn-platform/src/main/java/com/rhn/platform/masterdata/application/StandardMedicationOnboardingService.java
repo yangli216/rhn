@@ -2,6 +2,8 @@ package com.rhn.platform.masterdata.application;
 
 import com.rhn.platform.masterdata.api.MasterDataCommands.MedicationCommand;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationView;
+import com.rhn.platform.masterdata.api.StandardMedicationCatalogContracts.*;
+import com.rhn.platform.masterdata.domain.MedicationStandardSource;
 import com.rhn.platform.masterdata.infrastructure.MedicationRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationStandardSourceRepository;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -46,6 +48,33 @@ public class StandardMedicationOnboardingService {
                         && normalize(m.preparationSpec()).equals(normalize(spec.path("specification").asString())))
                 .filter(m -> catalog.qualifierIdentityIssues(m.name(), spec).isEmpty())
                 .map(m -> master.medication(m.id(), organizationId)).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public EntryMedicationUsage usage(String entryId, Long organizationId) {
+        var context = contexts.requireCurrent();
+        var entry = catalog.detail(entryId);
+        var summary = catalog.summary();
+        var specificationIds = new java.util.LinkedHashSet<String>();
+        entry.path("specifications").forEach(spec -> specificationIds.add(spec.path("id").asString()));
+        var grouped = sources.findByTenantId(context.tenantId()).stream()
+                .filter(source -> summary.path("catalogId").asString().equals(source.catalogCode())
+                        && summary.path("catalogVersion").asString().equals(source.catalogVersion())
+                        && summary.path("contentHash").asString().equals(source.sourceHash())
+                        && entryId.equals(source.entryCode()) && specificationIds.contains(source.specificationCode()))
+                .collect(java.util.stream.Collectors.groupingBy(MedicationStandardSource::specificationCode,
+                        java.util.LinkedHashMap::new, java.util.stream.Collectors.toList()));
+        var result = new java.util.ArrayList<SpecificationMedicationUsage>();
+        for (String specificationId : specificationIds) {
+            var records = grouped.getOrDefault(specificationId, List.of()).stream().map(source -> {
+                var medication = master.medication(source.medicationId(), organizationId);
+                return new MedicationRecord(medication.id(), medication.code(), medication.name(),
+                        medication.preparationSpec(), medication.sdStatus(), medication.products().size(),
+                        "CANONICAL".equals(source.bindingClaim()) ? "CANONICAL" : "HISTORICAL");
+            }).toList();
+            result.add(new SpecificationMedicationUsage(specificationId, records));
+        }
+        return new EntryMedicationUsage(entryId, result);
     }
 
     @Transactional

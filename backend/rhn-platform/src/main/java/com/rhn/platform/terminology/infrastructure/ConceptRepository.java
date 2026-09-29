@@ -43,6 +43,7 @@ public interface ConceptRepository extends JpaRepository<Concept, Long> {
               and (:conceptType is null or :conceptType = '' or c.conceptType = :conceptType)
               and (:status is null or c.status = :status)
               and (:query is null or :query = '' or lower(c.code) like lower(concat(:query, '%'))
+                   or lower(c.display) like lower(concat('%', :query, '%'))
                    or c.id in :searchIds)
             order by case when lower(c.code) = lower(:query) then 0 else 1 end
             """,
@@ -52,6 +53,7 @@ public interface ConceptRepository extends JpaRepository<Concept, Long> {
               and (:conceptType is null or :conceptType = '' or c.conceptType = :conceptType)
               and (:status is null or c.status = :status)
               and (:query is null or :query = '' or lower(c.code) like lower(concat(:query, '%'))
+                   or lower(c.display) like lower(concat('%', :query, '%'))
                    or c.id in :searchIds)
             """)
     Page<Concept> searchDiseases(@Param("systemIds") Collection<Long> systemIds,

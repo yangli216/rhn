@@ -5,6 +5,7 @@ import com.rhn.platform.masterdata.application.StandardMedicationOnboardingServi
 import com.rhn.platform.masterdata.application.StandardCatalogReviewService;
 import com.rhn.platform.masterdata.api.StandardCatalogReview;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationView;
+import com.rhn.platform.masterdata.api.StandardMedicationCatalogContracts.EntryMedicationUsage;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -42,6 +43,12 @@ public class StandardMedicationCatalogController {
     public List<MedicationView> standardMedicationCandidates(
             @PathVariable String id, @RequestParam(required = false) Long organizationId) {
         return onboarding.candidates(id, organizationId);
+    }
+
+    @GetMapping("/entries/{id}/medications")
+    public EntryMedicationUsage standardMedicationUsage(
+            @PathVariable String id, @RequestParam(required = false) Long organizationId) {
+        return onboarding.usage(id, organizationId);
     }
 
     @PostMapping("/specifications/{id}/medications")

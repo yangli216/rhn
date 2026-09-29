@@ -723,7 +723,7 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     const medicationTablist = screen.getByRole('tablist', { name: '药品目录视图' })
     expect(medicationTablist).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /标准目录/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /标准对齐/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /主档标准关联/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /药品主档/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /产品包装/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /用药规则/ })).toBeInTheDocument()
@@ -899,4 +899,3 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     })
   })
 })
-

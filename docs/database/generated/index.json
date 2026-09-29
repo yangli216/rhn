@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
+  "fingerprint": "8294d1c05b90c1ad9af0963c7b3037586921ee2b6c62d10e7e3c300e55144823",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -26,7 +26,7 @@
     {
       "code": "BD",
       "name": "基础数据与术语",
-      "count": 61
+      "count": 62
     },
     {
       "code": "BIL",
@@ -1250,7 +1250,7 @@
       "logical": "meta.outpatient_plan_diagnosis",
       "domain": "META",
       "comment": "门诊方案诊断；一行代表一条门诊方案诊断记录",
-      "columns": 7
+      "columns": 9
     },
     {
       "physical": "RHN_META_OP_PLAN_MED",
@@ -2237,6 +2237,13 @@
       "logical": "bd.standard_catalog_review",
       "domain": "BD",
       "comment": "标准目录来源核验事件，一行代表一个租户对特定目录及来源文件版本的一次不可变核验操作",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_BD_SPEC_DISP",
+      "logical": "bd.standard_specification_disposition",
+      "domain": "BD",
+      "comment": "标准目录不完整规格的机构处置事件，一行代表一次待补充或不采用决定",
       "columns": 6
     },
     {

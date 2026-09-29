@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { errorMessage, type RhnApi, type StandardMedicationDetail, type StandardMedicationSpecification } from '../../shared/rhnApi'
-import { Alert, Button, EmptyState, LoadingState, Pagination, SearchField, Select } from '../../shared/ui'
+import { Alert, Button, EmptyState, LoadingState, Pagination, SearchField, Select, StatusBadge } from '../../shared/ui'
 import './standard-medication-catalog.css'
-import { StandardCatalogEditionsDialog } from './StandardCatalogEditionsDialog'
 import { StandardCatalogSourceReviewDialog } from './StandardCatalogSourceReviewDialog'
 import { MedicationStandardImpactDialog } from './MedicationStandardImpactDialog'
 import { StandardCatalogPdfDialog } from './StandardCatalogPdfDialog'
+import { StandardSpecificationDispositionDialog } from './StandardSpecificationDispositionDialog'
 
 const reasons: Record<string, string> = {
   STANDARD_SPECIFICATION_INCOMPLETE: '标准规格不完整，不能作为具体药品身份',
@@ -29,7 +29,7 @@ function strengthText(spec: StandardMedicationSpecification) {
   if (s.kind === 'TRADITIONAL_PRESENTATION') return '中成药制剂规格，保留原文'
   return '强度语义待核验'
 }
-export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: { api: RhnApi;
+export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, setupDisabled }: { api: RhnApi; organizationId?: string;
   onSetup?: (entry: StandardMedicationDetail, spec: StandardMedicationSpecification) => void; setupDisabled?: boolean }) {
   const [inputQuery, setInputQuery] = useState('')
   const [appliedQuery, setAppliedQuery] = useState('')
@@ -38,11 +38,11 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(20)
   const [selected, setSelected] = useState('')
-  const [editionsOpen, setEditionsOpen] = useState(false)
   const [entryReviewOpen, setEntryReviewOpen] = useState(false)
   const [impactOpen, setImpactOpen] = useState(false)
   const [pdfOpen, setPdfOpen] = useState(false)
   const [initialPdfLocation, setInitialPdfLocation] = useState<string | undefined>()
+  const [dispositionSpec, setDispositionSpec] = useState<StandardMedicationSpecification>()
 
   const summary = useQuery({ queryKey: ['medication-standard-summary'], queryFn: api.masterData.standardMedicationSummary })
   // The source review is catalog-wide, while the transcription check is per
@@ -63,11 +63,76 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
     queryFn: () => api.masterData.standardMedicationDetail(selected),
     enabled: Boolean(selected),
   })
+  const usage = useQuery({
+    queryKey: ['standard-medication-usage', selected, organizationId],
+    queryFn: () => api.masterData.standardMedicationUsage(selected, organizationId!),
+    enabled: Boolean(selected && organizationId && typeof api.masterData.standardMedicationUsage === 'function'),
+  })
+  const dispositions = useQuery({
+    queryKey: ['standard-specification-dispositions'],
+    queryFn: () => api.masterData.standardSpecificationDispositions(),
+    enabled: typeof api.masterData.standardSpecificationDispositions === 'function',
+  })
+
+  const [issuesOpen, setIssuesOpen] = useState(false)
+
+  const groupedIssues = useMemo(() => {
+    if (!detail.data?.issues) return []
+    const specMap = new Map<string, string>()
+    detail.data.specifications?.forEach(s => {
+      specMap.set(s.id, s.specification || s.doseFormName)
+    })
+
+    const groups = new Map<string, {
+      key: string
+      reason: string
+      sourceText: string
+      specNames: string[]
+      count: number
+    }>()
+
+    for (const issue of detail.data.issues) {
+      const text = (issue.sourceText || detail.data.sourceNote || '').trim()
+      const key = `${issue.reason}:::${text}`
+      const directSpec = issue.specificationId ? specMap.get(issue.specificationId) : undefined
+      const existing = groups.get(key)
+      if (existing) {
+        existing.count += 1
+        if (directSpec && !existing.specNames.includes(directSpec)) {
+          existing.specNames.push(directSpec)
+        }
+      } else {
+        const matchedSpecs: string[] = []
+        if (directSpec) {
+          matchedSpecs.push(directSpec)
+        } else {
+          detail.data.specifications?.forEach(s => {
+            if (s.identityIssues?.includes(issue.reason) || (s.specification && text.includes(s.specification))) {
+              const name = s.specification || s.doseFormName
+              if (!matchedSpecs.includes(name)) matchedSpecs.push(name)
+            }
+          })
+        }
+        groups.set(key, {
+          key,
+          reason: issue.reason,
+          sourceText: text,
+          specNames: matchedSpecs,
+          count: 1,
+        })
+      }
+    }
+    return Array.from(groups.values())
+  }, [detail.data])
 
   useEffect(() => {
     setPage(0)
     setSelected('')
   }, [appliedQuery, type, state, size])
+
+  useEffect(() => {
+    setIssuesOpen(false)
+  }, [selected])
 
   const handleSearch = () => {
     setAppliedQuery(inputQuery.trim())
@@ -84,10 +149,9 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
     setSelected('')
   }
 
-  const error = summary.error || list.error || detail.error
+  const error = summary.error || list.error || detail.error || usage.error || dispositions.error
   const stats = summary.data?.statistics
   return <section className="standard-medication" aria-label="标准药品参考目录">
-    {editionsOpen && <StandardCatalogEditionsDialog api={api} onClose={() => setEditionsOpen(false)} />}
     {entryReviewOpen && <StandardCatalogSourceReviewDialog api={api} onClose={() => {
       setEntryReviewOpen(false)
       void entryReviews.refetch()
@@ -95,6 +159,14 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
       void list.refetch()
     }} />}
     {impactOpen && summary.data && <MedicationStandardImpactDialog api={api} catalogId={summary.data.catalogId} entry={detail.data} onClose={() => setImpactOpen(false)} />}
+    {dispositionSpec && detail.data && dispositions.data && <StandardSpecificationDispositionDialog
+      api={api} identity={dispositions.data.identity} entry={detail.data} specification={dispositionSpec}
+      current={dispositions.data.specifications.find(item => item.specificationId === dispositionSpec.id)}
+      onClose={() => setDispositionSpec(undefined)} onViewOriginal={() => {
+        setDispositionSpec(undefined)
+        setInitialPdfLocation(detail.data?.pdfLocations?.[0]?.location)
+        setPdfOpen(true)
+      }} />}
     <div className="standard-medication__header">
       <div className="standard-medication__title-group">
         <div className="standard-medication__title-row">
@@ -172,7 +244,6 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
         来源：{summary.data?.source.title ?? '用户提供目录'}。
         已通过目录准入核对；具体规格及临床知识仍须分别核对。{summary.data?.source.publicationNumber && <>官方发布信息：{summary.data.source.publicationNumber}，{summary.data.source.effectiveFrom} 施行。<a href={summary.data.source.officialUrl} target="_blank" rel="noreferrer">查看官方通知</a>。</>}
         选择具体规格后可建立本院药品、配置厂家产品与价格。
-        <Button variant="secondary" size="sm" disabled={setupDisabled} onClick={() => setEditionsOpen(true)}>目录版次与差异</Button>
         <Button variant="secondary" size="sm" onClick={() => setEntryReviewOpen(true)}>逐条核对目录</Button>
         <Button variant="secondary" size="sm" disabled={!summary.data?.catalogId} onClick={() => setImpactOpen(true)}>标准变更影响清单</Button>
         <Button variant="secondary" size="sm" onClick={() => { setInitialPdfLocation(undefined); setPdfOpen(true) }}>官方原件 PDF</Button>
@@ -229,53 +300,64 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
           : detail.isPending ? <LoadingState /> : detail.data && <>
             <div className="standard-medication__detail-summary">
               <div className="standard-medication__detail-header">
-                <h3>{detail.data.name}</h3>
-                <span className="standard-medication__muted">{detail.data.innName || detail.data.legacyCode}</span>
+                <div className="standard-medication__title-wrap">
+                  <h3>{detail.data.name}</h3>
+                  <span className="standard-medication__muted">{detail.data.innName || detail.data.legacyCode}</span>
+                </div>
+                {detail.data.specialistGuidance ? (
+                  <span className="standard-medication__specialist-tag" title="需相应处方资质或专科医师指导（原文 △）">
+                    △ 需专科指导
+                  </span>
+                ) : (
+                  <span className="standard-medication__tag-subtle">标准品种</span>
+                )}
               </div>
-              <div className="standard-medication__meta-grid">
-                <div className="meta-item"><span className="meta-label">标准品种 ID</span><span className="meta-value">{detail.data.id}</span></div>
-                <div className="meta-item meta-item--wide">
-                  <span className="meta-label">原文位置</span>
-                  <div className="meta-value standard-medication__source-locs">
-                    <span className="source-loc-text">{detail.data.sourceLocations.join('；')}</span>
-                    {detail.data.pdfLocations && detail.data.pdfLocations.length > 0 ? (
-                      detail.data.pdfLocations.map((loc) => (
-                        <Button
-                          key={loc.location}
-                          variant="secondary"
-                          size="sm"
-                          className="standard-medication__pdf-jump-btn"
-                          onClick={() => {
-                            setInitialPdfLocation(loc.location)
-                            setPdfOpen(true)
-                          }}
-                          aria-label={`查看原件 ${loc.location} 第 ${loc.page} 页`}
-                        >
-                          📄 查看原件 (第 {loc.page} 页 / P.{loc.printPage})
-                        </Button>
-                      ))
-                    ) : (
+              <div className="standard-medication__meta-bar">
+                <span className="meta-item">
+                  <span className="meta-label">标准品种 ID:</span>
+                  <code className="meta-value">{detail.data.id}</code>
+                </span>
+                <span className="meta-divider" aria-hidden="true">|</span>
+                <span className="meta-item standard-medication__source-locs">
+                  <span className="meta-label">原文位置:</span>
+                  <span className="source-loc-text">{detail.data.sourceLocations.join('；')}</span>
+                  {detail.data.pdfLocations && detail.data.pdfLocations.length > 0 ? (
+                    detail.data.pdfLocations.map((loc) => (
                       <Button
+                        key={loc.location}
                         variant="secondary"
                         size="sm"
                         className="standard-medication__pdf-jump-btn"
                         onClick={() => {
-                          setInitialPdfLocation(undefined)
+                          setInitialPdfLocation(loc.location)
                           setPdfOpen(true)
                         }}
-                        aria-label="查看官方原件"
+                        aria-label={`查看原件 ${loc.location} 第 ${loc.page} 页`}
                       >
-                        📄 查看官方原件
+                        📄 查看原件 (第 {loc.page} 页 / P.{loc.printPage})
                       </Button>
-                    )}
-                  </div>
-                </div>
-                <div className="meta-item meta-item--wide"><span className="meta-label">目录标记</span><span className="meta-value">{detail.data.specialistGuidance ? '需相应处方资质或专科医师指导（原文 △）' : '原文未标注专科指导'}</span></div>
+                    ))
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="standard-medication__pdf-jump-btn"
+                      onClick={() => {
+                        setInitialPdfLocation(undefined)
+                        setPdfOpen(true)
+                      }}
+                      aria-label="查看官方原件"
+                    >
+                      📄 查看官方原件
+                    </Button>
+                  )}
+                </span>
               </div>
             </div>
 
             <div className="standard-medication__section-header">
               <h4>独立剂型规格 · {detail.data.specifications.length} 条</h4>
+              <span className="standard-medication__section-sub">按规格建立本院药品</span>
             </div>
             <div className="standard-medication__spec-table-wrap">
               <table className="standard-medication__spec-table">
@@ -290,8 +372,11 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
                   </tr>
                 </thead>
                 <tbody>
-                  {detail.data.specifications.map(spec => (
-                    <tr key={spec.id} className="standard-medication__spec-tr">
+                  {detail.data.specifications.map(spec => {
+                    const records = usage.data?.specifications.find(item => item.specificationId === spec.id)?.records ?? []
+                    const disposition = dispositions.data?.specifications.find(item => item.specificationId === spec.id)
+                    const incomplete = Boolean(spec.identityIssues?.length)
+                    return <tr key={spec.id} className="standard-medication__spec-tr">
                       <td>
                         <span className="standard-medication__dose-tag">
                           {spec.substanceQualifier && <small className="substance">{spec.substanceQualifier} · </small>}
@@ -299,37 +384,107 @@ export function StandardMedicationCatalogPanel({ api, onSetup, setupDisabled }: 
                         </span>
                       </td>
                       <td className="standard-medication__spec-val">
-                        <strong>{spec.specification}</strong>{spec.identityIssues?.map(issue => <small key={issue}>{reasons[issue] ?? '标准身份待核对'}</small>)}
+                        <div className="standard-medication__spec-val-wrap">
+                          <strong>{spec.specification}</strong>
+                          {spec.identityIssues && spec.identityIssues.length > 0 && (
+                            <span
+                              className="standard-medication__spec-warning-chip"
+                              title={`${spec.identityIssues.map(issue => reasons[issue] ?? '标准身份待核对').join('；')}（点击查看待核验详情）`}
+                              onClick={() => setIssuesOpen(true)}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setIssuesOpen(true)
+                                }
+                              }}
+                              aria-label={`规格待核验：${spec.identityIssues.map(issue => reasons[issue] ?? '标准身份待核对').join('；')}`}
+                            >
+                              <span className="warning-icon" aria-hidden="true">⚠️</span>
+                              <span className="warning-label">待核验</span>
+                              <span className="sr-only">
+                                {spec.identityIssues.map(issue => reasons[issue] ?? '标准身份待核对').join('；')}
+                              </span>
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="standard-medication__spec-strength">
-                        <span>{strengthText(spec)}</span>
+                        <span>{incomplete ? '目录收载条件，非完整规格' : strengthText(spec)}</span>
                       </td>
                       {onSetup && detail.data.entryType !== 'SCOPE' && (
                         <td style={{ textAlign: 'right' }}>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={setupDisabled || !!spec.identityIssues?.length}
-                            aria-label={`建立本院药品 ${spec.doseFormName} ${spec.specification}`}
-                            onClick={() => onSetup(detail.data!, spec)}
-                          >
-                            建立本院药品
-                          </Button>
+                          <div className="standard-medication__spec-action">
+                            {incomplete ? <>
+                              {disposition && <StatusBadge tone={disposition.status === 'NOT_ADOPTED' ? 'neutral' : 'warning'}>
+                                {disposition.status === 'NOT_ADOPTED' ? '本院不采用' : '待补充具体规格'}
+                              </StatusBadge>}
+                              <Button variant="secondary" size="sm" disabled={setupDisabled || dispositions.isPending}
+                                aria-label={`处理不完整规格 ${spec.doseFormName} ${spec.specification}`}
+                                onClick={() => setDispositionSpec(spec)}>处理</Button>
+                            </> : <>
+                              {records.length > 0 && <div className="standard-medication__usage-summary">
+                                <StatusBadge tone={records.length === 1 ? 'success' : 'warning'}>
+                                  {records.length === 1 ? '已建主档' : `历史主档 ${records.length} 条`}
+                                </StatusBadge>
+                                <small title={records.map(record => `${record.name} · ${record.code}`).join('；')}>
+                                  {records.length === 1 ? `${records[0].name} · ${records[0].code}` : '选择并复用已有档案'}
+                                </small>
+                              </div>}
+                              <Button variant="secondary" size="sm" disabled={setupDisabled || usage.isPending}
+                                aria-label={`${records.length ? '查看维护本院药品' : '建立本院药品'} ${spec.doseFormName} ${spec.specification}`}
+                                onClick={() => onSetup(detail.data!, spec)}>
+                                {records.length > 1 ? '选择已有主档' : records.length === 1 ? '查看/维护' : '建立本院药品'}
+                              </Button>
+                            </>}
+                          </div>
                         </td>
                       )}
                     </tr>
-                  ))}
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {detail.data.issues.length > 0 && <div className="standard-medication__issues-wrap">
-              <h4>待核验事项</h4>
-              {detail.data.issues.map((issue,i) =>
-                <div className="standard-medication__issue" key={i}><strong>{reasons[issue.reason] ?? issue.reason}</strong><p>{issue.sourceText || detail.data.sourceNote}</p></div>)}
-            </div>}
+            {groupedIssues.length > 0 && (
+              <details
+                className="standard-medication__issues-collapsible"
+                open={issuesOpen}
+                onToggle={(e) => setIssuesOpen((e.target as HTMLDetailsElement).open)}
+              >
+                <summary className="standard-medication__issues-summary">
+                  <div className="issues-summary-info">
+                    <span className="issues-badge">待核验 {groupedIssues.length} 项</span>
+                    <strong className="issues-heading">待核验事项</strong>
+                    <span className="issues-hint">原文排版或规格拆分提示 · 建档时请核对原件</span>
+                  </div>
+                  <span className="issues-expand-text">展开/收起</span>
+                </summary>
+                <div className="standard-medication__issues-list">
+                  {groupedIssues.map((issue) => (
+                    <div className="standard-medication__issue-item" key={issue.key}>
+                      <div className="issue-item-header">
+                        <span className="issue-reason-tag">{reasons[issue.reason] ?? issue.reason}</span>
+                        {issue.specNames.length > 0 && (
+                          <span className="issue-specs-tag">
+                            关联规格：{issue.specNames.join('、')}
+                          </span>
+                        )}
+                        {issue.count > 1 && (
+                          <span className="issue-count-tag">
+                            (涉及 {issue.count} 处)
+                          </span>
+                        )}
+                      </div>
+                      <p className="issue-text">{issue.sourceText}</p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
             <details className="standard-medication__provenance"><summary>查看来源原文与版本</summary><p className="standard-medication__source">{detail.data.sourceSpecification || '原文以范围注释列示'}</p>
-              <p>{detail.data.sourceNote}</p><small>来源文件校验值：{detail.data.source.sha256}</small></details>
+              <p>{detail.data.sourceNote}</p><small>来源文件校验值：{detail.data.source?.sha256 ?? '—'}</small></details>
           </>}
       </aside>
     </div>

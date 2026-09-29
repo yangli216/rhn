@@ -58,6 +58,9 @@ public interface MedicationProductRepository extends JpaRepository<MedicationPro
               and (:status is null or :status = '' or p.status = :status)
               and (:query is null or :query = ''
                 or lower(p.code) like lower(concat(:query, '%'))
+                or lower(p.name) like lower(concat('%', :query, '%'))
+                or lower(coalesce(p.tradeName, '')) like lower(concat('%', :query, '%'))
+                or lower(m.name) like lower(concat('%', :query, '%'))
                 or lower(coalesce(p.approvalCode, '')) like lower(concat(:query, '%'))
                 or lower(f.name) like lower(concat('%', :query, '%'))
                 or lower(m.code) like lower(concat(:query, '%'))

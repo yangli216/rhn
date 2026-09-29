@@ -1,5 +1,5 @@
 {
-  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
+  "fingerprint": "8294d1c05b90c1ad9af0963c7b3037586921ee2b6c62d10e7e3c300e55144823",
   "tables": [
     {
       "logical": "meta.outpatient_note_form_version",
@@ -1023,6 +1023,30 @@
           "comment": "诊断类型",
           "logical": "diagnosis_type",
           "catalogComment": "诊断类型"
+        },
+        {
+          "physical": "CD_CODE_SYSTEM",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'WHO.BD.CS.ICD10'",
+          "ordinal": 8,
+          "comment": "诊断编码体系快照",
+          "logical": "",
+          "catalogComment": ""
+        },
+        {
+          "physical": "SD_DIAG_DOMAIN",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'WESTERN_MEDICINE'",
+          "ordinal": 9,
+          "comment": "诊断领域：西医、中医病名或中医证候",
+          "logical": "",
+          "catalogComment": ""
         }
       ],
       "kind": "BASE TABLE",
@@ -1041,7 +1065,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_META_OP_PLAN_D_META_OP_OPD__INDEX_C",
+          "name": "FK_META_OP_PLAN_D_META_OP_OPD__INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -1057,7 +1081,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_CB",
+          "name": "PRIMARY_KEY_A7A5",
           "columns": [
             {
               "position": 1,
@@ -1068,7 +1092,7 @@
           "unique": true
         },
         {
-          "name": "UK_META_OP_PLAN_DIAG_OPD_LINE_INDEX_C",
+          "name": "UK_META_OP_PLAN_DIAG_OPD_LINE_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -1090,6 +1114,10 @@
         }
       ],
       "checks": [
+        {
+          "name": "CK_META_OP_PLAN_DIAG_DOMAIN",
+          "expression": "\"sd_diag_domain\" IN('WESTERN_MEDICINE', 'TCM_DISEASE', 'TCM_SYNDROME')"
+        },
         {
           "name": "CK_META_OP_PLAN_DIAG_OPD_TYPE",
           "expression": "\"sd_diag_type\" IN('PRIMARY', 'SECONDARY')"
@@ -1527,7 +1555,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplateLines.java",
-          "line": 32
+          "line": 37
         }
       ]
     },
@@ -1793,7 +1821,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplateLines.java",
-          "line": 93
+          "line": 98
         }
       ]
     },

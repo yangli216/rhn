@@ -1005,14 +1005,14 @@ const chargeSourceLabel = (value: string) => ({ BASE_SERVICE: '主项目', MULTI
 
 function FormDialog({
   title, description, onClose, onSubmit, size = 'wide', className = '',
-  gridClassName = 'master-data-form-grid--2', children,
+  gridClassName = 'master-data-form-grid--2', customLayout = false, children,
 }: {
   title: string; description: string; onClose: () => void; onSubmit: (e: FormEvent) => void
-  size?: 'default' | 'wide' | 'xwide'; className?: string; gridClassName?: string; children: ReactNode
+  size?: 'default' | 'wide' | 'xwide'; className?: string; gridClassName?: string; customLayout?: boolean; children: ReactNode
 }) {
   return <Dialog title={title} eyebrow="基础数据 · 运营配置" description={description} size={size} className={className} onClose={onClose}>
     <form className="master-data-dialog-form" onSubmit={onSubmit}>
-      <div className={`master-data-form-grid ${gridClassName}`}>{children}</div>
+      {customLayout ? children : <div className={`master-data-form-grid ${gridClassName}`}>{children}</div>}
       <div className="ui-form-actions"><Button variant="secondary" onClick={onClose} type="button">取消</Button><Button type="submit">保存</Button></div>
     </form>
   </Dialog>
@@ -2157,7 +2157,11 @@ function SupplyDialog({ value, units, manufacturers, onClose, onSave }: {
   })
   const optional = (text: string) => text.trim() || undefined
   return <FormDialog title={value ? '编辑耗材/器械' : '新增耗材/器械'}
-    description="统一维护经营属性、UDI、注册证和生产企业信息。" onClose={onClose}
+    description="统一维护经营属性、UDI、注册证和生产企业信息；适配宽屏工作台，分层管理基础身份、资质认证与管控规则。"
+    size="xwide"
+    className="supply-dialog-modal"
+    customLayout
+    onClose={onClose}
     onSubmit={(e) => { e.preventDefault(); onSave({
       supplyType: form.supplyType as 'CONSUMABLE' | 'DEVICE', code: form.code, name: form.name,
       unitCode: form.unitCode, orderable: form.orderable, chargeable: form.chargeable, stocked: form.stocked,
@@ -2172,37 +2176,118 @@ function SupplyDialog({ value, units, manufacturers, onClose, onSave }: {
       structureDescription: optional(form.structureDescription), scopeDescription: optional(form.scopeDescription),
       instruction: optional(form.instruction),
     }) }}>
-    <FormField label="主数据类型" required><Select value={form.supplyType} onChange={(v) => setForm({ ...form, supplyType: v as 'CONSUMABLE' | 'DEVICE' })} options={[{ value: 'CONSUMABLE', label: '医用耗材' }, { value: 'DEVICE', label: '医疗器械' }]} /></FormField>
-    <FormField label="编码" required><input value={form.code} disabled={Boolean(value)} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} /></FormField>
-    <FormField label="名称" required className="span-2"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></FormField>
-    <FormField label="基础单位" required><Select value={form.unitCode} onChange={(v) => setForm({ ...form, unitCode: v })} showValue options={units.filter((v) => v.status === 'ACTIVE' || v.code === value?.unitCode).map(unitOption)} /></FormField>
-    <FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField>
-    <FormField label="UDI-DI"><input value={form.udiDi} onChange={(e) => setForm({ ...form, udiDi: e.target.value })} /></FormField>
-    <FormField label="通用编码"><input value={form.genericCode} onChange={(e) => setForm({ ...form, genericCode: e.target.value })} /></FormField>
-    <FormField label="通用名"><input value={form.genericName} onChange={(e) => setForm({ ...form, genericName: e.target.value })} /></FormField>
-    <FormField label="生产企业"><Select value={form.manufacturerId} onChange={(v) => setForm({ ...form, manufacturerId: v })} placeholder="未指定" showValue options={manufacturers.map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))} /></FormField>
-    <FormField label="型号"><input value={form.modelName} onChange={(e) => setForm({ ...form, modelName: e.target.value })} /></FormField>
-    <FormField label="规格"><input value={form.specification} onChange={(e) => setForm({ ...form, specification: e.target.value })} /></FormField>
-    <FormField label="材质类型"><input value={form.materialType} onChange={(e) => setForm({ ...form, materialType: e.target.value })} /></FormField>
-    <FormField label="器械分类"><Select value={form.deviceClass} onChange={(v) => setForm({ ...form, deviceClass: v })} placeholder="非器械/未设置" options={['I', 'II', 'III'].map((v) => ({ value: v, label: `${v} 类` }))} /></FormField>
-    <FormField label="注册证号"><input value={form.registrationCode} onChange={(e) => setForm({ ...form, registrationCode: e.target.value })} /></FormField>
-    <FormField label="注册证名称"><input value={form.registrationName} onChange={(e) => setForm({ ...form, registrationName: e.target.value })} /></FormField>
-    <FormField label="注册人"><input value={form.registrantName} onChange={(e) => setForm({ ...form, registrantName: e.target.value })} /></FormField>
-    <FormField label="注册有效期起"><input type="date" value={form.registrationFrom} onChange={(e) => setForm({ ...form, registrationFrom: e.target.value })} /></FormField>
-    <FormField label="注册有效期止"><input type="date" min={form.registrationFrom} value={form.registrationTo} onChange={(e) => setForm({ ...form, registrationTo: e.target.value })} /></FormField>
-    <FormField label="主档生效日期" required><input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} /></FormField>
-    <FormField label="主档失效日期"><input type="date" min={form.validFrom} value={form.validTo} onChange={(e) => setForm({ ...form, validTo: e.target.value })} /></FormField>
-    <FormField label="结构组成" className="span-2"><textarea value={form.structureDescription} onChange={(e) => setForm({ ...form, structureDescription: e.target.value })} /></FormField>
-    <FormField label="适用范围" className="span-2"><textarea value={form.scopeDescription} onChange={(e) => setForm({ ...form, scopeDescription: e.target.value })} /></FormField>
-    <FormField label="使用说明" className="span-2"><textarea value={form.instruction} onChange={(e) => setForm({ ...form, instruction: e.target.value })} /></FormField>
-    <Check label="可开立" checked={form.orderable} onChange={(v) => setForm({ ...form, orderable: v })} />
-    <Check label="可收费" checked={form.chargeable} onChange={(v) => setForm({ ...form, chargeable: v })} />
-    <Check label="可库存" checked={form.stocked} onChange={(v) => setForm({ ...form, stocked: v })} />
-    <Check label="高值耗材" checked={form.highValue} onChange={(v) => setForm({ ...form, highValue: v })} />
-    <Check label="植入类" checked={form.implant} onChange={(v) => setForm({ ...form, implant: v, highValue: v || form.highValue })} />
-    <Check label="介入类" checked={form.intervention} onChange={(v) => setForm({ ...form, intervention: v })} />
-    <Check label="无菌" checked={form.sterile} onChange={(v) => setForm({ ...form, sterile: v })} />
-    <Check label="一次性使用" checked={form.singleUse} onChange={(v) => setForm({ ...form, singleUse: v })} />
+    <div className="supply-dialog-layout">
+      {/* 区块 1：基础身份与规格 */}
+      <section className="supply-dialog-section">
+        <header className="supply-dialog-section__header">
+          <strong>1. 基础身份与规格型号</strong>
+          <small>耗材编码、名称、通用名及规格型号等核心临床标识</small>
+        </header>
+        <div className="master-data-form-grid master-data-form-grid--4">
+          <FormField label="主数据类型" required>
+            <Select value={form.supplyType} onChange={(v) => setForm({ ...form, supplyType: v as 'CONSUMABLE' | 'DEVICE' })} options={[{ value: 'CONSUMABLE', label: '医用耗材' }, { value: 'DEVICE', label: '医疗器械' }]} />
+          </FormField>
+          <FormField label="编码" required>
+            <input value={form.code} disabled={Boolean(value)} placeholder="如 MAT_EDTA_2ML" onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
+          </FormField>
+          <FormField label="基础单位" required>
+            <Select value={form.unitCode} onChange={(v) => setForm({ ...form, unitCode: v })} showValue options={units.filter((v) => v.status === 'ACTIVE' || v.code === value?.unitCode).map(unitOption)} />
+          </FormField>
+          <FormField label="状态">
+            <Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} />
+          </FormField>
+          <FormField label="名称" required className="span-2">
+            <input value={form.name} placeholder="如 一次性使用采血管 EDTA-K2 2ml" onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </FormField>
+          <FormField label="通用名" className="span-2">
+            <input value={form.genericName} placeholder="如 采血管" onChange={(e) => setForm({ ...form, genericName: e.target.value })} />
+          </FormField>
+          <FormField label="通用编码">
+            <input value={form.genericCode} placeholder="如 YB_HC_001" onChange={(e) => setForm({ ...form, genericCode: e.target.value })} />
+          </FormField>
+          <FormField label="生产企业">
+            <Select value={form.manufacturerId} onChange={(v) => setForm({ ...form, manufacturerId: v })} placeholder="未指定" showValue options={manufacturers.map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))} />
+          </FormField>
+          <FormField label="型号">
+            <input value={form.modelName} placeholder="如 EDTA-K2-2ML" onChange={(e) => setForm({ ...form, modelName: e.target.value })} />
+          </FormField>
+          <FormField label="规格">
+            <input value={form.specification} placeholder="如 2ml" onChange={(e) => setForm({ ...form, specification: e.target.value })} />
+          </FormField>
+          <FormField label="材质类型">
+            <input value={form.materialType} placeholder="如 医用级 PET / 玻璃" onChange={(e) => setForm({ ...form, materialType: e.target.value })} />
+          </FormField>
+          <FormField label="器械分类">
+            <Select value={form.deviceClass} onChange={(v) => setForm({ ...form, deviceClass: v })} placeholder="非器械/未设置" options={['I', 'II', 'III'].map((v) => ({ value: v, label: `${v} 类` }))} />
+          </FormField>
+        </div>
+      </section>
+
+      {/* 区块 2：资质认证与注册信息 */}
+      <section className="supply-dialog-section">
+        <header className="supply-dialog-section__header">
+          <strong>2. 资质认证与注册信息</strong>
+          <small>国家医保 UDI-DI 唯一标识及医疗器械注册/备案证</small>
+        </header>
+        <div className="master-data-form-grid master-data-form-grid--4">
+          <FormField label="UDI-DI">
+            <input value={form.udiDi} placeholder="06900000000000" onChange={(e) => setForm({ ...form, udiDi: e.target.value })} />
+          </FormField>
+          <FormField label="注册证号">
+            <input value={form.registrationCode} placeholder="国械注准 / 粤械注准..." onChange={(e) => setForm({ ...form, registrationCode: e.target.value })} />
+          </FormField>
+          <FormField label="注册证名称">
+            <input value={form.registrationName} onChange={(e) => setForm({ ...form, registrationName: e.target.value })} />
+          </FormField>
+          <FormField label="注册人">
+            <input value={form.registrantName} onChange={(e) => setForm({ ...form, registrantName: e.target.value })} />
+          </FormField>
+          <FormField label="注册有效期起">
+            <input type="date" value={form.registrationFrom} onChange={(e) => setForm({ ...form, registrationFrom: e.target.value })} />
+          </FormField>
+          <FormField label="注册有效期止">
+            <input type="date" min={form.registrationFrom} value={form.registrationTo} onChange={(e) => setForm({ ...form, registrationTo: e.target.value })} />
+          </FormField>
+          <FormField label="主档生效日期" required>
+            <input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} />
+          </FormField>
+          <FormField label="主档失效日期">
+            <input type="date" min={form.validFrom} value={form.validTo} onChange={(e) => setForm({ ...form, validTo: e.target.value })} />
+          </FormField>
+        </div>
+      </section>
+
+      {/* 区块 3：经营与管控属性 */}
+      <section className="supply-dialog-section">
+        <header className="supply-dialog-section__header">
+          <strong>3. 经营与管控属性</strong>
+          <small>控制临床医嘱开立、库房出入库管理、高值耗材监管及收费规则</small>
+        </header>
+        <div className="supply-attributes-grid">
+          <Check label="可开立（临床医嘱）" checked={form.orderable} onChange={(v) => setForm({ ...form, orderable: v })} />
+          <Check label="可收费（费用清单）" checked={form.chargeable} onChange={(v) => setForm({ ...form, chargeable: v })} />
+          <Check label="可库存（进销存管理）" checked={form.stocked} onChange={(v) => setForm({ ...form, stocked: v })} />
+          <Check label="高值耗材" checked={form.highValue} onChange={(v) => setForm({ ...form, highValue: v })} />
+          <Check label="植入类" checked={form.implant} onChange={(v) => setForm({ ...form, implant: v, highValue: v || form.highValue })} />
+          <Check label="介入类" checked={form.intervention} onChange={(v) => setForm({ ...form, intervention: v })} />
+          <Check label="无菌产品" checked={form.sterile} onChange={(v) => setForm({ ...form, sterile: v })} />
+          <Check label="一次性使用" checked={form.singleUse} onChange={(v) => setForm({ ...form, singleUse: v })} />
+        </div>
+      </section>
+
+      {/* 区块 4：临床说明与结构 */}
+      <section className="supply-dialog-section">
+        <header className="supply-dialog-section__header">
+          <strong>4. 临床应用与说明</strong>
+          <small>产品结构组成、适应证范围及临床使用指导说明（PC 宽屏横向三列并排）</small>
+        </header>
+        <div className="supply-descriptions-grid">
+          <FormField label="结构组成"><textarea value={form.structureDescription} placeholder="简述耗材物理构造、材质组合及配件" onChange={(e) => setForm({ ...form, structureDescription: e.target.value })} /></FormField>
+          <FormField label="适用范围"><textarea value={form.scopeDescription} placeholder="简述适用临床科室、适应证及配合设备" onChange={(e) => setForm({ ...form, scopeDescription: e.target.value })} /></FormField>
+          <FormField label="使用说明"><textarea value={form.instruction} placeholder="简述操作规范、禁忌及储存注意事项" onChange={(e) => setForm({ ...form, instruction: e.target.value })} /></FormField>
+        </div>
+      </section>
+    </div>
   </FormDialog>
 }
 
@@ -3103,60 +3188,159 @@ function FrequencyDialog({ api, value, onClose, onSave }: {
     frequencyCount: current.ruleType === 'TIMES_PER_PERIOD' ? String(Math.max(1, times.length)) : current.frequencyCount,
   }))
   return <FormDialog title={value ? '编辑医嘱频次' : '新增医嘱频次'}
-    description={value ? '修改只影响后续新医嘱，历史医嘱继续使用已保存的规则快照。' : '先选择业务模板，再补充编码和名称即可完成常用频次配置。'} onClose={onClose}
+    description={value ? '修改只影响后续新医嘱，历史医嘱继续使用已保存的规则快照。' : '先选择业务模板，再补充编码和名称；右侧提供实时规则语义解读与执行沙盘即时预演。'}
+    size="xwide"
+    className="frequency-dialog-modal"
+    customLayout
+    onClose={onClose}
     onSubmit={(event) => { event.preventDefault()
       if (usesTimes && !executionTimes.length) { setFormError('请至少添加一个执行时点'); return }
       if (!form.outpatientApplicable && !form.inpatientApplicable && !form.emergencyApplicable) { setFormError('请至少选择一个适用场景'); return }
       if (!form.medicationApplicable && !form.treatmentApplicable && !form.nursingApplicable) { setFormError('请至少选择一种医嘱类型'); return }
       setFormError(''); onSave(input)
     }} >
-    {!value && <section className="frequency-template-picker span-2" aria-label="频次业务模板">
-      <header><strong>1. 选择业务模板</strong><small>系统自动填充规则，仍可在下方调整</small></header>
-      <div>{frequencyTemplates.map((template) => <button type="button" key={template.id}
-        className={template.id === templateId ? 'is-active' : ''} onClick={() => applyTemplate(template.id)}>
-        <strong>{template.title}</strong><small>{template.copy}</small></button>)}</div>
-    </section>}
-    {formError && <div className="span-2"><Alert>{formError}</Alert></div>}
-    <div className="frequency-form-section span-2"><header><strong>{value ? '频次身份与规则' : '2. 补充频次身份'}</strong>
-      <small>编码创建后不可修改，建议使用院内稳定编码或通用缩写</small></header></div>
-    <FormField label="频次编码" required hint="常用标准编码示例：QD（每日一次）、BID（每日两次）、Q6H（每6小时一次）。"><input value={form.code} disabled={Boolean(value)} required
-      onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase() })} placeholder="如 BID、Q6H" /></FormField>
-    <FormField label="频次名称" required><input value={form.name} required
-      onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="如 每日两次" /></FormField>
-    <FormField label="简称"><input value={form.shortName} onChange={(event) => setForm({ ...form, shortName: event.target.value })} /></FormField>
-    <FormField label="规则类型" required><Select value={form.ruleType} onChange={changeRule} options={frequencyRuleOptions} /></FormField>
-    {usesPeriod && <><FormField label={ruleType === 'FIXED_INTERVAL' ? '间隔值' : '周期内次数'} required>
-      <input type="number" min="1" step="1" readOnly={ruleType === 'TIMES_PER_PERIOD'}
-        value={ruleType === 'FIXED_INTERVAL' ? form.periodValue : Math.max(1, executionTimes.length)}
-        onChange={(event) => ruleType === 'FIXED_INTERVAL' && setForm({ ...form, periodValue: event.target.value })} /></FormField>
-      <FormField label={ruleType === 'FIXED_INTERVAL' ? '间隔单位' : '统计周期'} required><Select value={form.periodUnit}
-        onChange={(next) => setForm({ ...form, periodUnit: next, periodValue: ruleType === 'TIMES_PER_PERIOD' ? '1' : form.periodValue })}
-        options={periodUnitOptions} /></FormField></>}
-    {usesTimes && <FormField label="默认执行时点" required className="span-2"><FrequencyTimeEditor
-      value={executionTimes} onChange={setExecutionTimes} /></FormField>}
-    <section className="frequency-scope-section span-2"><header><strong>适用范围</strong><small>明确该频次可以在哪些业务中被选择</small></header>
-      <div className="frequency-scope-grid">
-        <Check label="门诊适用" checked={form.outpatientApplicable} onChange={(next) => setForm({ ...form, outpatientApplicable: next })} />
-        <Check label="住院适用" checked={form.inpatientApplicable} onChange={(next) => setForm({ ...form, inpatientApplicable: next })} />
-        <Check label="急诊适用" checked={form.emergencyApplicable} onChange={(next) => setForm({ ...form, emergencyApplicable: next })} />
-        <Check label="药品医嘱" checked={form.medicationApplicable} onChange={(next) => setForm({ ...form, medicationApplicable: next })} />
-        <Check label="治疗医嘱" checked={form.treatmentApplicable} onChange={(next) => setForm({ ...form, treatmentApplicable: next })} />
-        <Check label="护理医嘱" checked={form.nursingApplicable} onChange={(next) => setForm({ ...form, nursingApplicable: next })} />
-      </div><p><strong>当前范围：</strong>{scopeLabel}</p>
-    </section>
-    <FrequencyDraftPreview form={form} /><div className="span-2"><FrequencySchedulePreview inputKey={JSON.stringify(input)} load={() => api.masterData.previewOrderFrequencyDefinition(input)} /></div>
-    <details className="frequency-advanced span-2" open={Boolean(value)}><summary><span>高级设置</span><small>状态、生效期、排序和任务生成策略</small></summary>
-      <div className="frequency-advanced__grid">
-        <FormField label="状态"><Select value={form.status} onChange={(next) => setForm({ ...form, status: next as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField>
-        <FormField label="排序号"><input type="number" min="0" value={form.sortOrder} onChange={(event) => setForm({ ...form, sortOrder: event.target.value })} /></FormField>
-        <FormField label="生效日期" required><input type="date" value={form.validFrom} required onChange={(event) => setForm({ ...form, validFrom: event.target.value })} /></FormField>
-        <FormField label="失效日期"><input type="date" min={form.validFrom} value={form.validTo} onChange={(event) => setForm({ ...form, validTo: event.target.value })} /></FormField>
-        <FormField label="业务说明" className="span-2"><textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></FormField>
-        <Check label="自动生成执行任务" checked={form.automaticTaskGeneration}
-          disabled={ruleType === 'PRN' || ruleType === 'CONTINUOUS'}
-          onChange={(next) => setForm({ ...form, automaticTaskGeneration: next })} />
+    <div className="frequency-dialog-split">
+      <div className="frequency-dialog-split__main">
+        {!value && <section className="frequency-template-picker" aria-label="频次业务模板">
+          <header><strong>1. 选择业务模板</strong><small>系统自动填充规则，仍可在下方调整</small></header>
+          <div className="frequency-template-grid">{frequencyTemplates.map((template) => <button type="button" key={template.id}
+            className={template.id === templateId ? 'is-active' : ''} onClick={() => applyTemplate(template.id)}>
+            <strong>{template.title}</strong><small>{template.copy}</small></button>)}</div>
+        </section>}
+        {formError && <Alert>{formError}</Alert>}
+
+        <section className="frequency-section-card">
+          <header className="frequency-section-card__header">
+            <strong>{value ? '频次身份与规则' : '2. 频次身份与规则定义'}</strong>
+            <small>编码创建后不可修改，建议使用院内稳定编码或通用缩写</small>
+          </header>
+          <div className="master-data-form-grid master-data-form-grid--3">
+            <FormField label="频次编码" required hint="常用标准编码示例：QD、BID、Q6H。">
+              <input value={form.code} disabled={Boolean(value)} required
+                onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase() })} placeholder="如 BID、Q6H" />
+            </FormField>
+            <FormField label="频次名称" required>
+              <input value={form.name} required
+                onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="如 每日两次" />
+            </FormField>
+            <FormField label="简称">
+              <input value={form.shortName} placeholder="如 2/日" onChange={(event) => setForm({ ...form, shortName: event.target.value })} />
+            </FormField>
+          </div>
+
+          <div className="master-data-form-grid master-data-form-grid--3" style={{ marginTop: 'var(--space-3)' }}>
+            <FormField label="规则类型" required>
+              <Select value={form.ruleType} onChange={changeRule} options={frequencyRuleOptions} />
+            </FormField>
+            {usesPeriod && <>
+              <FormField label={ruleType === 'FIXED_INTERVAL' ? '间隔值' : '周期内次数'} required>
+                <input type="number" min="1" step="1" readOnly={ruleType === 'TIMES_PER_PERIOD'}
+                  value={ruleType === 'FIXED_INTERVAL' ? form.periodValue : Math.max(1, executionTimes.length)}
+                  onChange={(event) => ruleType === 'FIXED_INTERVAL' && setForm({ ...form, periodValue: event.target.value })} />
+              </FormField>
+              <FormField label={ruleType === 'FIXED_INTERVAL' ? '间隔单位' : '统计周期'} required>
+                <Select value={form.periodUnit}
+                  onChange={(next) => setForm({ ...form, periodUnit: next, periodValue: ruleType === 'TIMES_PER_PERIOD' ? '1' : form.periodValue })}
+                  options={periodUnitOptions} />
+              </FormField>
+            </>}
+          </div>
+
+          {usesTimes && (
+            <div style={{ marginTop: 'var(--space-3)' }}>
+              <FormField label="默认执行时点" required>
+                <FrequencyTimeEditor value={executionTimes} onChange={setExecutionTimes} />
+              </FormField>
+            </div>
+          )}
+        </section>
+
+        <section className="frequency-section-card frequency-scope-section">
+          <header className="frequency-section-card__header">
+            <strong>适用范围</strong>
+            <small>明确该频次可以在哪些业务场景与医嘱类型中被选择</small>
+          </header>
+          <div className="frequency-scope-groups">
+            <div className="frequency-scope-subgroup">
+              <span className="frequency-scope-subgroup__title">适用业务场景</span>
+              <div className="frequency-scope-subgroup__checks">
+                <Check label="门诊适用" checked={form.outpatientApplicable} onChange={(next) => setForm({ ...form, outpatientApplicable: next })} />
+                <Check label="住院适用" checked={form.inpatientApplicable} onChange={(next) => setForm({ ...form, inpatientApplicable: next })} />
+                <Check label="急诊适用" checked={form.emergencyApplicable} onChange={(next) => setForm({ ...form, emergencyApplicable: next })} />
+              </div>
+            </div>
+            <div className="frequency-scope-subgroup">
+              <span className="frequency-scope-subgroup__title">适用医嘱类型</span>
+              <div className="frequency-scope-subgroup__checks">
+                <Check label="药品医嘱" checked={form.medicationApplicable} onChange={(next) => setForm({ ...form, medicationApplicable: next })} />
+                <Check label="治疗医嘱" checked={form.treatmentApplicable} onChange={(next) => setForm({ ...form, treatmentApplicable: next })} />
+                <Check label="护理医嘱" checked={form.nursingApplicable} onChange={(next) => setForm({ ...form, nursingApplicable: next })} />
+              </div>
+            </div>
+          </div>
+          <p className="frequency-scope-summary"><strong>当前生效范围：</strong>{scopeLabel}</p>
+        </section>
+
+        <details className="frequency-advanced" open={Boolean(value)}>
+          <summary><span>高级设置</span><small>状态、生效期、排序和任务生成策略</small></summary>
+          <div className="frequency-advanced__grid master-data-form-grid--4">
+            <FormField label="状态">
+              <Select value={form.status} onChange={(next) => setForm({ ...form, status: next as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} />
+            </FormField>
+            <FormField label="排序号">
+              <input type="number" min="0" value={form.sortOrder} onChange={(event) => setForm({ ...form, sortOrder: event.target.value })} />
+            </FormField>
+            <FormField label="生效日期" required>
+              <input type="date" value={form.validFrom} required onChange={(event) => setForm({ ...form, validFrom: event.target.value })} />
+            </FormField>
+            <FormField label="失效日期">
+              <input type="date" min={form.validFrom} value={form.validTo} onChange={(event) => setForm({ ...form, validTo: event.target.value })} />
+            </FormField>
+            <FormField label="业务说明" className="span-3">
+              <textarea value={form.description} placeholder="可选业务背景、给药间隔或特殊操作说明" onChange={(event) => setForm({ ...form, description: event.target.value })} />
+            </FormField>
+            <div className="frequency-task-check span-1">
+              <Check label="自动生成执行任务" checked={form.automaticTaskGeneration}
+                disabled={ruleType === 'PRN' || ruleType === 'CONTINUOUS'}
+                onChange={(next) => setForm({ ...form, automaticTaskGeneration: next })} />
+            </div>
+          </div>
+        </details>
       </div>
-    </details>
+
+      <aside className="frequency-dialog-split__sidecar">
+        <div className="frequency-sidecar-card">
+          <div className="frequency-sidecar-card__header">
+            <strong>规则实时语义解读</strong>
+            <span className="frequency-sidecar-badge">即时计算</span>
+          </div>
+          <FrequencyDraftPreview form={form} compact />
+        </div>
+
+        <div className="frequency-sidecar-card">
+          <div className="frequency-sidecar-card__header">
+            <strong>频次结构与时点沙盘预演</strong>
+            <span className="frequency-sidecar-badge">规则沙盒</span>
+          </div>
+          <div className="frequency-sidecar-card__body">
+            <FrequencySchedulePreview inputKey={JSON.stringify(input)} load={() => api.masterData.previewOrderFrequencyDefinition(input)} />
+          </div>
+        </div>
+
+        <div className="frequency-sidecar-card frequency-sidecar-card--hint">
+          <div className="frequency-sidecar-card__header">
+            <div className="frequency-sidecar-card__hint-title">
+              <Icon name="info" />
+              <strong>临床用药规则联动指引</strong>
+            </div>
+          </div>
+          <div className="frequency-sidecar-card__hint-body">
+            <p>勾选<strong>【门诊适用】</strong>与<strong>【药品医嘱】</strong>后，本频次将自动纳入<strong>【药品知识与目录 - 用药规则 - 频次标准】</strong>。</p>
+            <p>系统会在门诊开立时以此规则推算日给药剂量，并在合理用药审核中执行用药频次与极量合规监测。</p>
+          </div>
+        </div>
+      </aside>
+    </div>
   </FormDialog>
 }
 
@@ -3220,8 +3404,8 @@ function FrequencyTimeEditor({ value, onChange, inheritLabel, inheritTimes = [] 
   </div>
 }
 
-function FrequencyDraftPreview({ form, compact = false }: { form: FrequencyDraft; compact?: boolean }) {
-  return <aside className={`frequency-draft-preview span-2${compact ? ' is-compact' : ''}`}>
+function FrequencyDraftPreview({ form, compact = false, className = '' }: { form: FrequencyDraft; compact?: boolean; className?: string }) {
+  return <aside className={`frequency-draft-preview${compact ? ' is-compact' : ''} ${className}`}>
     <div><span>规则解释</span><strong>{frequencyDraftRuleLabel(form)}</strong><small>{frequencyDraftScopeLabel(form)}</small></div>
     <div><span>执行能力</span><strong>由结构化预演核对</strong><small>{form.automaticTaskGeneration ? '已开启生成意图；能否生成还取决于周期、锚点和日期规则是否完整' : '不自动预生成固定任务'}</small></div>
   </aside>

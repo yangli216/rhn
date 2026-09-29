@@ -11,6 +11,7 @@ import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.PlanTaskInput;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.ServiceInput;
 import com.rhn.outpatient.api.OutpatientPlanTemplateDirectory;
+import com.rhn.platform.masterdata.api.MedicationKnowledgeDirectory;
 import com.rhn.platform.masterdata.api.ServiceCatalogDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
@@ -32,6 +33,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.forbidden;
@@ -47,6 +50,7 @@ public class ClinicalPlanTemplateAiApplicationService {
 
     private final MedicationIntentParser medicationParser;
     private final MedicationCandidateMatchingService medicationMatcher;
+    private final MedicationKnowledgeDirectory medicationKnowledgeDirectory;
     private final ServiceCatalogDirectory serviceCatalog;
     private final DiagnosisNormalizationService diagnosisNormalizer;
     private final ClinicalPlanRetrievalService planRetrieval;
@@ -58,6 +62,7 @@ public class ClinicalPlanTemplateAiApplicationService {
 
     public ClinicalPlanTemplateAiApplicationService(MedicationIntentParser medicationParser,
                                                      MedicationCandidateMatchingService medicationMatcher,
+                                                     MedicationKnowledgeDirectory medicationKnowledgeDirectory,
                                                      ServiceCatalogDirectory serviceCatalog,
                                                      DiagnosisNormalizationService diagnosisNormalizer,
                                                      ClinicalPlanRetrievalService planRetrieval,
@@ -68,6 +73,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                                                      JsonCodec jsonCodec) {
         this.medicationParser = medicationParser;
         this.medicationMatcher = medicationMatcher;
+        this.medicationKnowledgeDirectory = medicationKnowledgeDirectory;
         this.serviceCatalog = serviceCatalog;
         this.diagnosisNormalizer = diagnosisNormalizer;
         this.planRetrieval = planRetrieval;
@@ -258,7 +264,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                     .findFirst().orElse(null);
             if (reference == null || availablePlans.stream().noneMatch(plan -> plan.id().equals(intent.referenceTemplateId()))) {
                 throw new BusinessException("AI_PLAN_RESPONSE_INVALID", "模型引用了不可用的院内方案，请重试。",
-                        HttpStatus.BAD_GATEWAY);
+                    HttpStatus.BAD_GATEWAY);
             }
         }
 
@@ -268,6 +274,7 @@ public class ClinicalPlanTemplateAiApplicationService {
         List<PlanTaskInput> tasks = new ArrayList<>();
         Set<String> diagnosisCodes = new LinkedHashSet<>();
         Set<Long> medicationProductIds = new LinkedHashSet<>();
+        Set<Long> medicationIds = new LinkedHashSet<>();
         Set<Long> serviceIds = new LinkedHashSet<>();
         LocalDate today = LocalDate.now(ZONE);
         boolean doctorConfirmedItems = reviewedItems != null;
@@ -277,7 +284,7 @@ public class ClinicalPlanTemplateAiApplicationService {
             String details = value.details();
             if (doctorConfirmedItems || value.explicit()) {
                 switch (value.kind()) {
-                    case "DIAGNOSIS" -> {
+                    case "DIAGNOSIS", "CONDITION" -> {
                         var resolution = diagnosisNormalizer.normalize(context.tenantId(), null, null,
                                 value.name(), today);
                         if (resolution.matched()) {
@@ -320,26 +327,61 @@ public class ClinicalPlanTemplateAiApplicationService {
                         }
                     }
                     case "MEDICATION" -> {
-                        var parsed = medicationParser.parse(value.name(), value.details());
+                        String extra = Stream.of(value.details(), value.sourceQuote(), item.details())
+                                .filter(s -> s != null && !s.isBlank())
+                                .collect(Collectors.joining(" "));
+                        var parsed = medicationParser.parse(value.name(), extra);
                         var match = medicationMatcher.match(context.tenantId(), context.organizationId(),
                                 context.departmentId(), parsed);
-                        if (match.status() == MedicationCandidateMatchingService.Status.UNIQUE_MATCH) {
+                        if (match.product() != null && match.itemPackage() != null
+                                && (match.status() == MedicationCandidateMatchingService.Status.UNIQUE_MATCH
+                                        || match.status() == MedicationCandidateMatchingService.Status.NEEDS_REVIEW)) {
                             var medication = match.medication();
                             var product = match.product();
                             var itemPackage = match.itemPackage();
-                            if (medicationProductIds.add(product.id())) {
+                            BigDecimal doseValue = parsed.doseValue() != null ? parsed.doseValue() : medication.defaultDose();
+                            String doseUnit = parsed.doseUnit() != null ? parsed.doseUnit() : medication.defaultDoseUnit();
+                            String route = parsed.routeCode() != null ? parsed.routeCode() : medication.defaultRoute();
+                            String frequency = parsed.frequencyCode() != null ? parsed.frequencyCode() : medication.defaultFrequency();
+                            BigDecimal qty = parsed.quantity() != null ? parsed.quantity() : BigDecimal.ONE;
+                            String unit = parsed.quantityUnit() != null && !parsed.quantityUnit().isBlank()
+                                    ? parsed.quantityUnit() : itemPackage.unitCode();
+                            if (medicationProductIds.add(product.id()) && medicationIds.add(medication.id())) {
                                 medications.add(new MedicationInput(medication.id(), product.id(), itemPackage.id(),
-                                        medication.name(), medication.preparationSpec(), parsed.doseValue(),
-                                        parsed.doseUnit(), parsed.routeCode(), parsed.frequencyCode(),
-                                        parsed.durationValue(), parsed.durationUnit(), parsed.quantity(),
-                                        itemPackage.unitCode(), true, false, parsed.sourceText(), "SALE", true,
+                                        medication.name(), medication.preparationSpec(), doseValue,
+                                        doseUnit, route, frequency,
+                                        parsed.durationValue(), parsed.durationUnit(), qty,
+                                        unit, true, false, parsed.sourceText(), "SALE", true,
                                         value.name()));
                             }
                             status = "MATCHED";
                         } else {
-                            status = match.status() == MedicationCandidateMatchingService.Status.UNAVAILABLE
-                                    ? "UNMATCHED" : "NEEDS_REVIEW";
-                            details = appendDetails(details, match.evidence());
+                            var genericKnowledge = matchGenericMedication(parsed, value.name());
+                            if (genericKnowledge != null) {
+                                var medication = genericKnowledge.medication();
+                                if (medicationIds.add(medication.id())) {
+                                    BigDecimal doseValue = parsed.doseValue() != null ? parsed.doseValue() : medication.defaultDose();
+                                    String doseUnit = parsed.doseUnit() != null ? parsed.doseUnit() : medication.defaultDoseUnit();
+                                    String route = parsed.routeCode() != null ? parsed.routeCode() : medication.defaultRoute();
+                                    String frequency = parsed.frequencyCode() != null ? parsed.frequencyCode() : medication.defaultFrequency();
+                                    BigDecimal qty = parsed.quantity() != null ? parsed.quantity() : BigDecimal.ONE;
+                                    String unit = parsed.quantityUnit() != null && !parsed.quantityUnit().isBlank()
+                                            ? parsed.quantityUnit()
+                                            : (medication.preparationUnit() != null ? medication.preparationUnit() : "盒");
+                                    medications.add(new MedicationInput(medication.id(), null, null,
+                                            medication.name(), medication.preparationSpec(), doseValue,
+                                            doseUnit, route, frequency,
+                                            parsed.durationValue(), parsed.durationUnit(), qty,
+                                            unit, true, false, parsed.sourceText(), "SALE", false,
+                                            value.name()));
+                                }
+                                status = "MATCHED";
+                                details = appendDetails(details, "已对齐通用药品主档（开立时再选择药房产品）");
+                            } else {
+                                status = match.status() == MedicationCandidateMatchingService.Status.UNAVAILABLE
+                                        ? "UNMATCHED" : "NEEDS_REVIEW";
+                                details = appendDetails(details, match.evidence());
+                            }
                         }
                     }
                     default -> { }
@@ -461,5 +503,53 @@ public class ClinicalPlanTemplateAiApplicationService {
             throw forbidden("AI_PLAN_WORK_CONTEXT_REQUIRED", "请先选择包含机构与科室的工作上下文");
         }
         return context;
+    }
+
+    private MedicationKnowledgeDirectory.Knowledge matchGenericMedication(
+            MedicationIntentParser.ParsedMedication parsed, String rawName) {
+        String query = parsed != null && parsed.medicationName() != null && !parsed.medicationName().isBlank()
+                ? parsed.medicationName().trim()
+                : (rawName != null ? rawName.trim() : "");
+        if (query.isBlank()) return null;
+        List<MedicationKnowledgeDirectory.Knowledge> found = medicationKnowledgeDirectory.search(query);
+        if (found.isEmpty() && rawName != null && !rawName.trim().equalsIgnoreCase(query)) {
+            found = medicationKnowledgeDirectory.search(rawName.trim());
+        }
+        if (found.isEmpty()) return null;
+        String normQuery = normalizeMedName(query);
+        var exact = found.stream().filter(k -> {
+            var m = k.medication();
+            return normQuery.equals(normalizeMedName(m.name()))
+                    || normQuery.equals(normalizeMedName(m.code()))
+                    || (m.aliasName() != null && normQuery.equals(normalizeMedName(m.aliasName())));
+        }).toList();
+        if (exact.size() == 1) return exact.getFirst();
+        if (exact.size() > 1) {
+            if (parsed != null && parsed.doseUnit() != null) {
+                var specMatch = exact.stream()
+                        .filter(k -> k.medication().preparationSpec() != null
+                                && k.medication().preparationSpec().contains(parsed.doseUnit()))
+                        .findFirst();
+                if (specMatch.isPresent()) return specMatch.get();
+            }
+            return exact.getFirst();
+        }
+        var contains = found.stream().filter(k -> {
+            String candName = normalizeMedName(k.medication().name());
+            return candName.contains(normQuery) || normQuery.contains(candName);
+        }).toList();
+        if (contains.size() == 1) return contains.getFirst();
+        if (!contains.isEmpty()) {
+            var startsWith = contains.stream()
+                    .filter(k -> normalizeMedName(k.medication().name()).startsWith(normQuery))
+                    .findFirst();
+            return startsWith.orElse(contains.getFirst());
+        }
+        return found.getFirst();
+    }
+
+    private String normalizeMedName(String value) {
+        if (value == null) return "";
+        return value.trim().toLowerCase(Locale.ROOT).replaceAll("[\\p{P}\\p{Z}\\s]+", "");
     }
 }

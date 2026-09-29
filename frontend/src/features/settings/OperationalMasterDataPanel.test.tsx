@@ -636,4 +636,98 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     fireEvent.change(screen.getByLabelText('执行时点 2'), { target: { value: '18:00' } })
     expect(screen.queryByText('当前未保存时点预演')).not.toBeInTheDocument()
   })
+
+  it('renders SupplyDialog with PC widescreen 4-section layout and attributes grid', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi()
+    api.masterData.supplies = vi.fn().mockResolvedValue([])
+    api.masterData.units = vi.fn().mockResolvedValue([
+      { code: 'EA', name: '个', dimension: 'COUNT', status: 'ACTIVE' },
+    ])
+    const queryClient = new QueryClient()
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <OperationalMasterDataPanel
+          api={api}
+          organization={mockOrganization as any}
+          manufacturers={[]}
+        />
+      </QueryClientProvider>,
+    )
+
+    // 切换到“耗材与器械”卡片
+    await waitFor(() => {
+      expect(screen.getByText('耗材与器械')).toBeInTheDocument()
+    })
+    await user.click(screen.getByText('耗材与器械'))
+
+    // 点击“新增耗材/器械”
+    const addSupplyBtn = await screen.findByRole('button', { name: /新增耗材\/器械/ })
+    await user.click(addSupplyBtn)
+
+    // 验证弹窗按 4 个结构化业务区块渲染，杜绝单列堆叠
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: '新增耗材/器械' })).toBeInTheDocument()
+      expect(screen.getByText('1. 基础身份与规格型号')).toBeInTheDocument()
+      expect(screen.getByText('2. 资质认证与注册信息')).toBeInTheDocument()
+      expect(screen.getByText('3. 经营与管控属性')).toBeInTheDocument()
+      expect(screen.getByText('4. 临床应用与说明')).toBeInTheDocument()
+    })
+
+    // 验证经营属性网格与表单项正常可用
+    expect(screen.getByLabelText('可开立（临床医嘱）')).toBeChecked()
+    expect(screen.getByLabelText('可收费（费用清单）')).toBeChecked()
+    expect(screen.getByLabelText('高值耗材')).not.toBeChecked()
+    expect(screen.getByPlaceholderText('如 一次性使用采血管 EDTA-K2 2ml')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('06900000000000')).toBeInTheDocument()
+  })
+
+  it('renders FrequencyDialog with PC widescreen dual-pane split workbench and clinical rule linkage guide', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi()
+    api.masterData.orderFrequencies = vi.fn().mockResolvedValue([])
+    api.organization.departments = vi.fn().mockResolvedValue([])
+    const queryClient = new QueryClient()
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <OperationalMasterDataPanel
+          api={api}
+          organization={mockOrganization as any}
+          manufacturers={[]}
+        />
+      </QueryClientProvider>,
+    )
+
+    // 切换到“医嘱频次”卡片
+    await waitFor(() => {
+      expect(screen.getByText('医嘱频次')).toBeInTheDocument()
+    })
+    await user.click(screen.getByText('医嘱频次'))
+
+    // 点击“新增频次”
+    const addFreqBtn = await screen.findByRole('button', { name: /新增频次/ })
+    await user.click(addFreqBtn)
+
+    // 验证左栏：模板选择卡片 + 频次身份与规则 + 适用范围
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: '新增医嘱频次' })).toBeInTheDocument()
+      expect(screen.getByText('1. 选择业务模板')).toBeInTheDocument()
+      expect(screen.getByText('每日定时')).toBeInTheDocument()
+      expect(screen.getByText('固定间隔')).toBeInTheDocument()
+      expect(screen.getByText('2. 频次身份与规则定义')).toBeInTheDocument()
+      expect(screen.getByLabelText('门诊适用')).toBeChecked()
+      expect(screen.getByLabelText('药品医嘱')).toBeChecked()
+    })
+
+    // 验证右栏 sidecar：规则语义解读 + 沙盒预演 + 临床用药规则联动指引
+    expect(screen.getByText('规则实时语义解读')).toBeInTheDocument()
+    expect(screen.getByText('频次结构与时点沙盘预演')).toBeInTheDocument()
+    const hintCard = screen.getByText('临床用药规则联动指引').closest('.frequency-sidecar-card')
+    expect(hintCard).toBeInTheDocument()
+    expect(hintCard).toHaveTextContent('门诊适用')
+    expect(hintCard).toHaveTextContent('药品医嘱')
+    expect(hintCard).toHaveTextContent('频次标准')
+  })
 })

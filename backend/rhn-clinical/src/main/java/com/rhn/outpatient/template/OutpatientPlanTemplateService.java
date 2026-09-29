@@ -41,6 +41,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
     private final OutpatientPlanDiagnosisRepository diagnoses;
     private final OutpatientPlanMedicationRepository medications;
     private final OutpatientPlanServiceRepository services;
+    private final OutpatientNoteTemplateRepository noteTemplates;
     private final CatalogLifecycleDirectory catalogDirectory;
     private final MedicationRouteDirectory medicationRouteDirectory;
     private final TerminologyDirectory terminologyDirectory;
@@ -51,12 +52,13 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                                   OutpatientPlanDiagnosisRepository diagnoses,
                                   OutpatientPlanMedicationRepository medications,
                                   OutpatientPlanServiceRepository services,
+                                  OutpatientNoteTemplateRepository noteTemplates,
                                   CatalogLifecycleDirectory catalogDirectory,
                                   MedicationRouteDirectory medicationRouteDirectory,
                                   TerminologyDirectory terminologyDirectory,
                                   ExecutionContextProvider contextProvider, JsonCodec jsonCodec) {
         this.templates = templates; this.diagnoses = diagnoses; this.medications = medications;
-        this.services = services; this.catalogDirectory = catalogDirectory;
+        this.services = services; this.noteTemplates = noteTemplates; this.catalogDirectory = catalogDirectory;
         this.medicationRouteDirectory = medicationRouteDirectory;
         this.terminologyDirectory = terminologyDirectory; this.contextProvider = contextProvider;
         this.jsonCodec = jsonCodec;
@@ -123,6 +125,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                 : "DEPARTMENT".equals(scope) ? context.departmentId()
                 : context.organizationId();
         String name = required(input.name(), "PLAN_TEMPLATE_NAME_REQUIRED", "方案名称不能为空");
+        Long noteTemplateId = validateNoteTemplate(input.noteTemplateId(), scope, context);
         List<DiagnosisInput> diagnosisInputs = input.diagnoses() == null ? List.of() : input.diagnoses();
         List<MedicationInput> medicationInputs = input.medications() == null ? List.of() : input.medications();
         List<ServiceInput> serviceInputs = input.services() == null ? List.of() : input.services();
@@ -136,7 +139,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         OutpatientPlanTemplate value = new OutpatientPlanTemplate(context.tenantId(), context.organizationId(),
                 context.departmentId(), scope, ownerId, name, clean(input.description()),
                 input.sortOrder() == null ? 0 : input.sortOrder(), clean(input.sourceType()),
-                clean(input.guidelineReference()), context.subjectId(), now);
+                clean(input.guidelineReference()), noteTemplateId, context.subjectId(), now);
         value.setPlanTasks(jsonCodec.write(taskInputs));
         try {
             templates.saveAndFlush(value);
@@ -191,6 +194,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                 : "DEPARTMENT".equals(scope) ? context.departmentId()
                 : context.organizationId();
         String name = required(input.name(), "PLAN_TEMPLATE_NAME_REQUIRED", "方案名称不能为空");
+        Long noteTemplateId = validateNoteTemplate(input.noteTemplateId(), scope, context);
         List<DiagnosisInput> diagnosisInputs = input.diagnoses() == null ? List.of() : input.diagnoses();
         List<MedicationInput> medicationInputs = input.medications() == null ? List.of() : input.medications();
         List<ServiceInput> serviceInputs = input.services() == null ? List.of() : input.services();
@@ -203,7 +207,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         Instant now = Instant.now();
         value.update(scope, ownerId, name, clean(input.description()),
                 input.sortOrder() == null ? 0 : input.sortOrder(), clean(input.guidelineReference()),
-                jsonCodec.write(taskInputs), context.subjectId(), now);
+                noteTemplateId, jsonCodec.write(taskInputs), context.subjectId(), now);
         try {
             templates.saveAndFlush(value);
             diagnoses.deleteByTenantIdAndTemplateId(context.tenantId(), value.id());
@@ -364,6 +368,29 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         }
     }
 
+    private Long validateNoteTemplate(Long noteTemplateId, String planScope, ExecutionContext context) {
+        if (noteTemplateId == null) return null;
+        if ("HOSPITAL".equals(planScope)) {
+            throw badRequest("PLAN_TEMPLATE_NOTE_SCOPE_INVALID", "全院诊疗方案暂不能关联个人或科室病历模板");
+        }
+        OutpatientNoteTemplate note = noteTemplates.findByIdAndTenantId(noteTemplateId, context.tenantId())
+                .orElseThrow(() -> notFound("NOTE_TEMPLATE_NOT_FOUND", "未找到关联的病历模板"));
+        boolean sameWorkContext = note.organizationId().equals(context.organizationId())
+                && note.departmentId().equals(context.departmentId());
+        boolean visible = "DEPARTMENT".equals(note.scopeType())
+                || "PERSONAL".equals(note.scopeType()) && note.ownerId().equals(context.practitionerId());
+        if (!sameWorkContext || !visible) {
+            throw forbidden("PLAN_TEMPLATE_NOTE_FORBIDDEN", "当前工作上下文不能关联该病历模板");
+        }
+        if (!"ACTIVE".equals(note.status())) {
+            throw conflict("PLAN_TEMPLATE_NOTE_INACTIVE", "关联的病历模板已经停用");
+        }
+        if ("DEPARTMENT".equals(planScope) && !"DEPARTMENT".equals(note.scopeType())) {
+            throw badRequest("PLAN_TEMPLATE_NOTE_SCOPE_INVALID", "科室诊疗方案只能关联科室病历模板");
+        }
+        return note.id();
+    }
+
     private void requireActiveDiagnosis(Long tenantId, String codeSystem, String diagnosisDomain,
                                         String code, boolean reuse) {
         try {
@@ -424,6 +451,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                       List<OutpatientPlanMedication> medicationValues, List<OutpatientPlanServiceLine> serviceValues) {
         return new View(value.id(), value.revision(), value.scopeType(), value.name(), value.description(),
                 value.status(), value.sourceType(), value.guidelineReference(),
+                value.noteTemplateId(),
                 value.sortOrder(), value.useCount(), value.lastUsedAt(),
                 diagnosisValues.stream().map(line -> new DiagnosisView(line.codeSystem(), line.diagnosisDomain(),
                         line.code(), line.name(), line.type())).toList(),

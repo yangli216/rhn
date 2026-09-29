@@ -54,12 +54,12 @@ export function MedicationStandardReadinessPanel({ api, organizationId, onOpenCa
     placeholderData: keepPreviousData,
   })
   const value = query.data
-  return <section className="medication-readiness" aria-label="药品标准建设情况">
+  return <section className="medication-readiness" aria-label="药品主档标准关联情况">
     {!compact && (
       <div className="medication-readiness__heading">
         <div>
-          <h4>药品标准建设情况</h4>
-          <p>统计本租户全部启用药品，不限于当前机构采用目录。关联、来源核验、换算能力分别核查。</p>
+          <h4>药品主档标准关联情况</h4>
+          <p>用于关联标准目录规格与药品主档，并分别核查身份差异、来源和含量换算；不改变厂家产品或库存记录。</p>
         </div>
         {onOpenCatalog && <Button variant="secondary" onClick={onOpenCatalog}>前往标准参考目录</Button>}
       </div>

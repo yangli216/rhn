@@ -1,5 +1,5 @@
 {
-  "fingerprint": "dcd7894350595118488d09f5ba15bd1dacb2148a276fdf2f01091e64f855c7bc",
+  "fingerprint": "8294d1c05b90c1ad9af0963c7b3037586921ee2b6c62d10e7e3c300e55144823",
   "tables": [
     {
       "logical": "bd.catalog_change_batch_row",
@@ -20532,6 +20532,174 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/infrastructure/StandardCatalogReviewStore.java",
           "line": 34
+        }
+      ]
+    },
+    {
+      "logical": "bd.standard_specification_disposition",
+      "legacy": "standard_specification_disposition",
+      "physical": "RHN_BD_SPEC_DISP",
+      "domain": "BD",
+      "comment": "标准目录不完整规格的机构处置事件，一行代表一次待补充或不采用决定",
+      "columns": [
+        {
+          "physical": "ID_SPEC_DISP",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "规格处置事件标识",
+          "logical": "id",
+          "catalogComment": "规格处置事件标识"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "HASH_IDTY",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "目录标识版本及内容和来源文件指纹组合哈希",
+          "logical": "identity_hash",
+          "catalogComment": "目录标识版本及内容和来源文件指纹组合哈希"
+        },
+        {
+          "physical": "ID_STD_SPEC",
+          "type": "CHARACTER VARYING",
+          "size": 120,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "标准规格编码",
+          "logical": "standard_specification_id",
+          "catalogComment": "标准规格编码"
+        },
+        {
+          "physical": "REVISION",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "规格处置递增序号，用于并发控制",
+          "logical": "revision",
+          "catalogComment": "规格处置递增序号，用于并发控制"
+        },
+        {
+          "physical": "JSON_EVENT",
+          "type": "CHARACTER VARYING",
+          "size": 1000000000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "不可变处置结果，含状态、说明、操作人和时间",
+          "logical": "event",
+          "catalogComment": "不可变处置结果，含状态、说明、操作人和时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_SPEC_DISP"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BD_SPEC_DISP_REV",
+          "columns": [
+            "ID_TNT",
+            "HASH_IDTY",
+            "ID_STD_SPEC",
+            "REVISION"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_E10",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_SPEC_DISP",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BD_SPEC_DISP_REV_INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "HASH_IDTY",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_STD_SPEC",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "REVISION",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "标准目录不完整规格的机构处置事件，一行代表一次待补充或不采用决定",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/infrastructure/StandardSpecificationDispositionStore.java",
+          "line": 21
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/infrastructure/StandardSpecificationDispositionStore.java",
+          "line": 23
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/infrastructure/StandardSpecificationDispositionStore.java",
+          "line": 30
         }
       ]
     },

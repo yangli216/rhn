@@ -1,10 +1,9 @@
 import { Button, Popconfirm } from '../../../shared/ui'
-import { IconAlertCircle, IconEdit, IconFlask, IconPill, IconPlant2, IconPrinter, IconScan, IconTrash, IconFileText } from '@tabler/icons-react'
+import { IconAlertCircle, IconFlask, IconPill, IconPlant2, IconPrinter, IconScan, IconTrash, IconFileText } from '@tabler/icons-react'
 import { formatCurrency } from '../../../shared/utils/precision'
 
 export function OrderDocumentGroupHeader({
   title,
-  docLabel,
   kind,
   dept,
   specimen,
@@ -14,8 +13,6 @@ export function OrderDocumentGroupHeader({
   currencyCode = 'CNY',
   missingFields = [],
   isSelected,
-  isEditing,
-  onToggleEdit,
   canPrint,
   onPrint,
   canCancel,
@@ -34,8 +31,6 @@ export function OrderDocumentGroupHeader({
   currencyCode?: string
   missingFields?: string[]
   isSelected?: boolean
-  isEditing?: boolean
-  onToggleEdit?: () => void
   canPrint?: boolean
   onPrint?: () => void
   canCancel?: boolean
@@ -83,18 +78,6 @@ export function OrderDocumentGroupHeader({
           </span>
         )}
         <div className="doctor-group-actions">
-          {onToggleEdit && (
-            <Button
-              size="sm"
-              variant="text"
-              onClick={onToggleEdit}
-              aria-label={`查看${docLabel || title}单据信息`}
-              title={`查看${docLabel || title}单据信息`}
-            >
-              <IconEdit size={14} stroke={1.75} />
-              <span>{isEditing ? '收起属性' : '编辑属性'}</span>
-            </Button>
-          )}
           {canCancel && onCancel && (
             <Popconfirm
               title={`确认撤销“${title}”整单医嘱？`}
@@ -102,16 +85,25 @@ export function OrderDocumentGroupHeader({
               okVariant="danger"
               onConfirm={onCancel}
             >
-              <Button size="sm" variant="text">
-                <IconTrash size={14} stroke={1.75} />
-                <span>整单撤销</span>
+              <Button
+                size="sm"
+                variant="text"
+                aria-label={`撤销${title}整单`}
+                title={`撤销${title}整单`}
+              >
+                <IconTrash size={16} stroke={1.75} />
               </Button>
             </Popconfirm>
           )}
           {canPrint && onPrint && (
-            <Button size="sm" variant="text" onClick={onPrint}>
-              <IconPrinter size={14} stroke={1.75} />
-              <span>打印</span>
+            <Button
+              size="sm"
+              variant="text"
+              onClick={onPrint}
+              aria-label={`打印${title}`}
+              title={`打印${title}`}
+            >
+              <IconPrinter size={16} stroke={1.75} />
             </Button>
           )}
         </div>
