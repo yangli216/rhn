@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import '../../../styles/features/outpatient-doctor.css'
 import type { OutpatientPlanTemplateScope } from '../../../shared/api/outpatientPlanTemplatesApi'
 import { StatusBadge } from '../../../shared/ui'
 

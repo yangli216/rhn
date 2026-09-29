@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import '../../../styles/features/outpatient-doctor.css'
 import type { RhnApi } from '../../../shared/api'
 import { planTextStreamPreview, type OutpatientPlanTemplate, type OutpatientPlanTemplateScope,
   type OutpatientPlanTask, type PlanTextDraft, type PlanTextReviewItem, type SaveOutpatientPlanTemplateInput,

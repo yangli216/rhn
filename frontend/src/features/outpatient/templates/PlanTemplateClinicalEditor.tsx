@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react'
+import './outpatient-plan-templates.css'
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
 import type { ClinicalMedicationStandards, DiseaseConcept, MedicationKnowledge, ServiceCatalogItem } from '../../../shared/api/masterDataApi'
 import type { CompiledPlanMedicationItem, CompiledPlanServiceItem } from '../../../shared/api/outpatientPlanTemplatesApi'

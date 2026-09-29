@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import './outpatient-plan-templates.css'
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
 import type { OutpatientNoteTemplate, OutpatientNoteTemplateContent, OutpatientNoteTemplateScope } from '../../../shared/api/outpatientNoteTemplatesApi'
 import type {

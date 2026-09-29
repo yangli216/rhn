@@ -68,6 +68,7 @@ import {
 import './waiting/waitingWorkspace.css'
 import '../../styles/features/outpatient-doctor.css'
 import '../../styles/doctor-ai-assistant.css'
+import './templates/outpatient-plan-templates.css'
 import { DedicatedWaitingWorkspace } from './waiting/DedicatedWaitingWorkspace'
 import { QueueCapsuleBar } from './waiting/QueueCapsuleBar'
 import { QueuePeekDrawer } from './waiting/QueuePeekDrawer'
