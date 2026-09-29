@@ -294,8 +294,7 @@
 .inpatient-deposit-ledger > header small, .inpatient-deposit-ledger > header > span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .inpatient-deposit-ledger__empty { min-height: 5rem; display: grid; place-items: center; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .inpatient-deposit-ledger__table { min-width: 0; overflow-x: auto; }
-.inpatient-deposit-ledger__head, .inpatient-deposit-ledger__table article { min-height: 3.25rem; padding: 0 var(--space-3); display: grid; grid-template-columns: minmax(12rem, 1.5fr) minmax(6rem, .7fr) repeat(4, minmax(7rem, .75fr)); align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--color-border); }
-.inpatient-deposit-ledger__head, .inpatient-deposit-ledger__table article { min-width: 52rem; }
+.inpatient-deposit-ledger__head, .inpatient-deposit-ledger__table article { min-width: 52rem; min-height: 3.25rem; padding: 0 var(--space-3); display: grid; grid-template-columns: minmax(12rem, 1.5fr) minmax(6rem, .7fr) repeat(4, minmax(7rem, .75fr)); align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--color-border); }
 .inpatient-deposit-ledger__head { min-height: 2.25rem; color: var(--color-text-secondary); background: var(--color-surface-muted); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
 .inpatient-deposit-ledger__table article:last-child { border-bottom: 0; }
 .inpatient-deposit-ledger__table article > span:first-child { min-width: 0; display: grid; }
@@ -438,71 +437,10 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
 }
-.schedule-week-navigator {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  background: var(--color-surface-subtle);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-}
-.schedule-week-label {
-  font-size: var(--font-size-body);
-  color: var(--color-text-primary);
-  padding: 0 var(--space-2);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
 
 /* 矩阵网格容器与滚动 */
-.schedule-matrix {
-  min-width: 78rem;
-  display: flex;
-  flex-direction: column;
-}
 
 /* 矩阵表头（7天列头 + 1资源列） */
-.schedule-matrix__header-row {
-  display: grid;
-  grid-template-columns: minmax(13rem, 1.2fr) repeat(7, minmax(8.5rem, 1fr));
-  background: var(--color-surface-subtle);
-  border-bottom: 2px solid var(--color-border-strong);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-.schedule-matrix__resource-header {
-  padding: var(--space-2) var(--space-4);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-  display: flex;
-  align-items: center;
-  border-right: 1px solid var(--color-border);
-}
-.schedule-matrix__day-header {
-  padding: var(--space-2) var(--space-3);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  border-right: 1px solid var(--color-border);
-  position: relative;
-}
-.schedule-matrix__day-header.is-today {
-  background: var(--color-brand-soft);
-  color: var(--color-brand-primary);
-}
-.schedule-matrix__day-name {
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-body);
-}
-.schedule-matrix__day-date {
-  font-size: var(--font-size-tiny);
-  color: var(--color-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
 .schedule-matrix__today-badge {
   position: absolute;
   top: 2px;
@@ -515,36 +453,8 @@
 }
 
 /* 矩阵数据行 */
-.schedule-matrix__row {
-  display: grid;
-  grid-template-columns: minmax(13rem, 1.2fr) repeat(7, minmax(8.5rem, 1fr));
-  border-bottom: 1px solid var(--color-border);
-}
-.schedule-matrix__resource-cell {
-  padding: var(--space-3) var(--space-4);
-  border-right: 1px solid var(--color-border);
-  background: var(--color-surface);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: var(--space-1);
-}
-.schedule-matrix__resource-cell strong {
-  font-size: var(--font-size-body);
-  color: var(--color-text-primary);
-}
 
 /* 单元格 */
-.schedule-matrix__cell {
-  padding: var(--space-2);
-  border-right: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-height: 7.5rem;
-  background: var(--color-surface);
-  position: relative;
-}
 
 /* 班次卡片 */
 .schedule-card {
@@ -772,6 +682,10 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
 }
 .schedule-week-navigator .ui-button {
   height: var(--control-height-sm, 2rem);
@@ -839,12 +753,14 @@
   gap: 1px;
   border-right: 1px solid var(--color-border);
   background: var(--color-surface);
+  position: relative;
 }
 .schedule-matrix__day-header:last-child {
   border-right: none;
 }
 .schedule-matrix__day-header.is-today {
   background: var(--color-surface);
+  color: var(--color-brand-primary);
 }
 .schedule-matrix__day-name {
   font-size: 0.75rem;
