@@ -4,6 +4,8 @@ import com.rhn.platform.cryptography.api.EvidenceReceipt;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
@@ -23,7 +25,7 @@ public class InpatientShiftHandoff {
     @Column(name = "DT_SHIFT_TO", nullable = false) private Instant shiftTo;
     @Column(name = "DES_WARD_SUM", nullable = false) private String wardSummary;
     @Lob @Column(name = "JSON_GENERAL_ITEM", nullable = false) private String generalItemsJson;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private InpatientShiftHandoffStatus status;
     @Column(name = "CD_CREATE_COMMAND", nullable = false) private String createCommandCode;
     @Column(name = "HASH_CREATE_REQ", nullable = false) private String createRequestHash;
     @Column(name = "ID_CREATED_BY_SUBJECT", nullable = false) private Long createdBySubjectId;
@@ -53,7 +55,7 @@ public class InpatientShiftHandoff {
         this.shiftTo = shiftTo;
         this.wardSummary = wardSummary;
         this.generalItemsJson = generalItemsJson;
-        this.status = "DRAFT";
+        this.status = InpatientShiftHandoffStatus.DRAFT;
         this.createCommandCode = createCommandCode;
         this.createRequestHash = createRequestHash;
         this.createdBySubjectId = createdBySubjectId;
@@ -72,14 +74,14 @@ public class InpatientShiftHandoff {
     }
 
     public void submit() {
-        if (!"DRAFT".equals(status)) throw new IllegalStateException("NOT_DRAFT");
-        status = "SUBMITTED";
+        if (status != InpatientShiftHandoffStatus.DRAFT) throw new IllegalStateException("NOT_DRAFT");
+        status = InpatientShiftHandoffStatus.SUBMITTED;
         updatedAt = Instant.now();
     }
 
     public void accept() {
-        if (!"SUBMITTED".equals(status)) throw new IllegalStateException("NOT_SUBMITTED");
-        status = "ACCEPTED";
+        if (status != InpatientShiftHandoffStatus.SUBMITTED) throw new IllegalStateException("NOT_SUBMITTED");
+        status = InpatientShiftHandoffStatus.ACCEPTED;
         updatedAt = Instant.now();
     }
 
@@ -92,7 +94,7 @@ public class InpatientShiftHandoff {
     public Instant shiftTo() { return shiftTo; }
     public String wardSummary() { return wardSummary; }
     public String generalItemsJson() { return generalItemsJson; }
-    public String status() { return status; }
+    public InpatientShiftHandoffStatus status() { return status; }
     public String createCommandCode() { return createCommandCode; }
     public String createRequestHash() { return createRequestHash; }
     public Long createdBySubjectId() { return createdBySubjectId; }

@@ -4,6 +4,7 @@ import com.rhn.platform.masterdata.api.StandardMappingViews.ItemTermMappingMaint
 import com.rhn.platform.masterdata.api.StandardMappingViews.StandardCodeSystemView;
 import com.rhn.platform.masterdata.api.StandardMappingViews.StandardTermView;
 import com.rhn.platform.masterdata.application.ItemStandardMappingService;
+import com.rhn.shared.text.Strings;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -64,7 +65,7 @@ public class ItemStandardMappingController {
             @PathVariable @Pattern(regexp = "CATALOG_ITEM|MEDICATION") String subjectType,
             @PathVariable Long targetId, @Valid @RequestBody MappingRequest request) {
         return service.create(subjectType, targetId, request.conceptId(), request.mappingType(),
-                request.equivalence(), request.primaryMapping(), trimToNull(request.limitation()),
+                request.equivalence(), request.primaryMapping(), Strings.trimToNull(request.limitation()),
                 request.validFrom(), request.validTo(), request.replacesMappingId(),
                 request.expectedReplacesRevision() == null ? null : revision(request.expectedReplacesRevision()));
     }
@@ -98,9 +99,5 @@ public class ItemStandardMappingController {
         } catch (ArithmeticException exception) {
             throw new IllegalArgumentException("修订号超出BIGINT范围");
         }
-    }
-
-    private String trimToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 }

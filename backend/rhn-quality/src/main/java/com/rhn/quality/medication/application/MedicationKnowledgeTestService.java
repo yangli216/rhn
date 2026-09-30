@@ -57,14 +57,18 @@ public class MedicationKnowledgeTestService {
         var missing=new ArrayList<>(List.of("MATCH","NO_MATCH","UNAVAILABLE"));var p=candidate.program();
         if(p.age().mode()==AgeMode.RANGE||p.effectiveFrom()!=null||p.effectiveTo()!=null) missing.add("NOT_APPLICABLE");
         missing.removeIf(outcome->suite.cases().stream().anyMatch(c->outcome.equals(c.expectedOutcome())));
-        var c=contexts.requireCurrent();var value=new Run(GlobalIds.next(),id,candidate.programHash(),candidate.knowledgeHash(),MedicationKnowledgeRuleCompiler.VERSION,suite,digest,List.copyOf(results),!results.isEmpty()&&results.stream().allMatch(CaseResult::passed),List.copyOf(missing),c.subjectId(),c.actor(),Instant.now(),input.reason().strip());
+        var c=contexts.requireCurrent();
+        var value=new Run(GlobalIds.next(),id,candidate.programHash(),candidate.knowledgeHash(),MedicationKnowledgeRuleCompiler.VERSION,suite,digest,List.copyOf(results),
+                !results.isEmpty()&&results.stream().allMatch(CaseResult::passed),List.copyOf(missing),c.subjectId(),c.actor(),Instant.now(),input.reason().strip());
         store.append(t,value);return value;
     }
     private void validate(Save input) {
         if(input==null||input.expectedVersion()<0||!fingerprint(input.programHash())||input.cases()==null||input.cases().isEmpty()||input.cases().size()>30||json.write(input).length()>150000) throw badRequest("QMED_KNOW_TEST_INPUT","请填写 1 至 30 个独立合成样例，内容最多 150000 字符");
         reason(input.reason());var names=new HashSet<String>();
         for(var c:input.cases()) {
-            if(c==null||blank(c.title())||c.title().length()>200||!names.add(c.title().strip())||blank(c.rationale())||c.rationale().length()>2000||!OUTCOMES.contains(Objects.toString(c.expectedOutcome(),""))||c.input()==null||c.input().medications()==null||c.input().medications().size()>30||c.expectedOrderIds()==null||c.expectedOrderIds().size()>30)
+            if(c==null||blank(c.title())||c.title().length()>200||!names.add(c.title().strip())||blank(c.rationale())||c.rationale().length()>2000
+                    ||!OUTCOMES.contains(Objects.toString(c.expectedOutcome(),""))||c.input()==null||c.input().medications()==null||c.input().medications().size()>30
+                    ||c.expectedOrderIds()==null||c.expectedOrderIds().size()>30)
                 throw badRequest("QMED_KNOW_TEST_CASE","每个样例须有不同名称、预期依据、明确结果和输入，最多 30 条合成医嘱");
             var ids=c.expectedOrderIds();
             if(ids.stream().anyMatch(s->blank(s)||s.length()>100)||new HashSet<>(ids).size()!=ids.size()||("MATCH".equals(c.expectedOutcome())?ids.isEmpty():!ids.isEmpty())) throw badRequest("QMED_KNOW_TEST_EXPECTED","命中样例须指定不同的预期医嘱标识，其他结果不能填写命中医嘱");

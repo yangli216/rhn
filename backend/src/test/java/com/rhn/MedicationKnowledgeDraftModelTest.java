@@ -88,7 +88,10 @@ class MedicationKnowledgeDraftModelTest {
         var contexts = mock(com.rhn.shared.context.ExecutionContextProvider.class);
         when(contexts.requireCurrent()).thenReturn(new com.rhn.shared.context.ExecutionContext(1L,7L,"作者","test",Set.of("MASTER_DATA.MANAGE")));
         when(store.latest(1L,42L)).thenReturn(Optional.of(version)); when(store.latest(1L)).thenReturn(List.of(version));
-        var service = new com.rhn.quality.medication.application.MedicationKnowledgeDraftService(contexts,store,validator,mock(com.rhn.shared.json.JsonCodec.class),mock(com.rhn.quality.medication.application.MedicationKnowledgeExtractionService.class),mock(com.rhn.quality.medication.application.MedicationRuleIntakeService.class));
+        var service = new com.rhn.quality.medication.application.MedicationKnowledgeDraftService(contexts,store,validator,
+            mock(com.rhn.shared.json.JsonCodec.class),
+            mock(com.rhn.quality.medication.application.MedicationKnowledgeExtractionService.class),
+            mock(com.rhn.quality.medication.application.MedicationRuleIntakeService.class));
         when(standards.requireSpecification("S1")).thenReturn(new Reference("C","V1","hash","new-source","E1","S1","合成甲","TABLET","合成规格甲"));
         var detail = service.detail(42L);
         assertThat(detail.currentAssessment().issues()).extracting(Issue::code).contains("STALE_STANDARD_REFERENCE");

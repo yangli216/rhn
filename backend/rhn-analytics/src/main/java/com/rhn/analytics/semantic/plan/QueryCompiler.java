@@ -1,10 +1,8 @@
 package com.rhn.analytics.semantic.plan;
 
 import com.rhn.analytics.semantic.model.Aggregate;
-import com.rhn.analytics.semantic.model.Operator;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -24,21 +22,40 @@ public class QueryCompiler {
 
         Map<String, Object> parameters = new LinkedHashMap<>();
         List<CompiledColumn> columns = new ArrayList<>();
-
         StringBuilder sql = new StringBuilder();
 
-        // 1. SELECT 子句构建
+        appendSelectClause(sql, plan, columns);
+        appendFromClause(sql, plan);
+        appendJoinClauses(sql, plan);
+        appendWhereClause(sql, plan, parameters);
+        appendGroupByClause(sql, plan);
+        appendOrderByClause(sql, plan, columns);
+
+        // FETCH FIRST 限制子句（ANSI / Oracle 12c+ 标准）
+        int limit = plan.limit() > 0 ? plan.limit() : 10;
+        sql.append("FETCH FIRST ").append(limit).append(" ROWS ONLY");
+
+        return new CompiledQuery(
+            plan.planId(),
+            sql.toString(),
+            parameters,
+            columns,
+            plan.grain(),
+            limit
+        );
+    }
+
+    /** SELECT 子句：维度列与度量列，同时登记输出列元数据。 */
+    private void appendSelectClause(StringBuilder sql, LogicalQueryPlan plan, List<CompiledColumn> columns) {
         sql.append("SELECT\n");
         List<String> selectExpressions = new ArrayList<>();
 
-        // 1.1 维度列
         for (PlannedDimension dim : plan.dimensions()) {
             String dimAlias = "dim_" + dim.dimensionCode();
             selectExpressions.add("    " + dim.groupExpression() + " AS " + dimAlias);
             columns.add(new CompiledColumn(dim.dimensionCode(), dim.name(), dimAlias, CompiledColumn.ColumnType.DIMENSION));
         }
 
-        // 1.2 度量列
         for (PlannedMeasure m : plan.measures()) {
             String measureAlias = "m_" + m.measureCode();
             String aggExpr = buildAggregateExpression(m.aggregate(), m.tableAlias(), m.column());
@@ -47,11 +64,13 @@ public class QueryCompiler {
         }
 
         sql.append(String.join(",\n", selectExpressions)).append("\n");
+    }
 
-        // 2. FROM 子句构建
+    private void appendFromClause(StringBuilder sql, LogicalQueryPlan plan) {
         sql.append("FROM ").append(plan.primaryTable()).append(" ").append(plan.primaryAlias()).append("\n");
+    }
 
-        // 3. JOIN 子句构建
+    private void appendJoinClauses(StringBuilder sql, LogicalQueryPlan plan) {
         for (PlannedJoin join : plan.joins()) {
             String joinKeyword = join.joinType() == JoinType.INNER_JOIN ? "INNER JOIN" : "LEFT JOIN";
             sql.append(joinKeyword).append(" ")
@@ -65,26 +84,34 @@ public class QueryCompiler {
 
             sql.append(String.join(" AND ", conditions)).append("\n");
         }
+    }
 
-        // 4. WHERE 子句构建（时间范围 + 谓词下推 + 安全范围）
+    /** WHERE 子句：时间范围窗口 + 谓词下推（多租户、组织、授权科室、指标默认过滤、维度属性过滤）。 */
+    private void appendWhereClause(StringBuilder sql, LogicalQueryPlan plan, Map<String, Object> parameters) {
         List<String> whereClauses = new ArrayList<>();
+        appendTimeRangeClause(whereClauses, plan, parameters);
+        appendFilterClauses(whereClauses, plan, parameters);
 
-        // 4.1 时间范围窗口（半开区间，保证微秒精度与索引命中）
-        if (plan.timeRange() != null) {
-            String timeCol = plan.timeRange().tableAlias() + "." + plan.timeRange().column();
-            String startParam = "p_time_start";
-            String endParam = "p_time_end";
-
-            LocalDateTime startTime = plan.timeRange().startDate().atStartOfDay();
-            LocalDateTime endTime = plan.timeRange().endDate().plusDays(1).atStartOfDay();
-
-            parameters.put(startParam, startTime);
-            parameters.put(endParam, endTime);
-
-            whereClauses.add(timeCol + " >= :" + startParam + " AND " + timeCol + " < :" + endParam);
+        if (!whereClauses.isEmpty()) {
+            sql.append("WHERE ").append(String.join("\n  AND ", whereClauses)).append("\n");
         }
+    }
 
-        // 4.2 过滤谓词（多租户、组织、授权科室、指标默认过滤、维度属性过滤）
+    /** 时间范围窗口使用半开区间，保证微秒精度与索引命中。 */
+    private void appendTimeRangeClause(List<String> whereClauses, LogicalQueryPlan plan, Map<String, Object> parameters) {
+        if (plan.timeRange() == null) return;
+
+        String timeCol = plan.timeRange().tableAlias() + "." + plan.timeRange().column();
+        String startParam = "p_time_start";
+        String endParam = "p_time_end";
+
+        parameters.put(startParam, plan.timeRange().startDate().atStartOfDay());
+        parameters.put(endParam, plan.timeRange().endDate().plusDays(1).atStartOfDay());
+
+        whereClauses.add(timeCol + " >= :" + startParam + " AND " + timeCol + " < :" + endParam);
+    }
+
+    private void appendFilterClauses(List<String> whereClauses, LogicalQueryPlan plan, Map<String, Object> parameters) {
         int filterIndex = 0;
         for (PlannedFilter filter : plan.filters()) {
             String paramName = "p_f" + (filterIndex++) + "_" + filter.column().toLowerCase(Locale.ROOT);
@@ -92,87 +119,74 @@ public class QueryCompiler {
 
             switch (filter.operator()) {
                 case EQ -> {
-                    String val = filter.values().isEmpty() ? "" : filter.values().get(0);
-                    parameters.put(paramName, parseValue(filter.column(), val));
+                    parameters.put(paramName, parseValue(filter.column(), firstValue(filter)));
                     whereClauses.add(columnExpr + " = :" + paramName);
                 }
                 case NE -> {
-                    String val = filter.values().isEmpty() ? "" : filter.values().get(0);
-                    parameters.put(paramName, parseValue(filter.column(), val));
+                    parameters.put(paramName, parseValue(filter.column(), firstValue(filter)));
                     whereClauses.add(columnExpr + " <> :" + paramName);
                 }
                 case IN -> {
-                    List<Object> parsedValues = filter.values().stream()
-                        .map(v -> parseValue(filter.column(), v))
-                        .collect(Collectors.toList());
-                    parameters.put(paramName, parsedValues);
+                    parameters.put(paramName, parsedValues(filter));
                     whereClauses.add(columnExpr + " IN (:" + paramName + ")");
                 }
                 case NOT_IN -> {
-                    List<Object> parsedValues = filter.values().stream()
-                        .map(v -> parseValue(filter.column(), v))
-                        .collect(Collectors.toList());
-                    parameters.put(paramName, parsedValues);
+                    parameters.put(paramName, parsedValues(filter));
                     whereClauses.add(columnExpr + " NOT IN (:" + paramName + ")");
                 }
                 case GTE -> {
-                    String val = filter.values().isEmpty() ? "" : filter.values().get(0);
-                    parameters.put(paramName, parseValue(filter.column(), val));
+                    parameters.put(paramName, parseValue(filter.column(), firstValue(filter)));
                     whereClauses.add(columnExpr + " >= :" + paramName);
                 }
                 case LTE -> {
-                    String val = filter.values().isEmpty() ? "" : filter.values().get(0);
-                    parameters.put(paramName, parseValue(filter.column(), val));
+                    parameters.put(paramName, parseValue(filter.column(), firstValue(filter)));
                     whereClauses.add(columnExpr + " <= :" + paramName);
                 }
                 case CONTAINS -> {
-                    String val = filter.values().isEmpty() ? "" : filter.values().get(0);
-                    parameters.put(paramName, "%" + val + "%");
+                    parameters.put(paramName, "%" + firstValue(filter) + "%");
                     whereClauses.add(columnExpr + " LIKE :" + paramName);
                 }
             }
         }
+    }
 
-        if (!whereClauses.isEmpty()) {
-            sql.append("WHERE ").append(String.join("\n  AND ", whereClauses)).append("\n");
-        }
+    private static String firstValue(PlannedFilter filter) {
+        return filter.values().isEmpty() ? "" : filter.values().get(0);
+    }
 
-        // 5. GROUP BY 子句构建
-        if (!plan.dimensions().isEmpty()) {
-            List<String> groupByExprs = plan.dimensions().stream()
-                .map(PlannedDimension::groupExpression)
-                .toList();
-            sql.append("GROUP BY ").append(String.join(", ", groupByExprs)).append("\n");
-        }
+    private List<Object> parsedValues(PlannedFilter filter) {
+        return filter.values().stream()
+            .map(v -> parseValue(filter.column(), v))
+            .collect(Collectors.toList());
+    }
 
-        // 6. ORDER BY 子句构建
-        if (plan.sort() != null) {
-            String sortTarget = plan.sort().target();
-            String direction = plan.sort().direction() != null ? plan.sort().direction().toUpperCase(Locale.ROOT) : "DESC";
+    private void appendGroupByClause(StringBuilder sql, LogicalQueryPlan plan) {
+        if (plan.dimensions().isEmpty()) return;
 
-            // 智能将指标/维度代码解析为其生成的别名
-            String resolvedOrderBy = sortTarget;
-            for (CompiledColumn col : columns) {
-                if (col.code().equalsIgnoreCase(sortTarget)) {
-                    resolvedOrderBy = col.alias();
-                    break;
-                }
+        List<String> groupByExprs = plan.dimensions().stream()
+            .map(PlannedDimension::groupExpression)
+            .toList();
+        sql.append("GROUP BY ").append(String.join(", ", groupByExprs)).append("\n");
+    }
+
+    private void appendOrderByClause(StringBuilder sql, LogicalQueryPlan plan, List<CompiledColumn> columns) {
+        if (plan.sort() == null) return;
+
+        String direction = plan.sort().direction() != null
+            ? plan.sort().direction().toUpperCase(Locale.ROOT) : "DESC";
+        sql.append("ORDER BY ")
+           .append(resolveSortAlias(plan.sort().target(), columns))
+           .append(" ").append(direction).append("\n");
+    }
+
+    /** 智能将指标/维度代码解析为其生成的别名。 */
+    private static String resolveSortAlias(String sortTarget, List<CompiledColumn> columns) {
+        for (CompiledColumn col : columns) {
+            if (col.code().equalsIgnoreCase(sortTarget)) {
+                return col.alias();
             }
-            sql.append("ORDER BY ").append(resolvedOrderBy).append(" ").append(direction).append("\n");
         }
-
-        // 7. FETCH FIRST 限制子句（ANSI / Oracle 12c+ 标准）
-        int limit = plan.limit() > 0 ? plan.limit() : 10;
-        sql.append("FETCH FIRST ").append(limit).append(" ROWS ONLY");
-
-        return new CompiledQuery(
-            plan.planId(),
-            sql.toString(),
-            parameters,
-            columns,
-            plan.grain(),
-            limit
-        );
+        return sortTarget;
     }
 
     private String buildAggregateExpression(Aggregate agg, String alias, String column) {

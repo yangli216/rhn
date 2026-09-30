@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -30,7 +32,8 @@ public class InpatientMedicationSupplyBatch {
     @Column(name = "DT_WINDOW_START", nullable = false) private Instant windowStart;
     @Column(name = "DT_WINDOW_END", nullable = false) private Instant windowEnd;
     @Column(name = "DT_CUTOFF", nullable = false) private Instant cutoffAt;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "SD_STATUS", nullable = false) private InpatientMedicationSupplyBatchStatus status;
     @Column(name = "CD_GEN_COMMAND", nullable = false) private String generationCommandCode;
     @Column(name = "HASH_GEN_PAYLOAD", nullable = false) private String generationPayloadHash;
     @Column(name = "SD_GEN_TRIGGER", nullable = false) private String generationTrigger;
@@ -84,7 +87,7 @@ public class InpatientMedicationSupplyBatch {
         this.windowStart = windowStart;
         this.windowEnd = windowEnd;
         this.cutoffAt = cutoffAt;
-        this.status = "DRAFT";
+        this.status = InpatientMedicationSupplyBatchStatus.DRAFT;
         this.generationCommandCode = generationCommandCode;
         this.generationPayloadHash = generationPayloadHash;
         this.generationTrigger = generationTrigger;
@@ -94,8 +97,9 @@ public class InpatientMedicationSupplyBatch {
 
     public void submit(long expectedRevision, String commandCode, String payloadHash, Long actorId) {
         requireRevision(expectedRevision);
-        requireStatus("DRAFT", "INPATIENT_SUPPLY_BATCH_NOT_DRAFT", "只有草稿供药批次可以提交");
-        this.status = "SUBMITTED";
+        requireStatus(InpatientMedicationSupplyBatchStatus.DRAFT,
+                "INPATIENT_SUPPLY_BATCH_NOT_DRAFT", "只有草稿供药批次可以提交");
+        this.status = InpatientMedicationSupplyBatchStatus.SUBMITTED;
         this.submitCommandCode = commandCode;
         this.submitPayloadHash = payloadHash;
         this.submittedAt = Instant.now();
@@ -104,10 +108,11 @@ public class InpatientMedicationSupplyBatch {
 
     public void cancel(long expectedRevision, String commandCode, String reason, Long actorId) {
         requireRevision(expectedRevision);
-        if (!"DRAFT".equals(status) && !"SUBMITTED".equals(status)) {
+        if (status != InpatientMedicationSupplyBatchStatus.DRAFT
+                && status != InpatientMedicationSupplyBatchStatus.SUBMITTED) {
             throw conflict("INPATIENT_SUPPLY_BATCH_NOT_CANCELLABLE", "当前供药批次不能取消");
         }
-        this.status = "CANCELLED";
+        this.status = InpatientMedicationSupplyBatchStatus.CANCELLED;
         this.cancelCommandCode = commandCode;
         this.cancelReason = reason;
         this.cancelledAt = Instant.now();
@@ -116,8 +121,9 @@ public class InpatientMedicationSupplyBatch {
 
     public void close(long expectedRevision, Long actorId) {
         requireRevision(expectedRevision);
-        requireStatus("SUBMITTED", "INPATIENT_SUPPLY_BATCH_NOT_SUBMITTED", "只有已提交供药批次可以关闭");
-        this.status = "CLOSED";
+        requireStatus(InpatientMedicationSupplyBatchStatus.SUBMITTED,
+                "INPATIENT_SUPPLY_BATCH_NOT_SUBMITTED", "只有已提交供药批次可以关闭");
+        this.status = InpatientMedicationSupplyBatchStatus.CLOSED;
         this.closedAt = Instant.now();
         this.closedBy = actorId;
     }
@@ -128,8 +134,8 @@ public class InpatientMedicationSupplyBatch {
         }
     }
 
-    private void requireStatus(String expected, String code, String message) {
-        if (!expected.equals(status)) throw conflict(code, message);
+    private void requireStatus(InpatientMedicationSupplyBatchStatus expected, String code, String message) {
+        if (expected != status) throw conflict(code, message);
     }
 
     public Long id() { return id; }
@@ -147,7 +153,7 @@ public class InpatientMedicationSupplyBatch {
     public Instant windowStart() { return windowStart; }
     public Instant windowEnd() { return windowEnd; }
     public Instant cutoffAt() { return cutoffAt; }
-    public String status() { return status; }
+    public InpatientMedicationSupplyBatchStatus status() { return status; }
     public String generationCommandCode() { return generationCommandCode; }
     public String generationPayloadHash() { return generationPayloadHash; }
     public String generationTrigger() { return generationTrigger; }

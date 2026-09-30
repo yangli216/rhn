@@ -23,7 +23,9 @@ public class MedicationKnowledgeReviewService {
     private final ExecutionContextProvider contexts;private final JsonCodec json;
     private final MedicationKnowledgeRuleStore candidates;private final MedicationKnowledgeDraftService drafts;
     private final MedicationKnowledgeTestStore tests;private final MedicationKnowledgeReviewStore events;private final MedicationRuleGovernanceStore governance;
-    public MedicationKnowledgeReviewService(ExecutionContextProvider contexts,JsonCodec json,MedicationKnowledgeRuleStore candidates,MedicationKnowledgeDraftService drafts,MedicationKnowledgeTestStore tests,MedicationKnowledgeReviewStore events,MedicationRuleGovernanceStore governance) {this.contexts=contexts;this.json=json;this.candidates=candidates;this.drafts=drafts;this.tests=tests;this.events=events;this.governance=governance;}
+    public MedicationKnowledgeReviewService(ExecutionContextProvider contexts,JsonCodec json,MedicationKnowledgeRuleStore candidates,
+            MedicationKnowledgeDraftService drafts,MedicationKnowledgeTestStore tests,MedicationKnowledgeReviewStore events,
+            MedicationRuleGovernanceStore governance) {this.contexts=contexts;this.json=json;this.candidates=candidates;this.drafts=drafts;this.tests=tests;this.events=events;this.governance=governance;}
     private Long tenant() {var c=contexts.requireCurrent();if(!c.hasAuthority("MASTER_DATA.MANAGE")||c.subjectId()==null) throw forbidden("QMED_KNOW_REVIEW_FORBIDDEN","需要药品主数据管理权限及明确的操作者身份");return c.tenantId();}
     private KnowledgeRuleCandidate require(Long tenant,Long id) {
         var c=candidates.find(tenant,id).orElseThrow(()->notFound("QMED_KNOW_REVIEW_CANDIDATE","未找到当前租户的知识候选"));
@@ -43,7 +45,9 @@ public class MedicationKnowledgeReviewService {
         else {
             run=tests.run(tenant,id,status.runId()).orElseThrow(()->conflict("QMED_KNOW_REVIEW_TEST","验证记录不存在"));
             var suite=tests.suite(tenant,id,status.suiteVersion()).orElseThrow(()->conflict("QMED_KNOW_REVIEW_TEST","样例记录不存在"));
-            if(!Objects.equals(run.candidateId(),id)||!run.programHash().equals(c.programHash())||!run.knowledgeHash().equals(c.knowledgeHash())||!run.engineVersion().equals(c.program().schemaVersion())||!run.suiteHash().equals(hash(json.write(suite)))||!run.suite().equals(suite)) gaps.add("人工验证记录与候选或最新样例指纹不一致");
+            if(!Objects.equals(run.candidateId(),id)||!run.programHash().equals(c.programHash())||!run.knowledgeHash().equals(c.knowledgeHash())
+                    ||!run.engineVersion().equals(c.program().schemaVersion())||!run.suiteHash().equals(hash(json.write(suite)))||!run.suite().equals(suite))
+                gaps.add("人工验证记录与候选或最新样例指纹不一致");
             if(!run.allPassed()||run.results().size()!=suite.cases().size()||run.results().isEmpty()||run.results().stream().anyMatch(r->!r.passed())) gaps.add("最新人工验证有失败项");
             var required=new LinkedHashSet<>(List.of("MATCH","NO_MATCH","UNAVAILABLE"));
             if(c.program().age().mode()==AgeMode.RANGE||c.program().effectiveFrom()!=null||c.program().effectiveTo()!=null) required.add("NOT_APPLICABLE");
@@ -90,7 +94,10 @@ public class MedicationKnowledgeReviewService {
     private String fingerprint(KnowledgeRuleCandidate c,Run run,List<com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Conflict> conflicts) {return hash(json.write(c)+"\n"+json.write(run)+"\n"+json.write(conflicts));}
     @Transactional public Event command(Long id,Command input) {
         var tenant=tenant();var c=require(tenant,id);
-        if(input==null||!Set.of("SUBMIT","APPROVE","REJECT","WITHDRAW").contains(Objects.toString(input.operation(),""))||blank(input.reason())||input.reason().length()>2000||input.expectedBasisHash()==null||!input.expectedBasisHash().matches("[a-f0-9]{64}")||input.assessment()!=null&&input.assessment().length()>4000) throw badRequest("QMED_KNOW_REVIEW_INPUT","请核对材料指纹并填写操作原因；原因最多 2000 字，审核意见最多 4000 字");
+        if(input==null||!Set.of("SUBMIT","APPROVE","REJECT","WITHDRAW").contains(Objects.toString(input.operation(),""))
+                ||blank(input.reason())||input.reason().length()>2000||input.expectedBasisHash()==null||!input.expectedBasisHash().matches("[a-f0-9]{64}")
+                ||input.assessment()!=null&&input.assessment().length()>4000)
+            throw badRequest("QMED_KNOW_REVIEW_INPUT","请核对材料指纹并填写操作原因；原因最多 2000 字，审核意见最多 4000 字");
         // Serialize knowledge edits and candidate suite/run writes while pinning review material.
         candidates.lockKnowledge(tenant,c.knowledgeId());tests.lock(tenant,id);
         var preview=preview(id);
@@ -99,9 +106,12 @@ public class MedicationKnowledgeReviewService {
         var submission=preview.submission();var basis="SUBMIT".equals(input.operation())?preview.current():submission.basis();
         if(!basis.fingerprint().equals(input.expectedBasisHash())) throw conflict("QMED_KNOW_REVIEW_STALE","审核材料已变化，请刷新并重新核对");
         boolean approve="APPROVE".equals(input.operation());
-        if(approve&&(!Boolean.TRUE.equals(input.standardVerified())||!Boolean.TRUE.equals(input.evidenceVerified())||!Boolean.TRUE.equals(input.testsVerified())||blank(input.assessment())||!action(input.action())||!action(input.unavailableAction()))) throw badRequest("QMED_KNOW_REVIEW_CHECKS","须核对标准、原文与适用条件、人工验证，并明确命中及无法评价策略、填写药学审核意见");
+        if(approve&&(!Boolean.TRUE.equals(input.standardVerified())||!Boolean.TRUE.equals(input.evidenceVerified())||!Boolean.TRUE.equals(input.testsVerified())
+                ||blank(input.assessment())||!action(input.action())||!action(input.unavailableAction())))
+            throw badRequest("QMED_KNOW_REVIEW_CHECKS","须核对标准、原文与适用条件、人工验证，并明确命中及无法评价策略、填写药学审核意见");
         var actor=contexts.requireCurrent();var now=Instant.now();
-        var record=new Event(GlobalIds.next(),id,input.operation(),"SUBMIT".equals(input.operation())?null:submission.id(),basis,approve?input.action():null,approve?input.unavailableAction():null,approve,approve,approve,approve?input.assessment().strip():null,actor.subjectId(),actor.actor(),now,input.reason().strip());
+        var record=new Event(GlobalIds.next(),id,input.operation(),"SUBMIT".equals(input.operation())?null:submission.id(),basis,approve?input.action():null,
+                approve?input.unavailableAction():null,approve,approve,approve,approve?input.assessment().strip():null,actor.subjectId(),actor.actor(),now,input.reason().strip());
         String state=switch(input.operation()) {case "SUBMIT"->"IN_REVIEW";case "APPROVE"->"APPROVED";case "REJECT"->"REJECTED";case "WITHDRAW"->"DRAFT";default->throw badRequest("QMED_KNOW_REVIEW_OPERATION","不支持的审核操作");};
         var original=governance.read(tenant,key(c));var reviews=new ArrayList<>(original.state().reviews());reviews.removeIf(r->r.versionId().equals(id.toString()));
         var evidence=new ArrayList<com.rhn.outpatient.api.MedicationSafetyDecision.Evidence>();

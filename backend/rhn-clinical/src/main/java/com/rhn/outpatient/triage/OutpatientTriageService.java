@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -170,7 +171,11 @@ public class OutpatientTriageService {
         );
 
         if (request.status() != null) {
-            entity.updateStatus(request.status());
+            OutpatientTriageRecordStatus nextStatus = parseStatus(request.status());
+            if (nextStatus == null) {
+                throw new BusinessException("OUTPATIENT_TRIAGE_STATUS_INVALID", "预检分诊状态无效", HttpStatus.BAD_REQUEST);
+            }
+            entity.updateStatus(nextStatus);
         }
         if (request.encounterId() != null) {
             entity.bindEncounter(request.encounterId(), request.registrationId());
@@ -208,8 +213,15 @@ public class OutpatientTriageService {
         String cleanQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : null;
         String cleanLevel = (triageLevel != null && !triageLevel.trim().isEmpty() && !"ALL".equalsIgnoreCase(triageLevel)) ? triageLevel.trim() : null;
         String cleanStatus = (status != null && !status.trim().isEmpty() && !"ALL".equalsIgnoreCase(status)) ? status.trim() : null;
+        OutpatientTriageRecordStatus statusFilter = null;
+        if (cleanStatus != null) {
+            statusFilter = parseStatus(cleanStatus);
+            if (statusFilter == null) {
+                return Page.empty(pageable);
+            }
+        }
 
-        return triageRepository.searchTriageRecords(tenantId, orgId, fromTime, toTime, cleanLevel, cleanStatus, cleanQuery, pageable)
+        return triageRepository.searchTriageRecords(tenantId, orgId, fromTime, toTime, cleanLevel, statusFilter, cleanQuery, pageable)
                 .map(TriageRecordResponse::from);
     }
 
@@ -350,6 +362,14 @@ public class OutpatientTriageService {
         if (safeLevel.equals(submittedLevel)) return submittedReason;
         String prefix = submittedReason == null || submittedReason.isBlank() ? "" : submittedReason.trim() + "；";
         return prefix + "系统安全规则已将分级提升至最低安全级别：" + ruleSummary;
+    }
+
+    private static OutpatientTriageRecordStatus parseStatus(String status) {
+        try {
+            return OutpatientTriageRecordStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 
     private void validateVitals(BigDecimal temp, BigDecimal pulse, BigDecimal resp,

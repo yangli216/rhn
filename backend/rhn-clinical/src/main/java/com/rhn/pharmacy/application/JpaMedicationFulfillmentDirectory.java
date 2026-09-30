@@ -3,10 +3,13 @@ package com.rhn.pharmacy.application;
 import com.rhn.pharmacy.api.MedicationFulfillmentDirectory;
 import com.rhn.pharmacy.api.WardDeliveryDirectory;
 import com.rhn.pharmacy.domain.DispenseTask;
+import com.rhn.pharmacy.domain.InpatientMedicationSupplyLineStatus;
+import com.rhn.pharmacy.domain.InpatientMedicationSupplyTaskStatus;
 import com.rhn.pharmacy.domain.MedicationDispense;
 import com.rhn.pharmacy.domain.MedicationDispenseConsumption;
 import com.rhn.pharmacy.domain.MedicationDispenseLine;
 import com.rhn.pharmacy.domain.DispenseTaskLine;
+import com.rhn.pharmacy.domain.DispenseTaskLineStatus;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
 import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
 import com.rhn.pharmacy.infrastructure.MedicationDispenseConsumptionRepository;
@@ -76,7 +79,7 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         FulfillmentSnapshot latest = requestLines.stream().map(line -> snapshotForLine(tenantId, line))
                 .reduce((first, second) -> second).orElse(FulfillmentSnapshot.pending());
-        boolean completed = requestLines.stream().anyMatch(line -> "COMPLETED".equals(line.status()))
+        boolean completed = requestLines.stream().anyMatch(line -> line.status() == DispenseTaskLineStatus.COMPLETED)
                 && net.signum() > 0;
         return new FulfillmentSnapshot(completed, latest.dispenseId(), net, latest.status());
     }
@@ -95,13 +98,31 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
         Long latestDispenseId = events.stream()
                 .filter(value -> "DISPENSE".equals(value.dispenseType()) || "REDISPENSE".equals(value.dispenseType()))
                 .reduce((first, second) -> second).map(MedicationDispense::id).orElse(null);
-        boolean completed = "COMPLETED".equals(line.status()) && line.netDispensedQuantity().signum() > 0;
-        return new FulfillmentSnapshot(completed, latestDispenseId, line.netDispensedQuantity(), line.status());
+        boolean completed = line.status() == DispenseTaskLineStatus.COMPLETED && line.netDispensedQuantity().signum() > 0;
+        return new FulfillmentSnapshot(completed, latestDispenseId, line.netDispensedQuantity(), line.status().name());
     }
 
     @Override
     @Transactional
     public ConsumptionSnapshot consume(ConsumptionCommand input) {
+        ConsumptionInput values = parseConsumptionInput(input);
+        ConsumptionSnapshot replay = replay(values.tenantId(), values.requestId(), values.consumerType(),
+                values.consumerId(), values.commandCode(), values.baseUnit());
+        if (replay != null) return replay;
+        DispenseTaskLine taskLine = taskLineForConsumer(values.tenantId(), values.requestId(), values.consumerType(),
+                values.consumerId(), true);
+        DispenseTask task = tasks.lockByIdAndTenantId(taskLine.taskId(), values.tenantId())
+                .orElseThrow(() -> conflict("MEDICATION_DISPENSE_TASK_MISSING", "药房发药任务不存在"));
+        replay = replay(values.tenantId(), values.requestId(), values.consumerType(),
+                values.consumerId(), values.commandCode(), values.baseUnit());
+        if (replay != null) return replay;
+
+        AvailableIssues issues = collectAvailableIssues(values, taskLine, task);
+        requireSufficientAvailable(values, task, issues);
+        return persistConsumptions(values, issues.available());
+    }
+
+    private ConsumptionInput parseConsumptionInput(ConsumptionCommand input) {
         Long tenantId = required(input.tenantId(), "MEDICATION_CONSUMPTION_TENANT_REQUIRED", "租户不能为空");
         Long requestId = required(input.medicationRequestId(), "MEDICATION_CONSUMPTION_REQUEST_REQUIRED",
                 "药品请求不能为空");
@@ -116,110 +137,126 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
                 "核销基础单位不能为空");
         BigDecimal requiredBase = positive(input.requiredBaseQuantity(),
                 "MEDICATION_CONSUMPTION_QUANTITY_INVALID", "核销基础数量必须大于零");
+        return new ConsumptionInput(tenantId, requestId, consumerId, actorId, consumerType, commandCode, baseUnit,
+                requiredBase);
+    }
 
-        ConsumptionSnapshot replay = replay(tenantId, requestId, consumerType, consumerId, commandCode, baseUnit);
-        if (replay != null) return replay;
-        DispenseTaskLine taskLine = taskLineForConsumer(tenantId, requestId, consumerType, consumerId, true);
-        DispenseTask task = tasks.lockByIdAndTenantId(taskLine.taskId(), tenantId)
-                .orElseThrow(() -> conflict("MEDICATION_DISPENSE_TASK_MISSING", "药房发药任务不存在"));
-        replay = replay(tenantId, requestId, consumerType, consumerId, commandCode, baseUnit);
-        if (replay != null) return replay;
-
+    private AvailableIssues collectAvailableIssues(ConsumptionInput values, DispenseTaskLine taskLine,
+                                                    DispenseTask task) {
+        Map<Long, List<MedicationDispenseLine>> issuedByDispense = new LinkedHashMap<>();
+        for (MedicationDispenseLine line : dispenseLines.findIssuedLines(values.tenantId(), taskLine.id())) {
+            issuedByDispense.computeIfAbsent(line.medicationDispenseId(), ignored -> new ArrayList<>()).add(line);
+        }
         List<AvailableIssueLine> available = new ArrayList<>();
         BigDecimal totalAvailableBase = BigDecimal.ZERO;
         BigDecimal totalPhysicalBase = BigDecimal.ZERO;
         boolean unitMismatch = false;
-        Map<Long, List<MedicationDispenseLine>> issuedByDispense = new LinkedHashMap<>();
-        for (MedicationDispenseLine line : dispenseLines.findIssuedLines(tenantId, taskLine.id())) {
-            issuedByDispense.computeIfAbsent(line.medicationDispenseId(), ignored -> new ArrayList<>()).add(line);
-        }
         for (Map.Entry<Long, List<MedicationDispenseLine>> entry : issuedByDispense.entrySet()) {
-            MedicationDispense header = dispenses.findByIdAndTenantId(entry.getKey(), tenantId)
-                    .orElseThrow(() -> conflict("MEDICATION_DISPENSE_NOT_FOUND", "发药事件不存在"));
-            List<IssueBalance> balances = new ArrayList<>();
-            BigDecimal headerReturnedBase = BigDecimal.ZERO;
-            BigDecimal headerConsumedBase = BigDecimal.ZERO;
-            BigDecimal headerPhysicalBase = BigDecimal.ZERO;
-            for (MedicationDispenseLine line : entry.getValue()) {
-                String lineBaseUnit = stockItems.findByIdAndTenantId(line.stockItemId(), tenantId)
-                        .orElseThrow(() -> conflict("MEDICATION_DISPENSE_STOCK_ITEM_MISSING",
-                                "发药批次对应库存项目不存在"))
-                        .baseUnitCode();
-                if (!baseUnit.equalsIgnoreCase(lineBaseUnit)) {
-                    unitMismatch = true;
-                    continue;
-                }
-                BigDecimal returnedBase = dispenseLines.returnedQuantity(tenantId, line.id())
-                        .multiply(line.baseQuantityFactor());
-                BigDecimal consumedBase = consumptions.consumedBaseQuantity(tenantId, line.id());
-                BigDecimal pendingReturnBase = wardReturns.pendingBaseQuantity(tenantId, line.id());
-                BigDecimal physicalBase = line.quantityDispensed().multiply(line.baseQuantityFactor())
-                        .subtract(returnedBase).subtract(consumedBase).subtract(pendingReturnBase)
-                        .max(BigDecimal.ZERO);
-                balances.add(new IssueBalance(line, lineBaseUnit, returnedBase, consumedBase, physicalBase));
-                headerReturnedBase = headerReturnedBase.add(returnedBase);
-                headerConsumedBase = headerConsumedBase.add(consumedBase);
-                headerPhysicalBase = headerPhysicalBase.add(physicalBase);
-            }
-            totalPhysicalBase = totalPhysicalBase.add(headerPhysicalBase);
-            BigDecimal headerAvailableBase = headerPhysicalBase;
-            if ("INPATIENT".equals(task.taskType())) {
-                var gate = wardDeliveries.deliveryGate(tenantId, header.id());
-                if (!gate.deliveryRequired() || !gate.ready() || gate.receivedQuantity() == null
-                        || gate.receivedQuantity().signum() <= 0) {
-                    continue;
-                }
-                MedicationDispenseLine first = balances.isEmpty() ? null : balances.getFirst().line();
-                if (first == null || gate.unitCode() == null
-                        || !gate.unitCode().equalsIgnoreCase(first.dispenseUnitCode())) {
-                    unitMismatch = true;
-                    continue;
-                }
-                BigDecimal signedNetBase = gate.receivedQuantity().multiply(first.baseQuantityFactor())
-                        .subtract(headerReturnedBase).subtract(headerConsumedBase).max(BigDecimal.ZERO);
-                headerAvailableBase = headerAvailableBase.min(signedNetBase);
-            }
-            BigDecimal receiptRemaining = headerAvailableBase;
-            for (IssueBalance balance : balances) {
-                if (receiptRemaining.signum() <= 0) break;
-                BigDecimal lineAvailable = balance.physicalBase().min(receiptRemaining);
-                if (lineAvailable.signum() <= 0) continue;
-                available.add(new AvailableIssueLine(header.id(), balance.line(), balance.baseUnitCode(), lineAvailable));
-                totalAvailableBase = totalAvailableBase.add(lineAvailable);
-                receiptRemaining = receiptRemaining.subtract(lineAvailable);
-            }
+            DispenseIssues dispense = collectDispenseIssues(values, task, entry.getKey(), entry.getValue());
+            totalPhysicalBase = totalPhysicalBase.add(dispense.physicalBase());
+            totalAvailableBase = totalAvailableBase.add(dispense.availableTotalBase());
+            unitMismatch = unitMismatch || dispense.unitMismatch();
+            available.addAll(dispense.available());
         }
-        if (totalAvailableBase.compareTo(requiredBase) < 0) {
-            if ("INPATIENT".equals(task.taskType()) && totalPhysicalBase.compareTo(requiredBase) >= 0) {
+        return new AvailableIssues(available, totalAvailableBase, totalPhysicalBase, unitMismatch);
+    }
+
+    private DispenseIssues collectDispenseIssues(ConsumptionInput values, DispenseTask task, Long dispenseId,
+                                                 List<MedicationDispenseLine> issuedLines) {
+        MedicationDispense header = dispenses.findByIdAndTenantId(dispenseId, values.tenantId())
+                .orElseThrow(() -> conflict("MEDICATION_DISPENSE_NOT_FOUND", "发药事件不存在"));
+        List<IssueBalance> balances = new ArrayList<>();
+        BigDecimal headerReturnedBase = BigDecimal.ZERO;
+        BigDecimal headerConsumedBase = BigDecimal.ZERO;
+        BigDecimal headerPhysicalBase = BigDecimal.ZERO;
+        boolean unitMismatch = false;
+        for (MedicationDispenseLine line : issuedLines) {
+            String lineBaseUnit = stockItems.findByIdAndTenantId(line.stockItemId(), values.tenantId())
+                    .orElseThrow(() -> conflict("MEDICATION_DISPENSE_STOCK_ITEM_MISSING",
+                            "发药批次对应库存项目不存在"))
+                    .baseUnitCode();
+            if (!values.baseUnit().equalsIgnoreCase(lineBaseUnit)) {
+                unitMismatch = true;
+                continue;
+            }
+            BigDecimal returnedBase = dispenseLines.returnedQuantity(values.tenantId(), line.id())
+                    .multiply(line.baseQuantityFactor());
+            BigDecimal consumedBase = consumptions.consumedBaseQuantity(values.tenantId(), line.id());
+            BigDecimal pendingReturnBase = wardReturns.pendingBaseQuantity(values.tenantId(), line.id());
+            BigDecimal physicalBase = line.quantityDispensed().multiply(line.baseQuantityFactor())
+                    .subtract(returnedBase).subtract(consumedBase).subtract(pendingReturnBase)
+                    .max(BigDecimal.ZERO);
+            balances.add(new IssueBalance(line, lineBaseUnit, returnedBase, consumedBase, physicalBase));
+            headerReturnedBase = headerReturnedBase.add(returnedBase);
+            headerConsumedBase = headerConsumedBase.add(consumedBase);
+            headerPhysicalBase = headerPhysicalBase.add(physicalBase);
+        }
+        BigDecimal headerAvailableBase = headerPhysicalBase;
+        if ("INPATIENT".equals(task.taskType())) {
+            var gate = wardDeliveries.deliveryGate(values.tenantId(), header.id());
+            if (!gate.deliveryRequired() || !gate.ready() || gate.receivedQuantity() == null
+                    || gate.receivedQuantity().signum() <= 0) {
+                return new DispenseIssues(headerPhysicalBase, BigDecimal.ZERO, unitMismatch, List.of());
+            }
+            MedicationDispenseLine first = balances.isEmpty() ? null : balances.getFirst().line();
+            if (first == null || gate.unitCode() == null
+                    || !gate.unitCode().equalsIgnoreCase(first.dispenseUnitCode())) {
+                return new DispenseIssues(headerPhysicalBase, BigDecimal.ZERO, true, List.of());
+            }
+            BigDecimal signedNetBase = gate.receivedQuantity().multiply(first.baseQuantityFactor())
+                    .subtract(headerReturnedBase).subtract(headerConsumedBase).max(BigDecimal.ZERO);
+            headerAvailableBase = headerAvailableBase.min(signedNetBase);
+        }
+        BigDecimal receiptRemaining = headerAvailableBase;
+        List<AvailableIssueLine> available = new ArrayList<>();
+        BigDecimal availableTotalBase = BigDecimal.ZERO;
+        for (IssueBalance balance : balances) {
+            if (receiptRemaining.signum() <= 0) break;
+            BigDecimal lineAvailable = balance.physicalBase().min(receiptRemaining);
+            if (lineAvailable.signum() <= 0) continue;
+            available.add(new AvailableIssueLine(header.id(), balance.line(), balance.baseUnitCode(), lineAvailable));
+            availableTotalBase = availableTotalBase.add(lineAvailable);
+            receiptRemaining = receiptRemaining.subtract(lineAvailable);
+        }
+        return new DispenseIssues(headerPhysicalBase, availableTotalBase, unitMismatch, available);
+    }
+
+    private void requireSufficientAvailable(ConsumptionInput values, DispenseTask task, AvailableIssues issues) {
+        if (issues.totalAvailableBase().compareTo(values.requiredBase()) < 0) {
+            if ("INPATIENT".equals(task.taskType())
+                    && issues.totalPhysicalBase().compareTo(values.requiredBase()) >= 0) {
                 throw conflict("INPATIENT_MEDICATION_WARD_RECEIPT_REQUIRED",
                         "住院用药尚未完成足量病区签收；需要 %s %s，已签收可核销净量 %s %s".formatted(
-                                requiredBase.stripTrailingZeros().toPlainString(), baseUnit,
-                                totalAvailableBase.stripTrailingZeros().toPlainString(), baseUnit));
+                                values.requiredBase().stripTrailingZeros().toPlainString(), values.baseUnit(),
+                                issues.totalAvailableBase().stripTrailingZeros().toPlainString(), values.baseUnit()));
             }
-            String detail = unitMismatch && totalAvailableBase.signum() == 0
+            String detail = issues.unitMismatch() && issues.totalAvailableBase().signum() == 0
                     ? "；发药基础单位与医嘱不一致" : "";
             throw conflict("INPATIENT_MEDICATION_DISPENSE_QUANTITY_INSUFFICIENT",
                     "住院用药可核销净发药数量不足；需要 %s %s，可用 %s %s%s".formatted(
-                            requiredBase.stripTrailingZeros().toPlainString(), baseUnit,
-                            totalAvailableBase.stripTrailingZeros().toPlainString(), baseUnit, detail));
+                            values.requiredBase().stripTrailingZeros().toPlainString(), values.baseUnit(),
+                            issues.totalAvailableBase().stripTrailingZeros().toPlainString(), values.baseUnit(), detail));
         }
+    }
 
-        BigDecimal remaining = requiredBase;
+    private ConsumptionSnapshot persistConsumptions(ConsumptionInput values, List<AvailableIssueLine> available) {
+        BigDecimal remaining = values.requiredBase();
         List<MedicationDispenseConsumption> saved = new ArrayList<>();
         for (AvailableIssueLine candidate : available) {
             if (remaining.signum() == 0) break;
             BigDecimal baseTaken = candidate.availableBaseQuantity().min(remaining);
             BigDecimal quantityTaken = baseTaken.divide(candidate.line().baseQuantityFactor(), 8, RoundingMode.HALF_UP);
-            saved.add(new MedicationDispenseConsumption(tenantId, requestId, consumerType, consumerId,
-                    candidate.line().taskLineId(), candidate.dispenseId(), candidate.line().id(), quantityTaken,
-                    candidate.line().dispenseUnitCode(), baseTaken, candidate.baseUnitCode(), commandCode, actorId));
+            saved.add(new MedicationDispenseConsumption(values.tenantId(), values.requestId(), values.consumerType(),
+                    values.consumerId(), candidate.line().taskLineId(), candidate.dispenseId(), candidate.line().id(),
+                    quantityTaken, candidate.line().dispenseUnitCode(), baseTaken, candidate.baseUnitCode(),
+                    values.commandCode(), values.actorId()));
             remaining = remaining.subtract(baseTaken);
         }
         try {
-            return snapshot(requiredBase, baseUnit, consumptions.saveAllAndFlush(saved));
+            return snapshot(values.requiredBase(), values.baseUnit(), consumptions.saveAllAndFlush(saved));
         } catch (DataIntegrityViolationException exception) {
-            ConsumptionSnapshot concurrentReplay = replay(tenantId, requestId, consumerType, consumerId,
-                    commandCode, baseUnit);
+            ConsumptionSnapshot concurrentReplay = replay(values.tenantId(), values.requestId(), values.consumerType(),
+                    values.consumerId(), values.commandCode(), values.baseUnit());
             if (concurrentReplay != null) return concurrentReplay;
             throw conflict("MEDICATION_CONSUMPTION_CONFLICT", "药品发药数量已被其他执行任务核销，请刷新后重试");
         }
@@ -230,9 +267,11 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
                                                   boolean required) {
         DispenseTaskLine result = null;
         if ("INPATIENT_ORDER_TASK".equals(consumerType) && consumerId != null) {
-            result = supplyTasks.findByTenantIdAndOrderTaskIdAndStatus(tenantId, consumerId, "ACTIVE")
+            result = supplyTasks.findByTenantIdAndOrderTaskIdAndStatus(tenantId, consumerId,
+                            InpatientMedicationSupplyTaskStatus.ACTIVE)
                     .flatMap(mapping -> supplyLines.findById(mapping.supplyLineId()))
-                    .filter(line -> tenantId.equals(line.tenantId()) && "INTAKEN".equals(line.status())
+                    .filter(line -> tenantId.equals(line.tenantId())
+                            && line.status() == InpatientMedicationSupplyLineStatus.INTAKEN
                             && line.dispenseTaskLineId() != null)
                     .flatMap(line -> lines.findById(line.dispenseTaskLineId()))
                     .filter(line -> tenantId.equals(line.tenantId()) && requestId.equals(line.requestId()))
@@ -319,5 +358,18 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
     private record IssueBalance(MedicationDispenseLine line, String baseUnitCode,
                                 BigDecimal returnedBase, BigDecimal consumedBase,
                                 BigDecimal physicalBase) {
+    }
+
+    private record ConsumptionInput(Long tenantId, Long requestId, Long consumerId, Long actorId,
+                                    String consumerType, String commandCode, String baseUnit,
+                                    BigDecimal requiredBase) {
+    }
+
+    private record AvailableIssues(List<AvailableIssueLine> available, BigDecimal totalAvailableBase,
+                                   BigDecimal totalPhysicalBase, boolean unitMismatch) {
+    }
+
+    private record DispenseIssues(BigDecimal physicalBase, BigDecimal availableTotalBase,
+                                  boolean unitMismatch, List<AvailableIssueLine> available) {
     }
 }

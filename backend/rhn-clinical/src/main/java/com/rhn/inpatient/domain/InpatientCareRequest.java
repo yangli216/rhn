@@ -2,6 +2,8 @@ package com.rhn.inpatient.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -23,7 +25,7 @@ public class InpatientCareRequest {
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
     @Column(name = "SD_REQ_KIND", nullable = false) private String requestKind;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private InpatientCareRequestStatus status;
     @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
     @Column(name = "ID_ORG_EXEC", nullable = false) private Long performerOrganizationId;
     @Column(name = "ID_DEPT_EXEC", nullable = false) private Long performerDepartmentId;
@@ -50,18 +52,18 @@ public class InpatientCareRequest {
     }
 
     public void activate() {
-        if (!"DRAFT".equals(status)) throw conflict("INPATIENT_REQUEST_NOT_DRAFT", "共享医嘱事实不是草稿状态");
-        this.status = "ACTIVE";
+        if (status != InpatientCareRequestStatus.DRAFT) throw conflict("INPATIENT_REQUEST_NOT_DRAFT", "共享医嘱事实不是草稿状态");
+        this.status = InpatientCareRequestStatus.ACTIVE;
     }
 
     public void complete() {
-        if (!"ACTIVE".equals(status)) throw conflict("INPATIENT_REQUEST_NOT_ACTIVE", "共享医嘱事实不是执行中状态");
-        this.status = "COMPLETED";
+        if (status != InpatientCareRequestStatus.ACTIVE) throw conflict("INPATIENT_REQUEST_NOT_ACTIVE", "共享医嘱事实不是执行中状态");
+        this.status = InpatientCareRequestStatus.COMPLETED;
     }
 
     public void cancel(Long actorId, String reason) {
-        if (!"ACTIVE".equals(status)) throw conflict("INPATIENT_REQUEST_NOT_ACTIVE", "共享医嘱事实不是执行中状态");
-        this.status = "CANCELLED";
+        if (status != InpatientCareRequestStatus.ACTIVE) throw conflict("INPATIENT_REQUEST_NOT_ACTIVE", "共享医嘱事实不是执行中状态");
+        this.status = InpatientCareRequestStatus.CANCELLED;
         this.cancelledAt = Instant.now();
         this.cancelledBy = actorId;
         this.cancelReason = reason;
@@ -78,7 +80,7 @@ public class InpatientCareRequest {
     public Long encounterId() { return encounterId; }
     public String requestNo() { return requestNo; }
     public String requestKind() { return requestKind; }
-    public String status() { return status; }
+    public InpatientCareRequestStatus status() { return status; }
     public Long catalogItemId() { return catalogItemId; }
     public Long performerOrganizationId() { return performerOrganizationId; }
     public Long performerDepartmentId() { return performerDepartmentId; }

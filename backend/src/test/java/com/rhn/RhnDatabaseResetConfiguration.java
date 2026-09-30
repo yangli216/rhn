@@ -6,8 +6,15 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.config.TaskManagementConfigUtils;
 
+import javax.sql.DataSource;
+
 @TestConfiguration(proxyBeanMethods = false)
 class RhnDatabaseResetConfiguration {
+    @Bean
+    RhnDatabaseBaseline rhnDatabaseBaseline(DataSource dataSource) {
+        return new RhnDatabaseBaseline(dataSource);
+    }
+
     @Bean
     static BeanFactoryPostProcessor disableScheduledTasksDuringDatabaseReset() {
         return factory -> {

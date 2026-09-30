@@ -40,11 +40,11 @@ class PrescriptionSafetySnapshotServiceTest {
         when(residents.requireSnapshot(1L, 4L)).thenReturn(
                 new com.rhn.healthcore.api.ResidentDirectory.ResidentSnapshot(
                         4L, "R", "患者", "MALE", java.time.LocalDate.now().minusYears(30), null, false));
-        var active = request(12L, "ACTIVE");
+        var active = request(12L, MedicationRequestStatus.ACTIVE);
         when(active.skinTestExempt()).thenReturn(true);
         when(active.skinTestExemptReason()).thenReturn("既有阴性记录");
         when(active.exemptEvidenceEventId()).thenReturn(88L);
-        var cancelled = request(11L, "CANCELLED");
+        var cancelled = request(11L, MedicationRequestStatus.CANCELLED);
         when(active.medicationSnapshot()).thenReturn("{\"clinicalSemantics\":{\"schemaVersion\":\"qmed-medication-semantics-v1\","
                 + "\"status\":\"VERSIONED_PARTIAL\",\"medicationSemanticVersion\":\"" + "a".repeat(64) + "\"}}");
         when(medications.findByTenantIdAndRequestGroupIdOrderByAuthoredAt(1L, prescription.id()))
@@ -86,7 +86,7 @@ class PrescriptionSafetySnapshotServiceTest {
         verifyNoInteractions(medications);
     }
 
-    private MedicationRequest request(Long id, String status) {
+    private MedicationRequest request(Long id, MedicationRequestStatus status) {
         var item = mock(MedicationRequest.class);
         when(item.id()).thenReturn(id);
         when(item.medicationId()).thenReturn(90L);

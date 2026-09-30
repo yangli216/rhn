@@ -13,12 +13,14 @@ import com.rhn.platform.eventing.api.IdempotentDomainEventConsumer;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import com.rhn.treatment.api.TreatmentExecutionTaskView;
 import com.rhn.treatment.api.TreatmentExecutionTaskView.TreatmentExecutionItemView;
 import com.rhn.treatment.api.SkinTestDirectory;
 import com.rhn.treatment.api.SkinTestDirectory.SkinTestSnapshot;
 import com.rhn.treatment.domain.TreatmentExecutionItem;
 import com.rhn.treatment.domain.TreatmentExecutionTask;
+import com.rhn.treatment.domain.TreatmentExecutionTaskStatus;
 import com.rhn.treatment.infrastructure.TreatmentExecutionItemRepository;
 import com.rhn.treatment.infrastructure.TreatmentExecutionTaskRepository;
 import org.springframework.context.event.EventListener;
@@ -90,7 +92,7 @@ public class TreatmentExecutionService {
         values.forEach(this::reconcile);
         String typeFilter = upper(taskType); String statusFilter = upper(status); String term = upper(keyword);
         return values.stream().filter(value -> typeFilter == null || typeFilter.equals(value.taskType()))
-                .filter(value -> statusFilter == null || statusFilter.equals(value.status()))
+                .filter(value -> statusFilter == null || statusFilter.equals(value.status().name()))
                 .map(this::view)
                 .filter(value -> term == null || searchable(value).contains(term))
                 .toList();
@@ -101,7 +103,7 @@ public class TreatmentExecutionService {
                                             String verificationMethod, String executionSite, String note) {
         ExecutionContext context = requireWorkContext();
         TreatmentExecutionTask task = requireAccessible(taskId, context); reconcile(task);
-        task.start(expectedRevision, identityVerified, clean(verificationMethod), clean(executionSite), clean(note),
+        task.start(expectedRevision, identityVerified, Strings.trimToNull(verificationMethod), Strings.trimToNull(executionSite), Strings.trimToNull(note),
                 context.subjectId(), Instant.now());
         tasks.flush();
         publish(context, task, "TREATMENT_EXECUTION_STARTED", "治疗执行已开始");
@@ -114,12 +116,12 @@ public class TreatmentExecutionService {
                                                String adverseReactionDetail) {
         ExecutionContext context = requireWorkContext();
         TreatmentExecutionTask task = requireAccessible(taskId, context); reconcile(task);
-        task.complete(expectedRevision, resultCode, clean(note), adverseReaction, clean(adverseReactionDetail),
+        task.complete(expectedRevision, resultCode, Strings.trimToNull(note), adverseReaction, Strings.trimToNull(adverseReactionDetail),
                 context.subjectId(), Instant.now());
         tasks.flush();
-        publish(context, task, "COMPLETED".equals(task.status())
+        publish(context, task, task.status() == TreatmentExecutionTaskStatus.COMPLETED
                         ? "TREATMENT_EXECUTION_COMPLETED" : "TREATMENT_EXECUTION_EXCEPTION",
-                "COMPLETED".equals(task.status()) ? "治疗执行已完成" : "治疗执行需后续处置");
+                task.status() == TreatmentExecutionTaskStatus.COMPLETED ? "治疗执行已完成" : "治疗执行需后续处置");
         return view(task);
     }
 
@@ -343,7 +345,7 @@ public class TreatmentExecutionService {
                         value.ready() && (!value.skinTestRequired() || skinTest != null && skinTest.passed()),
                         value.createdAt());
                 }).toList();
-        return new TreatmentExecutionTaskView(task.id(), task.revision(), task.taskNo(), task.taskType(), task.status(),
+        return new TreatmentExecutionTaskView(task.id(), task.revision(), task.taskNo(), task.taskType(), task.status().name(),
                 task.residentId(), resident.fullName(), resident.healthRecordNo(), task.encounterId(),
                 task.organizationId(), task.departmentId(), task.sourceGroupId(), task.createdAt(), task.startedAt(),
                 task.startedBy(), task.verificationMethod(), task.executionSite(), task.startNote(), task.completedAt(),
@@ -354,7 +356,7 @@ public class TreatmentExecutionService {
     private void publish(ExecutionContext context, TreatmentExecutionTask task, String eventType, String summary) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("encounterId", task.encounterId()); payload.put("departmentId", task.departmentId());
-        payload.put("taskType", task.taskType()); payload.put("status", task.status());
+        payload.put("taskType", task.taskType()); payload.put("status", task.status().name());
         payload.put("summary", summary); payload.put("actorId", context.subjectId());
         eventPublisher.publish(task.tenantId(), task.organizationId(), eventType, 1, "TreatmentExecutionTask",
                 task.id(), task.revision(), task.residentId(), Instant.now(), payload);
@@ -389,9 +391,8 @@ public class TreatmentExecutionService {
         if (value instanceof Number number) return new BigDecimal(number.toString());
         String text = text(value); return text == null ? null : new BigDecimal(text);
     }
-    private String text(Object value) { return value == null ? null : clean(value.toString()); }
+    private String text(Object value) { return value == null ? null : Strings.trimToNull(value.toString()); }
     private String json(Object value) { return value == null ? null : jsonCodec.write(value); }
-    private String first(String value, String fallback) { return clean(value) == null ? fallback : clean(value); }
-    private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(Locale.ROOT); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private String first(String value, String fallback) { return Strings.trimToNull(value) == null ? fallback : Strings.trimToNull(value); }
+    private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(Locale.ROOT); }
 }

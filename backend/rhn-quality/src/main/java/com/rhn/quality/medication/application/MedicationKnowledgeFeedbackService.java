@@ -20,7 +20,8 @@ import static com.rhn.shared.api.BusinessErrors.*;
 public class MedicationKnowledgeFeedbackService {
     private final MedicationKnowledgeDeploymentService deployments;private final MedicationRuleGovernanceStore governance;
     private final MedicationKnowledgeFeedbackStore store;private final ExecutionContextProvider contexts;private final JsonCodec json;
-    public MedicationKnowledgeFeedbackService(MedicationKnowledgeDeploymentService deployments,MedicationRuleGovernanceStore governance,MedicationKnowledgeFeedbackStore store,ExecutionContextProvider contexts,JsonCodec json) {this.deployments=deployments;this.governance=governance;this.store=store;this.contexts=contexts;this.json=json;}
+    public MedicationKnowledgeFeedbackService(MedicationKnowledgeDeploymentService deployments,MedicationRuleGovernanceStore governance,
+            MedicationKnowledgeFeedbackStore store,ExecutionContextProvider contexts,JsonCodec json) {this.deployments=deployments;this.governance=governance;this.store=store;this.contexts=contexts;this.json=json;}
     private RuntimeRecord run(Long candidate,Long deployment,Long id,boolean lock) {
         var d=deployments.observationDeployment(candidate,deployment);var actor=contexts.requireCurrent();
         if(d.knowledgeRelease()==null)throw notFound("QMED_FEEDBACK_RELEASE","该发布没有知识规则冻结材料");

@@ -135,7 +135,7 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
                     EncounterStatus.SUSPENDED.name(), expectedRevision, context.practitionerId(), context.subjectId(),
                     input.commandCode().trim(), "等待目标科室接收转科请求 " + request.requestNo()));
             workSessions.findFirstByTenantIdAndEncounterIdAndStatusOrderByStartedAtDesc(
-                    encounter.tenantId(), encounter.id(), "ACTIVE").ifPresent(session -> session.close("SUSPENDED"));
+                    encounter.tenantId(), encounter.id(), EncounterWorkSessionStatus.ACTIVE).ifPresent(session -> session.close("SUSPENDED"));
             encounter.suspend();
             registrations.markSuspended(encounter.id(), input.commandCode().trim(),
                     "等待转入 " + targetDepartment.name());

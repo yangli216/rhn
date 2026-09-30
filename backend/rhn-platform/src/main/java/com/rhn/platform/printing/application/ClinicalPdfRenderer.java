@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 
@@ -274,7 +275,8 @@ class ClinicalPdfRenderer {
     }
     private String format(Object value) {
         if (value == null || value.toString().isBlank()) return "-";
-        try { return DATE_TIME.format(Instant.parse(value.toString())); } catch (Exception ignored) { return value.toString(); }
+        try { return DATE_TIME.format(Instant.parse(value.toString())); }
+        catch (DateTimeParseException ignored) { return value.toString(); }
     }
     private String number(Object value) {
         if (value == null) return "-";

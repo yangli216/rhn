@@ -3,6 +3,8 @@ package com.rhn.inpatient.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -22,7 +24,7 @@ public class InpatientEncounter {
     @Column(name = "ID_SVC_LOC") private Long serviceLocationId;
     @Column(name = "SD_ENC_CLASS", nullable = false) private String encounterClass;
     @Column(name = "ID_CLNCN") private String clinicianId;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private InpatientEncounterStatus status;
     @Column(name = "DT_REGD", nullable = false) private Instant registeredAt;
     @Column(name = "DT_STARTED") private Instant startedAt;
     @Column(name = "DT_CMPLD") private Instant completedAt;
@@ -50,20 +52,20 @@ public class InpatientEncounter {
         this.serviceLocationId = serviceLocationId;
         this.encounterClass = "INPATIENT";
         this.clinicianId = practitionerId == null ? null : practitionerId.toString();
-        this.status = "IN_PROGRESS";
+        this.status = InpatientEncounterStatus.IN_PROGRESS;
         this.registeredAt = admittedAt;
         this.startedAt = registeredAt;
     }
 
     public void moveTo(Long departmentId, Long serviceLocationId) {
-        if (!"IN_PROGRESS".equals(status)) throw new IllegalStateException("NOT_IN_PROGRESS");
+        if (status != InpatientEncounterStatus.IN_PROGRESS) throw new IllegalStateException("NOT_IN_PROGRESS");
         this.departmentId = departmentId;
         this.serviceLocationId = serviceLocationId;
     }
 
     public void complete() {
-        if (!"IN_PROGRESS".equals(status)) throw new IllegalStateException("NOT_IN_PROGRESS");
-        this.status = "COMPLETED";
+        if (status != InpatientEncounterStatus.IN_PROGRESS) throw new IllegalStateException("NOT_IN_PROGRESS");
+        this.status = InpatientEncounterStatus.COMPLETED;
         this.completedAt = Instant.now();
     }
 
@@ -75,6 +77,6 @@ public class InpatientEncounter {
     public Long departmentId() { return departmentId; }
     public Long episodeId() { return episodeId; }
     public Long serviceLocationId() { return serviceLocationId; }
-    public String status() { return status; }
+    public InpatientEncounterStatus status() { return status; }
     public Instant completedAt() { return completedAt; }
 }

@@ -421,7 +421,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[?(@.code == 'DEPARTMENT_GOVERNANCE')].dictionaryCount").value(6))
                 .andExpect(jsonPath("$[?(@.code == 'PERSONNEL_GOVERNANCE')].dictionaryCount").value(5))
                 .andExpect(jsonPath("$[?(@.code == 'MASTER_DATA_GOVERNANCE')].dictionaryCount").value(6))
-                .andExpect(jsonPath("$[?(@.code == 'CLINICAL_SERVICE')].dictionaryCount").value(4))
+                .andExpect(jsonPath("$[?(@.code == 'CLINICAL_SERVICE')].dictionaryCount").value(5))
                 .andExpect(jsonPath("$[?(@.code == 'MEDICATION')].dictionaryCount").value(4))
                 .andExpect(jsonPath("$[?(@.code == 'PRODUCT_SUPPLY')].dictionaryCount").value(6))
                 .andExpect(jsonPath("$[?(@.code == 'DIAGNOSTICS')].dictionaryCount").value(5));
@@ -451,7 +451,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/dictionaries")
                         .param("categoryId", "362387869796000").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(25));
+                .andExpect(jsonPath("$.length()").value(26));
 
         mockMvc.perform(get("/api/platform/dictionaries/resolve/{code}", "COMMON_YES_NO").with(rhn()))
                 .andExpect(status().isOk())

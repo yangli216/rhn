@@ -21,7 +21,7 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
     @Query("""
             select r from InventoryReservation r
             where r.tenantId = :tenantId and r.reservationGroupCode = :reservationGroupCode
-              and r.status in ('ACTIVE', 'PARTIAL')
+              and r.status in (com.rhn.pharmacy.domain.InventoryReservationStatus.ACTIVE, com.rhn.pharmacy.domain.InventoryReservationStatus.PARTIAL)
             order by r.createdAt, r.id
             """)
     List<InventoryReservation> lockActiveByReservationGroup(
@@ -32,7 +32,7 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
     @Query("""
             select r from InventoryReservation r
             where r.tenantId = :tenantId and r.dispenseTaskLineId = :dispenseTaskLineId
-              and r.status in ('ACTIVE', 'PARTIAL')
+              and r.status in (com.rhn.pharmacy.domain.InventoryReservationStatus.ACTIVE, com.rhn.pharmacy.domain.InventoryReservationStatus.PARTIAL)
             order by r.createdAt, r.id
             """)
     List<InventoryReservation> lockActiveByDispenseTaskLine(
@@ -43,7 +43,7 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
     @Query("""
             select r from InventoryReservation r
             where r.tenantId = :tenantId and r.requestId = :requestId
-              and r.status in ('ACTIVE', 'PARTIAL')
+              and r.status in (com.rhn.pharmacy.domain.InventoryReservationStatus.ACTIVE, com.rhn.pharmacy.domain.InventoryReservationStatus.PARTIAL)
             order by r.createdAt, r.id
             """)
     List<InventoryReservation> lockActiveByRequest(@Param("tenantId") Long tenantId,
@@ -53,7 +53,7 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
     @Query("""
             select r from InventoryReservation r
             where r.tenantId = :tenantId and r.dispenseTaskLineId = :dispenseTaskLineId
-              and r.status in ('ACTIVE', 'PARTIAL') and r.expiresAt <= :now
+              and r.status in (com.rhn.pharmacy.domain.InventoryReservationStatus.ACTIVE, com.rhn.pharmacy.domain.InventoryReservationStatus.PARTIAL) and r.expiresAt <= :now
             order by r.createdAt, r.id
             """)
     List<InventoryReservation> lockDueByDispenseTaskLine(
@@ -63,7 +63,7 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
 
     @Query("""
             select distinct r.tenantId as tenantId, r.dispenseTaskLineId as dispenseTaskLineId from InventoryReservation r
-            where r.reservationType = 'DISPENSE' and r.status in ('ACTIVE', 'PARTIAL')
+            where r.reservationType = 'DISPENSE' and r.status in (com.rhn.pharmacy.domain.InventoryReservationStatus.ACTIVE, com.rhn.pharmacy.domain.InventoryReservationStatus.PARTIAL)
               and r.expiresAt <= :now
             order by r.tenantId, r.dispenseTaskLineId
             """)

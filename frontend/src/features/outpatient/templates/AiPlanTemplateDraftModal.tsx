@@ -5,7 +5,7 @@ import type { RhnApi } from '../../../shared/api'
 import { planTextStreamPreview, type OutpatientPlanTemplate, type OutpatientPlanTemplateScope,
   type OutpatientPlanTask, type PlanTextDraft, type PlanTextReviewItem, type SaveOutpatientPlanTemplateInput,
   type CompiledPlanMedicationItem, type CompiledPlanServiceItem } from '../../../shared/api/outpatientPlanTemplatesApi'
-import { Alert, Button, Dialog, FormField, Icon, IconButton, StatusBadge, Tooltip, type IconName } from '../../../shared/ui'
+import { Alert, Button, Dialog, FormField, Icon, StatusBadge, Tooltip, type IconName } from '../../../shared/ui'
 import { errorMessage } from '../../../shared/api/httpClient'
 import { safeRandomUUID } from '../../../shared/utils/uuid'
 import { planTaskKindLabel } from './planTaskPresentation'
@@ -62,7 +62,7 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
           .filter(({ item }) => group.kinds.includes(item.kind) && !(item.kind === 'CONDITION' && item.text === '适用条件'))
         if (!values.length) return null
         return (
-          <section key={group.key} className={`ai-plan-review-group ai-plan-review-group--${group.key}`}>
+          <section key={group.key} className="ai-plan-review-group">
             <header className="ai-plan-review-group__header">
               <div className="ai-plan-review-group__title-area">
                 <span className="ai-plan-review-group__icon">
@@ -70,7 +70,7 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
                 </span>
                 <strong className="ai-plan-review-group__label">{group.label}</strong>
               </div>
-              <span className="ai-plan-review-group__badge">{values.length} 项</span>
+              <StatusBadge tone="neutral">{values.length} 项</StatusBadge>
             </header>
             <div className="ai-plan-review-items">
               {values.map(({ item, index }) => {
@@ -84,12 +84,12 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
                     <div className="ai-plan-review-item__main">
                       <div className="ai-plan-review-item__title-row">
                         <strong className="ai-plan-review-item__name">{item.text}</strong>
-                        {usageHint && <span className="ai-plan-dosage-badge">{usageHint}</span>}
+                        {usageHint && <StatusBadge tone="neutral">{usageHint}</StatusBadge>}
                         {item.kind === 'DIAGNOSIS' && hasIcd10Code(item.text) && (
-                          <span className="ai-plan-kind-badge ai-plan-kind-badge--diagnosis">ICD-10 标准诊断</span>
+                          <StatusBadge tone="info">ICD-10 标准诊断</StatusBadge>
                         )}
                         {item.kind === 'CONDITION' && (
-                          <span className="ai-plan-kind-badge ai-plan-kind-badge--condition">待对齐诊断</span>
+                          <StatusBadge tone="warning">待对齐诊断</StatusBadge>
                         )}
                         {item.details && !isTextItem && (
                           <Tooltip content={<div className="ai-plan-tooltip-details">{item.details}</div>}>
@@ -121,12 +121,8 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
                       )}
                     </div>
                     {onRemove && (
-                      <IconButton
-                        icon="close"
-                        label={`移除 ${item.text}`}
-                        className="ai-plan-review-item__remove"
-                        onClick={() => onRemove(index)}
-                      />
+                      <Button size="sm" variant="text" aria-label={`移除 ${item.text}`}
+                        onClick={() => onRemove(index)}>移除</Button>
                     )}
                   </article>
                 )
@@ -1231,7 +1227,7 @@ export function AiPlanTemplateDraftModal({
                             <div className="ai-plan-task-content">
                               <div className="ai-plan-task-title-row">
                                 <strong>{task.text}</strong>
-                                {usageHint && <span className="ai-plan-dosage-badge">{usageHint}</span>}
+                                {usageHint && <StatusBadge tone="neutral">{usageHint}</StatusBadge>}
                                 {task.details && (
                                   <Tooltip content={<div className="ai-plan-tooltip-details">{task.details}</div>}>
                                     <button type="button" className="ai-plan-info-btn" aria-label={`查看 ${task.text} 依据`}>

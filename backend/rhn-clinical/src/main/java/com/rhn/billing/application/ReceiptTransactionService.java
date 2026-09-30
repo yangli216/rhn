@@ -11,6 +11,7 @@ import com.rhn.billing.domain.PatientAccount;
 import com.rhn.billing.domain.Receipt;
 import com.rhn.billing.domain.ReceiptEvent;
 import com.rhn.billing.domain.Settlement;
+import com.rhn.billing.domain.SettlementStatus;
 import com.rhn.billing.infrastructure.ChargeItemRepository;
 import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.billing.infrastructure.ReceiptEventRepository;
@@ -19,6 +20,7 @@ import com.rhn.billing.infrastructure.SettlementLineRepository;
 import com.rhn.billing.infrastructure.SettlementRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
@@ -62,7 +64,7 @@ class ReceiptTransactionService {
         if (replay != null) return new CreateResult(verifyReplay(replay, input), true);
         Settlement settlement = settlements.findByIdAndTenantId(input.settlementId(), context.tenantId())
                 .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
-        if (!"SETTLED".equals(settlement.status())) throw conflict("RECEIPT_SETTLEMENT_NOT_FINAL", "只有已结清结算单可以申请票据");
+        if (settlement.status() != SettlementStatus.SETTLED) throw conflict("RECEIPT_SETTLEMENT_NOT_FINAL", "只有已结清结算单可以申请票据");
         PatientAccount account = requireAccess(context, settlement.patientAccountId());
         String type = upper(input.receiptType());
         if (!List.of("MEDICAL_E_INVOICE", "PAPER_INVOICE", "RECEIPT", "VIRTUAL").contains(type)) {
@@ -72,13 +74,13 @@ class ReceiptTransactionService {
         if (!List.of("CASHIER", "SELF_SERVICE", "MOBILE", "ONLINE").contains(channel)) {
             throw badRequest("RECEIPT_CHANNEL_INVALID", "票据开具渠道不正确");
         }
-        String authority = clean(input.fiscalAuthorityCode());
+        String authority = Strings.trimToNull(input.fiscalAuthorityCode());
         if (authority == null) authority = List.of("RECEIPT", "VIRTUAL").contains(type) ? "LOCAL" : null;
         if (authority == null) throw badRequest("FISCAL_AUTHORITY_REQUIRED", "财政票据必须指定财政平台编码");
         Receipt value = receipts.save(new Receipt(context.tenantId(), settlement.id(), command, type,
                 authority.toUpperCase(), settlement.netAmount(), settlement.currencyCode(), channel,
-                clean(input.payerName()), clean(input.payerIdentityDigest()),
-                clean(input.correlationId()) == null ? context.correlationId() : clean(input.correlationId()),
+                Strings.trimToNull(input.payerName()), Strings.trimToNull(input.payerIdentityDigest()),
+                Strings.trimToNull(input.correlationId()) == null ? context.correlationId() : Strings.trimToNull(input.correlationId()),
                 context.subjectId()));
         events.save(new ReceiptEvent(context.tenantId(), value.id(), null, "REQUEST", null, "REQUESTED",
                 "REQUEST-" + command, context.subjectId(), null, null));
@@ -96,7 +98,7 @@ class ReceiptTransactionService {
             }
             ReceiptEvent request = events.findByTenantIdAndReceiptIdAndCommandCode(
                     context.tenantId(), replay.id(), command).orElseThrow();
-            if (!Objects.equals(request.actionReason(), clean(reason))) {
+            if (!Objects.equals(request.actionReason(), Strings.trimToNull(reason))) {
                 throw conflict("RECEIPT_RED_FLUSH_IDEMPOTENCY_MISMATCH", "幂等编码对应的红冲原因不一致");
             }
             require(originalReceiptId, context);
@@ -111,7 +113,7 @@ class ReceiptTransactionService {
         Receipt existing = receipts.findByTenantIdAndReversesReceiptId(context.tenantId(), originalReceiptId).orElse(null);
         if (existing != null) throw conflict("RECEIPT_ALREADY_RED_FLUSHED", "原票据已经存在红冲票据");
         Receipt value = receipts.save(Receipt.redFlushOf(original, command,
-                clean(correlationId) == null ? context.correlationId() : clean(correlationId), context.subjectId()));
+                Strings.trimToNull(correlationId) == null ? context.correlationId() : Strings.trimToNull(correlationId), context.subjectId()));
         events.save(new ReceiptEvent(context.tenantId(), value.id(), null, "RED_FLUSH", null, "REQUESTED",
                 command, context.subjectId(), requiredReason(reason, "RECEIPT_RED_FLUSH_REASON_REQUIRED", "红冲原因不能为空"),
                 null, null));
@@ -182,7 +184,7 @@ class ReceiptTransactionService {
             throw conflict("RECEIPT_STATE_INVALID", exception.getMessage());
         }
         events.save(new ReceiptEvent(context.tenantId(), receiptId, externalMessageId, "VOID", previous,
-                value.status(), commandCode, context.subjectId(), clean(actionReason), result.errorCode(),
+                value.status(), commandCode, context.subjectId(), Strings.trimToNull(actionReason), result.errorCode(),
                 truncate(result.errorMessage(), 2000)));
     }
 
@@ -199,7 +201,7 @@ class ReceiptTransactionService {
             throw conflict("RECEIPT_STATE_INVALID", exception.getMessage());
         }
         events.save(new ReceiptEvent(context.tenantId(), receiptId, externalMessageId, "RED_FLUSH", previous,
-                value.status(), commandCode, context.subjectId(), clean(actionReason), result.errorCode(),
+                value.status(), commandCode, context.subjectId(), Strings.trimToNull(actionReason), result.errorCode(),
                 truncate(result.errorMessage(), 2000)));
     }
 
@@ -251,7 +253,7 @@ class ReceiptTransactionService {
         ReceiptEvent event = events.findByTenantIdAndReceiptIdAndCommandCode(context.tenantId(), receiptId,
                 required(commandCode, "RECEIPT_EVENT_COMMAND_REQUIRED", "票据事件命令编码不能为空")).orElse(null);
         if (event == null) return false;
-        if (!Objects.equals(event.actionReason(), clean(reason))) {
+        if (!Objects.equals(event.actionReason(), Strings.trimToNull(reason))) {
             throw conflict("RECEIPT_ACTION_IDEMPOTENCY_MISMATCH", "幂等编码对应的票据操作原因不一致");
         }
         return true;
@@ -303,8 +305,8 @@ class ReceiptTransactionService {
                 || !value.receiptType().equals(upper(input.receiptType()))
                 || !value.issueChannel().equals(upper(input.issueChannel()))
                 || !Objects.equals(value.fiscalAuthorityCode(), normalizedAuthority(input))
-                || !Objects.equals(value.payerName(), clean(input.payerName()))
-                || !Objects.equals(value.payerIdentityDigest(), clean(input.payerIdentityDigest()))) {
+                || !Objects.equals(value.payerName(), Strings.trimToNull(input.payerName()))
+                || !Objects.equals(value.payerIdentityDigest(), Strings.trimToNull(input.payerIdentityDigest()))) {
             throw conflict("RECEIPT_IDEMPOTENCY_MISMATCH", "幂等编码已用于不同的票据请求");
         }
         return value;
@@ -312,7 +314,7 @@ class ReceiptTransactionService {
 
     private String normalizedAuthority(CreateCommand input) {
         String type = upper(input.receiptType());
-        String authority = clean(input.fiscalAuthorityCode());
+        String authority = Strings.trimToNull(input.fiscalAuthorityCode());
         if (authority == null && List.of("RECEIPT", "VIRTUAL").contains(type)) authority = "LOCAL";
         return authority == null ? null : authority.toUpperCase();
     }
@@ -363,8 +365,7 @@ class ReceiptTransactionService {
         if (value == null || value.isBlank() || value.trim().length() > 500) throw badRequest(code, message);
         return value.trim();
     }
-    private String upper(String value) { return clean(value) == null ? null : clean(value).toUpperCase(); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private String upper(String value) { return Strings.trimToNull(value) == null ? null : Strings.trimToNull(value).toUpperCase(); }
     private String truncate(String value, int max) { return value == null || value.length() <= max ? value : value.substring(0, max); }
 
     record CreateCommand(Long settlementId, String idempotencyKey, String receiptType, String issueChannel,

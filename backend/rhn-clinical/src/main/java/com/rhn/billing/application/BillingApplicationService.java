@@ -42,6 +42,7 @@ import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.CatalogOperationalSnapshot;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -200,7 +201,7 @@ public class BillingApplicationService {
     @Transactional(readOnly = true)
     public AccountStatementView encounterStatement(Long encounterId, String currencyCode) {
         ExecutionContext context = requireWorkContext(); EncounterSnapshot encounter = requireEncounter(context, encounterId);
-        String currency = clean(currencyCode) == null ? "CNY" : upper(currencyCode);
+        String currency = Strings.trimToNull(currencyCode) == null ? "CNY" : upper(currencyCode);
         PatientAccount account = accountRepository.findByTenantIdAndEncounterIdAndCurrencyCode(
                         context.tenantId(), encounter.id(), currency)
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "当前就诊尚未形成患者费用账户"));
@@ -390,7 +391,7 @@ public class BillingApplicationService {
         Payment payment = paymentRepository.save(new Payment(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), invoice.id(),
                 input.paymentOrderId(), paymentNo, "PAYMENT", method, paymentScene, amount, account.currencyCode(), paidAt,
-                clean(input.externalTransactionNo()), null, context.subjectId(), clean(input.description())));
+                Strings.trimToNull(input.externalTransactionNo()), null, context.subjectId(), Strings.trimToNull(input.description())));
         ledgerRepository.save(new LedgerEntry(context.tenantId(), account.id(), "PAYMENT", "CREDIT", amount,
                 account.currencyCode(), null, invoice.id(), payment.id(), null, paidAt, context.subjectId()));
         settlements.recordPayment(context, invoice, payment, paid.add(amount));
@@ -426,8 +427,8 @@ public class BillingApplicationService {
                 account.organizationId(), account.departmentId(), account.id(), original.invoiceId(),
                 input.paymentOrderId(), refundNo, "REFUND", original.paymentMethodCode(),
                 input.paymentSceneCode() == null ? original.paymentSceneCode() : upper(input.paymentSceneCode()),
-                amount, account.currencyCode(), paidAt, clean(input.externalTransactionNo()), original.id(),
-                context.subjectId(), clean(input.reason())));
+                amount, account.currencyCode(), paidAt, Strings.trimToNull(input.externalTransactionNo()), original.id(),
+                context.subjectId(), Strings.trimToNull(input.reason())));
         Long originalLedgerId = ledgerRepository.findByTenantIdAndPaymentId(context.tenantId(), original.id())
                 .map(LedgerEntry::id).orElseThrow(() -> conflict("PAYMENT_LEDGER_MISSING", "原支付缺少可冲正账务分录"));
         ledgerRepository.save(new LedgerEntry(context.tenantId(), account.id(), "PAYMENT_REFUND", "DEBIT", amount,
@@ -601,7 +602,7 @@ public class BillingApplicationService {
                 .map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add));
         return new AccountStatementView(account.id(), account.revision(), account.residentId(), account.encounterId(),
                 account.organizationId(), account.departmentId(), account.accountType(), account.currencyCode(),
-                account.status(), account.openedAt(), chargeAmount, invoiced, uninvoiced, paymentAmount, refundAmount,
+                account.status().name(), account.openedAt(), chargeAmount, invoiced, uninvoiced, paymentAmount, refundAmount,
                 money(ledgerRepository.balance(context.tenantId(), account.id())),
                 charges.stream().map(this::chargeView).toList(),
                 invoices.stream().map(value -> invoiceView(context, value)).toList(),
@@ -636,7 +637,9 @@ public class BillingApplicationService {
                     manufacturerName = snap.manufacturerName();
                     unitName = snap.packageUnitName();
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+                // 处方快照缺失时仅少展示包装/厂家/包装单位，不影响费用明细。
+            }
         }
         return new ChargeItemView(value.id(), value.patientAccountId(), value.residentId(), value.encounterId(),
                 value.requestId(), value.catalogItemId(), value.sourceType(), value.sourceId(), value.requestCode(),
@@ -670,7 +673,7 @@ public class BillingApplicationService {
                 || value.amount().compareTo(input.amount()) != 0
                 || !value.paymentMethodCode().equals(upper(input.paymentMethodCode()))
                 || !Objects.equals(value.paymentOrderId(), input.paymentOrderId())
-                || !Objects.equals(value.externalTransactionNo(), clean(input.externalTransactionNo()))) {
+                || !Objects.equals(value.externalTransactionNo(), Strings.trimToNull(input.externalTransactionNo()))) {
             throw conflict("PAYMENT_NO_REUSED", "支付编码已被不同支付内容使用");
         }
         return paymentView(value);
@@ -681,7 +684,7 @@ public class BillingApplicationService {
         if (!"REFUND".equals(value.paymentType()) || !Objects.equals(value.reversesPaymentId(), paymentId)
                 || value.amount().compareTo(input.amount()) != 0
                 || !Objects.equals(value.paymentOrderId(), input.paymentOrderId())
-                || !Objects.equals(value.externalTransactionNo(), clean(input.externalTransactionNo()))) {
+                || !Objects.equals(value.externalTransactionNo(), Strings.trimToNull(input.externalTransactionNo()))) {
             throw conflict("REFUND_NO_REUSED", "退款编码已被不同退款内容使用");
         }
         return paymentView(value);
@@ -770,10 +773,9 @@ public class BillingApplicationService {
 
     private BigDecimal money(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-    private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(); }
+    private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(); }
 
     private String resolveMedicationCategory(Long requestId) {
         if (requestId == null) return "WESTERN_MED";
@@ -787,7 +789,9 @@ public class BillingApplicationService {
                     default -> "MEDICATION";
                 };
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // 处方不存在时按西药默认分类，避免阻塞药房工作台。
+        }
         return "WESTERN_MED";
     }
 

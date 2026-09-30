@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -34,7 +36,7 @@ public class InpatientMedicationSupplyLine {
     private BigDecimal requestedBaseQuantity;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
     @Column(name = "QTY_OCC", nullable = false) private int occurrenceCount;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private InpatientMedicationSupplyLineStatus status;
     @Column(name = "ID_DISP_TASK_LINE") private Long dispenseTaskLineId;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;
@@ -70,23 +72,23 @@ public class InpatientMedicationSupplyLine {
         this.requestedBaseQuantity = requestedBaseQuantity;
         this.baseUnitCode = baseUnitCode;
         this.occurrenceCount = occurrenceCount;
-        this.status = "DRAFT";
+        this.status = InpatientMedicationSupplyLineStatus.DRAFT;
         this.createdAt = Instant.now();
         this.createdBy = actorId;
     }
 
     public void submit(long expectedRevision, Long actorId) {
         requireRevision(expectedRevision);
-        requireStatus("DRAFT", "INPATIENT_SUPPLY_LINE_NOT_DRAFT", "只有草稿供药明细可以提交");
-        this.status = "SUBMITTED";
+        requireStatus(InpatientMedicationSupplyLineStatus.DRAFT, "INPATIENT_SUPPLY_LINE_NOT_DRAFT", "只有草稿供药明细可以提交");
+        this.status = InpatientMedicationSupplyLineStatus.SUBMITTED;
         this.submittedAt = Instant.now();
         this.submittedBy = actorId;
     }
 
     public void recordIntake(long expectedRevision, Long dispenseTaskLineId, Long actorId) {
         requireRevision(expectedRevision);
-        requireStatus("SUBMITTED", "INPATIENT_SUPPLY_LINE_NOT_SUBMITTED", "只有已提交供药明细可以接方");
-        this.status = "INTAKEN";
+        requireStatus(InpatientMedicationSupplyLineStatus.SUBMITTED, "INPATIENT_SUPPLY_LINE_NOT_SUBMITTED", "只有已提交供药明细可以接方");
+        this.status = InpatientMedicationSupplyLineStatus.INTAKEN;
         this.dispenseTaskLineId = dispenseTaskLineId;
         this.takenAt = Instant.now();
         this.takenBy = actorId;
@@ -94,10 +96,10 @@ public class InpatientMedicationSupplyLine {
 
     public void cancel(long expectedRevision, String reason, Long actorId) {
         requireRevision(expectedRevision);
-        if (!"DRAFT".equals(status) && !"SUBMITTED".equals(status)) {
+        if (status != InpatientMedicationSupplyLineStatus.DRAFT && status != InpatientMedicationSupplyLineStatus.SUBMITTED) {
             throw conflict("INPATIENT_SUPPLY_LINE_NOT_CANCELLABLE", "已接方供药明细不能直接取消");
         }
-        this.status = "CANCELLED";
+        this.status = InpatientMedicationSupplyLineStatus.CANCELLED;
         this.cancelledAt = Instant.now();
         this.cancelledBy = actorId;
         this.cancelReason = reason;
@@ -109,8 +111,8 @@ public class InpatientMedicationSupplyLine {
         }
     }
 
-    private void requireStatus(String expected, String code, String message) {
-        if (!expected.equals(status)) throw conflict(code, message);
+    private void requireStatus(InpatientMedicationSupplyLineStatus expected, String code, String message) {
+        if (expected != status) throw conflict(code, message);
     }
 
     public Long id() { return id; }
@@ -129,7 +131,7 @@ public class InpatientMedicationSupplyLine {
     public BigDecimal requestedBaseQuantity() { return requestedBaseQuantity; }
     public String baseUnitCode() { return baseUnitCode; }
     public int occurrenceCount() { return occurrenceCount; }
-    public String status() { return status; }
+    public InpatientMedicationSupplyLineStatus status() { return status; }
     public Long dispenseTaskLineId() { return dispenseTaskLineId; }
     public Instant createdAt() { return createdAt; }
     public Long createdBy() { return createdBy; }

@@ -28,12 +28,20 @@ public final class YamlSemanticCatalogLoader {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private static SemanticCatalog parseCatalog(Map<String, Object> root) {
         String version = Objects.toString(root.get("version"), "1.0.0");
         String domain = Objects.toString(root.get("domain"), "DEFAULT");
 
-        // 1. 实体列表
+        List<EntityDefinition> entities = parseEntities(root);
+        List<RelationshipDefinition> relationships = parseRelationships(root);
+        List<DimensionDefinition> dimensions = parseDimensions(root);
+        List<MetricDefinition> metrics = parseMetrics(root);
+
+        return new SemanticCatalog(version, domain, entities, relationships, metrics, dimensions);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<EntityDefinition> parseEntities(Map<String, Object> root) {
         List<EntityDefinition> entities = new ArrayList<>();
         List<Map<String, Object>> rawEntities = (List<Map<String, Object>>) root.get("entities");
         if (rawEntities != null) {
@@ -49,8 +57,11 @@ public final class YamlSemanticCatalogLoader {
                 ));
             }
         }
+        return entities;
+    }
 
-        // 2. 关系列表
+    @SuppressWarnings("unchecked")
+    private static List<RelationshipDefinition> parseRelationships(Map<String, Object> root) {
         List<RelationshipDefinition> relationships = new ArrayList<>();
         List<Map<String, Object>> rawRelationships = (List<Map<String, Object>>) root.get("relationships");
         if (rawRelationships != null) {
@@ -74,8 +85,11 @@ public final class YamlSemanticCatalogLoader {
                 relationships.add(new RelationshipDefinition(from, to, cardinality, conditions, aggregationSafe, fanoutRisk));
             }
         }
+        return relationships;
+    }
 
-        // 3. 维度列表与属性网络
+    @SuppressWarnings("unchecked")
+    private static List<DimensionDefinition> parseDimensions(Map<String, Object> root) {
         List<DimensionDefinition> dimensions = new ArrayList<>();
         List<Map<String, Object>> rawDimensions = (List<Map<String, Object>>) root.get("dimensions");
         if (rawDimensions != null) {
@@ -88,7 +102,6 @@ public final class YamlSemanticCatalogLoader {
                 String grain = Objects.toString(d.get("grain"));
                 List<String> compatibleMetrics = (List<String>) d.getOrDefault("compatibleMetrics", List.of());
 
-                // 维度属性
                 List<DimensionAttribute> attributes = new ArrayList<>();
                 List<Map<String, Object>> rawAttrs = (List<Map<String, Object>>) d.get("attributes");
                 if (rawAttrs != null) {
@@ -105,8 +118,11 @@ public final class YamlSemanticCatalogLoader {
                 dimensions.add(new DimensionDefinition(code, name, aliases, entity, field, grain, compatibleMetrics, attributes));
             }
         }
+        return dimensions;
+    }
 
-        // 4. 指标列表
+    @SuppressWarnings("unchecked")
+    private static List<MetricDefinition> parseMetrics(Map<String, Object> root) {
         List<MetricDefinition> metrics = new ArrayList<>();
         List<Map<String, Object>> rawMetrics = (List<Map<String, Object>>) root.get("metrics");
         if (rawMetrics != null) {
@@ -142,7 +158,6 @@ public final class YamlSemanticCatalogLoader {
                 ));
             }
         }
-
-        return new SemanticCatalog(version, domain, entities, relationships, metrics, dimensions);
+        return metrics;
     }
 }

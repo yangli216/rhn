@@ -8,6 +8,7 @@ import com.rhn.inpatient.api.InpatientViews.DischargeDiagnosisView;
 import com.rhn.inpatient.api.InpatientViews.DischargeReadinessView;
 import com.rhn.inpatient.api.InpatientViews.RequiredDocumentView;
 import com.rhn.inpatient.domain.CareEpisode;
+import com.rhn.inpatient.domain.CareEpisodeStatus;
 import com.rhn.inpatient.domain.InpatientCareRequest;
 import com.rhn.inpatient.domain.InpatientEncounter;
 import com.rhn.inpatient.domain.InpatientOrderTask;
@@ -126,7 +127,8 @@ public class InpatientDischargeReadinessService {
                     "ENCOUNTER_DIAGNOSIS", 1, List.of()));
         }
         return new DischargeReadinessView(
-                episode.id(), encounter.id(), episode.status(), "DISCHARGED".equals(episode.status()),
+                episode.id(), encounter.id(), episode.status().name(),
+                episode.status() == CareEpisodeStatus.DISCHARGED,
                 blockers.isEmpty(), Instant.now(), openLongTermOrders.size(), incompleteTemporaryOrders.size(),
                 pendingTasks.size(), requiredDocuments, dischargeDiagnoses, blockers);
     }

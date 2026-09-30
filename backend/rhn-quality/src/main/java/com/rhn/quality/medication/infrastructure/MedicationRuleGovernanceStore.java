@@ -87,7 +87,9 @@ public class MedicationRuleGovernanceStore {
         long total=counts.values().stream().mapToLong(Long::longValue).sum();
         var rows=jdbc.query("select JSON_RUN"+where+" order by ID_RULE_RUN desc offset ? rows fetch next 20 rows only",(r,n)->{
             var run=json.read(r.getString(1),RuntimeRecord.class);var result=run.knowledgeResult();
-            return new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Observation(run.id(),run.deploymentId(),run.prescriptionId(),run.time(),result==null?"UNAVAILABLE":result.outcome(),result==null?List.of("未保存可识别的知识评价结果"):result.reasons(),result==null?List.of():result.matchedOrderIds());
+            return new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Observation(run.id(),run.deploymentId(),run.prescriptionId(),run.time(),
+                    result==null?"UNAVAILABLE":result.outcome(),result==null?List.of("未保存可识别的知识评价结果"):result.reasons(),
+                    result==null?List.of():result.matchedOrderIds());
         },tenant,org,dept,key,deployment,(long)page*20);
         var states=feedback.states(tenant,org,dept,deployment,rows.stream().map(r->r.id()).toList());
         var annotated=rows.stream().map(r->new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Observation(r.id(),r.deploymentId(),r.prescriptionId(),r.time(),r.outcome(),r.reasons(),r.matchedOrderIds(),states.get(r.id()))).toList();

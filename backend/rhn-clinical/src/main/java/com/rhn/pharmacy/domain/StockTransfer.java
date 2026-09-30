@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -22,7 +24,7 @@ public class StockTransfer {
     @Column(name = "ID_STOCK_SITE_DEST", nullable = false) private Long destinationSiteId;
     @Column(name = "CD_XFER_NO", nullable = false) private String transferNo;
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private StockTransferStatus status;
     @Column(name = "DT_REQD", nullable = false) private Instant requestedAt;
     @Column(name = "ID_USER_REQD", nullable = false) private Long requestedBy;
     @Column(name = "DT_APRVD") private Instant approvedAt;
@@ -48,24 +50,24 @@ public class StockTransfer {
         this.sourceDepartmentId = sourceDepartmentId;
         this.destinationDepartmentId = destinationDepartmentId;
         this.sourceSiteId = sourceSiteId; this.destinationSiteId = destinationSiteId; this.transferNo = transferNo;
-        this.requestCode = requestCode; this.status = "DRAFT"; this.requestedAt = requestedAt;
+        this.requestCode = requestCode; this.status = StockTransferStatus.DRAFT; this.requestedAt = requestedAt;
         this.requestedBy = actorId; this.reason = reason; this.description = description;
         this.createdAt = Instant.now(); this.updatedAt = createdAt; this.updatedBy = actorId;
     }
-    public void submit(Long actor) { require("DRAFT"); status = "SUBMITTED"; touch(actor); }
-    public void approve(Long actor, String reason) { require("SUBMITTED"); status = "APPROVED"; approvedAt = Instant.now(); approvedBy = actor; if(reason!=null&&!reason.isBlank())this.reason = reason; touch(actor); }
-    public void reject(Long actor, String reason) { require("SUBMITTED"); status = "REJECTED"; approvedAt = Instant.now(); approvedBy = actor; this.reason = reason; touch(actor); }
-    public void markPicking(Long actor) { require("APPROVED"); status = "PICKING"; touch(actor); }
-    public void dispatch(Long actor, Long transactionId) { require("PICKING"); status = "IN_TRANSIT"; dispatchedAt = Instant.now(); dispatchedBy = actor; outboundTransactionId = transactionId; touch(actor); }
-    public void complete(Long actor, Long transactionId) { require("IN_TRANSIT"); status = "COMPLETED"; receivedAt = Instant.now(); receivedBy = actor; inboundTransactionId = transactionId; touch(actor); }
-    private void require(String expected) { if (!expected.equals(status)) throw new IllegalStateException("调拨单状态不允许当前操作"); }
+    public void submit(Long actor) { require(StockTransferStatus.DRAFT); status = StockTransferStatus.SUBMITTED; touch(actor); }
+    public void approve(Long actor, String reason) { require(StockTransferStatus.SUBMITTED); status = StockTransferStatus.APPROVED; approvedAt = Instant.now(); approvedBy = actor; if(reason!=null&&!reason.isBlank())this.reason = reason; touch(actor); }
+    public void reject(Long actor, String reason) { require(StockTransferStatus.SUBMITTED); status = StockTransferStatus.REJECTED; approvedAt = Instant.now(); approvedBy = actor; this.reason = reason; touch(actor); }
+    public void markPicking(Long actor) { require(StockTransferStatus.APPROVED); status = StockTransferStatus.PICKING; touch(actor); }
+    public void dispatch(Long actor, Long transactionId) { require(StockTransferStatus.PICKING); status = StockTransferStatus.IN_TRANSIT; dispatchedAt = Instant.now(); dispatchedBy = actor; outboundTransactionId = transactionId; touch(actor); }
+    public void complete(Long actor, Long transactionId) { require(StockTransferStatus.IN_TRANSIT); status = StockTransferStatus.COMPLETED; receivedAt = Instant.now(); receivedBy = actor; inboundTransactionId = transactionId; touch(actor); }
+    private void require(StockTransferStatus expected) { if (expected != status) throw new IllegalStateException("调拨单状态不允许当前操作"); }
     private void touch(Long actor) { updatedAt = Instant.now(); updatedBy = actor; }
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }
     public Long organizationId() { return organizationId; }
     public Long sourceDepartmentId() { return sourceDepartmentId; } public Long destinationDepartmentId() { return destinationDepartmentId; }
     public Long sourceSiteId() { return sourceSiteId; }
     public Long destinationSiteId() { return destinationSiteId; } public String transferNo() { return transferNo; }
-    public String requestCode() { return requestCode; } public String status() { return status; }
+    public String requestCode() { return requestCode; } public StockTransferStatus status() { return status; }
     public Instant requestedAt() { return requestedAt; } public Long requestedBy() { return requestedBy; }
     public Instant approvedAt() { return approvedAt; } public Long approvedBy() { return approvedBy; }
     public Instant dispatchedAt() { return dispatchedAt; } public Long dispatchedBy() { return dispatchedBy; }

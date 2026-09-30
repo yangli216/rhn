@@ -52,7 +52,11 @@ public final class MedicationKnowledgeReplayAdapter {
     }
     private static String text(JsonNode node,String key) {String value=node.path(key).asString(null);return value==null||value.isBlank()?null:value;}
     private static boolean inGroup(Row r,List<ResolvedTarget> targets,boolean all) {
-        return all || targets.stream().anyMatch(t->{var s=t.reference();return Objects.equals(r.catalogId(),s.catalogId())&&Objects.equals(r.catalogVersion(),s.catalogVersion())&&Objects.equals(r.contentHash(),s.contentHash())&&Objects.equals(r.entryId(),s.entryId())&&("ENTRY".equals(t.level())||Objects.equals(r.specificationId(),s.specificationId()));});
+        return all || targets.stream().anyMatch(t->{
+            var s=t.reference();
+            return Objects.equals(r.catalogId(),s.catalogId())&&Objects.equals(r.catalogVersion(),s.catalogVersion())&&Objects.equals(r.contentHash(),s.contentHash())
+                    &&Objects.equals(r.entryId(),s.entryId())&&("ENTRY".equals(t.level())||Objects.equals(r.specificationId(),s.specificationId()));
+        });
     }
     private static void checkRoute(List<String> gaps,PrescriptionSafetySnapshot.MedicationItem m,Route r,RouteCondition condition,List<RouteSnapshot> expected) {
         if(!"LIST".equals(condition.mode())) return;

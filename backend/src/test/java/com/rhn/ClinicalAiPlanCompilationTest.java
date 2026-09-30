@@ -2,11 +2,12 @@ package com.rhn;
 
 import com.rhn.ai.application.ClinicalAiModelGateway;
 import com.rhn.ai.application.ClinicalAiModelException;
+import com.rhn.platform.search.application.SearchEntryProjectionService;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.annotation.DirtiesContext;
 import tools.jackson.databind.JsonNode;
 
 import java.util.UUID;
@@ -24,13 +25,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
+@ResetDatabaseBeforeEachTestMethod
 @TestPropertySource(properties = {
         "rhn.ai.mode=MODEL", "rhn.ai.model=plan-test-model",
         "rhn.ai.endpoint=http://127.0.0.1:9/v1/chat/completions"
 })
 class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
     @MockitoBean ClinicalAiModelGateway modelGateway;
+    @Autowired
+    SearchEntryProjectionService searchEntryProjections;
 
     @Test
     void natural_input_is_compiled_to_plan_draft_and_can_be_persisted_as_hospital_plan() throws Exception {
@@ -263,6 +266,7 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
 
     @Test
     void doctor_confirmed_ai_suggestions_match_and_persist_as_system_recognizable_catalog_entries() throws Exception {
+        searchEntryProjections.rebuildAll();
         String compiledJson = mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""

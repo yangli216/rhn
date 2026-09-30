@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -76,7 +77,7 @@ public class SupplyItem {
         this.tenantId = tenantId;
         this.supplyTenantId = tenantId;
         this.itemType = "SUPPLY";
-        this.code = requireText(code, "耗材/器械编码");
+        this.code = Strings.requireText(code, "耗材/器械编码", Integer.MAX_VALUE);
         this.createdAt = Instant.now();
         this.createdBy = actorId;
         updateValues(actorId, itemTypeId, name, unitCode, orderable, chargeable, stocked, status,
@@ -130,44 +131,39 @@ public class SupplyItem {
         }
         if (implant && !highValue) throw new IllegalArgumentException("植入类器械必须标记为高值耗材");
         this.itemTypeId = itemTypeId;
-        this.name = requireText(name, "耗材/器械名称");
-        this.unitCode = requireText(unitCode, "基础单位");
+        this.name = Strings.requireText(name, "耗材/器械名称", Integer.MAX_VALUE);
+        this.unitCode = Strings.requireText(unitCode, "基础单位", Integer.MAX_VALUE);
         this.orderable = orderable;
         this.chargeable = chargeable;
         this.stocked = stocked;
         this.status = status;
         this.validFrom = validFrom;
         this.validTo = validTo;
-        this.udiDi = trim(udiDi);
-        this.genericCode = trim(genericCode);
-        this.genericName = trim(genericName);
-        this.modelName = trim(modelName);
-        this.specification = trim(specification);
-        this.materialType = trim(materialType);
-        this.deviceClass = trim(deviceClass);
+        this.udiDi = Strings.trimToNull(udiDi);
+        this.genericCode = Strings.trimToNull(genericCode);
+        this.genericName = Strings.trimToNull(genericName);
+        this.modelName = Strings.trimToNull(modelName);
+        this.specification = Strings.trimToNull(specification);
+        this.materialType = Strings.trimToNull(materialType);
+        this.deviceClass = Strings.trimToNull(deviceClass);
         this.highValue = highValue;
         this.implant = implant;
         this.intervention = intervention;
         this.sterile = sterile;
         this.singleUse = singleUse;
-        this.registrationCode = trim(registrationCode);
-        this.registrationName = trim(registrationName);
-        this.registrantName = trim(registrantName);
+        this.registrationCode = Strings.trimToNull(registrationCode);
+        this.registrationName = Strings.trimToNull(registrationName);
+        this.registrantName = Strings.trimToNull(registrantName);
         this.registrationFrom = registrationFrom;
         this.registrationTo = registrationTo;
         this.manufacturerId = manufacturerId;
-        this.structureDescription = trim(structureDescription);
-        this.scopeDescription = trim(scopeDescription);
-        this.instruction = trim(instruction);
+        this.structureDescription = Strings.trimToNull(structureDescription);
+        this.scopeDescription = Strings.trimToNull(scopeDescription);
+        this.instruction = Strings.trimToNull(instruction);
         this.updatedAt = Instant.now();
         this.updatedBy = actorId;
     }
 
-    private static String requireText(String value, String label) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        return value.trim();
-    }
-    private static String trim(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private void requireRevision(long expected) {
         if (revision != expected) throw new IllegalStateException("耗材/器械资料已被其他用户修改，请刷新后重试");
     }

@@ -52,10 +52,25 @@ class MedicationFeedbackImprovementTest extends RhnIntegrationTestSupport {
     void context(Long tenant,Long actor,boolean manage) {when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,actor,"reviewer-"+actor,"test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}
     KnowledgeRuleCandidate createCandidate() {var source=drafts.save(null,new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Save(0,duplicate(),"合成知识"));var p=rules.preview(source.saved().id(),1);return rules.create(source.saved().id(),new Create(1,p.programHash(),"合成候选"));}
     Case fixture(String title,String expected,List<String> ids,Row... rows) {return new Case(title,"人工先定义预期的合成测试，非临床依据",new FixtureInput(null,null,null,List.of(rows)),expected,ids);}
-    SuiteDetail suite(KnowledgeRuleCandidate c,int expectedVersion,boolean complete) {var a=row("A","E1","S1","PO");var b=row("B","E1","S1","PO");var cases=new ArrayList<Case>();cases.add(fixture("正例","MATCH",List.of("A","B"),a,b));if(complete){cases.add(fixture("反例","NO_MATCH",List.of(),a));cases.add(fixture("缺失","UNAVAILABLE",List.of(),new Row("X",null,null,null,null,null,null,"ACTIVE")));}return tests.save(c.id(),new Save(expectedVersion,c.programHash(),"独立预期",cases));}
+    SuiteDetail suite(KnowledgeRuleCandidate c,int expectedVersion,boolean complete) {
+        var a=row("A","E1","S1","PO");
+        var b=row("B","E1","S1","PO");
+        var cases=new ArrayList<Case>();
+        cases.add(fixture("正例","MATCH",List.of("A","B"),a,b));
+        if(complete) {
+            cases.add(fixture("反例","NO_MATCH",List.of(),a));
+            cases.add(fixture("缺失","UNAVAILABLE",List.of(),new Row("X",null,null,null,null,null,null,"ACTIVE")));
+        }
+        return tests.save(c.id(),new Save(expectedVersion,c.programHash(),"独立预期",cases));
+    }
     void ready(KnowledgeRuleCandidate c) {var s=suite(c,0,true);tests.execute(c.id(),new Execute(1,s.suiteHash(),"执行合成样例"));}
     Command command(Preview p,String op) {return new Command(p.revision(),op,"SUBMIT".equals(op)?p.current().fingerprint():p.submission().basis().fingerprint(),"合成审核操作","WARN","REQUIRE_OVERRIDE",true,true,true,"仅验证审核留痕，不构成临床批准材料");}
-    Deployment deploy(KnowledgeRuleCandidate c) {var p=deployments.preview(c.id());return deployments.command(c.id(),new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Command(p.revision(),"DEPLOY","SHADOW",p.approval()==null?null:p.approval().basis().fingerprint(),null,null,"合成旁路验证"));}
+    Deployment deploy(KnowledgeRuleCandidate c) {
+        var p=deployments.preview(c.id());
+        return deployments.command(c.id(),
+            new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Command(
+                p.revision(),"DEPLOY","SHADOW",p.approval()==null?null:p.approval().basis().fingerprint(),null,null,"合成旁路验证"));
+    }
     void approve(KnowledgeRuleCandidate c) {reviews.command(c.id(),command(reviews.preview(c.id()),"SUBMIT"));context(T,8L,true);reviews.command(c.id(),command(reviews.preview(c.id()),"APPROVE"));}
     void pause(KnowledgeRuleCandidate c,Deployment d) {deployments.command(c.id(),new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Command(deployments.preview(c.id()).revision(),"PAUSE","SHADOW",null,d.id(),null,"暂停合成旁路"));}
     PrescriptionSafetySnapshot.MedicationItem item(long id,String catalog,String edition,String hash,String entry,String spec,String status) {
@@ -65,7 +80,9 @@ class MedicationFeedbackImprovementTest extends RhnIntegrationTestSupport {
     }
     PrescriptionSafetySnapshot.MedicationItem item(long id) {return item(id,"C","1","a".repeat(64),"E","S","ACTIVE");}
     PrescriptionSafetySnapshot snapshot(Long department,PrescriptionSafetySnapshot.MedicationItem... rows) {
-        return new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION,T,1000L,2,2000L,3000L,O,department,"DRAFT",List.of(rows),new PrescriptionSafetySnapshot.PatientSafetyContext(true,true,null,List.of(),30,"UNKNOWN"),new PrescriptionSafetySnapshot.EvaluationTiming(LocalDate.of(2026,1,10),"Asia/Shanghai"));
+        return new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION,T,1000L,2,2000L,3000L,O,department,"DRAFT",List.of(rows),
+            new PrescriptionSafetySnapshot.PatientSafetyContext(true,true,null,List.of(),30,"UNKNOWN"),
+            new PrescriptionSafetySnapshot.EvaluationTiming(LocalDate.of(2026,1,10),"Asia/Shanghai"));
     }
 
     Long observe(PrescriptionSafetySnapshot.MedicationItem... items) {
@@ -123,12 +140,19 @@ class MedicationFeedbackImprovementTest extends RhnIntegrationTestSupport {
         var next=improvements.analyze(candidate.id(),deployment.id(),runId,new com.rhn.quality.medication.api.MedicationRuleIntakeContracts.ImprovementRequest(child,cmd.feedbackId(),cmd.expectedBasisHash(),true));
         assertThat(improvements.history(candidate.id(),deployment.id(),runId,0).totalElements()).isEqualTo(2);assertThat(next.parentId()).isEqualTo(run.id());assertThat(intakes.feedbackOrigin(next.id())).isEqualTo(intakes.feedbackOrigin(run.id()));
         assertThatThrownBy(()->intakes.analyze(child)).hasMessageContaining("原反馈");
-        record("RULE_ISSUE");var changed=request();assertThatThrownBy(()->improvements.analyze(candidate.id(),deployment.id(),runId,new com.rhn.quality.medication.api.MedicationRuleIntakeContracts.ImprovementRequest(child,changed.feedbackId(),changed.expectedBasisHash(),true))).hasMessageContaining("不属于");
+        record("RULE_ISSUE");
+        var changed=request();
+        assertThatThrownBy(()->improvements.analyze(candidate.id(),deployment.id(),runId,
+            new com.rhn.quality.medication.api.MedicationRuleIntakeContracts.ImprovementRequest(child,changed.feedbackId(),changed.expectedBasisHash(),true)))
+            .hasMessageContaining("不属于");
     }
     @Test void scope_permissions_and_corrupt_origin_are_enforced_for_reads_history_and_draft_linking() throws Exception {
         model();record("RULE_ISSUE");var run=analyze();assertThat(intakes.history(0).totalElements()).isEqualTo(1);
         when(contexts.requireCurrent()).thenReturn(new ExecutionContext(T,8L,"other","test",Set.of("MASTER_DATA.MANAGE"),O,D+1,"DEPARTMENT",Set.of(),Set.of()));
-        assertThat(intakes.history(0).totalElements()).isZero();assertThatThrownBy(()->intakes.get(run.id())).hasMessageContaining("未找到");assertThatThrownBy(()->intakes.checkOrigin(T,run.id(),"DUPLICATE_THERAPY")).hasMessageContaining("未找到");assertThatThrownBy(this::analyze).isInstanceOf(BusinessException.class);
+        assertThat(intakes.history(0).totalElements()).isZero();
+        assertThatThrownBy(()->intakes.get(run.id())).hasMessageContaining("未找到");
+        assertThatThrownBy(()->intakes.checkOrigin(T,run.id(),"DUPLICATE_THERAPY")).hasMessageContaining("未找到");
+        assertThatThrownBy(this::analyze).isInstanceOf(BusinessException.class);
         context(T+1,8L,true);assertThatThrownBy(()->intakes.feedbackOrigin(run.id())).hasMessageContaining("未找到");
         context(T,8L,false);assertThatThrownBy(()->intakes.get(run.id())).hasMessageContaining("权限");
         context(T,8L,true);jdbc.update("update RHN_AUD_KNOW_INTAKE set HASH_ORIGIN=? where ID_TNT=? and ID_INTAKE=?","bad",T,run.id());

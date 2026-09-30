@@ -14,6 +14,7 @@ import com.rhn.billing.domain.InsuranceClaimLine;
 import com.rhn.billing.domain.InsuranceClaimResponse;
 import com.rhn.billing.domain.PatientAccount;
 import com.rhn.billing.domain.Settlement;
+import com.rhn.billing.domain.SettlementStatus;
 import com.rhn.billing.infrastructure.ChargeItemRepository;
 import com.rhn.billing.infrastructure.InsuranceClaimLineRepository;
 import com.rhn.billing.infrastructure.InsuranceClaimRepository;
@@ -25,6 +26,7 @@ import com.rhn.healthcore.api.CoverageDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
@@ -32,6 +34,7 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +72,40 @@ class InsuranceClaimTransactionService {
         this.contextProvider = contextProvider; this.json = json;
     }
 
+    /**
+     * 组装快捷门诊医保预结算所需的结算单、费用账户、患者保障与明细映射上下文，
+     * 使 web 层无需直接依赖结算/费用仓储与医保专网客户端。
+     */
+    @Transactional(readOnly = true)
+    public QuickContext quickPreSettleContext(Long settlementId, Long coverageId, String insuranceTypeCode,
+                                              String regionCode) {
+        ExecutionContext context = requireContext();
+        Settlement settlement = settlements.findByIdAndTenantId(settlementId, context.tenantId())
+                .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
+        PatientAccount account = accounts.findByIdAndTenantId(settlement.patientAccountId(), context.tenantId())
+                .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
+        CoverageDirectory.CoverageView coverage = coverages.requireOrProvisionActive(coverageId, account.residentId(),
+                LocalDate.now(), insuranceTypeCode, "江西省城镇职工基本医疗保险");
+        List<com.rhn.billing.domain.SettlementLine> lines = settlementLines
+                .findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), settlementId);
+        Map<Long, ChargeItem> chargesById = charges.findAllById(lines.stream()
+                        .map(com.rhn.billing.domain.SettlementLine::chargeItemId).toList()).stream()
+                .collect(Collectors.toMap(ChargeItem::id, value -> value));
+        List<QuickLine> mappings = new ArrayList<>();
+        for (com.rhn.billing.domain.SettlementLine line : lines) {
+            ChargeItem charge = chargesById.get(line.chargeItemId());
+            String insuranceItemCode = charge != null && charge.itemCodeSnapshot() != null
+                    ? "CHS-" + charge.itemCodeSnapshot() : "CHS-ITEM";
+            mappings.add(new QuickLine(line.id(), insuranceItemCode, Map.of()));
+        }
+        return new QuickContext(settlement, account, coverage, regionCode, mappings);
+    }
+
+    public record QuickLine(Long settlementLineId, String insuranceItemCode, Map<String, String> traceAttributes) {}
+
+    public record QuickContext(Settlement settlement, PatientAccount account,
+                               CoverageDirectory.CoverageView coverage, String regionCode, List<QuickLine> lines) {}
+
     @Transactional
     CreateResult create(CreateCommand input) {
         ExecutionContext context = requireContext();
@@ -77,7 +114,7 @@ class InsuranceClaimTransactionService {
         if (replay != null) return new CreateResult(verifyReplay(replay, input), true);
         Settlement settlement = settlements.findByIdAndTenantId(input.settlementId(), context.tenantId())
                 .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
-        if (!"PRICED".equals(settlement.status())) {
+        if (settlement.status() != SettlementStatus.PRICED) {
             throw conflict("INSURANCE_SETTLEMENT_STATE_INVALID", "医保预结算必须在收款前完成");
         }
         if (claims.findByTenantIdAndSettlementId(context.tenantId(), settlement.id()).isPresent()) {
@@ -104,8 +141,8 @@ class InsuranceClaimTransactionService {
                 required(input.practitionerCode(), "INSURANCE_PRACTITIONER_CODE_REQUIRED", "医保医师编码不能为空"),
                 required(input.diagnosisPayloadDigest(), "INSURANCE_DIAGNOSIS_DIGEST_REQUIRED", "诊断摘要不能为空"),
                 Objects.requireNonNullElseGet(input.serviceStartedAt(), java.time.Instant::now), input.serviceEndedAt(),
-                money(settlement.netAmount()), settlement.currencyCode(), clean(input.correlationId()) == null
-                ? context.correlationId() : clean(input.correlationId()), context.subjectId()));
+                money(settlement.netAmount()), settlement.currencyCode(), Strings.trimToNull(input.correlationId()) == null
+                ? context.correlationId() : Strings.trimToNull(input.correlationId()), context.subjectId()));
         for (var line : values) {
             LineMapping mapping = mappings.get(line.id());
             if (mapping == null) throw badRequest("INSURANCE_LINE_MAPPING_INCOMPLETE", "每条结算明细都必须提供医保目录映射");
@@ -261,8 +298,8 @@ class InsuranceClaimTransactionService {
 
     private InsuranceClaim verifyReplay(InsuranceClaim value, CreateCommand input) {
         if (!value.settlementId().equals(input.settlementId()) || !value.coverageId().equals(input.coverageId())
-                || !value.regionCode().equalsIgnoreCase(clean(input.regionCode()))
-                || !value.insuranceTypeCode().equalsIgnoreCase(clean(input.insuranceTypeCode()))) {
+                || !value.regionCode().equalsIgnoreCase(Strings.trimToNull(input.regionCode()))
+                || !value.insuranceTypeCode().equalsIgnoreCase(Strings.trimToNull(input.insuranceTypeCode()))) {
             throw conflict("INSURANCE_IDEMPOTENCY_MISMATCH", "幂等编码已用于不同医保申请");
         }
         return value;
@@ -300,10 +337,9 @@ class InsuranceClaimTransactionService {
         return "REGISTRATION".equals(value.sourceType()) ? "REGISTRATION" : "MEDICATION";
     }
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null || result.length() > 128) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null || result.length() > 128) throw badRequest(code, message); return result;
     }
     private String upper(String value, String code, String message) { return required(value, code, message).toUpperCase(); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private BigDecimal money(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
     private ExecutionContext requireContext() {
         ExecutionContext context = contextProvider.requireCurrent();

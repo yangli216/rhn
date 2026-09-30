@@ -40,8 +40,35 @@ public class SemanticResolver {
         }
 
         // 3. 指标四层解析与安全校验 (Metric Resolution)
-        if (query.metrics().isEmpty()) {
-            return Resolution.clarify(
+        MetricResolution metricResolution = resolveMetrics(query.metrics());
+        if (metricResolution.failure() != null) {
+            return metricResolution.failure();
+        }
+        List<ResolvedMetric> resolvedMetrics = metricResolution.metrics();
+
+        // 4. 维度解析与细分科室智能消歧 (Dimension Disambiguation)
+        DimensionResolution dimensionResolution = resolveDimensions(query.dimensions(), resolvedMetrics);
+        if (dimensionResolution.failure() != null) {
+            return dimensionResolution.failure();
+        }
+        List<ResolvedDimension> resolvedDimensions = dimensionResolution.dimensions();
+        List<ResolvedFilter> resolvedFilters = new ArrayList<>();
+
+        // 4.5 过滤条件解析与属性绑定 (Filter Resolution & Attribute Binding)
+        resolvedFilters.addAll(resolveFilters(query.filters(), resolvedDimensions, resolvedMetrics));
+
+        // 若维度或需求隐含临床科室属性且尚未添加对应过滤，自动补充 ResolvedFilter
+        if (dimensionResolution.impliedClinicalDeptFilter()) {
+            applyImpliedDepartmentFilter(resolvedFilters, resolvedDimensions);
+        }
+
+        // 5. 组装 ResolvedSemanticQuery 并返回 READY
+        return buildResolution(query, resolvedMetrics, resolvedDimensions, resolvedFilters);
+    }
+
+    private MetricResolution resolveMetrics(List<MetricIntent> metricIntents) {
+        if (metricIntents.isEmpty()) {
+            return new MetricResolution(null, Resolution.clarify(
                 "METRIC_MISSING",
                 "请提供您希望分析的统计指标，例如门诊挂号人次、药品费用或有效医嘱数。",
                 List.of(
@@ -49,11 +76,11 @@ public class SemanticResolver {
                     new ClarificationOption("OP_DRUG_CHARGE_AMOUNT", "门诊药品费用净发生额"),
                     new ClarificationOption("OP_ACTIVE_ORDER_COUNT", "门诊有效医嘱条数")
                 )
-            );
+            ));
         }
 
         List<ResolvedMetric> resolvedMetrics = new ArrayList<>();
-        for (MetricIntent mIntent : query.metrics()) {
+        for (MetricIntent mIntent : metricIntents) {
             String text = mIntent.text();
             Optional<MetricDefinition> metricOpt = metricRegistry.findByText(text);
             if (metricOpt.isEmpty()) {
@@ -64,9 +91,9 @@ public class SemanticResolver {
                     List<ClarificationOption> options = candidates.stream()
                         .map(c -> new ClarificationOption(c.code(), c.name()))
                         .toList();
-                    return Resolution.clarify("METRIC_CANDIDATES_AMBIGUOUS", "您关注的指标对应多个统计口径，请选择：", options);
+                    return new MetricResolution(null, Resolution.clarify("METRIC_CANDIDATES_AMBIGUOUS", "您关注的指标对应多个统计口径，请选择：", options));
                 } else {
-                    return Resolution.unsupported("METRIC_NOT_FOUND", "当前数据目录尚未接入指标：" + text);
+                    return new MetricResolution(null, Resolution.unsupported("METRIC_NOT_FOUND", "当前数据目录尚未接入指标：" + text));
                 }
             }
 
@@ -74,74 +101,78 @@ public class SemanticResolver {
             // 校验是否违背禁用业务含义
             for (String forbidden : metric.forbiddenMeanings()) {
                 if (text.contains(forbidden)) {
-                    return Resolution.unsupported(
+                    return new MetricResolution(null, Resolution.unsupported(
                         "FORBIDDEN_MEANING_CONFLICT",
                         "指标【" + metric.name() + "】不表示【" + forbidden + "】。当前尚未接入实际收款或医保清算流水。"
-                    );
+                    ));
                 }
             }
 
             resolvedMetrics.add(new ResolvedMetric(metric, metric.defaultFilters()));
         }
+        return new MetricResolution(resolvedMetrics, null);
+    }
 
-        // 4. 维度解析与细分科室智能消歧 (Dimension Disambiguation)
+    private DimensionResolution resolveDimensions(List<DimensionIntent> dimensionIntents,
+                                                  List<ResolvedMetric> resolvedMetrics) {
         List<ResolvedDimension> resolvedDimensions = new ArrayList<>();
-        List<ResolvedFilter> resolvedFilters = new ArrayList<>();
         boolean impliedClinicalDeptFilter = false;
 
-        for (DimensionIntent dIntent : query.dimensions()) {
+        for (DimensionIntent dIntent : dimensionIntents) {
             String text = dIntent.text();
             if (text.contains("诊疗科室") || text.contains("临床科室")) {
                 impliedClinicalDeptFilter = true;
             }
             ResolvedDimension resolvedDim = resolveDimension(text, resolvedMetrics);
             if (resolvedDim == null) {
-                return Resolution.unsupported("DIMENSION_NOT_FOUND", "当前数据目录尚未接入分析维度：" + text);
+                return new DimensionResolution(null, false,
+                    Resolution.unsupported("DIMENSION_NOT_FOUND", "当前数据目录尚未接入分析维度：" + text));
             }
 
             // 校验维度与指标兼容性
             for (ResolvedMetric rm : resolvedMetrics) {
                 if (!dimensionRegistry.isCompatible(rm.definition(), resolvedDim.definition())) {
-                    return Resolution.unsupported(
+                    return new DimensionResolution(null, false, Resolution.unsupported(
                         "DIMENSION_INCOMPATIBLE",
                         "指标【" + rm.definition().name() + "】与维度【" + resolvedDim.definition().name() + "】不兼容，无法组合统计"
-                    );
+                    ));
                 }
             }
             resolvedDimensions.add(resolvedDim);
         }
+        return new DimensionResolution(resolvedDimensions, impliedClinicalDeptFilter, null);
+    }
 
-        // 4.5 过滤条件解析与属性绑定 (Filter Resolution & Attribute Binding)
-        resolvedFilters.addAll(resolveFilters(query.filters(), resolvedDimensions, resolvedMetrics));
-
-        // 若维度或需求隐含临床科室属性且尚未添加对应过滤，自动补充 ResolvedFilter
-        if (impliedClinicalDeptFilter) {
-            boolean alreadyHasDeptTypeFilter = resolvedFilters.stream()
-                .anyMatch(f -> f.attribute() != null && "dept_type".equalsIgnoreCase(f.attribute().code()));
-            if (!alreadyHasDeptTypeFilter) {
-                ResolvedDimension deptDim = resolvedDimensions.stream()
-                    .filter(d -> d.definition().code().endsWith("_DEPARTMENT"))
+    private void applyImpliedDepartmentFilter(List<ResolvedFilter> resolvedFilters,
+                                              List<ResolvedDimension> resolvedDimensions) {
+        boolean alreadyHasDeptTypeFilter = resolvedFilters.stream()
+            .anyMatch(f -> f.attribute() != null && "dept_type".equalsIgnoreCase(f.attribute().code()));
+        if (!alreadyHasDeptTypeFilter) {
+            ResolvedDimension deptDim = resolvedDimensions.stream()
+                .filter(d -> d.definition().code().endsWith("_DEPARTMENT"))
+                .findFirst()
+                .orElse(null);
+            if (deptDim != null) {
+                DimensionAttribute deptTypeAttr = deptDim.definition().attributes().stream()
+                    .filter(a -> "dept_type".equalsIgnoreCase(a.code()))
                     .findFirst()
                     .orElse(null);
-                if (deptDim != null) {
-                    DimensionAttribute deptTypeAttr = deptDim.definition().attributes().stream()
-                        .filter(a -> "dept_type".equalsIgnoreCase(a.code()))
-                        .findFirst()
-                        .orElse(null);
-                    if (deptTypeAttr != null) {
-                        resolvedFilters.add(new ResolvedFilter(
-                            deptDim.definition(),
-                            deptTypeAttr,
-                            Operator.EQ,
-                            List.of("CLINICAL"),
-                            "限定" + deptDim.definition().name() + "为临床诊疗科室"
-                        ));
-                    }
+                if (deptTypeAttr != null) {
+                    resolvedFilters.add(new ResolvedFilter(
+                        deptDim.definition(),
+                        deptTypeAttr,
+                        Operator.EQ,
+                        List.of("CLINICAL"),
+                        "限定" + deptDim.definition().name() + "为临床诊疗科室"
+                    ));
                 }
             }
         }
+    }
 
-        // 5. 组装 ResolvedSemanticQuery 并返回 READY
+    private Resolution buildResolution(SemanticQuery query, List<ResolvedMetric> resolvedMetrics,
+                                       List<ResolvedDimension> resolvedDimensions,
+                                       List<ResolvedFilter> resolvedFilters) {
         ResolvedSemanticQuery resolvedQuery = new ResolvedSemanticQuery(
             query.intent(),
             resolvedMetrics,
@@ -443,4 +474,8 @@ public class SemanticResolver {
         String scopeDesc = query.scope() == ScopeIntent.AUTHORIZED ? "全机构可访问科室" : "当前科室";
         return "已确认统计指标：" + String.join("、", metricNames) + "；按 " + String.join("、", dimNames) + " 分组" + filterDesc + "；统计周期：" + periodDesc + "；范围：" + scopeDesc + "。";
     }
+
+    private record MetricResolution(List<ResolvedMetric> metrics, Resolution failure) {}
+    private record DimensionResolution(List<ResolvedDimension> dimensions, boolean impliedClinicalDeptFilter,
+                                       Resolution failure) {}
 }

@@ -2,6 +2,7 @@ package com.rhn.platform.dictionary.domain;
 
 import com.rhn.shared.api.StaleRevisionException;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -60,24 +61,24 @@ public class DictionaryDefinition {
         // initialized to zero on insert and remains externally visible as revision 0.
         this.revision = null;
         this.scopeType = scopeType;
-        this.tenantId = scopeType == DictionaryScopeType.TENANT ? requireId(currentTenantId, "租户") : null;
+        this.tenantId = scopeType == DictionaryScopeType.TENANT ? Strings.requireId(currentTenantId, "租户") : null;
         this.scopeCode = scopeType == DictionaryScopeType.PLATFORM ? "PLATFORM" : "TENANT:" + tenantId;
-        this.categoryId = requireId(categoryId, "字典分类");
+        this.categoryId = Strings.requireId(categoryId, "字典分类");
         this.code = DictionaryCodePolicy.requireDictionaryCode(code);
-        this.name = requireText(name, "字典名称", 200);
+        this.name = Strings.requireText(name, "字典名称", 200);
         this.description = optionalText(description, 1000);
         this.systemManaged = false;
         this.status = DictionaryStatus.ACTIVE;
         this.createdAt = Instant.now();
-        this.createdBy = requireId(actorId, "操作用户");
+        this.createdBy = Strings.requireId(actorId, "操作用户");
         this.updatedAt = createdAt;
         this.updatedBy = actorId;
     }
 
     public void update(Long categoryId, String name, String description, long expectedRevision, Long actorId) {
         assertRevision(expectedRevision);
-        this.categoryId = requireId(categoryId, "字典分类");
-        this.name = requireText(name, "字典名称", 200);
+        this.categoryId = Strings.requireId(categoryId, "字典分类");
+        this.name = Strings.requireText(name, "字典名称", 200);
         this.description = optionalText(description, 1000);
         touch(actorId);
     }
@@ -104,25 +105,13 @@ public class DictionaryDefinition {
 
     private void touch(Long actorId) {
         updatedAt = Instant.now();
-        updatedBy = requireId(actorId, "操作用户");
+        updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public void assertRevision(long expectedRevision) {
         if (revision == null || revision != expectedRevision) {
             throw new StaleRevisionException(revision, "字典已被其他操作更新，当前修订号为 " + revision);
         }
-    }
-
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
-    private static String requireText(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
     }
 
     private static String optionalText(String value, int max) {

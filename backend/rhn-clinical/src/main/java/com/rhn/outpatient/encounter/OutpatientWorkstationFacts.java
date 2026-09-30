@@ -3,6 +3,8 @@ package com.rhn.outpatient.encounter;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
@@ -92,7 +94,7 @@ class EncounterWorkSession {
     @Column(name = "ID_PRACT") private Long practitionerId;
     @Column(name = "ID_USER") private Long userId;
     @Column(name = "CD_TRMNL") private String terminalCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private EncounterWorkSessionStatus status;
     @Column(name = "DT_STARTED", nullable = false) private Instant startedAt;
     @Column(name = "DT_HRTBT", nullable = false) private Instant heartbeatAt;
     @Column(name = "DT_CLOSED") private Instant closedAt;
@@ -107,14 +109,14 @@ class EncounterWorkSession {
         this.practitionerId = practitionerId;
         this.userId = userId;
         this.terminalCode = terminalCode;
-        this.status = "ACTIVE";
+        this.status = EncounterWorkSessionStatus.ACTIVE;
         this.startedAt = Instant.now();
         this.heartbeatAt = startedAt;
     }
 
     void close(String reason) {
-        if (!"ACTIVE".equals(status)) return;
-        status = "CLOSED";
+        if (status != EncounterWorkSessionStatus.ACTIVE) return;
+        status = EncounterWorkSessionStatus.CLOSED;
         closeReason = reason;
         closedAt = Instant.now();
         heartbeatAt = closedAt;

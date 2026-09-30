@@ -4,6 +4,7 @@ import com.rhn.platform.printing.domain.PrintDocumentDefinition;
 import com.rhn.platform.printing.domain.PrintMediaProfile;
 import com.rhn.platform.printing.domain.PrintTemplate;
 import com.rhn.platform.printing.domain.PrintTemplateDraft;
+import com.rhn.platform.printing.domain.PrintTemplateDraftStatus;
 import com.rhn.platform.printing.domain.PrintTemplateVersion;
 import com.rhn.platform.printing.infrastructure.PrintDocumentDefinitionRepository;
 import com.rhn.platform.printing.infrastructure.PrintMediaProfileRepository;
@@ -33,7 +34,8 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class PrintTemplateAdministrationService {
-    private static final Set<String> OPEN_STATUSES = Set.of("DRAFT", "IN_REVIEW", "REJECTED");
+    private static final Set<PrintTemplateDraftStatus> OPEN_STATUSES = Set.of(PrintTemplateDraftStatus.DRAFT,
+            PrintTemplateDraftStatus.IN_REVIEW, PrintTemplateDraftStatus.REJECTED);
     private final PrintDocumentDefinitionRepository definitionRepository;
     private final PrintMediaProfileRepository mediaRepository;
     private final PrintTemplateDraftRepository draftRepository;
@@ -264,7 +266,7 @@ public class PrintTemplateAdministrationService {
         PrintDocumentDefinition definition = definitionRepository.findById(value.documentDefinitionId()).orElseThrow();
         PrintMediaProfile media = mediaRepository.findById(value.mediaProfileId()).orElseThrow();
         return new DraftView(value.id(), value.revision(), value.templateId(), value.publishedVersionId(),
-                value.templateCode(), value.templateName(), value.status(), value.layoutSchema(), value.configJson(),
+                value.templateCode(), value.templateName(), value.status().name(), value.layoutSchema(), value.configJson(),
                 view(definition), view(media), value.updatedAt(), value.updatedBy());
     }
 

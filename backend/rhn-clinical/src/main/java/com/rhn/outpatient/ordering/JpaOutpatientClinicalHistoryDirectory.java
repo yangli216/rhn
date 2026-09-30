@@ -54,15 +54,15 @@ class JpaOutpatientClinicalHistoryDirectory implements OutpatientClinicalHistory
                         value.diagnosisType())).toList();
         List<MedicationFact> medicationFacts = medications
                 .findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(tenantId, encounter.id()).stream()
-                .filter(value -> "ACTIVE".equals(value.status())).limit(50)
-                .map(value -> new MedicationFact(value.id(), value.revision(), value.status(),
+                .filter(value -> value.status() == MedicationRequestStatus.ACTIVE).limit(50)
+                .map(value -> new MedicationFact(value.id(), value.revision(), value.status().name(),
                         value.medicationCodeSnapshot(), value.medicationNameSnapshot(), value.doseValue(),
                         value.doseUnit(), value.routeCode(), value.frequencyCode(), value.durationValue(),
                         value.durationUnit(), value.quantity(), value.quantityUnit(), value.authoredAt())).toList();
         List<ServiceFact> serviceFacts = services
                 .findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(tenantId, encounter.id()).stream()
-                .filter(value -> "ACTIVE".equals(value.status())).limit(50)
-                .map(value -> new ServiceFact(value.id(), value.revision(), value.status(),
+                .filter(value -> value.status() == ServiceRequestStatus.ACTIVE).limit(50)
+                .map(value -> new ServiceFact(value.id(), value.revision(), value.status().name(),
                         value.serviceTypeSnapshot(), value.itemCodeSnapshot(), value.itemNameSnapshot(),
                         value.quantity(), value.unitCodeSnapshot(), value.reasonText(),
                         value.clinicalDescription(), value.authoredAt())).toList();

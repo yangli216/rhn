@@ -5,165 +5,86 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Upgrade the existing schema in place, including all seeded data and tenant composite keys. */
+/**
+ * 物理字段缩写重命名治理：评审清单登记的每次重命名都必须由压平的库基线落地，
+ * 重命名后的物理列名在重建库中真实存在，重命名前的列名不再残留。
+ */
 @ActiveProfiles("test")
 class PhysicalColumnAbbreviationMigrationTest {
-    private static final String MIGRATION = "V1_77_0__governed_column_abbreviations.sql";
+    private static final String BASELINE = "B1_84_0__rhn_schema_and_metadata.sql";
 
     @Test
-    void renamed_columns_preserve_data_types_defaults_comments_keys_and_indexes() throws Exception {
+    void governed_abbreviation_renames_are_applied_by_the_flattened_baseline() throws Exception {
         var mapper = JsonMapper.builder().build();
         var manifest = mapper.readTree(Files.readString(Path.of("../docs/database/column-renames-1.77.0.json")));
-        Map<String, Map<String, String>> renames = new TreeMap<>();
+        String migration = Files.readString(Path.of("src/main/resources/db/migration", BASELINE));
+        String oracle = Files.readString(Path.of("src/main/resources/db/oracle", BASELINE));
+
+        var governed = new TreeSet<String>();
         for (var row : manifest.get("renames")) {
-            renames.computeIfAbsent(row.get("table").asString(), ignored -> new LinkedHashMap<>())
-                    .put(row.get("before").asString(), row.get("after").asString());
+            String statement = "ALTER TABLE " + row.get("table").asString() + " RENAME COLUMN "
+                    + row.get("before").asString() + " TO " + row.get("after").asString() + ";";
+            assertTrue(migration.contains(statement), () -> "基线迁移缺少清单登记的重命名：" + statement);
+            assertTrue(oracle.contains(statement), () -> "Oracle 基线迁移缺少清单登记的重命名：" + statement);
+            governed.add(statement);
         }
-        // Both databases use the same portable ALTER TABLE RENAME COLUMN statements.
-        String sqlMigration = Files.readString(Path.of("src/main/resources/db/migration", MIGRATION));
-        assertEquals(sqlMigration,
-                Files.readString(Path.of("src/main/resources/db/oracle", MIGRATION)));
-        int renameCount = 0;
-        for (var table : renames.entrySet()) for (var column : table.getValue().entrySet()) {
-            assertTrue(sqlMigration.contains("ALTER TABLE " + table.getKey() + " RENAME COLUMN "
-                    + column.getKey() + " TO " + column.getValue() + ";"), "Migration differs from the review manifest");
-            renameCount++;
-        }
-        assertEquals(renameCount, sqlMigration.lines().filter(line -> line.startsWith("ALTER TABLE ")).count());
+        assertFalse(governed.isEmpty(), "重命名清单不能为空");
+        // 两种方言使用同一套可移植的重命名语句，必须逐条一致。
+        assertEquals(renames(migration), renames(oracle), "迁移与 Oracle 基线的重命名语句必须一致");
+        assertTrue(renames(migration).containsAll(governed), "基线重命名语句必须覆盖全部清单登记项");
+
         String url = "jdbc:h2:mem:column-naming-test-" + UUID.randomUUID()
                 + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1";
-        var config = Flyway.configure().dataSource(url, "sa", "")
-                .locations("classpath:db/migration", "classpath:db/h2", "classpath:db/local");
-        config.target("1.76.0").load().migrate();
+        var result = Flyway.configure().dataSource(url, "sa", "")
+                .locations("classpath:db/migration", "classpath:db/h2", "classpath:db/local")
+                .load().migrate();
+        assertTrue(result.migrationsExecuted > 0, "重建基线必须执行迁移");
         try (Connection connection = DriverManager.getConnection(url, "sa", "")) {
-            // Retain nonempty CLOB and timestamp values in an otherwise empty version-history table.
-            try (var sql = connection.createStatement()) {
-                sql.executeUpdate("""
-                        insert into RHN_BD_CLIN_SEM_VER
-                        (ID_CLIN_SEM_VER, ID_TNT, SD_CONCEPT_KIND, CD_CONCEPT, HASH_SEM_VER,
-                         SD_CHANGE_TYPE, DES_SOURCE, JSON_SNAPSHOT, DT_RECORDED)
-                        values (101, 1, 'MEDICATION', 'test', 'saved-version', 'CAPTURED',
-                                '命名迁移保留证据', '{"saved":true}', current_timestamp)
-                        """);
+            Map<String, TreeSet<String>> columns = new LinkedHashMap<>();
+            try (var sql = connection.createStatement(); var rows = sql.executeQuery("""
+                    select table_name, column_name from information_schema.columns
+                    where table_schema = current_schema()
+                    """)) {
+                while (rows.next()) {
+                    columns.computeIfAbsent(rows.getString(1).toUpperCase(Locale.ROOT), ignored -> new TreeSet<>())
+                            .add(rows.getString(2).toUpperCase(Locale.ROOT));
+                }
             }
-            Map<String, String> dataBefore = dataDigests(connection, renames);
-            var structureBefore = structures(connection, renames, true);
-            var result = config.target("1.77.0").load().migrate();
-            assertEquals(1, result.migrationsExecuted);
-            assertEquals(dataBefore, dataDigests(connection, renames), "Column rename must not alter any existing row");
-            assertEquals(structureBefore, structures(connection, renames, false),
-                    "Types, defaults, comments, tenant foreign keys, unique keys and indexes must survive renaming");
-            assertEquals(0, config.load().migrate().migrationsExecuted, "Flyway must not repeat the rename");
-            try (var sql = connection.createStatement(); var row = sql.executeQuery(
-                    "select JSON_SNAP, DT_RECDD from RHN_BD_CLIN_SEM_VER where ID_CLIN_SEM_VER=101")) {
-                assertTrue(row.next());
-                assertEquals("{\"saved\":true}", row.getString(1));
-                assertNotNull(row.getTimestamp(2));
+            for (var row : manifest.get("renames")) {
+                String table = row.get("table").asString().toUpperCase(Locale.ROOT);
+                var actual = columns.getOrDefault(table, new TreeSet<>());
+                assertFalse(actual.isEmpty(), () -> "重建库缺少重命名清单涉及的表：" + table);
+                assertTrue(actual.contains(row.get("after").asString().toUpperCase(Locale.ROOT)),
+                        () -> "重建库缺少重命名后的列：" + table + "." + row.get("after").asString());
+                assertFalse(actual.contains(row.get("before").asString().toUpperCase(Locale.ROOT)),
+                        () -> "重建库仍残留重命名前的列：" + table + "." + row.get("before").asString());
             }
         }
     }
 
-    private Map<String, String> dataDigests(Connection connection, Map<String, Map<String, String>> renames) throws Exception {
-        Map<String, String> result = new TreeMap<>();
-        for (String table : renames.keySet()) {
-            List<String> rows = new ArrayList<>();
-            try (var sql = connection.createStatement(); var data = sql.executeQuery("select * from " + table)) {
-                int columns = data.getMetaData().getColumnCount();
-                while (data.next()) {
-                    var digest = MessageDigest.getInstance("SHA-256");
-                    for (int i = 1; i <= columns; i++) {
-                        String value = data.getString(i);
-                        digest.update((value == null ? "-1:" : value.length() + ":" + value).getBytes(StandardCharsets.UTF_8));
-                    }
-                    rows.add(HexFormat.of().formatHex(digest.digest()));
-                }
-            }
-            rows.sort(String::compareTo);
-            result.put(table, rows.size() + ":" + HexFormat.of().formatHex(
-                    MessageDigest.getInstance("SHA-256").digest(String.join("", rows).getBytes(StandardCharsets.UTF_8))));
-        }
-        return result;
-    }
-
-    private Map<String, Object> structures(Connection connection, Map<String, Map<String, String>> renames,
-                                           boolean before) throws Exception {
-        Map<String, Object> result = new TreeMap<>();
-        var meta = connection.getMetaData();
-        for (String table : renames.keySet()) {
-            String physical = table.toLowerCase(Locale.ROOT);
-            try (var columns = meta.getColumns(null, connection.getSchema(), physical, null)) {
-                var fields = new TreeMap<String, List<String>>();
-                while (columns.next()) {
-                    String column = canonical(renames, table, columns.getString("COLUMN_NAME"), before);
-                    fields.put(column, List.of(columns.getString("TYPE_NAME"), columns.getString("COLUMN_SIZE"),
-                            String.valueOf(columns.getString("DECIMAL_DIGITS")), columns.getString("NULLABLE"),
-                            String.valueOf(columns.getString("COLUMN_DEF")), String.valueOf(columns.getString("REMARKS"))));
-                }
-                result.put(table + ".columns", fields);
-            }
-            try (var keys = meta.getPrimaryKeys(null, connection.getSchema(), physical)) {
-                result.put(table + ".pk", keyRows(keys, renames, table, before, "COLUMN_NAME", "KEY_SEQ", "PK_NAME"));
-            }
-            try (var indexes = meta.getIndexInfo(null, connection.getSchema(), physical, false, false)) {
-                result.put(table + ".indexes", keyRows(indexes, renames, table, before,
-                        "COLUMN_NAME", "INDEX_NAME", "NON_UNIQUE", "ORDINAL_POSITION", "ASC_OR_DESC"));
-            }
-        }
-        // Check every FK, including references from tables whose own columns did not change.
-        int foreignKeyColumns = 0;
-        try (var tables = meta.getTables(null, connection.getSchema(), "rhn_%", new String[]{"BASE TABLE"})) {
-            while (tables.next()) {
-                String table = tables.getString("TABLE_NAME");
-                var keys = new TreeSet<String>();
-                try (var rows = meta.getImportedKeys(null, connection.getSchema(), table)) {
-                    while (rows.next()) keys.add(rows.getString("FK_NAME") + ":" + rows.getString("KEY_SEQ") + ":"
-                            + canonical(renames, table, rows.getString("FKCOLUMN_NAME"), before) + ":"
-                            + rows.getString("PKTABLE_NAME") + ":"
-                            + canonical(renames, rows.getString("PKTABLE_NAME"), rows.getString("PKCOLUMN_NAME"), before)
-                            + ":" + rows.getString("UPDATE_RULE") + ":" + rows.getString("DELETE_RULE"));
-                }
-                foreignKeyColumns += keys.size();
-                result.put(table + ".fk", keys);
-            }
-        }
-        assertTrue(foreignKeyColumns > 1000, "Must inspect actual tenant composite foreign keys");
-        return result;
-    }
-
-    private TreeSet<String> keyRows(ResultSet rows, Map<String, Map<String, String>> renames, String table,
-                                     boolean before, String... fields) throws Exception {
+    /** 提取基线中的全部 ALTER TABLE ... RENAME COLUMN 语句，用于比对不同方言的可移植性。 */
+    private static TreeSet<String> renames(String sql) {
         var result = new TreeSet<String>();
-        while (rows.next()) {
-            List<String> values = new ArrayList<>();
-            for (String field : fields) values.add(field.equals("COLUMN_NAME")
-                    ? canonical(renames, table, rows.getString(field), before) : String.valueOf(rows.getString(field)));
-            result.add(String.join(":", values));
+        for (String line : sql.split("\n")) {
+            String statement = line.strip();
+            if (statement.regionMatches(true, 0, "ALTER TABLE ", 0, "ALTER TABLE ".length())
+                    && statement.toUpperCase(Locale.ROOT).contains(" RENAME COLUMN ")
+                    && statement.endsWith(";")) {
+                result.add(statement);
+            }
         }
         return result;
-    }
-
-    private String canonical(Map<String, Map<String, String>> renames, String table, String column, boolean before) {
-        if (column == null) return "";
-        String name = column.toUpperCase(Locale.ROOT);
-        return before ? renames.getOrDefault(table.toUpperCase(Locale.ROOT), Map.of()).getOrDefault(name, name) : name;
     }
 }

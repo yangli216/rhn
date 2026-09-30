@@ -1,8 +1,11 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -22,7 +25,7 @@ public class CatalogChangeBatch {
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
     @Column(name = "HASH_REQ", nullable = false) private String requestHash;
     @Column(name = "DA_BIZ", nullable = false) private LocalDate businessDate;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private CatalogChangeBatchStatus status;
     @Column(name = "QTY_TOTAL_ROW", nullable = false) private int totalRows;
     @Column(name = "QTY_SUCCDD_ROW", nullable = false) private int succeededRows;
     @Column(name = "QTY_FAILED_ROW", nullable = false) private int failedRows;
@@ -39,9 +42,9 @@ public class CatalogChangeBatch {
         if (totalRows <= 0) throw new IllegalArgumentException("批量操作至少包含一条数据");
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.batchType = batchType;
         this.operationType = operationType; this.organizationId = organizationId;
-        this.requestCode = requireText(requestCode, "请求编码", 128); this.businessDate = businessDate;
-        this.requestHash = requireText(requestHash, "请求摘要", 64);
-        this.status = "PROCESSING"; this.totalRows = totalRows;
+        this.requestCode = Strings.requireText(requestCode, "请求编码", 128); this.businessDate = businessDate;
+        this.requestHash = Strings.requireText(requestHash, "请求摘要", 64);
+        this.status = CatalogChangeBatchStatus.PROCESSING; this.totalRows = totalRows;
         this.createdAt = Instant.now(); this.createdBy = actorId; this.updatedAt = createdAt; this.updatedBy = actorId;
     }
 
@@ -50,22 +53,16 @@ public class CatalogChangeBatch {
             throw new IllegalArgumentException("批量操作数量不一致");
         }
         succeededRows = succeeded; failedRows = failed;
-        status = failed == 0 ? "COMPLETED" : succeeded == 0 ? "FAILED" : "PARTIAL";
+        status = failed == 0 ? CatalogChangeBatchStatus.COMPLETED
+                : succeeded == 0 ? CatalogChangeBatchStatus.FAILED : CatalogChangeBatchStatus.PARTIAL;
         updatedAt = Instant.now(); updatedBy = actorId;
-    }
-
-    private static String requireText(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
     }
 
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }
     public String batchType() { return batchType; } public String operationType() { return operationType; }
     public Long organizationId() { return organizationId; } public String requestCode() { return requestCode; }
     public String requestHash() { return requestHash; }
-    public LocalDate businessDate() { return businessDate; } public String status() { return status; }
+    public LocalDate businessDate() { return businessDate; } public CatalogChangeBatchStatus status() { return status; }
     public int totalRows() { return totalRows; } public int succeededRows() { return succeededRows; }
     public int failedRows() { return failedRows; } public Instant createdAt() { return createdAt; }
     public Long createdBy() { return createdBy; } public Instant updatedAt() { return updatedAt; }

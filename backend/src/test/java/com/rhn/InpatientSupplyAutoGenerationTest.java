@@ -5,7 +5,6 @@ import com.rhn.platform.configuration.infrastructure.ConfigurationValueCache;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.annotation.DirtiesContext;
 import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
@@ -15,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
+@ResetDatabaseBeforeEachTestMethod
 class InpatientSupplyAutoGenerationTest extends RhnIntegrationTestSupport {
     private static final String RESIDENT = "362387869790213";
     private static final String BED = "362387869898514";

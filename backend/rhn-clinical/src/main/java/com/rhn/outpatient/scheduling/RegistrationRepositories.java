@@ -24,7 +24,7 @@ interface AppointmentRepository extends JpaRepository<Appointment, Long> {
             Long tenantId, Collection<Long> scheduleIds, Instant from, Instant to);
 
     boolean existsByTenantIdAndResidentIdAndScheduleIdAndStatusIn(
-            Long tenantId, Long residentId, Long scheduleId, Collection<String> statuses);
+            Long tenantId, Long residentId, Long scheduleId, Collection<AppointmentStatus> statuses);
 }
 
 interface AppointmentEventRepository extends JpaRepository<AppointmentEvent, Long> {

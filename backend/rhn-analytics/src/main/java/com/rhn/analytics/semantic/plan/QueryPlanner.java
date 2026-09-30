@@ -40,60 +40,95 @@ public class QueryPlanner {
         if (query.metrics().isEmpty()) {
             throw new IllegalArgumentException("Cannot plan a query without metrics");
         }
-        if (scope == null) scope = PlannedScope.defaultDevScope();
-        if (today == null) today = LocalDate.now();
 
-        String planId = "plan-" + Long.toHexString(java.util.concurrent.ThreadLocalRandom.current().nextLong() & 0xFFFFFFFFL);
-
-        // 1. 确定主事实实体与表别名 (Primary Fact Entity)
-        ResolvedMetric primaryMetric = query.metrics().get(0);
-        MetricDefinition metricDef = primaryMetric.definition();
-        String primaryEntity = metricDef.source(); // e.g. CHARGE, ORDER, ENCOUNTER, DIAGNOSIS
-        EntityDefinition factEntityDef = findEntity(primaryEntity);
-        String primaryTable = factEntityDef.table() != null ? factEntityDef.table() : resolveDefaultTable(primaryEntity);
-        String primaryAlias = "t0";
-        String grain = metricDef.grain();
+        PlanContext ctx = new PlanContext(
+            query,
+            scope != null ? scope : PlannedScope.defaultDevScope(),
+            today != null ? today : LocalDate.now(),
+            "plan-" + Long.toHexString(java.util.concurrent.ThreadLocalRandom.current().nextLong() & 0xFFFFFFFFL)
+        );
 
         // 2. 规划连接拓扑 (Join Path Planning)
-        List<PlannedJoin> joins = new ArrayList<>();
-        Set<String> joinedEntities = new HashSet<>();
+        planJoinPaths(ctx);
 
-        // 检查是否需要连接 DEPARTMENT (科室主数据)
-        boolean needsDeptJoin = false;
-        // 维度中是否包含科室
-        for (ResolvedDimension rd : query.dimensions()) {
-            if (rd.definition().code().endsWith("_DEPARTMENT")) {
-                needsDeptJoin = true;
-                break;
-            }
-        }
-        // 属性过滤中是否包含科室属性 (如 dept_type)
-        for (ResolvedFilter rf : query.resolvedFilters()) {
-            if (rf.attribute() != null && "dept_type".equalsIgnoreCase(rf.attribute().code())) {
-                needsDeptJoin = true;
-                break;
-            }
-        }
-        // 指标默认过滤中是否包含科室属性 (如 deptType=CLINICAL)
-        for (DefaultFilter df : metricDef.defaultFilters()) {
-            if ("deptType".equalsIgnoreCase(df.field())) {
-                needsDeptJoin = true;
-                break;
-            }
-        }
-        // 如果具有授权科室过滤，非科室/就诊实体也需桥接科室
-        if (!scope.authorizedDepartments().isEmpty() && !primaryEntity.equals("DEPARTMENT") && !primaryEntity.equals("ENCOUNTER")) {
-            needsDeptJoin = true;
-        }
+        // 3. 分组维度规划 (Dimension Planning)
+        List<PlannedDimension> dimensions = planDimensions(ctx);
 
-        if (needsDeptJoin && !primaryEntity.equals("DEPARTMENT")) {
-            if (!primaryEntity.equals("ENCOUNTER")) {
-                if (!joinedEntities.contains("ENCOUNTER")) {
+        // 4. 统计度量规划 (Measure Planning)
+        List<PlannedMeasure> measures = planMeasures(ctx);
+
+        // 5. 谓词过滤下推规划 (Predicate Pushdown Planning)
+        List<PlannedFilter> filters = planPredicates(ctx, measures);
+
+        // 6. 时间窗口规划 (Time Range Planning)
+        PlannedTimeRange timeRange = resolveTimeRange(
+            ctx.query.period(), ctx.primaryEntity, ctx.primaryAlias, ctx.timeCol, ctx.today);
+
+        // 7. 排序与限制规划 (Sort & Limit)
+        PlannedSort sort = planSort(ctx.query, measures);
+        int limit = ctx.query.limit() != null && ctx.query.limit() > 0 ? ctx.query.limit() : 10;
+
+        return new LogicalQueryPlan(
+            ctx.planId,
+            ctx.primaryEntity,
+            ctx.primaryTable,
+            ctx.primaryAlias,
+            ctx.grain,
+            ctx.joins,
+            dimensions,
+            measures,
+            filters,
+            timeRange,
+            ctx.scope,
+            sort,
+            limit
+        );
+    }
+
+    /**
+     * 规划期间共享的中间状态。
+     * 构造时完成「1. 以主指标为中心确定主事实实体与聚合粒度」，避免在多个私有方法间传递十余个参数。
+     */
+    private final class PlanContext {
+        private final ResolvedSemanticQuery query;
+        private final PlannedScope scope;
+        private final LocalDate today;
+        private final String planId;
+        private final MetricDefinition metricDef;
+        private final String primaryEntity;
+        private final String primaryTable;
+        private final String primaryAlias = "t0";
+        private final String grain;
+        private final String timeCol;
+        private final List<PlannedJoin> joins = new ArrayList<>();
+        private final Set<String> joinedEntities = new HashSet<>();
+
+        private PlanContext(ResolvedSemanticQuery query, PlannedScope scope, LocalDate today, String planId) {
+            this.query = query;
+            this.scope = scope;
+            this.today = today;
+            this.planId = planId;
+
+            ResolvedMetric primaryMetric = query.metrics().get(0);
+            this.metricDef = primaryMetric.definition();
+            this.primaryEntity = metricDef.source(); // e.g. CHARGE, ORDER, ENCOUNTER, DIAGNOSIS
+            EntityDefinition factEntityDef = findEntity(primaryEntity);
+            this.primaryTable = factEntityDef.table() != null ? factEntityDef.table() : resolveDefaultTable(primaryEntity);
+            this.grain = metricDef.grain();
+            this.timeCol = metricDef.timeDimension();
+        }
+    }
+
+    /** 2. 连接拓扑规划：按需桥接 ENCOUNTER / DEPARTMENT / ORDER，避免扇出风险。 */
+    private void planJoinPaths(PlanContext ctx) {
+        if (needsDepartmentJoin(ctx) && !ctx.primaryEntity.equals("DEPARTMENT")) {
+            if (!ctx.primaryEntity.equals("ENCOUNTER")) {
+                if (!ctx.joinedEntities.contains("ENCOUNTER")) {
                     EntityDefinition encDef = findEntity("ENCOUNTER");
                     String encTable = encDef.table() != null ? encDef.table() : resolveDefaultTable("ENCOUNTER");
-                    joins.add(new PlannedJoin(
-                        primaryEntity,
-                        primaryAlias,
+                    ctx.joins.add(new PlannedJoin(
+                        ctx.primaryEntity,
+                        ctx.primaryAlias,
                         "ENCOUNTER",
                         encTable,
                         "enc",
@@ -104,11 +139,11 @@ public class QueryPlanner {
                         ),
                         "关联门诊就诊以桥接科室主数据"
                     ));
-                    joinedEntities.add("ENCOUNTER");
+                    ctx.joinedEntities.add("ENCOUNTER");
                 }
                 EntityDefinition deptDef = findEntity("DEPARTMENT");
                 String deptTable = deptDef.table() != null ? deptDef.table() : resolveDefaultTable("DEPARTMENT");
-                joins.add(new PlannedJoin(
+                ctx.joins.add(new PlannedJoin(
                     "ENCOUNTER",
                     "enc",
                     "DEPARTMENT",
@@ -121,13 +156,13 @@ public class QueryPlanner {
                     ),
                     "关联科室主数据表以获取科室名称与属性过滤"
                 ));
-                joinedEntities.add("DEPARTMENT");
+                ctx.joinedEntities.add("DEPARTMENT");
             } else {
                 EntityDefinition deptDef = findEntity("DEPARTMENT");
                 String deptTable = deptDef.table() != null ? deptDef.table() : resolveDefaultTable("DEPARTMENT");
-                joins.add(new PlannedJoin(
-                    primaryEntity,
-                    primaryAlias,
+                ctx.joins.add(new PlannedJoin(
+                    ctx.primaryEntity,
+                    ctx.primaryAlias,
                     "DEPARTMENT",
                     deptTable,
                     "dept",
@@ -138,32 +173,15 @@ public class QueryPlanner {
                     ),
                     "关联科室主数据表以获取科室名称与属性过滤"
                 ));
-                joinedEntities.add("DEPARTMENT");
+                ctx.joinedEntities.add("DEPARTMENT");
             }
         }
 
-        // 检查 CHARGE 是否需要连接 ORDER (例如药品费用需要 orderKind=MEDICATION & orderStatus=ACTIVE)
-        boolean needsOrderJoin = false;
-        if (primaryEntity.equals("CHARGE")) {
-            for (DefaultFilter df : metricDef.defaultFilters()) {
-                if ("orderKind".equalsIgnoreCase(df.field()) || "orderStatus".equalsIgnoreCase(df.field())) {
-                    needsOrderJoin = true;
-                    break;
-                }
-            }
-            for (ResolvedDimension rd : query.dimensions()) {
-                if ("ORDER_TYPE".equals(rd.definition().code())) {
-                    needsOrderJoin = true;
-                    break;
-                }
-            }
-        }
-
-        if (needsOrderJoin && !primaryEntity.equals("ORDER")) {
+        if (needsOrderJoin(ctx) && !ctx.primaryEntity.equals("ORDER")) {
             EntityDefinition orderDef = findEntity("ORDER");
             String orderTable = orderDef.table() != null ? orderDef.table() : "RHN_EX_CARE_REQ";
-            joins.add(new PlannedJoin(
-                primaryEntity,
+            ctx.joins.add(new PlannedJoin(
+                ctx.primaryEntity,
                 "ORDER",
                 orderTable,
                 "req",
@@ -174,125 +192,150 @@ public class QueryPlanner {
                 ),
                 "关联门诊医嘱表以执行医嘱类别与状态过滤"
             ));
-            joinedEntities.add("ORDER");
+            ctx.joinedEntities.add("ORDER");
         }
+    }
 
-        // 3. 分组维度规划 (Dimension Planning)
+    /** 是否需要连接 DEPARTMENT（科室主数据）。 */
+    private boolean needsDepartmentJoin(PlanContext ctx) {
+        // 维度中是否包含科室
+        for (ResolvedDimension rd : ctx.query.dimensions()) {
+            if (rd.definition().code().endsWith("_DEPARTMENT")) {
+                return true;
+            }
+        }
+        // 属性过滤中是否包含科室属性 (如 dept_type)
+        for (ResolvedFilter rf : ctx.query.resolvedFilters()) {
+            if (rf.attribute() != null && "dept_type".equalsIgnoreCase(rf.attribute().code())) {
+                return true;
+            }
+        }
+        // 指标默认过滤中是否包含科室属性 (如 deptType=CLINICAL)
+        for (DefaultFilter df : ctx.metricDef.defaultFilters()) {
+            if ("deptType".equalsIgnoreCase(df.field())) {
+                return true;
+            }
+        }
+        // 如果具有授权科室过滤，非科室/就诊实体也需桥接科室
+        return !ctx.scope.authorizedDepartments().isEmpty()
+            && !ctx.primaryEntity.equals("DEPARTMENT")
+            && !ctx.primaryEntity.equals("ENCOUNTER");
+    }
+
+    /** CHARGE 是否需要连接 ORDER（例如药品费用需要 orderKind=MEDICATION & orderStatus=ACTIVE）。 */
+    private boolean needsOrderJoin(PlanContext ctx) {
+        if (!ctx.primaryEntity.equals("CHARGE")) {
+            return false;
+        }
+        for (DefaultFilter df : ctx.metricDef.defaultFilters()) {
+            if ("orderKind".equalsIgnoreCase(df.field()) || "orderStatus".equalsIgnoreCase(df.field())) {
+                return true;
+            }
+        }
+        for (ResolvedDimension rd : ctx.query.dimensions()) {
+            if ("ORDER_TYPE".equals(rd.definition().code())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 3. 分组维度规划：按维度代码映射到物理表达式（时间维度支持 DAY/MONTH 粒度）。 */
+    private List<PlannedDimension> planDimensions(PlanContext ctx) {
         List<PlannedDimension> dimensions = new ArrayList<>();
-        String timeCol = metricDef.timeDimension();
-        for (ResolvedDimension rd : query.dimensions()) {
+        for (ResolvedDimension rd : ctx.query.dimensions()) {
             String dimCode = rd.definition().code();
             String name = rd.definition().name();
             switch (dimCode) {
                 case "DAY" -> dimensions.add(new PlannedDimension(
-                    dimCode, name, primaryEntity, primaryAlias, timeCol,
-                    primaryAlias + "." + timeCol
+                    dimCode, name, ctx.primaryEntity, ctx.primaryAlias, ctx.timeCol,
+                    ctx.primaryAlias + "." + ctx.timeCol
                 ));
                 case "MONTH" -> dimensions.add(new PlannedDimension(
-                    dimCode, name, primaryEntity, primaryAlias, timeCol,
-                    "TO_CHAR(" + primaryAlias + "." + timeCol + ", 'YYYY-MM')"
+                    dimCode, name, ctx.primaryEntity, ctx.primaryAlias, ctx.timeCol,
+                    "TO_CHAR(" + ctx.primaryAlias + "." + ctx.timeCol + ", 'YYYY-MM')"
                 ));
                 case "CHARGE_DEPARTMENT", "ORDER_DEPARTMENT", "ENCOUNTER_DEPARTMENT" -> {
-                    String tableAlias = joinedEntities.contains("DEPARTMENT") ? "dept" : primaryAlias;
+                    String tableAlias = ctx.joinedEntities.contains("DEPARTMENT") ? "dept" : ctx.primaryAlias;
                     dimensions.add(new PlannedDimension(
                         dimCode, name, "DEPARTMENT", tableAlias, "ID_DEPT",
                         tableAlias + ".ID_DEPT"
                     ));
                 }
                 case "ORDER_TYPE" -> {
-                    String tableAlias = joinedEntities.contains("ORDER") ? "req" : primaryAlias;
+                    String tableAlias = ctx.joinedEntities.contains("ORDER") ? "req" : ctx.primaryAlias;
                     dimensions.add(new PlannedDimension(
                         dimCode, name, "ORDER", tableAlias, "SD_REQ_KIND",
                         tableAlias + ".SD_REQ_KIND"
                     ));
                 }
                 case "ITEM" -> dimensions.add(new PlannedDimension(
-                    dimCode, name, primaryEntity, primaryAlias, "ID_CATALOG_ITEM",
-                    primaryAlias + ".ID_CATALOG_ITEM"
+                    dimCode, name, ctx.primaryEntity, ctx.primaryAlias, "ID_CATALOG_ITEM",
+                    ctx.primaryAlias + ".ID_CATALOG_ITEM"
                 ));
                 case "DIAGNOSIS" -> dimensions.add(new PlannedDimension(
-                    dimCode, name, primaryEntity, primaryAlias, "CD_ENC_DIAG",
-                    primaryAlias + ".CD_ENC_DIAG"
+                    dimCode, name, ctx.primaryEntity, ctx.primaryAlias, "CD_ENC_DIAG",
+                    ctx.primaryAlias + ".CD_ENC_DIAG"
                 ));
                 case "STATUS" -> dimensions.add(new PlannedDimension(
-                    dimCode, name, primaryEntity, primaryAlias, "SD_STATUS",
-                    primaryAlias + ".SD_STATUS"
+                    dimCode, name, ctx.primaryEntity, ctx.primaryAlias, "SD_STATUS",
+                    ctx.primaryAlias + ".SD_STATUS"
                 ));
                 default -> dimensions.add(new PlannedDimension(
-                    dimCode, name, primaryEntity, primaryAlias, rd.definition().field(),
-                    primaryAlias + "." + rd.definition().field()
+                    dimCode, name, ctx.primaryEntity, ctx.primaryAlias, rd.definition().field(),
+                    ctx.primaryAlias + "." + rd.definition().field()
                 ));
             }
         }
+        return dimensions;
+    }
 
-        // 4. 统计度量规划 (Measure Planning)
+    /** 4. 统计度量规划：物理列映射 + 指标自带默认过滤条件。 */
+    private List<PlannedMeasure> planMeasures(PlanContext ctx) {
         List<PlannedMeasure> measures = new ArrayList<>();
-        for (ResolvedMetric rm : query.metrics()) {
+        for (ResolvedMetric rm : ctx.query.metrics()) {
             MetricDefinition mDef = rm.definition();
             String physicalCol = resolvePhysicalColumn(mDef.field());
             List<PlannedFilter> defaultPlannedFilters = new ArrayList<>();
 
             for (DefaultFilter df : mDef.defaultFilters()) {
-                defaultPlannedFilters.add(resolveDefaultFilter(df, primaryEntity, primaryAlias, joinedEntities));
+                defaultPlannedFilters.add(resolveDefaultFilter(
+                    df, ctx.primaryEntity, ctx.primaryAlias, ctx.joinedEntities));
             }
 
             measures.add(new PlannedMeasure(
                 mDef.code(),
                 mDef.name(),
-                primaryEntity,
-                primaryAlias,
+                ctx.primaryEntity,
+                ctx.primaryAlias,
                 physicalCol,
                 mDef.aggregate(),
                 defaultPlannedFilters
             ));
         }
+        return measures;
+    }
 
-        // 5. 谓词过滤下推规划 (Predicate Pushdown Planning)
+    /** 5. 谓词过滤下推规划：安全范围 → 指标默认过滤 → 显式业务过滤。 */
+    private List<PlannedFilter> planPredicates(PlanContext ctx, List<PlannedMeasure> measures) {
         List<PlannedFilter> filters = new ArrayList<>();
 
         // 5.1 租户与组织安全范围过滤 (Tenant & Org Scope)
-        if (scope.tenantId() != null) {
+        if (ctx.scope.tenantId() != null) {
             filters.add(new PlannedFilter(
-                primaryEntity, primaryAlias, "ID_TNT", Operator.EQ,
-                List.of(String.valueOf(scope.tenantId())), "租户隔离安全过滤", true
+                ctx.primaryEntity, ctx.primaryAlias, "ID_TNT", Operator.EQ,
+                List.of(String.valueOf(ctx.scope.tenantId())), "租户隔离安全过滤", true
             ));
         }
-        if (scope.organizationId() != null) {
+        if (ctx.scope.organizationId() != null) {
             filters.add(new PlannedFilter(
-                primaryEntity, primaryAlias, "ID_ORG", Operator.EQ,
-                List.of(String.valueOf(scope.organizationId())), "机构数据范围过滤", true
+                ctx.primaryEntity, ctx.primaryAlias, "ID_ORG", Operator.EQ,
+                List.of(String.valueOf(ctx.scope.organizationId())), "机构数据范围过滤", true
             ));
         }
 
         // 5.2 授权科室范围过滤 (Department Scope)
-        if (!scope.authorizedDepartments().isEmpty()) {
-            List<String> deptIds = scope.authorizedDepartments().keySet().stream().map(String::valueOf).toList();
-            String filterEntity;
-            String filterAlias;
-            if (primaryEntity.equals("DEPARTMENT")) {
-                filterEntity = "DEPARTMENT";
-                filterAlias = primaryAlias;
-            } else if (primaryEntity.equals("ENCOUNTER")) {
-                filterEntity = "ENCOUNTER";
-                filterAlias = primaryAlias;
-            } else if (primaryEntity.equals("CHARGE")) {
-                filterEntity = "CHARGE";
-                filterAlias = primaryAlias;
-            } else if (joinedEntities.contains("DEPARTMENT")) {
-                filterEntity = "DEPARTMENT";
-                filterAlias = "dept";
-            } else if (joinedEntities.contains("ENCOUNTER")) {
-                filterEntity = "ENCOUNTER";
-                filterAlias = "enc";
-            } else {
-                filterEntity = primaryEntity;
-                filterAlias = primaryAlias;
-            }
-            filters.add(new PlannedFilter(
-                filterEntity, filterAlias, "ID_DEPT", Operator.IN,
-                deptIds, "用户可访问科室权限切片", true
-            ));
-        }
+        appendAuthorizedDepartmentFilter(filters, ctx);
 
         // 5.3 统计指标默认过滤条件 (Metric Default Filters)
         for (PlannedMeasure pm : measures) {
@@ -304,10 +347,10 @@ public class QueryPlanner {
         }
 
         // 5.4 显式与隐式业务过滤条件 (Query Resolved Filters)
-        for (ResolvedFilter rf : query.resolvedFilters()) {
+        for (ResolvedFilter rf : ctx.query.resolvedFilters()) {
             PlannedFilter targetFilter;
             if (rf.attribute() != null && "dept_type".equalsIgnoreCase(rf.attribute().code())) {
-                String tableAlias = joinedEntities.contains("DEPARTMENT") ? "dept" : primaryAlias;
+                String tableAlias = ctx.joinedEntities.contains("DEPARTMENT") ? "dept" : ctx.primaryAlias;
                 targetFilter = new PlannedFilter(
                     "DEPARTMENT",
                     tableAlias,
@@ -318,10 +361,9 @@ public class QueryPlanner {
                     false
                 );
             } else {
-                String tableAlias = primaryAlias;
                 targetFilter = new PlannedFilter(
                     rf.dimension().entity(),
-                    tableAlias,
+                    ctx.primaryAlias,
                     rf.dimension().field(),
                     rf.operator(),
                     rf.values(),
@@ -334,37 +376,52 @@ public class QueryPlanner {
             }
         }
 
-        // 6. 时间窗口规划 (Time Range Planning)
-        TimeIntent period = query.period();
-        PlannedTimeRange timeRange = resolveTimeRange(period, primaryEntity, primaryAlias, timeCol, today);
+        return filters;
+    }
 
-        // 7. 排序与限制规划 (Sort & Limit)
-        PlannedSort sort;
-        if (query.sort() != null) {
-            sort = new PlannedSort(query.sort().metric(), query.sort().direction());
-        } else if (!measures.isEmpty()) {
-            sort = new PlannedSort(measures.get(0).measureCode(), "DESC");
-        } else {
-            sort = new PlannedSort("1", "DESC");
+    /** 5.2 授权科室范围过滤：优先落在主实体，否则落在已桥接的科室/就诊表上。 */
+    private void appendAuthorizedDepartmentFilter(List<PlannedFilter> filters, PlanContext ctx) {
+        if (ctx.scope.authorizedDepartments().isEmpty()) {
+            return;
         }
 
-        int limit = query.limit() != null && query.limit() > 0 ? query.limit() : 10;
+        List<String> deptIds = ctx.scope.authorizedDepartments().keySet().stream().map(String::valueOf).toList();
+        String filterEntity;
+        String filterAlias;
+        if (ctx.primaryEntity.equals("DEPARTMENT")) {
+            filterEntity = "DEPARTMENT";
+            filterAlias = ctx.primaryAlias;
+        } else if (ctx.primaryEntity.equals("ENCOUNTER")) {
+            filterEntity = "ENCOUNTER";
+            filterAlias = ctx.primaryAlias;
+        } else if (ctx.primaryEntity.equals("CHARGE")) {
+            filterEntity = "CHARGE";
+            filterAlias = ctx.primaryAlias;
+        } else if (ctx.joinedEntities.contains("DEPARTMENT")) {
+            filterEntity = "DEPARTMENT";
+            filterAlias = "dept";
+        } else if (ctx.joinedEntities.contains("ENCOUNTER")) {
+            filterEntity = "ENCOUNTER";
+            filterAlias = "enc";
+        } else {
+            filterEntity = ctx.primaryEntity;
+            filterAlias = ctx.primaryAlias;
+        }
+        filters.add(new PlannedFilter(
+            filterEntity, filterAlias, "ID_DEPT", Operator.IN,
+            deptIds, "用户可访问科室权限切片", true
+        ));
+    }
 
-        return new LogicalQueryPlan(
-            planId,
-            primaryEntity,
-            primaryTable,
-            primaryAlias,
-            grain,
-            joins,
-            dimensions,
-            measures,
-            filters,
-            timeRange,
-            scope,
-            sort,
-            limit
-        );
+    /** 7. 排序规划：显式排序优先，否则按首个度量降序，最后兜底常量 1。 */
+    private static PlannedSort planSort(ResolvedSemanticQuery query, List<PlannedMeasure> measures) {
+        if (query.sort() != null) {
+            return new PlannedSort(query.sort().metric(), query.sort().direction());
+        }
+        if (!measures.isEmpty()) {
+            return new PlannedSort(measures.get(0).measureCode(), "DESC");
+        }
+        return new PlannedSort("1", "DESC");
     }
 
     private EntityDefinition findEntity(String code) {

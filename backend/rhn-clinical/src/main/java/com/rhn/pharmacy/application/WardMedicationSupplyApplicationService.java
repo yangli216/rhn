@@ -11,8 +11,11 @@ import com.rhn.pharmacy.api.WardMedicationSupplyViews.SupplyFulfillmentView;
 import com.rhn.pharmacy.api.WardMedicationSupplyViews.SupplySummaryView;
 import com.rhn.pharmacy.api.WardDeliveryDirectory;
 import com.rhn.pharmacy.domain.DispenseTaskLine;
+import com.rhn.pharmacy.domain.DispenseTaskLineStatus;
 import com.rhn.pharmacy.domain.InpatientMedicationSupplyBatch;
+import com.rhn.pharmacy.domain.InpatientMedicationSupplyBatchStatus;
 import com.rhn.pharmacy.domain.InpatientMedicationSupplyLine;
+import com.rhn.pharmacy.domain.InpatientMedicationSupplyLineStatus;
 import com.rhn.pharmacy.domain.InpatientMedicationSupplyTask;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
@@ -176,7 +179,7 @@ public class WardMedicationSupplyApplicationService {
                 .filter(value -> site.id().equals(value.stockSiteId())
                         && window.from().equals(value.windowStart()) && window.to().equals(value.windowEnd())
                         && Objects.equals(routingDimension, value.routingDimension())
-                        && !"CANCELLED".equals(value.status()))
+                        && value.status() != InpatientMedicationSupplyBatchStatus.CANCELLED)
                 .findFirst().orElse(null);
         if (existing != null) return new GenerationOutcome(existing, false, true);
 
@@ -335,7 +338,8 @@ public class WardMedicationSupplyApplicationService {
         InpatientMedicationSupplyBatch batch = batches.findLocked(context.tenantId(), batchId)
                 .orElseThrow(() -> notFound("INPATIENT_SUPPLY_BATCH_NOT_FOUND", "供药批次不存在"));
         requirePharmacySite(context, batch.stockSiteId());
-        if (!"SUBMITTED".equals(batch.status()) && !"CLOSED".equals(batch.status())) {
+        if (batch.status() != InpatientMedicationSupplyBatchStatus.SUBMITTED
+                && batch.status() != InpatientMedicationSupplyBatchStatus.CLOSED) {
             throw conflict("INPATIENT_SUPPLY_BATCH_NOT_REVIEWABLE", "只有已提交供药批次可以批量审方预留");
         }
         if (input == null) {
@@ -344,7 +348,7 @@ public class WardMedicationSupplyApplicationService {
         List<InpatientMedicationSupplyLine> currentLines = lines
                 .findByTenantIdAndSupplyBatchIdOrderById(context.tenantId(), batch.id());
         List<Long> activeLineIds = currentLines.stream()
-                .filter(line -> !"CANCELLED".equals(line.status()))
+                .filter(line -> line.status() != InpatientMedicationSupplyLineStatus.CANCELLED)
                 .map(InpatientMedicationSupplyLine::id).toList();
         if (activeLineIds.isEmpty()) {
             throw conflict("INPATIENT_SUPPLY_BATCH_EMPTY", "当前供药批次没有可处理明细");
@@ -356,7 +360,7 @@ public class WardMedicationSupplyApplicationService {
         if (lockedLines.size() != activeLineIds.size()) {
             throw conflict("INPATIENT_SUPPLY_BATCH_LINES_CHANGED", "供药批次明细已变化，请刷新后重试");
         }
-        if (lockedLines.stream().anyMatch(line -> !"INTAKEN".equals(line.status()))) {
+        if (lockedLines.stream().anyMatch(line -> line.status() != InpatientMedicationSupplyLineStatus.INTAKEN)) {
             throw conflict("INPATIENT_SUPPLY_BATCH_INTAKE_INCOMPLETE", "请先完成当前供药批次全部明细接方");
         }
         List<Long> taskIds = lockedLines.stream().map(line -> {
@@ -545,7 +549,8 @@ public class WardMedicationSupplyApplicationService {
         InpatientMedicationSupplyBatch batch = batches.findLocked(context.tenantId(), batchId)
                 .orElseThrow(() -> notFound("INPATIENT_SUPPLY_BATCH_NOT_FOUND", "供药批次不存在"));
         requirePharmacySite(context, batch.stockSiteId());
-        if (!Set.of("SUBMITTED", "CLOSED").contains(batch.status())) {
+        if (!Set.of(InpatientMedicationSupplyBatchStatus.SUBMITTED, InpatientMedicationSupplyBatchStatus.CLOSED)
+                .contains(batch.status())) {
             throw conflict("INPATIENT_SUPPLY_BATCH_NOT_FULFILLABLE", "当前供药批次不能继续配药发药");
         }
         return batch;
@@ -554,7 +559,7 @@ public class WardMedicationSupplyApplicationService {
     private List<Long> fulfillmentTaskIds(ExecutionContext context, InpatientMedicationSupplyBatch batch) {
         List<InpatientMedicationSupplyLine> currentLines = lines
                 .findByTenantIdAndSupplyBatchIdOrderById(context.tenantId(), batch.id());
-        List<Long> activeLineIds = currentLines.stream().filter(line -> !"CANCELLED".equals(line.status()))
+        List<Long> activeLineIds = currentLines.stream().filter(line -> line.status() != InpatientMedicationSupplyLineStatus.CANCELLED)
                 .map(InpatientMedicationSupplyLine::id).toList();
         if (activeLineIds.isEmpty()) {
             throw conflict("INPATIENT_SUPPLY_BATCH_EMPTY", "当前供药批次没有可处理明细");
@@ -566,7 +571,7 @@ public class WardMedicationSupplyApplicationService {
         if (lockedLines.size() != activeLineIds.size()) {
             throw conflict("INPATIENT_SUPPLY_BATCH_LINES_CHANGED", "供药批次明细已变化，请刷新后重试");
         }
-        if (lockedLines.stream().anyMatch(line -> !"INTAKEN".equals(line.status()))) {
+        if (lockedLines.stream().anyMatch(line -> line.status() != InpatientMedicationSupplyLineStatus.INTAKEN)) {
             throw conflict("INPATIENT_SUPPLY_BATCH_INTAKE_INCOMPLETE", "请先完成当前供药批次全部明细接方");
         }
         List<Long> taskIds = lockedLines.stream().map(line -> {
@@ -598,17 +603,17 @@ public class WardMedicationSupplyApplicationService {
     }
 
     private void requireIntakeBatch(InpatientMedicationSupplyBatch batch) {
-        if (!"SUBMITTED".equals(batch.status())) {
+        if (batch.status() != InpatientMedicationSupplyBatchStatus.SUBMITTED) {
             throw conflict("INPATIENT_SUPPLY_BATCH_NOT_SUBMITTED", "只有已提交供药批次可以接方");
         }
     }
 
     private void requireIntakeLine(ExecutionContext context, InpatientMedicationSupplyLine line,
                                    Long requestedStockItemId) {
-        if (!"SUBMITTED".equals(line.status()) && !"INTAKEN".equals(line.status())) {
+        if (line.status() != InpatientMedicationSupplyLineStatus.SUBMITTED && line.status() != InpatientMedicationSupplyLineStatus.INTAKEN) {
             throw conflict("INPATIENT_SUPPLY_LINE_NOT_INTAKABLE", "供药明细当前不能接方");
         }
-        if ("INTAKEN".equals(line.status())) {
+        if (line.status() == InpatientMedicationSupplyLineStatus.INTAKEN) {
             DispenseTaskLine existing = line.dispenseTaskLineId() == null ? null
                     : dispenseLines.findById(line.dispenseTaskLineId())
                     .filter(value -> context.tenantId().equals(value.tenantId())).orElse(null);
@@ -623,7 +628,7 @@ public class WardMedicationSupplyApplicationService {
     }
 
     private void intakeLine(ExecutionContext context, InpatientMedicationSupplyLine line, IntakeCommand input) {
-        if ("INTAKEN".equals(line.status())) return;
+        if (line.status() == InpatientMedicationSupplyLineStatus.INTAKEN) return;
         DispenseTaskView task = pharmacy.intakeSupplyLine(line.id(), line.requestId(),
                 line.requestedQuantity(), line.quantityUnitCode(),
                 line.requestedBaseQuantity(), line.baseUnitCode(),
@@ -663,7 +668,7 @@ public class WardMedicationSupplyApplicationService {
                 .findByTenantIdAndSupplyLineIdOrderByScheduledAt(tenantId, line.id()).stream()
                 .map(value -> new SupplyOccurrenceView(value.id(), value.revision(), value.orderTaskId(),
                         value.scheduledAt(), value.requiredQuantity(), value.quantityUnitCode(),
-                        value.requiredBaseQuantity(), value.baseUnitCode(), value.status()))
+                        value.requiredBaseQuantity(), value.baseUnitCode(), value.status().name()))
                 .toList();
         DispenseTaskLine dispenseLine = line.dispenseTaskLineId() == null ? null
                 : dispenseLines.findById(line.dispenseTaskLineId())
@@ -671,7 +676,7 @@ public class WardMedicationSupplyApplicationService {
         Long dispenseTaskId = dispenseLine == null ? null : dispenseLine.taskId();
         String dispenseTaskStatus = dispenseTaskId == null ? null : dispenseTasks
                 .findByIdAndTenantId(dispenseTaskId, tenantId)
-                .map(value -> value.status()).orElse(null);
+                .map(value -> value.status().name()).orElse(null);
         BigDecimal requested = dispenseLine == null ? line.requestedQuantity() : dispenseLine.plannedQuantity();
         BigDecimal issued = dispenseLine == null ? BigDecimal.ZERO : dispenseLine.netDispensedQuantity();
         String unit = dispenseLine == null ? line.quantityUnitCode() : dispenseLine.dispenseUnitCode();
@@ -707,7 +712,7 @@ public class WardMedicationSupplyApplicationService {
     }
 
     private String batchStatus(InpatientMedicationSupplyBatch batch, List<SupplyLineView> lineViews) {
-        if ("CANCELLED".equals(batch.status())) return "CANCELLED";
+        if (batch.status() == InpatientMedicationSupplyBatchStatus.CANCELLED) return "CANCELLED";
         if (lineViews.stream().anyMatch(value -> "EXCEPTION".equals(value.status()))) return "EXCEPTION";
         if (lineViews.isEmpty() || lineViews.stream().allMatch(value -> "COVERED".equals(value.status())
                 || "CANCELLED".equals(value.status()))) return "COMPLETED";
@@ -717,9 +722,10 @@ public class WardMedicationSupplyApplicationService {
 
     private String lineStatus(InpatientMedicationSupplyLine line, DispenseTaskLine dispenseLine,
                               BigDecimal requested, BigDecimal issued, BigDecimal covered) {
-        if ("CANCELLED".equals(line.status())) return "CANCELLED";
+        if (line.status() == InpatientMedicationSupplyLineStatus.CANCELLED) return "CANCELLED";
         if (dispenseLine == null) return "PENDING_INTAKE";
-        if ("CANCELLED".equals(dispenseLine.status()) || "REJECTED".equals(dispenseLine.status())) {
+        if (dispenseLine.status() == DispenseTaskLineStatus.CANCELLED
+                || dispenseLine.status() == DispenseTaskLineStatus.REJECTED) {
             return "EXCEPTION";
         }
         if (covered.compareTo(requested) >= 0) return "COVERED";

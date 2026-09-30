@@ -2,8 +2,11 @@ package com.rhn.outpatient.ordering;
 
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.PrimaryKeyJoinColumn;
@@ -29,7 +32,7 @@ class MedicationRequest {
     @Column(name = "ID_REQ_GRP") private Long requestGroupId;
     @Column(name = "ID_CARE_REQ_PARENT") private Long parentRequestId;
     @Column(name = "SD_REQ_KIND", nullable = false) private String requestKind;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private MedicationRequestStatus status;
     @Column(name = "CD_INTENT", nullable = false) private String intentCode;
     @Column(name = "CD_PRI", nullable = false) private String priorityCode;
     @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
@@ -107,7 +110,7 @@ class MedicationRequest {
     protected MedicationRequest() {}
 
     MedicationRequest(Long tenantId, Long residentId, Long encounterId, String requestNo,
-                      Long requestGroupId, Long parentRequestId, String initialStatus,
+                      Long requestGroupId, Long parentRequestId, MedicationRequestStatus initialStatus,
                       Long catalogItemId, Long packageId, Long performerOrganizationId,
                       Long performerDepartmentId, LocalDate businessDate, Long authoredBy, String reasonText,
                       String itemCode, String itemName, String quantityUnit, String localCode, String localName,
@@ -159,41 +162,37 @@ class MedicationRequest {
         this.preparationSpecSnapshot = preparationSpec; this.preparationUnitSnapshot = preparationUnit;
         this.skinTestRequiredSnapshot = skinTestRequired;
         this.skinTestExempt = skinTestExempt;
-        this.skinTestExemptReason = clean(skinTestExemptReason);
+        this.skinTestExemptReason = Strings.trimToNull(skinTestExemptReason);
         this.exemptEvidenceEventId = exemptEvidenceEventId;
         this.antimicrobialSnapshot = antimicrobial;
         this.antimicrobialLevelSnapshot = antimicrobialLevel; this.medicationSnapshot = medicationSnapshot;
     }
 
-    private static String clean(String str) {
-        return str == null || str.isBlank() ? null : str.trim();
-    }
-
     void cancel(long expectedRevision, String reason, Long actorId) {
         if (revision != expectedRevision) throw new BusinessException("MEDICATION_REQUEST_REVISION_CONFLICT",
                 "药品请求已被其他用户修改，请刷新后重试", HttpStatus.CONFLICT);
-        if (!"ACTIVE".equals(status) && !"DRAFT".equals(status)) {
+        if (status != MedicationRequestStatus.ACTIVE && status != MedicationRequestStatus.DRAFT) {
             throw new BusinessException("MEDICATION_REQUEST_STATE_INVALID",
                     "只有草稿或生效中的药品请求可以撤销", HttpStatus.CONFLICT);
         }
-        status = "CANCELLED"; cancelledAt = Instant.now(); cancelledBy = actorId; cancelReason = reason;
+        status = MedicationRequestStatus.CANCELLED; cancelledAt = Instant.now(); cancelledBy = actorId; cancelReason = reason;
     }
 
     void activateFromPrescription() {
-        if (!"DRAFT".equals(status)) throw new BusinessException("MEDICATION_REQUEST_STATE_INVALID",
+        if (status != MedicationRequestStatus.DRAFT) throw new BusinessException("MEDICATION_REQUEST_STATE_INVALID",
                 "处方提交时只能激活草稿药品请求", HttpStatus.CONFLICT);
-        status = "ACTIVE";
+        status = MedicationRequestStatus.ACTIVE;
     }
 
     void cancelFromPrescription(String reason, Long actorId) {
-        if ("CANCELLED".equals(status)) return;
-        status = "CANCELLED"; cancelledAt = Instant.now(); cancelledBy = actorId; cancelReason = reason;
+        if (status == MedicationRequestStatus.CANCELLED) return;
+        status = MedicationRequestStatus.CANCELLED; cancelledAt = Instant.now(); cancelledBy = actorId; cancelReason = reason;
     }
 
     Long id() { return id; } long revision() { return revision; } Long tenantId() { return tenantId; }
     Long residentId() { return residentId; } Long encounterId() { return encounterId; } String requestNo() { return requestNo; }
     Long requestGroupId() { return requestGroupId; } Long parentRequestId() { return parentRequestId; }
-    String status() { return status; } Long catalogItemId() { return catalogItemId; } Long medicationId() { return medicationId; }
+    MedicationRequestStatus status() { return status; } Long catalogItemId() { return catalogItemId; } Long medicationId() { return medicationId; }
     Long packageId() { return packageId; } Long performerOrganizationId() { return performerOrganizationId; }
     Long performerDepartmentId() { return performerDepartmentId; }
     Long requestingOrganizationId() { return requestingOrganizationId; }

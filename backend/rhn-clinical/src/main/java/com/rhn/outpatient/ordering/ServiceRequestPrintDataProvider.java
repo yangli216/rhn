@@ -51,7 +51,7 @@ class ServiceRequestPrintDataProvider implements PrintDataProvider {
         if (!expectedTask.equals(input.taskCode())) {
             throw conflict("PRINT_TASK_SOURCE_MISMATCH", "申请单类型与标准打印任务不匹配");
         }
-        if (!"ACTIVE".equals(request.status())) {
+        if (request.status() != ServiceRequestStatus.ACTIVE) {
             throw conflict("PRINT_SOURCE_NOT_FINAL", "只有已生效且未撤销的诊疗申请可以生成正式打印文件");
         }
         ResidentDirectory.ResidentSnapshot resident = residents.requireSnapshot(request.residentId());

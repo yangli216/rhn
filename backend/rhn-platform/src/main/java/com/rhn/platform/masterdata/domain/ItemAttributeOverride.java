@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -41,16 +42,16 @@ public class ItemAttributeOverride {
                                  Long actorId) {
         requirePeriod(validFrom, validTo);
         this.id = GlobalIds.next();
-        this.tenantId = requireId(tenantId, "租户");
-        this.attributeSubjectId = requireId(attributeSubjectId, "属性主体");
-        this.attributeDefinitionId = requireId(attributeDefinitionId, "属性定义");
+        this.tenantId = Strings.requireId(tenantId, "租户");
+        this.attributeSubjectId = Strings.requireId(attributeSubjectId, "属性主体");
+        this.attributeDefinitionId = Strings.requireId(attributeDefinitionId, "属性定义");
         applyScope(scopeType, scopeKey, organizationId, departmentId);
         applyValue(valueMode, valueJson);
         this.validFrom = validFrom;
         this.validTo = validTo;
         this.status = "ACTIVE";
         this.createdAt = Instant.now();
-        this.createdBy = requireId(actorId, "操作用户");
+        this.createdBy = Strings.requireId(actorId, "操作用户");
         this.updatedAt = createdAt;
         this.updatedBy = actorId;
     }
@@ -64,14 +65,14 @@ public class ItemAttributeOverride {
         this.validTo = validTo;
         this.status = "ACTIVE";
         this.updatedAt = Instant.now();
-        this.updatedBy = requireId(actorId, "操作用户");
+        this.updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public void disable(long expectedRevision, Long actorId) {
         if (revision != expectedRevision) throw new IllegalArgumentException("属性覆盖值修订号已变化");
         this.status = "INACTIVE";
         this.updatedAt = Instant.now();
-        this.updatedBy = requireId(actorId, "操作用户");
+        this.updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public Long id() { return id; }
@@ -103,7 +104,7 @@ public class ItemAttributeOverride {
             throw new IllegalArgumentException("科室覆盖必须指定机构和科室");
         }
         this.scopeType = type;
-        this.scopeKey = requireText(key, "作用域编码", 512);
+        this.scopeKey = Strings.requireText(key, "作用域编码", 512);
         this.organizationId = organizationId;
         this.departmentId = departmentId;
     }
@@ -112,7 +113,7 @@ public class ItemAttributeOverride {
         if (!"OVERRIDE".equals(mode) && !"EXPLICIT_NULL".equals(mode)) {
             throw new IllegalArgumentException("不支持的属性覆盖值模式");
         }
-        if ("OVERRIDE".equals(mode)) this.valueJson = requireText(json, "属性覆盖值", 20000);
+        if ("OVERRIDE".equals(mode)) this.valueJson = Strings.requireText(json, "属性覆盖值", 20000);
         else if (json != null) throw new IllegalArgumentException("显式空值不能携带属性内容");
         else this.valueJson = null;
         this.valueMode = mode;
@@ -123,15 +124,4 @@ public class ItemAttributeOverride {
         if (to != null && to.isBefore(from)) throw new IllegalArgumentException("失效日期不能早于生效日期");
     }
 
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
-    private static String requireText(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
-    }
 }

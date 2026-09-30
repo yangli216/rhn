@@ -41,7 +41,13 @@ public class MedicationStandardDependencyService implements MedicationStandardDe
         var grouped = selected.stream().collect(Collectors.groupingBy(s -> s.medicationId(), TreeMap::new, Collectors.toList()));
         var meds = grouped.entrySet().stream().map(entry -> {
             var med = indexed.get(entry.getKey());
-            var refs = entry.getValue().stream().map(s -> new Reference(s.catalogCode(), s.catalogVersion(), s.entryCode(), s.specificationCode(), s.sourceHash())).distinct().sorted(Comparator.comparing(Reference::catalogId).thenComparing(Reference::catalogVersion).thenComparing(Reference::entryId).thenComparing(Reference::specificationId).thenComparing(Reference::contentHash)).toList();
+            var refs = entry.getValue().stream()
+                    .map(s -> new Reference(s.catalogCode(), s.catalogVersion(), s.entryCode(), s.specificationCode(), s.sourceHash()))
+                    .distinct()
+                    .sorted(Comparator.comparing(Reference::catalogId).thenComparing(Reference::catalogVersion)
+                            .thenComparing(Reference::entryId).thenComparing(Reference::specificationId)
+                            .thenComparing(Reference::contentHash))
+                    .toList();
             return new Medication(entry.getKey(), med == null ? "" : med.code(), med == null ? "药品档案已缺失" : med.name(), med == null ? "MISSING" : med.status(), med == null ? null : med.revision(), refs);
         }).toList();
         var prods = products.findByTenantIdAndMedicationIdIn(c.tenantId(), ids).stream().sorted(Comparator.comparing(p -> p.id()))

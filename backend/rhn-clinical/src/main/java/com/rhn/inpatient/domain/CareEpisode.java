@@ -3,6 +3,8 @@ package com.rhn.inpatient.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -19,7 +21,7 @@ public class CareEpisode {
     @Column(name = "ID_ORG", nullable = false) private Long organizationId;
     @Column(name = "CD_EPISODE_NO", nullable = false) private String episodeNo;
     @Column(name = "SD_EPISODE_TYPE", nullable = false) private String episodeType;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private CareEpisodeStatus status;
     @Column(name = "DT_START", nullable = false) private Instant startAt;
     @Column(name = "DT_END") private Instant endAt;
     @Column(name = "ID_PRIMARY_PRACT") private Long primaryPractitionerId;
@@ -44,7 +46,7 @@ public class CareEpisode {
         this.organizationId = organizationId;
         this.episodeNo = episodeNo;
         this.episodeType = "INPATIENT";
-        this.status = "ADMITTED";
+        this.status = CareEpisodeStatus.ADMITTED;
         this.startAt = admittedAt;
         this.primaryPractitionerId = primaryPractitionerId;
         this.createdAt = Instant.now();
@@ -61,7 +63,7 @@ public class CareEpisode {
 
     public void discharge(long expectedRevision, Long actorId) {
         requireAdmitted(expectedRevision);
-        this.status = "DISCHARGED";
+        this.status = CareEpisodeStatus.DISCHARGED;
         this.endAt = Instant.now();
         this.updatedAt = endAt;
         this.updatedBy = actorId;
@@ -69,7 +71,7 @@ public class CareEpisode {
 
     private void requireAdmitted(long expectedRevision) {
         if (revision != expectedRevision) throw new IllegalStateException("STALE_REVISION");
-        if (!"ADMITTED".equals(status)) throw new IllegalStateException("NOT_ADMITTED");
+        if (status != CareEpisodeStatus.ADMITTED) throw new IllegalStateException("NOT_ADMITTED");
     }
 
     public Long id() { return id; }
@@ -78,7 +80,7 @@ public class CareEpisode {
     public Long residentId() { return residentId; }
     public Long organizationId() { return organizationId; }
     public String episodeNo() { return episodeNo; }
-    public String status() { return status; }
+    public CareEpisodeStatus status() { return status; }
     public Instant startAt() { return startAt; }
     public Instant endAt() { return endAt; }
     public Long primaryPractitionerId() { return primaryPractitionerId; }

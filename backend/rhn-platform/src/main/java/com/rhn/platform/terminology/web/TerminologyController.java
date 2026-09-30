@@ -7,6 +7,7 @@ import com.rhn.platform.terminology.api.DiseaseConceptView;
 import com.rhn.platform.terminology.api.DiseaseManagementProgramView;
 import com.rhn.platform.terminology.api.DiseaseSearchPage;
 import com.rhn.shared.api.PageResult;
+import com.rhn.shared.text.Strings;
 import com.rhn.platform.terminology.application.TerminologyApplicationService;
 import com.rhn.platform.terminology.domain.TerminologyCodePolicy;
 import jakarta.validation.Valid;
@@ -78,9 +79,9 @@ public class TerminologyController {
     @ResponseStatus(HttpStatus.CREATED)
     DiseaseConceptView createDisease(@Valid @RequestBody DiseaseRequest request) {
         return service.createDisease(TenantContext.requireTenantId(), request.codeSystemId(), request.code().trim(),
-                request.display().trim(), trimToNull(request.shortDisplay()), request.sdConceptType(),
-                trimToNull(request.chapterCode()), trimToNull(request.chapterName()), trimToNull(request.definition()),
-                trimToNull(request.searchCode()), request.effectiveFrom(), request.effectiveTo(), request.sdStatus(),
+                request.display().trim(), Strings.trimToNull(request.shortDisplay()), request.sdConceptType(),
+                Strings.trimToNull(request.chapterCode()), Strings.trimToNull(request.chapterName()), Strings.trimToNull(request.definition()),
+                Strings.trimToNull(request.searchCode()), request.effectiveFrom(), request.effectiveTo(), request.sdStatus(),
                 request.aliases());
     }
 
@@ -88,9 +89,9 @@ public class TerminologyController {
     @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     DiseaseConceptView updateDisease(@PathVariable Long id, @Valid @RequestBody UpdateDiseaseRequest request) {
         return service.updateDisease(TenantContext.requireTenantId(), id, revision(request.expectedRevision()),
-                request.display().trim(), trimToNull(request.shortDisplay()), request.sdConceptType(),
-                trimToNull(request.chapterCode()), trimToNull(request.chapterName()), trimToNull(request.definition()),
-                trimToNull(request.searchCode()), request.effectiveFrom(), request.effectiveTo(), request.aliases());
+                request.display().trim(), Strings.trimToNull(request.shortDisplay()), request.sdConceptType(),
+                Strings.trimToNull(request.chapterCode()), Strings.trimToNull(request.chapterName()), Strings.trimToNull(request.definition()),
+                Strings.trimToNull(request.searchCode()), request.effectiveFrom(), request.effectiveTo(), request.aliases());
     }
 
     @PostMapping("/diseases/{id}/status")
@@ -124,7 +125,7 @@ public class TerminologyController {
             @Valid @RequestBody DiseaseManagementProgramRequest request) {
         return service.createDiseaseManagementProgram(TenantContext.requireTenantId(), request.productScope(),
                 request.code().trim(), request.name().trim(), request.sdManagementType(), request.sdTriggerAction(),
-                trimToNull(request.description()), trimToNull(request.reportCardType()), request.reportDeadlineHours(),
+                Strings.trimToNull(request.description()), Strings.trimToNull(request.reportCardType()), request.reportDeadlineHours(),
                 request.effectiveFrom(), request.effectiveTo());
     }
 
@@ -134,7 +135,7 @@ public class TerminologyController {
             @Valid @RequestBody UpdateDiseaseManagementProgramRequest request) {
         return service.updateDiseaseManagementProgram(TenantContext.requireTenantId(), id,
                 revision(request.expectedRevision()), request.name().trim(), request.sdManagementType(),
-                request.sdTriggerAction(), trimToNull(request.description()), trimToNull(request.reportCardType()),
+                request.sdTriggerAction(), Strings.trimToNull(request.description()), Strings.trimToNull(request.reportCardType()),
                 request.reportDeadlineHours(), request.effectiveFrom(), request.effectiveTo());
     }
 
@@ -153,12 +154,12 @@ public class TerminologyController {
         return service.replaceDiseaseManagementScope(TenantContext.requireTenantId(), id,
                 revision(request.expectedRevision()), request.rules().stream().map(rule ->
                         new TerminologyApplicationService.DiseaseRuleCommand(rule.inclusionMode(),
-                                trimToNull(rule.sdDiagnosisDomain()), rule.codeSystemId(),
-                                trimToNull(rule.sdConceptType()), trimToNull(rule.chapterCode()),
-                                trimToNull(rule.codeFrom()), trimToNull(rule.codeTo()), trimToNull(rule.note())))
+                                Strings.trimToNull(rule.sdDiagnosisDomain()), rule.codeSystemId(),
+                                Strings.trimToNull(rule.sdConceptType()), Strings.trimToNull(rule.chapterCode()),
+                                Strings.trimToNull(rule.codeFrom()), Strings.trimToNull(rule.codeTo()), Strings.trimToNull(rule.note())))
                         .toList(), request.exceptions().stream().map(exception ->
                         new TerminologyApplicationService.DiseaseExceptionCommand(exception.conceptId(),
-                                exception.inclusionMode(), trimToNull(exception.note()))).toList());
+                                exception.inclusionMode(), Strings.trimToNull(exception.note()))).toList());
     }
 
     @PostMapping("/disease-management-programs/{id}/status")
@@ -174,12 +175,12 @@ public class TerminologyController {
     @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> createCodeSystem(@Valid @RequestBody CreateCodeSystemRequest request) {
         Long id = service.createCodeSystem(TenantContext.requireTenantId(), request.productScope(),
-                request.code().trim(), request.name().trim(), trimToNull(request.canonicalUri()),
+                request.code().trim(), request.name().trim(), Strings.trimToNull(request.canonicalUri()),
                 request.version().trim(), request.systemType() == null ? "COMMON" : request.systemType(),
-                trimToNull(request.sdDiagnosisDomain()),
-                trimToNull(request.publisher()), trimToNull(request.description()),
+                Strings.trimToNull(request.sdDiagnosisDomain()),
+                Strings.trimToNull(request.publisher()), Strings.trimToNull(request.description()),
                 request.authorityType() == null ? "INTERNAL" : request.authorityType(),
-                trimToNull(request.sourceUri()), trimToNull(request.contentHash()),
+                Strings.trimToNull(request.sourceUri()), Strings.trimToNull(request.contentHash()),
                 request.effectiveFrom(), request.effectiveTo());
         return Map.of("id", id);
     }
@@ -189,7 +190,7 @@ public class TerminologyController {
     @ResponseStatus(HttpStatus.CREATED)
     ConceptView addConcept(@PathVariable Long id, @Valid @RequestBody AddConceptRequest request) {
         return service.addConcept(id, request.code().trim(), request.display().trim(),
-                trimToNull(request.definition()), request.effectiveFrom(), request.effectiveTo());
+                Strings.trimToNull(request.definition()), request.effectiveFrom(), request.effectiveTo());
     }
 
     @PostMapping("/code-systems/{id}/activate")
@@ -223,10 +224,6 @@ public class TerminologyController {
     @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void activateValueSet(@PathVariable Long id) { service.activateValueSet(id); }
-
-    private String trimToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 
     record CreateCodeSystemRequest(boolean productScope,
                                    @NotBlank @Size(max = 100)

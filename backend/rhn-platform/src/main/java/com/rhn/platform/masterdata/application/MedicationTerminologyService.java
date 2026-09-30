@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.application;
 
 import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
+import com.rhn.shared.text.Strings;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -65,8 +66,8 @@ public class MedicationTerminologyService implements MedicationTerminologyDirect
     @Override
     @Transactional(readOnly = true)
     public List<AllergenTerm> searchAllergens(Long tenantId, String categoryCode, String query) {
-        String category = clean(categoryCode);
-        String keyword = clean(query);
+        String category = Strings.trimToNull(categoryCode);
+        String keyword = Strings.trimToNull(query);
         var parameters = new MapSqlParameterSource("tenantId", tenantId)
                 .addValue("category", category == null ? null : category.toUpperCase(Locale.ROOT))
                 .addValue("keyword", keyword == null ? null : "%" + keyword.toLowerCase(Locale.ROOT) + "%");
@@ -113,6 +114,4 @@ public class MedicationTerminologyService implements MedicationTerminologyDirect
                 rs.getString("CD_CAT"), rs.getString("SD_CONCEPT_TYPE"), rs.getString("CD_CODE_SYS_URI"),
                 rs.getString("CD_ALRGN"), rs.getString("NA_ALRGN"), rs.getString("NA_ALIAS"));
     }
-
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

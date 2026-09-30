@@ -6,6 +6,7 @@ import com.rhn.coordination.api.OutpatientCancellationViews.CancelEncounterReque
 import com.rhn.coordination.api.OutpatientCancellationViews.CancelEncounterResponse;
 import com.rhn.outpatient.api.OutpatientEncounterCancellationDirectory;
 import com.rhn.outpatient.api.OutpatientEncounterCancellationDirectory.CancellationSnapshot;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +27,7 @@ public class OutpatientCancellationService {
         String reason = request.reason().trim();
         CancellationSnapshot prepared = outpatient.prepare(encounterId);
         CancellationBillingResult financial = billing.cancelBeforeService(
-                encounterId, commandCode, reason, clean(request.terminalCode()));
+                encounterId, commandCode, reason, Strings.trimToNull(request.terminalCode()));
         if (!financial.readyToClose()) return response(prepared, financial, false);
         return response(outpatient.cancelBeforeService(encounterId, commandCode, reason), financial, true);
     }
@@ -39,9 +40,5 @@ public class OutpatientCancellationService {
                 outpatientState.appointmentStatus(), financial.billingStatus(), financial.refundOrderId(),
                 financial.refundStatus(), completed,
                 completed ? "退号完成，候诊资格已关闭，相关号源已返还" : financial.message());
-    }
-
-    private String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 }

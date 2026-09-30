@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -91,12 +92,12 @@ public class OrderFrequency {
             throw new IllegalArgumentException("周期频次必须配置次数、周期值和周期单位");
         }
         if ("TIMES_PER_PERIOD".equals(ruleType) && "STANDARD_TIME".equals(anchorType)
-                && trim(defaultExecutionTimes) == null) throw new IllegalArgumentException("标准时点频次必须配置默认执行时间");
+                && Strings.trimToNull(defaultExecutionTimes) == null) throw new IllegalArgumentException("标准时点频次必须配置默认执行时间");
         if (validFrom == null || validTo != null && validTo.isBefore(validFrom)) throw new IllegalArgumentException("频次有效期不正确");
         if (!Set.of("ACTIVE", "INACTIVE").contains(status)) throw new IllegalArgumentException("频次状态不正确");
-        this.name = require(name, "频次名称"); this.shortName = trim(shortName); this.description = trim(description);
+        this.name = require(name, "频次名称"); this.shortName = Strings.trimToNull(shortName); this.description = Strings.trimToNull(description);
         this.ruleType = ruleType; this.frequencyCount = frequencyCount; this.periodValue = periodValue;
-        this.periodUnit = periodUnit; this.anchorType = anchorType; this.defaultExecutionTimes = trim(defaultExecutionTimes);
+        this.periodUnit = periodUnit; this.anchorType = anchorType; this.defaultExecutionTimes = Strings.trimToNull(defaultExecutionTimes);
         this.outpatientApplicable = outpatientApplicable; this.inpatientApplicable = inpatientApplicable;
         this.emergencyApplicable = emergencyApplicable; this.medicationApplicable = medicationApplicable;
         this.treatmentApplicable = treatmentApplicable; this.nursingApplicable = nursingApplicable;
@@ -112,8 +113,6 @@ public class OrderFrequency {
         return sceneAllowed && orderAllowed;
     }
     private static String require(String value, String label) { if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空"); return value.trim(); }
-    private static String trim(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }
     public String code() { return code; } public String name() { return name; } public String shortName() { return shortName; }
     public String description() { return description; } public String ruleType() { return ruleType; }

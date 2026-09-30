@@ -70,6 +70,108 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
         int resultLimit = searchDirectory.resolvePreference(tenantId, organizationId, departmentId).resultLimit();
 
         // 1. 获取该门诊科室适用的目标药房站点（优先精确科室路由，其次全院默认通配路由）
+        Set<Long> targetSiteIds = resolveOutpatientTargetSiteIds(tenantId, organizationId, departmentId, today);
+        if (targetSiteIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, StockSite> siteMap = loadEffectiveSites(tenantId, targetSiteIds, today);
+        List<OrderableMedicationView> results = new ArrayList<>();
+
+        for (StockSite site : siteMap.values()) {
+            // 2. 查该药房所有的可用库存（stockStatus = AVAILABLE 且 quantityAvailable > 0）
+            SiteStockCandidates candidates = collectSiteStockCandidates(
+                    tenantId, organizationId, departmentId, query, searching, site);
+            if (candidates == null) continue;
+
+            for (StockItem si : candidates.stockItems()) {
+                OrderableMedicationView view = buildOrderableView(si, site, candidates, searching, normalizedQuery);
+                if (view != null) {
+                    results.add(view);
+                }
+            }
+        }
+
+        results.sort(Comparator.comparing(OrderableMedicationView::name));
+        return results.stream().limit(resultLimit).toList();
+    }
+
+    private OrderableMedicationView buildOrderableView(StockItem si, StockSite site, SiteStockCandidates candidates,
+                                                       boolean searching, String normalizedQuery) {
+        BigDecimal availableBaseQty = candidates.availableByStockItemId().getOrDefault(si.id(), BigDecimal.ZERO);
+        if (availableBaseQty.signum() <= 0) return null;
+
+        MedicationView medView = candidates.medViewByCatalogItemId().get(si.catalogItemId());
+        if (medView == null) return null;
+
+        // 找到对应的产品和包装
+        MedicationProductView matchedProduct = medView.products().stream()
+                .filter(p -> p.id().equals(si.catalogItemId()))
+                .findFirst().orElse(null);
+
+        PackageView defaultPkg = null;
+        if (matchedProduct != null && matchedProduct.packages() != null) {
+            defaultPkg = matchedProduct.packages().stream()
+                    .filter(p -> p.id().equals(si.basePackageId()) || p.defaultDispense() || p.defaultSale())
+                    .findFirst()
+                    .orElse(matchedProduct.packages().isEmpty() ? null : matchedProduct.packages().getFirst());
+        }
+
+        BigDecimal factor = defaultPkg != null && defaultPkg.quantityFactor() != null && defaultPkg.quantityFactor().signum() > 0
+                ? defaultPkg.quantityFactor() : BigDecimal.ONE;
+        String pkgUnitName = defaultPkg != null && defaultPkg.unitName() != null
+                ? defaultPkg.unitName() : si.baseUnitCode();
+
+        BigDecimal availablePkgQty = availableBaseQty.divide(factor, 0, RoundingMode.FLOOR);
+        if (availablePkgQty.signum() <= 0) return null; // 关键：可用包装量必须 > 0
+
+        if (searching && !matchesSearch(medView, matchedProduct, si.catalogItemId(),
+                candidates.matchingMedicationIds(), candidates.matchingProductIds(), normalizedQuery)) {
+            return null;
+        }
+
+        return new OrderableMedicationView(
+                medView.id(),
+                medView.revision(),
+                medView.itemTypeId(),
+                medView.itemMasterId(),
+                medView.code(),
+                medView.name(),
+                medView.aliasName(),
+                medView.sdMedicationType(),
+                medView.sdDoseForm(),
+                medView.preparationSpec(),
+                medView.preparationUnit(),
+                medView.strengthValue(),
+                medView.strengthUnit(),
+                medView.sdStorageType(),
+                medView.prescriptionDrug(),
+                medView.essentialDrug(),
+                medView.antimicrobial(),
+                medView.sdAntimicrobialLevel(),
+                medView.skinTestRequired(),
+                medView.defaultDose(),
+                medView.defaultDoseUnit(),
+                medView.defaultRoute(),
+                medView.defaultFrequencyId(),
+                medView.defaultFrequency(),
+                medView.chronicDiseaseDrug(),
+                medView.singleOrder(),
+                medView.sdStatus(),
+                site.id(),
+                site.name(),
+                si.id(),
+                availableBaseQty,
+                availablePkgQty,
+                si.baseUnitCode(),
+                pkgUnitName,
+                factor,
+                matchedProduct == null ? List.of() : List.of(matchedProduct)
+        );
+    }
+
+    private Set<Long> resolveOutpatientTargetSiteIds(Long tenantId, Long organizationId, Long departmentId,
+                                                     LocalDate today) {
         List<DispenseRoute> activeRoutes = dispenseRouteRepository.findByTenantIdAndOrganizationIdOrderByCode(tenantId, organizationId)
                 .stream()
                 .filter(r -> r.effective(today) && "OUTPATIENT".equals(r.careSetting())
@@ -90,143 +192,81 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                     .map(StockSite::id)
                     .forEach(targetSiteIds::add);
         }
+        return targetSiteIds;
+    }
 
-        if (targetSiteIds.isEmpty()) {
-            return List.of();
-        }
-
-        Map<Long, StockSite> siteMap = stockSiteRepository.findAllById(targetSiteIds).stream()
+    private Map<Long, StockSite> loadEffectiveSites(Long tenantId, Set<Long> targetSiteIds, LocalDate today) {
+        return stockSiteRepository.findAllById(targetSiteIds).stream()
                 .filter(s -> s.tenantId().equals(tenantId) && s.effective(today))
                 .collect(Collectors.toMap(StockSite::id, s -> s));
+    }
 
-        List<OrderableMedicationView> results = new ArrayList<>();
+    private SiteStockCandidates collectSiteStockCandidates(Long tenantId, Long organizationId, Long departmentId,
+                                                           String query, boolean searching, StockSite site) {
+        List<InventoryBalance> siteBalances = availabilityService.findBySite(tenantId, site.id()).stream()
+                .filter(b -> "AVAILABLE".equals(b.stockStatus()) && b.quantityAvailable().signum() > 0)
+                .toList();
+        if (siteBalances.isEmpty()) return null;
 
-        for (StockSite site : siteMap.values()) {
-            // 2. 查该药房所有的可用库存（stockStatus = AVAILABLE 且 quantityAvailable > 0）
-            List<InventoryBalance> siteBalances = availabilityService.findBySite(tenantId, site.id()).stream()
-                    .filter(b -> "AVAILABLE".equals(b.stockStatus()) && b.quantityAvailable().signum() > 0)
-                    .toList();
-            if (siteBalances.isEmpty()) continue;
-
-            // 按 stockItemId 汇总可用数量
-            Map<Long, BigDecimal> availableByStockItemId = siteBalances.stream()
-                    .collect(Collectors.groupingBy(
-                            InventoryBalance::stockItemId,
-                            Collectors.reducing(BigDecimal.ZERO, InventoryBalance::quantityAvailable, BigDecimal::add)
-                    ));
-
-            // 获取这些 stockItem
-            List<StockItem> stockItems = stockItemRepository.findAllById(availableByStockItemId.keySet()).stream()
-                    .filter(si -> si.tenantId().equals(tenantId) && "ACTIVE".equals(si.status()))
-                    .toList();
-            if (stockItems.isEmpty()) continue;
-
-            List<Long> catalogItemIds = stockItems.stream().map(StockItem::catalogItemId).distinct().toList();
-
-            // 3. 批量查询药品主数据知识和包装
-            List<MedicationView> medViews = catalogLifecycleDirectory.findMedicationsByProductCatalogItemIds(
-                    tenantId, organizationId, catalogItemIds);
-            Map<Long, MedicationView> medViewByCatalogItemId = new HashMap<>();
-            for (MedicationView mv : medViews) {
-                for (MedicationProductView pv : mv.products()) {
-                    medViewByCatalogItemId.put(pv.id(), mv);
-                }
-            }
-            Set<Long> matchingMedicationIds = searching
-                    ? searchDirectory.findMatchingTargetIds("MEDICATION", tenantId, organizationId, departmentId,
-                            query, medViews.stream().map(MedicationView::id).collect(Collectors.toSet()))
-                    : Set.of();
-            Set<Long> matchingProductIds = searching
-                    ? searchDirectory.findMatchingTargetIds("CATALOG_ITEM", tenantId, organizationId, departmentId,
-                            query, catalogItemIds)
-                    : Set.of();
-
-            for (StockItem si : stockItems) {
-                BigDecimal availableBaseQty = availableByStockItemId.getOrDefault(si.id(), BigDecimal.ZERO);
-                if (availableBaseQty.signum() <= 0) continue;
-
-                MedicationView medView = medViewByCatalogItemId.get(si.catalogItemId());
-                if (medView == null) continue;
-
-                // 找到对应的产品和包装
-                MedicationProductView matchedProduct = medView.products().stream()
-                        .filter(p -> p.id().equals(si.catalogItemId()))
-                        .findFirst().orElse(null);
-
-                PackageView defaultPkg = null;
-                if (matchedProduct != null && matchedProduct.packages() != null) {
-                    defaultPkg = matchedProduct.packages().stream()
-                            .filter(p -> p.id().equals(si.basePackageId()) || p.defaultDispense() || p.defaultSale())
-                            .findFirst()
-                            .orElse(matchedProduct.packages().isEmpty() ? null : matchedProduct.packages().getFirst());
-                }
-
-                BigDecimal factor = defaultPkg != null && defaultPkg.quantityFactor() != null && defaultPkg.quantityFactor().signum() > 0
-                        ? defaultPkg.quantityFactor() : BigDecimal.ONE;
-                String pkgUnitName = defaultPkg != null && defaultPkg.unitName() != null
-                        ? defaultPkg.unitName() : si.baseUnitCode();
-
-                BigDecimal availablePkgQty = availableBaseQty.divide(factor, 0, RoundingMode.FLOOR);
-                if (availablePkgQty.signum() <= 0) continue; // 关键：可用包装量必须 > 0
-
-                if (searching) {
-                    boolean directoryMatch = matchingMedicationIds.contains(medView.id())
-                            || matchingProductIds.contains(si.catalogItemId());
-                    boolean businessFieldMatch = startsWith(medView.code(), normalizedQuery)
-                            || contains(medView.name(), normalizedQuery)
-                            || contains(medView.aliasName(), normalizedQuery)
-                            || contains(medView.preparationSpec(), normalizedQuery)
-                            || matchedProduct != null && (startsWith(matchedProduct.code(), normalizedQuery)
-                                    || contains(matchedProduct.name(), normalizedQuery)
-                                    || startsWith(matchedProduct.approvalCode(), normalizedQuery)
-                                    || startsWith(matchedProduct.registrationCode(), normalizedQuery)
-                                    || startsWith(matchedProduct.purchaseCode(), normalizedQuery));
-                    if (!directoryMatch && !businessFieldMatch) continue;
-                }
-
-                results.add(new OrderableMedicationView(
-                        medView.id(),
-                        medView.revision(),
-                        medView.itemTypeId(),
-                        medView.itemMasterId(),
-                        medView.code(),
-                        medView.name(),
-                        medView.aliasName(),
-                        medView.sdMedicationType(),
-                        medView.sdDoseForm(),
-                        medView.preparationSpec(),
-                        medView.preparationUnit(),
-                        medView.strengthValue(),
-                        medView.strengthUnit(),
-                        medView.sdStorageType(),
-                        medView.prescriptionDrug(),
-                        medView.essentialDrug(),
-                        medView.antimicrobial(),
-                        medView.sdAntimicrobialLevel(),
-                        medView.skinTestRequired(),
-                        medView.defaultDose(),
-                        medView.defaultDoseUnit(),
-                        medView.defaultRoute(),
-                        medView.defaultFrequencyId(),
-                        medView.defaultFrequency(),
-                        medView.chronicDiseaseDrug(),
-                        medView.singleOrder(),
-                        medView.sdStatus(),
-                        site.id(),
-                        site.name(),
-                        si.id(),
-                        availableBaseQty,
-                        availablePkgQty,
-                        si.baseUnitCode(),
-                        pkgUnitName,
-                        factor,
-                        matchedProduct == null ? List.of() : List.of(matchedProduct)
+        // 按 stockItemId 汇总可用数量
+        Map<Long, BigDecimal> availableByStockItemId = siteBalances.stream()
+                .collect(Collectors.groupingBy(
+                        InventoryBalance::stockItemId,
+                        Collectors.reducing(BigDecimal.ZERO, InventoryBalance::quantityAvailable, BigDecimal::add)
                 ));
+
+        // 获取这些 stockItem
+        List<StockItem> stockItems = stockItemRepository.findAllById(availableByStockItemId.keySet()).stream()
+                .filter(si -> si.tenantId().equals(tenantId) && "ACTIVE".equals(si.status()))
+                .toList();
+        if (stockItems.isEmpty()) return null;
+
+        List<Long> catalogItemIds = stockItems.stream().map(StockItem::catalogItemId).distinct().toList();
+
+        // 3. 批量查询药品主数据知识和包装
+        List<MedicationView> medViews = catalogLifecycleDirectory.findMedicationsByProductCatalogItemIds(
+                tenantId, organizationId, catalogItemIds);
+        Map<Long, MedicationView> medViewByCatalogItemId = new HashMap<>();
+        for (MedicationView mv : medViews) {
+            for (MedicationProductView pv : mv.products()) {
+                medViewByCatalogItemId.put(pv.id(), mv);
             }
         }
+        Set<Long> matchingMedicationIds = searching
+                ? searchDirectory.findMatchingTargetIds("MEDICATION", tenantId, organizationId, departmentId,
+                        query, medViews.stream().map(MedicationView::id).collect(Collectors.toSet()))
+                : Set.of();
+        Set<Long> matchingProductIds = searching
+                ? searchDirectory.findMatchingTargetIds("CATALOG_ITEM", tenantId, organizationId, departmentId,
+                        query, catalogItemIds)
+                : Set.of();
 
-        results.sort(Comparator.comparing(OrderableMedicationView::name));
-        return results.stream().limit(resultLimit).toList();
+        return new SiteStockCandidates(availableByStockItemId, stockItems, medViewByCatalogItemId,
+                matchingMedicationIds, matchingProductIds);
+    }
+
+    private boolean matchesSearch(MedicationView medView, MedicationProductView matchedProduct, Long catalogItemId,
+                                  Set<Long> matchingMedicationIds, Set<Long> matchingProductIds, String normalizedQuery) {
+        boolean directoryMatch = matchingMedicationIds.contains(medView.id())
+                || matchingProductIds.contains(catalogItemId);
+        boolean businessFieldMatch = startsWith(medView.code(), normalizedQuery)
+                || contains(medView.name(), normalizedQuery)
+                || contains(medView.aliasName(), normalizedQuery)
+                || contains(medView.preparationSpec(), normalizedQuery)
+                || matchedProduct != null && (startsWith(matchedProduct.code(), normalizedQuery)
+                        || contains(matchedProduct.name(), normalizedQuery)
+                        || startsWith(matchedProduct.approvalCode(), normalizedQuery)
+                        || startsWith(matchedProduct.registrationCode(), normalizedQuery)
+                        || startsWith(matchedProduct.purchaseCode(), normalizedQuery));
+        return directoryMatch || businessFieldMatch;
+    }
+
+    private record SiteStockCandidates(
+            Map<Long, BigDecimal> availableByStockItemId,
+            List<StockItem> stockItems,
+            Map<Long, MedicationView> medViewByCatalogItemId,
+            Set<Long> matchingMedicationIds,
+            Set<Long> matchingProductIds) {
     }
 
     private boolean startsWith(String value, String query) {
@@ -295,6 +335,33 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
         String reservationGroup = "RX-" + command.prescriptionId();
 
         // 查找目标药房（优先精确科室路由，其次全院默认通配路由）
+        Long targetSiteId = resolveFreezeTargetSiteId(command, today);
+        if (targetSiteId == null) {
+            throw conflict("DISPENSE_PHARMACY_NOT_FOUND", "未找到当前门诊科室的发药药房配置");
+        }
+
+        int frozenCount = 0;
+        for (PrescriptionItemFreezeRequest item : command.items()) {
+            StockItem stockItem = resolveTargetStockItem(command.tenantId(), command.organizationId(),
+                    targetSiteId, item);
+
+            if (stockItem == null) {
+                throw conflict("STOCK_ITEM_NOT_FOUND", "目标发药药房未纳入该药品经营项目，无法开立");
+            }
+
+            FreezeLineStock lineStock = prepareFreezeLineStock(command, item, targetSiteId, stockItem, today);
+
+            allocateAndFreeze(command, item, targetSiteId, stockItem,
+                    lineStock.requiredBaseQuantity(), lineStock.balances());
+            frozenCount++;
+        }
+
+        freezeRepository.flush();
+        availabilityService.flush();
+        return new PrescriptionFreezeResult(command.prescriptionId(), reservationGroup, frozenCount, true);
+    }
+
+    private Long resolveFreezeTargetSiteId(PrescriptionFreezeCommand command, LocalDate today) {
         Long targetSiteId = null;
         List<DispenseRoute> activeRoutes = dispenseRouteRepository.findByTenantIdAndOrganizationIdOrderByCode(
                 command.tenantId(), command.organizationId()).stream()
@@ -315,95 +382,96 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                     .map(StockSite::id)
                     .findFirst().orElse(null);
         }
+        return targetSiteId;
+    }
 
-        if (targetSiteId == null) {
-            throw conflict("DISPENSE_PHARMACY_NOT_FOUND", "未找到当前门诊科室的发药药房配置");
-        }
+    private StockItem resolveTargetStockItem(Long tenantId, Long organizationId, Long targetSiteId,
+                                             PrescriptionItemFreezeRequest item) {
+        StockItem stockItem = stockItemRepository.findByTenantIdAndStockSiteIdAndCatalogItemId(
+                tenantId, targetSiteId, item.catalogItemId())
+                .orElse(null);
 
-        int frozenCount = 0;
-        for (PrescriptionItemFreezeRequest item : command.items()) {
-            StockItem stockItem = stockItemRepository.findByTenantIdAndStockSiteIdAndCatalogItemId(
-                    command.tenantId(), targetSiteId, item.catalogItemId())
-                    .orElse(null);
-
-            if (stockItem == null) {
-                // 如果按 catalogItemId 未直接命中，查找属于该药房的全部 stockItem
-                List<StockItem> siteItems = stockItemRepository.findByTenantIdAndStockSiteIdOrderById(command.tenantId(), targetSiteId);
-                var medViews = catalogLifecycleDirectory.findMedicationsByProductCatalogItemIds(
-                        command.tenantId(), command.organizationId(),
-                        siteItems.stream().map(StockItem::catalogItemId).toList());
-                for (StockItem candidate : siteItems) {
-                    for (MedicationView mv : medViews) {
-                        if (mv.id().equals(item.catalogItemId())) {
-                            stockItem = candidate;
-                            break;
-                        }
+        if (stockItem == null) {
+            // 如果按 catalogItemId 未直接命中，查找属于该药房的全部 stockItem
+            List<StockItem> siteItems = stockItemRepository.findByTenantIdAndStockSiteIdOrderById(tenantId, targetSiteId);
+            var medViews = catalogLifecycleDirectory.findMedicationsByProductCatalogItemIds(
+                    tenantId, organizationId,
+                    siteItems.stream().map(StockItem::catalogItemId).toList());
+            for (StockItem candidate : siteItems) {
+                for (MedicationView mv : medViews) {
+                    if (mv.id().equals(item.catalogItemId())) {
+                        stockItem = candidate;
+                        break;
                     }
-                    if (stockItem != null) break;
                 }
+                if (stockItem != null) break;
             }
+        }
+        return stockItem;
+    }
 
-            if (stockItem == null) {
-                throw conflict("STOCK_ITEM_NOT_FOUND", "目标发药药房未纳入该药品经营项目，无法开立");
-            }
+    private FreezeLineStock prepareFreezeLineStock(PrescriptionFreezeCommand command, PrescriptionItemFreezeRequest item,
+                                                   Long targetSiteId, StockItem stockItem, LocalDate today) {
+        var snapshot = catalogLifecycleDirectory.resolve(
+                command.tenantId(), stockItem.catalogItemId(), command.organizationId(),
+                item.packageId() != null ? item.packageId() : stockItem.basePackageId(),
+                "SALE", today);
 
-            var snapshot = catalogLifecycleDirectory.resolve(
-                    command.tenantId(), stockItem.catalogItemId(), command.organizationId(),
-                    item.packageId() != null ? item.packageId() : stockItem.basePackageId(),
-                    "SALE", today);
+        BigDecimal factor = snapshot.itemPackage() != null && snapshot.itemPackage().quantityFactor() != null
+                ? snapshot.itemPackage().quantityFactor() : BigDecimal.ONE;
 
-            BigDecimal factor = snapshot.itemPackage() != null && snapshot.itemPackage().quantityFactor() != null
-                    ? snapshot.itemPackage().quantityFactor() : BigDecimal.ONE;
+        BigDecimal requiredBaseQuantity = item.packageQuantity().multiply(factor);
 
-            BigDecimal requiredBaseQuantity = item.packageQuantity().multiply(factor);
+        List<InventoryBalance> balances = availabilityService.lockIssuable(
+                command.tenantId(), targetSiteId, stockItem.id(), today, stockItem.issuePolicy());
 
-            List<InventoryBalance> balances = availabilityService.lockIssuable(
-                    command.tenantId(), targetSiteId, stockItem.id(), today, stockItem.issuePolicy());
+        BigDecimal totalAvailable = balances.stream()
+                .map(InventoryBalance::quantityAvailable)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal totalAvailable = balances.stream()
-                    .map(InventoryBalance::quantityAvailable)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            if (totalAvailable.compareTo(requiredBaseQuantity) < 0) {
-                BigDecimal availablePackages = totalAvailable.divide(factor, 0, RoundingMode.FLOOR);
-                String medName = snapshot.medication() != null ? snapshot.medication().name()
-                        : (snapshot.item() != null ? snapshot.item().name() : "药品");
-                throw conflict("INVENTORY_INSUFFICIENT",
-                        "药品【%s】药房可用库存不足（需要 %s %s，当前仅剩 %s %s），请调减数量或更换药品".formatted(
-                                medName,
-                                item.packageQuantity().stripTrailingZeros().toPlainString(),
-                                item.unitName() == null ? "包装" : item.unitName(),
-                                availablePackages.stripTrailingZeros().toPlainString(),
-                                item.unitName() == null ? "包装" : item.unitName()
-                        ));
-            }
-
-            BigDecimal remaining = requiredBaseQuantity;
-            for (InventoryBalance balance : balances) {
-                if (remaining.signum() == 0) break;
-                BigDecimal alloc = balance.quantityAvailable().min(remaining);
-                if (alloc.signum() <= 0) continue;
-                balance.freeze(alloc);
-                freezeRepository.save(new PrescriptionInventoryFreeze(
-                        command.tenantId(),
-                        command.prescriptionId(),
-                        item.requestId(),
-                        targetSiteId,
-                        balance.stockBinId(),
-                        stockItem.id(),
-                        balance.stockLotId(),
-                        alloc,
-                        balance.baseUnitCode(),
-                        command.actorId()
-                ));
-                remaining = remaining.subtract(alloc);
-            }
-            frozenCount++;
+        if (totalAvailable.compareTo(requiredBaseQuantity) < 0) {
+            BigDecimal availablePackages = totalAvailable.divide(factor, 0, RoundingMode.FLOOR);
+            String medName = snapshot.medication() != null ? snapshot.medication().name()
+                    : (snapshot.item() != null ? snapshot.item().name() : "药品");
+            throw conflict("INVENTORY_INSUFFICIENT",
+                    "药品【%s】药房可用库存不足（需要 %s %s，当前仅剩 %s %s），请调减数量或更换药品".formatted(
+                            medName,
+                            item.packageQuantity().stripTrailingZeros().toPlainString(),
+                            item.unitName() == null ? "包装" : item.unitName(),
+                            availablePackages.stripTrailingZeros().toPlainString(),
+                            item.unitName() == null ? "包装" : item.unitName()
+                    ));
         }
 
-        freezeRepository.flush();
-        availabilityService.flush();
-        return new PrescriptionFreezeResult(command.prescriptionId(), reservationGroup, frozenCount, true);
+        return new FreezeLineStock(requiredBaseQuantity, balances);
+    }
+
+    private void allocateAndFreeze(PrescriptionFreezeCommand command, PrescriptionItemFreezeRequest item,
+                                   Long targetSiteId, StockItem stockItem, BigDecimal requiredBaseQuantity,
+                                   List<InventoryBalance> balances) {
+        BigDecimal remaining = requiredBaseQuantity;
+        for (InventoryBalance balance : balances) {
+            if (remaining.signum() == 0) break;
+            BigDecimal alloc = balance.quantityAvailable().min(remaining);
+            if (alloc.signum() <= 0) continue;
+            balance.freeze(alloc);
+            freezeRepository.save(new PrescriptionInventoryFreeze(
+                    command.tenantId(),
+                    command.prescriptionId(),
+                    item.requestId(),
+                    targetSiteId,
+                    balance.stockBinId(),
+                    stockItem.id(),
+                    balance.stockLotId(),
+                    alloc,
+                    balance.baseUnitCode(),
+                    command.actorId()
+            ));
+            remaining = remaining.subtract(alloc);
+        }
+    }
+
+    private record FreezeLineStock(BigDecimal requiredBaseQuantity, List<InventoryBalance> balances) {
     }
 
     @Override

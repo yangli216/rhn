@@ -3,6 +3,8 @@ package com.rhn.outpatient.scheduling;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
@@ -250,7 +252,7 @@ class ScheduleGenerationRun {
     @Column(name = "DA_DATE_FROM", nullable = false) private LocalDate dateFrom;
     @Column(name = "DA_DATE_TO", nullable = false) private LocalDate dateTo;
     @Column(name = "SD_TRIGGER_TYPE", nullable = false) private String triggerType;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private ScheduleGenerationRunStatus status;
     @Column(name = "QTY_GEND", nullable = false) private int generatedCount;
     @Column(name = "QTY_SKIPPED", nullable = false) private int skippedCount;
     @Lob @Column(name = "JSON_REQ", nullable = false) private String requestJson;
@@ -276,14 +278,14 @@ class ScheduleGenerationRun {
         this.dateFrom = dateFrom;
         this.dateTo = dateTo;
         this.triggerType = triggerType;
-        this.status = "RUNNING";
+        this.status = ScheduleGenerationRunStatus.RUNNING;
         this.requestJson = requestJson;
         this.startedAt = Instant.now();
         this.triggeredBy = actorId;
     }
 
     void complete(int generatedCount, int skippedCount) {
-        this.status = "COMPLETED";
+        this.status = ScheduleGenerationRunStatus.COMPLETED;
         this.generatedCount = generatedCount;
         this.skippedCount = skippedCount;
         this.completedAt = Instant.now();
@@ -440,7 +442,7 @@ class ScheduleSlotPool {
     @Column(name = "QTY_HELD", nullable = false) private int heldCount;
     @Column(name = "QTY_OCCPD", nullable = false) private int occupiedCount;
     @Column(name = "QTY_FROZEN", nullable = false) private int frozenCount;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private ScheduleSlotPoolStatus status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
@@ -458,13 +460,13 @@ class ScheduleSlotPool {
         this.slotMode = slotMode;
         this.quotaMode = "SHARED";
         this.totalCount = totalCount;
-        this.status = "ACTIVE";
+        this.status = ScheduleSlotPoolStatus.ACTIVE;
         this.createdAt = Instant.now();
         this.updatedAt = createdAt;
     }
 
     void occupyOne() {
-        if (!"ACTIVE".equals(status) || heldCount + occupiedCount + frozenCount >= totalCount) {
+        if (status != ScheduleSlotPoolStatus.ACTIVE || heldCount + occupiedCount + frozenCount >= totalCount) {
             throw com.rhn.shared.api.BusinessErrors.conflict("SCHEDULE_SLOT_UNAVAILABLE", "所选排班已无可用号源");
         }
         occupiedCount++;
@@ -472,7 +474,7 @@ class ScheduleSlotPool {
     }
 
     void holdOne() {
-        if (!"ACTIVE".equals(status) || heldCount + occupiedCount + frozenCount >= totalCount) {
+        if (status != ScheduleSlotPoolStatus.ACTIVE || heldCount + occupiedCount + frozenCount >= totalCount) {
             throw com.rhn.shared.api.BusinessErrors.conflict("SCHEDULE_SLOT_UNAVAILABLE", "所选排班已无可用号源");
         }
         heldCount++;
@@ -513,12 +515,12 @@ class ScheduleSlotPool {
     }
 
     void freeze() {
-        status = "FROZEN";
+        status = ScheduleSlotPoolStatus.FROZEN;
         updatedAt = Instant.now();
     }
 
     void activate() {
-        status = "ACTIVE";
+        status = ScheduleSlotPoolStatus.ACTIVE;
         updatedAt = Instant.now();
     }
 
@@ -527,7 +529,7 @@ class ScheduleSlotPool {
             throw com.rhn.shared.api.BusinessErrors.conflict("SCHEDULE_CANCEL_HAS_USAGE",
                     "班次已有暂占、挂号或冻结号源，请先完成影响处理");
         }
-        status = "CLOSED";
+        status = ScheduleSlotPoolStatus.CLOSED;
         updatedAt = Instant.now();
     }
 
@@ -538,7 +540,7 @@ class ScheduleSlotPool {
     int heldCount() { return heldCount; }
     int occupiedCount() { return occupiedCount; }
     int frozenCount() { return frozenCount; }
-    String status() { return status; }
+    ScheduleSlotPoolStatus status() { return status; }
 }
 
 @Entity

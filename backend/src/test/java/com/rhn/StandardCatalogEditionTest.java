@@ -51,7 +51,11 @@ class StandardCatalogEditionTest extends RhnIntegrationTestSupport {
     }
     @Test void registers_immutable_normalized_edition_and_reviews_it_without_replacing_runtime_or_trusting_claims() throws Exception {
         var before=runtime.snapshot();var raw=input(fixture("test-2"));var d=editions.register(raw);assertThat(editions.original(d.edition().id()).content()).isEqualTo(raw.content());
-        assertThat(editions.content(d.edition().baselineId())).isEqualTo(before);assertThat(editions.detail(d.edition().baselineId(),0).edition().origin()).isEqualTo("RUNTIME_ARCHIVE");assertThat(d.review().status()).isEqualTo("UNVERIFIED");assertThat(d.edition().declaredContentHash()).isEqualTo("b".repeat(64));assertThat(d.edition().identity().contentHash()).matches("[a-f0-9]{64}").isNotEqualTo(d.edition().declaredContentHash());
+        assertThat(editions.content(d.edition().baselineId())).isEqualTo(before);
+        assertThat(editions.detail(d.edition().baselineId(),0).edition().origin()).isEqualTo("RUNTIME_ARCHIVE");
+        assertThat(d.review().status()).isEqualTo("UNVERIFIED");
+        assertThat(d.edition().declaredContentHash()).isEqualTo("b".repeat(64));
+        assertThat(d.edition().identity().contentHash()).matches("[a-f0-9]{64}").isNotEqualTo(d.edition().declaredContentHash());
         var exported=(ObjectNode)editions.content(d.edition().id());var unsigned=exported.deepCopy();unsigned.remove("contentHash");assertThat(ClinicalSemanticVersions.hash(unsigned,json)).isEqualTo(d.edition().identity().contentHash());
         var submitted=editions.review(d.edition().id(),action(d,"SUBMIT"));
         assertThatThrownBy(()->editions.review(d.edition().id(),action(submitted,"VERIFY"))).hasMessageContaining("提交人不能");
@@ -107,6 +111,14 @@ class StandardCatalogEditionTest extends RhnIntegrationTestSupport {
     }
     @Test void concurrent_imports_keep_one_immutable_version() throws Exception {
         var command=input(fixture("race"));var pool=Executors.newFixedThreadPool(2);var gate=new CountDownLatch(1);
-        try {var tasks=new ArrayList<Future<Boolean>>();for(int i=0;i<2;i++)tasks.add(pool.submit(()->{gate.await();try{editions.register(command);return true;}catch(com.rhn.shared.api.BusinessException conflict){return false;}}));gate.countDown();int successes=0;for(var task:tasks)if(task.get(30,TimeUnit.SECONDS))successes++;assertThat(successes).isEqualTo(1);assertThat(editions.list(0).totalElements()).isEqualTo(2);}finally{pool.shutdownNow();}
+        try {
+            var tasks=new ArrayList<Future<Boolean>>();
+            for(int i=0;i<2;i++)tasks.add(pool.submit(()->{gate.await();try{editions.register(command);return true;}catch(com.rhn.shared.api.BusinessException conflict){return false;}}));
+            gate.countDown();
+            int successes=0;
+            for(var task:tasks)if(task.get(30,TimeUnit.SECONDS))successes++;
+            assertThat(successes).isEqualTo(1);
+            assertThat(editions.list(0).totalElements()).isEqualTo(2);
+        }finally{pool.shutdownNow();}
     }
 }

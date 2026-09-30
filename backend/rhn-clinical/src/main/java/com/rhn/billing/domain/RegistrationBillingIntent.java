@@ -3,6 +3,8 @@ package com.rhn.billing.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -34,7 +36,7 @@ public class RegistrationBillingIntent {
     @Column(name = "ID_PAT_COVER") private Long coverageId;
     @Column(name = "CD_COVER_TYPE_SNAP") private String coverageTypeCodeSnapshot;
     @Column(name = "NA_COVER_PAYER_SNAP") private String coveragePayerNameSnapshot;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private RegistrationBillingIntentStatus status;
     @Column(name = "AMT_FEE", nullable = false, precision = 24, scale = 6) private BigDecimal feeAmount;
     @Column(name = "CD_CCY", nullable = false) private String currencyCode;
     @Column(name = "CD_ITEM_SNAP") private String itemCodeSnapshot;
@@ -64,7 +66,7 @@ public class RegistrationBillingIntent {
         this.registrationSource = registrationSource; this.visitType = visitType;
         this.settlementMode = settlementMode; this.coverageId = coverageId;
         this.coverageTypeCodeSnapshot = coverageTypeCode; this.coveragePayerNameSnapshot = coveragePayerName;
-        this.status = "PAYMENT_PENDING";
+        this.status = RegistrationBillingIntentStatus.PAYMENT_PENDING;
         this.feeAmount = feeAmount; this.currencyCode = currencyCode; this.itemCodeSnapshot = itemCode;
         this.itemNameSnapshot = itemName; this.expiresAt = expiresAt; this.createdBy = createdBy;
         this.createdAt = Instant.now(); this.updatedAt = createdAt;
@@ -83,59 +85,59 @@ public class RegistrationBillingIntent {
     }
 
     public boolean beginCompletion(Long orderId) {
-        if ("COMPLETED".equals(status)) return false;
-        if (!("PAYMENT_PENDING".equals(status) || "PAID".equals(status)
-                || "COMPLETION_FAILED".equals(status) || "COMPLETING".equals(status))) return false;
+        if (status == RegistrationBillingIntentStatus.COMPLETED) return false;
+        if (!(status == RegistrationBillingIntentStatus.PAYMENT_PENDING || status == RegistrationBillingIntentStatus.PAID
+                || status == RegistrationBillingIntentStatus.COMPLETION_FAILED || status == RegistrationBillingIntentStatus.COMPLETING)) return false;
         if (feeAmount.signum() > 0 && orderId == null) return false;
         if (paymentOrderId != null && orderId != null && !paymentOrderId.equals(orderId)) return false;
         if (orderId != null) paymentOrderId = orderId;
-        status = "COMPLETING"; completionAttempts++; lastErrorCode = null; lastErrorMessage = null;
+        status = RegistrationBillingIntentStatus.COMPLETING; completionAttempts++; lastErrorCode = null; lastErrorMessage = null;
         updatedAt = Instant.now(); return true;
     }
 
     public void completed(Long encounterId) {
-        this.encounterId = encounterId; this.status = "COMPLETED";
+        this.encounterId = encounterId; this.status = RegistrationBillingIntentStatus.COMPLETED;
         this.completedAt = Instant.now(); this.updatedAt = completedAt;
         this.lastErrorCode = null; this.lastErrorMessage = null;
     }
 
     public void failed(String code, String message) {
-        if ("COMPLETED".equals(status)) return;
-        this.status = "COMPLETION_FAILED"; this.lastErrorCode = code;
+        if (status == RegistrationBillingIntentStatus.COMPLETED) return;
+        this.status = RegistrationBillingIntentStatus.COMPLETION_FAILED; this.lastErrorCode = code;
         this.lastErrorMessage = message == null ? "挂号业务落地失败" : message;
         this.updatedAt = Instant.now();
     }
 
     public void cancel() {
-        if (!"PAYMENT_PENDING".equals(status) || paymentOrderId != null) {
+        if (status != RegistrationBillingIntentStatus.PAYMENT_PENDING || paymentOrderId != null) {
             throw com.rhn.shared.api.BusinessErrors.conflict("REGISTRATION_INTENT_NOT_CANCELLABLE",
                     "已发起支付或已完成的挂号意向不能直接取消");
         }
-        this.status = "CANCELLED"; this.updatedAt = Instant.now();
+        this.status = RegistrationBillingIntentStatus.CANCELLED; this.updatedAt = Instant.now();
     }
 
     public void beginCancellation() {
-        if ("CANCELLED".equals(status) || "CANCELLATION_PENDING".equals(status)) return;
-        if (!("COMPLETED".equals(status) || "CANCELLATION_FAILED".equals(status))) {
+        if (status == RegistrationBillingIntentStatus.CANCELLED || status == RegistrationBillingIntentStatus.CANCELLATION_PENDING) return;
+        if (!(status == RegistrationBillingIntentStatus.COMPLETED || status == RegistrationBillingIntentStatus.CANCELLATION_FAILED)) {
             throw com.rhn.shared.api.BusinessErrors.conflict("REGISTRATION_INTENT_NOT_WITHDRAWABLE",
                     "当前挂号收费状态不能办理退号");
         }
-        this.status = "CANCELLATION_PENDING";
+        this.status = RegistrationBillingIntentStatus.CANCELLATION_PENDING;
         this.lastErrorCode = null;
         this.lastErrorMessage = null;
         this.updatedAt = Instant.now();
     }
 
     public void cancellationFailed(String code, String message) {
-        if ("CANCELLED".equals(status)) return;
-        this.status = "CANCELLATION_FAILED";
+        if (status == RegistrationBillingIntentStatus.CANCELLED) return;
+        this.status = RegistrationBillingIntentStatus.CANCELLATION_FAILED;
         this.lastErrorCode = code;
         this.lastErrorMessage = message;
         this.updatedAt = Instant.now();
     }
 
     public void cancelledAfterCompletion() {
-        this.status = "CANCELLED";
+        this.status = RegistrationBillingIntentStatus.CANCELLED;
         this.lastErrorCode = null;
         this.lastErrorMessage = null;
         this.updatedAt = Instant.now();
@@ -162,7 +164,7 @@ public class RegistrationBillingIntent {
     public Long coverageId() { return coverageId; }
     public String coverageTypeCode() { return coverageTypeCodeSnapshot; }
     public String coveragePayerName() { return coveragePayerNameSnapshot; }
-    public String status() { return status; }
+    public RegistrationBillingIntentStatus status() { return status; }
     public BigDecimal feeAmount() { return feeAmount; }
     public String currencyCode() { return currencyCode; }
     public String itemCode() { return itemCodeSnapshot; }

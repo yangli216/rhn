@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -22,7 +24,7 @@ public class GoodsReceipt {
     @Column(name = "CD_RCPT_NO", nullable = false) private String receiptNo;
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
     @Column(name = "CD_DELIV_NOTE_NO") private String deliveryNoteNo;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private GoodsReceiptStatus status;
     @Column(name = "DT_RECVD", nullable = false) private Instant receivedAt;
     @Column(name = "ID_USER_RECVD", nullable = false) private Long receivedBy;
     @Column(name = "DT_INSPTD") private Instant inspectedAt;
@@ -43,30 +45,30 @@ public class GoodsReceipt {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.stockSiteId = stockSiteId; this.purchaseOrderId = purchaseOrderId; this.supplierId = supplierId;
         this.receiptNo = receiptNo; this.requestCode = requestCode; this.deliveryNoteNo = deliveryNoteNo;
-        this.status = "RECEIVED"; this.receivedAt = receivedAt; this.receivedBy = actorId;
+        this.status = GoodsReceiptStatus.RECEIVED; this.receivedAt = receivedAt; this.receivedBy = actorId;
         this.description = description; this.createdAt = Instant.now(); this.createdBy = actorId;
         this.updatedAt = createdAt; this.updatedBy = actorId;
     }
 
     public void beginInspection(Long actorId) {
-        requireStatus("RECEIVED"); status = "INSPECTING"; touch(actorId);
+        requireStatus(GoodsReceiptStatus.RECEIVED); status = GoodsReceiptStatus.INSPECTING; touch(actorId);
     }
 
     public void completeInspection(boolean anyAccepted, boolean anyRejected, Long actorId) {
-        requireStatus("INSPECTING");
-        status = anyAccepted ? (anyRejected ? "PARTIALLY_ACCEPTED" : "ACCEPTED") : "REJECTED";
+        requireStatus(GoodsReceiptStatus.INSPECTING);
+        status = anyAccepted ? (anyRejected ? GoodsReceiptStatus.PARTIALLY_ACCEPTED : GoodsReceiptStatus.ACCEPTED) : GoodsReceiptStatus.REJECTED;
         inspectedAt = Instant.now(); inspectedBy = actorId; touch(actorId);
     }
 
     public void markPosted(Long actorId) {
-        if (!"ACCEPTED".equals(status) && !"PARTIALLY_ACCEPTED".equals(status)) {
+        if (status != GoodsReceiptStatus.ACCEPTED && status != GoodsReceiptStatus.PARTIALLY_ACCEPTED) {
             throw new IllegalStateException("只有验收通过的到货单可以入库");
         }
-        status = "POSTED"; postedAt = Instant.now(); postedBy = actorId; touch(actorId);
+        status = GoodsReceiptStatus.POSTED; postedAt = Instant.now(); postedBy = actorId; touch(actorId);
     }
 
-    private void requireStatus(String expected) {
-        if (!expected.equals(status)) throw new IllegalStateException("到货验收单状态不允许当前操作");
+    private void requireStatus(GoodsReceiptStatus expected) {
+        if (expected != status) throw new IllegalStateException("到货验收单状态不允许当前操作");
     }
     private void touch(Long actorId) { updatedAt = Instant.now(); updatedBy = actorId; }
 
@@ -80,7 +82,7 @@ public class GoodsReceipt {
     public String receiptNo() { return receiptNo; }
     public String requestCode() { return requestCode; }
     public String deliveryNoteNo() { return deliveryNoteNo; }
-    public String status() { return status; }
+    public GoodsReceiptStatus status() { return status; }
     public Instant receivedAt() { return receivedAt; }
     public Long receivedBy() { return receivedBy; }
     public Instant inspectedAt() { return inspectedAt; }

@@ -19,7 +19,9 @@ import static com.rhn.shared.api.BusinessErrors.*;
 public class MedicationKnowledgeDeploymentService {
     private final com.rhn.shared.json.JsonCodec json;private final ExecutionContextProvider contexts;private final MedicationKnowledgeReviewService reviews;
     private final MedicationKnowledgeRuleStore candidates;private final MedicationKnowledgeTestStore tests;private final MedicationRuleGovernanceStore store;
-    public MedicationKnowledgeDeploymentService(ExecutionContextProvider contexts,MedicationKnowledgeReviewService reviews,MedicationKnowledgeRuleStore candidates,MedicationKnowledgeTestStore tests,MedicationRuleGovernanceStore store,com.rhn.shared.json.JsonCodec json) {this.json=json;this.contexts=contexts;this.reviews=reviews;this.candidates=candidates;this.tests=tests;this.store=store;}
+    public MedicationKnowledgeDeploymentService(ExecutionContextProvider contexts,MedicationKnowledgeReviewService reviews,
+            MedicationKnowledgeRuleStore candidates,MedicationKnowledgeTestStore tests,MedicationRuleGovernanceStore store,
+            com.rhn.shared.json.JsonCodec json) {this.json=json;this.contexts=contexts;this.reviews=reviews;this.candidates=candidates;this.tests=tests;this.store=store;}
     private Long tenant() {
         var c=contexts.requireCurrent();
         if(!c.hasAuthority("MASTER_DATA.MANAGE")||c.subjectId()==null) throw forbidden("QMED_KNOW_DEPLOY_FORBIDDEN","需要主数据管理权限及操作者身份");
@@ -39,7 +41,10 @@ public class MedicationKnowledgeDeploymentService {
     }
     @Transactional public Deployment command(Long id,Command input) {
         var tenant=tenant();var c=require(tenant,id);
-        if(input==null||!Set.of("DEPLOY","PAUSE").contains(Objects.toString(input.operation(),""))||!("SHADOW".equals(input.mode())||"PAUSE".equals(input.operation())&&"ENFORCED".equals(input.mode()))||input.reason()==null||input.reason().isBlank()||input.reason().length()>2000) throw badRequest("QMED_KNOW_DEPLOY_INPUT","请选择旁路启用或指定模式的暂停，并填写原因；正式启用须使用独立发布入口");
+        if(input==null||!Set.of("DEPLOY","PAUSE").contains(Objects.toString(input.operation(),""))
+                ||!("SHADOW".equals(input.mode())||"PAUSE".equals(input.operation())&&"ENFORCED".equals(input.mode()))
+                ||input.reason()==null||input.reason().isBlank()||input.reason().length()>2000)
+            throw badRequest("QMED_KNOW_DEPLOY_INPUT","请选择旁路启用或指定模式的暂停，并填写原因；正式启用须使用独立发布入口");
         candidates.lockKnowledge(tenant,c.knowledgeId());tests.lock(tenant,id);
         var stored=store.read(tenant,key(c));
         if(stored.revision()!=input.expectedRevision()) throw conflict("QMED_KNOW_DEPLOY_STALE","规则目录已变化，请刷新后重试");
@@ -57,10 +62,16 @@ public class MedicationKnowledgeDeploymentService {
             var approval=p.approval();var body=c.knowledge().body();var source=body.evidence();
             var evidence=new Evidence(source.sourceType(),source.title(),source.edition(),source.locator(),source.publisher(),source.excerpt(),"INSTITUTION_POLICY".equals(source.sourceType())?"INSTITUTION_POLICY":"CLINICAL_EVIDENCE");
             var action=Status.valueOf(approval.action());
-            var executable=new RuleVersion(c.id(),new RuleDefinition(c.knowledgeId(),"QMED.KNOWLEDGE."+c.knowledgeId(),body.kind(),body.title()),c.version(),"qmed-knowledge-"+c.id(),c.program().schemaVersion(),"SHADOW",Severity.valueOf("MEDIUM".equals(body.severity())?"MODERATE":body.severity()),action,action==Status.BLOCK?OverridePolicy.NOT_ALLOWED:action==Status.REQUIRE_OVERRIDE?OverridePolicy.REASON_REQUIRED:OverridePolicy.ACKNOWLEDGE,approval.time(),null,List.of(evidence));
+            var executable=new RuleVersion(c.id(),new RuleDefinition(c.knowledgeId(),"QMED.KNOWLEDGE."+c.knowledgeId(),body.kind(),body.title()),
+                    c.version(),"qmed-knowledge-"+c.id(),c.program().schemaVersion(),"SHADOW",
+                    Severity.valueOf("MEDIUM".equals(body.severity())?"MODERATE":body.severity()),action,
+                    action==Status.BLOCK?OverridePolicy.NOT_ALLOWED:action==Status.REQUIRE_OVERRIDE?OverridePolicy.REASON_REQUIRED:OverridePolicy.ACKNOWLEDGE,
+                    approval.time(),null,List.of(evidence));
             store.installIfAbsent(executable);
             for(int i=0;i<releases.size();i++) {var d=releases.get(i);if(scope(d)&&"SHADOW".equals(d.mode())&&(d.effectiveTo()==null||d.effectiveTo().isAfter(now))) releases.set(i,copy(d,"SUPERSEDED",now));}
-            release=new Deployment(GlobalIds.next(),id.toString(),c.version(),"SHADOW","ACTIVE",approval.action(),actor.organizationId(),actor.departmentId(),now,input.effectiveTo(),actor.subjectId(),now,input.reason().strip(),null,executable,new Release(approval,MedicationKnowledgeReplayAdapter.VERSION,MedicationKnowledgeRuntime.fingerprint(approval,json)));
+            release=new Deployment(GlobalIds.next(),id.toString(),c.version(),"SHADOW","ACTIVE",approval.action(),actor.organizationId(),
+                    actor.departmentId(),now,input.effectiveTo(),actor.subjectId(),now,input.reason().strip(),null,executable,
+                    new Release(approval,MedicationKnowledgeReplayAdapter.VERSION,MedicationKnowledgeRuntime.fingerprint(approval,json)));
             releases.add(release);
         }
         var history=new ArrayList<>(stored.state().history());history.add(new AuditEvent(GlobalIds.next(),input.operation(),id.toString(),actor.subjectId(),now,input.reason().strip()));

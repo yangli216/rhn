@@ -163,7 +163,9 @@ public class AnalysisPageService {
         if(result.status()!=Status.READY) return new Proposal(result.status(),result.message(),null);
         validatePlan(result.spec());dates(result.spec().period(),today);
         if(request.template()!=Template.AUTO && result.spec().template()!=request.template()) throw badRequest("ANALYSIS_TEMPLATE_INVALID","AI 未使用已选择的模板，请重新生成");
-        if(request.currentSpec()==null && (request.history()==null || request.history().isEmpty()) && request.requirement().matches("(?s).*(诊断|疾病).*") && !result.spec().metrics().contains("DIAGNOSIS_RECORDS") && (result.spec().measures()==null || result.spec().measures().stream().noneMatch(m->m.source().equals("DIAGNOSIS"))))
+        if(request.currentSpec()==null && (request.history()==null || request.history().isEmpty()) && request.requirement().matches("(?s).*(诊断|疾病).*")
+                && !result.spec().metrics().contains("DIAGNOSIS_RECORDS")
+                && (result.spec().measures()==null || result.spec().measures().stream().noneMatch(m->m.source().equals("DIAGNOSIS"))))
             return new Proposal(Status.CLARIFY,"你需要按有效确诊记录条数统计吗？当前不能将诊断数量替换为诊毕人次。",null);
         Spec accepted=result.spec();
         if(request.requirement().matches("(?s).*(各科室|所有科室|全部科室|全院|可访问科室|科室对比).*"))

@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -37,16 +38,16 @@ public class ItemAttributeValue {
         requirePeriod(validFrom, validTo);
         this.id = GlobalIds.next();
         this.scopeType = "TENANT";
-        this.scopeCode = "TENANT:" + requireId(tenantId, "租户");
+        this.scopeCode = "TENANT:" + Strings.requireId(tenantId, "租户");
         this.tenantId = tenantId;
-        this.attributeSubjectId = requireId(attributeSubjectId, "属性主体");
-        this.attributeDefinitionId = requireId(attributeDefinitionId, "属性定义");
+        this.attributeSubjectId = Strings.requireId(attributeSubjectId, "属性主体");
+        this.attributeDefinitionId = Strings.requireId(attributeDefinitionId, "属性定义");
         this.valueJson = requireText(valueJson, "属性值", 20000);
         this.validFrom = validFrom;
         this.validTo = validTo;
         this.status = "ACTIVE";
         this.createdAt = Instant.now();
-        this.createdBy = requireId(actorId, "操作用户");
+        this.createdBy = Strings.requireId(actorId, "操作用户");
         this.updatedAt = createdAt;
         this.updatedBy = actorId;
     }
@@ -60,14 +61,14 @@ public class ItemAttributeValue {
         this.validTo = validTo;
         this.status = "ACTIVE";
         this.updatedAt = Instant.now();
-        this.updatedBy = requireId(actorId, "操作用户");
+        this.updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public void disable(long expectedRevision, Long actorId) {
         if (revision != expectedRevision) throw new IllegalArgumentException("属性值修订号已变化");
         this.status = "INACTIVE";
         this.updatedAt = Instant.now();
-        this.updatedBy = requireId(actorId, "操作用户");
+        this.updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public Long id() { return id; }
@@ -85,11 +86,6 @@ public class ItemAttributeValue {
     private static void requirePeriod(LocalDate from, LocalDate to) {
         if (from == null) throw new IllegalArgumentException("生效日期不能为空");
         if (to != null && to.isBefore(from)) throw new IllegalArgumentException("失效日期不能早于生效日期");
-    }
-
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
     }
 
     private static String requireText(String value, String label, int max) {

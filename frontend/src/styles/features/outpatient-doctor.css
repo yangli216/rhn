@@ -2623,7 +2623,7 @@
 
 .doctor-workspace-drawer > .ui-panel__head > .ui-button { margin-left: auto; }
 .ui-dialog.ai-plan-dialog {
-  width: min(74rem, calc(100vw - 2 * var(--space-5)));
+  width: min(92rem, calc(100vw - var(--space-5) - var(--space-5)));
   height: min(90vh, 58rem);
   display: flex;
   flex-direction: column;
@@ -2656,8 +2656,8 @@
 
 .ai-plan-modal-grid {
   display: grid;
-  grid-template-columns: minmax(20rem, 0.72fr) minmax(0, 1.28fr);
-  gap: var(--space-4);
+  grid-template-columns: minmax(20rem, 22rem) minmax(0, 1fr);
+  gap: var(--layout-panel-gap);
   flex: 1;
   min-height: 0;
 }
@@ -2669,7 +2669,7 @@
   min-width: 0;
   min-height: 0;
   border-right: 1px solid var(--color-border);
-  padding-right: var(--space-4);
+  padding-right: var(--space-3);
   overflow: hidden;
 }
 
@@ -3571,33 +3571,11 @@
 }
 
 .ai-plan-review-item__title-row {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
-}
-
-.ai-plan-kind-badge {
-  display: inline-flex;
-  align-items: center;
-  font-size: var(--font-size-small);
-  line-height: var(--line-height-small);
-  padding: 0 var(--space-2);
-  min-height: 1.5rem;
-  border-radius: var(--radius-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-.ai-plan-kind-badge--diagnosis {
-  background: var(--color-brand-soft);
-  color: var(--color-brand-primary);
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
-}
-
-.ai-plan-kind-badge--condition {
-  background: var(--color-surface-subtle);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
 }
 
 .ai-plan-stream-preview {
@@ -3661,30 +3639,25 @@
 
 .ai-plan-review-list {
   flex: 1;
+  min-width: 0;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: 2px;
+  gap: var(--space-2);
+  padding-right: var(--space-1);
 }
 
 .ai-plan-review-list--streaming {
   position: relative;
-  box-shadow: 0 0 0 1px var(--color-brand-primary);
 }
 
 .ai-plan-review-group {
+  min-width: 0;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   overflow: hidden;
-  transition: all var(--motion-fast) var(--ease-standard);
-}
-
-.ai-plan-review-group:hover {
-  border-color: color-mix(in srgb, var(--color-border) 75%, var(--color-brand-primary));
 }
 
 .ai-plan-review-group__header,
@@ -3693,7 +3666,9 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 0.55rem 0.85rem;
+  min-height: var(--panel-header-min-height);
+  padding: var(--space-1) var(--space-3);
+  box-sizing: border-box;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-subtle);
   color: var(--color-text-primary);
@@ -3703,24 +3678,25 @@
 }
 
 .ai-plan-review-group__title-area {
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .ai-plan-review-group__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.55rem;
-  height: 1.55rem;
-  border-radius: var(--radius-sm);
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-text-secondary);
   flex-shrink: 0;
 }
 
 .ai-plan-review-group__icon .ui-icon {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1rem;
+  height: 1rem;
 }
 
 .ai-plan-review-group__label {
@@ -3728,78 +3704,6 @@
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   line-height: var(--line-height-body);
-  letter-spacing: -0.01em;
-}
-
-.ai-plan-review-group__badge,
-.ai-plan-review-group > header > span {
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-medium);
-  padding: 1px 0.55rem;
-  border-radius: var(--radius-full);
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
-/* 4大临床分类视觉主题规范 */
-.ai-plan-review-group--diagnosis {
-  border-top: 3px solid #2563eb;
-}
-.ai-plan-review-group--diagnosis .ai-plan-review-group__header {
-  background: color-mix(in srgb, #2563eb 5%, var(--color-surface));
-}
-.ai-plan-review-group--diagnosis .ai-plan-review-group__icon {
-  background: color-mix(in srgb, #2563eb 12%, var(--color-surface));
-  color: #2563eb;
-}
-.ai-plan-review-group--diagnosis .ai-plan-review-group__badge {
-  background: color-mix(in srgb, #2563eb 10%, var(--color-surface));
-  color: #2563eb;
-}
-
-.ai-plan-review-group--medication {
-  border-top: 3px solid #059669;
-}
-.ai-plan-review-group--medication .ai-plan-review-group__header {
-  background: color-mix(in srgb, #059669 5%, var(--color-surface));
-}
-.ai-plan-review-group--medication .ai-plan-review-group__icon {
-  background: color-mix(in srgb, #059669 12%, var(--color-surface));
-  color: #059669;
-}
-.ai-plan-review-group--medication .ai-plan-review-group__badge {
-  background: color-mix(in srgb, #059669 10%, var(--color-surface));
-  color: #059669;
-}
-
-.ai-plan-review-group--service {
-  border-top: 3px solid #7c3aed;
-}
-.ai-plan-review-group--service .ai-plan-review-group__header {
-  background: color-mix(in srgb, #7c3aed 5%, var(--color-surface));
-}
-.ai-plan-review-group--service .ai-plan-review-group__icon {
-  background: color-mix(in srgb, #7c3aed 12%, var(--color-surface));
-  color: #7c3aed;
-}
-.ai-plan-review-group--service .ai-plan-review-group__badge {
-  background: color-mix(in srgb, #7c3aed 10%, var(--color-surface));
-  color: #7c3aed;
-}
-
-.ai-plan-review-group--follow-up {
-  border-top: 3px solid #d97706;
-}
-.ai-plan-review-group--follow-up .ai-plan-review-group__header {
-  background: color-mix(in srgb, #d97706 5%, var(--color-surface));
-}
-.ai-plan-review-group--follow-up .ai-plan-review-group__icon {
-  background: color-mix(in srgb, #d97706 12%, var(--color-surface));
-  color: #d97706;
-}
-.ai-plan-review-group--follow-up .ai-plan-review-group__badge {
-  background: color-mix(in srgb, #d97706 10%, var(--color-surface));
-  color: #d97706;
 }
 
 /* 组内项目条目 */
@@ -3808,16 +3712,14 @@
 }
 
 .ai-plan-review-item {
+  min-width: 0;
+  min-height: var(--control-height-md);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
-  padding: 0.6rem 0.85rem;
-  transition: background-color var(--motion-fast) var(--ease-standard);
-}
-
-.ai-plan-review-item:hover {
-  background: color-mix(in srgb, var(--color-surface-subtle) 60%, var(--color-surface));
+  padding: var(--space-1) var(--space-3);
+  box-sizing: border-box;
 }
 
 .ai-plan-review-item + .ai-plan-review-item {
@@ -3833,36 +3735,20 @@
 .ai-plan-review-item__main > strong,
 .ai-plan-review-item__title-row strong,
 .ai-plan-review-item__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--color-text-primary);
   font-size: var(--font-size-body);
   line-height: var(--line-height-body);
   font-weight: var(--font-weight-medium);
-  letter-spacing: -0.005em;
 }
 
 .ai-plan-review-item__main > small {
-  display: -webkit-box;
-  overflow: hidden;
+  display: block;
+  overflow-wrap: anywhere;
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
   line-height: var(--line-height-small);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-}
-
-.ai-plan-review-item__remove {
-  flex: none;
-  opacity: 0.65;
-  transition: opacity var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard);
-}
-
-.ai-plan-review-item:hover .ai-plan-review-item__remove {
-  opacity: 1;
-}
-
-.ai-plan-review-item__remove:hover {
-  color: var(--color-danger);
-  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
 }
 
 .ai-plan-review-item--text {
@@ -3876,25 +3762,8 @@
 
 .ai-plan-text-item-input {
   width: 100%;
-  min-height: 54px;
+  min-height: calc(var(--control-height-sm) + var(--control-height-sm));
   resize: vertical;
-  font-family: inherit;
-  font-size: var(--font-size-small);
-  line-height: 1.45;
-  color: var(--color-text-primary);
-  background: var(--color-surface-subtle);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 0.4rem 0.6rem;
-  box-sizing: border-box;
-  transition: border-color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
-}
-
-.ai-plan-text-item-input:focus {
-  background: var(--color-surface);
-  border-color: var(--color-brand-primary);
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
 }
 
 .ai-plan-text-item-preview {
@@ -4487,22 +4356,6 @@
 .ai-plan-info-btn:hover {
   color: var(--color-brand-primary);
   background: var(--color-brand-soft);
-}
-
-.ai-plan-dosage-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 var(--space-2);
-  min-height: 1.5rem;
-  font-size: var(--font-size-small);
-  line-height: var(--line-height-small);
-  color: var(--color-brand-primary);
-  background: var(--color-brand-soft);
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-medium);
 }
 
 .ai-plan-task-title-row {

@@ -19,6 +19,7 @@ import com.rhn.platform.dictionary.api.DictionaryDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
@@ -134,8 +135,8 @@ class PaymentOrderTransactionService {
         PaymentOrder value = orderRepository.save(new PaymentOrder(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), invoice.id(), null,
                 orderNo, idempotencyKey, businessScene, paymentScene, paymentMethod, methodName, "SETTLEMENT_PAY", amount,
-                account.currencyCode(), clean(input.correlationId()) == null ? context.correlationId() : clean(input.correlationId()),
-                clean(input.terminalCode()), input.expiresAt(), context.subjectId()));
+                account.currencyCode(), Strings.trimToNull(input.correlationId()) == null ? context.correlationId() : Strings.trimToNull(input.correlationId()),
+                Strings.trimToNull(input.terminalCode()), input.expiresAt(), context.subjectId()));
         eventRepository.save(new PaymentEvent(context.tenantId(), value.id(), null, "CREATE", null, "CREATED",
                 idempotencyKey, null, amount, null, null, context.subjectId()));
         settlements.recordPaymentRequested(context, formalSettlement.id(), value.id());
@@ -187,8 +188,8 @@ class PaymentOrderTransactionService {
                 account.organizationId(), account.departmentId(), account.id(),
                 original.invoiceId(), original.id(), orderNo, idempotencyKey, businessScene, scene,
                 original.paymentMethodCode(), methodName, "REFUND", amount, account.currencyCode(),
-                clean(input.correlationId()) == null ? context.correlationId() : clean(input.correlationId()),
-                clean(input.terminalCode()), null, context.subjectId()));
+                Strings.trimToNull(input.correlationId()) == null ? context.correlationId() : Strings.trimToNull(input.correlationId()),
+                Strings.trimToNull(input.terminalCode()), null, context.subjectId()));
         eventRepository.save(new PaymentEvent(context.tenantId(), value.id(), null, "CREATE", null, "CREATED",
                 idempotencyKey, null, amount, null, reason, context.subjectId()));
         return new CreateResult(value, false);
@@ -216,11 +217,11 @@ class PaymentOrderTransactionService {
         if ("SUCCEEDED".equals(next) && captured.compareTo(order.requestedAmount()) != 0) {
             throw conflict("PAYMENT_CAPTURE_INCOMPLETE", "支付指令成功金额必须等于申请金额");
         }
-        order.transition(next, captured, clean(input.externalOrderNo()), clean(input.errorCode()), clean(input.errorMessage()));
+        order.transition(next, captured, Strings.trimToNull(input.externalOrderNo()), Strings.trimToNull(input.errorCode()), Strings.trimToNull(input.errorMessage()));
         eventRepository.save(new PaymentEvent(context.tenantId(), order.id(), input.externalMessageId(),
-                upper(input.eventType()), current, next, commandCode, clean(input.externalTransactionNo()),
+                upper(input.eventType()), current, next, commandCode, Strings.trimToNull(input.externalTransactionNo()),
                 input.eventAmount() == null ? null : money(input.eventAmount()),
-                clean(input.errorCode()), clean(input.errorMessage()), context.subjectId()));
+                Strings.trimToNull(input.errorCode()), Strings.trimToNull(input.errorMessage()), context.subjectId()));
         return new TransitionResult(order, false);
     }
 
@@ -247,11 +248,11 @@ class PaymentOrderTransactionService {
         if ("REFUNDED".equals(next) && amount.compareTo(order.requestedAmount()) != 0) {
             throw conflict("REFUND_RESULT_INCOMPLETE", "退款完成金额必须等于申请金额");
         }
-        order.transitionRefund(next, amount, clean(input.externalOrderNo()), clean(input.errorCode()), clean(input.errorMessage()));
+        order.transitionRefund(next, amount, Strings.trimToNull(input.externalOrderNo()), Strings.trimToNull(input.errorCode()), Strings.trimToNull(input.errorMessage()));
         eventRepository.save(new PaymentEvent(context.tenantId(), order.id(), input.externalMessageId(),
-                upper(input.eventType()), current, next, commandCode, clean(input.externalTransactionNo()),
-                input.eventAmount() == null ? null : money(input.eventAmount()), clean(input.errorCode()),
-                clean(input.errorMessage()), context.subjectId()));
+                upper(input.eventType()), current, next, commandCode, Strings.trimToNull(input.externalTransactionNo()),
+                input.eventAmount() == null ? null : money(input.eventAmount()), Strings.trimToNull(input.errorCode()),
+                Strings.trimToNull(input.errorMessage()), context.subjectId()));
         return new TransitionResult(order, false);
     }
 
@@ -386,10 +387,9 @@ class PaymentOrderTransactionService {
         return value.setScale(6, RoundingMode.HALF_UP);
     }
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-    private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(); }
+    private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(); }
 
     record CreateCommand(Long invoiceId, String idempotencyKey, String businessScene, String paymentSceneCode,
                          String paymentMethodCode, BigDecimal amount, BigDecimal roundingAdjustment,

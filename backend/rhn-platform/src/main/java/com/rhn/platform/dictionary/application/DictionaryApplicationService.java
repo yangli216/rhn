@@ -361,6 +361,7 @@ public class DictionaryApplicationService implements DictionaryDirectory {
         try {
             ctx = contextProvider.requireCurrent();
         } catch (Exception ignored) {
+            // 启动期或后台线程没有执行上下文，按平台级（无机构/科室）解析属性范围。
         }
         Long orgId = ctx != null ? ctx.organizationId() : null;
         Long deptId = ctx != null ? ctx.departmentId() : null;

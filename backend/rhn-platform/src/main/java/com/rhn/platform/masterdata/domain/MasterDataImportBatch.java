@@ -1,8 +1,11 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -19,7 +22,7 @@ public class MasterDataImportBatch {
     @Column(name = "NA_FILE", nullable = false) private String fileName;
     @Column(name = "HASH_FILE", nullable = false) private String fileHash;
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private MasterDataImportBatchStatus status;
     @Column(name = "QTY_TOTAL_ROW", nullable = false) private int totalRows;
     @Column(name = "QTY_READY_ROW", nullable = false) private int readyRows;
     @Column(name = "QTY_INVALID_ROW", nullable = false) private int invalidRows;
@@ -35,16 +38,16 @@ public class MasterDataImportBatch {
     public MasterDataImportBatch(Long tenantId, Long actorId, String importType, String fileName,
                                  String fileHash, String requestCode) {
         this.id = GlobalIds.next();
-        this.tenantId = requireId(tenantId, "租户");
-        this.createdBy = requireId(actorId, "操作用户");
-        this.importType = requireCode(importType, "导入类型", 32);
+        this.tenantId = Strings.requireId(tenantId, "租户");
+        this.createdBy = Strings.requireId(actorId, "操作用户");
+        this.importType = Strings.requireText(importType, "导入类型", 32);
         if (!"SERVICE".equals(importType) && !"MEDICATION".equals(importType)) {
             throw new IllegalArgumentException("不支持的基础数据导入类型");
         }
-        this.fileName = requireCode(fileName, "文件名", 300);
-        this.fileHash = requireCode(fileHash, "文件摘要", 64);
-        this.requestCode = requireCode(requestCode, "请求编码", 128);
-        this.status = "PREFLIGHTING";
+        this.fileName = Strings.requireText(fileName, "文件名", 300);
+        this.fileHash = Strings.requireText(fileHash, "文件摘要", 64);
+        this.requestCode = Strings.requireText(requestCode, "请求编码", 128);
+        this.status = MasterDataImportBatchStatus.PREFLIGHTING;
         this.createdAt = Instant.now();
         this.updatedAt = createdAt;
         this.updatedBy = actorId;
@@ -60,42 +63,30 @@ public class MasterDataImportBatch {
         invalidRows = invalid;
         importedRows = imported;
         failedRows = failed;
-        if (total == 0 || invalid > 0) status = "INVALID";
-        else if (imported == total) status = "COMPLETED";
-        else if (imported > 0 || failed > 0) status = "PARTIAL";
-        else status = "READY";
+        if (total == 0 || invalid > 0) status = MasterDataImportBatchStatus.INVALID;
+        else if (imported == total) status = MasterDataImportBatchStatus.COMPLETED;
+        else if (imported > 0 || failed > 0) status = MasterDataImportBatchStatus.PARTIAL;
+        else status = MasterDataImportBatchStatus.READY;
         touch(actorId);
     }
 
     public void startImport(Long actorId) {
-        if (!"READY".equals(status) && !"PARTIAL".equals(status)) {
+        if (status != MasterDataImportBatchStatus.READY && status != MasterDataImportBatchStatus.PARTIAL) {
             throw new IllegalStateException("只有预检通过或部分失败的批次可以提交");
         }
-        status = "IMPORTING";
+        status = MasterDataImportBatchStatus.IMPORTING;
         touch(actorId);
     }
 
     public void cancel(Long actorId) {
-        if ("COMPLETED".equals(status)) throw new IllegalStateException("已完成批次不能取消");
-        status = "CANCELLED";
+        if (status == MasterDataImportBatchStatus.COMPLETED) throw new IllegalStateException("已完成批次不能取消");
+        status = MasterDataImportBatchStatus.CANCELLED;
         touch(actorId);
     }
 
     private void touch(Long actorId) {
         updatedAt = Instant.now();
-        updatedBy = requireId(actorId, "操作用户");
-    }
-
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
-    private static String requireCode(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
+        updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public Long id() { return id; }
@@ -105,7 +96,7 @@ public class MasterDataImportBatch {
     public String fileName() { return fileName; }
     public String fileHash() { return fileHash; }
     public String requestCode() { return requestCode; }
-    public String status() { return status; }
+    public MasterDataImportBatchStatus status() { return status; }
     public int totalRows() { return totalRows; }
     public int readyRows() { return readyRows; }
     public int invalidRows() { return invalidRows; }

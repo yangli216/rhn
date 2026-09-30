@@ -1,6 +1,7 @@
 package com.rhn.inpatient.infrastructure;
 
 import com.rhn.inpatient.domain.InpatientCareRequest;
+import com.rhn.inpatient.domain.InpatientCareRequestStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -14,7 +15,7 @@ import java.util.List;
 public interface InpatientCareRequestRepository extends JpaRepository<InpatientCareRequest, Long> {
     Optional<InpatientCareRequest> findByIdAndTenantId(Long id, Long tenantId);
     List<InpatientCareRequest> findByTenantIdAndEncounterIdAndStatusInOrderByAuthoredAtAscIdAsc(
-            Long tenantId, Long encounterId, Collection<String> statuses);
+            Long tenantId, Long encounterId, Collection<InpatientCareRequestStatus> statuses);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from InpatientCareRequest value where value.tenantId = :tenantId and value.id = :requestId")

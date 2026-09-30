@@ -16,6 +16,7 @@ import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -172,7 +173,7 @@ public class ClinicalPlanPreflightService {
     private void checkDose(OutpatientPlanTemplateDirectory.MedicationSnapshot line,
                            CatalogLifecycleDirectory.MedicationSnapshot medication, List<PreflightCheck> checks) {
         BigDecimal value = line.doseValue() == null && medication != null ? medication.defaultDose() : line.doseValue();
-        String unit = clean(line.doseUnit()) == null && medication != null ? clean(medication.defaultDoseUnit()) : clean(line.doseUnit());
+        String unit = Strings.trimToNull(line.doseUnit()) == null && medication != null ? Strings.trimToNull(medication.defaultDoseUnit()) : Strings.trimToNull(line.doseUnit());
         if (value == null || unit == null) checks.add(blocked("DOSE", "单次剂量与剂量单位必须完整"));
         else if (value.signum() <= 0) checks.add(blocked("DOSE", "单次剂量必须大于 0"));
         else checks.add(passed("DOSE", "单次剂量与剂量单位完整"));
@@ -181,7 +182,7 @@ public class ClinicalPlanPreflightService {
     private void checkRoute(OutpatientPlanTemplateDirectory.MedicationSnapshot line,
                             CatalogLifecycleDirectory.MedicationSnapshot medication, Access access,
                             LocalDate date, List<PreflightCheck> checks) {
-        String route = clean(line.routeCode()) == null && medication != null ? clean(medication.defaultRoute()) : clean(line.routeCode());
+        String route = Strings.trimToNull(line.routeCode()) == null && medication != null ? Strings.trimToNull(medication.defaultRoute()) : Strings.trimToNull(line.routeCode());
         if (route == null) { checks.add(blocked("ROUTE", "给药途径未填写且药品无默认值")); return; }
         try {
             var resolved = routeDirectory.requireActive(access.context().tenantId(), route, "OUTPATIENT", date);
@@ -194,8 +195,8 @@ public class ClinicalPlanPreflightService {
     private void checkFrequency(OutpatientPlanTemplateDirectory.MedicationSnapshot line,
                                 CatalogLifecycleDirectory.MedicationSnapshot medication, Access access,
                                 LocalDate date, List<PreflightCheck> checks) {
-        String frequency = clean(line.frequencyCode()) == null && medication != null
-                ? clean(medication.defaultFrequency()) : clean(line.frequencyCode());
+        String frequency = Strings.trimToNull(line.frequencyCode()) == null && medication != null
+                ? Strings.trimToNull(medication.defaultFrequency()) : Strings.trimToNull(line.frequencyCode());
         if (frequency == null) { checks.add(blocked("FREQUENCY", "用药频次未填写且药品无默认值")); return; }
         try {
             var resolved = frequencyDirectory.requireActive(access.context().tenantId(), frequency,
@@ -208,7 +209,7 @@ public class ClinicalPlanPreflightService {
     }
 
     private void checkDuration(OutpatientPlanTemplateDirectory.MedicationSnapshot line, List<PreflightCheck> checks) {
-        String unit = clean(line.durationUnit());
+        String unit = Strings.trimToNull(line.durationUnit());
         if (line.durationValue() == null && unit == null) {
             checks.add(warning("DURATION", "未设置疗程时长，需在医嘱草稿中核对"));
         } else if (line.durationValue() == null || unit == null || line.durationValue().signum() <= 0) {
@@ -223,8 +224,8 @@ public class ClinicalPlanPreflightService {
             checks.add(blocked("QUANTITY", "申请数量必须大于 0")); return;
         }
         String expected = catalog == null ? null : catalog.itemPackage() == null
-                ? clean(catalog.item().unitCode()) : clean(catalog.itemPackage().unitCode());
-        if (expected != null && clean(line.quantityUnit()) != null && !expected.equals(clean(line.quantityUnit()))) {
+                ? Strings.trimToNull(catalog.item().unitCode()) : Strings.trimToNull(catalog.itemPackage().unitCode());
+        if (expected != null && Strings.trimToNull(line.quantityUnit()) != null && !expected.equals(Strings.trimToNull(line.quantityUnit()))) {
             checks.add(blocked("QUANTITY", "申请数量单位与所选产品包装不一致"));
         } else checks.add(passed("QUANTITY", "申请数量有效"));
     }
@@ -275,7 +276,7 @@ public class ClinicalPlanPreflightService {
                         && value.substanceCode().equalsIgnoreCase(medicationCode)).toList();
         if (!matched.isEmpty() && !input.allergyReviewConfirmed()) {
             checks.add(blocked("ALLERGY_REVIEW", "患者存在药物过敏记录，必须由医生确认已核对"));
-        } else if (!matched.isEmpty() && clean(input.allergyOverrideReason()) == null) {
+        } else if (!matched.isEmpty() && Strings.trimToNull(input.allergyOverrideReason()) == null) {
             checks.add(blocked("ALLERGY_MATCH", "命中患者药物过敏原，继续带入必须填写临床理由"));
         } else if (!matched.isEmpty()) {
             checks.add(warning("ALLERGY_MATCH", "命中过敏原，已记录继续带入的临床理由"));
@@ -306,14 +307,13 @@ public class ClinicalPlanPreflightService {
     }
 
     private static String priceType(OutpatientPlanTemplateDirectory.MedicationSnapshot line) {
-        return clean(line.priceType()) == null ? "SALE" : clean(line.priceType()).toUpperCase(java.util.Locale.ROOT);
+        return Strings.trimToNull(line.priceType()) == null ? "SALE" : Strings.trimToNull(line.priceType()).toUpperCase(java.util.Locale.ROOT);
     }
     private static boolean effective(LocalDate from, LocalDate to, LocalDate date) {
         return (from == null || !date.isBefore(from)) && (to == null || !date.isAfter(to));
     }
     private static String number(BigDecimal value) { return value.stripTrailingZeros().toPlainString(); }
     private static String safe(String value) { return value == null || value.isBlank() ? "包装" : value.trim(); }
-    private static String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private static PreflightCheck passed(String code, String message) { return new PreflightCheck(code, "PASS", message); }
     private static PreflightCheck warning(String code, String message) { return new PreflightCheck(code, "WARNING", message); }
     private static PreflightCheck blocked(String code, String message) { return new PreflightCheck(code, "BLOCKED", message); }

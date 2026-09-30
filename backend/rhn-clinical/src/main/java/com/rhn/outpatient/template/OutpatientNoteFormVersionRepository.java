@@ -14,7 +14,7 @@ interface OutpatientNoteFormVersionRepository extends JpaRepository<OutpatientNo
             select value from OutpatientNoteFormVersion value
              where value.tenantId = :tenantId and value.organizationId = :organizationId
                and value.departmentId = :departmentId and value.specialtyCode = :specialtyCode
-               and value.status = 'PUBLISHED'
+               and value.status = com.rhn.outpatient.template.OutpatientNoteFormVersionStatus.PUBLISHED
              order by value.name asc, value.formCode asc
             """)
     List<OutpatientNoteFormVersion> findPublished(@Param("tenantId") Long tenantId,
@@ -27,7 +27,7 @@ interface OutpatientNoteFormVersionRepository extends JpaRepository<OutpatientNo
             select value from OutpatientNoteFormVersion value
              where value.tenantId = :tenantId and value.organizationId = :organizationId
                and value.departmentId = :departmentId and value.formCode = :formCode
-               and value.status = 'PUBLISHED'
+               and value.status = com.rhn.outpatient.template.OutpatientNoteFormVersionStatus.PUBLISHED
             """)
     Optional<OutpatientNoteFormVersion> lockPublished(@Param("tenantId") Long tenantId,
                                                        @Param("organizationId") Long organizationId,

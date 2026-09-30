@@ -8,6 +8,7 @@ import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,7 +70,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         ExecutionContext context = requireContext();
         List<OutpatientPlanTemplate> values = templates.findVisible(context.tenantId(), context.organizationId(),
                 context.departmentId(), context.practitionerId());
-        String term = clean(keyword);
+        String term = Strings.trimToNull(keyword);
         if (term != null) {
             String normalized = term.toLowerCase(Locale.ROOT);
             values = values.stream().filter(value -> value.name().toLowerCase(Locale.ROOT).contains(normalized)
@@ -137,9 +138,9 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         List<PlanTaskInput> taskInputs = validateTasks(input.tasks());
         Instant now = Instant.now();
         OutpatientPlanTemplate value = new OutpatientPlanTemplate(context.tenantId(), context.organizationId(),
-                context.departmentId(), scope, ownerId, name, clean(input.description()),
-                input.sortOrder() == null ? 0 : input.sortOrder(), clean(input.sourceType()),
-                clean(input.guidelineReference()), noteTemplateId, context.subjectId(), now);
+                context.departmentId(), scope, ownerId, name, Strings.trimToNull(input.description()),
+                input.sortOrder() == null ? 0 : input.sortOrder(), Strings.trimToNull(input.sourceType()),
+                Strings.trimToNull(input.guidelineReference()), noteTemplateId, context.subjectId(), now);
         value.setPlanTasks(jsonCodec.write(taskInputs));
         try {
             templates.saveAndFlush(value);
@@ -205,8 +206,8 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         diagnosisInputs = normalizeDiagnoses(diagnosisInputs, context.tenantId());
         List<PlanTaskInput> taskInputs = validateTasks(input.tasks());
         Instant now = Instant.now();
-        value.update(scope, ownerId, name, clean(input.description()),
-                input.sortOrder() == null ? 0 : input.sortOrder(), clean(input.guidelineReference()),
+        value.update(scope, ownerId, name, Strings.trimToNull(input.description()),
+                input.sortOrder() == null ? 0 : input.sortOrder(), Strings.trimToNull(input.guidelineReference()),
                 noteTemplateId, jsonCodec.write(taskInputs), context.subjectId(), now);
         try {
             templates.saveAndFlush(value);
@@ -257,19 +258,19 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                 }
             }
             if (!"ACTIVE".equals(medication.status())) throw conflict("PLAN_TEMPLATE_MEDICATION_INACTIVE", "方案中存在已停用药品");
-            MedicationRouteDirectory.RouteSnapshot route = clean(input.routeCode()) == null ? null
+            MedicationRouteDirectory.RouteSnapshot route = Strings.trimToNull(input.routeCode()) == null ? null
                     : medicationRouteDirectory.requireActive(context.tenantId(), input.routeCode(),
                     "OUTPATIENT", date);
-            String quantityUnit = clean(input.quantityUnit());
+            String quantityUnit = Strings.trimToNull(input.quantityUnit());
             if (quantityUnit == null) quantityUnit = itemPackage == null ? medication.preparationUnit() : itemPackage.unitCode();
             values.add(new OutpatientPlanMedication(template.tenantId(), template.id(), index + 1,
                     medication.id(), input.catalogItemId(), input.packageId(), medication.medicationType(),
                     medication.code(), medication.name(), medication.preparationSpec(), item == null ? null : item.name(),
-                    input.doseValue(), clean(input.doseUnit()), route == null ? null : route.code(), clean(input.frequencyCode()),
-                    input.durationValue(), clean(input.durationUnit()), input.quantity(), quantityUnit,
-                    input.substitutionAllowed(), input.selfProvided(), clean(input.medicationInstruction()),
+                    input.doseValue(), Strings.trimToNull(input.doseUnit()), route == null ? null : route.code(), Strings.trimToNull(input.frequencyCode()),
+                    input.durationValue(), Strings.trimToNull(input.durationUnit()), input.quantity(), quantityUnit,
+                    input.substitutionAllowed(), input.selfProvided(), Strings.trimToNull(input.medicationInstruction()),
                     normalizedPriceType(input.priceType()), input.pricingRequired() == null || input.pricingRequired(),
-                    clean(input.reason())));
+                    Strings.trimToNull(input.reason())));
         }
         medications.saveAll(values);
     }
@@ -287,9 +288,9 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
             }
             values.add(new OutpatientPlanServiceLine(template.tenantId(), template.id(), index + 1,
                     item.id(), item.code(), item.name(), item.serviceType(), input.quantity(),
-                    clean(input.unitCode()) == null ? item.unitCode() : clean(input.unitCode()), priceType,
-                    input.pricingRequired() == null || input.pricingRequired(), clean(input.reason()),
-                    clean(input.clinicalDescription())));
+                    Strings.trimToNull(input.unitCode()) == null ? item.unitCode() : Strings.trimToNull(input.unitCode()), priceType,
+                    input.pricingRequired() == null || input.pricingRequired(), Strings.trimToNull(input.reason()),
+                    Strings.trimToNull(input.clinicalDescription())));
         }
         services.saveAll(values);
     }
@@ -302,8 +303,8 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         }
         List<DiagnosisInput> normalized = new ArrayList<>();
         for (DiagnosisInput input : inputs) {
-            String requestedDomain = clean(input.diagnosisDomain());
-            String requestedSystem = clean(input.codeSystem());
+            String requestedDomain = Strings.trimToNull(input.diagnosisDomain());
+            String requestedSystem = Strings.trimToNull(input.codeSystem());
             if (requestedDomain == null && requestedSystem == null) {
                 requestedDomain = "WESTERN_MEDICINE";
                 requestedSystem = ICD10_SYSTEM;
@@ -503,10 +504,9 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         }
         return result;
     }
-    private String normalizedPriceType(String value) { return clean(value) == null ? "SALE" : upper(value); }
+    private String normalizedPriceType(String value) { return Strings.trimToNull(value) == null ? "SALE" : upper(value); }
     private String upper(String value) { return value == null ? "" : value.trim().toUpperCase(Locale.ROOT); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
 }

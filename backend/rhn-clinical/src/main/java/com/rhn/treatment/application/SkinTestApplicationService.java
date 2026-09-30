@@ -9,9 +9,11 @@ import com.rhn.pharmacy.api.MedicationFulfillmentDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import com.rhn.treatment.api.SkinTestDirectory;
 import com.rhn.treatment.api.SkinTestWorkItemView;
 import com.rhn.treatment.domain.SkinTestEvent;
+import com.rhn.treatment.domain.SkinTestEventStatus;
 import com.rhn.treatment.infrastructure.SkinTestEventRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -108,7 +110,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         if (!identityVerified) throw conflict(
                 "SKIN_TEST_IDENTITY_VERIFICATION_REQUIRED", "开始皮试前必须完成患者身份核对");
         SkinTestConfiguration configuration = configuration(request);
-        if (!Objects.equals(configuration.testMethod(), clean(testMethod))
+        if (!Objects.equals(configuration.testMethod(), Strings.trimToNull(testMethod))
                 || configuration.originalSolution() != originalSolution
                 || configuration.observationMinutes() != observationMinutes) {
             throw conflict("SKIN_TEST_CONFIGURATION_MISMATCH",
@@ -117,7 +119,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         List<SkinTestEvent> history = events.findByTenantIdAndMedicationRequestIdOrderByAttemptNoDesc(
                 context.tenantId(), medicationRequestId);
         SkinTestEvent latest = history.isEmpty() ? null : history.get(0);
-        if (latest != null && "IN_PROGRESS".equals(latest.status())) throw conflict(
+        if (latest != null && latest.status() == SkinTestEventStatus.IN_PROGRESS) throw conflict(
                 "SKIN_TEST_ALREADY_IN_PROGRESS", "当前药品已有进行中的皮试");
         if (latest != null && Set.of("NEGATIVE", "POSITIVE").contains(latest.result())) throw conflict(
                 "SKIN_TEST_ALREADY_FINAL", "当前药品已有明确皮试结果，不能重复开始");
@@ -129,7 +131,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                 request.encounterId(), request.id(), request.medicationId(), history.size() + 1,
                 request.medicationCode(), request.medicationName(), testMethod, originalSolution,
                 solutionCatalogItemId, solutionName, stockLotId, lotNo, concentration, concentrationUnit,
-                clean(bodySite), clean(verificationMethod), observationMinutes,
+                Strings.trimToNull(bodySite), Strings.trimToNull(verificationMethod), observationMinutes,
                 context.subjectId(), context.practitionerId(), now));
         publish(context, value, "SKIN_TEST_STARTED", "皮试已开始");
         return view(request, snapshot(value));
@@ -145,7 +147,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         MedicationRequestSnapshot request = requireAccessibleRequest(value.medicationRequestId(), context);
         Instant now = Instant.now();
         value.complete(expectedRevision, result, whealDiameterMm, flareDiameterMm,
-                clean(reactionDescription), clean(earlyReadReason), context.subjectId(),
+                Strings.trimToNull(reactionDescription), Strings.trimToNull(earlyReadReason), context.subjectId(),
                 context.practitionerId(), null, verifiedByPractitionerId, verifiedByName, now);
         events.flush();
         if ("POSITIVE".equals(value.result())) {
@@ -246,8 +248,8 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     }
 
     private String derivedStatus(SkinTestEvent event, Gate gate) {
-        if (event != null && "IN_PROGRESS".equals(event.status())) return "IN_PROGRESS";
-        if (event != null && "COMPLETED".equals(event.status())) return event.result();
+        if (event != null && event.status() == SkinTestEventStatus.IN_PROGRESS) return "IN_PROGRESS";
+        if (event != null && event.status() == SkinTestEventStatus.COMPLETED) return event.result();
         return gate.status();
     }
 
@@ -273,7 +275,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("medicationRequestId", value.medicationRequestId());
         payload.put("encounterId", value.encounterId()); payload.put("departmentId", value.departmentId());
-        payload.put("status", value.status());
+        payload.put("status", value.status().name());
         if (value.result() != null) payload.put("result", value.result());
         payload.put("summary", summary); payload.put("actorId", context.subjectId());
         eventPublisher.publish(value.tenantId(), value.organizationId(), eventType, 1,
@@ -281,7 +283,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     }
 
     private SkinTestSnapshot snapshot(SkinTestEvent value) {
-        String status = "COMPLETED".equals(value.status()) ? value.result() : value.status();
+        String status = value.status() == SkinTestEventStatus.COMPLETED ? value.result() : value.status().name();
         return new SkinTestSnapshot(value.id(), value.revision(), value.medicationRequestId(), status,
                 value.result(), value.startedAt(), value.completedAt());
     }
@@ -294,7 +296,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     private String snapshotText(MedicationRequestSnapshot request, String field, String fallback) {
         if (request.medicationSnapshot() == null || request.medicationSnapshot().path(field).isMissingNode()
                 || request.medicationSnapshot().path(field).isNull()) return fallback;
-        String value = clean(request.medicationSnapshot().path(field).asString());
+        String value = Strings.trimToNull(request.medicationSnapshot().path(field).asString());
         return value == null ? fallback : value;
     }
     private int snapshotInt(MedicationRequestSnapshot request, String field, int fallback) {
@@ -313,13 +315,13 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     private String resolvedAttributeText(MedicationRequestSnapshot request, String code) {
         if (request.itemAttributeSnapshot() == null) return null;
         var attribute = request.itemAttributeSnapshot().path("attributes").path(code);
-        String sourceLevel = clean(attribute.path("sourceLevel").asString());
+        String sourceLevel = Strings.trimToNull(attribute.path("sourceLevel").asString());
         if (sourceLevel == null || Set.of("DEFINITION_DEFAULT", "TYPE_DEFAULT", "NONE").contains(sourceLevel)) {
             return null;
         }
         var value = attribute.path("value");
         if (value.isMissingNode() || value.isNull()) return null;
-        return clean(value.asString());
+        return Strings.trimToNull(value.asString());
     }
     private ExecutionContext requireWorkContext() {
         ExecutionContext context = contextProvider.requireCurrent();
@@ -327,8 +329,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                 "SKIN_TEST_WORK_CONTEXT_REQUIRED", "请先选择皮试执行机构和科室");
         return context;
     }
-    private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(Locale.ROOT); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(Locale.ROOT); }
 
     private record Gate(boolean ready, String status, String code, String message) {}
     private record SkinTestConfiguration(String testMethod, String solutionMode, int observationMinutes,

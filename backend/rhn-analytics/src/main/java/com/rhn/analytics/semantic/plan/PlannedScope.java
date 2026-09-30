@@ -18,6 +18,9 @@ public record PlannedScope(
         authorizedDepartments = authorizedDepartments == null ? Map.of() : Map.copyOf(authorizedDepartments);
     }
 
+    /**
+     * 仅供单元测试与独立查询语法验证使用的基准作用域，严禁在生产运行时作为未认证上下文的静默兜底。
+     */
     public static PlannedScope defaultDevScope() {
         return new PlannedScope(
             ScopeIntent.AUTHORIZED,

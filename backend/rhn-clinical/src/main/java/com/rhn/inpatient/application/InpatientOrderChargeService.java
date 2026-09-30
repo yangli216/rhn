@@ -3,6 +3,7 @@ package com.rhn.inpatient.application;
 import com.rhn.billing.api.InpatientBillingDirectory;
 import com.rhn.inpatient.domain.InpatientCareRequest;
 import com.rhn.inpatient.domain.InpatientOrderTask;
+import com.rhn.inpatient.domain.InpatientOrderTaskStatus;
 import org.springframework.stereotype.Service;
 
 /** Posts one inpatient service charge for each completed execution fact.
@@ -16,7 +17,7 @@ public class InpatientOrderChargeService {
     }
 
     public void postExecutedTask(InpatientOrderTask task, InpatientCareRequest request) {
-        if (!"EXECUTED".equals(task.status()) || "MEDICATION".equals(request.orderCategory())
+        if (task.status() != InpatientOrderTaskStatus.EXECUTED || "MEDICATION".equals(request.orderCategory())
                 || request.catalogItemId() == null
                 || request.unitPrice() == null || request.totalAmount() == null
                 || request.currencyCode() == null) return;

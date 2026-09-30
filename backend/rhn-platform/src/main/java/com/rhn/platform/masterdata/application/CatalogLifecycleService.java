@@ -36,6 +36,7 @@ import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import com.rhn.shared.api.PageResult;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -477,8 +478,8 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
             replaced.replace(expectedRevision, input.validFrom(), actor(context));
         }
         OrganizationCatalogItem saved = adoptionRepository.save(new OrganizationCatalogItem(context.tenantId(), actor(context),
-                input.organizationId(), catalogItemId, input.defaultDepartmentId(), clean(input.localCode()),
-                clean(input.localName()), input.orderable(), input.executable(), input.chargeable(),
+                input.organizationId(), catalogItemId, input.defaultDepartmentId(), Strings.trimToNull(input.localCode()),
+                Strings.trimToNull(input.localName()), input.orderable(), input.executable(), input.chargeable(),
                 input.purchasable(), input.stocked(), input.dispensable(), input.returnable(), input.status(),
                 input.validFrom(), input.validTo(), replaced == null ? null : replaced.id()));
         searchProjections.synchronizeAdoption(saved, actor(context));
@@ -513,7 +514,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         }
         return priceRepository.save(new CatalogPrice(context.tenantId(), actor(context), catalogItemId,
                 input.organizationId(), input.packageId(), input.priceType(), input.price(),
-                input.currencyCode(), clean(input.priceDocumentCode()), clean(input.priceReason()), input.validFrom(),
+                input.currencyCode(), Strings.trimToNull(input.priceDocumentCode()), Strings.trimToNull(input.priceReason()), input.validFrom(),
                 input.validTo(), input.status(), replaced == null ? null : replaced.id()));
     }
 
@@ -558,7 +559,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
 
     private CatalogChangeBatchView batchView(CatalogChangeBatch value, List<CatalogChangeBatchRow> rows) {
         return new CatalogChangeBatchView(value.id(), value.revision(), value.batchType(), value.operationType(),
-                value.organizationId(), value.requestCode(), value.businessDate(), value.status(), value.totalRows(),
+                value.organizationId(), value.requestCode(), value.businessDate(), value.status().name(), value.totalRows(),
                 value.succeededRows(), value.failedRows(), value.createdAt(), value.createdBy(), value.updatedAt(),
                 rows.stream().map(row -> new CatalogChangeBatchRowView(row.id(), row.rowNumber(), row.catalogItemId(),
                         row.packageId(), row.status(), row.targetResourceType(), row.targetId(), row.errorCode(),
@@ -633,7 +634,6 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         return context.subjectId();
     }
 
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String sha256(String value) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                 .digest(value.getBytes(StandardCharsets.UTF_8))); }

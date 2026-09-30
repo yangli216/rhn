@@ -29,7 +29,8 @@ class AnalysisPageTest extends RhnIntegrationTestSupport {
       """;
     private long encounter(long dept,String kind) {
         long id=GlobalIds.next();
-        jdbc.update("insert into RHN_VIS_ENC (ID_ENC,ID_TNT,ID_PAT,CD_ENC_NO,ID_ORG,ID_DEPT,SD_STATUS,DT_REGD,SD_ENC_CLASS) values (?,?,?,?,?,?,?,?,?)",id,Long.valueOf(TENANT),362387869790213L,"DP"+id,Long.valueOf(ORGANIZATION),dept,"IN_PROGRESS",Timestamp.from(Instant.parse("2030-01-01T00:00:00Z")),kind);
+        jdbc.update("insert into RHN_VIS_ENC (ID_ENC,ID_TNT,ID_PAT,CD_ENC_NO,ID_ORG,ID_DEPT,SD_STATUS,DT_REGD,SD_ENC_CLASS) values (?,?,?,?,?,?,?,?,?)",
+                id,Long.valueOf(TENANT),362387869790213L,"DP"+id,Long.valueOf(ORGANIZATION),dept,"IN_PROGRESS",Timestamp.from(Instant.parse("2030-01-01T00:00:00Z")),kind);
         return id;
     }
     private void diagnosis(long encounter,String code,String recorded,String status,String verification) {

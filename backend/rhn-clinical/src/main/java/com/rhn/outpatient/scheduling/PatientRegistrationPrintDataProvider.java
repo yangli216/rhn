@@ -56,7 +56,7 @@ class PatientRegistrationPrintDataProvider implements PrintDataProvider {
         Long tenantId = TenantContext.requireTenantId();
         PatientRegistration registration = registrationRepository.findByIdAndTenantId(request.source().sourceId(), tenantId)
                 .orElseThrow(() -> notFound("PATIENT_REGISTRATION_NOT_FOUND", "未找到挂号记录"));
-        if ("CANCELLED".equals(registration.status())) {
+        if (registration.status() == PatientRegistrationStatus.CANCELLED) {
             throw conflict("PRINT_SOURCE_NOT_FINAL", "已退号的挂号记录不能生成打印文件");
         }
         QueueingDirectory.TicketSnapshot ticket = queueing.requireBySource("PAT_REG", registration.id());

@@ -41,7 +41,7 @@ class JpaOutpatientScheduleAvailabilityDirectory implements OutpatientScheduleAv
         for (ServiceSchedule schedule : activeSchedules) {
             ScheduleSlotPool pool = poolBySchedule.get(schedule.id());
             int available = pool == null ? schedule.totalCapacity()
-                    : "ACTIVE".equals(pool.status())
+                    : pool.status() == ScheduleSlotPoolStatus.ACTIVE
                     ? Math.max(0, pool.totalCount() - pool.heldCount() - pool.occupiedCount() - pool.frozenCount()) : 0;
             availableByDepartment.merge(schedule.departmentId(), available, Integer::sum);
         }

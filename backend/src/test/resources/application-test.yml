@@ -12,7 +12,7 @@ spring:
 rhn:
   search:
     projection:
-      rebuild-on-startup: true
+      rebuild-on-startup: false
   ai:
     mode: LOCAL_ASSIST
     provider: local-assist

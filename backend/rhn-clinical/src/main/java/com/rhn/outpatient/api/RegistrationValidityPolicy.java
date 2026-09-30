@@ -42,6 +42,7 @@ public class RegistrationValidityPolicy {
                 int days = Integer.parseInt(overrideDays);
                 return Math.max(1, days);
             } catch (NumberFormatException ignored) {
+                // 覆盖值为非法整数时忽略，回落到机构参数配置
             }
         }
         if (tenantId != null && configuration != null) {

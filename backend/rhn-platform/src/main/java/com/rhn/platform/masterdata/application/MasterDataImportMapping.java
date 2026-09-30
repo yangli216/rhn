@@ -4,6 +4,7 @@ import com.rhn.platform.masterdata.api.MasterDataCommands.MedicationCommand;
 import com.rhn.platform.masterdata.api.MasterDataCommands.ServiceCommand;
 import com.rhn.platform.masterdata.api.MasterDataImportViews.ImportError;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -68,7 +69,7 @@ class MasterDataImportMapping {
                 ? service(canonical, errors) : medication(canonical, errors);
         Map<String, Object> normalized = errors.isEmpty()
                 ? jsonCodec.readObject(jsonCodec.write(command)) : Map.of();
-        return new MappedRow(text(canonical.get("code")), normalized, command, List.copyOf(errors));
+        return new MappedRow(Strings.trimToNull(canonical.get("code")), normalized, command, List.copyOf(errors));
     }
 
     ServiceCommand serviceCommand(Map<String, Object> value) {
@@ -178,20 +179,20 @@ class MasterDataImportMapping {
     }
 
     private String required(Map<String, String> value, String key, String label, int max, List<ImportError> errors) {
-        String result = text(value.get(key));
+        String result = Strings.trimToNull(value.get(key));
         if (result == null) { error(errors, key, "REQUIRED", label + "不能为空"); return null; }
         if (result.length() > max) error(errors, key, "MAX_LENGTH", label + "长度不能超过" + max);
         return result;
     }
 
     private String optional(Map<String, String> value, String key, int max, List<ImportError> errors) {
-        String result = text(value.get(key));
+        String result = Strings.trimToNull(value.get(key));
         if (result != null && result.length() > max) error(errors, key, "MAX_LENGTH", "字段长度不能超过" + max);
         return result;
     }
 
     private boolean requiredBoolean(Map<String, String> value, String key, String label, List<ImportError> errors) {
-        String raw = text(value.get(key));
+        String raw = Strings.trimToNull(value.get(key));
         if (raw == null) { error(errors, key, "REQUIRED", label + "不能为空"); return false; }
         return switch (raw.toUpperCase(Locale.ROOT)) {
             case "TRUE", "1", "Y", "YES", "是" -> true;
@@ -201,7 +202,7 @@ class MasterDataImportMapping {
     }
 
     private Boolean optionalBoolean(Map<String, String> value, String key, String label, List<ImportError> errors) {
-        String raw = text(value.get(key));
+        String raw = Strings.trimToNull(value.get(key));
         if (raw == null) return null;
         return switch (raw.toUpperCase(Locale.ROOT)) {
             case "TRUE", "1", "Y", "YES", "是" -> true;
@@ -211,13 +212,13 @@ class MasterDataImportMapping {
     }
 
     private LocalDate requiredDate(Map<String, String> value, String key, String label, List<ImportError> errors) {
-        String raw = text(value.get(key));
+        String raw = Strings.trimToNull(value.get(key));
         if (raw == null) { error(errors, key, "REQUIRED", label + "不能为空"); return null; }
         return parseDate(raw, key, label, errors);
     }
 
     private LocalDate optionalDate(Map<String, String> value, String key, String label, List<ImportError> errors) {
-        String raw = text(value.get(key)); return raw == null ? null : parseDate(raw, key, label, errors);
+        String raw = Strings.trimToNull(value.get(key)); return raw == null ? null : parseDate(raw, key, label, errors);
     }
 
     private LocalDate parseDate(String raw, String key, String label, List<ImportError> errors) {
@@ -227,7 +228,7 @@ class MasterDataImportMapping {
 
     private BigDecimal optionalDecimal(Map<String, String> value, String key, String label, boolean positive,
                                        List<ImportError> errors) {
-        String raw = text(value.get(key));
+        String raw = Strings.trimToNull(value.get(key));
         if (raw == null) return null;
         try {
             BigDecimal result = new BigDecimal(raw);
@@ -240,7 +241,7 @@ class MasterDataImportMapping {
 
     private Integer optionalInteger(Map<String, String> value, String key, String label, int minimum,
                                     List<ImportError> errors) {
-        String raw = text(value.get(key));
+        String raw = Strings.trimToNull(value.get(key));
         if (raw == null) return null;
         try {
             int result = Integer.parseInt(raw);
@@ -253,7 +254,6 @@ class MasterDataImportMapping {
         errors.add(new ImportError(field, code, message));
     }
 
-    private static String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private static Field field(String name, String label) { return new Field(name, label, Set.of(name, label)); }
     private static String string(Map<String, Object> value, String key) { return String.valueOf(value.get(key)); }
     private static String optional(Map<String, Object> value, String key) {

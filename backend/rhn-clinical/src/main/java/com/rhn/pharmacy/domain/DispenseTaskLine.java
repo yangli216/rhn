@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
@@ -30,7 +32,7 @@ public class DispenseTaskLine {
     @Column(name = "BASE_QTY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
     @Column(name = "FG_SPLIT", nullable = false) private boolean split;
     @Column(name = "FG_TRACE_RQD", nullable = false) private boolean traceRequired;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private DispenseTaskLineStatus status;
     @Column(name = "CD_PRODUCT_SNAP", nullable = false) private String productCodeSnapshot;
     @Column(name = "NA_PRODUCT_SNAP", nullable = false) private String productNameSnapshot;
     @Column(name = "PACKAGE_SPEC_SNAP") private String packageSpecSnapshot;
@@ -65,7 +67,7 @@ public class DispenseTaskLine {
         this.requestedQuantity = requestedQuantity; this.plannedQuantity = plannedQuantity;
         this.dispensedQuantity = BigDecimal.ZERO; this.returnedQuantity = BigDecimal.ZERO;
         this.dispenseUnitCode = dispenseUnitCode; this.baseQuantityFactor = baseQuantityFactor;
-        this.split = split; this.traceRequired = traceRequired; this.status = "PENDING";
+        this.split = split; this.traceRequired = traceRequired; this.status = DispenseTaskLineStatus.PENDING;
         this.productCodeSnapshot = productCodeSnapshot; this.productNameSnapshot = productNameSnapshot;
         this.packageSpecSnapshot = packageSpecSnapshot; this.itemAttributeSnapshot = itemAttributeSnapshot;
         this.itemAttributeHash = itemAttributeHash; this.createdAt = Instant.now(); this.createdBy = actorId;
@@ -73,46 +75,46 @@ public class DispenseTaskLine {
 
     public void applyReview(String result) {
         status = switch (result) {
-            case "PASS", "OVERRIDE" -> "READY";
-            case "REJECT" -> "CANCELLED";
-            case "INTERVENE" -> "PENDING";
+            case "PASS", "OVERRIDE" -> DispenseTaskLineStatus.READY;
+            case "REJECT" -> DispenseTaskLineStatus.CANCELLED;
+            case "INTERVENE" -> DispenseTaskLineStatus.PENDING;
             default -> throw new IllegalArgumentException("Unsupported review result");
         };
     }
 
     public void bypassPreDispenseReview() {
-        if (!"PENDING".equals(status)) {
+        if (status != DispenseTaskLineStatus.PENDING) {
             throw new IllegalStateException("Current dispense line cannot skip pre-dispense review");
         }
-        status = "READY";
+        status = DispenseTaskLineStatus.READY;
     }
 
     public void markReserved() {
-        if (!"READY".equals(status)) {
+        if (status != DispenseTaskLineStatus.READY) {
             throw new IllegalStateException("Only ready dispense line can reserve inventory");
         }
-        status = "PICKING";
+        status = DispenseTaskLineStatus.PICKING;
     }
 
     public void releaseReservation() {
-        if ("READY".equals(status)) return;
-        if ("PARTIAL".equals(status)) {
-            status = "READY";
+        if (status == DispenseTaskLineStatus.READY) return;
+        if (status == DispenseTaskLineStatus.PARTIAL) {
+            status = DispenseTaskLineStatus.READY;
             return;
         }
-        if (!"PICKING".equals(status)) {
+        if (status != DispenseTaskLineStatus.PICKING) {
             throw new IllegalStateException("Current dispense line cannot release reservation");
         }
-        status = "READY";
+        status = DispenseTaskLineStatus.READY;
     }
 
     public void completePicking() {
-        if (!"PICKING".equals(status)) throw new IllegalStateException("Only picking line can complete preparation");
-        status = "READY_TO_DISPENSE";
+        if (status != DispenseTaskLineStatus.PICKING) throw new IllegalStateException("Only picking line can complete preparation");
+        status = DispenseTaskLineStatus.READY_TO_DISPENSE;
     }
 
     public void recordDispense(BigDecimal quantity) {
-        if (!"READY_TO_DISPENSE".equals(status) && !"PARTIAL".equals(status)) {
+        if (status != DispenseTaskLineStatus.READY_TO_DISPENSE && status != DispenseTaskLineStatus.PARTIAL) {
             throw new IllegalStateException("Current dispense line is not ready to dispense");
         }
         BigDecimal next = dispensedQuantity.add(quantity);
@@ -120,12 +122,13 @@ public class DispenseTaskLine {
             throw new IllegalArgumentException("Dispensed quantity exceeds planned quantity");
         }
         dispensedQuantity = next;
-        status = dispensedQuantity.compareTo(plannedQuantity) == 0 ? "COMPLETED" : "PARTIAL";
+        status = dispensedQuantity.compareTo(plannedQuantity) == 0
+                ? DispenseTaskLineStatus.COMPLETED : DispenseTaskLineStatus.PARTIAL;
     }
 
     /** Cancels only the unissued remainder; cumulative issue and return quantities remain immutable facts. */
     public void cancelRemainingForOrderStop() {
-        if (remainingQuantity().signum() > 0) status = "CANCELLED";
+        if (remainingQuantity().signum() > 0) status = DispenseTaskLineStatus.CANCELLED;
     }
 
     public void recordReturn(BigDecimal quantity) {
@@ -134,7 +137,8 @@ public class DispenseTaskLine {
             throw new IllegalArgumentException("Returned quantity exceeds dispensed quantity");
         }
         returnedQuantity = next;
-        status = returnedQuantity.compareTo(dispensedQuantity) == 0 ? "RETURNED" : "PARTIAL";
+        status = returnedQuantity.compareTo(dispensedQuantity) == 0
+                ? DispenseTaskLineStatus.RETURNED : DispenseTaskLineStatus.PARTIAL;
     }
 
     public BigDecimal remainingQuantity() { return plannedQuantity.subtract(dispensedQuantity); }
@@ -156,7 +160,7 @@ public class DispenseTaskLine {
     public BigDecimal baseQuantityFactor() { return baseQuantityFactor; }
     public boolean split() { return split; }
     public boolean traceRequired() { return traceRequired; }
-    public String status() { return status; }
+    public DispenseTaskLineStatus status() { return status; }
     public String productCodeSnapshot() { return productCodeSnapshot; }
     public String productNameSnapshot() { return productNameSnapshot; }
     public String packageSpecSnapshot() { return packageSpecSnapshot; }

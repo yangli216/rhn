@@ -38,7 +38,17 @@ class MedicationKnowledgeReviewTest extends RhnIntegrationTestSupport {
     void context(Long tenant,Long actor,boolean manage) {when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,actor,"reviewer-"+actor,"test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}
     KnowledgeRuleCandidate candidate() {var source=drafts.save(null,new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Save(0,duplicate(),"合成知识"));var p=rules.preview(source.saved().id(),1);return rules.create(source.saved().id(),new Create(1,p.programHash(),"合成候选"));}
     Case fixture(String title,String expected,List<String> ids,Row... rows) {return new Case(title,"人工先定义预期的合成测试，非临床依据",new FixtureInput(null,null,null,List.of(rows)),expected,ids);}
-    SuiteDetail suite(KnowledgeRuleCandidate c,int expectedVersion,boolean complete) {var a=row("A","E1","S1","PO");var b=row("B","E1","S1","PO");var cases=new ArrayList<Case>();cases.add(fixture("正例","MATCH",List.of("A","B"),a,b));if(complete){cases.add(fixture("反例","NO_MATCH",List.of(),a));cases.add(fixture("缺失","UNAVAILABLE",List.of(),new Row("X",null,null,null,null,null,null,"ACTIVE")));}return tests.save(c.id(),new Save(expectedVersion,c.programHash(),"独立预期",cases));}
+    SuiteDetail suite(KnowledgeRuleCandidate c,int expectedVersion,boolean complete) {
+        var a=row("A","E1","S1","PO");
+        var b=row("B","E1","S1","PO");
+        var cases=new ArrayList<Case>();
+        cases.add(fixture("正例","MATCH",List.of("A","B"),a,b));
+        if(complete) {
+            cases.add(fixture("反例","NO_MATCH",List.of(),a));
+            cases.add(fixture("缺失","UNAVAILABLE",List.of(),new Row("X",null,null,null,null,null,null,"ACTIVE")));
+        }
+        return tests.save(c.id(),new Save(expectedVersion,c.programHash(),"独立预期",cases));
+    }
     void ready(KnowledgeRuleCandidate c) {var s=suite(c,0,true);tests.execute(c.id(),new Execute(1,s.suiteHash(),"执行合成样例"));}
     Command command(Preview p,String op) {return new Command(p.revision(),op,"SUBMIT".equals(op)?p.current().fingerprint():p.submission().basis().fingerprint(),"合成审核操作","WARN","REQUIRE_OVERRIDE",true,true,true,"仅验证审核留痕，不构成临床批准材料");}
     @Test void preflight_requires_latest_manual_validation_and_major_outcome_kinds() {
@@ -89,7 +99,10 @@ class MedicationKnowledgeReviewTest extends RhnIntegrationTestSupport {
         context(T,10L,true);reviews.command(c.id(),command(reviews.preview(c.id()),"SUBMIT"));
         for(Long actor:List.of(7L,8L,9L,10L)) {context(T,actor,true);assertThat(reviews.preview(c.id()).allowedOperations()).doesNotContain("APPROVE","REJECT");}
         context(T,11L,true);var p=reviews.preview(c.id());assertThat(p.allowedOperations()).contains("APPROVE");
-        for(var invalid:List.of(new Command(p.revision(),"APPROVE",p.submission().basis().fingerprint(),"缺少验证确认","WARN","BLOCK",true,true,false,"意见"),new Command(p.revision(),"APPROVE",p.submission().basis().fingerprint(),"缺少缺失策略","WARN",null,true,true,true,"意见"),new Command(p.revision(),"APPROVE",p.submission().basis().fingerprint(),"缺少审核意见","WARN","BLOCK",true,true,true,"")))
+        for(var invalid:List.of(
+            new Command(p.revision(),"APPROVE",p.submission().basis().fingerprint(),"缺少验证确认","WARN","BLOCK",true,true,false,"意见"),
+            new Command(p.revision(),"APPROVE",p.submission().basis().fingerprint(),"缺少缺失策略","WARN",null,true,true,true,"意见"),
+            new Command(p.revision(),"APPROVE",p.submission().basis().fingerprint(),"缺少审核意见","WARN","BLOCK",true,true,true,"")))
             assertThatThrownBy(()->reviews.command(c.id(),invalid)).hasMessageContaining("须核对标准");
     }
     @Test void concurrent_review_decisions_append_only_one_event_and_state_revision() throws Exception {

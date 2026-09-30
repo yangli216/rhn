@@ -50,11 +50,11 @@ class PrescriptionPrintDataProvider implements PrintDataProvider {
         Prescription prescription = repository.findByIdAndTenantId(request.source().sourceId(), encounter.tenantId())
                 .filter(value -> value.encounterId().equals(encounter.id()))
                 .orElseThrow(() -> notFound("PRESCRIPTION_NOT_FOUND", "未找到当前就诊的处方"));
-        if (!"ACTIVE".equals(prescription.status())) {
+        if (prescription.status() != PrescriptionStatus.ACTIVE) {
             throw conflict("PRINT_SOURCE_NOT_FINAL", "只有已提交且未撤销的处方可以生成正式打印文件");
         }
         List<MedicationRequest> items = medications.prescriptionRequests(encounter.tenantId(), prescription.id());
-        if (items.isEmpty() || items.stream().anyMatch(item -> !"ACTIVE".equals(item.status()))) {
+        if (items.isEmpty() || items.stream().anyMatch(item -> item.status() != MedicationRequestStatus.ACTIVE)) {
             throw conflict("PRINT_SOURCE_NOT_FINAL", "处方药品明细尚未全部生效，不能打印");
         }
         ResidentDirectory.ResidentSnapshot resident = residents.requireSnapshot(prescription.residentId());

@@ -1,6 +1,7 @@
 package com.rhn.pharmacy.infrastructure;
 
 import com.rhn.pharmacy.domain.InpatientMedicationSupplyBatch;
+import com.rhn.pharmacy.domain.InpatientMedicationSupplyBatchStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -17,7 +18,7 @@ public interface InpatientMedicationSupplyBatchRepository
     Optional<InpatientMedicationSupplyBatch> findByTenantIdAndGenerationCommandCode(
             Long tenantId, String generationCommandCode);
     List<InpatientMedicationSupplyBatch> findByTenantIdAndStockSiteIdAndStatusOrderByWindowStart(
-            Long tenantId, Long stockSiteId, String status);
+            Long tenantId, Long stockSiteId, InpatientMedicationSupplyBatchStatus status);
     List<InpatientMedicationSupplyBatch>
     findByTenantIdAndNursingUnitDepartmentIdAndWindowStartLessThanAndWindowEndGreaterThanOrderByWindowStart(
             Long tenantId, Long departmentId, Instant windowEnd, Instant windowStart);

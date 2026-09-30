@@ -18,6 +18,7 @@ import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -187,7 +188,7 @@ public class InventorySplitApplicationService {
                 requestCode, packageUnit(context, site, item, time), item.baseUnitCode(), factor,
                 context.subjectId(), time));
         eventRepository.save(new InventorySplitEvent(context.tenantId(), value.id(), "OPEN", sourceType,
-                sourceId, sourceNo, factor, factor, time, context.subjectId(), clean(description)));
+                sourceId, sourceNo, factor, factor, time, context.subjectId(), Strings.trimToNull(description)));
         return value;
     }
 
@@ -225,9 +226,12 @@ public class InventorySplitApplicationService {
     private StockBin requireBin(ExecutionContext c, Long id) { return binRepository.findByIdAndTenantId(id, c.tenantId()).orElseThrow(() -> notFound("STOCK_BIN_NOT_FOUND", "未找到库存货位")); }
     private StockLot requireLot(ExecutionContext c, Long id) { return lotRepository.findByIdAndTenantId(id, c.tenantId()).orElseThrow(() -> notFound("STOCK_LOT_NOT_FOUND", "未找到库存批次")); }
     private ExecutionContext requireContext() { ExecutionContext c = contextProvider.requireCurrent(); if (!c.hasWorkContext()) throw badRequest("PHARMACY_WORK_CONTEXT_REQUIRED", "拆零操作必须选择工作机构和科室"); return c; }
-    private String required(String v, String code, String message) { String r = clean(v); if (r == null) throw badRequest(code, message); return r; }
-    private String clean(String v) { return v == null || v.isBlank() ? null : v.trim(); }
-    private OpenPackageView view(InventoryOpenPackage v) { return new OpenPackageView(v.id(), v.revision(), v.stockSiteId(), v.stockBinId(), v.stockItemId(), v.stockLotId(), v.packageId(), v.traceCodeId(), v.requestCode(), v.sourceUnitCode(), v.baseUnitCode(), v.packageFactor(), v.openedBaseQuantity(), v.remainingBaseQuantity(), v.status(), v.openedAt(), v.openedBy(), v.updatedAt(), v.closedAt()); }
+    private String required(String v, String code, String message) { String r = Strings.trimToNull(v); if (r == null) throw badRequest(code, message); return r; }
+    private OpenPackageView view(InventoryOpenPackage v) {
+        return new OpenPackageView(v.id(), v.revision(), v.stockSiteId(), v.stockBinId(), v.stockItemId(), v.stockLotId(), v.packageId(),
+                v.traceCodeId(), v.requestCode(), v.sourceUnitCode(), v.baseUnitCode(), v.packageFactor(), v.openedBaseQuantity(),
+                v.remainingBaseQuantity(), v.status().name(), v.openedAt(), v.openedBy(), v.updatedAt(), v.closedAt());
+    }
     private SplitEventView view(InventorySplitEvent v) { return new SplitEventView(v.id(), v.openPackageId(), v.eventType(), v.sourceType(), v.sourceId(), v.sourceNo(), v.quantityDelta(), v.balanceAfter(), v.occurredAt(), v.occurredBy(), v.description()); }
 
     public record OpenPackageCommand(String requestCode, Long stockSiteId, Long stockBinId, Long stockItemId,

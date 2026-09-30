@@ -10,6 +10,7 @@ import com.rhn.platform.masterdata.api.MedicationSemanticDirectory;
 import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
 import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -79,7 +80,7 @@ public class InpatientCareRequestStore {
                 .addValue("businessDate", businessDate)
                 .addValue("authoredAt", now.atOffset(ZoneOffset.UTC), Types.TIMESTAMP_WITH_TIMEZONE)
                 .addValue("actorId", input.actorId())
-                .addValue("reason", trim(input.instructions())).addValue("itemCode", resolved.itemCode())
+                .addValue("reason", Strings.trimToNull(input.instructions())).addValue("itemCode", resolved.itemCode())
                 .addValue("itemName", resolved.itemName()).addValue("unitCode", resolved.unitCode())
                 .addValue("localCode", resolved.localCode()).addValue("localName", resolved.localName())
                 .addValue("adoptionId", resolved.adoptionId()).addValue("adoptionRevision", resolved.adoptionRevision())
@@ -145,9 +146,9 @@ public class InpatientCareRequestStore {
 
     private ResolvedItem resolve(CreateFact input, LocalDate businessDate) {
         if ("NURSING".equals(input.orderCategory()) && input.catalogItemId() == null) {
-            String name = trim(input.itemName());
+            String name = Strings.trimToNull(input.itemName());
             if (name == null) throw badRequest("INPATIENT_NURSING_NAME_REQUIRED", "护理医嘱名称不能为空");
-            String code = trim(input.itemCode());
+            String code = Strings.trimToNull(input.itemCode());
             return new ResolvedItem(null, null, code == null ? "NURSING" : code, name, "次",
                     null, null, null, null, null, null, null, null, null, null,
                     "{}", EMPTY_JSON_HASH, Instant.now(), "[]", null, null, null, null);
@@ -201,7 +202,7 @@ public class InpatientCareRequestStore {
     private void insertMedication(Long requestId, CreateFact input, ResolvedItem resolved, LocalDate businessDate) {
         MedicationSnapshot medication = resolved.medication();
         BigDecimal dose = input.dosageAmount() == null ? medication.defaultDose() : input.dosageAmount();
-        String doseUnit = trim(input.dosageUnit()) == null ? medication.defaultDoseUnit() : trim(input.dosageUnit());
+        String doseUnit = Strings.trimToNull(input.dosageUnit()) == null ? medication.defaultDoseUnit() : Strings.trimToNull(input.dosageUnit());
         if ((dose == null) != (doseUnit == null)) {
             throw badRequest("INPATIENT_MEDICATION_DOSE_INVALID", "单次剂量与剂量单位必须同时填写");
         }
@@ -223,7 +224,7 @@ public class InpatientCareRequestStore {
                 .addValue("frequency", frequency).addValue("unit", resolved.unitCode())
                 .addValue("substitutionAllowed", Boolean.FALSE, Types.BOOLEAN)
                 .addValue("selfProvided", Boolean.FALSE, Types.BOOLEAN)
-                .addValue("instruction", trim(input.instructions())).addValue("medicationCode", medication.code())
+                .addValue("instruction", Strings.trimToNull(input.instructions())).addValue("medicationCode", medication.code())
                 .addValue("medicationName", medication.name()).addValue("medicationType", medication.medicationType())
                 .addValue("doseForm", medication.doseForm()).addValue("spec", medication.preparationSpec())
                 .addValue("preparationUnit", medication.preparationUnit())
@@ -264,7 +265,7 @@ public class InpatientCareRequestStore {
                 """, new MapSqlParameterSource().addValue("requestId", requestId)
                 .addValue("tenantId", input.tenantId()).addValue("serviceType", resolved.serviceType())
                 .addValue("specimenType", resolved.specimenType()).addValue("examinationType", resolved.examinationType())
-                .addValue("description", trim(input.instructions())));
+                .addValue("description", Strings.trimToNull(input.instructions())));
     }
 
     private static String nextRequestNo() {
@@ -274,17 +275,13 @@ public class InpatientCareRequestStore {
     }
 
     private static String normalize(String value) {
-        String trimmed = trim(value);
+        String trimmed = Strings.trimToNull(value);
         return trimmed == null ? null : trimmed.toUpperCase(Locale.ROOT);
     }
 
     private static String defaultText(String value, String fallback) {
-        String trimmed = trim(value);
+        String trimmed = Strings.trimToNull(value);
         return trimmed == null ? fallback : trimmed;
-    }
-
-    private static String trim(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public record CreateFact(Long tenantId, Long episodeId, Long encounterId, Long residentId,

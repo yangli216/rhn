@@ -2,6 +2,7 @@ package com.rhn.diagnostics.application;
 
 import com.rhn.diagnostics.api.DiagnosticFlowDirectory;
 import com.rhn.diagnostics.domain.DiagnosticExecutionTask;
+import com.rhn.diagnostics.domain.DiagnosticExecutionTaskStatus;
 import com.rhn.diagnostics.infrastructure.DiagnosticExecutionTaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,13 +40,13 @@ public class JpaDiagnosticFlowDirectory implements DiagnosticFlowDirectory {
         private int exception;
         private int completed;
 
-        void add(String status) {
+        void add(DiagnosticExecutionTaskStatus status) {
             total++;
             switch (status) {
-                case "WAITING_SETTLEMENT" -> blocked++;
-                case "READY", "COLLECTED" -> waiting++;
-                case "IN_PROGRESS" -> inProgress++;
-                case "EXCEPTION" -> exception++;
+                case WAITING_SETTLEMENT -> blocked++;
+                case READY, COLLECTED -> waiting++;
+                case IN_PROGRESS -> inProgress++;
+                case EXCEPTION -> exception++;
                 default -> completed++;
             }
         }

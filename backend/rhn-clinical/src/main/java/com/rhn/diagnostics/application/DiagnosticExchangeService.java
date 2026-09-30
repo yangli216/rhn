@@ -18,6 +18,7 @@ import com.rhn.platform.integration.api.ExternalMessageService.ExternalMessageRe
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -136,8 +137,8 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
                 request.encounterId(), request.id(), request.performerOrganizationId(), request.performerDepartmentId(),
                 input.endpointCode(), input.externalReportId(),
                 input.reportVersion(), previous == null ? null : previous.id(), reportType(input.reportType()),
-                input.status(), input.reportCode(), input.reportName(), input.issuedAt(), clean(input.conclusion()),
-                clean(input.authorCode()), clean(input.authorName()), inbound.payloadDigest(), inbound.id(),
+                input.status(), input.reportCode(), input.reportName(), input.issuedAt(), Strings.trimToNull(input.conclusion()),
+                Strings.trimToNull(input.authorCode()), Strings.trimToNull(input.authorName()), inbound.payloadDigest(), inbound.id(),
                 context.subjectId()));
         int order = 0; List<Observation> savedObservations = new ArrayList<>();
         for (ObservationCommand item : safe(input.observations())) {
@@ -145,12 +146,12 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
             Observation observation = observationRepository.save(new Observation(request.tenantId(),
                     request.residentId(), request.encounterId(),
                     request.performerOrganizationId(), request.performerDepartmentId(),
-                    item.codeSystemUri(), clean(item.codeRelease()),
+                    item.codeSystemUri(), Strings.trimToNull(item.codeRelease()),
                     item.observationCode(), item.observationName(), observationStatus(input.status()),
-                    item.valueType(), item.effectiveAt(), clean(item.valueString()), item.valueNumber(),
-                    item.valueBoolean(), clean(item.valueCode()), item.valueDateTime(), clean(item.unitCode()),
-                    item.referenceRangeLow(), item.referenceRangeHigh(), clean(item.interpretationCode()),
-                    clean(item.performerCode()), clean(item.performerName())));
+                    item.valueType(), item.effectiveAt(), Strings.trimToNull(item.valueString()), item.valueNumber(),
+                    item.valueBoolean(), Strings.trimToNull(item.valueCode()), item.valueDateTime(), Strings.trimToNull(item.unitCode()),
+                    item.referenceRangeLow(), item.referenceRangeHigh(), Strings.trimToNull(item.interpretationCode()),
+                    Strings.trimToNull(item.performerCode()), Strings.trimToNull(item.performerName())));
             resultRepository.save(new DiagnosticReportResult(request.tenantId(), report.id(), observation.id(), ++order));
             savedObservations.add(observation);
         }
@@ -249,7 +250,7 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
         if (!"CANCELLED".equals(input.status()) && "LABORATORY".equals(expected) && safe(input.observations()).isEmpty()) {
             throw badRequest("LABORATORY_RESULTS_REQUIRED", "检验报告至少需要一项结构化观察结果");
         }
-        if (!"CANCELLED".equals(input.status()) && "IMAGING".equals(expected) && clean(input.conclusion()) == null) {
+        if (!"CANCELLED".equals(input.status()) && "IMAGING".equals(expected) && Strings.trimToNull(input.conclusion()) == null) {
             throw badRequest("IMAGING_CONCLUSION_REQUIRED", "检查报告必须包含报告结论");
         }
     }
@@ -268,13 +269,13 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
 
     private void validateObservation(ObservationCommand item, String reportStatus) {
         if (!VALUE_TYPES.contains(item.valueType())) throw badRequest("OBSERVATION_VALUE_TYPE_INVALID", "观察结果值类型不受支持");
-        int values = (clean(item.valueString()) == null ? 0 : 1) + (item.valueNumber() == null ? 0 : 1)
-                + (item.valueBoolean() == null ? 0 : 1) + (clean(item.valueCode()) == null ? 0 : 1)
+        int values = (Strings.trimToNull(item.valueString()) == null ? 0 : 1) + (item.valueNumber() == null ? 0 : 1)
+                + (item.valueBoolean() == null ? 0 : 1) + (Strings.trimToNull(item.valueCode()) == null ? 0 : 1)
                 + (item.valueDateTime() == null ? 0 : 1);
-        if (values != 1 || ("STRING".equals(item.valueType()) && clean(item.valueString()) == null)
+        if (values != 1 || ("STRING".equals(item.valueType()) && Strings.trimToNull(item.valueString()) == null)
                 || ("NUMBER".equals(item.valueType()) && item.valueNumber() == null)
                 || ("BOOLEAN".equals(item.valueType()) && item.valueBoolean() == null)
-                || ("CODE".equals(item.valueType()) && clean(item.valueCode()) == null)
+                || ("CODE".equals(item.valueType()) && Strings.trimToNull(item.valueCode()) == null)
                 || ("DATETIME".equals(item.valueType()) && item.valueDateTime() == null)) {
             throw badRequest("OBSERVATION_VALUE_INVALID", "观察结果必须且只能提供与值类型对应的一个值");
         }
@@ -319,9 +320,8 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
     }
 
     private String cleanRequired(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String nullToEmpty(String value) { return value == null ? "" : value; }
     private <T> List<T> safe(List<T> values) { return values == null ? List.of() : values; }
 

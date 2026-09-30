@@ -34,7 +34,7 @@ public class IdempotencyService {
             if (!existing.requestHash().equals(requestHash)) {
                 throw conflict("IDEMPOTENCY_KEY_REUSED", "幂等键已用于不同请求");
             }
-            if (existing.status().equals("COMPLETED")) {
+            if (existing.status() == IdempotencyRecordStatus.COMPLETED) {
                 return new IdempotencyReservation(false, true, existing.resourceType(), existing.resourceId(),
                         existing.responseStatus(), existing.responseJson());
             }

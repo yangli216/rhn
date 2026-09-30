@@ -2049,7 +2049,7 @@
           "catalogComment": ""
         },
         {
-          "physical": "JSON_GUIDELINE_REF",
+          "physical": "JSON_GDLN_REF",
           "type": "CHARACTER VARYING",
           "size": 1000000000,
           "scale": 0,

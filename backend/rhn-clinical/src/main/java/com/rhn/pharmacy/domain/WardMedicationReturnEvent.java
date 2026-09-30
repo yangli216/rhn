@@ -34,7 +34,7 @@ public class WardMedicationReturnEvent {
         this.returnRequestId = request.id();
         this.eventType = eventType;
         this.fromStatus = fromStatus;
-        this.toStatus = request.status();
+        this.toStatus = request.status().name();
         this.commandCode = commandCode;
         this.payloadHash = payloadHash;
         this.occurredAt = Instant.now();

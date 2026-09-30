@@ -5,6 +5,8 @@ import com.rhn.pharmacy.api.InpatientMedicationStopDirectory;
 import com.rhn.pharmacy.api.WardDeliveryDirectory;
 import com.rhn.pharmacy.domain.DispenseTask;
 import com.rhn.pharmacy.domain.DispenseTaskLine;
+import com.rhn.pharmacy.domain.InpatientMedicationSupplyLineStatus;
+import com.rhn.pharmacy.domain.InpatientMedicationSupplyTaskStatus;
 import com.rhn.pharmacy.domain.InventoryBalance;
 import com.rhn.pharmacy.domain.InventoryReservation;
 import com.rhn.pharmacy.domain.MedicationDispense;
@@ -102,15 +104,15 @@ public class InpatientMedicationStopApplicationService implements InpatientMedic
         var requestSupplyLines = supplyLines.findByTenantIdAndRequestIdOrderByCreatedAt(
                 command.tenantId(), command.medicationRequestId());
         for (var line : requestSupplyLines) {
-            if ("DRAFT".equals(line.status()) || "SUBMITTED".equals(line.status())) {
+            if (line.status() == InpatientMedicationSupplyLineStatus.DRAFT || line.status() == InpatientMedicationSupplyLineStatus.SUBMITTED) {
                 line.cancel(line.revision(), command.reason(), command.actorId());
             }
         }
         for (var task : supplyTasks.findByTenantIdAndRequestIdAndStatusOrderByScheduledAt(
-                command.tenantId(), command.medicationRequestId(), "ACTIVE")) {
+                command.tenantId(), command.medicationRequestId(), InpatientMedicationSupplyTaskStatus.ACTIVE)) {
             var line = requestSupplyLines.stream().filter(value -> value.id().equals(task.supplyLineId()))
                     .findFirst().orElse(null);
-            if (line != null && "CANCELLED".equals(line.status())) {
+            if (line != null && line.status() == InpatientMedicationSupplyLineStatus.CANCELLED) {
                 task.cancel(command.reason(), command.actorId());
             }
         }
@@ -154,7 +156,7 @@ public class InpatientMedicationStopApplicationService implements InpatientMedic
         if (dispensed.signum() == 0) return cancelled(firstTask, first.dispenseUnitCode());
         String status = returnable.signum() > 0 ? "RETURN_REQUIRED" : "STOPPED";
         String action = action(status, latest.status());
-        return new StopClosure(status, firstTask.id(), firstTask.status(),
+        return new StopClosure(status, firstTask.id(), firstTask.status().name(),
                 operationQuantity(dispensed, factor), operationQuantity(consumed, factor),
                 operationQuantity(returned, factor), operationQuantity(returnable, factor),
                 first.dispenseUnitCode(), latest.id(), latest.status(), action);
@@ -171,7 +173,7 @@ public class InpatientMedicationStopApplicationService implements InpatientMedic
         Delivery delivery = latestDelivery(tenantId, task.id());
         String status = returnable.signum() > 0 ? "RETURN_REQUIRED" : "STOPPED";
         String action = action(status, delivery.status());
-        return new StopClosure(status, task.id(), task.status(),
+        return new StopClosure(status, task.id(), task.status().name(),
                 line.dispensedQuantity(), operationQuantity(consumed, factor), line.returnedQuantity(),
                 operationQuantity(returnable, factor), line.dispenseUnitCode(),
                 delivery.id(), delivery.status(), action);
@@ -179,7 +181,7 @@ public class InpatientMedicationStopApplicationService implements InpatientMedic
 
     private StopClosure cancelled(DispenseTask task, String unitCode) {
         return new StopClosure("CANCELLED", task == null ? null : task.id(),
-                task == null ? null : task.status(), BigDecimal.ZERO, BigDecimal.ZERO,
+                task == null ? null : task.status().name(), BigDecimal.ZERO, BigDecimal.ZERO,
                 BigDecimal.ZERO, BigDecimal.ZERO, unitCode, null, null, "AUTO_CANCELLED");
     }
 

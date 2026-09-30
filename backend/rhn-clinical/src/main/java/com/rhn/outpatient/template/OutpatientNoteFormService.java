@@ -4,6 +4,7 @@ import com.rhn.outpatient.api.OutpatientNoteFormDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,7 +58,7 @@ class OutpatientNoteFormService implements OutpatientNoteFormDirectory {
         OutpatientNoteFormVersion value = new OutpatientNoteFormVersion(context.tenantId(),
                 context.organizationId(), context.departmentId(), code, 1, specialty(input.specialtyCode()),
                 required(input.name(), "NOTE_FORM_NAME_REQUIRED", "病历表单名称不能为空"),
-                clean(input.description()), DEFINITION_SCHEMA, jsonCodec.write(definition),
+                Strings.trimToNull(input.description()), DEFINITION_SCHEMA, jsonCodec.write(definition),
                 context.subjectId(), Instant.now());
         try {
             return view(repository.saveAndFlush(value));
@@ -83,7 +84,7 @@ class OutpatientNoteFormService implements OutpatientNoteFormDirectory {
                 context.organizationId(), context.departmentId(), code, current.versionNumber() + 1,
                 specialty(input.specialtyCode()),
                 required(input.name(), "NOTE_FORM_NAME_REQUIRED", "病历表单名称不能为空"),
-                clean(input.description()), DEFINITION_SCHEMA, jsonCodec.write(definition),
+                Strings.trimToNull(input.description()), DEFINITION_SCHEMA, jsonCodec.write(definition),
                 context.subjectId(), now);
         return view(repository.saveAndFlush(next));
     }
@@ -98,7 +99,7 @@ class OutpatientNoteFormService implements OutpatientNoteFormDirectory {
                 || !version.departmentId().equals(context.departmentId())) {
             throw forbidden("NOTE_FORM_FORBIDDEN", "当前工作上下文不能使用该病历表单");
         }
-        if (!"PUBLISHED".equals(version.status())) {
+        if (version.status() != OutpatientNoteFormVersionStatus.PUBLISHED) {
             throw conflict("NOTE_FORM_VERSION_RETIRED", "该病历表单版本已停用，请选择当前版本");
         }
         Definition definition = definition(version);
@@ -133,7 +134,7 @@ class OutpatientNoteFormService implements OutpatientNoteFormDirectory {
         return switch (field.type()) {
             case "TEXT", "TEXTAREA" -> {
                 if (!(raw instanceof String text)) throw invalidType(field);
-                String value = clean(text);
+                String value = Strings.trimToNull(text);
                 if (value != null && field.maxLength() != null && value.length() > field.maxLength()) {
                     throw badRequest("NOTE_FORM_FIELD_TOO_LONG", field.label() + "不能超过" + field.maxLength() + "个字符");
                 }
@@ -154,7 +155,7 @@ class OutpatientNoteFormService implements OutpatientNoteFormDirectory {
             }
             case "SELECT" -> {
                 if (!(raw instanceof String text)) throw invalidType(field);
-                String value = clean(text);
+                String value = Strings.trimToNull(text);
                 if (value != null && field.options().stream().noneMatch(option -> option.value().equals(value))) {
                     throw badRequest("NOTE_FORM_FIELD_OPTION_INVALID", field.label() + "选项不在当前表单定义中");
                 }
@@ -166,7 +167,7 @@ class OutpatientNoteFormService implements OutpatientNoteFormDirectory {
             }
             case "DATE" -> {
                 if (!(raw instanceof String text)) throw invalidType(field);
-                String value = clean(text);
+                String value = Strings.trimToNull(text);
                 if (value != null) {
                     try { LocalDate.parse(value); }
                     catch (DateTimeParseException error) {
@@ -225,12 +226,12 @@ class OutpatientNoteFormService implements OutpatientNoteFormDirectory {
                 }
                 return new OutpatientNoteFormContracts.Field(code,
                         required(field.label(), "NOTE_FORM_FIELD_LABEL_REQUIRED", "表单字段名称不能为空"),
-                        type, field.required(), clean(field.unit()), clean(field.placeholder()), maxLength,
+                        type, field.required(), Strings.trimToNull(field.unit()), Strings.trimToNull(field.placeholder()), maxLength,
                         field.minimum(), field.maximum(), options);
             }).toList();
             return new OutpatientNoteFormContracts.Section(sectionCode,
                     required(section.title(), "NOTE_FORM_SECTION_TITLE_REQUIRED", "表单分区名称不能为空"),
-                    clean(section.description()), fields);
+                    Strings.trimToNull(section.description()), fields);
         }).toList();
         if (fieldCount[0] > 40) throw badRequest("NOTE_FORM_FIELDS_TOO_MANY", "单个病历表单最多支持40个字段");
         return new Definition(sections);
@@ -253,7 +254,7 @@ class OutpatientNoteFormService implements OutpatientNoteFormDirectory {
         Definition definition = definition(value);
         return new OutpatientNoteFormContracts.View(value.id(), value.formCode(), value.versionNumber(),
                 value.specialtyCode(), value.name(), value.description(), value.definitionSchema(),
-                definition.sections(), value.status(), value.publishedBy(), value.publishedAt());
+                definition.sections(), value.status().name(), value.publishedBy(), value.publishedAt());
     }
 
     private Definition definition(OutpatientNoteFormVersion value) {
@@ -280,7 +281,7 @@ class OutpatientNoteFormService implements OutpatientNoteFormDirectory {
     }
 
     private String specialty(String value) {
-        String result = clean(value) == null ? DEFAULT_SPECIALTY : upper(value);
+        String result = Strings.trimToNull(value) == null ? DEFAULT_SPECIALTY : upper(value);
         if (!result.matches("[A-Z][A-Z0-9_]{0,63}")) {
             throw badRequest("NOTE_FORM_SPECIALTY_INVALID", "专科编码格式不正确");
         }
@@ -288,15 +289,14 @@ class OutpatientNoteFormService implements OutpatientNoteFormDirectory {
     }
 
     private String lowerCode(String value, String code, String message) {
-        String result = clean(value);
+        String result = Strings.trimToNull(value);
         if (result == null || !result.matches("[a-z][A-Za-z0-9]{0,63}")) throw badRequest(code, message);
         return result;
     }
 
     private String upper(String value) { return value == null ? "" : value.trim().toUpperCase(Locale.ROOT); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
 
     private record Definition(List<OutpatientNoteFormContracts.Section> sections) {}

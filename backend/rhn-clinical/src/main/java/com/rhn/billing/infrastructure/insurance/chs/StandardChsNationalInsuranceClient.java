@@ -35,6 +35,20 @@ public class StandardChsNationalInsuranceClient implements NationalInsuranceClie
     @Value("${rhn.billing.insurance.chs.fixmedins-code:H36010000001}")
     private String fixmedinsCode;
 
+    @Value("${rhn.billing.insurance.chs.pooling-region-code:360100}")
+    private String poolingRegionCode;
+
+    @Value("${rhn.billing.insurance.chs.pooling-region-name:省本级/市本级统筹区}")
+    private String poolingRegionName;
+
+    /** 政策范围内费用占比（保底试算口径）。 */
+    @Value("${rhn.billing.insurance.chs.eligible-ratio:0.85}")
+    private BigDecimal eligibleRatio;
+
+    /** 统筹基金支付比例（保底试算口径）。 */
+    @Value("${rhn.billing.insurance.chs.fund-payment-ratio:0.75}")
+    private BigDecimal fundPaymentRatio;
+
     @Override
     public PersonInfoResponse queryPersonInfo(PersonInfoRequest request) {
         log.info("[CHS Standard 1101] 发起人员信息查询 gatewayUrl={}, certno={}", gatewayUrl, request.certno());
@@ -50,8 +64,8 @@ public class StandardChsNationalInsuranceClient implements NationalInsuranceClie
                 "310",
                 "职工基本医疗保险",
                 BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
-                "360100",
-                "省本级/市本级统筹区",
+                poolingRegionCode,
+                poolingRegionName,
                 "在职职工",
                 "NORMAL"
         );
@@ -62,9 +76,9 @@ public class StandardChsNationalInsuranceClient implements NationalInsuranceClie
         log.info("[CHS Standard 2206] 发起门诊费用预结算试算 gatewayUrl={}, settlementNo={}, total={}",
                 gatewayUrl, request.settlementNo(), request.medfeeSumamt());
         BigDecimal total = request.medfeeSumamt() != null ? request.medfeeSumamt() : BigDecimal.ZERO;
-        // 默认保底计算：政策范围内 80% 统筹
-        BigDecimal eligible = total.multiply(new BigDecimal("0.85")).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal hifpPay = eligible.multiply(new BigDecimal("0.75")).setScale(2, RoundingMode.HALF_UP);
+        // 保底试算：政策范围内费用按比例进入统筹，统筹基金再按支付比例分解
+        BigDecimal eligible = total.multiply(eligibleRatio).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal hifpPay = eligible.multiply(fundPaymentRatio).setScale(2, RoundingMode.HALF_UP);
         BigDecimal cashPay = total.subtract(hifpPay).setScale(2, RoundingMode.HALF_UP);
 
         return new PreSettleResponse(

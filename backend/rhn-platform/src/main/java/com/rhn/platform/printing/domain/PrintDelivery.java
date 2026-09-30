@@ -4,6 +4,8 @@ import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -21,7 +23,7 @@ public class PrintDelivery {
     @Column(name = "ID_PRINT_JOB", nullable = false) private Long jobId;
     @Column(name = "ID_PRINT_DEVICE") private Long deviceId;
     @Column(name = "SD_CHANNEL", nullable = false) private String channel;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PrintDeliveryStatus status;
     @Column(name = "QTY_ATTEMPT", nullable = false) private int attemptCount;
     @Column(name = "CD_ERROR") private String errorCode;
     @Column(name = "DES_ERROR") private String errorMessage;
@@ -34,26 +36,26 @@ public class PrintDelivery {
 
     public PrintDelivery(Long tenantId, Long batchId, Long jobId, Long deviceId, String channel) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.batchId = batchId; this.jobId = jobId;
-        this.deviceId = deviceId; this.channel = channel; this.status = "GENERATED";
+        this.deviceId = deviceId; this.channel = channel; this.status = PrintDeliveryStatus.GENERATED;
         this.updatedAt = Instant.now();
     }
 
     public void queue(long expectedRevision) {
-        requireRevision(expectedRevision); this.status = "QUEUED"; this.attemptCount++;
+        requireRevision(expectedRevision); this.status = PrintDeliveryStatus.QUEUED; this.attemptCount++;
         this.queuedAt = Instant.now(); this.updatedAt = queuedAt; clearError();
     }
     public void sent(long expectedRevision) {
         requireRevision(expectedRevision);
-        if (!"QUEUED".equals(this.status)) this.attemptCount++;
-        this.status = "SENT";
+        if (this.status != PrintDeliveryStatus.QUEUED) this.attemptCount++;
+        this.status = PrintDeliveryStatus.SENT;
         this.sentAt = Instant.now(); this.updatedAt = sentAt; clearError();
     }
     public void confirm(long expectedRevision) {
-        requireRevision(expectedRevision); this.status = "DEVICE_CONFIRMED";
+        requireRevision(expectedRevision); this.status = PrintDeliveryStatus.DEVICE_CONFIRMED;
         this.confirmedAt = Instant.now(); this.updatedAt = confirmedAt; clearError();
     }
     public void fail(long expectedRevision, String code, String message) {
-        requireRevision(expectedRevision); this.status = "FAILED"; this.errorCode = code;
+        requireRevision(expectedRevision); this.status = PrintDeliveryStatus.FAILED; this.errorCode = code;
         this.errorMessage = message; this.updatedAt = Instant.now();
     }
     private void requireRevision(long expectedRevision) {
@@ -69,7 +71,7 @@ public class PrintDelivery {
     public Long jobId() { return jobId; }
     public Long deviceId() { return deviceId; }
     public String channel() { return channel; }
-    public String status() { return status; }
+    public PrintDeliveryStatus status() { return status; }
     public int attemptCount() { return attemptCount; }
     public String errorCode() { return errorCode; }
     public String errorMessage() { return errorMessage; }

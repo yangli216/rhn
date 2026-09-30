@@ -3,6 +3,7 @@ package com.rhn.outpatient.template;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +37,7 @@ class OutpatientNoteTemplateService {
         ExecutionContext context = requireContext();
         List<OutpatientNoteTemplate> values = repository.findVisible(context.tenantId(), context.organizationId(),
                 context.departmentId(), context.practitionerId(), specialty(specialtyCode), DOCUMENT_TYPE);
-        String term = clean(keyword);
+        String term = Strings.trimToNull(keyword);
         if (term != null) {
             String normalized = term.toLowerCase(Locale.ROOT);
             values = values.stream().filter(value -> value.name().toLowerCase(Locale.ROOT).contains(normalized)
@@ -57,7 +58,7 @@ class OutpatientNoteTemplateService {
         Instant now = Instant.now();
         OutpatientNoteTemplate value = new OutpatientNoteTemplate(context.tenantId(), context.organizationId(),
                 context.departmentId(), scope, ownerId, specialty(input.specialtyCode()), DOCUMENT_TYPE,
-                CONTENT_SCHEMA, name, clean(input.description()), jsonCodec.write(content),
+                CONTENT_SCHEMA, name, Strings.trimToNull(input.description()), jsonCodec.write(content),
                 input.sortOrder() == null ? 0 : input.sortOrder(), context.subjectId(), now);
         try {
             repository.saveAndFlush(value);
@@ -89,7 +90,7 @@ class OutpatientNoteTemplateService {
         String name = required(input.name(), "NOTE_TEMPLATE_NAME_REQUIRED", "病历模板名称不能为空");
         OutpatientNoteTemplateContracts.NoteContent content = normalize(input.content());
         if (empty(content)) throw badRequest("NOTE_TEMPLATE_EMPTY", "至少填写一个可复用病历段落");
-        value.update(scope, ownerId, specialty(input.specialtyCode()), name, clean(input.description()),
+        value.update(scope, ownerId, specialty(input.specialtyCode()), name, Strings.trimToNull(input.description()),
                 jsonCodec.write(content), input.sortOrder() == null ? value.sortOrder() : input.sortOrder(),
                 context.subjectId(), Instant.now());
         try {
@@ -137,9 +138,9 @@ class OutpatientNoteTemplateService {
     private OutpatientNoteTemplateContracts.NoteContent normalize(
             OutpatientNoteTemplateContracts.NoteContent input) {
         if (input == null) return new OutpatientNoteTemplateContracts.NoteContent(null, null, null, null, null);
-        return new OutpatientNoteTemplateContracts.NoteContent(clean(input.chiefComplaint()),
-                clean(input.presentIllness()), clean(input.medicalHistory()), clean(input.physicalExam()),
-                clean(input.treatmentPlan()));
+        return new OutpatientNoteTemplateContracts.NoteContent(Strings.trimToNull(input.chiefComplaint()),
+                Strings.trimToNull(input.presentIllness()), Strings.trimToNull(input.medicalHistory()), Strings.trimToNull(input.physicalExam()),
+                Strings.trimToNull(input.treatmentPlan()));
     }
 
     private boolean empty(OutpatientNoteTemplateContracts.NoteContent content) {
@@ -165,7 +166,7 @@ class OutpatientNoteTemplateService {
     }
 
     private String specialty(String value) {
-        String result = clean(value) == null ? DEFAULT_SPECIALTY : upper(value);
+        String result = Strings.trimToNull(value) == null ? DEFAULT_SPECIALTY : upper(value);
         if (!result.matches("[A-Z][A-Z0-9_]{0,63}")) {
             throw badRequest("NOTE_TEMPLATE_SPECIALTY_INVALID", "专科编码格式不正确");
         }
@@ -173,8 +174,7 @@ class OutpatientNoteTemplateService {
     }
 
     private String upper(String value) { return value == null ? "" : value.trim().toUpperCase(Locale.ROOT); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
 }

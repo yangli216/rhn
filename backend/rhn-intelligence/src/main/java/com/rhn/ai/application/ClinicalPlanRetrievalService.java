@@ -21,7 +21,7 @@ public class ClinicalPlanRetrievalService {
         String text = normalized(query == null ? null : query.text());
         Set<DiagnosisIdentity> diagnoses = query == null || query.diagnoses() == null
                 ? Set.of() : Set.copyOf(query.diagnoses());
-        String preferredScope = query == null ? null : clean(query.preferredScope());
+        String preferredScope = query == null ? null : normalizedCode(query.preferredScope());
 
         List<Match> scored = visiblePlans.stream().map(plan -> score(plan, text, diagnoses, preferredScope)).toList();
         boolean hasClinicalMatch = scored.stream().anyMatch(match -> match.clinicalScore() > 0);
@@ -85,7 +85,7 @@ public class ClinicalPlanRetrievalService {
                 .replaceAll("[\\p{P}\\p{Z}\\s]+", "");
     }
 
-    private String clean(String value) {
+    private String normalizedCode(String value) {
         return value == null || value.isBlank() ? null : value.trim().toUpperCase(Locale.ROOT);
     }
 

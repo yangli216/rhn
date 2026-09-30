@@ -80,8 +80,8 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
         if (!hold.residentId().equals(residentId) || !hold.scheduleId().equals(scheduleId)) {
             throw badRequest("SLOT_HOLD_OWNER_MISMATCH", "号源暂占与当前患者或排班不一致");
         }
-        if ("CONSUMED".equals(hold.status())) return snapshot(hold, schedule);
-        if (!"ACTIVE".equals(hold.status())) throw conflict("SLOT_HOLD_NOT_ACTIVE", "号源暂占已关闭，请重新选择排班");
+        if (hold.status() == ScheduleSlotHoldStatus.CONSUMED) return snapshot(hold, schedule);
+        if (hold.status() != ScheduleSlotHoldStatus.ACTIVE) throw conflict("SLOT_HOLD_NOT_ACTIVE", "号源暂占已关闭，请重新选择排班");
         if (!hold.expiresAt().isAfter(Instant.now())) {
             pool.releaseHeldOne(); hold.release(true);
             append(context, pool, schedule.id(), "RELEASED", -1, 0,
@@ -100,7 +100,7 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
         ExecutionContext context = contextProvider.requireCurrent();
         ScheduleSlotHold hold = holds.findWithLockByIdAndTenantId(holdId, context.tenantId())
                 .orElseThrow(() -> notFound("SCHEDULE_SLOT_HOLD_NOT_FOUND", "未找到号源暂占记录"));
-        if (!"CONSUMED".equals(hold.status())) throw conflict("SLOT_HOLD_NOT_CONSUMED", "号源尚未转为正式占用");
+        if (hold.status() != ScheduleSlotHoldStatus.CONSUMED) throw conflict("SLOT_HOLD_NOT_CONSUMED", "号源尚未转为正式占用");
         if (hold.consumedRegistrationId() != null && !hold.consumedRegistrationId().equals(registrationId)) {
             throw conflict("SLOT_HOLD_ALREADY_BOUND", "号源已绑定其他挂号记录");
         }
@@ -116,7 +116,7 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
         ScheduleSlotPool pool = pools.findByTenantIdAndScheduleId(context.tenantId(), probe.scheduleId())
                 .orElseThrow(() -> notFound("SCHEDULE_SLOT_POOL_NOT_FOUND", "所选排班缺少号源池"));
         ScheduleSlotHold hold = holds.findWithLockByIdAndTenantId(holdId, context.tenantId()).orElseThrow();
-        if (!"ACTIVE".equals(hold.status())) return;
+        if (hold.status() != ScheduleSlotHoldStatus.ACTIVE) return;
         pool.releaseHeldOne(); hold.release(expired);
         append(context, pool, hold.scheduleId(), "RELEASED", -1, 0, commandCode,
                 expired ? "挂号意向过期，释放号源" : "挂号意向取消，释放号源");
@@ -124,7 +124,7 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
 
     private void expireActiveHolds(ExecutionContext context, ScheduleSlotPool pool) {
         List<ScheduleSlotHold> expired = holds.findByTenantIdAndSlotPoolIdAndStatusAndExpiresAtBefore(
-                context.tenantId(), pool.id(), "ACTIVE", Instant.now());
+                context.tenantId(), pool.id(), ScheduleSlotHoldStatus.ACTIVE, Instant.now());
         for (ScheduleSlotHold hold : expired) {
             pool.releaseHeldOne(); hold.release(true);
             append(context, pool, hold.scheduleId(), "RELEASED", -1, 0,
@@ -164,7 +164,7 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
 
     private SlotHoldSnapshot snapshot(ScheduleSlotHold hold, ServiceSchedule schedule) {
         return new SlotHoldSnapshot(hold.id(), hold.slotPoolId(), hold.scheduleId(), hold.residentId(),
-                schedule.catalogItemId(), schedule.serviceCode(), schedule.serviceName(), hold.status(), hold.expiresAt());
+                schedule.catalogItemId(), schedule.serviceCode(), schedule.serviceName(), hold.status().name(), hold.expiresAt());
     }
 
     private SlotHoldSnapshot verifyReplay(SlotHoldCommand command, ScheduleSlotHold hold, Long tenantId) {

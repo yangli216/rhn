@@ -67,6 +67,42 @@ public class HistoricalPlanResolutionService {
             return Optional.empty();
         }
 
+        List<OutpatientClinicalHistoryDirectory.MedicationFact> stableMeds = findStableMedications(history);
+        if (stableMeds.isEmpty()) {
+            return Optional.empty();
+        }
+
+        // Extract primary diagnosis from the latest historical visit
+        var latestPastEncounter = history.getFirst();
+        List<DiagnosisInput> diagnoses = extractDiagnoses(latestPastEncounter);
+
+        List<MedicationInput> medicationInputs = new ArrayList<>();
+        List<String> guidanceNotes = new ArrayList<>();
+        guidanceNotes.add("仅纳入在至少两次已完成就诊中以相同用法重复出现的有效历史医嘱。");
+        resolveMedicationInputs(context, stableMeds, medicationInputs, guidanceNotes);
+
+        String conditionTitle = !diagnoses.isEmpty() ? diagnoses.getFirst().display() + " 历史重复方案" : "既往重复用药事实";
+        String summary = String.format(Locale.ROOT,
+                "参考前次就诊（%s），识别 %d 项重复历史用药，其中 %d 项完成当前目录、品规、包装和库存核对。",
+                latestPastEncounter.registeredAt() != null ? latestPastEncounter.registeredAt().toString().substring(0, 10) : "近期",
+                stableMeds.size(),
+                medicationInputs.size());
+
+        return Optional.of(new HistoricalStablePlanView(
+                encounterId,
+                latestPastEncounter.encounterId(),
+                latestPastEncounter.registeredAt(),
+                conditionTitle,
+                summary,
+                diagnoses,
+                medicationInputs,
+                List.of(),
+                guidanceNotes
+        ));
+    }
+
+    private static List<OutpatientClinicalHistoryDirectory.MedicationFact> findStableMedications(
+            List<OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot> history) {
         Map<MedicationSignature, Set<Long>> encounterIdsByMedication = new LinkedHashMap<>();
         Map<MedicationSignature, OutpatientClinicalHistoryDirectory.MedicationFact> latestFacts = new LinkedHashMap<>();
 
@@ -80,29 +116,28 @@ public class HistoricalPlanResolutionService {
             }
         }
 
-        List<OutpatientClinicalHistoryDirectory.MedicationFact> stableMeds = encounterIdsByMedication.entrySet().stream()
+        return encounterIdsByMedication.entrySet().stream()
                 .filter(entry -> entry.getValue().size() >= 2)
                 .map(entry -> latestFacts.get(entry.getKey()))
                 .filter(java.util.Objects::nonNull)
                 .toList();
+    }
 
-        if (stableMeds.isEmpty()) {
-            return Optional.empty();
-        }
-
-        // Extract primary diagnosis from the latest historical visit
-        var latestPastEncounter = history.getFirst();
+    private static List<DiagnosisInput> extractDiagnoses(
+            OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot latestPastEncounter) {
         List<DiagnosisInput> diagnoses = new ArrayList<>();
         if (!latestPastEncounter.diagnoses().isEmpty()) {
             for (var d : latestPastEncounter.diagnoses()) {
                 diagnoses.add(new DiagnosisInput(d.code(), d.display(), d.type() == null ? "PRIMARY" : d.type()));
             }
         }
+        return diagnoses;
+    }
 
-        List<MedicationInput> medicationInputs = new ArrayList<>();
-        List<String> guidanceNotes = new ArrayList<>();
-        guidanceNotes.add("仅纳入在至少两次已完成就诊中以相同用法重复出现的有效历史医嘱。");
-
+    private void resolveMedicationInputs(ExecutionContext context,
+                                         List<OutpatientClinicalHistoryDirectory.MedicationFact> stableMeds,
+                                         List<MedicationInput> medicationInputs,
+                                         List<String> guidanceNotes) {
         for (var fact : stableMeds) {
             try {
                 List<ResolvedMedication> matches = inventory.findOrderableMedications(
@@ -138,25 +173,6 @@ public class HistoricalPlanResolutionService {
                 guidanceNotes.add("既往用药“" + fact.name() + "”目录核对失败，仅供查看，未带入草稿。");
             }
         }
-
-        String conditionTitle = !diagnoses.isEmpty() ? diagnoses.getFirst().display() + " 历史重复方案" : "既往重复用药事实";
-        String summary = String.format(Locale.ROOT,
-                "参考前次就诊（%s），识别 %d 项重复历史用药，其中 %d 项完成当前目录、品规、包装和库存核对。",
-                latestPastEncounter.registeredAt() != null ? latestPastEncounter.registeredAt().toString().substring(0, 10) : "近期",
-                stableMeds.size(),
-                medicationInputs.size());
-
-        return Optional.of(new HistoricalStablePlanView(
-                encounterId,
-                latestPastEncounter.encounterId(),
-                latestPastEncounter.registeredAt(),
-                conditionTitle,
-                summary,
-                diagnoses,
-                medicationInputs,
-                List.of(),
-                guidanceNotes
-        ));
     }
 
     private Optional<ResolvedMedication> resolve(ExecutionContext context,

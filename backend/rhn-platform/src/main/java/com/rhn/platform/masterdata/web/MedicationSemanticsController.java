@@ -2,7 +2,6 @@ package com.rhn.platform.masterdata.web;
 
 import com.rhn.platform.masterdata.api.MedicationSemanticDirectory.*;
 import com.rhn.platform.masterdata.application.MedicationSemanticsService;
-import com.rhn.platform.masterdata.infrastructure.ClinicalSemanticHistory.Version;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -33,7 +32,7 @@ public class MedicationSemanticsController {
     public Composition save(@PathVariable Long id, @RequestBody Composition value) { return service.saveComposition(id, value); }
 
     @GetMapping("/medications/{id}/semantic-history")
-    public List<Version> history(@PathVariable Long id) { return service.medicationHistory(id); }
+    public List<SemanticVersionView> history(@PathVariable Long id) { return service.medicationHistory(id); }
 
     public record IngredientInput(@NotBlank @Size(max=64) String code, @NotBlank @Size(max=160) String display,
                                   @NotBlank @Size(max=160) String system, @NotBlank @Size(max=64) String systemVersion,

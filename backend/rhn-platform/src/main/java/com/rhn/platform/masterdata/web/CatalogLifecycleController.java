@@ -8,6 +8,7 @@ import com.rhn.platform.masterdata.application.CatalogLifecycleService.AdoptionI
 import com.rhn.platform.masterdata.application.CatalogLifecycleService.AdoptionTemplate;
 import com.rhn.platform.masterdata.application.CatalogLifecycleService.PriceBatchEntry;
 import com.rhn.platform.masterdata.application.CatalogLifecycleService.PriceInput;
+import com.rhn.shared.text.Strings;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -108,7 +109,7 @@ public class CatalogLifecycleController {
     @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     CatalogChangeBatchView adoptionBatch(@Valid @RequestBody AdoptionBatchRequest request) {
-        return service.adoptionBatch(clean(request.requestCode()), request.operationType(), request.organizationId(),
+        return service.adoptionBatch(Strings.trim(request.requestCode()), request.operationType(), request.organizationId(),
                 request.businessDate(), request.catalogItemIds(), request.template() == null ? null : request.template().value());
     }
 
@@ -116,7 +117,7 @@ public class CatalogLifecycleController {
     @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     CatalogChangeBatchView priceBatch(@Valid @RequestBody PriceBatchRequest request) {
-        return service.priceBatch(clean(request.requestCode()), request.organizationId(), request.businessDate(),
+        return service.priceBatch(Strings.trim(request.requestCode()), request.organizationId(), request.businessDate(),
                 request.entries().stream().map(PriceBatchEntryRequest::value).toList());
     }
 
@@ -130,8 +131,8 @@ public class CatalogLifecycleController {
             boolean stocked, boolean dispensable, boolean returnable,
             @NotBlank @Pattern(regexp = "ACTIVE|SUSPENDED|RETIRED") String status,
             @NotNull LocalDate validFrom, LocalDate validTo) {
-        AdoptionInput input() { return new AdoptionInput(organizationId, defaultDepartmentId, optional(localCode),
-                optional(localName), orderable, executable, chargeable, purchasable, stocked, dispensable,
+        AdoptionInput input() { return new AdoptionInput(organizationId, defaultDepartmentId, Strings.trimToNull(localCode),
+                Strings.trimToNull(localName), orderable, executable, chargeable, purchasable, stocked, dispensable,
                 returnable, status, validFrom, validTo); }
     }
 
@@ -143,8 +144,8 @@ public class CatalogLifecycleController {
             boolean stocked, boolean dispensable, boolean returnable,
             @NotBlank @Pattern(regexp = "ACTIVE|SUSPENDED|RETIRED") String status,
             @NotNull LocalDate validFrom, LocalDate validTo) {
-        AdoptionInput input() { return new AdoptionInput(organizationId, defaultDepartmentId, optional(localCode),
-                optional(localName), orderable, executable, chargeable, purchasable, stocked, dispensable,
+        AdoptionInput input() { return new AdoptionInput(organizationId, defaultDepartmentId, Strings.trimToNull(localCode),
+                Strings.trimToNull(localName), orderable, executable, chargeable, purchasable, stocked, dispensable,
                 returnable, status, validFrom, validTo); }
     }
 
@@ -156,8 +157,8 @@ public class CatalogLifecycleController {
             @Size(max = 128) String priceDocumentCode, @Size(max = 1000) String priceReason,
             @NotNull LocalDate validFrom, LocalDate validTo,
             @NotBlank @Pattern(regexp = "ACTIVE|SUSPENDED|RETIRED") String status) {
-        PriceInput input() { return new PriceInput(organizationId, packageId, priceType, price, clean(currencyCode),
-                optional(priceDocumentCode), optional(priceReason), validFrom, validTo, status); }
+        PriceInput input() { return new PriceInput(organizationId, packageId, priceType, price, Strings.trim(currencyCode),
+                Strings.trimToNull(priceDocumentCode), Strings.trimToNull(priceReason), validFrom, validTo, status); }
     }
 
     record ReplacePriceRequest(
@@ -169,8 +170,8 @@ public class CatalogLifecycleController {
             @Size(max = 128) String priceDocumentCode, @Size(max = 1000) String priceReason,
             @NotNull LocalDate validFrom, LocalDate validTo,
             @NotBlank @Pattern(regexp = "ACTIVE|SUSPENDED|RETIRED") String status) {
-        PriceInput input() { return new PriceInput(organizationId, packageId, priceType, price, clean(currencyCode),
-                optional(priceDocumentCode), optional(priceReason), validFrom, validTo, status); }
+        PriceInput input() { return new PriceInput(organizationId, packageId, priceType, price, Strings.trim(currencyCode),
+                Strings.trimToNull(priceDocumentCode), Strings.trimToNull(priceReason), validFrom, validTo, status); }
     }
 
     record LifecycleStatusRequest(
@@ -190,8 +191,8 @@ public class CatalogLifecycleController {
             boolean orderable, boolean executable, boolean chargeable, boolean purchasable,
             boolean stocked, boolean dispensable, boolean returnable,
             @NotBlank @Pattern(regexp = "ACTIVE|SUSPENDED|RETIRED") String status, LocalDate validTo) {
-        AdoptionTemplate value() { return new AdoptionTemplate(defaultDepartmentId, optional(localCode),
-                optional(localName), orderable, executable, chargeable, purchasable, stocked, dispensable,
+        AdoptionTemplate value() { return new AdoptionTemplate(defaultDepartmentId, Strings.trimToNull(localCode),
+                Strings.trimToNull(localName), orderable, executable, chargeable, purchasable, stocked, dispensable,
                 returnable, status, validTo); }
     }
 
@@ -210,7 +211,7 @@ public class CatalogLifecycleController {
             @NotBlank @Pattern(regexp = "ACTIVE|SUSPENDED|RETIRED") String status,
             Long replacesPriceId, @Min(0) BigInteger expectedReplacesRevision) {
         PriceBatchEntry value() { return new PriceBatchEntry(catalogItemId, packageId, priceType, price,
-                clean(currencyCode), optional(priceDocumentCode), optional(priceReason), validTo, status,
+                Strings.trim(currencyCode), Strings.trimToNull(priceDocumentCode), Strings.trimToNull(priceReason), validTo, status,
                 replacesPriceId, expectedReplacesRevision == null ? null : revision(expectedReplacesRevision)); }
     }
 
@@ -218,6 +219,4 @@ public class CatalogLifecycleController {
         try { return value.longValueExact(); }
         catch (ArithmeticException exception) { throw new IllegalArgumentException("修订号超出BIGINT范围"); }
     }
-    private static String clean(String value) { return value.trim(); }
-    private static String optional(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

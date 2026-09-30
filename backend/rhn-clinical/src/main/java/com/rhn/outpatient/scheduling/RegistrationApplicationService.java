@@ -10,6 +10,7 @@ import com.rhn.queueing.api.QueueingDirectory;
 import com.rhn.queueing.api.QueueingDirectory.TicketSnapshot;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -166,7 +167,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public void requireDirectReceptionAllowed(Long encounterId) {
         var context = contextProvider.requireCurrent();
         var registration = requireRegistrationWithLock(context.tenantId(), encounterId);
-        if (!"REGISTERED".equals(registration.status())) {
+        if (registration.status() != PatientRegistrationStatus.REGISTERED) {
             throw conflict("DIRECT_VISIT_REGISTRATION_INVALID", "该挂号已取消或失效，请重新选择有效挂号");
         }
         if (registration.scheduleId() != null) {
@@ -254,11 +255,11 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         PatientRegistration registration = requireRegistrationWithLock(context.tenantId(), encounterId);
         TicketSnapshot ticket = queueing.requireBySource("PAT_REG", registration.id());
         Appointment appointment = lockAppointment(context, registration);
-        if (!"CANCELLED".equals(registration.status())) {
+        if (registration.status() != PatientRegistrationStatus.CANCELLED) {
             if (!List.of("WAITING", "CALLED", "MISSED").contains(ticket.status())) {
                 throw conflict("REGISTRATION_ALREADY_IN_SERVICE", "该挂号已经开始接诊，不能退号");
             }
-            if (appointment != null && !"REGISTERED".equals(appointment.status())) {
+            if (appointment != null && appointment.status() != AppointmentStatus.REGISTERED) {
                 throw conflict("APPOINTMENT_NOT_WITHDRAWABLE", "挂号关联预约当前状态不能退号");
             }
         }
@@ -272,7 +273,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         PatientRegistration registration = requireRegistrationWithLock(context.tenantId(), encounterId);
         TicketSnapshot ticket = queueing.requireBySource("PAT_REG", registration.id());
         Appointment appointment = lockAppointment(context, registration);
-        if ("CANCELLED".equals(registration.status())) {
+        if (registration.status() == PatientRegistrationStatus.CANCELLED) {
             return cancellationSnapshot(registration, ticket, appointment);
         }
         if (!List.of("WAITING", "CALLED", "MISSED").contains(ticket.status())) {
@@ -281,7 +282,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         ticket = queueing.cancelBySource("PAT_REG", registration.id(), commandCode, reason);
         registration.cancel();
         if (appointment != null) {
-            String appointmentFrom = appointment.status();
+            String appointmentFrom = appointment.status().name();
             appointment.cancelAfterRegistration(reason, context.subjectId());
             ScheduleSlotPool pool = poolRepository.findWithLockByIdAndTenantId(
                             appointment.slotPoolId(), context.tenantId())
@@ -325,17 +326,11 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         ReceptionQueueScope resolvedScope = scope == null ? ReceptionQueueScope.DEPARTMENT : scope;
         boolean organizationScope = resolvedScope == ReceptionQueueScope.ORGANIZATION;
         requireDepartmentContextForDepartmentScope(context, organizationScope);
-        LocalDate resolvedStart = dateFrom == null ? (dateTo == null ? LocalDate.now(BUSINESS_ZONE) : dateTo) : dateFrom;
-        LocalDate resolvedEnd = dateTo == null ? resolvedStart : dateTo;
-        if (resolvedEnd.isBefore(resolvedStart)) {
-            LocalDate tmp = resolvedStart;
-            resolvedStart = resolvedEnd;
-            resolvedEnd = tmp;
-        }
-        final LocalDate start = resolvedStart;
-        final LocalDate end = resolvedEnd;
-        Instant from = start.atStartOfDay(BUSINESS_ZONE).toInstant();
-        Instant to = end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
+        QueueWindow window = resolveWindow(dateFrom, dateTo);
+        final LocalDate start = window.start();
+        final LocalDate end = window.end();
+        Instant from = window.from();
+        Instant to = window.to();
 
         int validityDays = validityPolicy.resolveValidityDays(context.tenantId(), context.subjectId(),
                 context.organizationId(), context.departmentId());
@@ -352,16 +347,9 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                     .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
                             context.tenantId(), context.organizationId(), context.departmentId(), queryFrom, to);
         if (registrations.isEmpty()) return List.of();
-        Map<Long, TicketSnapshot> tickets = queueing.findBySources("PAT_REG",
-                registrations.stream().map(PatientRegistration::id).toList());
-        Map<Long, ServiceSchedule> schedules = registrations.stream().map(PatientRegistration::scheduleId)
-                .filter(java.util.Objects::nonNull).distinct()
-                .map(id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null))
-                .filter(java.util.Objects::nonNull).collect(Collectors.toMap(ServiceSchedule::id, Function.identity()));
-        Map<Long, EncounterFlowSnapshot> encounters = encounterFlowDirectory.findByIds(context.tenantId(),
-                        registrations.stream().map(PatientRegistration::encounterId).toList())
-                .stream().collect(Collectors.toMap(EncounterFlowSnapshot::encounterId, Function.identity(),
-                        (first, ignored) -> first));
+        Map<Long, TicketSnapshot> tickets = loadTickets(registrations);
+        Map<Long, ServiceSchedule> schedules = loadSchedules(registrations, context);
+        Map<Long, EncounterFlowSnapshot> encounters = loadEncounters(registrations, context);
 
         Map<Long, String> queueOperatorCache = new HashMap<>();
         Map<Long, String> queueDepartmentCache = new HashMap<>();
@@ -380,59 +368,14 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         }
         final boolean doctorHasPersonalSchedule = hasPersonalSchedule;
 
-        return registrations.stream().filter(reg -> {
-            LocalDate regDate = reg.registeredAt().atZone(BUSINESS_ZONE).toLocalDate();
-            if (!regDate.isBefore(start) && !regDate.isAfter(end)) {
-                return true;
-            }
-            Instant validUntil = validityPolicy.calculateCutoffTime(reg.registeredAt(), context.tenantId(),
-                    context.subjectId(), reg.organizationId(), reg.departmentId());
-            boolean expired = now.isAfter(validUntil) || now.equals(validUntil);
-            TicketSnapshot ticket = tickets.get(reg.id());
-            String ticketStatus = ticket == null ? null : ticket.status();
-            boolean isCompleted = "COMPLETED".equalsIgnoreCase(ticketStatus)
-                    || "CANCELLED".equalsIgnoreCase(ticketStatus)
-                    || "CANCELLED".equalsIgnoreCase(reg.status());
-            return !expired || isCompleted;
-        }).filter(registration -> isVisibleInQueue(
-                registration, schedules, encounters, tickets, context, resolvedScope, doctorHasPersonalSchedule
-        )).map(registration -> {
-            TicketSnapshot ticket = tickets.get(registration.id());
-            ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(registration.residentId());
-            ServiceSchedule schedule = registration.scheduleId() == null ? null : schedules.get(registration.scheduleId());
-            EncounterFlowSnapshot encounter = encounters.get(registration.encounterId());
-            Instant validUntil = validityPolicy.calculateCutoffTime(registration.registeredAt(), context.tenantId(),
-                    context.subjectId(), registration.organizationId(), registration.departmentId());
-            String registeredByName = resolveOperatorName(context.tenantId(), registration.registeredBy(), queueOperatorCache);
-            Long deptId = registration.departmentId() != null ? registration.departmentId() : (schedule != null ? schedule.departmentId() : null);
-            String departmentName = resolveDepartmentName(context.tenantId(), context.organizationId(), deptId, queueDepartmentCache);
-            String dayPartText = resolveDayPartText(schedule);
-            String clinicianId = encounter == null ? null : encounter.clinicianId();
-            String clinicianName = resolveClinicianName(context.tenantId(), clinicianId, clinicianNameCache);
-
-            return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
-                    registration.encounterId(), ticket == null ? null : ticket.id(),
-                    ticket == null ? null : ticket.serviceQueueId(), resident.id(),
-                    resident.healthRecordNo(), resident.fullName(), resident.gender(), resident.birthDate(),
-                    registration.registrationNo(), ticket == null ? null : ticket.ticketCode(),
-                    ticket == null ? 0 : ticket.sequenceNo(),
-                    ticket == null ? 0 : ticket.priority(),
-                    registration.registrationSource(), registration.visitType(),
-                    registration.status(), ticket == null ? null : ticket.status(),
-                    schedule == null ? null : schedule.practitionerName(),
-                    schedule == null ? null : schedule.serviceName(),
-                    schedule == null ? null : schedule.locationName(),
-                    registration.registeredAt(), ticket == null ? null : ticket.readyAt(),
-                    ticket == null ? null : ticket.calledAt(), ticket == null ? null : ticket.startedAt(),
-                    ticket == null ? 0 : ticket.callCount(), ticket == null ? 0 : ticket.missedCount(),
-                    ticket == null ? null : ticket.currentLocationId(), validUntil,
-                    registeredByName, departmentName, dayPartText,
-                    schedule == null ? null : schedule.practitionerId(), clinicianId, clinicianName,
-                    encounter != null && encounter.completedAt() != null
-                            ? encounter.completedAt() : ticket == null ? null : ticket.completedAt(),
-                    deptId, resident.phone());
-        }).sorted(Comparator.comparingInt(ReceptionQueueItem::priority).reversed()
-                .thenComparingInt(ReceptionQueueItem::sequenceNo)).toList();
+        return registrations.stream()
+                .filter(reg -> matchesQueue(reg, tickets, context, start, end, now))
+                .filter(registration -> isVisibleInQueue(
+                        registration, schedules, encounters, tickets, context, resolvedScope, doctorHasPersonalSchedule
+                )).map(registration -> toQueueItem(registration, tickets, schedules, encounters, context,
+                        queueOperatorCache, queueDepartmentCache, clinicianNameCache))
+                .sorted(Comparator.comparingInt(ReceptionQueueItem::priority).reversed()
+                        .thenComparingInt(ReceptionQueueItem::sequenceNo)).toList();
     }
 
     @Transactional(readOnly = true)
@@ -443,15 +386,9 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         int safePage = Math.max(0, page);
         int safeSize = Math.min(100, Math.max(1, size));
 
-        LocalDate start = dateFrom == null ? (dateTo == null ? LocalDate.now(BUSINESS_ZONE) : dateTo) : dateFrom;
-        LocalDate end = dateTo == null ? start : dateTo;
-        if (end.isBefore(start)) {
-            LocalDate tmp = start;
-            start = end;
-            end = tmp;
-        }
-        Instant from = start.atStartOfDay(BUSINESS_ZONE).toInstant();
-        Instant to = end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
+        QueueWindow window = resolveWindow(dateFrom, dateTo);
+        Instant from = window.from();
+        Instant to = window.to();
         List<PatientRegistration> registrations = organizationScope
                 ? registrationRepository
                     .findByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
@@ -463,11 +400,10 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
             return new RegistrationPageView(List.of(), safePage, safeSize, 0, 0, safePage == 0, true);
         }
 
-        Map<Long, TicketSnapshot> tickets = queueing.findBySources("PAT_REG",
-                registrations.stream().map(PatientRegistration::id).toList());
+        Map<Long, TicketSnapshot> tickets = loadTickets(registrations);
 
-        String normalizedStatus = clean(status);
-        String normalizedQuery = clean(query);
+        String normalizedStatus = Strings.trimToNull(status);
+        String normalizedQuery = Strings.trimToNull(query);
         if (normalizedQuery != null) {
             normalizedQuery = normalizedQuery.toLowerCase(Locale.ROOT);
         }
@@ -478,48 +414,10 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         Map<Long, String> operatorCache = new HashMap<>();
         Map<Long, String> departmentCache = new HashMap<>();
 
-        List<PatientRegistration> filtered = registrations.stream().filter(reg -> {
-            TicketSnapshot ticket = tickets.get(reg.id());
-            if (normalizedStatus != null) {
-                String queueStatus = ticket == null ? null : ticket.status();
-                if (!normalizedStatus.equalsIgnoreCase(queueStatus) && !normalizedStatus.equalsIgnoreCase(reg.status())) {
-                    return false;
-                }
-            }
-            if (matchQuery != null) {
-                String ticketNo = ticket == null ? null : ticket.ticketCode();
-                String regNo = reg.registrationNo();
-                if (regNo != null && regNo.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
-                if (ticketNo != null && ticketNo.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
-
-                ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(reg.residentId(),
-                        residentDirectory::requireSnapshot);
-                if (resident != null) {
-                    if (resident.fullName() != null && resident.fullName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
-                    if (resident.healthRecordNo() != null && resident.healthRecordNo().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
-                }
-                if (reg.scheduleId() != null) {
-                    ServiceSchedule schedule = scheduleCache.computeIfAbsent(reg.scheduleId(),
-                            id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null));
-                    if (schedule != null) {
-                        if (schedule.practitionerName() != null && schedule.practitionerName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
-                        if (schedule.serviceName() != null && schedule.serviceName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
-                        if (schedule.locationName() != null && schedule.locationName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
-                    }
-                }
-                if (reg.registeredBy() != null) {
-                    String opName = resolveOperatorName(context.tenantId(), reg.registeredBy(), operatorCache);
-                    if (opName != null && opName.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
-                }
-                Long dId = reg.departmentId();
-                if (dId != null) {
-                    String deptName = resolveDepartmentName(context.tenantId(), context.organizationId(), dId, departmentCache);
-                    if (deptName != null && deptName.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
-                }
-                return false;
-            }
-            return true;
-        }).sorted(Comparator.comparing(PatientRegistration::registeredAt, Comparator.nullsLast(Comparator.reverseOrder()))
+        List<PatientRegistration> filtered = registrations.stream()
+                .filter(reg -> matchesRegistration(reg, normalizedStatus, matchQuery, tickets,
+                        residentCache, scheduleCache, operatorCache, departmentCache, context))
+                .sorted(Comparator.comparing(PatientRegistration::registeredAt, Comparator.nullsLast(Comparator.reverseOrder()))
                 .thenComparing(PatientRegistration::id, Comparator.nullsLast(Comparator.reverseOrder()))).toList();
 
         long totalElements = filtered.size();
@@ -528,41 +426,194 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         int toIndex = Math.min((int) totalElements, fromIndex + safeSize);
         List<PatientRegistration> slice = filtered.subList(fromIndex, toIndex);
 
-        List<ReceptionQueueItem> content = slice.stream().map(registration -> {
-            TicketSnapshot ticket = tickets.get(registration.id());
-            ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(registration.residentId(),
-                    residentDirectory::requireSnapshot);
-            ServiceSchedule schedule = registration.scheduleId() == null ? null :
-                    scheduleCache.computeIfAbsent(registration.scheduleId(),
-                            id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null));
-            String registeredByName = resolveOperatorName(context.tenantId(), registration.registeredBy(), operatorCache);
-            Long deptId = registration.departmentId() != null ? registration.departmentId() : (schedule != null ? schedule.departmentId() : null);
-            String departmentName = resolveDepartmentName(context.tenantId(), context.organizationId(), deptId, departmentCache);
-            String dayPartText = resolveDayPartText(schedule);
-
-            return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
-                    registration.encounterId(), ticket == null ? null : ticket.id(),
-                    ticket == null ? null : ticket.serviceQueueId(), resident.id(), resident.healthRecordNo(),
-                    resident.fullName(), resident.gender(), resident.birthDate(), registration.registrationNo(),
-                    ticket == null ? null : ticket.ticketCode(),
-                    ticket == null ? 0 : ticket.sequenceNo(),
-                    ticket == null ? 0 : ticket.priority(),
-                    registration.registrationSource(), registration.visitType(),
-                    registration.status(), ticket == null ? null : ticket.status(),
-                    schedule == null ? null : schedule.practitionerName(),
-                    schedule == null ? null : schedule.serviceName(),
-                    schedule == null ? null : schedule.locationName(), registration.registeredAt(),
-                    ticket == null ? null : ticket.readyAt(), ticket == null ? null : ticket.calledAt(),
-                    ticket == null ? null : ticket.startedAt(), ticket == null ? 0 : ticket.callCount(),
-                    ticket == null ? 0 : ticket.missedCount(), ticket == null ? null : ticket.currentLocationId(),
-                    null, registeredByName, departmentName, dayPartText,
-                    schedule == null ? null : schedule.practitionerId(), null, null,
-                    ticket == null ? null : ticket.completedAt(), deptId, resident.phone());
-        }).toList();
+        List<ReceptionQueueItem> content = slice.stream()
+                .map(registration -> toPageItem(registration, tickets, residentCache, scheduleCache,
+                        operatorCache, departmentCache, context))
+                .toList();
 
         boolean first = safePage == 0;
         boolean last = totalPages == 0 || safePage >= totalPages - 1;
         return new RegistrationPageView(content, safePage, safeSize, totalElements, totalPages, first, last);
+    }
+
+    private record QueueWindow(LocalDate start, LocalDate end, Instant from, Instant to) {
+    }
+
+    private QueueWindow resolveWindow(LocalDate dateFrom, LocalDate dateTo) {
+        LocalDate start = dateFrom == null ? (dateTo == null ? LocalDate.now(BUSINESS_ZONE) : dateTo) : dateFrom;
+        LocalDate end = dateTo == null ? start : dateTo;
+        if (end.isBefore(start)) {
+            LocalDate tmp = start;
+            start = end;
+            end = tmp;
+        }
+        Instant from = start.atStartOfDay(BUSINESS_ZONE).toInstant();
+        Instant to = end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
+        return new QueueWindow(start, end, from, to);
+    }
+
+    private Map<Long, TicketSnapshot> loadTickets(List<PatientRegistration> registrations) {
+        return queueing.findBySources("PAT_REG",
+                registrations.stream().map(PatientRegistration::id).toList());
+    }
+
+    private Map<Long, ServiceSchedule> loadSchedules(List<PatientRegistration> registrations, ExecutionContext context) {
+        return registrations.stream().map(PatientRegistration::scheduleId)
+                .filter(java.util.Objects::nonNull).distinct()
+                .map(id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null))
+                .filter(java.util.Objects::nonNull).collect(Collectors.toMap(ServiceSchedule::id, Function.identity()));
+    }
+
+    private Map<Long, EncounterFlowSnapshot> loadEncounters(List<PatientRegistration> registrations, ExecutionContext context) {
+        return encounterFlowDirectory.findByIds(context.tenantId(),
+                        registrations.stream().map(PatientRegistration::encounterId).toList())
+                .stream().collect(Collectors.toMap(EncounterFlowSnapshot::encounterId, Function.identity(),
+                        (first, ignored) -> first));
+    }
+
+    private boolean matchesQueue(PatientRegistration reg, Map<Long, TicketSnapshot> tickets, ExecutionContext context,
+                                 LocalDate start, LocalDate end, Instant now) {
+        LocalDate regDate = reg.registeredAt().atZone(BUSINESS_ZONE).toLocalDate();
+        if (!regDate.isBefore(start) && !regDate.isAfter(end)) {
+            return true;
+        }
+        Instant validUntil = validityPolicy.calculateCutoffTime(reg.registeredAt(), context.tenantId(),
+                context.subjectId(), reg.organizationId(), reg.departmentId());
+        boolean expired = now.isAfter(validUntil) || now.equals(validUntil);
+        TicketSnapshot ticket = tickets.get(reg.id());
+        String ticketStatus = ticket == null ? null : ticket.status();
+        boolean isCompleted = "COMPLETED".equalsIgnoreCase(ticketStatus)
+                || "CANCELLED".equalsIgnoreCase(ticketStatus)
+                || reg.status() == PatientRegistrationStatus.CANCELLED;
+        return !expired || isCompleted;
+    }
+
+    private ReceptionQueueItem toQueueItem(PatientRegistration registration, Map<Long, TicketSnapshot> tickets,
+                                           Map<Long, ServiceSchedule> schedules,
+                                           Map<Long, EncounterFlowSnapshot> encounters, ExecutionContext context,
+                                           Map<Long, String> queueOperatorCache,
+                                           Map<Long, String> queueDepartmentCache,
+                                           Map<String, String> clinicianNameCache) {
+        TicketSnapshot ticket = tickets.get(registration.id());
+        ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(registration.residentId());
+        ServiceSchedule schedule = registration.scheduleId() == null ? null : schedules.get(registration.scheduleId());
+        EncounterFlowSnapshot encounter = encounters.get(registration.encounterId());
+        Instant validUntil = validityPolicy.calculateCutoffTime(registration.registeredAt(), context.tenantId(),
+                context.subjectId(), registration.organizationId(), registration.departmentId());
+        String registeredByName = resolveOperatorName(context.tenantId(), registration.registeredBy(), queueOperatorCache);
+        Long deptId = registration.departmentId() != null ? registration.departmentId() : (schedule != null ? schedule.departmentId() : null);
+        String departmentName = resolveDepartmentName(context.tenantId(), context.organizationId(), deptId, queueDepartmentCache);
+        String dayPartText = resolveDayPartText(schedule);
+        String clinicianId = encounter == null ? null : encounter.clinicianId();
+        String clinicianName = resolveClinicianName(context.tenantId(), clinicianId, clinicianNameCache);
+
+        return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
+                registration.encounterId(), ticket == null ? null : ticket.id(),
+                ticket == null ? null : ticket.serviceQueueId(), resident.id(),
+                resident.healthRecordNo(), resident.fullName(), resident.gender(), resident.birthDate(),
+                registration.registrationNo(), ticket == null ? null : ticket.ticketCode(),
+                ticket == null ? 0 : ticket.sequenceNo(),
+                ticket == null ? 0 : ticket.priority(),
+                registration.registrationSource(), registration.visitType(),
+                registration.status().name(), ticket == null ? null : ticket.status(),
+                schedule == null ? null : schedule.practitionerName(),
+                schedule == null ? null : schedule.serviceName(),
+                schedule == null ? null : schedule.locationName(),
+                registration.registeredAt(), ticket == null ? null : ticket.readyAt(),
+                ticket == null ? null : ticket.calledAt(), ticket == null ? null : ticket.startedAt(),
+                ticket == null ? 0 : ticket.callCount(), ticket == null ? 0 : ticket.missedCount(),
+                ticket == null ? null : ticket.currentLocationId(), validUntil,
+                registeredByName, departmentName, dayPartText,
+                schedule == null ? null : schedule.practitionerId(), clinicianId, clinicianName,
+                encounter != null && encounter.completedAt() != null
+                        ? encounter.completedAt() : ticket == null ? null : ticket.completedAt(),
+                deptId, resident.phone());
+    }
+
+    private boolean matchesRegistration(PatientRegistration reg, String normalizedStatus, String matchQuery,
+                                        Map<Long, TicketSnapshot> tickets,
+                                        Map<Long, ResidentDirectory.ResidentSnapshot> residentCache,
+                                        Map<Long, ServiceSchedule> scheduleCache,
+                                        Map<Long, String> operatorCache,
+                                        Map<Long, String> departmentCache,
+                                        ExecutionContext context) {
+        TicketSnapshot ticket = tickets.get(reg.id());
+        if (normalizedStatus != null) {
+            String queueStatus = ticket == null ? null : ticket.status();
+            if (!normalizedStatus.equalsIgnoreCase(queueStatus) && !normalizedStatus.equalsIgnoreCase(reg.status().name())) {
+                return false;
+            }
+        }
+        if (matchQuery != null) {
+            String ticketNo = ticket == null ? null : ticket.ticketCode();
+            String regNo = reg.registrationNo();
+            if (regNo != null && regNo.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+            if (ticketNo != null && ticketNo.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+
+            ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(reg.residentId(),
+                    residentDirectory::requireSnapshot);
+            if (resident != null) {
+                if (resident.fullName() != null && resident.fullName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                if (resident.healthRecordNo() != null && resident.healthRecordNo().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+            }
+            if (reg.scheduleId() != null) {
+                ServiceSchedule schedule = scheduleCache.computeIfAbsent(reg.scheduleId(),
+                        id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null));
+                if (schedule != null) {
+                    if (schedule.practitionerName() != null && schedule.practitionerName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                    if (schedule.serviceName() != null && schedule.serviceName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                    if (schedule.locationName() != null && schedule.locationName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                }
+            }
+            if (reg.registeredBy() != null) {
+                String opName = resolveOperatorName(context.tenantId(), reg.registeredBy(), operatorCache);
+                if (opName != null && opName.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+            }
+            Long dId = reg.departmentId();
+            if (dId != null) {
+                String deptName = resolveDepartmentName(context.tenantId(), context.organizationId(), dId, departmentCache);
+                if (deptName != null && deptName.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private ReceptionQueueItem toPageItem(PatientRegistration registration, Map<Long, TicketSnapshot> tickets,
+                                          Map<Long, ResidentDirectory.ResidentSnapshot> residentCache,
+                                          Map<Long, ServiceSchedule> scheduleCache,
+                                          Map<Long, String> operatorCache,
+                                          Map<Long, String> departmentCache,
+                                          ExecutionContext context) {
+        TicketSnapshot ticket = tickets.get(registration.id());
+        ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(registration.residentId(),
+                residentDirectory::requireSnapshot);
+        ServiceSchedule schedule = registration.scheduleId() == null ? null :
+                scheduleCache.computeIfAbsent(registration.scheduleId(),
+                        id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null));
+        String registeredByName = resolveOperatorName(context.tenantId(), registration.registeredBy(), operatorCache);
+        Long deptId = registration.departmentId() != null ? registration.departmentId() : (schedule != null ? schedule.departmentId() : null);
+        String departmentName = resolveDepartmentName(context.tenantId(), context.organizationId(), deptId, departmentCache);
+        String dayPartText = resolveDayPartText(schedule);
+
+        return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
+                registration.encounterId(), ticket == null ? null : ticket.id(),
+                ticket == null ? null : ticket.serviceQueueId(), resident.id(), resident.healthRecordNo(),
+                resident.fullName(), resident.gender(), resident.birthDate(), registration.registrationNo(),
+                ticket == null ? null : ticket.ticketCode(),
+                ticket == null ? 0 : ticket.sequenceNo(),
+                ticket == null ? 0 : ticket.priority(),
+                registration.registrationSource(), registration.visitType(),
+                registration.status().name(), ticket == null ? null : ticket.status(),
+                schedule == null ? null : schedule.practitionerName(),
+                schedule == null ? null : schedule.serviceName(),
+                schedule == null ? null : schedule.locationName(), registration.registeredAt(),
+                ticket == null ? null : ticket.readyAt(), ticket == null ? null : ticket.calledAt(),
+                ticket == null ? null : ticket.startedAt(), ticket == null ? 0 : ticket.callCount(),
+                ticket == null ? 0 : ticket.missedCount(), ticket == null ? null : ticket.currentLocationId(),
+                null, registeredByName, departmentName, dayPartText,
+                schedule == null ? null : schedule.practitionerId(), null, null,
+                ticket == null ? null : ticket.completedAt(), deptId, resident.phone());
     }
 
     private String resolveOperatorName(Long tenantId, Long operatorUserId, Map<Long, String> cache) {
@@ -577,11 +628,15 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                             if (staff != null && staff.practitioner() != null && staff.practitioner().fullName() != null) {
                                 return staff.practitioner().fullName();
                             }
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                            // 任职信息不可用时回退到登录账号名。
+                        }
                     }
                     return account.username();
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+                // 账号不可用时返回 null，由调用方按未知操作人展示。
+            }
             return null;
         });
     }
@@ -671,7 +726,9 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                         return staff.practitioner().fullName();
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+                // 医生姓名解析失败时回退到登录账号名。
+            }
             return username;
         });
     }
@@ -683,6 +740,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 var dept = organizationDirectory.requireDepartment(tenantId, organizationId, id);
                 return dept != null ? dept.name() : null;
             } catch (Exception ignored) {
+                // 科室不存在或不可见时返回 null，由展示层留空。
                 return null;
             }
         });
@@ -698,11 +756,6 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         };
     }
 
-    private String clean(String value) {
-        if (value == null || value.isBlank()) return null;
-        return value.trim();
-    }
-
     private RegistrationSnapshot snapshot(PatientRegistration registration) {
         TicketSnapshot ticket = queueing.requireBySource("PAT_REG", registration.id());
         return snapshot(registration, ticket);
@@ -711,7 +764,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     private RegistrationSnapshot snapshot(PatientRegistration registration, TicketSnapshot ticket) {
         return new RegistrationSnapshot(registration.id(), registration.appointmentId(), registration.scheduleId(),
                 registration.encounterId(), registration.registrationNo(), ticket.ticketCode(), ticket.sequenceNo(),
-                registration.status());
+                registration.status().name());
     }
 
     private PatientRegistration requireRegistration(Long tenantId, Long encounterId) {
@@ -749,7 +802,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     private CancellationSnapshot cancellationSnapshot(PatientRegistration registration, TicketSnapshot ticket,
                                                       Appointment appointment) {
         return new CancellationSnapshot(registration.id(), registration.appointmentId(), registration.scheduleId(),
-                registration.status(), ticket.status(), appointment == null ? null : appointment.status());
+                registration.status().name(), ticket.status(), appointment == null ? null : appointment.status().name());
     }
 
     private ExecutionContext requireOrganizationContext(Long organizationId) {

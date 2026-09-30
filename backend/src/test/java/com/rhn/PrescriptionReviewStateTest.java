@@ -1,6 +1,7 @@
 package com.rhn;
 
 import com.rhn.pharmacy.domain.DispenseTask;
+import com.rhn.pharmacy.domain.DispenseTaskStatus;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,7 +15,7 @@ class PrescriptionReviewStateTest {
 
         task.bypassPreDispenseReview();
 
-        assertEquals("READY_TO_PICK", task.status());
+        assertEquals(DispenseTaskStatus.READY_TO_PICK, task.status());
         assertNull(task.latestReviewId());
     }
 
@@ -28,7 +29,7 @@ class PrescriptionReviewStateTest {
 
         task.recordPostDispenseReview(99L);
 
-        assertEquals("COMPLETED", task.status());
+        assertEquals(DispenseTaskStatus.COMPLETED, task.status());
         assertEquals(99L, task.latestReviewId());
         assertThrows(RuntimeException.class, () -> task.recordPostDispenseReview(100L));
     }

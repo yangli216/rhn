@@ -10,8 +10,10 @@ import com.rhn.pharmacy.api.PharmacyViews.StockBinView;
 import com.rhn.pharmacy.api.PharmacyViews.StockLotView;
 import com.rhn.pharmacy.domain.DispenseTask;
 import com.rhn.pharmacy.domain.DispenseTaskLine;
+import com.rhn.pharmacy.domain.DispenseTaskStatus;
 import com.rhn.pharmacy.domain.InventoryBalance;
 import com.rhn.pharmacy.domain.InventoryPeriod;
+import com.rhn.pharmacy.domain.InventoryPeriodStatus;
 import com.rhn.pharmacy.domain.InventoryReservation;
 import com.rhn.pharmacy.domain.InventoryTransaction;
 import com.rhn.pharmacy.domain.InventoryTransactionLine;
@@ -34,6 +36,7 @@ import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -166,7 +169,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         if (existing != null) return lotView(existing);
         StockLot value = lotRepository.saveAndFlush(new StockLot(context.tenantId(), item.catalogItemId(),
                 item.basePackageId(), lotNo, input.productionDate(), input.expiryDate(),
-                clean(input.approvalCodeSnapshot()), clean(input.manufacturerNameSnapshot()), quality,
+                Strings.trimToNull(input.approvalCodeSnapshot()), Strings.trimToNull(input.manufacturerNameSnapshot()), quality,
                 context.subjectId()));
         return lotView(value);
     }
@@ -227,7 +230,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         InventoryTransaction transaction = transactionRepository.save(new InventoryTransaction(context.tenantId(),
                 period.id(), nextNo("IT"), requestCode, "RECEIPT", receiptSourceType,
                 required(input.sourceCode(), "INVENTORY_SOURCE_CODE_REQUIRED", "入库来源编码不能为空"),
-                input.occurredAt(), context.subjectId(), clean(input.description())));
+                input.occurredAt(), context.subjectId(), Strings.trimToNull(input.description())));
         InventoryTransactionLine line = transactionLineRepository.save(new InventoryTransactionLine(
                 context.tenantId(), transaction.id(), 1, site.id(), bin.id(), item.id(), lot.id(),
                 item.basePackageId(), stockStatus, operationQuantity, catalog.itemPackage().unitCode(),
@@ -272,7 +275,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         InventoryPeriod period = requireOpenPeriod(context, site.id(), businessDate);
         InventoryTransaction transaction = transactionRepository.save(new InventoryTransaction(context.tenantId(),
                 period.id(), nextNo("IT"), requestCode, "RECEIPT", receiptSourceType, sourceCode,
-                occurredAt, context.subjectId(), clean(input.description())));
+                occurredAt, context.subjectId(), Strings.trimToNull(input.description())));
         List<InventoryTransactionLine> persisted = new ArrayList<>(); int order = 0;
         List<ReceiveDocumentLineCommand> orderedLines = input.lines().stream()
                 .sorted(RECEIPT_LOCK_ORDER).toList();
@@ -349,7 +352,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         InventoryPeriod period = requireOpenPeriod(context, site.id(), businessDate);
         InventoryTransaction transaction = transactionRepository.save(new InventoryTransaction(context.tenantId(),
                 period.id(), nextNo("IT"), requestCode, transactionType, sourceType, sourceCode,
-                occurredAt, context.subjectId(), clean(input.description())));
+                occurredAt, context.subjectId(), Strings.trimToNull(input.description())));
         List<InventoryTransactionLine> persisted = new ArrayList<>(); int order = 0;
         List<DocumentPostingLineCommand> orderedLines = input.lines().stream()
                 .sorted(POSTING_LOCK_ORDER).toList();
@@ -456,7 +459,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
             return transactionViews(context.tenantId(),
                     transactionRepository.findItemHistory(context.tenantId(), siteId, stockItemId));
         }
-        String code = clean(periodCode);
+        String code = Strings.trimToNull(periodCode);
         if (code == null) code = YearMonth.now(ZoneOffset.UTC).toString().replace("-", "");
         InventoryPeriod period = periodRepository.findByTenantIdAndStockSiteIdAndPeriodCode(
                 context.tenantId(), siteId, code).orElse(null);
@@ -486,7 +489,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                     "INVENTORY_HISTORY_ITEM_REQUIRED", "查询全部期间流水时必须指定经营项目");
             values = transactionRepository.findItemHistory(context.tenantId(), siteId, stockItemId, request);
         } else {
-            String code = clean(periodCode);
+            String code = Strings.trimToNull(periodCode);
             if (code == null) code = YearMonth.now(ZoneOffset.UTC).toString().replace("-", "");
             InventoryPeriod period = periodRepository.findByTenantIdAndStockSiteIdAndPeriodCode(
                     context.tenantId(), siteId, code).orElse(null);
@@ -513,12 +516,12 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                 line.remainingQuantity(), line.baseQuantityFactor(), itemForPrecision(context, line).baseUnitCode(),
                 "INVENTORY_RESERVATION_QUANTITY_PRECISION_INVALID", "预留数量");
         if (!active.isEmpty()) {
-            if (!"PICKING".equals(task.status())) {
+            if (task.status() != DispenseTaskStatus.PICKING) {
                 throw conflict("INVENTORY_RESERVATION_TASK_INCONSISTENT", "任务状态与有效预留不一致，请人工核查");
             }
             return reservationResult(context, task, required, active);
         }
-        if (!"READY_TO_PICK".equals(task.status())) {
+        if (task.status() != DispenseTaskStatus.READY_TO_PICK) {
             throw conflict("DISPENSE_TASK_RESERVATION_STATE_INVALID", "只有审方通过且待拣货的任务可以预留库存");
         }
         StockItem item = requireItem(context, line.stockItemId());
@@ -573,7 +576,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                 context.tenantId(), line.id());
         BigDecimal required = line.remainingQuantity().multiply(line.baseQuantityFactor());
         if (active.isEmpty()) {
-            if ("READY_TO_PICK".equals(task.status())) return reservationResult(context, task, required, List.of());
+            if (task.status() == DispenseTaskStatus.READY_TO_PICK) return reservationResult(context, task, required, List.of());
             throw conflict("INVENTORY_ACTIVE_RESERVATION_NOT_FOUND", "当前任务没有可释放的有效库存预留");
         }
         List<InventoryReservation> ordered = active.stream().sorted(Comparator
@@ -661,7 +664,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         if (!line.stockBinId().equals(input.stockBinId()) || !line.stockItemId().equals(input.stockItemId())
                 || !line.stockLotId().equals(input.stockLotId())
                 || line.operationQuantity().compareTo(input.operationQuantity()) != 0
-                || !existing.sourceCode().equals(clean(input.sourceCode()))) {
+                || !existing.sourceCode().equals(Strings.trimToNull(input.sourceCode()))) {
             throw conflict("INVENTORY_REQUEST_CODE_PAYLOAD_MISMATCH", "相同库存请求编码不能用于不同入账内容");
         }
         return transactionView(existing, lines);
@@ -703,7 +706,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                 throw conflict("INVENTORY_PERIOD_GAP", "业务日期所属期间缺失，请先补齐连续库存期间");
             }
             if (previous != null) {
-                if (!"CLOSED".equals(previous.status())) {
+                if (previous.status() != InventoryPeriodStatus.CLOSED) {
                     throw conflict("INVENTORY_PREVIOUS_PERIOD_NOT_CLOSED", "上一库存期间尚未月结，不能开启下一期间");
                 }
                 if (!previous.periodTo().plusDays(1).equals(month.atDay(1))) {
@@ -722,7 +725,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                                                      BigDecimal required, List<InventoryReservation> values) {
         BigDecimal reserved = values.stream().filter(InventoryReservation::active)
                 .map(InventoryReservation::releasableQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new ReservationResultView(task.id(), task.taskNo(), task.status(), required, reserved,
+        return new ReservationResultView(task.id(), task.taskNo(), task.status().name(), required, reserved,
                 values.stream().map(value -> reservationView(context, value)).toList());
     }
 
@@ -760,7 +763,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         StockBin bin = requireBin(context, value.stockBinId()); StockLot lot = requireLot(context, value.stockLotId());
         return new InventoryReservationView(value.id(), value.revision(), value.stockSiteId(), value.stockBinId(),
                 bin.code(), value.stockItemId(), value.stockLotId(), lot.lotNo(), lot.expiryDate(), value.requestId(),
-                value.reservationGroupCode(), value.reservationType(), value.status(), value.quantityReserved(),
+                value.reservationGroupCode(), value.reservationType(), value.status().name(), value.quantityReserved(),
                 value.quantityConsumed(), value.baseUnitCode(), value.createdAt(), value.expiresAt(),
                 value.consumedAt(), value.consumedBy(), value.releasedAt(), value.releasedBy(), value.releaseReason());
     }
@@ -874,10 +877,9 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         return prefix + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
     }
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
-    private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(); }
 
     public record CreateBinCommand(Long parentBinId, String code, String name, String binType,
                                    String stockDefault, boolean receiveAllowed, boolean pickAllowed,

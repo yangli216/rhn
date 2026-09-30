@@ -919,7 +919,11 @@ public class MedicalOperationsMasterDataService {
     private String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String supplyType(SupplyItem v) { return v.itemTypeId().equals(MasterDataItemTypes.SUPPLY_DEVICE) ? "DEVICE" : "CONSUMABLE"; }
     private UnitView unitView(UnitDefinition v) { return new UnitView(v.id(), v.revision(), v.code(), v.name(), v.symbol(), v.dimension(), v.decimalScale(), v.status()); }
-    private ConversionView conversionView(UnitConversion v, Map<Long, UnitDefinition> units) { return new ConversionView(v.id(), v.revision(), v.catalogItemId(), v.scopeCode(), v.fromUnitId(), units.get(v.fromUnitId()).code(), v.toUnitId(), units.get(v.toUnitId()).code(), v.factor(), v.offsetValue(), v.validFrom(), v.validTo(), v.status()); }
+    private ConversionView conversionView(UnitConversion v, Map<Long, UnitDefinition> units) {
+        return new ConversionView(v.id(), v.revision(), v.catalogItemId(), v.scopeCode(), v.fromUnitId(),
+                units.get(v.fromUnitId()).code(), v.toUnitId(), units.get(v.toUnitId()).code(), v.factor(),
+                v.offsetValue(), v.validFrom(), v.validTo(), v.status());
+    }
     private boolean overlaps(LocalDate a1, LocalDate a2, LocalDate b1, LocalDate b2) { return (a2 == null || !a2.isBefore(b1)) && (b2 == null || !b2.isBefore(a1)); }
     private ExecutionContext current() { return contextProvider.requireCurrent(); }
 

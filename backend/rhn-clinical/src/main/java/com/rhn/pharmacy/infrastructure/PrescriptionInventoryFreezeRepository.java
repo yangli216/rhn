@@ -16,7 +16,8 @@ public interface PrescriptionInventoryFreezeRepository extends JpaRepository<Pre
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select f from PrescriptionInventoryFreeze f
-            where f.tenantId = :tenantId and f.prescriptionId = :prescriptionId and f.status = 'ACTIVE'
+            where f.tenantId = :tenantId and f.prescriptionId = :prescriptionId
+              and f.status = com.rhn.pharmacy.domain.PrescriptionInventoryFreezeStatus.ACTIVE
             order by f.createdAt, f.id
             """)
     List<PrescriptionInventoryFreeze> lockActiveByPrescriptionId(

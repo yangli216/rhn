@@ -18,6 +18,7 @@ import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -121,8 +122,24 @@ public class ClinicalAiAdministrationService {
         return testModel(request, context);
     }
 
+    private int probeTimeout(ConfigurationTestRequest request) {
+        return request.timeoutSeconds() != null && request.timeoutSeconds() >= 3 && request.timeoutSeconds() <= 60
+                ? request.timeoutSeconds() : 12;
+    }
+
+    private HttpClient probeHttpClient(int timeout) {
+        return HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(Math.min(timeout, 8)))
+                .build();
+    }
+
+    private HttpResponse<String> sendProbe(HttpClient probeClient, HttpRequest request)
+            throws java.io.IOException, InterruptedException {
+        return probeClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
     private ConfigurationTestResult testModel(ConfigurationTestRequest request, ExecutionContext context) {
-        String endpoint = clean(request.endpoint());
+        String endpoint = Strings.trimToNull(request.endpoint());
         if (endpoint == null) {
             endpoint = resolveText("endpoint", request.scope(), context);
         }
@@ -131,7 +148,7 @@ public class ClinicalAiAdministrationService {
                     "模型服务地址为空或格式不合法，请输入以 http:// 或 https:// 开头的完整服务地址", null);
         }
 
-        String model = clean(request.model());
+        String model = Strings.trimToNull(request.model());
         if (model == null) {
             model = resolveText("model", request.scope(), context);
         }
@@ -140,75 +157,26 @@ public class ClinicalAiAdministrationService {
                     "临床模型标识未配置，请填写模型标识 (如 qwen-plus、glm-4 或 deepseek-chat)", null);
         }
 
-        String apiKey = clean(request.secretValue());
+        String apiKey = Strings.trimToNull(request.secretValue());
         if (apiKey == null) {
             apiKey = resolveSecret("api-key", request.scope(), context);
         }
 
-        int timeout = request.timeoutSeconds() != null && request.timeoutSeconds() >= 3 && request.timeoutSeconds() <= 60
-                ? request.timeoutSeconds() : 12;
+        int timeout = probeTimeout(request);
 
-        HttpClient probeClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(Math.min(timeout, 8)))
-                .build();
+        HttpClient probeClient = probeHttpClient(timeout);
 
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", model);
-        body.put("messages", List.of(Map.of("role", "user", "content", "Hello, please respond with ok")));
-        body.put("max_tokens", 10);
-        ClinicalAiRequestOptions.applyNonThinkingDefault(body, URI.create(endpoint), model);
+        Map<String, Object> body = modelProbeBody(model, endpoint);
 
         long start = System.nanoTime();
         try {
-            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(endpoint))
-                    .timeout(Duration.ofSeconds(timeout))
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonCodec.write(body)));
-
-            if (apiKey != null && !apiKey.isBlank()) {
-                builder.header("Authorization", "Bearer " + apiKey.trim());
-            }
-
-            HttpResponse<String> response = probeClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sendProbe(probeClient, modelRequest(endpoint, apiKey, timeout, body));
             long latencyMs = (System.nanoTime() - start) / 1_000_000;
             int code = response.statusCode();
             String respBody = response.body() == null ? "" : response.body().trim();
             String truncatedBody = respBody.length() > 600 ? respBody.substring(0, 600) + "..." : respBody;
 
-            if (code >= 200 && code < 300) {
-                return new ConfigurationTestResult("MODEL", true, code, latencyMs,
-                        String.format(Locale.ROOT, "模型服务连通正常！模型响应就绪 (耗时 %d ms)。", latencyMs),
-                        truncatedBody);
-            } else if (code == 401) {
-                return new ConfigurationTestResult("MODEL", false, code, latencyMs,
-                        "认证失败 (HTTP 401)：模型服务 API Key 无效或未授权，请检查密钥是否正确。",
-                        truncatedBody);
-            } else if (code == 403) {
-                boolean quota = truncatedBody.toLowerCase(Locale.ROOT).contains("quota")
-                        || truncatedBody.toLowerCase(Locale.ROOT).contains("balance")
-                        || truncatedBody.toLowerCase(Locale.ROOT).contains("freetier");
-                String msg = quota
-                        ? "访问受限 (HTTP 403)：账号余额不足或免费额度已耗尽 (Free quota exhausted)，请前往云厂商控制台充值或开启计费。"
-                        : "访问拒绝 (HTTP 403)：当前 API Key 无权访问该模型，请检查云厂商账号权限。";
-                return new ConfigurationTestResult("MODEL", false, code, latencyMs, msg, truncatedBody);
-            } else if (code == 404) {
-                return new ConfigurationTestResult("MODEL", false, code, latencyMs,
-                        "服务或模型未找到 (HTTP 404)：请核对服务地址完整路径 (是否需带 /chat/completions) 或模型标识拼写是否正确。",
-                        truncatedBody);
-            } else if (code == 429) {
-                return new ConfigurationTestResult("MODEL", false, code, latencyMs,
-                        "触发流控限流 (HTTP 429)：请求速率或并发量已达上游提供商上限，请稍后重试。",
-                        truncatedBody);
-            } else if (code == 400) {
-                return new ConfigurationTestResult("MODEL", false, code, latencyMs,
-                        "请求参数受限 (HTTP 400)：模型服务未接受测试请求参数，请参考原始报错信息。",
-                        truncatedBody);
-            } else {
-                return new ConfigurationTestResult("MODEL", false, code, latencyMs,
-                        String.format(Locale.ROOT, "模型服务返回非成功状态码 HTTP %d，请核对服务配置与状态。", code),
-                        truncatedBody);
-            }
+            return modelProbeResult(code, latencyMs, truncatedBody);
         } catch (HttpTimeoutException exception) {
             long latencyMs = (System.nanoTime() - start) / 1_000_000;
             return new ConfigurationTestResult("MODEL", false, 504, latencyMs,
@@ -227,6 +195,65 @@ public class ClinicalAiAdministrationService {
         }
     }
 
+    private Map<String, Object> modelProbeBody(String model, String endpoint) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", model);
+        body.put("messages", List.of(Map.of("role", "user", "content", "Hello, please respond with ok")));
+        body.put("max_tokens", 10);
+        ClinicalAiRequestOptions.applyNonThinkingDefault(body, URI.create(endpoint), model);
+        return body;
+    }
+
+    private HttpRequest modelRequest(String endpoint, String apiKey, int timeout, Map<String, Object> body) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(endpoint))
+                .timeout(Duration.ofSeconds(timeout))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonCodec.write(body)));
+
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder.header("Authorization", "Bearer " + apiKey.trim());
+        }
+
+        return builder.build();
+    }
+
+    private ConfigurationTestResult modelProbeResult(int code, long latencyMs, String truncatedBody) {
+        if (code >= 200 && code < 300) {
+            return new ConfigurationTestResult("MODEL", true, code, latencyMs,
+                    String.format(Locale.ROOT, "模型服务连通正常！模型响应就绪 (耗时 %d ms)。", latencyMs),
+                    truncatedBody);
+        } else if (code == 401) {
+            return new ConfigurationTestResult("MODEL", false, code, latencyMs,
+                    "认证失败 (HTTP 401)：模型服务 API Key 无效或未授权，请检查密钥是否正确。",
+                    truncatedBody);
+        } else if (code == 403) {
+            boolean quota = truncatedBody.toLowerCase(Locale.ROOT).contains("quota")
+                    || truncatedBody.toLowerCase(Locale.ROOT).contains("balance")
+                    || truncatedBody.toLowerCase(Locale.ROOT).contains("freetier");
+            String msg = quota
+                    ? "访问受限 (HTTP 403)：账号余额不足或免费额度已耗尽 (Free quota exhausted)，请前往云厂商控制台充值或开启计费。"
+                    : "访问拒绝 (HTTP 403)：当前 API Key 无权访问该模型，请检查云厂商账号权限。";
+            return new ConfigurationTestResult("MODEL", false, code, latencyMs, msg, truncatedBody);
+        } else if (code == 404) {
+            return new ConfigurationTestResult("MODEL", false, code, latencyMs,
+                    "服务或模型未找到 (HTTP 404)：请核对服务地址完整路径 (是否需带 /chat/completions) 或模型标识拼写是否正确。",
+                    truncatedBody);
+        } else if (code == 429) {
+            return new ConfigurationTestResult("MODEL", false, code, latencyMs,
+                    "触发流控限流 (HTTP 429)：请求速率或并发量已达上游提供商上限，请稍后重试。",
+                    truncatedBody);
+        } else if (code == 400) {
+            return new ConfigurationTestResult("MODEL", false, code, latencyMs,
+                    "请求参数受限 (HTTP 400)：模型服务未接受测试请求参数，请参考原始报错信息。",
+                    truncatedBody);
+        } else {
+            return new ConfigurationTestResult("MODEL", false, code, latencyMs,
+                    String.format(Locale.ROOT, "模型服务返回非成功状态码 HTTP %d，请核对服务配置与状态。", code),
+                    truncatedBody);
+        }
+    }
+
     private static final byte[] DUMMY_WAV = new byte[]{
             'R', 'I', 'F', 'F', 36, 0, 0, 0, 'W', 'A', 'V', 'E',
             'f', 'm', 't', ' ', 16, 0, 0, 0, 1, 0, 1, 0, 68, -84, 0, 0, -120, 88, 1, 0, 2, 0, 16, 0,
@@ -234,7 +261,7 @@ public class ClinicalAiAdministrationService {
     };
 
     private ConfigurationTestResult testSpeech(ConfigurationTestRequest request, ExecutionContext context) {
-        String endpoint = clean(request.endpoint());
+        String endpoint = Strings.trimToNull(request.endpoint());
         if (endpoint == null) {
             endpoint = resolveText("speech-endpoint", request.scope(), context);
         }
@@ -243,23 +270,20 @@ public class ClinicalAiAdministrationService {
                     "语音服务地址为空或格式不合法，请输入以 http:// 或 https:// 开头的完整服务地址", null);
         }
 
-        String model = clean(request.model());
+        String model = Strings.trimToNull(request.model());
         if (model == null) {
             model = resolveText("speech-model", request.scope(), context);
         }
         if (model == null) model = "gpt-transcribe";
 
-        String apiKey = clean(request.secretValue());
+        String apiKey = Strings.trimToNull(request.secretValue());
         if (apiKey == null) {
             apiKey = resolveSecret("api-key", request.scope(), context);
         }
 
-        int timeout = request.timeoutSeconds() != null && request.timeoutSeconds() >= 3 && request.timeoutSeconds() <= 60
-                ? request.timeoutSeconds() : 12;
+        int timeout = probeTimeout(request);
 
-        HttpClient probeClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(Math.min(timeout, 8)))
-                .build();
+        HttpClient probeClient = probeHttpClient(timeout);
         String targetEndpoint = endpoint;
         boolean isDashScope = endpoint.contains("dashscope.aliyuncs.com")
                 || endpoint.contains("/services/audio/asr/transcription")
@@ -275,86 +299,18 @@ public class ClinicalAiAdministrationService {
         try {
             HttpRequest httpRequest;
             if (isDashScope) {
-                // DashScope ASR 协议：JSON 负载 + X-DashScope-Async: enable + Data URI 音频
-                String dataUrl = "data:audio/wav;base64," + java.util.Base64.getEncoder().encodeToString(DUMMY_WAV);
-                String effectiveModel = model;
-                if ("qwen3-asr-flash".equalsIgnoreCase(effectiveModel)) {
-                    effectiveModel = "qwen3-asr-flash-filetrans";
-                }
-                String jsonBody = String.format(Locale.ROOT,
-                        "{\"model\":\"%s\",\"input\":{\"file_url\":\"%s\"},\"parameters\":{\"enable_words\":false}}",
-                        effectiveModel, dataUrl);
-                HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(targetEndpoint))
-                        .timeout(Duration.ofSeconds(timeout))
-                        .header("Content-Type", "application/json")
-                        .header("Accept", "application/json")
-                        .header("X-DashScope-Async", "enable")
-                        .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8));
-                if (apiKey != null && !apiKey.isBlank()) {
-                    b.header("Authorization", "Bearer " + apiKey.trim());
-                }
-                httpRequest = b.build();
+                httpRequest = dashScopeRequest(targetEndpoint, apiKey, model, timeout);
             } else {
-                // 标准 OpenAI-compatible 协议：multipart/form-data
-                String boundary = "rhn-test-speech-" + Long.toUnsignedString(GlobalIds.next(), 36);
-                byte[] prefix = ("--" + boundary + "\r\n"
-                        + "Content-Disposition: form-data; name=\"model\"\r\n\r\n" + model + "\r\n"
-                        + "--" + boundary + "\r\n"
-                        + "Content-Disposition: form-data; name=\"file\"; filename=\"test.wav\"\r\n"
-                        + "Content-Type: audio/wav\r\n\r\n").getBytes(StandardCharsets.UTF_8);
-                byte[] suffix = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
-
-                HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(targetEndpoint))
-                        .timeout(Duration.ofSeconds(timeout))
-                        .header("Content-Type", "multipart/form-data; boundary=" + boundary)
-                        .header("Accept", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofByteArrays(List.of(prefix, DUMMY_WAV, suffix)));
-                if (apiKey != null && !apiKey.isBlank()) {
-                    b.header("Authorization", "Bearer " + apiKey.trim());
-                }
-                httpRequest = b.build();
+                httpRequest = openAiRequest(targetEndpoint, apiKey, model, timeout);
             }
 
-            HttpResponse<String> response = probeClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sendProbe(probeClient, httpRequest);
             long latencyMs = (System.nanoTime() - start) / 1_000_000;
             int code = response.statusCode();
             String respBody = response.body() == null ? "" : response.body().trim();
             String truncatedBody = respBody.length() > 600 ? respBody.substring(0, 600) + "..." : respBody;
 
-            if (code >= 200 && code < 300) {
-                String desc = isDashScope
-                        ? String.format(Locale.ROOT, "千问语音服务连通正常！DashScope ASR 握手与鉴权通过 (耗时 %d ms)。", latencyMs)
-                        : String.format(Locale.ROOT, "语音转写服务连通正常！响应就绪 (耗时 %d ms)。", latencyMs);
-                return new ConfigurationTestResult("SPEECH", true, code, latencyMs, desc, truncatedBody);
-            } else if (code == 400) {
-                // 如果是格式校验，检查具体错误
-                if (respBody.contains("Model") || respBody.contains("not found") || respBody.contains("InvalidParameter")) {
-                    return new ConfigurationTestResult("SPEECH", false, code, latencyMs,
-                            "参数校验失败 (HTTP 400)：模型标识无效或参数格式受限，请确认模型是否为 qwen3-asr-flash-filetrans / sensevoice-v1 等。",
-                            truncatedBody);
-                }
-                return new ConfigurationTestResult("SPEECH", true, code, latencyMs,
-                        String.format(Locale.ROOT, "语音端点与鉴权连通通过 (HTTP 400 校验音频格式)，耗时 %d ms。", latencyMs),
-                        truncatedBody);
-            } else if (code == 401) {
-                return new ConfigurationTestResult("SPEECH", false, code, latencyMs,
-                        "认证失败 (HTTP 401)：语音服务 API Key 无效或未授权，请检查密钥是否正确。",
-                        truncatedBody);
-            } else if (code == 403) {
-                boolean quota = respBody.contains("Quota") || respBody.contains("exhausted") || respBody.contains("FreeTierOnly");
-                String msg = quota
-                        ? "访问受限 (HTTP 403)：账号余额不足或免费额度已耗尽，请前往阿里云控制台开通或充值语音服务。"
-                        : "访问拒绝 (HTTP 403)：当前 API Key 无权调用该语音模型，请在阿里云控制台检查语音服务开通状态。";
-                return new ConfigurationTestResult("SPEECH", false, code, latencyMs, msg, truncatedBody);
-            } else if (code == 404) {
-                return new ConfigurationTestResult("SPEECH", false, code, latencyMs,
-                        "服务地址未找到 (HTTP 404)：请核对语音服务地址完整路径 (千问语音请使用 /api/v1/services/audio/asr/transcription)。",
-                        truncatedBody);
-            } else {
-                return new ConfigurationTestResult("SPEECH", false, code, latencyMs,
-                        String.format(Locale.ROOT, "语音服务返回非成功状态码 HTTP %d，请核对服务配置与状态。", code),
-                        truncatedBody);
-            }
+            return speechProbeResult(code, latencyMs, respBody, truncatedBody, isDashScope);
         } catch (HttpTimeoutException exception) {
             long latencyMs = (System.nanoTime() - start) / 1_000_000;
             return new ConfigurationTestResult("SPEECH", false, 504, latencyMs,
@@ -370,6 +326,87 @@ public class ClinicalAiAdministrationService {
             return new ConfigurationTestResult("SPEECH", false, 0, latencyMs,
                     "语音测试探针执行异常：" + (exception.getMessage() != null ? exception.getMessage() : exception.getClass().getSimpleName()),
                     exception.toString());
+        }
+    }
+
+    private HttpRequest dashScopeRequest(String targetEndpoint, String apiKey, String model, int timeout) {
+        // DashScope ASR 协议：JSON 负载 + X-DashScope-Async: enable + Data URI 音频
+        String dataUrl = "data:audio/wav;base64," + java.util.Base64.getEncoder().encodeToString(DUMMY_WAV);
+        String effectiveModel = model;
+        if ("qwen3-asr-flash".equalsIgnoreCase(effectiveModel)) {
+            effectiveModel = "qwen3-asr-flash-filetrans";
+        }
+        String jsonBody = String.format(Locale.ROOT,
+                "{\"model\":\"%s\",\"input\":{\"file_url\":\"%s\"},\"parameters\":{\"enable_words\":false}}",
+                effectiveModel, dataUrl);
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(targetEndpoint))
+                .timeout(Duration.ofSeconds(timeout))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header("X-DashScope-Async", "enable")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8));
+        if (apiKey != null && !apiKey.isBlank()) {
+            b.header("Authorization", "Bearer " + apiKey.trim());
+        }
+        return b.build();
+    }
+
+    private HttpRequest openAiRequest(String targetEndpoint, String apiKey, String model, int timeout) {
+        // 标准 OpenAI-compatible 协议：multipart/form-data
+        String boundary = "rhn-test-speech-" + Long.toUnsignedString(GlobalIds.next(), 36);
+        byte[] prefix = ("--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"model\"\r\n\r\n" + model + "\r\n"
+                + "--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"file\"; filename=\"test.wav\"\r\n"
+                + "Content-Type: audio/wav\r\n\r\n").getBytes(StandardCharsets.UTF_8);
+        byte[] suffix = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
+
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(targetEndpoint))
+                .timeout(Duration.ofSeconds(timeout))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofByteArrays(List.of(prefix, DUMMY_WAV, suffix)));
+        if (apiKey != null && !apiKey.isBlank()) {
+            b.header("Authorization", "Bearer " + apiKey.trim());
+        }
+        return b.build();
+    }
+
+    private ConfigurationTestResult speechProbeResult(int code, long latencyMs, String respBody,
+                                                      String truncatedBody, boolean isDashScope) {
+        if (code >= 200 && code < 300) {
+            String desc = isDashScope
+                    ? String.format(Locale.ROOT, "千问语音服务连通正常！DashScope ASR 握手与鉴权通过 (耗时 %d ms)。", latencyMs)
+                    : String.format(Locale.ROOT, "语音转写服务连通正常！响应就绪 (耗时 %d ms)。", latencyMs);
+            return new ConfigurationTestResult("SPEECH", true, code, latencyMs, desc, truncatedBody);
+        } else if (code == 400) {
+            // 如果是格式校验，检查具体错误
+            if (respBody.contains("Model") || respBody.contains("not found") || respBody.contains("InvalidParameter")) {
+                return new ConfigurationTestResult("SPEECH", false, code, latencyMs,
+                        "参数校验失败 (HTTP 400)：模型标识无效或参数格式受限，请确认模型是否为 qwen3-asr-flash-filetrans / sensevoice-v1 等。",
+                        truncatedBody);
+            }
+            return new ConfigurationTestResult("SPEECH", true, code, latencyMs,
+                    String.format(Locale.ROOT, "语音端点与鉴权连通通过 (HTTP 400 校验音频格式)，耗时 %d ms。", latencyMs),
+                    truncatedBody);
+        } else if (code == 401) {
+            return new ConfigurationTestResult("SPEECH", false, code, latencyMs,
+                    "认证失败 (HTTP 401)：语音服务 API Key 无效或未授权，请检查密钥是否正确。",
+                    truncatedBody);
+        } else if (code == 403) {
+            boolean quota = respBody.contains("Quota") || respBody.contains("exhausted") || respBody.contains("FreeTierOnly");
+            String msg = quota
+                    ? "访问受限 (HTTP 403)：账号余额不足或免费额度已耗尽，请前往阿里云控制台开通或充值语音服务。"
+                    : "访问拒绝 (HTTP 403)：当前 API Key 无权调用该语音模型，请在阿里云控制台检查语音服务开通状态。";
+            return new ConfigurationTestResult("SPEECH", false, code, latencyMs, msg, truncatedBody);
+        } else if (code == 404) {
+            return new ConfigurationTestResult("SPEECH", false, code, latencyMs,
+                    "服务地址未找到 (HTTP 404)：请核对语音服务地址完整路径 (千问语音请使用 /api/v1/services/audio/asr/transcription)。",
+                    truncatedBody);
+        } else {
+            return new ConfigurationTestResult("SPEECH", false, code, latencyMs,
+                    String.format(Locale.ROOT, "语音服务返回非成功状态码 HTTP %d，请核对服务配置与状态。", code),
+                    truncatedBody);
         }
     }
 
@@ -390,6 +427,7 @@ public class ClinicalAiAdministrationService {
                     return node.asString().trim();
                 }
             } catch (RuntimeException ignored) {
+                // 平台覆盖值不是合法 JSON 时继续下探到内置默认值。
             }
         }
         JsonNode fallbackNode = fallbackValue(key);
@@ -423,16 +461,16 @@ public class ClinicalAiAdministrationService {
         String valueJson = null;
         String secretRef = null;
         if (Boolean.TRUE.equals(update.clearOverride())) {
-            if (update.value() != null || clean(update.secretValue()) != null || Boolean.TRUE.equals(update.clearSecret())) {
+            if (update.value() != null || Strings.trimToNull(update.secretValue()) != null || Boolean.TRUE.equals(update.clearSecret())) {
                 throw badRequest("AI_CONFIGURATION_RESET_CONFLICT", "恢复继承时不能同时提交新值");
             }
             configurationAdministration.saveValue(key, new ManagedValueCommand(update.expectedRevision(),
                     administrationScope(scope), scope == Scope.TENANT ? context.tenantId() : null,
-                    ValueMode.INHERIT, null, null, clean(reason), requestCode()));
+                    ValueMode.INHERIT, null, null, Strings.trimToNull(reason), requestCode()));
             return;
         }
         if (descriptor.secret()) {
-            String plaintext = clean(update.secretValue());
+            String plaintext = Strings.trimToNull(update.secretValue());
             if (Boolean.TRUE.equals(update.clearSecret()) && plaintext != null) {
                 throw badRequest("AI_SECRET_UPDATE_CONFLICT", "不能同时更新并清除同一个密钥");
             }
@@ -451,7 +489,7 @@ public class ClinicalAiAdministrationService {
         }
         configurationAdministration.saveValue(key, new ManagedValueCommand(update.expectedRevision(),
                 administrationScope(scope), scope == Scope.TENANT ? context.tenantId() : null,
-                mode, valueJson, secretRef, clean(reason), requestCode()));
+                mode, valueJson, secretRef, Strings.trimToNull(reason), requestCode()));
     }
 
     private SettingView view(Descriptor descriptor, Scope scope, ExecutionContext context) {
@@ -467,7 +505,7 @@ public class ClinicalAiAdministrationService {
         if (descriptor.secret()) {
             String fallbackSecret = "api-key".equals(descriptor.key()) ? fallback.apiKey() : fallback.knowledgeApiKey();
             String secretReference = resolved == null ? activeSecretRef(override) : resolved.secretReference();
-            secretConfigured = secretReference != null || clean(fallbackSecret) != null;
+            secretConfigured = secretReference != null || Strings.trimToNull(fallbackSecret) != null;
             if (resolved != null && resolved.secretReference() != null) {
                 sourceScope = resolved.resolvedScope();
                 inherited = resolved.inherited();
@@ -538,10 +576,6 @@ public class ClinicalAiAdministrationService {
 
     private String requestCode() {
         return "AI_CONFIG_" + GlobalIds.external(GlobalIds.next());
-    }
-
-    private static String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private static Descriptor descriptor(String key, String group, String name, String description, String valueType) {

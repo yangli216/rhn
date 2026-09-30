@@ -103,7 +103,7 @@ interface ScheduleSlotHoldRepository extends JpaRepository<ScheduleSlotHold, Lon
     Optional<ScheduleSlotHold> findWithLockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
     List<ScheduleSlotHold> findByTenantIdAndSlotPoolIdAndStatusAndExpiresAtBefore(
-            Long tenantId, Long poolId, String status, Instant expiresAt);
+            Long tenantId, Long poolId, ScheduleSlotHoldStatus status, Instant expiresAt);
 }
 
 interface ServiceScheduleEventRepository extends JpaRepository<ServiceScheduleEvent, Long> {

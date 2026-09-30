@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.*;
 
 import java.time.Instant;
@@ -50,13 +51,12 @@ public class OrderFrequencyConfiguration {
         if (!Set.of("REMAINING_SLOTS", "FULL_SCHEDULE", "FROM_ORDER_TIME").contains(firstDayPolicy)) throw new IllegalArgumentException("首日执行策略不正确");
         if (!Set.of("ACTIVE", "INACTIVE").contains(status)) throw new IllegalArgumentException("配置状态不正确");
         if (validFrom == null || validTo != null && validTo.isBefore(validFrom)) throw new IllegalArgumentException("配置有效期不正确");
-        this.localCode = trim(localCode); this.localName = trim(localName); this.executionTimes = trim(executionTimes);
+        this.localCode = Strings.trimToNull(localCode); this.localName = Strings.trimToNull(localName); this.executionTimes = Strings.trimToNull(executionTimes);
         this.firstDayPolicy = firstDayPolicy; this.enabled = enabled; this.status = status;
         this.validFrom = validFrom; this.validTo = validTo; this.updatedAt = Instant.now(); this.updatedBy = actorId;
     }
     public boolean effective(LocalDate date) { return "ACTIVE".equals(status) && !validFrom.isAfter(date) && (validTo == null || !validTo.isBefore(date)); }
     public static String scopeKey(Long organizationId, Long departmentId) { return departmentId == null ? "ORG:" + organizationId : "DEPT:" + departmentId; }
-    private static String trim(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }
     public Long organizationId() { return organizationId; } public Long departmentId() { return departmentId; }
     public String scopeKey() { return scopeKey; } public Long frequencyId() { return frequencyId; }

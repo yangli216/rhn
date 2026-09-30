@@ -50,10 +50,25 @@ class MedicationKnowledgeDeploymentTest extends RhnIntegrationTestSupport {
     void context(Long tenant,Long actor,boolean manage) {when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,actor,"reviewer-"+actor,"test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}
     KnowledgeRuleCandidate candidate() {var source=drafts.save(null,new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Save(0,duplicate(),"合成知识"));var p=rules.preview(source.saved().id(),1);return rules.create(source.saved().id(),new Create(1,p.programHash(),"合成候选"));}
     Case fixture(String title,String expected,List<String> ids,Row... rows) {return new Case(title,"人工先定义预期的合成测试，非临床依据",new FixtureInput(null,null,null,List.of(rows)),expected,ids);}
-    SuiteDetail suite(KnowledgeRuleCandidate c,int expectedVersion,boolean complete) {var a=row("A","E1","S1","PO");var b=row("B","E1","S1","PO");var cases=new ArrayList<Case>();cases.add(fixture("正例","MATCH",List.of("A","B"),a,b));if(complete){cases.add(fixture("反例","NO_MATCH",List.of(),a));cases.add(fixture("缺失","UNAVAILABLE",List.of(),new Row("X",null,null,null,null,null,null,"ACTIVE")));}return tests.save(c.id(),new Save(expectedVersion,c.programHash(),"独立预期",cases));}
+    SuiteDetail suite(KnowledgeRuleCandidate c,int expectedVersion,boolean complete) {
+        var a=row("A","E1","S1","PO");
+        var b=row("B","E1","S1","PO");
+        var cases=new ArrayList<Case>();
+        cases.add(fixture("正例","MATCH",List.of("A","B"),a,b));
+        if(complete) {
+            cases.add(fixture("反例","NO_MATCH",List.of(),a));
+            cases.add(fixture("缺失","UNAVAILABLE",List.of(),new Row("X",null,null,null,null,null,null,"ACTIVE")));
+        }
+        return tests.save(c.id(),new Save(expectedVersion,c.programHash(),"独立预期",cases));
+    }
     void ready(KnowledgeRuleCandidate c) {var s=suite(c,0,true);tests.execute(c.id(),new Execute(1,s.suiteHash(),"执行合成样例"));}
     Command command(Preview p,String op) {return new Command(p.revision(),op,"SUBMIT".equals(op)?p.current().fingerprint():p.submission().basis().fingerprint(),"合成审核操作","WARN","REQUIRE_OVERRIDE",true,true,true,"仅验证审核留痕，不构成临床批准材料");}
-    Deployment deploy(KnowledgeRuleCandidate c) {var p=deployments.preview(c.id());return deployments.command(c.id(),new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Command(p.revision(),"DEPLOY","SHADOW",p.approval()==null?null:p.approval().basis().fingerprint(),null,null,"合成旁路验证"));}
+    Deployment deploy(KnowledgeRuleCandidate c) {
+        var p=deployments.preview(c.id());
+        return deployments.command(c.id(),
+            new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Command(
+                p.revision(),"DEPLOY","SHADOW",p.approval()==null?null:p.approval().basis().fingerprint(),null,null,"合成旁路验证"));
+    }
     void approve(KnowledgeRuleCandidate c) {reviews.command(c.id(),command(reviews.preview(c.id()),"SUBMIT"));context(T,8L,true);reviews.command(c.id(),command(reviews.preview(c.id()),"APPROVE"));}
     void pause(KnowledgeRuleCandidate c,Deployment d) {deployments.command(c.id(),new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Command(deployments.preview(c.id()).revision(),"PAUSE","SHADOW",null,d.id(),null,"暂停合成旁路"));}
     PrescriptionSafetySnapshot.MedicationItem item(long id,String catalog,String edition,String hash,String entry,String spec,String status) {
@@ -63,7 +78,9 @@ class MedicationKnowledgeDeploymentTest extends RhnIntegrationTestSupport {
     }
     PrescriptionSafetySnapshot.MedicationItem item(long id) {return item(id,"C","1","a".repeat(64),"E","S","ACTIVE");}
     PrescriptionSafetySnapshot snapshot(Long department,PrescriptionSafetySnapshot.MedicationItem... rows) {
-        return new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION,T,1000L,2,2000L,3000L,O,department,"DRAFT",List.of(rows),new PrescriptionSafetySnapshot.PatientSafetyContext(true,true,null,List.of(),30,"UNKNOWN"),new PrescriptionSafetySnapshot.EvaluationTiming(LocalDate.of(2026,1,10),"Asia/Shanghai"));
+        return new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION,T,1000L,2,2000L,3000L,O,department,"DRAFT",List.of(rows),
+            new PrescriptionSafetySnapshot.PatientSafetyContext(true,true,null,List.of(),30,"UNKNOWN"),
+            new PrescriptionSafetySnapshot.EvaluationTiming(LocalDate.of(2026,1,10),"Asia/Shanghai"));
     }
     @Test void explicit_shadow_uses_approved_frozen_program_and_records_complete_observations() {
         var c=candidate();ready(c);assertThatThrownBy(()->deploy(c)).hasMessageContaining("尚未审核通过");approve(c);
@@ -118,16 +135,26 @@ class MedicationKnowledgeDeploymentTest extends RhnIntegrationTestSupport {
     }
     @Test void altered_release_fingerprint_returns_unavailable_instead_of_running_the_program() {
         var c=candidate();ready(c);approve(c);var d=deploy(c);var release=d.knowledgeRelease();
-        var bad=new Deployment(d.id(),d.versionId(),d.version(),d.mode(),d.status(),d.action(),d.organizationId(),d.departmentId(),d.effectiveFrom(),d.effectiveTo(),d.actorId(),d.createdAt(),d.reason(),d.candidate(),d.executable(),new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Release(release.approval(),release.factAdapterVersion(),"wrong"));
+        var bad=new Deployment(d.id(),d.versionId(),d.version(),d.mode(),d.status(),d.action(),d.organizationId(),d.departmentId(),d.effectiveFrom(),d.effectiveTo(),d.actorId(),d.createdAt(),d.reason(),d.candidate(),d.executable(),
+            new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Release(release.approval(),release.factAdapterVersion(),"wrong"));
         var result=runtime.evaluate(snapshot(D,item(1),item(2)),List.of(new MedicationRuleRuntime.Selected("KNOWLEDGE:"+c.knowledgeId(),bad)),Instant.now());assertThat(result.decision()).isEqualTo(MedicationSafetyDecision.Status.UNAVAILABLE);assertThat(result.findings()).isEmpty();
         assertThat(deployments.observations(c.id(),d.id(),0).counts().get("UNAVAILABLE")).isEqualTo(1);
     }
     @Test void interactions_match_frozen_group_pairs_and_reject_mixed_editions() {
         var a=standards.requireSpecification("STD-04D8635B1192769EBA24309B");var b=standards.requireSpecification("STD-9405B86DD5B404C44E1B92B5");
-        var base=duplicate();var body=new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Body("合成配对规则","DRUG_INTERACTION","GROUP_PAIR",List.of(new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Target("ENTRY",a.specificationId(),a.catalogId(),a.catalogVersion(),a.contentHash())),List.of(new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Target("SPECIFICATION",b.specificationId(),b.catalogId(),b.catalogVersion(),b.contentHash())),null,"SAME_PRESCRIPTION",base.conditions(),base.evidence(),"仅验证组间配对，不构成临床知识","HIGH","WARN");
+        var base=duplicate();
+        var body=new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Body("合成配对规则","DRUG_INTERACTION","GROUP_PAIR",
+            List.of(new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Target("ENTRY",a.specificationId(),a.catalogId(),a.catalogVersion(),a.contentHash())),
+            List.of(new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Target("SPECIFICATION",b.specificationId(),b.catalogId(),b.catalogVersion(),b.contentHash())),
+            null,"SAME_PRESCRIPTION",base.conditions(),base.evidence(),"仅验证组间配对，不构成临床知识","HIGH","WARN");
         var k=drafts.save(null,new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Save(0,body,"合成配对"));var c=rules.create(k.saved().id(),new Create(1,rules.preview(k.saved().id(),1).programHash(),"合成候选"));
         var x=new Row("A",a.catalogId(),a.catalogVersion(),a.contentHash(),a.entryId(),a.specificationId(),null,"ACTIVE");var y=new Row("B",b.catalogId(),b.catalogVersion(),b.contentHash(),b.entryId(),b.specificationId(),null,"ACTIVE");
-        var suite=tests.save(c.id(),new Save(0,c.programHash(),"合成人工预期",List.of(fixture("配对","MATCH",List.of("A","B"),x,y),fixture("缺乙","NO_MATCH",List.of(),x),fixture("无身份","UNAVAILABLE",List.of(),new Row("X",null,null,null,null,null,null,"ACTIVE")))));tests.execute(c.id(),new Execute(1,suite.suiteHash(),"执行"));approve(c);var d=deploy(c);
+        var suite=tests.save(c.id(),new Save(0,c.programHash(),"合成人工预期",List.of(
+            fixture("配对","MATCH",List.of("A","B"),x,y),fixture("缺乙","NO_MATCH",List.of(),x),
+            fixture("无身份","UNAVAILABLE",List.of(),new Row("X",null,null,null,null,null,null,"ACTIVE")))));
+        tests.execute(c.id(),new Execute(1,suite.suiteHash(),"执行"));
+        approve(c);
+        var d=deploy(c);
         var report=impact.inspect(new com.rhn.platform.masterdata.api.MedicationStandardDependencyDirectory.Scope(a.catalogId(),a.entryId(),a.specificationId()),"DEPLOYMENT",true,0,100);
         assertThat(report.content()).filteredOn(v->v.id().equals(d.id().toString())).singleElement().satisfies(v->assertThat(v.traces()).anyMatch(t->a.contentHash().equals(t.contentHash())));
         var input=snapshot(D,item(1,a.catalogId(),a.catalogVersion(),a.contentHash(),a.entryId(),"OTHER-SPEC","ACTIVE"),item(2,b.catalogId(),b.catalogVersion(),b.contentHash(),b.entryId(),b.specificationId(),"ACTIVE"));

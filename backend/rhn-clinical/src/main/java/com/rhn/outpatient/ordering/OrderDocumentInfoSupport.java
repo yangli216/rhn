@@ -2,6 +2,7 @@ package com.rhn.outpatient.ordering;
 
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Component;
 import java.util.HashSet;
 import java.util.List;
@@ -32,11 +33,11 @@ class OrderDocumentInfoSupport {
         if (!prescription && input.externalPrescription()) {
             throw badRequest("ORDER_DOCUMENT_TYPE_INVALID", "只有处方可以设置外配标记");
         }
-        if (prescription && clean(input.examinationPurpose()) != null) {
+        if (prescription && Strings.trimToNull(input.examinationPurpose()) != null) {
             throw badRequest("ORDER_DOCUMENT_TYPE_INVALID", "处方不包含检查目的");
         }
         return json.write(new OrderDocumentInfo(diagnoses, input.externalPrescription(),
-                clean(input.specialDisease()), clean(input.examinationPurpose())));
+                Strings.trimToNull(input.specialDisease()), Strings.trimToNull(input.examinationPurpose())));
     }
     String printSummary(String jsonValue) {
         var info = read(jsonValue);
@@ -45,14 +46,12 @@ class OrderDocumentInfoSupport {
                 .map(d -> d.display() + (d.primary() ? "（主要）" : ""))
                 .collect(java.util.stream.Collectors.joining("、")));
         if (info.externalPrescription()) lines.add("外配处方标记：是");
-        if (clean(info.specialDisease()) != null) lines.add("门诊特病：" + info.specialDisease());
-        if (clean(info.examinationPurpose()) != null) lines.add("检查目的：" + info.examinationPurpose());
+        if (Strings.trimToNull(info.specialDisease()) != null) lines.add("门诊特病：" + info.specialDisease());
+        if (Strings.trimToNull(info.examinationPurpose()) != null) lines.add("检查目的：" + info.examinationPurpose());
         return String.join("\n", lines);
     }
     String appendSummary(String text, String jsonValue) {
         String summary = printSummary(jsonValue);
-        return summary.isBlank() ? text : (clean(text) == null ? summary : text + "\n" + summary);
+        return summary.isBlank() ? text : (Strings.trimToNull(text) == null ? summary : text + "\n" + summary);
     }
-
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

@@ -3,6 +3,7 @@ package com.rhn;
 import com.rhn.pharmacy.application.InventoryTraceApplicationService;
 import com.rhn.pharmacy.application.InventoryTraceApplicationService.TraceMovementLine;
 import com.rhn.pharmacy.domain.InventoryTraceCode;
+import com.rhn.pharmacy.domain.InventoryTraceCodeStatus;
 import com.rhn.pharmacy.domain.StockItem;
 import com.rhn.pharmacy.infrastructure.GoodsReceiptLineRepository;
 import com.rhn.pharmacy.infrastructure.GoodsReceiptRepository;
@@ -35,21 +36,21 @@ class InventoryTraceCodeTest {
 
         code.consumePartial(new BigDecimal("5"), "MEDICATION_DISPENSE", 61L, "DSP-001",
                 Instant.parse("2026-08-29T01:00:00Z"), 7L);
-        assertThat(code.status()).isEqualTo("PARTIALLY_ISSUED");
+        assertThat(code.status()).isEqualTo(InventoryTraceCodeStatus.PARTIALLY_ISSUED);
         assertThat(code.remainingBaseQuantity()).isEqualByComparingTo("19");
 
         code.restorePartial(21L, new BigDecimal("2"), "MEDICATION_RETURN", 71L, "RET-001", 7L);
-        assertThat(code.status()).isEqualTo("PARTIALLY_ISSUED");
+        assertThat(code.status()).isEqualTo(InventoryTraceCodeStatus.PARTIALLY_ISSUED);
         assertThat(code.remainingBaseQuantity()).isEqualByComparingTo("21");
 
         code.consumePartial(new BigDecimal("21"), "MEDICATION_DISPENSE", 62L, "DSP-002",
                 Instant.parse("2026-08-29T02:00:00Z"), 7L);
-        assertThat(code.status()).isEqualTo("ISSUED");
+        assertThat(code.status()).isEqualTo(InventoryTraceCodeStatus.ISSUED);
         assertThat(code.remainingBaseQuantity()).isZero();
         assertThat(code.stockBinId()).isNull();
 
         code.restorePartial(21L, new BigDecimal("24"), "MEDICATION_RETURN", 72L, "RET-002", 7L);
-        assertThat(code.status()).isEqualTo("OPENED");
+        assertThat(code.status()).isEqualTo(InventoryTraceCodeStatus.OPENED);
         assertThat(code.remainingBaseQuantity()).isEqualByComparingTo("24");
     }
 
@@ -82,7 +83,7 @@ class InventoryTraceCodeTest {
                 71L, "DSP-001", List.of(new TraceMovementLine(binId, item.id(), lotId,
                         new BigDecimal("24"))), List.of(code.id()));
 
-        assertThat(code.status()).isEqualTo("ISSUED");
+        assertThat(code.status()).isEqualTo(InventoryTraceCodeStatus.ISSUED);
         assertThat(code.currentDocumentId()).isEqualTo(71L);
     }
 
@@ -105,7 +106,7 @@ class InventoryTraceCodeTest {
                 "MEDICATION_DISPENSE", 71L, "DSP-001", List.of(new TraceMovementLine(binId,
                         item.id(), lotId, new BigDecimal("24"))), List.of(code.id())))
                 .hasMessageContaining("追溯码与本次发药的药品、批次或货位不一致");
-        assertThat(code.status()).isEqualTo("AVAILABLE");
+        assertThat(code.status()).isEqualTo(InventoryTraceCodeStatus.AVAILABLE);
     }
 
     private InventoryTraceApplicationService traceService(InventoryTraceCodeRepository codes,

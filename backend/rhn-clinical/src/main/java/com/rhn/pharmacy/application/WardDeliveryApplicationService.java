@@ -9,6 +9,8 @@ import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.domain.WardDelivery;
 import com.rhn.pharmacy.domain.WardDeliveryEvent;
 import com.rhn.pharmacy.domain.WardDeliveryLine;
+import com.rhn.pharmacy.domain.WardDeliveryLineStatus;
+import com.rhn.pharmacy.domain.WardDeliveryStatus;
 import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
 import com.rhn.pharmacy.infrastructure.MedicationDispenseRepository;
 import com.rhn.pharmacy.infrastructure.StockSiteRepository;
@@ -40,9 +42,8 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class WardDeliveryApplicationService {
-    private static final Set<String> OPEN_STATUSES = Set.of("PENDING_DISPATCH", "IN_TRANSIT", "DISCREPANCY");
-    private static final Set<String> STATUSES = Set.of(
-            "PENDING_DISPATCH", "IN_TRANSIT", "RECEIVED", "DISCREPANCY", "RESOLVED");
+    private static final Set<WardDeliveryStatus> OPEN_STATUSES = Set.of(
+            WardDeliveryStatus.PENDING_DISPATCH, WardDeliveryStatus.IN_TRANSIT, WardDeliveryStatus.DISCREPANCY);
     private static final Set<String> RESOLUTION_CODES = Set.of(
             "SUPPLEMENTED", "RETURNED_TO_PHARMACY", "ACCEPTED_VARIANCE");
 
@@ -102,7 +103,7 @@ public class WardDeliveryApplicationService {
                     value.dispense().operationUnitCode()));
         }
         events.save(new WardDeliveryEvent(context.tenantId(), delivery.id(), "CREATED", null,
-                delivery.status(), "CREATE:" + deliveryNo, delivery.createdAt(), context.subjectId(), clean(input.note(), 1000)));
+                delivery.status().name(), "CREATE:" + deliveryNo, delivery.createdAt(), context.subjectId(), clean(input.note(), 1000)));
         deliveries.flush(); lines.flush(); events.flush();
         return view(delivery);
     }
@@ -110,7 +111,7 @@ public class WardDeliveryApplicationService {
     @Transactional(readOnly = true)
     public List<WardDeliveryView> list(String status, Long nursingUnitDepartmentId, Long encounterId) {
         ExecutionContext context = requireContext();
-        Collection<String> statuses = statuses(status);
+        Collection<WardDeliveryStatus> statuses = statuses(status);
         List<WardDelivery> values = statuses.isEmpty()
                 ? deliveries.findByTenantIdAndOrganizationIdOrderByCreatedAtDesc(context.tenantId(), context.organizationId())
                 : deliveries.findByTenantIdAndOrganizationIdAndStatusInOrderByCreatedAtDesc(
@@ -144,7 +145,7 @@ public class WardDeliveryApplicationService {
         Instant now = Instant.now(); String previous = delivery.dispatch(input.expectedRevision(), context.subjectId(), now,
                 clean(input.note(), 1000));
         events.save(new WardDeliveryEvent(context.tenantId(), delivery.id(), "DISPATCHED", previous,
-                delivery.status(), command, now, context.subjectId(), clean(input.note(), 1000)));
+                delivery.status().name(), command, now, context.subjectId(), clean(input.note(), 1000)));
         deliveries.flush(); events.flush(); return view(delivery);
     }
 
@@ -188,7 +189,7 @@ public class WardDeliveryApplicationService {
                 clean(input.note(), 1000), discrepancyNote);
         String eventType = discrepancy ? "DISCREPANCY_RECORDED" : "RECEIVED";
         events.save(new WardDeliveryEvent(context.tenantId(), delivery.id(), eventType, previous,
-                delivery.status(), command, now, context.subjectId(), discrepancy ? discrepancyNote : clean(input.note(), 1000)));
+                delivery.status().name(), command, now, context.subjectId(), discrepancy ? discrepancyNote : clean(input.note(), 1000)));
         lines.flush(); deliveries.flush(); events.flush(); return view(delivery);
     }
 
@@ -207,7 +208,7 @@ public class WardDeliveryApplicationService {
         WardDelivery delivery = lockDelivery(context, deliveryId); Instant now = Instant.now();
         String previous = delivery.resolve(input.expectedRevision(), context.subjectId(), now, code, note);
         events.save(new WardDeliveryEvent(context.tenantId(), delivery.id(), "RESOLVED", previous,
-                delivery.status(), command, now, context.subjectId(), note));
+                delivery.status().name(), command, now, context.subjectId(), note));
         deliveries.flush(); events.flush(); return view(delivery);
     }
 
@@ -321,7 +322,7 @@ public class WardDeliveryApplicationService {
     private WardDeliveryView view(WardDelivery delivery, List<WardDeliveryLine> deliveryLines,
                                   List<WardDeliveryEvent> deliveryEvents) {
         return new WardDeliveryView(delivery.id(), delivery.revision(), delivery.organizationId(),
-                delivery.stockSiteId(), delivery.nursingUnitDepartmentId(), delivery.deliveryNo(), delivery.status(),
+                delivery.stockSiteId(), delivery.nursingUnitDepartmentId(), delivery.deliveryNo(), delivery.status().name(),
                 delivery.stockSiteNameSnapshot(), delivery.nursingUnitNameSnapshot(), delivery.createdAt(),
                 delivery.createdBy(), delivery.dispatchedAt(), delivery.dispatchedBy(), delivery.dispatchNote(),
                 delivery.receivedAt(), delivery.receivedBy(), delivery.receiptNote(), delivery.discrepancyNote(),
@@ -329,7 +330,7 @@ public class WardDeliveryApplicationService {
                 deliveryLines.stream().sorted(Comparator.comparing(WardDeliveryLine::id)).map(value ->
                         new WardDeliveryLineView(value.id(), value.dispenseId(), value.residentId(), value.encounterId(),
                                 value.residentNameSnapshot(), value.medicationNameSnapshot(), value.expectedQuantity(),
-                                value.receivedQuantity(), value.unitCode(), value.status(), value.discrepancyCode(),
+                                value.receivedQuantity(), value.unitCode(), value.status().name(), value.discrepancyCode(),
                                 value.discrepancyNote())).toList(),
                 deliveryEvents.stream().map(value -> new WardDeliveryEventView(value.id(), value.eventType(),
                         value.fromStatus(), value.toStatus(), value.commandCode(), value.occurredAt(),
@@ -345,12 +346,17 @@ public class WardDeliveryApplicationService {
         return result;
     }
 
-    private static Collection<String> statuses(String value) {
+    private static Collection<WardDeliveryStatus> statuses(String value) {
         if (value == null || value.isBlank() || "ALL".equalsIgnoreCase(value)) return List.of();
         if ("OPEN".equalsIgnoreCase(value)) return OPEN_STATUSES;
         String normalized = value.trim().toUpperCase(Locale.ROOT);
-        if (!STATUSES.contains(normalized)) throw badRequest("WARD_DELIVERY_STATUS_INVALID", "配送交接状态不合法");
-        return List.of(normalized);
+        WardDeliveryStatus status;
+        try {
+            status = WardDeliveryStatus.valueOf(normalized);
+        } catch (IllegalArgumentException error) {
+            throw badRequest("WARD_DELIVERY_STATUS_INVALID", "配送交接状态不合法");
+        }
+        return List.of(status);
     }
 
     private static String required(String value, String code, String message, int max) {

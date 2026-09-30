@@ -8,6 +8,7 @@ import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -130,8 +131,8 @@ public class DispenseRouteApplicationService {
     private Prepared prepare(ExecutionContext context, RouteCommand input, Long currentId) {
         String name = required(input.name(), "DISPENSE_ROUTE_NAME_REQUIRED", "路由名称不能为空");
         String careSetting = normalizeCareSetting(input.careSetting());
-        String medicationType = clean(input.medicationType());
-        String description = clean(input.description());
+        String medicationType = Strings.trimToNull(input.medicationType());
+        String description = Strings.trimToNull(input.description());
         if (input.validFrom() == null) throw badRequest("DISPENSE_ROUTE_VALID_FROM_REQUIRED", "生效日期不能为空");
         if (input.validTo() != null && input.validTo().isBefore(input.validFrom())) {
             throw badRequest("DISPENSE_ROUTE_VALIDITY_INVALID", "结束日期不能早于生效日期");
@@ -208,9 +209,8 @@ public class DispenseRouteApplicationService {
     }
 
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 
     public record RouteCommand(Long organizationId, String code, String name, Long sourceDepartmentId,
                                String medicationType, String careSetting, Long targetStockSiteId, boolean active,

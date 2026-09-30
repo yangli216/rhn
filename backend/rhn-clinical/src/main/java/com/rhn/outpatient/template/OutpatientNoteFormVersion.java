@@ -3,6 +3,8 @@ package com.rhn.outpatient.template;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -25,7 +27,7 @@ class OutpatientNoteFormVersion {
     @Column(name = "JSON_DEF_SCHEMA", nullable = false) private String definitionSchema;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "JSON_DEF", nullable = false) private String definitionJson;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private OutpatientNoteFormVersionStatus status;
     @Column(name = "ID_USER_PUBLISD", nullable = false) private Long publishedBy;
     @Column(name = "DT_PUBLISD", nullable = false) private Instant publishedAt;
     @Column(name = "DT_RETIRED") private Instant retiredAt;
@@ -39,10 +41,10 @@ class OutpatientNoteFormVersion {
         this.departmentId = departmentId; this.formCode = formCode; this.versionNumber = versionNumber;
         this.specialtyCode = specialtyCode; this.name = name; this.description = description;
         this.definitionSchema = definitionSchema; this.definitionJson = definitionJson;
-        this.status = "PUBLISHED"; this.publishedBy = actorId; this.publishedAt = now;
+        this.status = OutpatientNoteFormVersionStatus.PUBLISHED; this.publishedBy = actorId; this.publishedAt = now;
     }
 
-    void retire(Instant now) { status = "RETIRED"; retiredAt = now; }
+    void retire(Instant now) { status = OutpatientNoteFormVersionStatus.RETIRED; retiredAt = now; }
 
     Long id() { return id; }
     Long tenantId() { return tenantId; }
@@ -55,7 +57,7 @@ class OutpatientNoteFormVersion {
     String description() { return description; }
     String definitionSchema() { return definitionSchema; }
     String definitionJson() { return definitionJson; }
-    String status() { return status; }
+    OutpatientNoteFormVersionStatus status() { return status; }
     Long publishedBy() { return publishedBy; }
     Instant publishedAt() { return publishedAt; }
     Instant retiredAt() { return retiredAt; }

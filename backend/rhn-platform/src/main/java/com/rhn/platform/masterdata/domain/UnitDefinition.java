@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -51,11 +52,10 @@ public class UnitDefinition {
             throw new IllegalArgumentException("不支持的计量维度");
         }
         if (decimalScale < 0 || decimalScale > 12) throw new IllegalArgumentException("单位精度必须在0到12之间");
-        this.name = require(name, "单位名称"); this.symbol = trim(symbol); this.dimension = dimension;
+        this.name = require(name, "单位名称"); this.symbol = Strings.trimToNull(symbol); this.dimension = dimension;
         this.decimalScale = decimalScale; this.status = status; this.updatedAt = Instant.now(); this.updatedBy = actorId;
     }
     private static String require(String value, String label) { if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空"); return value.trim(); }
-    private static String trim(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private void requireRevision(long expected) { if (revision != expected) throw new IllegalStateException("计量单位已被其他用户修改，请刷新后重试"); }
 
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }

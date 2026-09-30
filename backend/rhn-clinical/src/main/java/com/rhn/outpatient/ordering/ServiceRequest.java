@@ -4,6 +4,8 @@ import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.PrimaryKeyJoinColumn;
@@ -27,7 +29,7 @@ class ServiceRequest {
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
     @Column(name = "SD_REQ_KIND", nullable = false) private String requestKind;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private ServiceRequestStatus status;
     @Column(name = "CD_INTENT", nullable = false) private String intentCode;
     @Column(name = "CD_PRI", nullable = false) private String priorityCode;
     @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
@@ -75,7 +77,7 @@ class ServiceRequest {
     void updateDocumentInfo(long expectedRevision, String json) {
         if (revision != expectedRevision) throw new BusinessException("SERVICE_REQUEST_REVISION_CONFLICT",
                 "申请单已被其他用户修改，请刷新后重试", HttpStatus.CONFLICT);
-        if (!"ACTIVE".equals(status)) throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "当前申请单不能修改", HttpStatus.CONFLICT);
+        if (status != ServiceRequestStatus.ACTIVE) throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "当前申请单不能修改", HttpStatus.CONFLICT);
         documentInfoJson = json;
     }
 
@@ -101,7 +103,7 @@ class ServiceRequest {
         this.encounterId = encounterId;
         this.requestNo = requestNo;
         this.requestKind = "SERVICE";
-        this.status = "ACTIVE";
+        this.status = ServiceRequestStatus.ACTIVE;
         this.intentCode = "ORDER";
         this.priorityCode = "ROUTINE";
         this.catalogItemId = catalogItemId;
@@ -139,10 +141,10 @@ class ServiceRequest {
         if (revision != expectedRevision) {
             throw new BusinessException("SERVICE_REQUEST_REVISION_CONFLICT", "诊疗请求已被其他用户修改，请刷新后重试", HttpStatus.CONFLICT);
         }
-        if (!"ACTIVE".equals(status)) {
+        if (status != ServiceRequestStatus.ACTIVE) {
             throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "只有生效中的诊疗请求可以撤销", HttpStatus.CONFLICT);
         }
-        status = "CANCELLED";
+        status = ServiceRequestStatus.CANCELLED;
         cancelledAt = Instant.now();
         cancelledBy = actorId;
         cancelReason = reason;
@@ -150,7 +152,7 @@ class ServiceRequest {
 
     Long id() { return id; } long revision() { return revision; } Long tenantId() { return tenantId; }
     Long residentId() { return residentId; } Long encounterId() { return encounterId; }
-    String requestNo() { return requestNo; } String status() { return status; }
+    String requestNo() { return requestNo; } ServiceRequestStatus status() { return status; }
     Long catalogItemId() { return catalogItemId; } Long packageId() { return packageId; }
     Long performerOrganizationId() { return performerOrganizationId; }
     Long performerDepartmentId() { return performerDepartmentId; }

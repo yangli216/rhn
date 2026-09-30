@@ -3,6 +3,8 @@ package com.rhn.ai.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -23,7 +25,7 @@ public class AiSuggestion {
     @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "CD_SUGGEST", nullable = false) private String suggestionCode;
     @Column(name = "SD_SUGGEST_TYPE", nullable = false) private String suggestionType;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private AiSuggestionStatus status;
     @Column(name = "SD_RISK_LEVEL", nullable = false) private String riskLevel;
     @Column(name = "CD_SCHEMA", nullable = false) private String schemaCode;
     @Column(name = "CD_SCHEMA_VER", nullable = false) private String schemaVersion;
@@ -63,7 +65,7 @@ public class AiSuggestion {
         this.departmentId = departmentId;
         this.suggestionCode = "AI-" + this.id;
         this.suggestionType = "CLINICAL_ASSISTANT";
-        this.status = "GENERATED";
+        this.status = AiSuggestionStatus.GENERATED;
         this.riskLevel = riskLevel;
         this.schemaCode = "RHN.CLINICAL_ASSISTANT.SUGGESTION";
         this.schemaVersion = "1.0";
@@ -85,24 +87,26 @@ public class AiSuggestion {
     }
 
     public void adopt(String sectionCode) {
-        if ("ADOPTED".equals(status) || "IGNORED".equals(status)
-                || "EXPIRED".equals(status) || "FAILED".equals(status)) {
+        if (status == AiSuggestionStatus.ADOPTED || status == AiSuggestionStatus.IGNORED
+                || status == AiSuggestionStatus.EXPIRED || status == AiSuggestionStatus.FAILED) {
             throw new IllegalStateException("Terminal suggestion cannot be adopted");
         }
-        status = sectionCode == null || "ALL".equals(sectionCode) ? "ADOPTED" : "PARTIALLY_ADOPTED";
+        status = sectionCode == null || "ALL".equals(sectionCode)
+                ? AiSuggestionStatus.ADOPTED : AiSuggestionStatus.PARTIALLY_ADOPTED;
     }
 
     public void ignore() {
-        if ("PARTIALLY_ADOPTED".equals(status) || "ADOPTED".equals(status)
-                || "EXPIRED".equals(status) || "FAILED".equals(status)) {
+        if (status == AiSuggestionStatus.PARTIALLY_ADOPTED || status == AiSuggestionStatus.ADOPTED
+                || status == AiSuggestionStatus.EXPIRED || status == AiSuggestionStatus.FAILED) {
             throw new IllegalStateException("Terminal suggestion cannot be ignored");
         }
-        status = "IGNORED";
+        status = AiSuggestionStatus.IGNORED;
     }
 
     public void expire(Instant now, String reason) {
-        if (!"ADOPTED".equals(status) && !"IGNORED".equals(status) && !"FAILED".equals(status)) {
-            status = "EXPIRED";
+        if (status != AiSuggestionStatus.ADOPTED && status != AiSuggestionStatus.IGNORED
+                && status != AiSuggestionStatus.FAILED) {
+            status = AiSuggestionStatus.EXPIRED;
             invalidatedAt = now;
             invalidationReason = reason;
         }
@@ -114,7 +118,7 @@ public class AiSuggestion {
     public Long encounterId() { return encounterId; }
     public Long organizationId() { return organizationId; }
     public Long departmentId() { return departmentId; }
-    public String status() { return status; }
+    public AiSuggestionStatus status() { return status; }
     public String riskLevel() { return riskLevel; }
     public String clientContextFingerprint() { return clientContextFingerprint; }
     public String contextHash() { return contextHash; }

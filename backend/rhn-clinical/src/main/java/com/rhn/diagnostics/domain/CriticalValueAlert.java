@@ -3,6 +3,8 @@ package com.rhn.diagnostics.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -29,7 +31,7 @@ public class CriticalValueAlert {
     @Column(name = "CD_OBS", nullable = false) private String observationCode;
     @Column(name = "NA_OBS", nullable = false) private String observationName;
     @Column(name = "DES_TRIGGER_EVID", nullable = false) private String triggerEvidence;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private CriticalValueAlertStatus status;
     @Column(name = "DT_DTCTD", nullable = false) private Instant detectedAt;
     @Column(name = "DT_ACK_DDLN", nullable = false) private Instant acknowledgeDeadlineAt;
     @Column(name = "ID_USER_ACKD") private Long acknowledgedBy;
@@ -56,32 +58,32 @@ public class CriticalValueAlert {
         this.recipientUserId = recipientUserId; this.severity = severity; this.ruleCode = ruleCode;
         this.ruleVersion = ruleVersion; this.observationCode = observationCode;
         this.observationName = observationName; this.triggerEvidence = triggerEvidence;
-        this.status = "OPEN"; this.detectedAt = detectedAt;
+        this.status = CriticalValueAlertStatus.OPEN; this.detectedAt = detectedAt;
         this.acknowledgeDeadlineAt = acknowledgeDeadlineAt; this.escalationLevel = 0; this.updatedAt = detectedAt;
     }
 
     public void acknowledge(Long actorId, String note, Instant occurredAt) {
-        if (!"OPEN".equals(status) && !"ESCALATED".equals(status)) {
+        if (status != CriticalValueAlertStatus.OPEN && status != CriticalValueAlertStatus.ESCALATED) {
             throw new IllegalStateException("当前危急值状态不能确认");
         }
-        status = "ACKNOWLEDGED"; acknowledgedBy = actorId; acknowledgedAt = occurredAt;
+        status = CriticalValueAlertStatus.ACKNOWLEDGED; acknowledgedBy = actorId; acknowledgedAt = occurredAt;
         acknowledgeNote = note; updatedAt = occurredAt;
     }
 
     public void close(Long actorId, String disposition, String note, Instant occurredAt) {
-        if (!"ACKNOWLEDGED".equals(status)) throw new IllegalStateException("危急值必须先确认再关闭");
-        status = "CLOSED"; closedBy = actorId; closedAt = occurredAt;
+        if (status != CriticalValueAlertStatus.ACKNOWLEDGED) throw new IllegalStateException("危急值必须先确认再关闭");
+        status = CriticalValueAlertStatus.CLOSED; closedBy = actorId; closedAt = occurredAt;
         dispositionCode = disposition; closeNote = note; updatedAt = occurredAt;
     }
 
     public void supersede(Long replacementReportId, Instant occurredAt) {
-        if ("CLOSED".equals(status) || "SUPERSEDED".equals(status)) return;
-        status = "SUPERSEDED"; supersededByReportId = replacementReportId; updatedAt = occurredAt;
+        if (status == CriticalValueAlertStatus.CLOSED || status == CriticalValueAlertStatus.SUPERSEDED) return;
+        status = CriticalValueAlertStatus.SUPERSEDED; supersededByReportId = replacementReportId; updatedAt = occurredAt;
     }
 
     public void escalate(Instant occurredAt) {
-        if (!"OPEN".equals(status) && !"ESCALATED".equals(status)) return;
-        status = "ESCALATED"; escalationLevel++; updatedAt = occurredAt;
+        if (status != CriticalValueAlertStatus.OPEN && status != CriticalValueAlertStatus.ESCALATED) return;
+        status = CriticalValueAlertStatus.ESCALATED; escalationLevel++; updatedAt = occurredAt;
     }
 
     public Long id() { return id; } public long revision() { return revision; }
@@ -92,7 +94,7 @@ public class CriticalValueAlert {
     public Long recipientUserId() { return recipientUserId; } public String severity() { return severity; }
     public String ruleCode() { return ruleCode; } public int ruleVersion() { return ruleVersion; }
     public String observationCode() { return observationCode; } public String observationName() { return observationName; }
-    public String triggerEvidence() { return triggerEvidence; } public String status() { return status; }
+    public String triggerEvidence() { return triggerEvidence; } public CriticalValueAlertStatus status() { return status; }
     public Instant detectedAt() { return detectedAt; } public Instant acknowledgeDeadlineAt() { return acknowledgeDeadlineAt; }
     public Long acknowledgedBy() { return acknowledgedBy; } public Instant acknowledgedAt() { return acknowledgedAt; }
     public String acknowledgeNote() { return acknowledgeNote; } public Long closedBy() { return closedBy; }

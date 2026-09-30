@@ -11,7 +11,9 @@ import com.rhn.pharmacy.domain.InventoryDocumentEvent;
 import com.rhn.pharmacy.domain.StockItem;
 import com.rhn.pharmacy.domain.StockRequisition;
 import com.rhn.pharmacy.domain.StockRequisitionAllocation;
+import com.rhn.pharmacy.domain.StockRequisitionAllocationStatus;
 import com.rhn.pharmacy.domain.StockRequisitionLine;
+import com.rhn.pharmacy.domain.StockRequisitionStatus;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.InventoryDocumentEventRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
@@ -22,6 +24,7 @@ import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,11 +93,11 @@ public class StockRequisitionApplicationService {
         }
         if (input.lines() == null || input.lines().isEmpty()) throw badRequest("REQUISITION_LINES_REQUIRED", "请领单至少需要一条明细");
         if (input.lines().size() > 500) throw badRequest("REQUISITION_LINES_TOO_MANY", "单张请领单不能超过500条明细");
-        String no = clean(input.requisitionNo()); if (no == null) no = nextNo("REQ");
+        String no = Strings.trimToNull(input.requisitionNo()); if (no == null) no = nextNo("REQ");
         Instant requestedAt = input.requestedAt() == null ? Instant.now() : input.requestedAt();
         StockRequisition value = new StockRequisition(context.tenantId(), source.organizationId(), source.id(),
-                requestingDepartmentId, null, no, requestCode, requestedAt, clean(input.reason()),
-                clean(input.description()), context.subjectId());
+                requestingDepartmentId, null, no, requestCode, requestedAt, Strings.trimToNull(input.reason()),
+                Strings.trimToNull(input.description()), context.subjectId());
         Set<Long> itemIds = new HashSet<>(); int sort = 0;
         try {
             repository.save(value);
@@ -103,9 +106,9 @@ public class StockRequisitionApplicationService {
                 StockItem item = requireItem(context, inputLine.stockItemId(), source.id());
                 positive(inputLine.requestedQuantity(), "REQUISITION_QUANTITY_INVALID", "请领数量必须大于零");
                 lineRepository.save(new StockRequisitionLine(context.tenantId(), value.id(), ++sort, item.id(),
-                        inputLine.requestedQuantity(), item.baseUnitCode(), clean(inputLine.description())));
+                        inputLine.requestedQuantity(), item.baseUnitCode(), Strings.trimToNull(inputLine.description())));
             }
-            appendEvent(context, value, "CREATED", null, value.status(), null);
+            appendEvent(context, value, "CREATED", null, value.status().name(), null);
             lineRepository.flush(); repository.flush();
         } catch (DataIntegrityViolationException exception) {
             throw conflict("REQUISITION_CONCURRENT_CONFLICT", "请领单编号或请求编码发生并发冲突，请重试");
@@ -119,8 +122,8 @@ public class StockRequisitionApplicationService {
         if (!value.requestingDepartmentId().equals(context.departmentId())) {
             throw badRequest("REQUISITION_REQUESTER_SCOPE_INVALID", "只有请领科室可以提交请领单");
         }
-        String from = value.status(); transition(() -> value.submit(context.subjectId()));
-        appendEvent(context, value, "SUBMITTED", from, value.status(), null); return view(context, value);
+        String from = value.status().name(); transition(() -> value.submit(context.subjectId()));
+        appendEvent(context, value, "SUBMITTED", from, value.status().name(), null); return view(context, value);
     }
 
     @Transactional
@@ -148,8 +151,8 @@ public class StockRequisitionApplicationService {
             anyApproved |= quantity.signum() > 0;
         }
         if (!anyApproved) throw badRequest("REQUISITION_APPROVAL_EMPTY", "至少需要批准一条请领明细；全部不批请使用驳回");
-        String from = value.status(); transition(() -> value.approve(context.subjectId(), clean(input.reason())));
-        appendEvent(context, value, "APPROVED", from, value.status(), clean(input.reason()));
+        String from = value.status().name(); transition(() -> value.approve(context.subjectId(), Strings.trimToNull(input.reason())));
+        appendEvent(context, value, "APPROVED", from, value.status().name(), Strings.trimToNull(input.reason()));
         lineRepository.flush(); return view(context, value);
     }
 
@@ -157,14 +160,14 @@ public class StockRequisitionApplicationService {
     public RequisitionView reject(Long id, DecisionCommand input) {
         ExecutionContext context = requireWorkContext(); StockRequisition value = lock(context, id, true);
         String reason = required(input.reason(), "REQUISITION_REJECTION_REASON_REQUIRED", "驳回请领单必须填写原因");
-        String from = value.status(); transition(() -> value.reject(context.subjectId(), reason));
-        appendEvent(context, value, "REJECTED", from, value.status(), reason); return view(context, value);
+        String from = value.status().name(); transition(() -> value.reject(context.subjectId(), reason));
+        appendEvent(context, value, "REJECTED", from, value.status().name(), reason); return view(context, value);
     }
 
     @Transactional
     public RequisitionView pick(Long id) {
         ExecutionContext context = requireWorkContext(); StockRequisition value = lock(context, id, true);
-        if (!"APPROVED".equals(value.status())) throw conflict("REQUISITION_STATE_INVALID", "只有已审核请领单可以拣货");
+        if (value.status() != StockRequisitionStatus.APPROVED) throw conflict("REQUISITION_STATE_INVALID", "只有已审核请领单可以拣货");
         List<StockRequisitionLine> lines = lineRepository.lockByRequisition(context.tenantId(), id).stream()
                 .sorted(Comparator.comparing(StockRequisitionLine::stockItemId)
                         .thenComparing(StockRequisitionLine::id)).toList();
@@ -188,16 +191,16 @@ public class StockRequisitionApplicationService {
             if (remaining.signum() > 0) throw conflict("REQUISITION_STOCK_INSUFFICIENT", "可用库存不足，无法完成全部请领明细拣货");
             line.markPicking();
         }
-        String from = value.status(); transition(() -> value.markPicking(context.subjectId()));
-        appendEvent(context, value, "PICKED", from, value.status(), null);
+        String from = value.status().name(); transition(() -> value.markPicking(context.subjectId()));
+        appendEvent(context, value, "PICKED", from, value.status().name(), null);
         availabilityService.flush(); allocationRepository.flush(); lineRepository.flush(); return view(context, value);
     }
 
     @Transactional
     public RequisitionView issue(Long id) {
         ExecutionContext context = requireWorkContext(); StockRequisition value = lock(context, id, true);
-        if ("ISSUED".equals(value.status())) return view(context, value);
-        if (!"PICKING".equals(value.status())) throw conflict("REQUISITION_STATE_INVALID", "只有已完成拣货的请领单可以出库");
+        if (value.status() == StockRequisitionStatus.ISSUED) return view(context, value);
+        if (value.status() != StockRequisitionStatus.PICKING) throw conflict("REQUISITION_STATE_INVALID", "只有已完成拣货的请领单可以出库");
         List<StockRequisitionLine> lines = lineRepository.lockByRequisition(context.tenantId(), id);
         List<DocumentPostingLineCommand> postingLines = new ArrayList<>();
         for (StockRequisitionLine line : lines) {
@@ -208,7 +211,7 @@ public class StockRequisitionApplicationService {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             if (allocated.compareTo(line.approvedQuantity()) != 0) throw conflict("REQUISITION_ALLOCATION_INCOMPLETE", "请领分配数量与批准数量不一致");
             for (StockRequisitionAllocation allocation : allocations) {
-                if (!"ALLOCATED".equals(allocation.status())) throw conflict("REQUISITION_ALLOCATION_STATE_INVALID", "请领分配明细已处理");
+                if (allocation.status() != StockRequisitionAllocationStatus.ALLOCATED) throw conflict("REQUISITION_ALLOCATION_STATE_INVALID", "请领分配明细已处理");
                 postingLines.add(new DocumentPostingLineCommand(allocation.stockBinId(), line.stockItemId(),
                         allocation.stockLotId(), allocation.stockStatus(), allocation.allocatedQuantity().negate(),
                         null, true));
@@ -232,8 +235,8 @@ public class StockRequisitionApplicationService {
                     .forEach(StockRequisitionAllocation::markIssued);
             line.markIssued();
         }
-        String from = value.status(); transition(() -> value.markIssued(context.subjectId(), transaction.id()));
-        appendEvent(context, value, "ISSUED", from, value.status(), null);
+        String from = value.status().name(); transition(() -> value.markIssued(context.subjectId(), transaction.id()));
+        appendEvent(context, value, "ISSUED", from, value.status().name(), null);
         allocationRepository.flush(); lineRepository.flush(); repository.flush(); return view(context, value);
     }
 
@@ -278,10 +281,10 @@ public class StockRequisitionApplicationService {
                         .stream().map(allocation -> new RequisitionAllocationView(allocation.id(),
                                 allocation.stockRequisitionLineId(), allocation.stockBinId(), allocation.stockLotId(),
                                 allocation.stockStatus(), allocation.allocatedQuantity(), allocation.issuedQuantity(),
-                                allocation.status())).toList())).toList();
+                                allocation.status().name())).toList())).toList();
         return new RequisitionView(value.id(), value.revision(), value.organizationId(), value.sourceSiteId(),
                 value.requestingDepartmentId(), value.destinationSiteId(), value.requisitionNo(), value.requestCode(),
-                value.status(), value.requestedAt(), value.requestedBy(), value.approvedAt(), value.approvedBy(),
+                value.status().name(), value.requestedAt(), value.requestedBy(), value.approvedAt(), value.approvedBy(),
                 value.pickedAt(), value.pickedBy(), value.issuedAt(), value.issuedBy(), value.reason(),
                 value.description(), value.inventoryTransactionId(), lines);
     }
@@ -294,8 +297,7 @@ public class StockRequisitionApplicationService {
         try { action.run(); } catch (IllegalStateException exception) { throw conflict("REQUISITION_STATE_INVALID", exception.getMessage()); }
     }
     private void positive(BigDecimal value, String code, String message) { if (value == null || value.signum() <= 0) throw badRequest(code, message); }
-    private String required(String value, String code, String message) { String result = clean(value); if (result == null) throw badRequest(code, message); return result; }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private String required(String value, String code, String message) { String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result; }
     private String nextNo(String prefix) { return prefix + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6); }
 
     public record RequisitionLineCommand(Long stockItemId, BigDecimal requestedQuantity, String description) {}

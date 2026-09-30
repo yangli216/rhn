@@ -1,6 +1,7 @@
 package com.rhn.pharmacy.infrastructure;
 
 import com.rhn.pharmacy.domain.InventoryTraceCode;
+import com.rhn.pharmacy.domain.InventoryTraceCodeStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -23,18 +24,19 @@ public interface InventoryTraceCodeRepository extends JpaRepository<InventoryTra
             "or lower(t.lotNoSnapshot) like lower(concat('%',:query,'%'))) " +
             "order by t.updatedAt desc")
     List<InventoryTraceCode> search(@Param("tenantId") Long tenantId, @Param("siteId") Long siteId,
-                                    @Param("status") String status, @Param("query") String query);
+                                    @Param("status") InventoryTraceCodeStatus status, @Param("query") String query);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from InventoryTraceCode t where t.tenantId=:tenantId and t.stockSiteId=:siteId " +
-            "and t.stockItemId=:itemId and t.stockLotId=:lotId and t.status='AVAILABLE' order by t.receivedAt, t.id")
+            "and t.stockItemId=:itemId and t.stockLotId=:lotId " +
+            "and t.status=com.rhn.pharmacy.domain.InventoryTraceCodeStatus.AVAILABLE order by t.receivedAt, t.id")
     List<InventoryTraceCode> lockAvailable(@Param("tenantId") Long tenantId, @Param("siteId") Long siteId,
                                            @Param("itemId") Long itemId, @Param("lotId") Long lotId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from InventoryTraceCode t where t.tenantId=:tenantId and t.stockSiteId=:siteId " +
             "and t.stockBinId=:binId and t.stockItemId=:itemId and t.stockLotId=:lotId " +
-            "and t.status='AVAILABLE' order by t.receivedAt, t.id")
+            "and t.status=com.rhn.pharmacy.domain.InventoryTraceCodeStatus.AVAILABLE order by t.receivedAt, t.id")
     List<InventoryTraceCode> lockAvailableAtBin(@Param("tenantId") Long tenantId, @Param("siteId") Long siteId,
                                                 @Param("binId") Long binId, @Param("itemId") Long itemId,
                                                 @Param("lotId") Long lotId);
@@ -45,7 +47,8 @@ public interface InventoryTraceCodeRepository extends JpaRepository<InventoryTra
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from InventoryTraceCode t where t.tenantId=:tenantId and t.currentDocumentType='STOCK_TRANSFER' " +
-            "and t.currentDocumentId=:documentId and t.stockLotId=:lotId and t.status='IN_TRANSIT' order by t.id")
+            "and t.currentDocumentId=:documentId and t.stockLotId=:lotId " +
+            "and t.status=com.rhn.pharmacy.domain.InventoryTraceCodeStatus.IN_TRANSIT order by t.id")
     List<InventoryTraceCode> lockTransferCodes(@Param("tenantId") Long tenantId,
                                                @Param("documentId") Long documentId,
                                                @Param("lotId") Long lotId);
@@ -53,7 +56,7 @@ public interface InventoryTraceCodeRepository extends JpaRepository<InventoryTra
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from InventoryTraceCode t where t.tenantId=:tenantId and t.currentDocumentType='MEDICATION_DISPENSE' " +
             "and t.currentDocumentId=:documentId and t.stockItemId=:itemId and t.stockLotId=:lotId " +
-            "and t.status='ISSUED' order by t.id")
+            "and t.status=com.rhn.pharmacy.domain.InventoryTraceCodeStatus.ISSUED order by t.id")
     List<InventoryTraceCode> lockIssuedDispenseCodes(@Param("tenantId") Long tenantId,
                                                      @Param("documentId") Long documentId,
                                                      @Param("itemId") Long itemId,

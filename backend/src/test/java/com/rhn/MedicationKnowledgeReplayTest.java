@@ -103,7 +103,9 @@ class MedicationKnowledgeReplayTest extends RhnIntegrationTestSupport {
     }
     @Test void date_and_age_are_never_filled_from_today_or_converted_from_years_to_months() {
         var base=MedicationKnowledgeDraftModelTest.duplicate();var evidence=base.evidence();
-        var dated=new Body(base.title(),base.kind(),base.matchMode(),base.groupA(),base.groupB(),base.minimumOrders(),base.exposureScope(),base.conditions(),new Evidence(evidence.sourceType(),evidence.title(),evidence.publisher(),evidence.edition(),evidence.locator(),evidence.excerpt(),evidence.documentHash(),DATE.minusDays(1),DATE.plusDays(1)),base.clinicalMeaning(),base.severity(),base.proposedAction());
+        var dated=new Body(base.title(),base.kind(),base.matchMode(),base.groupA(),base.groupB(),base.minimumOrders(),base.exposureScope(),base.conditions(),
+            new Evidence(evidence.sourceType(),evidence.title(),evidence.publisher(),evidence.edition(),evidence.locator(),evidence.excerpt(),evidence.documentHash(),DATE.minusDays(1),DATE.plusDays(1)),
+            base.clinicalMeaning(),base.severity(),base.proposedAction());
         var k=drafts.save(null,new Save(0,dated,"日期边界")).saved();var rows=List.of(row(1,"E","S","ACTIVE","1"),row(2,"E","S","ACTIVE","1"));
         assertThat(replay.replay(k.id(),new Request(1,source(snapshot(rows,30,true)))).result().outcome()).isEqualTo("MATCH");
         Long oldSource=source(snapshot(rows,30,false));

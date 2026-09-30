@@ -1,6 +1,7 @@
 package com.rhn.pharmacy.infrastructure;
 
 import com.rhn.pharmacy.domain.WardDelivery;
+import com.rhn.pharmacy.domain.WardDeliveryStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -23,5 +24,5 @@ public interface WardDeliveryRepository extends JpaRepository<WardDelivery, Long
             Long tenantId, Long organizationId);
 
     List<WardDelivery> findByTenantIdAndOrganizationIdAndStatusInOrderByCreatedAtDesc(
-            Long tenantId, Long organizationId, Collection<String> statuses);
+            Long tenantId, Long organizationId, Collection<WardDeliveryStatus> statuses);
 }

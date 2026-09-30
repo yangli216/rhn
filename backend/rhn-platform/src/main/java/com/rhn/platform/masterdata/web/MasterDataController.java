@@ -21,6 +21,7 @@ import com.rhn.platform.masterdata.application.CatalogLifecycleService;
 import com.rhn.platform.masterdata.application.CatalogLifecycleService.AdoptionInput;
 import com.rhn.platform.masterdata.application.CatalogLifecycleService.PriceInput;
 import com.rhn.shared.api.PageResult;
+import com.rhn.shared.text.Strings;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
@@ -191,7 +192,7 @@ public class MasterDataController {
     MedicationProductView createProductSetup(@Valid @RequestBody ProductSetupRequest request) {
         return service.createProductSetup(request.product().command(), request.packaging().command(),
                 request.organization().command(), request.purchasePrice(), request.salePrice(),
-                optional(request.priceDocumentCode()));
+                Strings.trimToNull(request.priceDocumentCode()));
     }
 
     @PutMapping("/medication-products/{id}")
@@ -254,12 +255,12 @@ public class MasterDataController {
             boolean pregnancyAlert,
             @Size(max = 2000) String attention,
             @Size(max = 2000) String examinationNotes) {
-        ServiceCommand command() { return new ServiceCommand(clean(code), clean(name), optional(unitCode), orderable,
-                chargeable, sdStatus, validFrom, validTo, sdServiceType, optional(serviceSubtype), sdUsageType,
-                medicalTechnology, combinationItem, singleOrder, optional(specimenType), optional(examinationType),
-                optional(accountingCategory), optional(sdDuplicateRule), multiSitePrice, freeSiteCount,
-                maxBodySiteCount, optional(mutualRecognitionCode), pregnancyAlert,
-                optional(attention), optional(examinationNotes)); }
+        ServiceCommand command() { return new ServiceCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(unitCode), orderable,
+                chargeable, sdStatus, validFrom, validTo, sdServiceType, Strings.trimToNull(serviceSubtype), sdUsageType,
+                medicalTechnology, combinationItem, singleOrder, Strings.trimToNull(specimenType), Strings.trimToNull(examinationType),
+                Strings.trimToNull(accountingCategory), Strings.trimToNull(sdDuplicateRule), multiSitePrice, freeSiteCount,
+                maxBodySiteCount, Strings.trimToNull(mutualRecognitionCode), pregnancyAlert,
+                Strings.trimToNull(attention), Strings.trimToNull(examinationNotes)); }
     }
 
     record UpdateServiceRequest(
@@ -285,12 +286,12 @@ public class MasterDataController {
             boolean pregnancyAlert,
             @Size(max = 2000) String attention,
             @Size(max = 2000) String examinationNotes) {
-        ServiceCommand command() { return new ServiceCommand(clean(code), clean(name), optional(unitCode), orderable,
-                chargeable, sdStatus, validFrom, validTo, sdServiceType, optional(serviceSubtype), sdUsageType,
-                medicalTechnology, combinationItem, singleOrder, optional(specimenType), optional(examinationType),
-                optional(accountingCategory), optional(sdDuplicateRule), multiSitePrice, freeSiteCount,
-                maxBodySiteCount, optional(mutualRecognitionCode), pregnancyAlert,
-                optional(attention), optional(examinationNotes)); }
+        ServiceCommand command() { return new ServiceCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(unitCode), orderable,
+                chargeable, sdStatus, validFrom, validTo, sdServiceType, Strings.trimToNull(serviceSubtype), sdUsageType,
+                medicalTechnology, combinationItem, singleOrder, Strings.trimToNull(specimenType), Strings.trimToNull(examinationType),
+                Strings.trimToNull(accountingCategory), Strings.trimToNull(sdDuplicateRule), multiSitePrice, freeSiteCount,
+                maxBodySiteCount, Strings.trimToNull(mutualRecognitionCode), pregnancyAlert,
+                Strings.trimToNull(attention), Strings.trimToNull(examinationNotes)); }
     }
 
     record MedicationRequest(
@@ -319,15 +320,15 @@ public class MasterDataController {
             @Size(max = 64) String defaultFrequency,
             boolean chronicDiseaseDrug, boolean singleOrder,
             @NotBlank @Size(max = 32) String sdStatus, @Size(max = 64) String standardSpecificationId) {
-        MedicationCommand command() { return new MedicationCommand(clean(code), clean(name), optional(aliasName),
-                sdMedicationType, optional(sdDoseForm), optional(preparationSpec), optional(preparationUnit),
-                strengthValue, optional(strengthUnit), optional(sdStorageType), prescriptionDrug, essentialDrug,
-                antimicrobial, optional(sdAntimicrobialLevel), antimicrobialOutpatientAllowed,
+        MedicationCommand command() { return new MedicationCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(aliasName),
+                sdMedicationType, Strings.trimToNull(sdDoseForm), Strings.trimToNull(preparationSpec), Strings.trimToNull(preparationUnit),
+                strengthValue, Strings.trimToNull(strengthUnit), Strings.trimToNull(sdStorageType), prescriptionDrug, essentialDrug,
+                antimicrobial, Strings.trimToNull(sdAntimicrobialLevel), antimicrobialOutpatientAllowed,
                 antimicrobialConsultationRequired, antimicrobialEmergencyAllowed, antimicrobialMaxDays,
-                skinTestRequired, optional(skinTestMethod), optional(skinTestSolutionMode),
-                skinTestObservationMinutes, skinTestResultValidityHours, optional(skinTestInstructions), defaultDose,
-                optional(defaultDoseUnit), optional(defaultRoute), optional(defaultFrequency),
-                chronicDiseaseDrug, singleOrder, sdStatus, optional(standardSpecificationId)); }
+                skinTestRequired, Strings.trimToNull(skinTestMethod), Strings.trimToNull(skinTestSolutionMode),
+                skinTestObservationMinutes, skinTestResultValidityHours, Strings.trimToNull(skinTestInstructions), defaultDose,
+                Strings.trimToNull(defaultDoseUnit), Strings.trimToNull(defaultRoute), Strings.trimToNull(defaultFrequency),
+                chronicDiseaseDrug, singleOrder, sdStatus, Strings.trimToNull(standardSpecificationId)); }
     }
 
     record UpdateMedicationRequest(
@@ -357,15 +358,15 @@ public class MasterDataController {
             @Size(max = 64) String defaultFrequency,
             boolean chronicDiseaseDrug, boolean singleOrder,
             @NotBlank @Size(max = 32) String sdStatus, @Size(max = 64) String standardSpecificationId) {
-        MedicationCommand command() { return new MedicationCommand(clean(code), clean(name), optional(aliasName),
-                sdMedicationType, optional(sdDoseForm), optional(preparationSpec), optional(preparationUnit),
-                strengthValue, optional(strengthUnit), optional(sdStorageType), prescriptionDrug, essentialDrug,
-                antimicrobial, optional(sdAntimicrobialLevel), antimicrobialOutpatientAllowed,
+        MedicationCommand command() { return new MedicationCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(aliasName),
+                sdMedicationType, Strings.trimToNull(sdDoseForm), Strings.trimToNull(preparationSpec), Strings.trimToNull(preparationUnit),
+                strengthValue, Strings.trimToNull(strengthUnit), Strings.trimToNull(sdStorageType), prescriptionDrug, essentialDrug,
+                antimicrobial, Strings.trimToNull(sdAntimicrobialLevel), antimicrobialOutpatientAllowed,
                 antimicrobialConsultationRequired, antimicrobialEmergencyAllowed, antimicrobialMaxDays,
-                skinTestRequired, optional(skinTestMethod), optional(skinTestSolutionMode),
-                skinTestObservationMinutes, skinTestResultValidityHours, optional(skinTestInstructions), defaultDose,
-                optional(defaultDoseUnit), optional(defaultRoute), optional(defaultFrequency),
-                chronicDiseaseDrug, singleOrder, sdStatus, optional(standardSpecificationId)); }
+                skinTestRequired, Strings.trimToNull(skinTestMethod), Strings.trimToNull(skinTestSolutionMode),
+                skinTestObservationMinutes, skinTestResultValidityHours, Strings.trimToNull(skinTestInstructions), defaultDose,
+                Strings.trimToNull(defaultDoseUnit), Strings.trimToNull(defaultRoute), Strings.trimToNull(defaultFrequency),
+                chronicDiseaseDrug, singleOrder, sdStatus, Strings.trimToNull(standardSpecificationId)); }
     }
 
     record ManufacturerRequest(
@@ -377,8 +378,8 @@ public class MasterDataController {
             @Size(max = 32) String countryCode,
             @Size(max = 1000) String address,
             @NotBlank @Size(max = 32) String sdStatus) {
-        ManufacturerCommand command() { return new ManufacturerCommand(clean(code), clean(name), optional(shortName),
-                sdManufacturerType, optional(sdProductionPlace), optional(countryCode), optional(address), sdStatus); }
+        ManufacturerCommand command() { return new ManufacturerCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(shortName),
+                sdManufacturerType, Strings.trimToNull(sdProductionPlace), Strings.trimToNull(countryCode), Strings.trimToNull(address), sdStatus); }
     }
 
     record UpdateManufacturerRequest(
@@ -391,8 +392,8 @@ public class MasterDataController {
             @Size(max = 32) String countryCode,
             @Size(max = 1000) String address,
             @NotBlank @Size(max = 32) String sdStatus) {
-        ManufacturerCommand command() { return new ManufacturerCommand(clean(code), clean(name), optional(shortName),
-                sdManufacturerType, optional(sdProductionPlace), optional(countryCode), optional(address), sdStatus); }
+        ManufacturerCommand command() { return new ManufacturerCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(shortName),
+                sdManufacturerType, Strings.trimToNull(sdProductionPlace), Strings.trimToNull(countryCode), Strings.trimToNull(address), sdStatus); }
     }
 
     record ProductRequest(
@@ -415,12 +416,12 @@ public class MasterDataController {
             @NotNull LocalDate validFrom, LocalDate validTo,
             @Size(max = 4000) String indication,
             String instruction) {
-        ProductCommand command() { return new ProductCommand(medicationId, manufacturerId, clean(code),
-                optional(tradeName), optional(approvalCode), optional(traceCode), approvalFrom, approvalTo,
-                optional(registrationCode), registrationFrom, registrationTo, optional(purchaseCode),
-                optional(sdMarketStatus), optional(sdProductionPlace), otc, centralPurchase, importAllowed,
-                traceSplitRequired, orderable, chargeable, stocked, shelfLifeValue, optional(sdShelfLifeUnit),
-                sdStatus, validFrom, validTo, optional(indication), optional(instruction)); }
+        ProductCommand command() { return new ProductCommand(medicationId, manufacturerId, Strings.trim(code),
+                Strings.trimToNull(tradeName), Strings.trimToNull(approvalCode), Strings.trimToNull(traceCode), approvalFrom, approvalTo,
+                Strings.trimToNull(registrationCode), registrationFrom, registrationTo, Strings.trimToNull(purchaseCode),
+                Strings.trimToNull(sdMarketStatus), Strings.trimToNull(sdProductionPlace), otc, centralPurchase, importAllowed,
+                traceSplitRequired, orderable, chargeable, stocked, shelfLifeValue, Strings.trimToNull(sdShelfLifeUnit),
+                sdStatus, validFrom, validTo, Strings.trimToNull(indication), Strings.trimToNull(instruction)); }
     }
 
     record UpdateProductRequest(
@@ -444,11 +445,11 @@ public class MasterDataController {
             @Size(max = 4000) String indication,
             String instruction) {
         ProductCommand command() { return new ProductCommand(null, manufacturerId, null,
-                optional(tradeName), optional(approvalCode), optional(traceCode), approvalFrom, approvalTo,
-                optional(registrationCode), registrationFrom, registrationTo, optional(purchaseCode),
-                optional(sdMarketStatus), optional(sdProductionPlace), otc, centralPurchase, importAllowed,
-                traceSplitRequired, orderable, chargeable, stocked, shelfLifeValue, optional(sdShelfLifeUnit),
-                sdStatus, validFrom, validTo, optional(indication), optional(instruction)); }
+                Strings.trimToNull(tradeName), Strings.trimToNull(approvalCode), Strings.trimToNull(traceCode), approvalFrom, approvalTo,
+                Strings.trimToNull(registrationCode), registrationFrom, registrationTo, Strings.trimToNull(purchaseCode),
+                Strings.trimToNull(sdMarketStatus), Strings.trimToNull(sdProductionPlace), otc, centralPurchase, importAllowed,
+                traceSplitRequired, orderable, chargeable, stocked, shelfLifeValue, Strings.trimToNull(sdShelfLifeUnit),
+                sdStatus, validFrom, validTo, Strings.trimToNull(indication), Strings.trimToNull(instruction)); }
     }
 
     record ProductSetupRequest(
@@ -470,8 +471,8 @@ public class MasterDataController {
             boolean defaultPurchase, boolean defaultSale, boolean defaultDispense,
             @NotBlank @Size(max = 32) String sdStatus,
             @NotNull LocalDate validFrom, LocalDate validTo) {
-        PackageCommand command() { return new PackageCommand(basePackageId, clean(unitCode), clean(unitName),
-                optional(packageSpec), quantityFactor, sdUsageType, optional(barcode), defaultPurchase, defaultSale,
+        PackageCommand command() { return new PackageCommand(basePackageId, Strings.trim(unitCode), Strings.trim(unitName),
+                Strings.trimToNull(packageSpec), quantityFactor, sdUsageType, Strings.trimToNull(barcode), defaultPurchase, defaultSale,
                 defaultDispense, sdStatus, validFrom, validTo); }
     }
 
@@ -483,10 +484,10 @@ public class MasterDataController {
             @NotBlank @Size(max = 32) String sdStatus,
             @NotNull LocalDate validFrom, LocalDate validTo) {
         AdoptionCommand command() { return new AdoptionCommand(organizationId, defaultDepartmentId,
-                optional(localCode), optional(localName), orderable, executable, chargeable, purchasable, stocked,
+                Strings.trimToNull(localCode), Strings.trimToNull(localName), orderable, executable, chargeable, purchasable, stocked,
                 dispensable, returnable, sdStatus, validFrom, validTo); }
         AdoptionInput lifecycleInput() { return new AdoptionInput(organizationId, defaultDepartmentId,
-                optional(localCode), optional(localName), orderable, executable, chargeable, purchasable, stocked,
+                Strings.trimToNull(localCode), Strings.trimToNull(localName), orderable, executable, chargeable, purchasable, stocked,
                 dispensable, returnable, sdStatus, validFrom, validTo); }
     }
 
@@ -500,16 +501,14 @@ public class MasterDataController {
             @NotNull LocalDate validFrom, LocalDate validTo,
             @NotBlank @Size(max = 32) String sdStatus) {
         PriceCommand command() { return new PriceCommand(organizationId, packageId, sdPriceType, price,
-                clean(currencyCode), optional(priceDocumentCode), optional(priceReason), validFrom, validTo, sdStatus); }
+                Strings.trim(currencyCode), Strings.trimToNull(priceDocumentCode), Strings.trimToNull(priceReason), validFrom, validTo, sdStatus); }
         PriceInput lifecycleInput() { return new PriceInput(organizationId, packageId, sdPriceType, price,
-                clean(currencyCode), optional(priceDocumentCode), optional(priceReason), validFrom, validTo, sdStatus); }
+                Strings.trim(currencyCode), Strings.trimToNull(priceDocumentCode), Strings.trimToNull(priceReason), validFrom, validTo, sdStatus); }
     }
 
     record StatusRequest(@NotNull @Min(0) BigInteger expectedRevision,
                          @NotBlank @Size(max = 32) String sdStatus) {}
 
-    private static String clean(String value) { return value.trim(); }
-    private static String optional(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private long revision(BigInteger value) {
         try { return value.longValueExact(); }
         catch (ArithmeticException exception) { throw new IllegalArgumentException("修订号超出BIGINT范围"); }

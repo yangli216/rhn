@@ -7,6 +7,8 @@ import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -33,6 +35,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 public class InventoryReconciliationApplicationService {
     private static final DateTimeFormatter RUN_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC);
+    private static final Logger log = LoggerFactory.getLogger(InventoryReconciliationApplicationService.class);
     private final JdbcTemplate jdbc;
     private final StockSiteRepository siteRepository;
     private final ExecutionContextProvider contextProvider;
@@ -67,7 +70,10 @@ public class InventoryReconciliationApplicationService {
         for (StockSite site : siteRepository.findAll()) {
             if (!site.active()) continue;
             try { transactions.executeWithoutResult(status -> runScheduled(site)); }
-            catch (RuntimeException ignored) { /* next site must still reconcile */ }
+            catch (RuntimeException error) {
+                // next site must still reconcile
+                log.warn("库存对账失败，站点 {}（租户 {}）本轮跳过：{}", site.id(), site.tenantId(), error.getMessage(), error);
+            }
         }
     }
 
@@ -221,7 +227,12 @@ public class InventoryReconciliationApplicationService {
                 rs.getBigDecimal("quantity_reserved"), rs.getBigDecimal("reservation_quantity"),
                 rs.getBigDecimal("open_quantity"), rs.getBoolean("trace_required"), rs.getBigDecimal("trace_quantity"));
     }
-    private StockSite requireSite(ExecutionContext c, Long id) { StockSite s = siteRepository.findByIdAndTenantId(id, c.tenantId()).orElseThrow(() -> notFound("STOCK_SITE_NOT_FOUND", "未找到库存站点")); if (!c.canAccessOrganization(s.organizationId())) throw badRequest("PHARMACY_ORGANIZATION_SCOPE_INVALID", "无权访问当前库存站点"); if (s.departmentId() != null && !s.departmentId().equals(c.departmentId())) throw badRequest("PHARMACY_SITE_CONTEXT_MISMATCH", "当前工作科室与库存站点不一致"); return s; }
+    private StockSite requireSite(ExecutionContext c, Long id) {
+        StockSite s = siteRepository.findByIdAndTenantId(id, c.tenantId()).orElseThrow(() -> notFound("STOCK_SITE_NOT_FOUND", "未找到库存站点"));
+        if (!c.canAccessOrganization(s.organizationId())) throw badRequest("PHARMACY_ORGANIZATION_SCOPE_INVALID", "无权访问当前库存站点");
+        if (s.departmentId() != null && !s.departmentId().equals(c.departmentId())) throw badRequest("PHARMACY_SITE_CONTEXT_MISMATCH", "当前工作科室与库存站点不一致");
+        return s;
+    }
     private ExecutionContext requireContext() { ExecutionContext c = contextProvider.requireCurrent(); if (!c.hasWorkContext()) throw badRequest("PHARMACY_WORK_CONTEXT_REQUIRED", "库存对账必须选择工作机构和科室"); return c; }
     private Instant instant(ResultSet rs, String name) throws SQLException { return rs.getObject(name, OffsetDateTime.class).toInstant(); }
     private Instant nullableInstant(ResultSet rs, String name) throws SQLException { OffsetDateTime value = rs.getObject(name, OffsetDateTime.class); return value == null ? null : value.toInstant(); }

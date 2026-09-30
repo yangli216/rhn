@@ -4,6 +4,8 @@ import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -26,7 +28,8 @@ public class InventoryReservation {
     @Column(name = "ID_DISP_TASK_LINE", nullable = false) private Long dispenseTaskLineId;
     @Column(name = "CD_RESV_GRP", nullable = false) private String reservationGroupCode;
     @Column(name = "SD_RESV_TYPE", nullable = false) private String reservationType;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "SD_STATUS", nullable = false) private InventoryReservationStatus status;
     @Column(name = "QTY_RESVD", nullable = false, precision = 28, scale = 8) private BigDecimal quantityReserved;
     @Column(name = "QTY_CNSMD", nullable = false, precision = 28, scale = 8) private BigDecimal quantityConsumed;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
@@ -57,19 +60,21 @@ public class InventoryReservation {
         this.stockBinId = stockBinId; this.stockItemId = stockItemId; this.stockLotId = stockLotId;
         this.requestId = requestId; this.dispenseTaskLineId = dispenseTaskLineId;
         this.reservationGroupCode = reservationGroupCode;
-        this.reservationType = reservationType == null ? "ORDER" : reservationType; this.status = "ACTIVE";
+        this.reservationType = reservationType == null ? "ORDER" : reservationType;
+        this.status = InventoryReservationStatus.ACTIVE;
         this.quantityReserved = quantityReserved; this.quantityConsumed = BigDecimal.ZERO;
         this.baseUnitCode = baseUnitCode; this.createdAt = Instant.now(); this.createdBy = actorId;
         this.expiresAt = expiresAt;
     }
 
     public void release(Long actorId, String reason) {
-        if ("RELEASED".equals(status)) return;
-        if (!"ACTIVE".equals(status) && !"PARTIAL".equals(status)) {
+        if (status == InventoryReservationStatus.RELEASED) return;
+        if (status != InventoryReservationStatus.ACTIVE && status != InventoryReservationStatus.PARTIAL) {
             throw new BusinessException("INVENTORY_RESERVATION_RELEASE_STATE_INVALID",
                     "当前预留状态不能释放", HttpStatus.CONFLICT);
         }
-        status = "RELEASED"; releasedAt = Instant.now(); releasedBy = actorId; releaseReason = reason;
+        status = InventoryReservationStatus.RELEASED;
+        releasedAt = Instant.now(); releasedBy = actorId; releaseReason = reason;
     }
 
     public void consume(BigDecimal quantity, Long actorId, Instant occurredAt) {
@@ -78,7 +83,8 @@ public class InventoryReservation {
                     "消费数量超过有效预留余量", HttpStatus.CONFLICT);
         }
         quantityConsumed = quantityConsumed.add(quantity); consumedAt = occurredAt; consumedBy = actorId;
-        status = quantityConsumed.compareTo(quantityReserved) == 0 ? "CONSUMED" : "PARTIAL";
+        status = quantityConsumed.compareTo(quantityReserved) == 0
+                ? InventoryReservationStatus.CONSUMED : InventoryReservationStatus.PARTIAL;
     }
 
     public void expire(Instant now) {
@@ -87,11 +93,13 @@ public class InventoryReservation {
             throw new BusinessException("INVENTORY_RESERVATION_NOT_DUE",
                     "库存预留尚未到期", HttpStatus.CONFLICT);
         }
-        status = "EXPIRED"; releasedAt = now; releaseReason = "SYSTEM_EXPIRY";
+        status = InventoryReservationStatus.EXPIRED; releasedAt = now; releaseReason = "SYSTEM_EXPIRY";
     }
 
     public BigDecimal releasableQuantity() { return quantityReserved.subtract(quantityConsumed); }
-    public boolean active() { return "ACTIVE".equals(status) || "PARTIAL".equals(status); }
+    public boolean active() {
+        return status == InventoryReservationStatus.ACTIVE || status == InventoryReservationStatus.PARTIAL;
+    }
 
     public Long id() { return id; }
     public long revision() { return revision; }
@@ -104,7 +112,7 @@ public class InventoryReservation {
     public Long dispenseTaskLineId() { return dispenseTaskLineId; }
     public String reservationGroupCode() { return reservationGroupCode; }
     public String reservationType() { return reservationType; }
-    public String status() { return status; }
+    public InventoryReservationStatus status() { return status; }
     public BigDecimal quantityReserved() { return quantityReserved; }
     public BigDecimal quantityConsumed() { return quantityConsumed; }
     public String baseUnitCode() { return baseUnitCode; }

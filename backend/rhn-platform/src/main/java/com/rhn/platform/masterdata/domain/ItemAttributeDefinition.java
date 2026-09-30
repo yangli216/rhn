@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -50,9 +51,9 @@ public class ItemAttributeDefinition {
                                    String sensitivity, Long actorId) {
         this.id = GlobalIds.next();
         this.scopeType = "TENANT";
-        this.scopeCode = "TENANT:" + requireId(tenantId, "租户");
+        this.scopeCode = "TENANT:" + Strings.requireId(tenantId, "租户");
         this.tenantId = tenantId;
-        this.code = requireText(code, "属性编码", 128);
+        this.code = Strings.requireText(code, "属性编码", 128);
         apply(name, description, dataType, cardinality, dictionaryId, unitCode, schemaJson, defaultJson,
                 variability, overridePolicy, allowedScopeJson, contextBasis, sensitivity);
         this.storageMode = "EXTENSION";
@@ -60,7 +61,7 @@ public class ItemAttributeDefinition {
         this.validationRuleId = null;
         this.status = "ACTIVE";
         this.createdAt = Instant.now();
-        this.createdBy = requireId(actorId, "操作用户");
+        this.createdBy = Strings.requireId(actorId, "操作用户");
         this.updatedAt = createdAt;
         this.updatedBy = actorId;
     }
@@ -88,24 +89,24 @@ public class ItemAttributeDefinition {
                        Long dictionaryId, String unitCode, String schemaJson, String defaultJson,
                        String variability, String overridePolicy, String allowedScopeJson,
                        String contextBasis, String sensitivity) {
-        this.name = requireText(name, "属性名称", 200);
-        this.description = requireText(description, "属性说明", 1000);
-        this.dataType = requireText(dataType, "数据类型", 32);
-        this.cardinality = requireText(cardinality, "基数", 16);
+        this.name = Strings.requireText(name, "属性名称", 200);
+        this.description = Strings.requireText(description, "属性说明", 1000);
+        this.dataType = Strings.requireText(dataType, "数据类型", 32);
+        this.cardinality = Strings.requireText(cardinality, "基数", 16);
         this.dictionaryId = dictionaryId;
-        this.unitCode = optionalText(unitCode, 64);
-        this.schemaJson = requireText(schemaJson, "JSON Schema", 20000);
-        this.defaultJson = optionalText(defaultJson, 20000);
-        this.variability = requireText(variability, "可变性", 32);
-        this.overridePolicy = requireText(overridePolicy, "覆盖策略", 32);
-        this.allowedScopeJson = requireText(allowedScopeJson, "允许作用域", 20000);
-        this.contextBasis = requireText(contextBasis, "上下文依据", 32);
-        this.sensitivity = requireText(sensitivity, "敏感级别", 32);
+        this.unitCode = Strings.optionalText(unitCode, 64);
+        this.schemaJson = Strings.requireText(schemaJson, "JSON Schema", 20000);
+        this.defaultJson = Strings.optionalText(defaultJson, 20000);
+        this.variability = Strings.requireText(variability, "可变性", 32);
+        this.overridePolicy = Strings.requireText(overridePolicy, "覆盖策略", 32);
+        this.allowedScopeJson = Strings.requireText(allowedScopeJson, "允许作用域", 20000);
+        this.contextBasis = Strings.requireText(contextBasis, "上下文依据", 32);
+        this.sensitivity = Strings.requireText(sensitivity, "敏感级别", 32);
     }
 
     private void touch(Long actorId) {
         this.updatedAt = Instant.now();
-        this.updatedBy = requireId(actorId, "操作用户");
+        this.updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     private void requireRevision(long expectedRevision) {
@@ -135,22 +136,4 @@ public class ItemAttributeDefinition {
     public String sensitivity() { return sensitivity; }
     public String status() { return status; }
 
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
-    private static String requireText(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
-    }
-
-    private static String optionalText(String value, int max) {
-        if (value == null || value.isBlank()) return null;
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException("文本长度不能超过" + max);
-        return result;
-    }
 }

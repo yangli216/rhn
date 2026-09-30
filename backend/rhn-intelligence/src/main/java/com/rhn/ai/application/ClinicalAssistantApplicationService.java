@@ -18,6 +18,7 @@ import com.rhn.ai.api.ClinicalAssistantContracts.SuggestionContent;
 import com.rhn.ai.api.ClinicalAssistantContracts.Transcription;
 import com.rhn.ai.domain.AiSuggestion;
 import com.rhn.ai.domain.AiSuggestionEvent;
+import com.rhn.ai.domain.AiSuggestionStatus;
 import com.rhn.ai.infrastructure.AiSuggestionEventRepository;
 import com.rhn.ai.infrastructure.AiSuggestionRepository;
 import com.rhn.diagnostics.api.DiagnosticReportDirectory;
@@ -35,9 +36,12 @@ import com.rhn.shared.context.ExecutionContextProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -67,6 +71,10 @@ public class ClinicalAssistantApplicationService {
     private static final String LOCAL_PROMPT_VERSION = "local-assist-v1";
     private static final String DISCLAIMER = "本结果仅为本地规则辅助生成的待核对建议，不构成诊断或处方；系统不会自动保存病历、确认诊断、开立医嘱或完成诊毕，须由医生独立判断并确认。";
     private static final String MODEL_DISCLAIMER = "本结果由模型基于当前就诊资料生成，并已通过院内术语、方案白名单和确定性安全规则复核；不构成诊断或处方，须由医生独立判断并确认。";
+    /** 发热提示阈值（℃）。 */
+    private static final java.math.BigDecimal FEVER_TEMPERATURE = new java.math.BigDecimal("38.0");
+    /** 高热（危急）提示阈值（℃）。 */
+    private static final java.math.BigDecimal HIGH_FEVER_TEMPERATURE = new java.math.BigDecimal("39.0");
 
     private final ClinicalAiRuntimePolicy runtimePolicy;
     private final EncounterDirectory encounterDirectory;
@@ -88,6 +96,7 @@ public class ClinicalAssistantApplicationService {
     private final ClinicalKnowledgeGateway knowledgeGateway;
     private final ClinicalAiMetrics metrics;
     private final ClinicalTreatmentRecommendationService treatmentService;
+    private final TransactionTemplate transactionTemplate;
 
     public ClinicalAssistantApplicationService(ClinicalAiRuntimePolicy runtimePolicy,
                                                EncounterDirectory encounterDirectory,
@@ -107,7 +116,8 @@ public class ClinicalAssistantApplicationService {
                                                ClinicalAiModelGateway modelGateway,
                                                ClinicalAiSpeechGateway speechGateway,
                                                ClinicalKnowledgeGateway knowledgeGateway,
-                                               ClinicalAiMetrics metrics, ClinicalTreatmentRecommendationService treatmentService) {
+                                               ClinicalAiMetrics metrics, ClinicalTreatmentRecommendationService treatmentService,
+                                               PlatformTransactionManager transactionManager) {
         this.runtimePolicy = runtimePolicy;
         this.encounterDirectory = encounterDirectory;
         this.allergyDirectory = allergyDirectory;
@@ -128,6 +138,7 @@ public class ClinicalAssistantApplicationService {
         this.knowledgeGateway = knowledgeGateway;
         this.metrics = metrics;
         this.treatmentService = treatmentService;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     public Capabilities capabilities() {
@@ -209,12 +220,10 @@ public class ClinicalAssistantApplicationService {
         return bytes + " bytes";
     }
 
-    @Transactional
     public Suggestion generate(Long encounterId, GenerateRequest input) {
         return generate(encounterId, input, null);
     }
 
-    @Transactional
     public Suggestion generate(Long encounterId, GenerateRequest input, java.util.function.Consumer<String> onDelta) {
         long started = System.nanoTime();
         ExecutionContext requestContext = contextProvider.requireCurrent();
@@ -254,18 +263,21 @@ public class ClinicalAssistantApplicationService {
                 "clinicalScore", match.clinicalScore(), "reasons", match.evidence())).toList());
         evidence.put("clinicalWriteInvoked", false);
 
-        AiSuggestion value = suggestions.save(new AiSuggestion(access.context().tenantId(), access.encounter().residentId(),
-                access.encounter().id(), access.encounter().organizationId(), access.encounter().departmentId(),
-                input.clientContextFingerprint().trim(), contextHash, jsonCodec.write(content), jsonCodec.write(evidence),
-                serverContext.hash(), analysis.riskLevel(), runtime.provider(), runtime.model(),
-                runtime.mode() == ClinicalAssistantSettings.Mode.MODEL ? PROMPT_VERSION : LOCAL_PROMPT_VERSION,
-                access.context().practitionerId(), access.context().subjectId(), now,
-                now.plus(runtime.suggestionTtl())));
-        events.save(new AiSuggestionEvent(value.tenantId(), value.id(), "GENERATED", null, "GENERATED",
-                access.context().practitionerId(), access.context().subjectId(), null, value.contextHash(),
-                "GENERATED-" + value.id(), runtime.mode() == ClinicalAssistantSettings.Mode.MODEL
-                        ? "模型辅助建议生成" : "本地辅助建议生成", jsonCodec.write(Map.of(
-                "provider", runtime.provider(), "mode", runtime.mode().name())), now));
+        AiSuggestion value = transactionTemplate.execute(status -> {
+            AiSuggestion saved = suggestions.save(new AiSuggestion(access.context().tenantId(), access.encounter().residentId(),
+                    access.encounter().id(), access.encounter().organizationId(), access.encounter().departmentId(),
+                    input.clientContextFingerprint().trim(), contextHash, jsonCodec.write(content), jsonCodec.write(evidence),
+                    serverContext.hash(), analysis.riskLevel(), runtime.provider(), runtime.model(),
+                    runtime.mode() == ClinicalAssistantSettings.Mode.MODEL ? PROMPT_VERSION : LOCAL_PROMPT_VERSION,
+                    access.context().practitionerId(), access.context().subjectId(), now,
+                    now.plus(runtime.suggestionTtl())));
+            events.save(new AiSuggestionEvent(saved.tenantId(), saved.id(), "GENERATED", null, "GENERATED",
+                    access.context().practitionerId(), access.context().subjectId(), null, saved.contextHash(),
+                    "GENERATED-" + saved.id(), runtime.mode() == ClinicalAssistantSettings.Mode.MODEL
+                            ? "模型辅助建议生成" : "本地辅助建议生成", jsonCodec.write(Map.of(
+                    "provider", runtime.provider(), "mode", runtime.mode().name())), now));
+            return saved;
+        });
         Suggestion result = view(value, content, now);
         metrics.recordGeneration(runtime.mode().name(), runtime.provider(), "SUCCESS", System.nanoTime() - started);
         return result;
@@ -314,10 +326,11 @@ public class ClinicalAssistantApplicationService {
         }
 
         Instant now = Instant.now();
-        String from = value.status();
+        String from = value.status().name();
         String eventType = input.eventType();
         boolean expiredAdoption = false;
-        boolean terminal = Set.of("ADOPTED", "IGNORED", "FAILED").contains(value.status());
+        boolean terminal = Set.of(AiSuggestionStatus.ADOPTED, AiSuggestionStatus.IGNORED,
+                AiSuggestionStatus.FAILED).contains(value.status());
         if (!now.isBefore(value.expiresAt()) && !terminal) {
             value.expire(now, "建议超过有效期");
             eventType = "EXPIRED";
@@ -329,15 +342,15 @@ public class ClinicalAssistantApplicationService {
                 return EventRecordingOutcome.ADOPTION_REJECTED_SERVER_CONTEXT_CHANGED;
             }
             try {
-                if ("ADOPTED".equals(eventType)) value.adopt(clean(input.sectionCode()));
+                if ("ADOPTED".equals(eventType)) value.adopt(Strings.trimToNull(input.sectionCode()));
                 if ("IGNORED".equals(eventType)) value.ignore();
             } catch (IllegalStateException exception) {
                 throw conflict("AI_SUGGESTION_STATE_INVALID", "当前 AI 建议状态不允许执行该操作");
             }
         }
-        events.save(new AiSuggestionEvent(context.tenantId(), value.id(), eventType, from, value.status(),
-                context.practitionerId(), context.subjectId(), clean(input.sectionCode()), value.contextHash(),
-                input.commandCode().trim(), clean(input.detail()), jsonCodec.write(input), now));
+        events.save(new AiSuggestionEvent(context.tenantId(), value.id(), eventType, from, value.status().name(),
+                context.practitionerId(), context.subjectId(), Strings.trimToNull(input.sectionCode()), value.contextHash(),
+                input.commandCode().trim(), Strings.trimToNull(input.detail()), jsonCodec.write(input), now));
         metrics.recordSuggestionEvent(eventType, expiredAdoption ? "REJECTED_EXPIRED" : "RECORDED");
         return expiredAdoption ? EventRecordingOutcome.ADOPTION_REJECTED_EXPIRED : EventRecordingOutcome.RECORDED;
     }
@@ -380,7 +393,7 @@ public class ClinicalAssistantApplicationService {
         SuggestionContent raw;
         try {
             var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION,
-                    clean(input.question()), clean(input.voiceTranscript()), input.draft(),
+                    Strings.trimToNull(input.question()), Strings.trimToNull(input.voiceTranscript()), input.draft(),
                     serverContext.resident(), serverContext.allergies(),
                     planMatches.stream().map(ClinicalPlanRetrievalService.Match::plan).toList(),
                     serverContext.reports(), serverContext.clinicalHistory(), priorSuggestion,
@@ -420,8 +433,8 @@ public class ClinicalAssistantApplicationService {
         SuggestionContent content = new SuggestionContent(summary, recordDraft, candidates, differentials,
                 missing, alerts, plans, MODEL_DISCLAIMER);
         if (!raw.treatmentRecommendations().isEmpty()) {
-            var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION, clean(input.question()),
-                    clean(input.voiceTranscript()), input.draft(), serverContext.resident(), serverContext.allergies(),
+            var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION, Strings.trimToNull(input.question()),
+                    Strings.trimToNull(input.voiceTranscript()), input.draft(), serverContext.resident(), serverContext.allergies(),
                     planMatches.stream().map(ClinicalPlanRetrievalService.Match::plan).toList(),
                     serverContext.reports(), serverContext.clinicalHistory(), content,
                     input.receptionScene(), input.receptionSceneContext()).withTemporalContext(temporalContext);
@@ -462,7 +475,8 @@ public class ClinicalAssistantApplicationService {
         if (!(parentDraftHash instanceof String value) || !value.equals(clinicalDraftHash(access, input))) {
             throw conflict("AI_PARENT_SUGGESTION_DRAFT_CHANGED", "当前病历草稿已变化，请重新分析后再追问");
         }
-        if (!now.isBefore(parent.expiresAt()) || Set.of("IGNORED", "EXPIRED", "FAILED").contains(parent.status())) {
+        if (!now.isBefore(parent.expiresAt()) || Set.of(AiSuggestionStatus.IGNORED, AiSuggestionStatus.EXPIRED,
+                AiSuggestionStatus.FAILED).contains(parent.status())) {
             throw conflict("AI_PARENT_SUGGESTION_UNAVAILABLE", "上一轮建议已失效，请重新分析");
         }
         return readContent(parent);
@@ -522,8 +536,8 @@ public class ClinicalAssistantApplicationService {
             result.add(new SafetyAlert(level, "血氧饱和度偏低",
                     "当前记录为 " + draft.oxygenSaturation() + "% ，请核对测量质量并及时评估。"));
         }
-        if (draft.temperature() != null && draft.temperature().compareTo(new java.math.BigDecimal("38.0")) >= 0) {
-            String level = draft.temperature().compareTo(new java.math.BigDecimal("39.0")) >= 0 ? "CRITICAL" : "WARNING";
+        if (draft.temperature() != null && draft.temperature().compareTo(FEVER_TEMPERATURE) >= 0) {
+            String level = draft.temperature().compareTo(HIGH_FEVER_TEMPERATURE) >= 0 ? "CRITICAL" : "WARNING";
             result.add(new SafetyAlert(level, "体温升高", "当前记录为 " + draft.temperature() + "℃，请结合病情评估。"));
         }
         if (!allergies.isEmpty()) {
@@ -577,6 +591,11 @@ public class ClinicalAssistantApplicationService {
             String source = blank(value.code()) ? value.display() : value.code();
             var resolution = diagnosisNormalizer.normalize(tenantId, ICD10_SYSTEM, "WESTERN_MEDICINE",
                     source, LocalDate.now());
+            if (!resolution.matched() && !blank(value.code()) && !blank(value.display())) {
+                // 模型给出的编码不可核对时，按标准名或别名精确匹配，避免可核对名称被一并丢弃。
+                resolution = diagnosisNormalizer.normalize(tenantId, ICD10_SYSTEM, "WESTERN_MEDICINE",
+                        value.display(), LocalDate.now());
+            }
             if (resolution.matched()) {
                 var mapped = resolution.concept();
                 if (!seen.add(mapped.code())) continue;
@@ -795,8 +814,8 @@ public class ClinicalAssistantApplicationService {
         canonical.put("organizationId", access.encounter().organizationId());
         canonical.put("departmentId", access.encounter().departmentId());
         canonical.put("clientContextFingerprint", input.clientContextFingerprint().trim());
-        canonical.put("question", clean(input.question()));
-        canonical.put("voiceTranscript", clean(input.voiceTranscript()));
+        canonical.put("question", Strings.trimToNull(input.question()));
+        canonical.put("voiceTranscript", Strings.trimToNull(input.voiceTranscript()));
         canonical.put("parentSuggestionId", input.parentSuggestionId());
         canonical.put("receptionScene", input.receptionScene());
         canonical.put("receptionSceneContext", input.receptionSceneContext());
@@ -812,7 +831,7 @@ public class ClinicalAssistantApplicationService {
         canonical.put("organizationId", access.encounter().organizationId());
         canonical.put("departmentId", access.encounter().departmentId());
         canonical.put("draft", input.draft());
-        canonical.put("voiceTranscript", clean(input.voiceTranscript()));
+        canonical.put("voiceTranscript", Strings.trimToNull(input.voiceTranscript()));
         return sha256(canonical);
     }
 
@@ -927,8 +946,10 @@ public class ClinicalAssistantApplicationService {
     }
 
     private Suggestion view(AiSuggestion value, SuggestionContent content, Instant now) {
-        String status = !now.isBefore(value.expiresAt()) && !Set.of("ADOPTED", "IGNORED", "FAILED").contains(value.status())
-                ? "EXPIRED" : value.status();
+        String status = !now.isBefore(value.expiresAt())
+                && !Set.of(AiSuggestionStatus.ADOPTED, AiSuggestionStatus.IGNORED,
+                        AiSuggestionStatus.FAILED).contains(value.status())
+                ? "EXPIRED" : value.status().name();
         Object parent = jsonCodec.readObject(value.evidenceJson()).get("parentSuggestionId");
         Long parentSuggestionId = parent instanceof Number number ? number.longValue()
                 : parent instanceof String text && text.matches("[0-9]+") ? Long.valueOf(text) : null;
@@ -944,9 +965,8 @@ public class ClinicalAssistantApplicationService {
 
     private static String normalized(String value) { return safe(value).toLowerCase(Locale.ROOT); }
     private static String safe(String value) { return value == null ? "" : value.trim(); }
-    private static String clean(String value) { return blank(value) ? null : value.trim(); }
     private static String clipped(String value, int maxLength) {
-        String clean = clean(value);
+        String clean = Strings.trimToNull(value);
         return clean == null || clean.length() <= maxLength ? clean : clean.substring(0, maxLength);
     }
     private static boolean blank(String value) { return value == null || value.isBlank(); }

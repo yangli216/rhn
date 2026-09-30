@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.annotation.DirtiesContext;
 import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
@@ -16,7 +15,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class InpatientDischargeReadinessFlowTest extends RhnIntegrationTestSupport {
     private static final String RESIDENT = "362387869790213";
     private static final String BED = "362387869898512";

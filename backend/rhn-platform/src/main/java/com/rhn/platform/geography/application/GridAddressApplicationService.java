@@ -7,6 +7,7 @@ import com.rhn.platform.geography.domain.GridAddressStatus;
 import com.rhn.platform.geography.infrastructure.GridAddressNodeRepository;
 import com.rhn.shared.api.RevisionGuard;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,7 +55,7 @@ public class GridAddressApplicationService {
             throw conflict("GRID_ADDRESS_NAME_DUPLICATE", "同一上级下已存在相同名称");
         }
         GridAddressNode node = new GridAddressNode(parentId, level, normalizedCode, normalizedName,
-                trim(shortName), normalizePinyin(pinyinCode), path(parent, normalizedName), sortOrder, actorId());
+                Strings.trimToNull(shortName), normalizePinyin(pinyinCode), path(parent, normalizedName), sortOrder, actorId());
         return view(repository.saveAndFlush(node));
     }
 
@@ -66,7 +67,7 @@ public class GridAddressApplicationService {
         String normalizedName = requireText(name, "网格名称不能为空");
         return RevisionGuard.supply("GRID_ADDRESS_REVISION_CONFLICT",
                 "网格地址已被其他用户修改，请刷新后重试", () -> {
-            node.update(parentId, normalizedName, trim(shortName), normalizePinyin(pinyinCode),
+            node.update(parentId, normalizedName, Strings.trimToNull(shortName), normalizePinyin(pinyinCode),
                     path(parent, normalizedName), sortOrder, expectedRevision, actorId());
             GridAddressNode saved = repository.saveAndFlush(node);
             refreshDescendantPaths(saved);
@@ -172,11 +173,10 @@ public class GridAddressApplicationService {
         if (result.length() > 64) throw badRequest("GRID_ADDRESS_PINYIN_INVALID", "拼音码不能超过 64 位");
         return result;
     }
-    private static String normalizeQuery(String value) { String result = trim(value); return result == null ? null : result.toUpperCase(Locale.ROOT); }
+    private static String normalizeQuery(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(Locale.ROOT); }
     private static String searchText(GridAddressNode node) {
         return (node.code() + " " + node.name() + " " + (node.shortName() == null ? "" : node.shortName())
                 + " " + node.pinyinCode() + " " + node.fullPath()).toUpperCase(Locale.ROOT);
     }
-    private static String requireText(String value, String message) { String result = trim(value); if (result == null) throw badRequest("GRID_ADDRESS_FIELD_REQUIRED", message); return result; }
-    private static String trim(String value) { return value == null || value.trim().isEmpty() ? null : value.trim(); }
+    private static String requireText(String value, String message) { String result = Strings.trimToNull(value); if (result == null) throw badRequest("GRID_ADDRESS_FIELD_REQUIRED", message); return result; }
 }

@@ -28,10 +28,10 @@ interface MedicationRequestRepository extends JpaRepository<MedicationRequest, L
             + "and request.performerOrganizationId = :performerOrganizationId and request.status = :status "
             + "and request.requestKind = 'MEDICATION' order by request.authoredAt")
     List<MedicationRequest> findByTenantIdAndPerformerOrganizationIdAndStatusOrderByAuthoredAt(
-            Long tenantId, Long performerOrganizationId, String status);
+            Long tenantId, Long performerOrganizationId, MedicationRequestStatus status);
     @Query("select request from MedicationRequest request where request.tenantId = :tenantId "
             + "and request.performerOrganizationId = :organizationId "
-            + "and request.performerDepartmentId = :departmentId and request.status = 'ACTIVE' "
+            + "and request.performerDepartmentId = :departmentId and request.status = com.rhn.outpatient.ordering.MedicationRequestStatus.ACTIVE "
             + "and request.requestKind = 'MEDICATION' order by request.authoredAt")
     List<MedicationRequest> findActiveForExecution(Long tenantId, Long organizationId, Long departmentId);
 }

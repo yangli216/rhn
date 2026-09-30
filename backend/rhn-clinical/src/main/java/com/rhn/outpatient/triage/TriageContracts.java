@@ -101,7 +101,7 @@ public class TriageContracts {
                     entity.getTargetDoctorName(),
                     entity.getGreenChannel(),
                     entity.getDisposition(),
-                    entity.getStatus(),
+                    entity.getStatus().name(),
                     entity.getNotes(),
                     entity.getCreatedAt(),
                     entity.getUpdatedAt()

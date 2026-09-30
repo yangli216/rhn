@@ -2,6 +2,7 @@ package com.rhn.treatment.application;
 
 import com.rhn.billing.api.RefundTreatmentDirectory;
 import com.rhn.treatment.domain.TreatmentExecutionItem;
+import com.rhn.treatment.domain.TreatmentExecutionTaskStatus;
 import com.rhn.treatment.infrastructure.TreatmentExecutionItemRepository;
 import com.rhn.treatment.infrastructure.TreatmentExecutionTaskRepository;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,8 @@ public class RefundTreatmentDirectoryService implements RefundTreatmentDirectory
         return treatmentItems.findByTenantIdAndSourceTypeAndSourceId(tenantId, "TREATMENT", treatmentSourceId)
                 .map(TreatmentExecutionItem::taskId)
                 .flatMap(treatmentTasks::findById)
-                .map(task -> "COMPLETED".equals(task.status()) || "IN_PROGRESS".equals(task.status()))
+                .map(task -> task.status() == TreatmentExecutionTaskStatus.COMPLETED
+                        || task.status() == TreatmentExecutionTaskStatus.IN_PROGRESS)
                 .orElse(false);
     }
 }

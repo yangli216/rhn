@@ -4,6 +4,8 @@ import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -22,7 +24,7 @@ class Prescription {
     @Column(name = "CD_GRP_NO", nullable = false) private String groupNo;
     @Column(name = "SD_GRP_TYPE", nullable = false) private String groupType;
     @Column(name = "CD_CAT") private String categoryCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PrescriptionStatus status;
     @Column(name = "ID_ORG_EXEC", nullable = false) private Long performerOrganizationId;
     @Column(name = "ID_DEPT_EXEC", nullable = false) private Long performerDepartmentId;
     @Column(name = "ID_ORG_REQ", nullable = false) private Long requestingOrganizationId;
@@ -45,7 +47,7 @@ class Prescription {
     String documentInfoJson() { return documentInfoJson; }
     void updateDocumentInfo(long expectedRevision, String json) {
         requireRevision(expectedRevision);
-        if (!"DRAFT".equals(status)) throw state("仅草稿处方可以修改单据信息");
+        if (status != PrescriptionStatus.DRAFT) throw state("仅草稿处方可以修改单据信息");
         documentInfoJson = json;
     }
 
@@ -55,7 +57,7 @@ class Prescription {
                  Long performerOrganizationId, Long performerDepartmentId, Long authoredBy, String note) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
         this.encounterId = encounterId; this.groupNo = groupNo; this.groupType = "PRESCRIPTION";
-        this.categoryCode = categoryCode; this.status = "DRAFT";
+        this.categoryCode = categoryCode; this.status = PrescriptionStatus.DRAFT;
         this.performerOrganizationId = performerOrganizationId;
         this.performerDepartmentId = performerDepartmentId;
         this.requestingOrganizationId = performerOrganizationId;
@@ -65,14 +67,14 @@ class Prescription {
 
     void submit(long expectedRevision, Long actorId) {
         requireRevision(expectedRevision);
-        if (!"DRAFT".equals(status)) throw state("只有草稿处方可以提交");
-        status = "ACTIVE"; submittedAt = Instant.now(); submittedBy = actorId;
+        if (status != PrescriptionStatus.DRAFT) throw state("只有草稿处方可以提交");
+        status = PrescriptionStatus.ACTIVE; submittedAt = Instant.now(); submittedBy = actorId;
     }
 
     void cancel(long expectedRevision, Long actorId, String reason) {
         requireRevision(expectedRevision);
-        if ("CANCELLED".equals(status)) throw state("处方已经撤销");
-        status = "CANCELLED"; cancelledAt = Instant.now(); cancelledBy = actorId; cancelReason = reason;
+        if (status == PrescriptionStatus.CANCELLED) throw state("处方已经撤销");
+        status = PrescriptionStatus.CANCELLED; cancelledAt = Instant.now(); cancelledBy = actorId; cancelReason = reason;
     }
 
     private void requireRevision(long expectedRevision) {
@@ -86,7 +88,7 @@ class Prescription {
 
     Long id() { return id; } long revision() { return revision; } Long tenantId() { return tenantId; }
     Long residentId() { return residentId; } Long encounterId() { return encounterId; } String groupNo() { return groupNo; }
-    String groupType() { return groupType; } String categoryCode() { return categoryCode; } String status() { return status; }
+    String groupType() { return groupType; } String categoryCode() { return categoryCode; } PrescriptionStatus status() { return status; }
     Long performerOrganizationId() { return performerOrganizationId; } Long performerDepartmentId() { return performerDepartmentId; }
     Long requestingOrganizationId() { return requestingOrganizationId; } Long requestingDepartmentId() { return requestingDepartmentId; }
     Instant authoredAt() { return authoredAt; } Long authoredBy() { return authoredBy; }

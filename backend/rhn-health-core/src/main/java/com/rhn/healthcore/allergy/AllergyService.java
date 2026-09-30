@@ -6,6 +6,7 @@ import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -79,7 +80,7 @@ class AllergyService implements AllergyDirectory {
                     AllergySnapshot snapshot = value.snapshot();
                     return substanceCode != null && snapshot.substanceCode() != null
                             ? substanceCode.equalsIgnoreCase(snapshot.substanceCode())
-                            : java.util.Objects.equals(clean(substanceDisplay), clean(snapshot.substanceDisplay()));
+                            : java.util.Objects.equals(Strings.trimToNull(substanceDisplay), Strings.trimToNull(snapshot.substanceDisplay()));
                 }).findFirst().orElse(null);
         if (existing != null) return existing.snapshot();
 
@@ -94,8 +95,8 @@ class AllergyService implements AllergyDirectory {
         RecordAllergyRequest input = new RecordAllergyRequest(encounterId, matchedTerm == null ? null : matchedTerm.id(),
                 "ALLERGY", "DRUG", "HIGH", null, "CLINICIAN",
                 matchedTerm == null ? null : matchedTerm.codeSystemUri(),
-                matchedTerm == null ? clean(substanceCode) : matchedTerm.code(),
-                matchedTerm == null ? clean(substanceDisplay) : matchedTerm.display(), clean(reactionText), onsetAt);
+                matchedTerm == null ? Strings.trimToNull(substanceCode) : matchedTerm.code(),
+                matchedTerm == null ? Strings.trimToNull(substanceDisplay) : matchedTerm.display(), Strings.trimToNull(reactionText), onsetAt);
         validate(input);
         long[] orgDept = resolveOrgAndDept(context.tenantId(), encounterId, context);
         AllergyIntolerance value = repository.saveAndFlush(new AllergyIntolerance(context.tenantId(), orgDept[0], orgDept[1], canonicalId,
@@ -174,8 +175,8 @@ class AllergyService implements AllergyDirectory {
     private RecordAllergyRequest normalized(RecordAllergyRequest value) {
         return new RecordAllergyRequest(value.encounterId(), value.allergenId(), upper(value.assertionType()), upper(value.categoryCode()),
                 upper(value.criticalityCode()), upper(value.reactionSeverity()), upper(value.informationSource()),
-                clean(value.substanceCodeSystemUri()), clean(value.substanceCode()), clean(value.substanceDisplay()),
-                clean(value.reactionText()), value.onsetAt());
+                Strings.trimToNull(value.substanceCodeSystemUri()), Strings.trimToNull(value.substanceCode()), Strings.trimToNull(value.substanceDisplay()),
+                Strings.trimToNull(value.reactionText()), value.onsetAt());
     }
 
     private RecordAllergyRequest standardized(Long tenantId, RecordAllergyRequest value) {
@@ -217,6 +218,5 @@ class AllergyService implements AllergyDirectory {
                 value.id(), value.revision(), value.residentId(), Instant.now(), payload);
     }
 
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-    private String upper(String value) { String cleaned = clean(value); return cleaned == null ? null : cleaned.toUpperCase(); }
+    private String upper(String value) { String cleaned = Strings.trimToNull(value); return cleaned == null ? null : cleaned.toUpperCase(); }
 }

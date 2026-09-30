@@ -2,6 +2,7 @@ package com.rhn.treatment.application;
 
 import com.rhn.treatment.api.TreatmentFlowDirectory;
 import com.rhn.treatment.domain.TreatmentExecutionTask;
+import com.rhn.treatment.domain.TreatmentExecutionTaskStatus;
 import com.rhn.treatment.infrastructure.TreatmentExecutionTaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,14 +41,14 @@ public class JpaTreatmentFlowDirectory implements TreatmentFlowDirectory {
         private int exception;
         private int completed;
 
-        void add(String status) {
+        void add(TreatmentExecutionTaskStatus status) {
             total++;
             switch (status) {
-                case "WAITING_SETTLEMENT" -> settlementBlocked++;
-                case "WAITING_DISPENSE" -> dispenseBlocked++;
-                case "READY" -> waiting++;
-                case "IN_PROGRESS" -> inProgress++;
-                case "EXCEPTION" -> exception++;
+                case WAITING_SETTLEMENT -> settlementBlocked++;
+                case WAITING_DISPENSE -> dispenseBlocked++;
+                case READY -> waiting++;
+                case IN_PROGRESS -> inProgress++;
+                case EXCEPTION -> exception++;
                 default -> completed++;
             }
         }

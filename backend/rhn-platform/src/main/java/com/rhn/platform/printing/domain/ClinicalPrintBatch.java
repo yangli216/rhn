@@ -4,6 +4,8 @@ import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
@@ -31,7 +33,7 @@ public class ClinicalPrintBatch {
     @Column(name = "SD_LAYOUT_STRAT", nullable = false) private String layoutStrategy;
     @Column(name = "SN_START_SLOT", nullable = false) private int startSlot;
     @Column(name = "ID_IDEMP", nullable = false) private String idempotencyKey;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private ClinicalPrintBatchStatus status;
     @Column(name = "QTY_SELCTD", nullable = false) private int selectedCount;
     @Column(name = "QTY_INCLD", nullable = false) private int includedCount;
     @Column(name = "QTY_EXCLD", nullable = false) private int excludedCount;
@@ -54,7 +56,8 @@ public class ClinicalPrintBatch {
         this.departmentId = departmentId; this.documentType = documentType; this.templateId = templateId;
         this.templateVersionId = templateVersionId; this.mediaProfileId = mediaProfileId; this.deviceId = deviceId;
         this.businessDate = businessDate; this.selectionJson = selectionJson; this.layoutStrategy = layoutStrategy;
-        this.startSlot = startSlot; this.idempotencyKey = idempotencyKey; this.status = "BUILDING";
+        this.startSlot = startSlot; this.idempotencyKey = idempotencyKey;
+        this.status = ClinicalPrintBatchStatus.BUILDING;
         this.selectedCount = selectedCount; this.createdAt = now; this.createdBy = actorId;
         this.updatedAt = now; this.updatedBy = actorId;
     }
@@ -62,17 +65,18 @@ public class ClinicalPrintBatch {
     public void generated(Long outputId, Long jobId, int includedCount, int excludedCount, int pageCount, Long actorId) {
         this.outputId = outputId; this.jobId = jobId; this.includedCount = includedCount;
         this.excludedCount = excludedCount; this.pageCount = pageCount;
-        this.status = excludedCount > 0 ? "PARTIAL" : "GENERATED"; touch(actorId);
+        this.status = excludedCount > 0 ? ClinicalPrintBatchStatus.PARTIAL : ClinicalPrintBatchStatus.GENERATED;
+        touch(actorId);
     }
 
-    public void queued(Long actorId) { requireDispatchable(); this.status = "QUEUED"; touch(actorId); }
-    public void sent(Long actorId) { requireDispatchable(); this.status = "SENT"; touch(actorId); }
-    public void confirmed(Long actorId) { this.status = "DEVICE_CONFIRMED"; touch(actorId); }
-    public void failed(Long actorId) { this.status = "FAILED"; touch(actorId); }
+    public void queued(Long actorId) { requireDispatchable(); this.status = ClinicalPrintBatchStatus.QUEUED; touch(actorId); }
+    public void sent(Long actorId) { requireDispatchable(); this.status = ClinicalPrintBatchStatus.SENT; touch(actorId); }
+    public void confirmed(Long actorId) { this.status = ClinicalPrintBatchStatus.DEVICE_CONFIRMED; touch(actorId); }
+    public void failed(Long actorId) { this.status = ClinicalPrintBatchStatus.FAILED; touch(actorId); }
 
     private void requireDispatchable() {
-        if (!("GENERATED".equals(status) || "PARTIAL".equals(status) || "QUEUED".equals(status)
-                || "FAILED".equals(status))) {
+        if (status != ClinicalPrintBatchStatus.GENERATED && status != ClinicalPrintBatchStatus.PARTIAL
+                && status != ClinicalPrintBatchStatus.QUEUED && status != ClinicalPrintBatchStatus.FAILED) {
             throw new BusinessException("PRINT_BATCH_STATE_INVALID", "当前打印批次不能再次投递", HttpStatus.CONFLICT);
         }
     }
@@ -93,7 +97,7 @@ public class ClinicalPrintBatch {
     public String layoutStrategy() { return layoutStrategy; }
     public int startSlot() { return startSlot; }
     public String idempotencyKey() { return idempotencyKey; }
-    public String status() { return status; }
+    public ClinicalPrintBatchStatus status() { return status; }
     public int selectedCount() { return selectedCount; }
     public int includedCount() { return includedCount; }
     public int excludedCount() { return excludedCount; }

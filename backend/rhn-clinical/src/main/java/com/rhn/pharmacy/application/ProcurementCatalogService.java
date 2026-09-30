@@ -3,6 +3,7 @@ package com.rhn.pharmacy.application;
 import com.rhn.pharmacy.api.ProcurementCatalogDirectory;
 import com.rhn.pharmacy.domain.PurchaseOrder;
 import com.rhn.pharmacy.domain.PurchaseOrderLine;
+import com.rhn.pharmacy.domain.PurchaseOrderStatus;
 import com.rhn.pharmacy.domain.StockItem;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.domain.Supplier;
@@ -88,7 +89,7 @@ public class ProcurementCatalogService implements ProcurementCatalogDirectory {
         LocalDate date = businessDate == null ? LocalDate.now() : businessDate;
         PurchaseOrder order = orders.findByIdAndTenantId(purchaseOrderId, tenantId)
                 .orElseThrow(() -> notFound("PURCHASE_ORDER_NOT_FOUND", "未找到采购单"));
-        if (!Set.of("APPROVED", "PARTIALLY_RECEIVED").contains(order.status())) return List.of();
+        if (!Set.of(PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PARTIALLY_RECEIVED).contains(order.status())) return List.of();
         StockSite site = requireSite(tenantId, order.stockSiteId(), date);
         Map<Long, PurchaseOrderLine> lineByStockItem = orderLines
                 .findByTenantIdAndPurchaseOrderIdOrderBySortOrder(tenantId, purchaseOrderId).stream()

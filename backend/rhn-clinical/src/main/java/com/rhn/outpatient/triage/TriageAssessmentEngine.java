@@ -85,7 +85,7 @@ public class TriageAssessmentEngine implements OutpatientTriageAssessmentDirecto
         } else if (between(input.bloodGlucose(), 2.8, 3.9)
                 || between(input.bloodGlucose(), 11.1, 16.7)) warning = true;
 
-        String clinicalText = (clean(input.chiefComplaint()) + " " + clean(input.symptoms())).toLowerCase(Locale.ROOT);
+        String clinicalText = (textOrEmpty(input.chiefComplaint()) + " " + textOrEmpty(input.symptoms())).toLowerCase(Locale.ROOT);
         boolean stroke = containsAny(clinicalText, "偏瘫", "口角歪斜", "言语不清", "突发肢体麻木");
         boolean chest = containsAny(clinicalText, "胸骨后压榨", "胸部压榨", "心前区压榨", "胸痛伴大汗");
         boolean severeBreathing = containsAny(clinicalText, "严重呼吸困难", "窒息", "咯血不止");
@@ -111,7 +111,7 @@ public class TriageAssessmentEngine implements OutpatientTriageAssessmentDirecto
 
     private List<DepartmentRecommendation> localRecommendations(BaselineInput input,
                                                                 List<DepartmentAvailability> departments) {
-        String text = (clean(input.chiefComplaint()) + " " + clean(input.symptoms())).toLowerCase(Locale.ROOT);
+        String text = (textOrEmpty(input.chiefComplaint()) + " " + textOrEmpty(input.symptoms())).toLowerCase(Locale.ROOT);
         LinkedHashMap<Long, DepartmentRecommendation> result = new LinkedHashMap<>();
         if (input.age() != null && input.age() < 14) addMatching(result, departments,
                 List.of("儿科"), 96, "儿童患者优先匹配儿科接诊资源", null);
@@ -197,5 +197,5 @@ public class TriageAssessmentEngine implements OutpatientTriageAssessmentDirecto
     private static void add(List<String> values, String value) {
         if (!values.contains(value)) values.add(value);
     }
-    private static String clean(String value) { return value == null ? "" : value.trim(); }
+    private static String textOrEmpty(String value) { return value == null ? "" : value.trim(); }
 }

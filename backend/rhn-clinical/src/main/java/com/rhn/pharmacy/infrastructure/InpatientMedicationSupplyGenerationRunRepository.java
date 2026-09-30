@@ -25,7 +25,7 @@ public interface InpatientMedicationSupplyGenerationRunRepository
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select value from InpatientMedicationSupplyGenerationRun value
-             where value.status in ('PENDING', 'FAILED', 'RUNNING')
+             where value.status in (com.rhn.pharmacy.domain.InpatientMedicationSupplyGenerationRunStatus.PENDING, com.rhn.pharmacy.domain.InpatientMedicationSupplyGenerationRunStatus.FAILED, com.rhn.pharmacy.domain.InpatientMedicationSupplyGenerationRunStatus.RUNNING)
                and value.nextAttemptAt <= :now
                and (value.claimedUntil is null or value.claimedUntil < :now)
              order by value.createdAt

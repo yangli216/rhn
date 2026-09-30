@@ -485,7 +485,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 BigDecimal actualNum = new BigDecimal(actualNode.asString());
                 BigDecimal expectedNum = new BigDecimal(cleanExpected);
                 return actualNum.compareTo(expectedNum) == 0;
-            } catch (Exception ignored) {
+            } catch (NumberFormatException ignored) {
                 return actualNode.asString().equalsIgnoreCase(cleanExpected);
             }
         }
@@ -1065,6 +1065,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 dependencySatisfied = isDependencySatisfied(current().tenantId(), current().subjectId(), null, null, null, null, null,
                         value.dependsOnKey(), value.dependsOnValue());
             } catch (Exception ignored) {
+                // 依赖项无法求值时按“未满足”展示，避免参数定义页整体加载失败。
                 dependencySatisfied = false;
             }
         }

@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -40,13 +41,13 @@ public class ItemTypeAttribute {
                              String visibleConditionJson, String requiredConditionJson,
                              boolean searchable, boolean listDisplay, Long actorId) {
         this.id = GlobalIds.next();
-        this.itemTypeId = requireId(itemTypeId, "项目类型");
-        this.attributeDefinitionId = requireId(definitionId, "属性定义");
+        this.itemTypeId = Strings.requireId(itemTypeId, "项目类型");
+        this.attributeDefinitionId = Strings.requireId(definitionId, "属性定义");
         apply(requiredValue, defaultJson, widgetType, groupName, groupSortOrder, attributeSortOrder,
                 visibleConditionJson, requiredConditionJson, searchable, listDisplay);
         this.status = "ACTIVE";
         this.createdAt = Instant.now();
-        this.createdBy = requireId(actorId, "操作用户");
+        this.createdBy = Strings.requireId(actorId, "操作用户");
         this.updatedAt = createdAt;
         this.updatedBy = actorId;
     }
@@ -75,20 +76,20 @@ public class ItemTypeAttribute {
                        String requiredConditionJson, boolean searchable, boolean listDisplay) {
         if (groupSortOrder < 0 || attributeSortOrder < 0) throw new IllegalArgumentException("属性排序不能小于 0");
         this.requiredValue = requiredValue;
-        this.defaultJson = optionalText(defaultJson, 20000);
-        this.widgetType = requireText(widgetType, "控件类型", 32);
-        this.groupName = optionalText(groupName, 200);
+        this.defaultJson = Strings.optionalText(defaultJson, 20000);
+        this.widgetType = Strings.requireText(widgetType, "控件类型", 32);
+        this.groupName = Strings.optionalText(groupName, 200);
         this.groupSortOrder = groupSortOrder;
         this.attributeSortOrder = attributeSortOrder;
-        this.visibleConditionJson = optionalText(visibleConditionJson, 20000);
-        this.requiredConditionJson = optionalText(requiredConditionJson, 20000);
+        this.visibleConditionJson = Strings.optionalText(visibleConditionJson, 20000);
+        this.requiredConditionJson = Strings.optionalText(requiredConditionJson, 20000);
         this.searchable = searchable;
         this.listDisplay = listDisplay;
     }
 
     private void touch(Long actorId) {
         this.updatedAt = Instant.now();
-        this.updatedBy = requireId(actorId, "操作用户");
+        this.updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     private void requireRevision(long expectedRevision) {
@@ -111,22 +112,4 @@ public class ItemTypeAttribute {
     public boolean listDisplay() { return listDisplay; }
     public String status() { return status; }
 
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
-    private static String requireText(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
-    }
-
-    private static String optionalText(String value, int max) {
-        if (value == null || value.isBlank()) return null;
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException("文本长度不能超过" + max);
-        return result;
-    }
 }

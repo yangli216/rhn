@@ -1,6 +1,7 @@
 package com.rhn.ai.application;
 
 import com.rhn.platform.masterdata.api.ClinicalDoseUnits;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -52,12 +53,12 @@ public class MedicationIntentParser {
         String frequency = firstCode(lower, FREQUENCIES);
         String route = firstCode(source, ROUTES);
         List<String> ingredients = splitIngredients(medicationName);
-        return new ParsedMedication(medicationName, clean(name), ingredients, doseValue, doseUnit,
+        return new ParsedMedication(medicationName, Strings.trimToNull(name), ingredients, doseValue, doseUnit,
                 route, frequency, durationValue, durationUnit, quantityValue, quantityUnit, source);
     }
 
     private String cleanMedicationName(String value) {
-        String clean = clean(value);
+        String clean = Strings.trimToNull(value);
         if (clean == null) return null;
         clean = DOSE.matcher(clean).replaceAll("");
         for (String token : FREQUENCIES.keySet()) clean = clean.replaceAll("(?i)" + Pattern.quote(token), "");
@@ -89,9 +90,8 @@ public class MedicationIntentParser {
     }
 
     private BigDecimal decimal(String value) { return new BigDecimal(value).stripTrailingZeros(); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String join(String left, String right) {
-        return (clean(left) == null ? "" : clean(left)) + " " + (clean(right) == null ? "" : clean(right));
+        return (Strings.trimToNull(left) == null ? "" : Strings.trimToNull(left)) + " " + (Strings.trimToNull(right) == null ? "" : Strings.trimToNull(right));
     }
 
     public record ParsedMedication(String medicationName, String productHint, List<String> ingredientMentions,

@@ -4,6 +4,7 @@ import com.rhn.billing.domain.CashierClose;
 import com.rhn.billing.domain.CashierCloseEvent;
 import com.rhn.billing.domain.CashierCloseItem;
 import com.rhn.billing.domain.CashierCloseLine;
+import com.rhn.billing.domain.CashierCloseStatus;
 import com.rhn.billing.domain.Payment;
 import com.rhn.billing.infrastructure.CashierCloseEventRepository;
 import com.rhn.billing.infrastructure.CashierCloseItemRepository;
@@ -13,6 +14,7 @@ import com.rhn.billing.infrastructure.PaymentRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import com.rhn.platform.identityaccess.api.IdentityAccessDirectory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,7 +80,7 @@ public class CashierCloseApplicationService {
             throw badRequest("CASHIER_CLOSE_RANGE_TOO_LARGE", "单次日结范围不能超过31天");
         }
         if (!closes.findOverlapping(context.tenantId(), context.organizationId(), context.subjectId(), terminalCode,
-                rangeFrom, rangeTo).isEmpty()) {
+                rangeFrom, rangeTo, List.of(CashierCloseStatus.CALCULATED, CashierCloseStatus.CONFIRMED)).isEmpty()) {
             throw conflict("CASHIER_CLOSE_RANGE_OVERLAP", "当前收费员和终端存在重叠的有效日结");
         }
         List<Payment> eligible = payments.findUnclosedForCashier(context.tenantId(), context.organizationId(),
@@ -111,7 +113,7 @@ public class CashierCloseApplicationService {
         String closeNo = "CC" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6);
         Long deptId = context.departmentId() != null ? context.departmentId() : 1L;
         CashierClose close = closes.save(new CashierClose(context.tenantId(), context.organizationId(), deptId,
-                context.subjectId(), null, closeNo, commandCode, terminalCode, "CALCULATED", rangeFrom, rangeTo,
+                context.subjectId(), null, closeNo, commandCode, terminalCode, CashierCloseStatus.CALCULATED, rangeFrom, rangeTo,
                 eligible.size(), expectedTotal, actualTotal, money(actualTotal.subtract(expectedTotal)), currency,
                 context.subjectId()));
         int lineNo = 1;
@@ -133,9 +135,9 @@ public class CashierCloseApplicationService {
         ExecutionContext context = requireContext();
         CashierClose close = lock(closeId, context);
         String commandCode = required(input.commandCode(), "CASHIER_CLOSE_CONFIRM_COMMAND_REQUIRED", "确认命令不能为空");
-        if ("CONFIRMED".equals(close.status())) return view(close, true);
-        if (!"CALCULATED".equals(close.status())) throw conflict("CASHIER_CLOSE_STATUS_INVALID", "只有已计算日结可以确认");
-        String reason = clean(input.differenceReason());
+        if (close.status() == CashierCloseStatus.CONFIRMED) return view(close, true);
+        if (close.status() != CashierCloseStatus.CALCULATED) throw conflict("CASHIER_CLOSE_STATUS_INVALID", "只有已计算日结可以确认");
+        String reason = Strings.trimToNull(input.differenceReason());
         if (close.differenceAmount().signum() != 0 && reason == null) {
             throw badRequest("CASHIER_CLOSE_DIFFERENCE_REASON_REQUIRED", "日结存在实收差异，必须填写差异原因");
         }
@@ -152,11 +154,11 @@ public class CashierCloseApplicationService {
         CashierClose existing = closes.findByTenantIdAndCommandCode(context.tenantId(), commandCode).orElse(null);
         if (existing != null) return view(existing, true);
         CashierClose original = lock(closeId, context);
-        if (!"CONFIRMED".equals(original.status())) throw conflict("CASHIER_CLOSE_NOT_REVERSIBLE", "只有已确认日结可以撤销");
+        if (original.status() != CashierCloseStatus.CONFIRMED) throw conflict("CASHIER_CLOSE_NOT_REVERSIBLE", "只有已确认日结可以撤销");
         String reason = required(input.reason(), "CASHIER_CLOSE_REVERSE_REASON_REQUIRED", "撤销日结必须填写原因");
         String closeNo = "CR" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6);
         CashierClose reversal = closes.save(new CashierClose(context.tenantId(), context.organizationId(),
-                original.departmentId(), original.cashierUserId(), original.id(), closeNo, commandCode, original.terminalCode(), "CONFIRMED",
+                original.departmentId(), original.cashierUserId(), original.id(), closeNo, commandCode, original.terminalCode(), CashierCloseStatus.CONFIRMED,
                 original.rangeFrom(), original.rangeTo(), original.transactionCount(), original.expectedAmount().negate(),
                 original.actualAmount().negate(), original.differenceAmount().negate(), original.currencyCode(),
                 context.subjectId()));
@@ -195,7 +197,7 @@ public class CashierCloseApplicationService {
                 line.paymentMethodCode(), line.closeLineType(), line.transactionCount(), line.expectedAmount(),
                 line.actualAmount(), line.differenceAmount(), line.currencyCode())).toList();
         return new CashierCloseView(close.id(), close.revision(), close.reversesCloseId(), close.closeNo(),
-                close.commandCode(), close.organizationId(), close.cashierUserId(), close.terminalCode(), close.status(),
+                close.commandCode(), close.organizationId(), close.cashierUserId(), close.terminalCode(), close.status().name(),
                 close.rangeFrom(), close.rangeTo(), close.transactionCount(), close.expectedAmount(), close.actualAmount(),
                 close.differenceAmount(), close.currencyCode(), close.differenceReason(), close.createdAt(),
                 close.confirmedAt(), duplicate, lineViews);
@@ -218,7 +220,7 @@ public class CashierCloseApplicationService {
         }
     }
     private void verifySame(CashierClose close, CalculateCommand input) {
-        if (!Objects.equals(close.terminalCode(), clean(input.terminalCode()))
+        if (!Objects.equals(close.terminalCode(), Strings.trimToNull(input.terminalCode()))
                 || !Objects.equals(close.rangeFrom(), input.rangeFrom()) || !Objects.equals(close.rangeTo(), input.rangeTo())) {
             throw conflict("CASHIER_CLOSE_COMMAND_REUSED", "日结幂等命令已被不同范围或终端使用");
         }
@@ -246,10 +248,9 @@ public class CashierCloseApplicationService {
     }
     private BigDecimal zero() { return BigDecimal.ZERO.setScale(6); }
     private BigDecimal money(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-    private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(); }
+    private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(); }
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
 
     private record LineKey(String paymentMethodCode, String paymentType) {}

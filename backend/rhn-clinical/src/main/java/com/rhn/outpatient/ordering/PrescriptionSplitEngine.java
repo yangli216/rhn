@@ -5,6 +5,7 @@ import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.MedicationSnapshot;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory.RouteSnapshot;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -44,38 +45,58 @@ public class PrescriptionSplitEngine {
                 : LocalDate.now();
 
         // 1. 结构化解析每个药品医嘱项
+        List<ItemMeta> metas = buildItemMetas(tenantId, items, businessDate);
+
+        // 2. 多维分流桶划分
+        BucketPartition partition = partitionBuckets(metas);
+        List<ItemMeta> singleOrderItems = partition.singleOrderItems();
+
+        List<SplitPrescriptionPlan> plans = new ArrayList<>();
+
+        // 3. 处理普通桶装箱
+        planNormalBuckets(partition.normalBuckets(), plans);
+
+        // 4. 处理单列医嘱专方 (Single Order)
+        planSingleOrderItems(singleOrderItems, plans);
+
+        return plans;
+    }
+
+    private List<ItemMeta> buildItemMetas(Long tenantId, List<BatchOrderMedicationItem> items, LocalDate businessDate) {
         List<ItemMeta> metas = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
             BatchOrderMedicationItem item = items.get(i);
             MedicationSnapshot med = item.medicationId() != null
                     ? catalogDirectory.requireMedication(tenantId, item.medicationId())
                     : null;
-            String category = clean(item.categoryCode());
+            String category = Strings.trimToNull(item.categoryCode());
             if (category == null && med != null) {
                 category = med.medicationType();
             }
             if (category == null) category = "WESTERN";
 
-            String routeCode = clean(item.routeCode());
+            String routeCode = Strings.trimToNull(item.routeCode());
             RouteSnapshot route = routeCode != null
                     ? routeDirectory.resolveActive(tenantId, routeCode, "OUTPATIENT", businessDate).orElse(null)
                     : null;
 
-            boolean isInfusion = "INFUSION".equalsIgnoreCase(clean(item.routeExecutionType()))
+            boolean isInfusion = "INFUSION".equalsIgnoreCase(Strings.trimToNull(item.routeExecutionType()))
                     || (route != null && route.infusion());
 
             boolean singleOrder = med != null && med.singleOrder();
 
             Long stockSiteId = item.stockSiteId() != null ? item.stockSiteId() : 0L;
-            String stockSiteName = clean(item.stockSiteName()) != null ? clean(item.stockSiteName()) : "默认药房";
+            String stockSiteName = Strings.trimToNull(item.stockSiteName()) != null ? Strings.trimToNull(item.stockSiteName()) : "默认药房";
 
-            String adminKey = clean(item.administrationGroupKey());
+            String adminKey = Strings.trimToNull(item.administrationGroupKey());
 
             metas.add(new ItemMeta(i, item, med, category, isInfusion, singleOrder,
                     stockSiteId, stockSiteName, adminKey));
         }
+        return metas;
+    }
 
-        // 2. 多维分流桶划分
+    private BucketPartition partitionBuckets(List<ItemMeta> metas) {
         Map<String, List<ItemMeta>> normalBuckets = new LinkedHashMap<>();
         List<ItemMeta> singleOrderItems = new ArrayList<>();
 
@@ -96,10 +117,10 @@ public class PrescriptionSplitEngine {
             }
             normalBuckets.computeIfAbsent(bucketKey, k -> new ArrayList<>()).add(meta);
         }
+        return new BucketPartition(normalBuckets, singleOrderItems);
+    }
 
-        List<SplitPrescriptionPlan> plans = new ArrayList<>();
-
-        // 3. 处理普通桶装箱
+    private void planNormalBuckets(Map<String, List<ItemMeta>> normalBuckets, List<SplitPrescriptionPlan> plans) {
         for (Map.Entry<String, List<ItemMeta>> entry : normalBuckets.entrySet()) {
             List<ItemMeta> bucketItems = entry.getValue();
             if (bucketItems.isEmpty()) continue;
@@ -107,14 +128,7 @@ public class PrescriptionSplitEngine {
 
             // 如果是草药桶，一剂成方，不限5种
             if ("HERBAL".equalsIgnoreCase(first.category())) {
-                List<SplitPrescriptionPlan.PlannedMedicationItem> planned = bucketItems.stream()
-                        .map(m -> new SplitPrescriptionPlan.PlannedMedicationItem(m.item(), false, null))
-                        .toList();
-                List<String> reasons = new ArrayList<>();
-                reasons.add("草药饮片专方");
-                if (first.stockSiteId() > 0) reasons.add("发药药房隔离（" + first.stockSiteName() + "）");
-                plans.add(new SplitPrescriptionPlan("HERBAL", "门诊草药处方", first.stockSiteId(),
-                        first.stockSiteName(), "HERBAL", reasons, planned));
+                plans.add(buildHerbalPlan(bucketItems, first));
                 continue;
             }
 
@@ -125,56 +139,71 @@ public class PrescriptionSplitEngine {
             List<List<AtomicUnit>> prescriptionBins = packUnits(units);
 
             for (int pIdx = 0; pIdx < prescriptionBins.size(); pIdx++) {
-                List<AtomicUnit> bin = prescriptionBins.get(pIdx);
-                List<SplitPrescriptionPlan.PlannedMedicationItem> planned = new ArrayList<>();
-                boolean hasInfusionGroup = false;
+                plans.add(buildRegularBinPlan(first, prescriptionBins.get(pIdx), pIdx, prescriptionBins.size()));
+            }
+        }
+    }
 
-                for (AtomicUnit unit : bin) {
-                    if (unit.items().size() > 1) hasInfusionGroup = true;
-                    for (int uIdx = 0; uIdx < unit.items().size(); uIdx++) {
-                        ItemMeta m = unit.items().get(uIdx);
-                        planned.add(new SplitPrescriptionPlan.PlannedMedicationItem(
-                                m.item(),
-                                uIdx == 0 && unit.items().size() > 1, // 首条为组头
-                                unit.groupKey()
-                        ));
-                    }
-                }
+    private SplitPrescriptionPlan buildHerbalPlan(List<ItemMeta> bucketItems, ItemMeta first) {
+        List<SplitPrescriptionPlan.PlannedMedicationItem> planned = bucketItems.stream()
+                .map(m -> new SplitPrescriptionPlan.PlannedMedicationItem(m.item(), false, null))
+                .toList();
+        List<String> reasons = new ArrayList<>();
+        reasons.add("草药饮片专方");
+        if (first.stockSiteId() > 0) reasons.add("发药药房隔离（" + first.stockSiteName() + "）");
+        return new SplitPrescriptionPlan("HERBAL", "门诊草药处方", first.stockSiteId(),
+                first.stockSiteName(), "HERBAL", reasons, planned);
+    }
 
-                List<String> reasons = new ArrayList<>();
-                String title;
-                if (first.isInfusion()) {
-                    title = "门诊输液处方";
-                    reasons.add("静脉输液途径隔离");
-                    if (hasInfusionGroup) reasons.add("同组输液原子性保护");
-                } else if ("CHINESE_PATENT".equalsIgnoreCase(first.category())) {
-                    title = "门诊中成药处方";
-                    reasons.add("中成药分类专方");
-                } else {
-                    title = "门诊西药处方";
-                    reasons.add("西药分类专方");
-                }
-                if (first.stockSiteId() > 0) {
-                    reasons.add("发药药房隔离（" + first.stockSiteName() + "）");
-                }
-                if (prescriptionBins.size() > 1) {
-                    reasons.add("单方5种容量限制分方（第 " + (pIdx + 1) + " 张）");
-                    title += " " + (pIdx + 1);
-                }
+    private SplitPrescriptionPlan buildRegularBinPlan(ItemMeta first, List<AtomicUnit> bin, int pIdx, int binCount) {
+        List<SplitPrescriptionPlan.PlannedMedicationItem> planned = new ArrayList<>();
+        boolean hasInfusionGroup = false;
 
-                plans.add(new SplitPrescriptionPlan(
-                        first.category(),
-                        title,
-                        first.stockSiteId(),
-                        first.stockSiteName(),
-                        first.isInfusion() ? "INFUSION" : "ORAL",
-                        reasons,
-                        planned
+        for (AtomicUnit unit : bin) {
+            if (unit.items().size() > 1) hasInfusionGroup = true;
+            for (int uIdx = 0; uIdx < unit.items().size(); uIdx++) {
+                ItemMeta m = unit.items().get(uIdx);
+                planned.add(new SplitPrescriptionPlan.PlannedMedicationItem(
+                        m.item(),
+                        uIdx == 0 && unit.items().size() > 1, // 首条为组头
+                        unit.groupKey()
                 ));
             }
         }
 
-        // 4. 处理单列医嘱专方 (Single Order)
+        List<String> reasons = new ArrayList<>();
+        String title;
+        if (first.isInfusion()) {
+            title = "门诊输液处方";
+            reasons.add("静脉输液途径隔离");
+            if (hasInfusionGroup) reasons.add("同组输液原子性保护");
+        } else if ("CHINESE_PATENT".equalsIgnoreCase(first.category())) {
+            title = "门诊中成药处方";
+            reasons.add("中成药分类专方");
+        } else {
+            title = "门诊西药处方";
+            reasons.add("西药分类专方");
+        }
+        if (first.stockSiteId() > 0) {
+            reasons.add("发药药房隔离（" + first.stockSiteName() + "）");
+        }
+        if (binCount > 1) {
+            reasons.add("单方5种容量限制分方（第 " + (pIdx + 1) + " 张）");
+            title += " " + (pIdx + 1);
+        }
+
+        return new SplitPrescriptionPlan(
+                first.category(),
+                title,
+                first.stockSiteId(),
+                first.stockSiteName(),
+                first.isInfusion() ? "INFUSION" : "ORAL",
+                reasons,
+                planned
+        );
+    }
+
+    private void planSingleOrderItems(List<ItemMeta> singleOrderItems, List<SplitPrescriptionPlan> plans) {
         for (ItemMeta s : singleOrderItems) {
             String title = "门诊专方（" + (s.med() != null ? s.med().name() : "单列医嘱") + "）";
             List<String> reasons = List.of("单列药品一药一方", "发药药房隔离（" + s.stockSiteName() + "）");
@@ -188,8 +217,6 @@ public class PrescriptionSplitEngine {
                     List.of(new SplitPrescriptionPlan.PlannedMedicationItem(s.item(), false, null))
             ));
         }
-
-        return plans;
     }
 
     private List<AtomicUnit> packageUnits(List<ItemMeta> bucketItems) {
@@ -241,10 +268,6 @@ public class PrescriptionSplitEngine {
         return bins;
     }
 
-    private String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
-
     private record ItemMeta(
             int index,
             BatchOrderMedicationItem item,
@@ -260,5 +283,10 @@ public class PrescriptionSplitEngine {
     private record AtomicUnit(
             String groupKey,
             List<ItemMeta> items
+    ) {}
+
+    private record BucketPartition(
+            Map<String, List<ItemMeta>> normalBuckets,
+            List<ItemMeta> singleOrderItems
     ) {}
 }

@@ -1,8 +1,11 @@
 package com.rhn.pharmacy.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -24,7 +27,7 @@ public class WardDeliveryLine {
     @Column(name = "QTY_EXPCTD", nullable = false, precision = 28, scale = 8) private BigDecimal expectedQuantity;
     @Column(name = "QTY_RECVD", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
     @Column(name = "CD_UNIT", nullable = false) private String unitCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private WardDeliveryLineStatus status;
     @Column(name = "CD_DSCRPN") private String discrepancyCode;
     @Column(name = "DES_DSCRPN_NOTE") private String discrepancyNote;
 
@@ -37,31 +40,26 @@ public class WardDeliveryLine {
         this.dispenseId = dispenseId; this.residentId = residentId; this.encounterId = encounterId;
         this.residentNameSnapshot = residentNameSnapshot; this.medicationNameSnapshot = medicationNameSnapshot;
         this.expectedQuantity = expectedQuantity; this.receivedQuantity = BigDecimal.ZERO;
-        this.unitCode = unitCode; this.status = "PENDING";
+        this.unitCode = unitCode; this.status = WardDeliveryLineStatus.PENDING;
     }
 
     public boolean receive(BigDecimal quantity, String exceptionCode, String note) {
         if (quantity == null || quantity.signum() < 0 || quantity.compareTo(expectedQuantity) > 0) {
             throw badRequest("WARD_DELIVERY_RECEIPT_QUANTITY_INVALID", "病区签收数量必须在零到应收数量之间");
         }
-        String code = clean(exceptionCode);
+        String code = Strings.trimToNull(exceptionCode);
         if (quantity.compareTo(expectedQuantity) == 0 && code == null) {
-            status = "MATCHED"; discrepancyCode = null; discrepancyNote = null;
+            status = WardDeliveryLineStatus.MATCHED; discrepancyCode = null; discrepancyNote = null;
         } else if (quantity.compareTo(expectedQuantity) < 0) {
-            status = "SHORTAGE"; discrepancyCode = code == null ? "SHORTAGE" : code; discrepancyNote = clean(note);
+            status = WardDeliveryLineStatus.SHORTAGE; discrepancyCode = code == null ? "SHORTAGE" : code; discrepancyNote = Strings.trimToNull(note);
         } else {
-            status = "REJECTED"; discrepancyCode = code; discrepancyNote = clean(note);
+            status = WardDeliveryLineStatus.REJECTED; discrepancyCode = code; discrepancyNote = Strings.trimToNull(note);
         }
         receivedQuantity = quantity;
-        if (!"MATCHED".equals(status) && discrepancyNote == null) {
+        if (status != WardDeliveryLineStatus.MATCHED && discrepancyNote == null) {
             throw badRequest("WARD_DELIVERY_DISCREPANCY_NOTE_REQUIRED", "签收数量或实物不一致时必须填写差异说明");
         }
-        return !"MATCHED".equals(status);
-    }
-
-    private static String clean(String value) {
-        if (value == null || value.isBlank()) return null;
-        return value.trim();
+        return status != WardDeliveryLineStatus.MATCHED;
     }
 
     public Long id() { return id; }
@@ -75,7 +73,7 @@ public class WardDeliveryLine {
     public BigDecimal expectedQuantity() { return expectedQuantity; }
     public BigDecimal receivedQuantity() { return receivedQuantity; }
     public String unitCode() { return unitCode; }
-    public String status() { return status; }
+    public WardDeliveryLineStatus status() { return status; }
     public String discrepancyCode() { return discrepancyCode; }
     public String discrepancyNote() { return discrepancyNote; }
 }

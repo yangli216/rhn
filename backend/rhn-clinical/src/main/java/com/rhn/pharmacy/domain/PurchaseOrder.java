@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -21,7 +23,7 @@ public class PurchaseOrder {
     @Column(name = "ID_SUPPL", nullable = false) private Long supplierId;
     @Column(name = "CD_ORDER_NO", nullable = false) private String orderNo;
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PurchaseOrderStatus status;
     @Column(name = "DA_ORDER", nullable = false) private LocalDate orderDate;
     @Column(name = "DA_EXPCTD") private LocalDate expectedDate;
     @Column(name = "DT_SUBMTD") private Instant submittedAt;
@@ -42,35 +44,38 @@ public class PurchaseOrder {
                          String description, Long actorId) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.stockSiteId = stockSiteId; this.supplierId = supplierId; this.orderNo = orderNo;
-        this.requestCode = requestCode; this.status = "DRAFT"; this.orderDate = orderDate;
+        this.requestCode = requestCode; this.status = PurchaseOrderStatus.DRAFT; this.orderDate = orderDate;
         this.expectedDate = expectedDate; this.description = description; this.createdAt = Instant.now();
         this.createdBy = actorId; this.updatedAt = createdAt; this.updatedBy = actorId;
     }
 
     public void submit(Long actorId) {
-        requireStatus("DRAFT"); status = "SUBMITTED"; submittedAt = Instant.now(); submittedBy = actorId;
+        requireStatus(PurchaseOrderStatus.DRAFT); status = PurchaseOrderStatus.SUBMITTED;
+        submittedAt = Instant.now(); submittedBy = actorId;
         touch(actorId);
     }
 
     public void approve(Long actorId, String reason) {
-        requireStatus("SUBMITTED"); status = "APPROVED"; approvedAt = Instant.now(); approvedBy = actorId;
+        requireStatus(PurchaseOrderStatus.SUBMITTED); status = PurchaseOrderStatus.APPROVED;
+        approvedAt = Instant.now(); approvedBy = actorId;
         approvalReason = reason; touch(actorId);
     }
 
     public void reject(Long actorId, String reason) {
-        requireStatus("SUBMITTED"); status = "REJECTED"; approvedAt = Instant.now(); approvedBy = actorId;
+        requireStatus(PurchaseOrderStatus.SUBMITTED); status = PurchaseOrderStatus.REJECTED;
+        approvedAt = Instant.now(); approvedBy = actorId;
         approvalReason = reason; touch(actorId);
     }
 
     public void updateReceiptProgress(boolean complete, Long actorId) {
-        if (!"APPROVED".equals(status) && !"PARTIALLY_RECEIVED".equals(status)) {
+        if (status != PurchaseOrderStatus.APPROVED && status != PurchaseOrderStatus.PARTIALLY_RECEIVED) {
             throw new IllegalStateException("采购订单当前状态不能接收入库");
         }
-        status = complete ? "COMPLETED" : "PARTIALLY_RECEIVED"; touch(actorId);
+        status = complete ? PurchaseOrderStatus.COMPLETED : PurchaseOrderStatus.PARTIALLY_RECEIVED; touch(actorId);
     }
 
-    private void requireStatus(String expected) {
-        if (!expected.equals(status)) throw new IllegalStateException("采购订单状态不允许当前操作");
+    private void requireStatus(PurchaseOrderStatus expected) {
+        if (expected != status) throw new IllegalStateException("采购订单状态不允许当前操作");
     }
     private void touch(Long actorId) { updatedAt = Instant.now(); updatedBy = actorId; }
 
@@ -82,7 +87,7 @@ public class PurchaseOrder {
     public Long supplierId() { return supplierId; }
     public String orderNo() { return orderNo; }
     public String requestCode() { return requestCode; }
-    public String status() { return status; }
+    public PurchaseOrderStatus status() { return status; }
     public LocalDate orderDate() { return orderDate; }
     public LocalDate expectedDate() { return expectedDate; }
     public Instant submittedAt() { return submittedAt; }

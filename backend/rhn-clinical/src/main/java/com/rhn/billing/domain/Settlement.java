@@ -2,6 +2,8 @@ package com.rhn.billing.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -26,7 +28,7 @@ public class Settlement {
     @Column(name = "SD_STL_TYPE", nullable = false) private String settlementType;
     @Column(name = "SD_STL_SCENE", nullable = false) private String settlementScene;
     @Column(name = "SD_TRMNL_SCENE", nullable = false) private String terminalScene;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private SettlementStatus status;
     @Column(name = "AMT_GROSS", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
     @Column(name = "AMT_DISC", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
     @Column(name = "AMT_INS", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceAmount;
@@ -64,7 +66,7 @@ public class Settlement {
         this.patientAccountId = patientAccountId;
         this.legacyInvoiceId = legacyInvoiceId; this.settlementNo = settlementNo; this.commandCode = commandCode;
         this.settlementType = settlementType; this.settlementScene = settlementScene;
-        this.terminalScene = terminalScene; this.status = "PRICED"; this.grossAmount = amount;
+        this.terminalScene = terminalScene; this.status = SettlementStatus.PRICED; this.grossAmount = amount;
         this.discountAmount = zero(); this.insuranceAmount = zero(); this.patientAmount = amount.abs();
         this.otherAmount = zero(); this.roundingAmount = zero(); this.netAmount = amount;
         this.currencyCode = currencyCode; this.terminalCode = terminalCode;
@@ -72,15 +74,15 @@ public class Settlement {
     }
 
     public String applyPaidAmount(BigDecimal paidAmount, Long actorId, Instant occurredAt) {
-        if ("REVERSAL".equals(settlementType) || "REVERSED".equals(status)) return status;
-        String previous = status;
+        if ("REVERSAL".equals(settlementType) || status == SettlementStatus.REVERSED) return status.name();
+        String previous = status.name();
         if (netAmount.signum() == 0) {
-            status = "SETTLED"; finalizedBy = actorId; finalizedAt = occurredAt;
+            status = SettlementStatus.SETTLED; finalizedBy = actorId; finalizedAt = occurredAt;
         }
-        else if (paidAmount.signum() <= 0) status = "PRICED";
-        else if (paidAmount.compareTo(netAmount) < 0) status = "PARTIAL";
+        else if (paidAmount.signum() <= 0) status = SettlementStatus.PRICED;
+        else if (paidAmount.compareTo(netAmount) < 0) status = SettlementStatus.PARTIAL;
         else {
-            status = "SETTLED"; finalizedBy = actorId; finalizedAt = occurredAt;
+            status = SettlementStatus.SETTLED; finalizedBy = actorId; finalizedAt = occurredAt;
         }
         errorCode = null; errorMessage = null;
         return previous;
@@ -88,7 +90,7 @@ public class Settlement {
 
     public void applyInsuranceAllocation(BigDecimal insuranceFund, BigDecimal personalAccount,
                                          BigDecimal patientCash, BigDecimal otherFund) {
-        if (!List.of("PRICED", "PAYMENT_PENDING", "PARTIAL").contains(status)) {
+        if (!List.of(SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING, SettlementStatus.PARTIAL).contains(status)) {
             throw new IllegalStateException("当前结算状态不能应用医保分摊");
         }
         BigDecimal total = insuranceFund.add(personalAccount).add(patientCash).add(otherFund);
@@ -98,21 +100,21 @@ public class Settlement {
     }
 
     public void reverseInsuranceAllocation() {
-        if (!List.of("SETTLED", "PARTIAL").contains(status)) {
+        if (!List.of(SettlementStatus.SETTLED, SettlementStatus.PARTIAL).contains(status)) {
             throw new IllegalStateException("当前结算状态不能冲正医保分摊");
         }
         this.insuranceAmount = zero(); this.otherAmount = zero(); this.patientAmount = netAmount.abs();
     }
 
     public String requestPayment() {
-        String previous = status;
-        if ("PRICED".equals(status)) status = "PAYMENT_PENDING";
+        String previous = status.name();
+        if (status == SettlementStatus.PRICED) status = SettlementStatus.PAYMENT_PENDING;
         return previous;
     }
 
     public void applyRoundingAdjustment(BigDecimal adjustment) {
         if (adjustment == null) return;
-        if (!List.of("PRICED", "PAYMENT_PENDING", "PARTIAL").contains(status)) {
+        if (!List.of(SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING, SettlementStatus.PARTIAL).contains(status)) {
             throw new IllegalStateException("当前结算状态不能应用货币舍入调整");
         }
         this.roundingAmount = adjustment.setScale(6, java.math.RoundingMode.HALF_UP);
@@ -134,7 +136,7 @@ public class Settlement {
     public String settlementType() { return settlementType; }
     public String settlementScene() { return settlementScene; }
     public String terminalScene() { return terminalScene; }
-    public String status() { return status; }
+    public SettlementStatus status() { return status; }
     public BigDecimal grossAmount() { return grossAmount; }
     public BigDecimal discountAmount() { return discountAmount; }
     public BigDecimal insuranceAmount() { return insuranceAmount; }

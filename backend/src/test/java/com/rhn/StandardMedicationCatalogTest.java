@@ -17,7 +17,8 @@ class StandardMedicationCatalogTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statistics.entries").value(794))
                 .andExpect(jsonPath("$.statistics.scopeEntries").value(7))
-                .andExpect(jsonPath("$.source.verificationStatus").value("UNVERIFIED"))
+                .andExpect(jsonPath("$.source.verificationStatus").value("VERIFIED"))
+                .andExpect(jsonPath("$.source.suppliedVerificationStatus").value("UNVERIFIED"))
                 .andExpect(jsonPath("$.source.publicationVerificationStatus").value("VERIFIED"))
                 .andExpect(jsonPath("$.source.publicationNumber").value("国卫药政发〔2026〕17号"))
                 .andExpect(jsonPath("$.statistics.orderableSpecifications").value(0));

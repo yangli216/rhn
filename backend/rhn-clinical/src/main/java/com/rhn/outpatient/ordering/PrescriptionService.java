@@ -8,6 +8,7 @@ import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -160,8 +161,8 @@ class PrescriptionService {
                 ? encounter.departmentId() : input.performerDepartmentId();
         requireScope(context, tenantId, organizationId, departmentId);
         Prescription value = repository.saveAndFlush(new Prescription(tenantId, encounter.residentId(), encounterId,
-                nextPrescriptionNo(), clean(input.categoryCode()) == null ? "OUTPATIENT" : clean(input.categoryCode()),
-                organizationId, departmentId, context.subjectId(), clean(input.note())));
+                nextPrescriptionNo(), Strings.trimToNull(input.categoryCode()) == null ? "OUTPATIENT" : Strings.trimToNull(input.categoryCode()),
+                organizationId, departmentId, context.subjectId(), Strings.trimToNull(input.note())));
         publish(value, "PRESCRIPTION_DRAFT_CREATED", "建立处方草稿", Map.of());
         return response(value);
     }
@@ -195,7 +196,7 @@ class PrescriptionService {
         ExecutionContext context = contextProvider.requireCurrent();
         Prescription value = requirePrescription(encounter.tenantId(), encounterId, prescriptionId);
         List<MedicationRequest> requests = medicationService.prescriptionRequests(encounter.tenantId(), prescriptionId);
-        List<MedicationRequest> drafts = requests.stream().filter(request -> "DRAFT".equals(request.status())).toList();
+        List<MedicationRequest> drafts = requests.stream().filter(request -> request.status() == MedicationRequestStatus.DRAFT).toList();
         if (drafts.isEmpty()) throw conflict("PRESCRIPTION_EMPTY", "处方至少需要一条有效药品请求才能提交");
 
         MedicationSafetyDecision safetyEvaluation = safetyEvaluations.evaluateShadow(encounterId, prescriptionId);
@@ -225,8 +226,8 @@ class PrescriptionService {
         drafts.forEach(request -> medicationService.activateFromPrescription(request, encounter));
         value.submit(action.expectedRevision(), context.subjectId());
         value.recordSafetyReview(json.write(new com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Review(
-                value.id(), value.groupNo(), value.submittedAt(), clean(action.reason()), safetyEvaluation,
-                requests.stream().filter(request -> !"CANCELLED".equals(request.status())).map(request ->
+                value.id(), value.groupNo(), value.submittedAt(), Strings.trimToNull(action.reason()), safetyEvaluation,
+                requests.stream().filter(request -> request.status() != MedicationRequestStatus.CANCELLED).map(request ->
                     new com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Medication(request.id(),
                         json.readTree(request.medicationSnapshot()).path("name").asString("药品名称未记录"))).toList())));
         medicationRepository.flush(); repository.flush();
@@ -234,7 +235,7 @@ class PrescriptionService {
                 "medicationCount", drafts.size(),
                 "safetyEvaluationId", safetyEvaluation.evaluationId() == null ? "" : safetyEvaluation.evaluationId(),
                 "safetyDecision", safetyEvaluation.decision().name(),
-                "safetyMode", safetyEvaluation.mode(), "safetyHandlingReason", clean(action.reason()) == null ? "" : clean(action.reason())));
+                "safetyMode", safetyEvaluation.mode(), "safetyHandlingReason", Strings.trimToNull(action.reason()) == null ? "" : Strings.trimToNull(action.reason())));
         return response(value, safetyEvaluation);
     }
 
@@ -242,7 +243,7 @@ class PrescriptionService {
     PrescriptionResponse cancel(Long encounterId, Long prescriptionId, PrescriptionAction action) {
         var encounter = encounterDirectory.requireAccessible(encounterId);
         ExecutionContext context = contextProvider.requireCurrent();
-        String reason = clean(action.reason());
+        String reason = Strings.trimToNull(action.reason());
         if (reason == null) throw badRequest("PRESCRIPTION_CANCEL_REASON_REQUIRED", "撤销处方必须填写原因");
         Prescription value = requirePrescription(encounter.tenantId(), encounterId, prescriptionId);
         List<MedicationRequest> requests = medicationService.prescriptionRequests(encounter.tenantId(), prescriptionId);
@@ -279,7 +280,7 @@ class PrescriptionService {
         List<MedicationRequestResponse> requests = medicationService
                 .prescriptionRequests(value.tenantId(), value.id()).stream().map(medicationService::response).toList();
         return new PrescriptionResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
-                value.groupNo(), value.categoryCode(), value.status(), value.performerOrganizationId(),
+                value.groupNo(), value.categoryCode(), value.status().name(), value.performerOrganizationId(),
                 value.performerDepartmentId(), value.authoredAt(), value.authoredBy(), value.submittedAt(),
                 value.submittedBy(), value.cancelledAt(), value.cancelledBy(), value.cancelReason(), value.note(), requests,
                 safetyEvaluation, documentInfoSupport.read(value.documentInfoJson()));
@@ -294,7 +295,7 @@ class PrescriptionService {
             throw conflict("MEDICATION_SAFETY_BLOCKED", "合理用药审查未通过，当前处方不能提交");
         }
         if (evaluation.decision() == MedicationSafetyDecision.Status.REQUIRE_OVERRIDE
-                && clean(action.reason()) == null) {
+                && Strings.trimToNull(action.reason()) == null) {
             throw conflict("MEDICATION_SAFETY_OVERRIDE_REASON_REQUIRED", "合理用药审查要求填写继续开立理由");
         }
     }
@@ -317,6 +318,4 @@ class PrescriptionService {
     private String nextPrescriptionNo() {
         return "RX" + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
     }
-
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

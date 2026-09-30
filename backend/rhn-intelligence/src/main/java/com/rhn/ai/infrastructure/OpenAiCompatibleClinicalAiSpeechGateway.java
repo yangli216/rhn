@@ -92,68 +92,8 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
         }
 
         try {
-            HttpResponse<String> submitResponse = httpClient.send(submitBuilder.build(), HttpResponse.BodyHandlers.ofString());
-            if (submitResponse.statusCode() < 200 || submitResponse.statusCode() >= 300) {
-                String body = submitResponse.body();
-                throw new ClinicalAiModelException("DashScope 语音服务提交失败 (HTTP " + submitResponse.statusCode() + "): " + body);
-            }
-            JsonNode submitNode = jsonCodec.readTree(submitResponse.body());
-            JsonNode outputNode = submitNode == null ? null : submitNode.get("output");
-            String taskId = outputNode == null || outputNode.get("task_id") == null ? null : outputNode.get("task_id").asString();
-            if (taskId == null || taskId.isBlank()) {
-                throw new ClinicalAiModelException("DashScope 语音服务未返回 task_id: " + submitResponse.body());
-            }
-
-            // 2. 轮询任务状态
-            String taskBase = endpoint.getScheme() + "://" + endpoint.getAuthority();
-            if (endpoint.getPath() != null && endpoint.getPath().contains("/api/v1")) {
-                taskBase += "/api/v1/tasks/";
-            } else {
-                taskBase += "/tasks/";
-            }
-            java.net.URI taskUri = java.net.URI.create(taskBase + taskId);
-            long deadline = System.currentTimeMillis() + active.requestTimeout().toMillis();
-            while (System.currentTimeMillis() < deadline) {
-                Thread.sleep(500);
-                HttpRequest.Builder taskBuilder = HttpRequest.newBuilder(taskUri)
-                        .timeout(java.time.Duration.ofSeconds(8))
-                        .header("Accept", "application/json");
-                if (active.apiKey() != null && !active.apiKey().isBlank()) {
-                    taskBuilder.header("Authorization", "Bearer " + active.apiKey().trim());
-                }
-                HttpResponse<String> taskResponse = httpClient.send(taskBuilder.build(), HttpResponse.BodyHandlers.ofString());
-                if (taskResponse.statusCode() >= 200 && taskResponse.statusCode() < 300) {
-                    JsonNode taskNode = jsonCodec.readTree(taskResponse.body());
-                    JsonNode taskOutput = taskNode == null ? null : taskNode.get("output");
-                    String status = taskOutput == null || taskOutput.get("task_status") == null ? "" : taskOutput.get("task_status").asString();
-                    if ("SUCCEEDED".equalsIgnoreCase(status)) {
-                        // 提取 transcription_url 并下载结果
-                        String transUrl = null;
-                        if (taskOutput.get("results") != null && taskOutput.get("results").isArray() && taskOutput.get("results").size() > 0) {
-                            transUrl = taskOutput.get("results").get(0).path("transcription_url").asString(null);
-                        } else if (taskOutput.get("result") != null) {
-                            transUrl = taskOutput.get("result").path("transcription_url").asString(null);
-                        }
-                        if (transUrl != null && !transUrl.isBlank()) {
-                            HttpRequest fetchReq = HttpRequest.newBuilder(java.net.URI.create(transUrl))
-                                    .timeout(java.time.Duration.ofSeconds(10))
-                                    .GET()
-                                    .build();
-                            HttpResponse<String> fileResp = httpClient.send(fetchReq, HttpResponse.BodyHandlers.ofString());
-                            JsonNode fileNode = jsonCodec.readTree(fileResp.body());
-                            if (fileNode != null && fileNode.get("transcripts") != null && fileNode.get("transcripts").isArray() && fileNode.get("transcripts").size() > 0) {
-                                String text = fileNode.get("transcripts").get(0).path("text").asString("");
-                                if (!text.isBlank()) return text.trim();
-                            }
-                        }
-                        throw new ClinicalAiModelException("DashScope 语音转写成功但未获取到有效文本内容");
-                    } else if ("FAILED".equalsIgnoreCase(status)) {
-                        String errMsg = taskOutput.path("message").asString("任务执行失败");
-                        throw new ClinicalAiModelException("DashScope 语音识别任务失败: " + errMsg);
-                    }
-                }
-            }
-            throw new ClinicalAiModelException("DashScope 语音转写超时 (" + active.requestTimeout().toSeconds() + " 秒)");
+            String taskId = submitDashScopeTask(submitBuilder);
+            return awaitDashScopeTranscription(endpoint, taskId, active);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new ClinicalAiModelException("DashScope 语音转写请求被中断", exception);
@@ -161,6 +101,79 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
             if (exception instanceof ClinicalAiModelException modelException) throw modelException;
             throw new ClinicalAiModelException("DashScope 语音转写服务调用或结果解析失败: " + exception.getMessage(), exception);
         }
+    }
+
+    private String submitDashScopeTask(HttpRequest.Builder submitBuilder) throws IOException, InterruptedException {
+        HttpResponse<String> submitResponse = httpClient.send(submitBuilder.build(), HttpResponse.BodyHandlers.ofString());
+        if (submitResponse.statusCode() < 200 || submitResponse.statusCode() >= 300) {
+            String body = submitResponse.body();
+            throw new ClinicalAiModelException("DashScope 语音服务提交失败 (HTTP " + submitResponse.statusCode() + "): " + body);
+        }
+        JsonNode submitNode = jsonCodec.readTree(submitResponse.body());
+        JsonNode outputNode = submitNode == null ? null : submitNode.get("output");
+        String taskId = outputNode == null || outputNode.get("task_id") == null ? null : outputNode.get("task_id").asString();
+        if (taskId == null || taskId.isBlank()) {
+            throw new ClinicalAiModelException("DashScope 语音服务未返回 task_id: " + submitResponse.body());
+        }
+        return taskId;
+    }
+
+    private String awaitDashScopeTranscription(java.net.URI endpoint, String taskId,
+                                               ClinicalAssistantSettings active) throws IOException, InterruptedException {
+        // 2. 轮询任务状态
+        String taskBase = endpoint.getScheme() + "://" + endpoint.getAuthority();
+        if (endpoint.getPath() != null && endpoint.getPath().contains("/api/v1")) {
+            taskBase += "/api/v1/tasks/";
+        } else {
+            taskBase += "/tasks/";
+        }
+        java.net.URI taskUri = java.net.URI.create(taskBase + taskId);
+        long deadline = System.currentTimeMillis() + active.requestTimeout().toMillis();
+        while (System.currentTimeMillis() < deadline) {
+            Thread.sleep(500);
+            HttpRequest.Builder taskBuilder = HttpRequest.newBuilder(taskUri)
+                    .timeout(java.time.Duration.ofSeconds(8))
+                    .header("Accept", "application/json");
+            if (active.apiKey() != null && !active.apiKey().isBlank()) {
+                taskBuilder.header("Authorization", "Bearer " + active.apiKey().trim());
+            }
+            HttpResponse<String> taskResponse = httpClient.send(taskBuilder.build(), HttpResponse.BodyHandlers.ofString());
+            if (taskResponse.statusCode() >= 200 && taskResponse.statusCode() < 300) {
+                JsonNode taskNode = jsonCodec.readTree(taskResponse.body());
+                JsonNode taskOutput = taskNode == null ? null : taskNode.get("output");
+                String status = taskOutput == null || taskOutput.get("task_status") == null ? "" : taskOutput.get("task_status").asString();
+                if ("SUCCEEDED".equalsIgnoreCase(status)) {
+                    return readDashScopeTranscription(taskOutput);
+                } else if ("FAILED".equalsIgnoreCase(status)) {
+                    String errMsg = taskOutput.path("message").asString("任务执行失败");
+                    throw new ClinicalAiModelException("DashScope 语音识别任务失败: " + errMsg);
+                }
+            }
+        }
+        throw new ClinicalAiModelException("DashScope 语音转写超时 (" + active.requestTimeout().toSeconds() + " 秒)");
+    }
+
+    private String readDashScopeTranscription(JsonNode taskOutput) throws IOException, InterruptedException {
+        // 提取 transcription_url 并下载结果
+        String transUrl = null;
+        if (taskOutput.get("results") != null && taskOutput.get("results").isArray() && taskOutput.get("results").size() > 0) {
+            transUrl = taskOutput.get("results").get(0).path("transcription_url").asString(null);
+        } else if (taskOutput.get("result") != null) {
+            transUrl = taskOutput.get("result").path("transcription_url").asString(null);
+        }
+        if (transUrl != null && !transUrl.isBlank()) {
+            HttpRequest fetchReq = HttpRequest.newBuilder(java.net.URI.create(transUrl))
+                    .timeout(java.time.Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+            HttpResponse<String> fileResp = httpClient.send(fetchReq, HttpResponse.BodyHandlers.ofString());
+            JsonNode fileNode = jsonCodec.readTree(fileResp.body());
+            if (fileNode != null && fileNode.get("transcripts") != null && fileNode.get("transcripts").isArray() && fileNode.get("transcripts").size() > 0) {
+                String text = fileNode.get("transcripts").get(0).path("text").asString("");
+                if (!text.isBlank()) return text.trim();
+            }
+        }
+        throw new ClinicalAiModelException("DashScope 语音转写成功但未获取到有效文本内容");
     }
 
     private String transcribeOpenAi(SpeechRequest request, ClinicalAssistantSettings active) {

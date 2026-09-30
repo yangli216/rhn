@@ -1,6 +1,7 @@
 package com.rhn.pharmacy.infrastructure;
 
 import com.rhn.pharmacy.domain.DispenseTask;
+import com.rhn.pharmacy.domain.DispenseTaskStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -18,6 +19,6 @@ public interface DispenseTaskRepository extends JpaRepository<DispenseTask, Long
     Optional<DispenseTask> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
     List<DispenseTask> findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(Long tenantId, Long stockSiteId);
     List<DispenseTask> findByTenantIdAndStockSiteIdAndStatusOrderByCreatedAtDesc(
-            Long tenantId, Long stockSiteId, String status);
+            Long tenantId, Long stockSiteId, DispenseTaskStatus status);
     List<DispenseTask> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);
 }

@@ -119,10 +119,14 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
     }
 
     @Transactional(readOnly = true)
-    public List<Version> medicationHistory(Long medicationId) {
+    public List<SemanticVersionView> medicationHistory(Long medicationId) {
         var tenant = contexts.requireCurrent().tenantId();
         requireMedication(tenant, medicationId);
-        return history.history(tenant, "MEDICATION", medicationId.toString(), 100);
+        return history.history(tenant, "MEDICATION", medicationId.toString(), 100).stream()
+                .map(version -> new SemanticVersionView(version.revision(), version.kind(), version.conceptId(),
+                        version.semanticVersion(), version.changeType(), version.source(), version.snapshot(),
+                        version.recordedAt()))
+                .toList();
     }
 
     /** Called in the same transaction as master-data maintenance, including before the first legacy edit. */

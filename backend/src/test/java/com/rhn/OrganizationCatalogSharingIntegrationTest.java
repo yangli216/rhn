@@ -40,6 +40,7 @@ class OrganizationCatalogSharingIntegrationTest extends RhnIntegrationTestSuppor
 
         mockMvc.perform(get("/api/platform/master-data/catalog-lifecycle/adoption-candidates").with(rhnWorkContext())
                         .param("organizationId", childId).param("itemType", "SERVICE")
+                        .param("query", "SRV-CBC")
                         .param("size", "100"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[?(@.id == '362387869795101')].adoptionSourceType")

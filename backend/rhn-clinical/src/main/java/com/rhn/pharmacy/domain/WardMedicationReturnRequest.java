@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -23,7 +25,8 @@ public class WardMedicationReturnRequest {
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "SD_STATUS", nullable = false) private WardMedicationReturnRequestStatus status;
     @Column(name = "DT_REQD", nullable = false) private Instant requestedAt;
     @Column(name = "ID_USER_REQD", nullable = false) private Long requestedBy;
     @Column(name = "DES_REQ_NOTE") private String requestNote;
@@ -50,7 +53,7 @@ public class WardMedicationReturnRequest {
         this.residentId = residentId;
         this.encounterId = encounterId;
         this.requestNo = "WMR" + id;
-        this.status = "REQUESTED";
+        this.status = WardMedicationReturnRequestStatus.REQUESTED;
         this.requestedAt = Instant.now();
         this.requestedBy = actorId;
         this.requestNote = note;
@@ -58,11 +61,11 @@ public class WardMedicationReturnRequest {
 
     public String handOver(long expectedRevision, Long actorId, String note) {
         requireRevision(expectedRevision);
-        if (!"REQUESTED".equals(status)) {
+        if (status != WardMedicationReturnRequestStatus.REQUESTED) {
             throw conflict("WARD_MED_RETURN_NOT_REQUESTED", "只有待交出的病区退药申请可以确认交出");
         }
-        String previous = status;
-        status = "IN_TRANSIT";
+        String previous = status.name();
+        status = WardMedicationReturnRequestStatus.IN_TRANSIT;
         handedOverAt = Instant.now();
         handedOverBy = actorId;
         handoverNote = note;
@@ -72,11 +75,11 @@ public class WardMedicationReturnRequest {
     public String receive(long expectedRevision, Long actorId, Long practitionerId,
                           Long assignmentId, String note) {
         requireRevision(expectedRevision);
-        if (!"IN_TRANSIT".equals(status)) {
+        if (status != WardMedicationReturnRequestStatus.IN_TRANSIT) {
             throw conflict("WARD_MED_RETURN_NOT_IN_TRANSIT", "只有病区已交出的退药申请可以由药房接收");
         }
-        String previous = status;
-        status = "RECEIVED";
+        String previous = status.name();
+        status = WardMedicationReturnRequestStatus.RECEIVED;
         receivedAt = Instant.now();
         receivedBy = actorId;
         processorPractitionerId = practitionerId;
@@ -100,7 +103,7 @@ public class WardMedicationReturnRequest {
     public Long residentId() { return residentId; }
     public Long encounterId() { return encounterId; }
     public String requestNo() { return requestNo; }
-    public String status() { return status; }
+    public WardMedicationReturnRequestStatus status() { return status; }
     public Instant requestedAt() { return requestedAt; }
     public Long requestedBy() { return requestedBy; }
     public String requestNote() { return requestNote; }

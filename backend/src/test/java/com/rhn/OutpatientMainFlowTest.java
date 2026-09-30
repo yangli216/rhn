@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestPropertySource(properties = "rhn.pharmacy.require-settlement-authorization=true")
-@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@ResetDatabaseBeforeEachTestMethod
 @Tag("outpatient-main-flow")
 class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
     private static final String OUTPATIENT_SERVICE_ID = "362387869795104";

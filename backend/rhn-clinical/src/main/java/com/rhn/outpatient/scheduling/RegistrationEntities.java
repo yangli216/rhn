@@ -3,6 +3,8 @@ package com.rhn.outpatient.scheduling;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -27,7 +29,7 @@ class Appointment {
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "CD_APPT_NO", nullable = false) private String appointmentNo;
     @Column(name = "CD_IDEMP", nullable = false) private String idempotencyCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private AppointmentStatus status;
     @Column(name = "CD_SVC", nullable = false) private String serviceCode;
     @Column(name = "NA_SVC_SNAP", nullable = false) private String serviceNameSnapshot;
     @Column(name = "ID_PRACT") private Long practitionerId;
@@ -51,18 +53,18 @@ class Appointment {
     Appointment(Long tenantId, ServiceSchedule schedule, ScheduleSlotPool pool, Long slotHoldId, Long residentId,
                 String idempotencyCode, Long actorId) {
         this(tenantId, schedule, pool, slotHoldId, residentId, idempotencyCode,
-                "REGISTERED", "WINDOW", null, actorId);
+                AppointmentStatus.REGISTERED, "WINDOW", null, actorId);
         this.checkedInAt = this.confirmedAt;
     }
 
     Appointment(Long tenantId, ServiceSchedule schedule, ScheduleSlotPool pool, Long residentId,
                 String idempotencyCode, String bookingSource, Long rescheduledFromId, Long actorId) {
         this(tenantId, schedule, pool, null, residentId, idempotencyCode,
-                "BOOKED", bookingSource, rescheduledFromId, actorId);
+                AppointmentStatus.BOOKED, bookingSource, rescheduledFromId, actorId);
     }
 
     private Appointment(Long tenantId, ServiceSchedule schedule, ScheduleSlotPool pool, Long slotHoldId,
-                        Long residentId, String idempotencyCode, String status, String bookingSource,
+                        Long residentId, String idempotencyCode, AppointmentStatus status, String bookingSource,
                         Long rescheduledFromId, Long actorId) {
         this.id = GlobalIds.next(); this.tenantId = tenantId;
         this.organizationId = schedule.organizationId(); this.departmentId = schedule.departmentId();
@@ -78,10 +80,10 @@ class Appointment {
     }
 
     void cancel(String reason, Long actorId) {
-        if (!"BOOKED".equals(status)) {
+        if (status != AppointmentStatus.BOOKED) {
             throw com.rhn.shared.api.BusinessErrors.conflict("APPOINTMENT_NOT_CANCELLABLE", "只有待就诊预约可以取消");
         }
-        status = "CANCELLED";
+        status = AppointmentStatus.CANCELLED;
         cancellationReason = reason;
         cancelledAt = Instant.now();
         updatedAt = cancelledAt;
@@ -89,12 +91,12 @@ class Appointment {
     }
 
     void cancelAfterRegistration(String reason, Long actorId) {
-        if ("CANCELLED".equals(status)) return;
-        if (!"REGISTERED".equals(status)) {
+        if (status == AppointmentStatus.CANCELLED) return;
+        if (status != AppointmentStatus.REGISTERED) {
             throw com.rhn.shared.api.BusinessErrors.conflict("APPOINTMENT_NOT_WITHDRAWABLE",
                     "只有已到院且尚未就诊的预约可以随挂号一起撤销");
         }
-        status = "CANCELLED";
+        status = AppointmentStatus.CANCELLED;
         cancellationReason = reason;
         cancelledAt = Instant.now();
         updatedAt = cancelledAt;
@@ -102,19 +104,19 @@ class Appointment {
     }
 
     void checkIn(Long actorId) {
-        if (!"BOOKED".equals(status)) {
+        if (status != AppointmentStatus.BOOKED) {
             throw com.rhn.shared.api.BusinessErrors.conflict("APPOINTMENT_NOT_CHECK_IN_READY",
                     "预约当前状态不能办理挂号");
         }
-        status = "REGISTERED";
+        status = AppointmentStatus.REGISTERED;
         checkedInAt = Instant.now();
         updatedAt = checkedInAt;
         updatedBy = actorId;
     }
 
     boolean visited(Long actorId) {
-        if (status.equals("REGISTERED")) {
-            status = "VISITED";
+        if (status == AppointmentStatus.REGISTERED) {
+            status = AppointmentStatus.VISITED;
             updatedAt = Instant.now();
             updatedBy = actorId;
             return true;
@@ -131,7 +133,7 @@ class Appointment {
     Long slotPoolId() { return slotPoolId; }
     Long residentId() { return residentId; }
     String appointmentNo() { return appointmentNo; }
-    String status() { return status; }
+    AppointmentStatus status() { return status; }
     String serviceCode() { return serviceCode; }
     String serviceName() { return serviceNameSnapshot; }
     Long practitionerId() { return practitionerId; }
@@ -199,7 +201,7 @@ class PatientRegistration {
     @Column(name = "CD_IDEMP", nullable = false) private String idempotencyCode;
     @Column(name = "SD_REG_SRC", nullable = false) private String registrationSource;
     @Column(name = "SD_VISIT_TYPE", nullable = false) private String visitType;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PatientRegistrationStatus status;
     @Column(name = "DT_REGD", nullable = false) private Instant registeredAt;
     @Column(name = "ID_USER_REGD", nullable = false) private Long registeredBy;
     @Column(name = "DT_STARTED") private Instant startedAt;
@@ -214,29 +216,29 @@ class PatientRegistration {
         this.scheduleId = scheduleId; this.residentId = residentId; this.organizationId = organizationId;
         this.departmentId = departmentId; this.encounterId = encounterId; this.registrationNo = "RG" + id;
         this.idempotencyCode = idempotencyCode; this.registrationSource = registrationSource;
-        this.visitType = visitType; this.status = "REGISTERED"; this.registeredAt = Instant.now();
+        this.visitType = visitType; this.status = PatientRegistrationStatus.REGISTERED; this.registeredAt = Instant.now();
         this.registeredBy = actorId;
     }
 
     void start() {
-        if (status.equals("REGISTERED") && startedAt == null) startedAt = Instant.now();
+        if (status == PatientRegistrationStatus.REGISTERED && startedAt == null) startedAt = Instant.now();
     }
     void complete() {
-        if (status.equals("REGISTERED") && completedAt == null) completedAt = Instant.now();
+        if (status == PatientRegistrationStatus.REGISTERED && completedAt == null) completedAt = Instant.now();
     }
     void cancel() {
-        if ("CANCELLED".equals(status)) return;
-        if (!"REGISTERED".equals(status)) {
+        if (status == PatientRegistrationStatus.CANCELLED) return;
+        if (status != PatientRegistrationStatus.REGISTERED) {
             throw com.rhn.shared.api.BusinessErrors.conflict("REGISTRATION_NOT_WITHDRAWABLE",
                     "当前挂号状态不能退号");
         }
-        status = "CANCELLED";
+        status = PatientRegistrationStatus.CANCELLED;
     }
     Long id() { return id; } Long tenantId() { return tenantId; } Long appointmentId() { return appointmentId; }
     Long scheduleId() { return scheduleId; } Long residentId() { return residentId; }
     Long organizationId() { return organizationId; } Long departmentId() { return departmentId; }
     Long encounterId() { return encounterId; } String registrationNo() { return registrationNo; }
     String registrationSource() { return registrationSource; } String visitType() { return visitType; }
-    String status() { return status; } Instant registeredAt() { return registeredAt; }
+    PatientRegistrationStatus status() { return status; } Instant registeredAt() { return registeredAt; }
     Long registeredBy() { return registeredBy; }
 }

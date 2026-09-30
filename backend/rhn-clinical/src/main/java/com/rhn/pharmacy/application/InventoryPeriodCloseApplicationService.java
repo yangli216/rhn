@@ -5,6 +5,7 @@ import com.rhn.pharmacy.api.InventoryAccuracyViews.PeriodCloseDifferenceView;
 import com.rhn.pharmacy.api.InventoryAccuracyViews.PeriodCloseRunView;
 import com.rhn.pharmacy.api.InventoryAccuracyViews.PeriodCloseTotalView;
 import com.rhn.pharmacy.domain.InventoryPeriod;
+import com.rhn.pharmacy.domain.InventoryPeriodStatus;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.InventoryPeriodRepository;
 import com.rhn.pharmacy.infrastructure.StockSiteRepository;
@@ -70,7 +71,7 @@ public class InventoryPeriodCloseApplicationService {
                 context.tenantId(), site.id());
         InventoryPeriod previous = timeline.isEmpty() ? null : timeline.get(0);
         if (previous != null) {
-            if (!"CLOSED".equals(previous.status())) {
+            if (previous.status() != InventoryPeriodStatus.CLOSED) {
                 throw conflict("INVENTORY_PREVIOUS_PERIOD_NOT_CLOSED", "上一库存期间尚未月结，不能创建下一期间");
             }
             if (!previous.periodTo().plusDays(1).equals(month.atDay(1))) {
@@ -96,18 +97,11 @@ public class InventoryPeriodCloseApplicationService {
         StockSite site = requireSite(context, period.stockSiteId());
         String request = required(requestCode, "INVENTORY_CLOSE_REQUEST_REQUIRED", "月结请求编码不能为空");
         String currency = upper(currencyCode == null ? "CNY" : currencyCode);
-        RunIdentity repeated = jdbc.query("""
-                select ID_INV_PERIOD_CLOSE_RUN as id, ID_INV_PERIOD as inventory_period_id from RHN_SUP_INV_PERIOD_CLOSE_RUN
-                where ID_TNT = ? and CD_REQ = ?
-                """, (rs, row) -> new RunIdentity(rs.getLong("id"), rs.getLong("inventory_period_id")),
-                context.tenantId(), request).stream().findFirst().orElse(null);
+        PeriodCloseRunView repeated = resolveRepeatedCloseRun(context, period, request);
         if (repeated != null) {
-            if (!period.id().equals(repeated.periodId())) {
-                throw conflict("INVENTORY_CLOSE_REQUEST_REUSED", "月结请求编码已用于其他库存期间");
-            }
-            return closeRun(context.tenantId(), repeated.id());
+            return repeated;
         }
-        if (!"OPEN".equals(period.status())) {
+        if (period.status() != InventoryPeriodStatus.OPEN) {
             throw conflict("INVENTORY_PERIOD_NOT_OPEN", "仅开放期间可以执行月结预检");
         }
         Long previousCloseRunId = previousCloseRun(context, period);
@@ -145,32 +139,8 @@ public class InventoryPeriodCloseApplicationService {
             boolean quantityIssue = dimension.quantityDifference().signum() != 0;
             boolean valueIssue = dimension.valueIssue() || dimension.valueDifference().signum() != 0;
             if (quantityIssue || valueIssue) differenceCount++;
-            jdbc.update("""
-                    insert into RHN_SUP_INV_PERIOD_BAL_SNAP
-                    (ID_INV_PERIOD_BAL_SNAP, ID_TNT, ID_INV_PERIOD_CLOSE_RUN, ID_INV_PERIOD,
-                     ID_INV_PERIOD_BAL_SNAP_OPENING, ID_INV_BAL, SN_INV_BAL_VER, ID_STOCK_SITE, ID_STOCK_BIN,
-                     ID_STOCK_ITEM, ID_STOCK_LOT, SD_STOCK_STATUS, CD_BASE_UNIT, QTY_OPENING,
-                     QTY_MVMT, QTY_CLOSE, QTY_BAL, QTY_DIFF,
-                     SD_SNAP_STATUS, DT_CREATED, ID_USER_CREATED)
-                    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, snapshotId, context.tenantId(), closeRunId, period.id(), dimension.openingSnapshotId(),
-                    dimension.balanceId(), dimension.balanceRevision(), site.id(), dimension.binId(),
-                    dimension.itemId(), dimension.lotId(), dimension.status(), dimension.baseUnitCode(),
-                    dimension.openingQuantity(), dimension.movementQuantity(), dimension.closingQuantity(),
-                    dimension.balanceQuantity(), dimension.quantityDifference(),
-                    quantityIssue ? "DIFFERENCE" : "RECONCILED", sqlTimestamp(now), context.subjectId());
-            jdbc.update("""
-                    insert into RHN_SUP_INV_PERIOD_BAL_VAL
-                    (ID_INV_PERIOD_BAL_VAL, ID_TNT, ID_INV_PERIOD_BAL_SNAP, SD_VALUAT_BASIS, CD_CCY,
-                     PRICE_OPENING, PRICE_CLOSE, AMT_OPENING, AMT_MVMT,
-                     AMT_VALUAT_ADJ, AMT_RND_ADJ, AMT_CLOSE,
-                     AMT_BAL, AMT_VAL_DIFF, SD_VAL_STATUS, DT_CREATED)
-                    values (?, ?, ?, 'COST', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, GlobalIds.next(), context.tenantId(), snapshotId, currency,
-                    dimension.openingUnitValue(), dimension.closingUnitValue(), dimension.openingValue(),
-                    dimension.movementAmount(), dimension.valuationAmount(), dimension.roundingAmount(),
-                    dimension.closingValue(), dimension.balanceValue(), dimension.valueDifference(),
-                    valueIssue ? "DIFFERENCE" : "RECONCILED", sqlTimestamp(now));
+            persistDimensionSnapshot(context, dimension, closeRunId, period, site, currency, snapshotId, now,
+                    quantityIssue, valueIssue);
             if (quantityIssue) {
                 insertQuantityIssue(context.tenantId(), reconciliationId, dimension.binId(), dimension.itemId(),
                         dimension.lotId(), dimension.status(), "PERIOD_QUANTITY", dimension.closingQuantity(),
@@ -188,22 +158,10 @@ public class InventoryPeriodCloseApplicationService {
             closingTotal = closingTotal.add(dimension.closingValue());
             balanceTotal = balanceTotal.add(dimension.balanceValue());
         }
-        for (MissingDimension dimension : missing) {
-            insertQuantityIssue(context.tenantId(), reconciliationId, dimension.binId(), dimension.itemId(),
-                    dimension.lotId(), dimension.status(), "PERIOD_QUANTITY", dimension.expectedQuantity(),
-                    ZERO_QUANTITY, "期间流水或上期期末存在维度，但当前库存余额缺失");
-            issueCount++; differenceCount++;
-        }
-        BigDecimal totalDifference = amount(balanceTotal.subtract(closingTotal));
-        jdbc.update("""
-                insert into RHN_SUP_INV_PERIOD_CLOSE_TOTAL
-                (ID_INV_PERIOD_CLOSE_TOTAL, ID_TNT, ID_INV_PERIOD_CLOSE_RUN, SD_VALUAT_BASIS, CD_CCY, AMT_OPENING,
-                 AMT_MVMT, AMT_VALUAT_ADJ, AMT_RND_ADJ,
-                 AMT_CLOSE, AMT_BAL, AMT_VAL_DIFF, DT_CREATED)
-                values (?, ?, ?, 'COST', ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, GlobalIds.next(), context.tenantId(), closeRunId, currency, amount(openingTotal),
-                amount(movementTotal), amount(valuationTotal), amount(roundingTotal), amount(closingTotal),
-                amount(balanceTotal), totalDifference, sqlTimestamp(now));
+        int missingIssueCount = insertMissingDimensionIssues(context, reconciliationId, missing);
+        issueCount += missingIssueCount; differenceCount += missingIssueCount;
+        insertCloseTotal(context, closeRunId, currency, openingTotal, movementTotal, valuationTotal, roundingTotal,
+                closingTotal, balanceTotal, now);
         String reconciliationStatus = issueCount == 0 ? "PASSED" : "ISSUES";
         jdbc.update("""
                 update RHN_SUP_INV_RECON_RUN set SD_STATUS = ?, DT_CMPLD = ?,
@@ -219,6 +177,80 @@ public class InventoryPeriodCloseApplicationService {
         return closeRun(context.tenantId(), closeRunId);
     }
 
+    private PeriodCloseRunView resolveRepeatedCloseRun(ExecutionContext context, InventoryPeriod period,
+                                                       String request) {
+        RunIdentity repeated = jdbc.query("""
+                select ID_INV_PERIOD_CLOSE_RUN as id, ID_INV_PERIOD as inventory_period_id from RHN_SUP_INV_PERIOD_CLOSE_RUN
+                where ID_TNT = ? and CD_REQ = ?
+                """, (rs, row) -> new RunIdentity(rs.getLong("id"), rs.getLong("inventory_period_id")),
+                context.tenantId(), request).stream().findFirst().orElse(null);
+        if (repeated != null) {
+            if (!period.id().equals(repeated.periodId())) {
+                throw conflict("INVENTORY_CLOSE_REQUEST_REUSED", "月结请求编码已用于其他库存期间");
+            }
+            return closeRun(context.tenantId(), repeated.id());
+        }
+        return null;
+    }
+
+    private void persistDimensionSnapshot(ExecutionContext context, CloseDimension dimension, Long closeRunId,
+                                          InventoryPeriod period, StockSite site, String currency, Long snapshotId,
+                                          Instant now, boolean quantityIssue, boolean valueIssue) {
+        jdbc.update("""
+                insert into RHN_SUP_INV_PERIOD_BAL_SNAP
+                (ID_INV_PERIOD_BAL_SNAP, ID_TNT, ID_INV_PERIOD_CLOSE_RUN, ID_INV_PERIOD,
+                 ID_INV_PERIOD_BAL_SNAP_OPENING, ID_INV_BAL, SN_INV_BAL_VER, ID_STOCK_SITE, ID_STOCK_BIN,
+                 ID_STOCK_ITEM, ID_STOCK_LOT, SD_STOCK_STATUS, CD_BASE_UNIT, QTY_OPENING,
+                 QTY_MVMT, QTY_CLOSE, QTY_BAL, QTY_DIFF,
+                 SD_SNAP_STATUS, DT_CREATED, ID_USER_CREATED)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, snapshotId, context.tenantId(), closeRunId, period.id(), dimension.openingSnapshotId(),
+                dimension.balanceId(), dimension.balanceRevision(), site.id(), dimension.binId(),
+                dimension.itemId(), dimension.lotId(), dimension.status(), dimension.baseUnitCode(),
+                dimension.openingQuantity(), dimension.movementQuantity(), dimension.closingQuantity(),
+                dimension.balanceQuantity(), dimension.quantityDifference(),
+                quantityIssue ? "DIFFERENCE" : "RECONCILED", sqlTimestamp(now), context.subjectId());
+        jdbc.update("""
+                insert into RHN_SUP_INV_PERIOD_BAL_VAL
+                (ID_INV_PERIOD_BAL_VAL, ID_TNT, ID_INV_PERIOD_BAL_SNAP, SD_VALUAT_BASIS, CD_CCY,
+                 PRICE_OPENING, PRICE_CLOSE, AMT_OPENING, AMT_MVMT,
+                 AMT_VALUAT_ADJ, AMT_RND_ADJ, AMT_CLOSE,
+                 AMT_BAL, AMT_VAL_DIFF, SD_VAL_STATUS, DT_CREATED)
+                values (?, ?, ?, 'COST', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, GlobalIds.next(), context.tenantId(), snapshotId, currency,
+                dimension.openingUnitValue(), dimension.closingUnitValue(), dimension.openingValue(),
+                dimension.movementAmount(), dimension.valuationAmount(), dimension.roundingAmount(),
+                dimension.closingValue(), dimension.balanceValue(), dimension.valueDifference(),
+                valueIssue ? "DIFFERENCE" : "RECONCILED", sqlTimestamp(now));
+    }
+
+    private int insertMissingDimensionIssues(ExecutionContext context, Long reconciliationId,
+                                             List<MissingDimension> missing) {
+        int count = 0;
+        for (MissingDimension dimension : missing) {
+            insertQuantityIssue(context.tenantId(), reconciliationId, dimension.binId(), dimension.itemId(),
+                    dimension.lotId(), dimension.status(), "PERIOD_QUANTITY", dimension.expectedQuantity(),
+                    ZERO_QUANTITY, "期间流水或上期期末存在维度，但当前库存余额缺失");
+            count++;
+        }
+        return count;
+    }
+
+    private void insertCloseTotal(ExecutionContext context, Long closeRunId, String currency, BigDecimal openingTotal,
+                                  BigDecimal movementTotal, BigDecimal valuationTotal, BigDecimal roundingTotal,
+                                  BigDecimal closingTotal, BigDecimal balanceTotal, Instant now) {
+        BigDecimal totalDifference = amount(balanceTotal.subtract(closingTotal));
+        jdbc.update("""
+                insert into RHN_SUP_INV_PERIOD_CLOSE_TOTAL
+                (ID_INV_PERIOD_CLOSE_TOTAL, ID_TNT, ID_INV_PERIOD_CLOSE_RUN, SD_VALUAT_BASIS, CD_CCY, AMT_OPENING,
+                 AMT_MVMT, AMT_VALUAT_ADJ, AMT_RND_ADJ,
+                 AMT_CLOSE, AMT_BAL, AMT_VAL_DIFF, DT_CREATED)
+                values (?, ?, ?, 'COST', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, GlobalIds.next(), context.tenantId(), closeRunId, currency, amount(openingTotal),
+                amount(movementTotal), amount(valuationTotal), amount(roundingTotal), amount(closingTotal),
+                amount(balanceTotal), totalDifference, sqlTimestamp(now));
+    }
+
     @Transactional
     public PeriodCloseRunView postClose(Long closeRunId) {
         ExecutionContext context = requireContext(); RunRecord run = requireRun(context.tenantId(), closeRunId);
@@ -232,7 +264,7 @@ public class InventoryPeriodCloseApplicationService {
         if (run.differenceCount() != 0) {
             throw conflict("INVENTORY_CLOSE_HAS_DIFFERENCES", "月结仍有差异，不能正式关账");
         }
-        if (!"OPEN".equals(period.status())) {
+        if (period.status() != InventoryPeriodStatus.OPEN) {
             throw conflict("INVENTORY_PERIOD_NOT_OPEN", "当前库存期间已不再开放");
         }
         String currency = closeTotals(context.tenantId(), closeRunId).stream()
@@ -454,7 +486,7 @@ public class InventoryPeriodCloseApplicationService {
                 .filter(value -> context.tenantId().equals(value.tenantId())
                         && period.stockSiteId().equals(value.stockSiteId()))
                 .orElseThrow(() -> conflict("INVENTORY_PERIOD_CHAIN_INVALID", "上一库存期间不存在或不属于当前库房"));
-        if (!"CLOSED".equals(previous.status()) || previous.closingRunId() == null) {
+        if (previous.status() != InventoryPeriodStatus.CLOSED || previous.closingRunId() == null) {
             throw conflict("INVENTORY_PREVIOUS_PERIOD_NOT_CLOSED", "上一库存期间尚未完成正式月结");
         }
         return previous.closingRunId();
@@ -567,7 +599,7 @@ public class InventoryPeriodCloseApplicationService {
 
     private InventoryPeriodView periodView(InventoryPeriod value) {
         return new InventoryPeriodView(value.id(), value.revision(), value.stockSiteId(), value.previousPeriodId(),
-                value.closingRunId(), value.periodCode(), value.periodFrom(), value.periodTo(), value.status(),
+                value.closingRunId(), value.periodCode(), value.periodFrom(), value.periodTo(), value.status().name(),
                 value.closedAt(), value.closedBy(), value.description(), value.createdAt(), value.createdBy());
     }
 

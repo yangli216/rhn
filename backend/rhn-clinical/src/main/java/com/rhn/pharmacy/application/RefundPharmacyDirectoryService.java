@@ -2,6 +2,7 @@ package com.rhn.pharmacy.application;
 
 import com.rhn.pharmacy.api.RefundPharmacyDirectory;
 import com.rhn.pharmacy.domain.DispenseTask;
+import com.rhn.pharmacy.domain.DispenseTaskStatus;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
 import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
 import com.rhn.pharmacy.infrastructure.PharmacyFulfillmentAuthorizationRepository;
@@ -30,7 +31,7 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
         if (lines.isEmpty()) return RefundFulfillmentStatus.undispensed("NOT_INTAKE");
         var task = tasks.findById(lines.get(0).taskId()).orElse(null);
         if (task == null) return RefundFulfillmentStatus.undispensed("NOT_INTAKE");
-        String status = task.status();
+        String status = task.status().name();
         if ("COMPLETED".equals(status) || "PARTIALLY_DISPENSED".equals(status)) {
             return new RefundFulfillmentStatus("DISPENSED", status);
         }
@@ -55,10 +56,11 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
     }
 
     private void cancelTaskIfNeeded(DispenseTask task) {
-        if ("COMPLETED".equals(task.status()) || "CANCELLED".equals(task.status()) || "RETURNED".equals(task.status())) {
+        if (task.status() == DispenseTaskStatus.COMPLETED || task.status() == DispenseTaskStatus.CANCELLED
+                || task.status() == DispenseTaskStatus.RETURNED) {
             return;
         }
-        if ("PICKING".equals(task.status())) {
+        if (task.status() == DispenseTaskStatus.PICKING) {
             task.releaseReservation();
         }
         task.cancelRemainingForOrderStop();

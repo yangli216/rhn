@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.annotation.DirtiesContext;
 import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
@@ -30,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * deliberately different from discovering active generic routes: a missing or unusable route is itself
  * an operational fact and must not make clinical demand disappear.</p>
  */
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
+@ResetDatabaseBeforeEachTestMethod
 class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
     private static final String RESIDENT = "362387869790213";
     private static final String BED = "362387869898514";

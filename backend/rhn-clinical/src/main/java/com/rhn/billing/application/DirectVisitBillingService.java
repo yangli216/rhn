@@ -39,7 +39,8 @@ public class DirectVisitBillingService implements DirectVisitBillingDirectory {
     public void requireNoPendingRegistration(Long residentId, Long organizationId, Long departmentId) {
         if (intents.existsByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
                 contexts.requireCurrent().tenantId(), residentId, organizationId, departmentId,
-                List.of("PAYMENT_PENDING", "PAID", "COMPLETING", "COMPLETION_FAILED"))) {
+                List.of(RegistrationBillingIntentStatus.PAYMENT_PENDING, RegistrationBillingIntentStatus.PAID,
+                        RegistrationBillingIntentStatus.COMPLETING, RegistrationBillingIntentStatus.COMPLETION_FAILED))) {
             throw conflict("DIRECT_VISIT_REGISTRATION_PENDING", "患者已有待完成的挂号收费业务，请先完成或取消原挂号，不能重复自动挂号");
         }
     }
@@ -47,7 +48,7 @@ public class DirectVisitBillingService implements DirectVisitBillingDirectory {
     @Override
     public void requireRegistrationPaid(Long encounterId) {
         intents.findByTenantIdAndEncounterId(contexts.requireCurrent().tenantId(), encounterId).ifPresent(intent -> {
-            if (!"COMPLETED".equals(intent.status())) {
+            if (intent.status() != RegistrationBillingIntentStatus.COMPLETED) {
                 throw conflict("DIRECT_VISIT_REGISTRATION_UNPAID", "原挂号尚未完成收费，不能通过直接接诊跳过收费");
             }
         });

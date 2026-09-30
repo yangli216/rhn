@@ -39,4 +39,13 @@ public interface InsuranceResultDirectory {
                                       BigDecimal personalAccountAmount, BigDecimal patientCashAmount,
                                       BigDecimal otherFundAmount, String errorCode, String errorMessage,
                                       java.time.Instant respondedAt) {}
+
+    /** 1101 医保人员信息查询请求（对外契约，屏蔽 CHS 专网报文模型）。 */
+    record PersonInfoQuery(String certType, String certNo, String personName) {}
+
+    /** 1101 医保人员信息查询结果（对外契约，字段语义对标国家医保平台标准）。 */
+    record PersonInfoView(String personNo, String certType, String certNo, String personName, String gender,
+                          java.time.LocalDate birthday, String insuranceType, String insuranceTypeName,
+                          BigDecimal accountBalance, String regionCode, String regionName,
+                          String personCategory, String status) {}
 }

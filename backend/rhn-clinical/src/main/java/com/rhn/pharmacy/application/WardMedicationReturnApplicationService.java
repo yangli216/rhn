@@ -13,6 +13,7 @@ import com.rhn.pharmacy.domain.StockItem;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.domain.WardDelivery;
 import com.rhn.pharmacy.domain.WardDeliveryLine;
+import com.rhn.pharmacy.domain.WardDeliveryStatus;
 import com.rhn.pharmacy.domain.WardMedicationReturnEvent;
 import com.rhn.pharmacy.domain.WardMedicationReturnLine;
 import com.rhn.pharmacy.domain.WardMedicationReturnRequest;
@@ -30,6 +31,7 @@ import com.rhn.pharmacy.infrastructure.WardMedicationReturnLineRepository;
 import com.rhn.pharmacy.infrastructure.WardMedicationReturnRequestRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Service;
@@ -60,7 +62,8 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class WardMedicationReturnApplicationService {
-    private static final Set<String> RECEIVED_DELIVERY_STATUSES = Set.of("RECEIVED", "RESOLVED");
+    private static final Set<WardDeliveryStatus> RECEIVED_DELIVERY_STATUSES = Set.of(
+            WardDeliveryStatus.RECEIVED, WardDeliveryStatus.RESOLVED);
     private static final Set<String> REQUEST_STATUSES = Set.of("REQUESTED", "IN_TRANSIT", "RECEIVED");
     private static final Set<String> DISPOSITIONS = Set.of("RESTOCK", "QUARANTINE", "DESTROY");
 
@@ -147,7 +150,7 @@ public class WardMedicationReturnApplicationService {
             throw badRequest("WARD_MED_RETURN_LINE_DUPLICATE", "退药申请明细不能为空或重复");
         }
         String hash = hash("CREATE", input.encounterId(), normalized.stream()
-                .map(value -> value.originalDispenseLineId() + ":" + decimal(value.quantity())).toList(), clean(input.note()));
+                .map(value -> value.originalDispenseLineId() + ":" + decimal(value.quantity())).toList(), Strings.trimToNull(input.note()));
         WardMedicationReturnRequestView replay = replay(context, null, command, "CREATED", hash);
         if (replay != null) return replay;
 
@@ -183,7 +186,7 @@ public class WardMedicationReturnApplicationService {
         WardMedicationReturnRequest request = requests.save(new WardMedicationReturnRequest(
                 context.tenantId(), first.delivery().organizationId(), first.dispense().stockSiteId(),
                 first.delivery().nursingUnitDepartmentId(), first.dispense().residentId(),
-                first.dispense().encounterId(), context.subjectId(), clean(input.note())));
+                first.dispense().encounterId(), context.subjectId(), Strings.trimToNull(input.note())));
         for (RequestedDetail value : details) {
             ReturnableDetail detail = value.detail();
             requestLines.save(new WardMedicationReturnLine(request, detail.taskLine().requestId(),
@@ -192,7 +195,7 @@ public class WardMedicationReturnApplicationService {
                     value.baseQuantity(), detail.stockItem().baseUnitCode()));
         }
         requestEvents.save(new WardMedicationReturnEvent(request, "CREATED", null, command, hash,
-                context.subjectId(), clean(input.note())));
+                context.subjectId(), Strings.trimToNull(input.note())));
         requests.flush();
         requestLines.flush();
         requestEvents.flush();
@@ -203,7 +206,7 @@ public class WardMedicationReturnApplicationService {
     public WardMedicationReturnRequestView handOver(Long requestId, TransitionCommand input) {
         ExecutionContext context = requireWardContext();
         String command = required(input.commandCode(), "WARD_MED_RETURN_COMMAND_REQUIRED", "交出请求号不能为空");
-        String hash = hash("HANDOVER", requestId, clean(input.note()));
+        String hash = hash("HANDOVER", requestId, Strings.trimToNull(input.note()));
         WardMedicationReturnRequestView replay = replay(context, requestId, command, "HANDED_OVER", hash);
         if (replay != null) return replay;
         WardMedicationReturnRequest request = lockRequest(context, requestId);
@@ -220,9 +223,9 @@ public class WardMedicationReturnApplicationService {
                         "退药申请后原药品可退数量已变化，请重新核对");
             }
         }
-        String previous = request.handOver(input.expectedRevision(), context.subjectId(), clean(input.note()));
+        String previous = request.handOver(input.expectedRevision(), context.subjectId(), Strings.trimToNull(input.note()));
         requestEvents.save(new WardMedicationReturnEvent(request, "HANDED_OVER", previous, command, hash,
-                context.subjectId(), clean(input.note())));
+                context.subjectId(), Strings.trimToNull(input.note())));
         requests.flush();
         requestEvents.flush();
         return view(request);
@@ -239,7 +242,7 @@ public class WardMedicationReturnApplicationService {
                 .sorted(Comparator.comparing(ReceiveLineCommand::returnRequestLineId)).toList();
         String hash = hash("RECEIVE", requestId, input.processorPractitionerId(), input.processorAssignmentId(),
                 normalized.stream().map(value -> value.returnRequestLineId() + ":" + upper(value.disposition())).toList(),
-                clean(input.note()));
+                Strings.trimToNull(input.note()));
         WardMedicationReturnRequestView replay = replay(context, requestId, command, "RECEIVED", hash);
         if (replay != null) return replay;
         WardMedicationReturnRequest request = lockRequest(context, requestId);
@@ -272,19 +275,19 @@ public class WardMedicationReturnApplicationService {
             List<ReturnLineCommand> formalLines = entry.getValue().stream().map(value -> {
                 ReceiveLineCommand received = inputs.get(value.id());
                 return new ReturnLineCommand(value.originalDispenseLineId(), value.requestedQuantity(),
-                        upper(received.disposition()), clean(received.exceptionDescription()));
+                        upper(received.disposition()), Strings.trimToNull(received.exceptionDescription()));
             }).toList();
             StockReturnView formal = dispenseService.returnMedication(entry.getKey(), new ReturnCommand(
                     returnNo, "WARD_RETURN", Instant.now(), input.processorPractitionerId(),
-                    input.processorAssignmentId(), clean(input.note()), formalLines));
+                    input.processorAssignmentId(), Strings.trimToNull(input.note()), formalLines));
             for (WardMedicationReturnLine value : entry.getValue()) {
                 value.complete(upper(inputs.get(value.id()).disposition()), formal.id(), formal.returnDispenseId());
             }
         }
         String previous = request.receive(input.expectedRevision(), context.subjectId(),
-                input.processorPractitionerId(), input.processorAssignmentId(), clean(input.note()));
+                input.processorPractitionerId(), input.processorAssignmentId(), Strings.trimToNull(input.note()));
         requestEvents.save(new WardMedicationReturnEvent(request, "RECEIVED", previous, command, hash,
-                context.subjectId(), clean(input.note())));
+                context.subjectId(), Strings.trimToNull(input.note())));
         requestLines.flush();
         requests.flush();
         requestEvents.flush();
@@ -302,7 +305,7 @@ public class WardMedicationReturnApplicationService {
         return requests.findByTenantIdAndOrganizationIdOrderByRequestedAtDesc(
                         context.tenantId(), context.organizationId()).stream()
                 .filter(value -> normalizedStatus == null || "ALL".equals(normalizedStatus)
-                        || normalizedStatus.equals(value.status()))
+                        || normalizedStatus.equals(value.status().name()))
                 .filter(value -> encounterId == null || encounterId.equals(value.encounterId()))
                 .filter(value -> inScope(context, value))
                 .map(this::view).toList();
@@ -415,7 +418,8 @@ public class WardMedicationReturnApplicationService {
                 .map(value -> new WardMedicationReturnEventView(value.id(), value.eventType(), value.fromStatus(),
                         value.toStatus(), value.commandCode(), value.occurredAt(), value.occurredBy(), value.note()))
                 .toList();
-        return new WardMedicationReturnRequestView(request.id(), request.revision(), request.requestNo(), request.status(),
+        return new WardMedicationReturnRequestView(request.id(), request.revision(), request.requestNo(),
+                request.status().name(),
                 request.organizationId(), request.stockSiteId(), request.nursingUnitDepartmentId(), request.residentId(),
                 request.encounterId(), request.requestedAt(), request.requestedBy(), request.requestNote(),
                 request.handedOverAt(), request.handedOverBy(), request.handoverNote(), request.receivedAt(),
@@ -490,17 +494,13 @@ public class WardMedicationReturnApplicationService {
     }
 
     private static String required(String value, String code, String message) {
-        String result = clean(value);
+        String result = Strings.trimToNull(value);
         if (result == null) throw badRequest(code, message);
         return result;
     }
 
-    private static String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
-
     private static String upper(String value) {
-        String result = clean(value);
+        String result = Strings.trimToNull(value);
         return result == null ? null : result.toUpperCase(Locale.ROOT);
     }
 

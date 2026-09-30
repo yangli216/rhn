@@ -49,10 +49,25 @@ class MedicationKnowledgeFeedbackTest extends RhnIntegrationTestSupport {
     void context(Long tenant,Long actor,boolean manage) {when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,actor,"reviewer-"+actor,"test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}
     KnowledgeRuleCandidate createCandidate() {var source=drafts.save(null,new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Save(0,duplicate(),"合成知识"));var p=rules.preview(source.saved().id(),1);return rules.create(source.saved().id(),new Create(1,p.programHash(),"合成候选"));}
     Case fixture(String title,String expected,List<String> ids,Row... rows) {return new Case(title,"人工先定义预期的合成测试，非临床依据",new FixtureInput(null,null,null,List.of(rows)),expected,ids);}
-    SuiteDetail suite(KnowledgeRuleCandidate c,int expectedVersion,boolean complete) {var a=row("A","E1","S1","PO");var b=row("B","E1","S1","PO");var cases=new ArrayList<Case>();cases.add(fixture("正例","MATCH",List.of("A","B"),a,b));if(complete){cases.add(fixture("反例","NO_MATCH",List.of(),a));cases.add(fixture("缺失","UNAVAILABLE",List.of(),new Row("X",null,null,null,null,null,null,"ACTIVE")));}return tests.save(c.id(),new Save(expectedVersion,c.programHash(),"独立预期",cases));}
+    SuiteDetail suite(KnowledgeRuleCandidate c,int expectedVersion,boolean complete) {
+        var a=row("A","E1","S1","PO");
+        var b=row("B","E1","S1","PO");
+        var cases=new ArrayList<Case>();
+        cases.add(fixture("正例","MATCH",List.of("A","B"),a,b));
+        if(complete) {
+            cases.add(fixture("反例","NO_MATCH",List.of(),a));
+            cases.add(fixture("缺失","UNAVAILABLE",List.of(),new Row("X",null,null,null,null,null,null,"ACTIVE")));
+        }
+        return tests.save(c.id(),new Save(expectedVersion,c.programHash(),"独立预期",cases));
+    }
     void ready(KnowledgeRuleCandidate c) {var s=suite(c,0,true);tests.execute(c.id(),new Execute(1,s.suiteHash(),"执行合成样例"));}
     Command command(Preview p,String op) {return new Command(p.revision(),op,"SUBMIT".equals(op)?p.current().fingerprint():p.submission().basis().fingerprint(),"合成审核操作","WARN","REQUIRE_OVERRIDE",true,true,true,"仅验证审核留痕，不构成临床批准材料");}
-    Deployment deploy(KnowledgeRuleCandidate c) {var p=deployments.preview(c.id());return deployments.command(c.id(),new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Command(p.revision(),"DEPLOY","SHADOW",p.approval()==null?null:p.approval().basis().fingerprint(),null,null,"合成旁路验证"));}
+    Deployment deploy(KnowledgeRuleCandidate c) {
+        var p=deployments.preview(c.id());
+        return deployments.command(c.id(),
+            new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Command(
+                p.revision(),"DEPLOY","SHADOW",p.approval()==null?null:p.approval().basis().fingerprint(),null,null,"合成旁路验证"));
+    }
     void approve(KnowledgeRuleCandidate c) {reviews.command(c.id(),command(reviews.preview(c.id()),"SUBMIT"));context(T,8L,true);reviews.command(c.id(),command(reviews.preview(c.id()),"APPROVE"));}
     void pause(KnowledgeRuleCandidate c,Deployment d) {deployments.command(c.id(),new com.rhn.quality.medication.api.MedicationKnowledgeDeploymentContracts.Command(deployments.preview(c.id()).revision(),"PAUSE","SHADOW",null,d.id(),null,"暂停合成旁路"));}
     PrescriptionSafetySnapshot.MedicationItem item(long id,String catalog,String edition,String hash,String entry,String spec,String status) {
@@ -62,7 +77,9 @@ class MedicationKnowledgeFeedbackTest extends RhnIntegrationTestSupport {
     }
     PrescriptionSafetySnapshot.MedicationItem item(long id) {return item(id,"C","1","a".repeat(64),"E","S","ACTIVE");}
     PrescriptionSafetySnapshot snapshot(Long department,PrescriptionSafetySnapshot.MedicationItem... rows) {
-        return new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION,T,1000L,2,2000L,3000L,O,department,"DRAFT",List.of(rows),new PrescriptionSafetySnapshot.PatientSafetyContext(true,true,null,List.of(),30,"UNKNOWN"),new PrescriptionSafetySnapshot.EvaluationTiming(LocalDate.of(2026,1,10),"Asia/Shanghai"));
+        return new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION,T,1000L,2,2000L,3000L,O,department,"DRAFT",List.of(rows),
+            new PrescriptionSafetySnapshot.PatientSafetyContext(true,true,null,List.of(),30,"UNKNOWN"),
+            new PrescriptionSafetySnapshot.EvaluationTiming(LocalDate.of(2026,1,10),"Asia/Shanghai"));
     }
 
     Long observe(PrescriptionSafetySnapshot.MedicationItem... items) {
@@ -103,7 +120,11 @@ class MedicationKnowledgeFeedbackTest extends RhnIntegrationTestSupport {
         assertThat(detail().canWithdraw()).isFalse();assertThatThrownBy(this::withdraw).hasMessageContaining("记录人");
         var corrected=record("RULE_ISSUE");assertThat(corrected.latest().revision()).isEqualTo(2);assertThat(corrected.history().content().get(1)).isEqualTo(first);
         Long reviewedRun=runId;for(int i=0;i<22;i++)observe(item(1));
-        var all=deployments.observations(candidate.id(),deployment.id(),1);assertThat(all.records().totalElements()).isEqualTo(23);assertThat(all.feedback().recorded()).isEqualTo(1);assertThat(all.feedback().pending()).isEqualTo(22);assertThat(all.feedback().verdicts()).containsEntry("RULE_ISSUE",1L).containsEntry("SUPPORTED",0L);
+        var all=deployments.observations(candidate.id(),deployment.id(),1);
+        assertThat(all.records().totalElements()).isEqualTo(23);
+        assertThat(all.feedback().recorded()).isEqualTo(1);
+        assertThat(all.feedback().pending()).isEqualTo(22);
+        assertThat(all.feedback().verdicts()).containsEntry("RULE_ISSUE",1L).containsEntry("SUPPORTED",0L);
         assertThat(all.records().content()).filteredOn(o->o.id().equals(reviewedRun)).singleElement().satisfies(o->assertThat(o.feedback().revision()).isEqualTo(2));
         var withdrawn=withdraw();assertThat(withdrawn.latest().operation()).isEqualTo("WITHDRAW");assertThat(withdrawn.history().content()).hasSize(3);assertThat(withdrawn.canWithdraw()).isFalse();
         assertThat(deployments.observations(candidate.id(),deployment.id(),0).feedback().pending()).isEqualTo(23);

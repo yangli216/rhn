@@ -10,6 +10,8 @@ import com.rhn.analytics.semantic.resolver.SemanticResolver;
 import com.rhn.platform.identityaccess.api.WorkContextDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,12 +20,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import static com.rhn.shared.api.BusinessErrors.forbidden;
+
 /**
  * 语义统计分析端到端主门面服务（SemanticAnalysisService）。
  * 完整编排意图提取、确定性消歧、图路径规划、安全物理校验、SQL编译与物理执行引擎。
  */
 @Service
 public class SemanticAnalysisService {
+    private static final Logger log = LoggerFactory.getLogger(SemanticAnalysisService.class);
 
     private final AnalysisIntentInterpreter interpreter;
     private final SemanticResolver resolver;
@@ -122,15 +127,13 @@ public class SemanticAnalysisService {
     public PlannedScope resolveCurrentScope(ScopeIntent intent) {
         if (intent == null) intent = ScopeIntent.AUTHORIZED;
 
-        ExecutionContext ec = null;
-        if (contextProvider != null) {
-            try {
-                ec = contextProvider.requireCurrent();
-            } catch (Exception ignored) {}
+        if (contextProvider == null) {
+            throw forbidden("AUTH_CONTEXT_REQUIRED", "执行统计分析前请先选择有效的工作租户和机构");
         }
 
+        ExecutionContext ec = contextProvider.requireCurrent();
         if (ec == null || ec.tenantId() == null) {
-            return PlannedScope.defaultDevScope();
+            throw forbidden("AUTH_CONTEXT_REQUIRED", "执行统计分析前请先选择有效的工作租户和机构");
         }
 
         Long tenantId = ec.tenantId();
@@ -146,7 +149,9 @@ public class SemanticAnalysisService {
                 workContextDirectory.availableContexts(tenantId, ec.subjectId()).stream()
                     .filter(o -> orgId != null && orgId.equals(o.organizationId()) && o.departmentId() != null && o.authorities().contains("PORTAL.ACCESS"))
                     .forEach(o -> depts.put(o.departmentId(), o.departmentName()));
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.warn("无法为租户 {} 用户 {} 加载可用工作上下文: {}", tenantId, ec.subjectId(), e.getMessage());
+            }
         }
 
         return new PlannedScope(intent, tenantId, orgId, depts);

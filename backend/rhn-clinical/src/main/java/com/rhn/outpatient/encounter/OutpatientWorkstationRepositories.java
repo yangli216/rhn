@@ -13,7 +13,7 @@ interface EncounterStatusEventRepository extends JpaRepository<EncounterStatusEv
 
 interface EncounterWorkSessionRepository extends JpaRepository<EncounterWorkSession, Long> {
     Optional<EncounterWorkSession> findFirstByTenantIdAndEncounterIdAndStatusOrderByStartedAtDesc(
-            Long tenantId, Long encounterId, String status);
+            Long tenantId, Long encounterId, EncounterWorkSessionStatus status);
 }
 
 interface EncounterDiagnosisRevisionRepository extends JpaRepository<EncounterDiagnosisRevision, Long> {

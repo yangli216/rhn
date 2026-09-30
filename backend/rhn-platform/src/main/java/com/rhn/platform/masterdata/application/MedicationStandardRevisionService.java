@@ -49,7 +49,9 @@ public class MedicationStandardRevisionService {
             if(Objects.equals(latest.proposal().submittedBy(),contexts.requireCurrent().subjectId())) actions.add("CANCEL");
             else {actions.add("REJECT");if(issues.isEmpty()) actions.add("APPLY");}
         } else if(!links.isEmpty()&&!eligible.isEmpty()) actions.add("SUBMIT");
-        return new Preview(base,links,ClinicalSemanticVersions.hash(links,json),eligible,latest,issues,List.copyOf(actions),history.historyPage(tenant,KIND,id.toString(),page,20).stream().map(v->json.read(v.snapshot(),Event.class)).toList(),history.count(tenant,KIND,id.toString()),page,currentImpact);
+        return new Preview(base,links,ClinicalSemanticVersions.hash(links,json),eligible,latest,issues,List.copyOf(actions),
+                history.historyPage(tenant,KIND,id.toString(),page,20).stream().map(v->json.read(v.snapshot(),Event.class)).toList(),
+                history.count(tenant,KIND,id.toString()),page,currentImpact);
     }
     private List<String> eligible(MedicationStandardBindingService.Preview base,List<SourceLink> links) {
         if(!"ACTIVE".equals(base.medication().status())||links.isEmpty()) return List.of();
@@ -58,7 +60,9 @@ public class MedicationStandardRevisionService {
                 .map(c->c.specification().path("id").asString()).toList();
     }
     private boolean sameTarget(SourceLink link,com.rhn.platform.masterdata.api.StandardCatalogReview.Identity identity,tools.jackson.databind.JsonNode spec) {
-        return Objects.equals(link.catalogId(),identity.catalogId())&&Objects.equals(link.catalogVersion(),identity.catalogVersion())&&Objects.equals(link.contentHash(),identity.contentHash())&&Objects.equals(link.specificationId(),spec.path("id").asString())&&Objects.equals(link.entryId(),spec.path("entryId").asString());
+        return Objects.equals(link.catalogId(),identity.catalogId())&&Objects.equals(link.catalogVersion(),identity.catalogVersion())
+                &&Objects.equals(link.contentHash(),identity.contentHash())&&Objects.equals(link.specificationId(),spec.path("id").asString())
+                &&Objects.equals(link.entryId(),spec.path("entryId").asString());
     }
     private List<String> staleIssues(MedicationStandardBindingService.Preview base,List<SourceLink> links,Proposal proposal, ImpactSnapshot currentImpact) {
         var issues=new ArrayList<String>();

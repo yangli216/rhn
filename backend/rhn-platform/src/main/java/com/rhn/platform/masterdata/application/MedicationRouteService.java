@@ -5,6 +5,7 @@ import com.rhn.platform.masterdata.domain.MedicationRouteProfile;
 import com.rhn.platform.masterdata.infrastructure.MedicationRouteProfileRepository;
 import com.rhn.platform.terminology.api.ConceptView;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +36,7 @@ public class MedicationRouteService implements MedicationRouteDirectory {
     @Override
     @Transactional(readOnly = true)
     public RouteSnapshot requireActive(Long tenantId, String codeOrAlias, String scene, LocalDate businessDate) {
-        if (clean(codeOrAlias) == null) {
+        if (Strings.trimToNull(codeOrAlias) == null) {
             throw badRequest("MEDICATION_ROUTE_REQUIRED", "给药途径不能为空");
         }
         return resolveActive(tenantId, codeOrAlias, scene, businessDate)
@@ -46,7 +47,7 @@ public class MedicationRouteService implements MedicationRouteDirectory {
     @Transactional(readOnly = true)
     public Optional<RouteSnapshot> resolveActive(Long tenantId, String codeOrAlias, String scene,
                                                   LocalDate businessDate) {
-        String value = clean(codeOrAlias);
+        String value = Strings.trimToNull(codeOrAlias);
         if (value == null) return Optional.empty();
         LocalDate date = businessDate == null ? LocalDate.now() : businessDate;
         return terminology.findValueSetMember(tenantId, valueSet(scene), value, date).map(this::snapshot);
@@ -78,7 +79,7 @@ public class MedicationRouteService implements MedicationRouteDirectory {
     }
 
     private static String valueSet(String scene) {
-        String normalized = clean(scene) == null ? "OUTPATIENT" : scene.trim().toUpperCase(Locale.ROOT);
+        String normalized = Strings.trimToNull(scene) == null ? "OUTPATIENT" : scene.trim().toUpperCase(Locale.ROOT);
         return switch (normalized) {
             case "MASTER_DATA", "MEDICATION" -> MASTER_VALUE_SET;
             case "OUTPATIENT" -> OUTPATIENT_VALUE_SET;
@@ -87,7 +88,4 @@ public class MedicationRouteService implements MedicationRouteDirectory {
         };
     }
 
-    private static String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 }

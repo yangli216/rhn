@@ -4,6 +4,7 @@ import com.rhn.platform.printing.api.PrintTaskCodes;
 import com.rhn.platform.printing.domain.ClinicalPrintBatch;
 import com.rhn.platform.printing.domain.ClinicalPrintBatchItem;
 import com.rhn.platform.printing.domain.PrintDelivery;
+import com.rhn.platform.printing.domain.PrintDeliveryStatus;
 import com.rhn.platform.printing.domain.PrintDevice;
 import com.rhn.platform.printing.domain.PrintDeviceBinding;
 import com.rhn.platform.printing.domain.PrintJob;
@@ -24,9 +25,12 @@ import com.rhn.platform.printing.infrastructure.PrintTemplateVersionRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import com.rhn.platform.printing.api.MedicationPrintSource.TaskSnapshot;
 import com.rhn.platform.printing.api.MedicationPrintSource.ItemSnapshot;
 import com.rhn.platform.printing.api.MedicationPrintSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +62,7 @@ public class ClinicalPrintBatchService {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm")
             .withZone(ZoneId.of("Asia/Shanghai"));
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final Logger log = LoggerFactory.getLogger(ClinicalPrintBatchService.class);
 
     private final MedicationPrintSource treatmentService;
     private final PrintTemplateRepository templates;
@@ -147,20 +152,42 @@ public class ClinicalPrintBatchService {
         selection.put("deviceId", deviceId);
         selection.put("layoutStrategy", layoutStrategy);
         selection.put("startSlot", startSlot);
-        selection.put("reprintReason", clean(command.reprintReason()));
+        selection.put("reprintReason", Strings.trimToNull(command.reprintReason()));
         ClinicalPrintBatch batch = batches.saveAndFlush(new ClinicalPrintBatch(context.tenantId(),
                 context.organizationId(), context.departmentId(), documentType, resolved.template.id(),
                 resolved.version.id(), outputMedia.id(), deviceId, LocalDate.now(BUSINESS_ZONE),
                 jsonCodec.write(selection), layoutStrategy, startSlot, command.idempotencyKey().trim(),
                 selected.size(), context.subjectId()));
 
+        RenderedCards rendered = renderIncludedCards(context, command, selected, resolved, outputMedia, documentType);
+        BatchPdfComposer.Result pdf = assemblePdf(rendered.cards(), layoutStrategy, outputMedia, startSlot);
+        int includedIndex = 0;
+        for (PendingBatchItem pending : rendered.pendingItems()) {
+            BatchPdfComposer.Placement placement = pending.include() ? pdf.placements().get(includedIndex++) : null;
+            TaskSnapshot task = pending.task();
+            batchItems.save(new ClinicalPrintBatchItem(context.tenantId(), batch.id(), task.id(),
+                    Math.max(1, task.revision()), task.residentId(), task.encounterId(),
+                    task.sourceGroupId() == null ? task.id().toString() : task.sourceGroupId().toString(),
+                    pending.candidate().itemKey(), pending.snapshot() == null ? null : jsonCodec.write(pending.snapshot()),
+                    pending.include() ? "INCLUDED" : "EXCLUDED", pending.exclusionCode(), pending.exclusionReason(),
+                    placement == null ? null : placement.pageNo(), placement == null ? null : placement.slotNo(),
+                    pending.reprintReason()));
+        }
+        persistOutputAndJob(context, batch, resolved, deviceId, documentType, selection,
+                rendered.frozenSnapshots(), rendered.included(), rendered.excluded(), rendered.originalJobId(), pdf);
+        return view(batches.saveAndFlush(batch), context);
+    }
+
+    private RenderedCards renderIncludedCards(ExecutionContext context, CreateBatchCommand command,
+                                              List<TaskSnapshot> selected, ResolvedTemplate resolved,
+                                              PrintMediaProfile outputMedia, String documentType) {
         List<byte[]> cards = new ArrayList<>();
         List<Map<String, Object>> frozenSnapshots = new ArrayList<>();
         List<PendingBatchItem> pendingItems = new ArrayList<>();
         int included = 0; int excluded = 0; Long originalJobId = null;
         for (TaskSnapshot task : selected) {
             CandidateView candidate = candidate(task, resolved, outputMedia, context.tenantId());
-            String reprintReason = clean(command.reprintReason());
+            String reprintReason = Strings.trimToNull(command.reprintReason());
             boolean duplicateBlocked = candidate.printedBefore() && reprintReason == null;
             boolean include = candidate.eligible() && !duplicateBlocked;
             String exclusionCode = include ? null : duplicateBlocked ? "ALREADY_PRINTED" : candidate.exclusionCode();
@@ -179,20 +206,18 @@ public class ClinicalPrintBatchService {
                     exclusionReason, include && candidate.printedBefore() ? reprintReason : null));
         }
         if (cards.isEmpty()) throw badRequest("PRINT_BATCH_EMPTY", "所选任务均不满足打印条件，请处理排除原因后重试");
+        return new RenderedCards(cards, frozenSnapshots, pendingItems, included, excluded, originalJobId);
+    }
 
-        BatchPdfComposer.Result pdf = composer.compose(cards, layoutStrategy, outputMedia, startSlot);
-        int includedIndex = 0;
-        for (PendingBatchItem pending : pendingItems) {
-            BatchPdfComposer.Placement placement = pending.include() ? pdf.placements().get(includedIndex++) : null;
-            TaskSnapshot task = pending.task();
-            batchItems.save(new ClinicalPrintBatchItem(context.tenantId(), batch.id(), task.id(),
-                    Math.max(1, task.revision()), task.residentId(), task.encounterId(),
-                    task.sourceGroupId() == null ? task.id().toString() : task.sourceGroupId().toString(),
-                    pending.candidate().itemKey(), pending.snapshot() == null ? null : jsonCodec.write(pending.snapshot()),
-                    pending.include() ? "INCLUDED" : "EXCLUDED", pending.exclusionCode(), pending.exclusionReason(),
-                    placement == null ? null : placement.pageNo(), placement == null ? null : placement.slotNo(),
-                    pending.reprintReason()));
-        }
+    private BatchPdfComposer.Result assemblePdf(List<byte[]> cards, String layoutStrategy,
+                                                PrintMediaProfile outputMedia, int startSlot) {
+        return composer.compose(cards, layoutStrategy, outputMedia, startSlot);
+    }
+
+    private void persistOutputAndJob(ExecutionContext context, ClinicalPrintBatch batch, ResolvedTemplate resolved,
+                                     Long deviceId, String documentType, LinkedHashMap<String, Object> selection,
+                                     List<Map<String, Object>> frozenSnapshots, int included, int excluded,
+                                     Long originalJobId, BatchPdfComposer.Result pdf) {
         LinkedHashMap<String, Object> outputSnapshot = new LinkedHashMap<>();
         outputSnapshot.put("selection", selection); outputSnapshot.put("cards", frozenSnapshots);
         String fileName = documentName(documentType) + "-" + LocalDate.now(BUSINESS_ZONE) + "-" + batch.id() + ".pdf";
@@ -207,7 +232,6 @@ public class ClinicalPrintBatchService {
         batch.generated(output.id(), job.id(), included, excluded, pdf.pageCount(), context.subjectId());
         deliveries.save(new PrintDelivery(context.tenantId(), batch.id(), job.id(), deviceId,
                 deviceId == null ? "BROWSER_PDF" : requireDevice(deviceId, context).channel()));
-        return view(batches.saveAndFlush(batch), context);
     }
 
     @Transactional(readOnly = true)
@@ -252,7 +276,7 @@ public class ClinicalPrintBatchService {
         device.heartbeat(context.subjectId()); devices.save(device);
         PrintDelivery delivery = deliveries
                 .findTop20ByTenantIdAndDeviceIdAndChannelAndStatusOrderByUpdatedAt(
-                        context.tenantId(), device.id(), "LOCAL_BRIDGE", "QUEUED")
+                        context.tenantId(), device.id(), "LOCAL_BRIDGE", PrintDeliveryStatus.QUEUED)
                 .stream().findFirst().orElse(null);
         if (delivery == null) return null;
         ClinicalPrintBatch batch = delivery.batchId() == null ? null : requireBatchLocked(delivery.batchId(), context);
@@ -285,16 +309,16 @@ public class ClinicalPrintBatchService {
             delivery.confirm(expectedRevision);
             if (batch != null) batch.confirmed(context.subjectId());
         } else if ("FAILED".equals(status)) {
-            if (clean(errorMessage) == null) throw badRequest("PRINT_DELIVERY_ERROR_REQUIRED", "打印失败时必须填写错误说明");
-            delivery.fail(expectedRevision, clean(errorCode), clean(errorMessage));
+            if (Strings.trimToNull(errorMessage) == null) throw badRequest("PRINT_DELIVERY_ERROR_REQUIRED", "打印失败时必须填写错误说明");
+            delivery.fail(expectedRevision, Strings.trimToNull(errorCode), Strings.trimToNull(errorMessage));
             if (batch != null) batch.failed(context.subjectId());
         } else throw badRequest("PRINT_DELIVERY_STATUS_INVALID", "本地打印桥回执状态仅支持 DEVICE_CONFIRMED 或 FAILED");
         deliveries.saveAndFlush(delivery);
         if (batch != null) batches.saveAndFlush(batch);
         DeliveryView deliveryView = new DeliveryView(delivery.id(), delivery.revision(), delivery.channel(),
-                delivery.status(), delivery.attemptCount(), delivery.errorCode(), delivery.errorMessage(),
+                delivery.status().name(), delivery.attemptCount(), delivery.errorCode(), delivery.errorMessage(),
                 delivery.queuedAt(), delivery.sentAt(), delivery.confirmedAt());
-        return new AcknowledgementView(delivery.status(), deliveryView, batch == null ? null : view(batch, context));
+        return new AcknowledgementView(delivery.status().name(), deliveryView, batch == null ? null : view(batch, context));
     }
 
     @Transactional(readOnly = true)
@@ -324,7 +348,7 @@ public class ClinicalPrintBatchService {
         }
         PrintDevice device = new PrintDevice(context.tenantId(), context.organizationId(), context.departmentId(),
                 code, command.deviceName().trim(), command.channel(), command.outputLanguage(),
-                clean(command.queueName()), defaultJson(command.capabilitiesJson()), context.subjectId());
+                Strings.trimToNull(command.queueName()), defaultJson(command.capabilitiesJson()), context.subjectId());
         return deviceView(devices.saveAndFlush(device), false);
     }
 
@@ -333,7 +357,7 @@ public class ClinicalPrintBatchService {
         ExecutionContext context = context(); validateDevice(command);
         PrintDevice device = requireDevice(id, context);
         device.update(command.expectedRevision(), context.organizationId(), context.departmentId(),
-                command.deviceName().trim(), command.channel(), command.outputLanguage(), clean(command.queueName()),
+                command.deviceName().trim(), command.channel(), command.outputLanguage(), Strings.trimToNull(command.queueName()),
                 defaultJson(command.capabilitiesJson()), command.status() == null ? "ACTIVE" : command.status(),
                 context.subjectId());
         return deviceView(devices.saveAndFlush(device), false);
@@ -415,10 +439,10 @@ public class ClinicalPrintBatchService {
                         value.residentId(), value.encounterId(), value.status(), value.exclusionCode(),
                         value.exclusionReason(), value.pageNo(), value.slotNo(), value.reprintReason())).toList();
         DeliveryView deliveryView = delivery == null ? null : new DeliveryView(delivery.id(), delivery.revision(),
-                delivery.channel(), delivery.status(), delivery.attemptCount(), delivery.errorCode(),
+                delivery.channel(), delivery.status().name(), delivery.attemptCount(), delivery.errorCode(),
                 delivery.errorMessage(), delivery.queuedAt(), delivery.sentAt(), delivery.confirmedAt());
         return new BatchView(batch.id(), batch.revision(), batch.documentType(), documentName(batch.documentType()),
-                batch.status(), template.templateName(), batch.templateVersionId(), media.mediaName(), media.mediaCode(),
+                batch.status().name(), template.templateName(), batch.templateVersionId(), media.mediaName(), media.mediaCode(),
                 device == null ? null : device.id(), device == null ? "浏览器 PDF" : device.deviceName(),
                 batch.businessDate(), batch.layoutStrategy(), batch.startSlot(), batch.selectedCount(),
                 batch.includedCount(), batch.excludedCount(), batch.pageCount(), batch.outputId(), batch.jobId(),
@@ -580,7 +604,7 @@ public class ClinicalPrintBatchService {
     private void validateCreate(CreateBatchCommand command) {
         if (command == null || command.sourceIds() == null || command.sourceIds().isEmpty())
             throw badRequest("PRINT_BATCH_SELECTION_REQUIRED", "请至少选择一个待打印任务");
-        if (clean(command.idempotencyKey()) == null || command.idempotencyKey().trim().length() > 128)
+        if (Strings.trimToNull(command.idempotencyKey()) == null || command.idempotencyKey().trim().length() > 128)
             throw badRequest("PRINT_BATCH_IDEMPOTENCY_INVALID", "打印请求幂等键不能为空且不能超过 128 字");
         if (command.startSlot() != null && command.startSlot() < 1)
             throw badRequest("PRINT_BATCH_START_SLOT_INVALID", "起始格必须大于等于 1");
@@ -605,7 +629,7 @@ public class ClinicalPrintBatchService {
     }
 
     private void validateDevice(DeviceCommand command) {
-        if (command == null || clean(command.deviceCode()) == null || clean(command.deviceName()) == null)
+        if (command == null || Strings.trimToNull(command.deviceCode()) == null || Strings.trimToNull(command.deviceName()) == null)
             throw badRequest("PRINT_DEVICE_INVALID", "设备编码和名称不能为空");
         if (!Set.of("BROWSER_PDF", "LOCAL_BRIDGE").contains(command.channel()))
             throw badRequest("PRINT_DEVICE_CHANNEL_INVALID", "打印设备通道不受支持");
@@ -631,13 +655,14 @@ public class ClinicalPrintBatchService {
             if (!codes.isArray() || codes.isEmpty()) return true;
             for (var code : codes) if (mediaCode.equals(code.asString())) return true;
             return false;
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException error) {
+            log.debug("打印设备 {} 的 capabilities 无法解析为媒体能力，按不支持处理", device.id(), error);
             return false;
         }
     }
 
     private String normalizeLayout(String value) {
-        String normalized = clean(value) == null ? "ONE_CARD_PER_PAGE" : value.trim().toUpperCase(Locale.ROOT);
+        String normalized = Strings.trimToNull(value) == null ? "ONE_CARD_PER_PAGE" : value.trim().toUpperCase(Locale.ROOT);
         if (!Set.of("ONE_CARD_PER_PAGE", "SHEET_GRID").contains(normalized))
             throw badRequest("PRINT_BATCH_LAYOUT_INVALID", "批量组版策略不受支持");
         return normalized;
@@ -671,12 +696,11 @@ public class ClinicalPrintBatchService {
             MessageDigest.getInstance("SHA-256").digest(value)); } catch (Exception exception) {
         throw new IllegalStateException("SHA-256 is unavailable", exception); } }
     private String normalizeCode(String value) { return value == null ? "" : value.trim().toUpperCase(Locale.ROOT); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-    private String defaultJson(String value) { return clean(value) == null ? "{}" : value.trim(); }
-    private String first(String left, String right) { return clean(left) == null ? clean(right) : clean(left); }
+    private String defaultJson(String value) { return Strings.trimToNull(value) == null ? "{}" : value.trim(); }
+    private String first(String left, String right) { return Strings.trimToNull(left) == null ? Strings.trimToNull(right) : Strings.trimToNull(left); }
     private String doseText(ItemSnapshot item) {
         if (item.doseValue() == null) return "按医嘱";
-        return item.doseValue().stripTrailingZeros().toPlainString() + (clean(item.doseUnit()) == null ? "" : item.doseUnit());
+        return item.doseValue().stripTrailingZeros().toPlainString() + (Strings.trimToNull(item.doseUnit()) == null ? "" : item.doseUnit());
     }
     private String documentName(String value) { return switch (value) {
         case "ORAL_MEDICATION_CARD" -> "口服药卡"; case "INFUSION_LABEL" -> "输液瓶签";
@@ -701,6 +725,9 @@ public class ClinicalPrintBatchService {
     private record PendingBatchItem(TaskSnapshot task, CandidateView candidate,
             Map<String, Object> snapshot, boolean include, String exclusionCode, String exclusionReason,
             String reprintReason) {}
+
+    private record RenderedCards(List<byte[]> cards, List<Map<String, Object>> frozenSnapshots,
+            List<PendingBatchItem> pendingItems, int included, int excluded, Long originalJobId) {}
 
     public record CreateBatchCommand(String documentType, List<Long> sourceIds, Long mediaProfileId, Long deviceId,
             String idempotencyKey, String layoutStrategy, Integer startSlot, String reprintReason) {}

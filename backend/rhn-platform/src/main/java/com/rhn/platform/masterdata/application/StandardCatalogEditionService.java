@@ -32,7 +32,9 @@ public class StandardCatalogEditionService {
     public Edition current() {tenant();return baseline().edition();}
     public PageResult<Edition> list(int page) {var t=tenant();page(page);long n=store.count(t);return new PageResult<>(store.list(t,page),n,(int)((n+19)/20),page,20);}
     private Stored baseline() {
-        var node=runtime.snapshot();var e=new Edition(0L,identity(node),rawHash(json.write(node)),node.path("contentHash").asString(),"medication-standard-catalog.json","当前随程序提供的运行目录",null,"系统资源",null,node.path("entries").size(),node.path("specifications").size(),node.path("issues").size(),true,"RUNTIME",null);
+        var node=runtime.snapshot();
+        var e=new Edition(0L,identity(node),rawHash(json.write(node)),node.path("contentHash").asString(),"medication-standard-catalog.json","当前随程序提供的运行目录",null,"系统资源",null,
+                node.path("entries").size(),node.path("specifications").size(),node.path("issues").size(),true,"RUNTIME",null);
         return new Stored(e,node,json.write(node));
     }
     private Stored require(Long id) {var t=tenant();if(Objects.equals(id,0L))return baseline();return store.find(t,id).orElseThrow(()->notFound("STANDARD_EDITION_NOT_FOUND","未找到当前租户的目录版次"));}
@@ -62,7 +64,8 @@ public class StandardCatalogEditionService {
             var e=base.edition();var archive=new Edition(GlobalIds.next(),e.identity(),e.packageHash(),e.declaredContentHash(),e.fileName(),"登记新版前归档当前运行目录",c.subjectId(),c.actor(),Instant.now(),e.entries(),e.specifications(),e.issues(),false,"RUNTIME_ARCHIVE",null);
             archived=new Stored(archive,base.catalog(),base.uploadedText());store.append(t,archived);
         }
-        var edition=new Edition(GlobalIds.next(),identity(node),rawHash(input.content()),declared,input.fileName().strip(),input.reason().strip(),c.subjectId(),c.actor(),Instant.now(),node.path("entries").size(),node.path("specifications").size(),node.path("issues").size(),false,"IMPORTED",archived.edition().id());
+        var edition=new Edition(GlobalIds.next(),identity(node),rawHash(input.content()),declared,input.fileName().strip(),input.reason().strip(),c.subjectId(),c.actor(),Instant.now(),
+                node.path("entries").size(),node.path("specifications").size(),node.path("issues").size(),false,"IMPORTED",archived.edition().id());
         try {store.append(t,new Stored(edition,node,input.content()));}catch(DuplicateKeyException ex){throw conflict("STANDARD_EDITION_VERSION","该目录版次已经登记，不能原地覆盖；请核对已有版次或使用新的版本号");}
         return detail(edition.id(),0);
     }
@@ -129,7 +132,11 @@ public class StandardCatalogEditionService {
         }
     }
     private void object(JsonNode n,String hash) {
-        if(!n.isObject()||!n.path("id").isString()||!n.path("name").isString()||!n.path("sourceVersion").isString()||!n.path("id").asString("").matches("[A-Za-z0-9_.:-]{1,120}")||blank(n.path("name").asString(""),500)||!List.of("WESTERN","CHINESE_PATENT").contains(n.path("medicationType").asString())||!n.path("semanticVersion").isIntegralNumber()||n.path("semanticVersion").asInt()<1||!Objects.equals(n.path("sourceVersion").asString(),hash))invalid("条目或规格的标识、名称、药品类型、语义版本或来源文件引用无效");
+        if(!n.isObject()||!n.path("id").isString()||!n.path("name").isString()||!n.path("sourceVersion").isString()
+                ||!n.path("id").asString("").matches("[A-Za-z0-9_.:-]{1,120}")||blank(n.path("name").asString(""),500)
+                ||!List.of("WESTERN","CHINESE_PATENT").contains(n.path("medicationType").asString())||!n.path("semanticVersion").isIntegralNumber()
+                ||n.path("semanticVersion").asInt()<1||!Objects.equals(n.path("sourceVersion").asString(),hash))
+            invalid("条目或规格的标识、名称、药品类型、语义版本或来源文件引用无效");
     }
     private void measure(JsonNode n,String id) {try {if(!n.isObject()||blank(n.path("unit").asString(""),40)||new java.math.BigDecimal(n.path("value").asString()).signum()<=0)invalid("可计算强度必须有正数及单位："+id);}catch(NumberFormatException ex){invalid("强度数值无效："+id);}}
     private void bounded(JsonNode n,int depth,int[] nodes) {if(depth>40||++nodes[0]>600000)throw new IllegalArgumentException();if(n.isObject())n.properties().forEach(e->bounded(e.getValue(),depth+1,nodes));else if(n.isArray())n.forEach(v->bounded(v,depth+1,nodes));}

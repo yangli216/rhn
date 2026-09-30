@@ -19,7 +19,7 @@ interface SystemAnnouncementRepository extends JpaRepository<SystemAnnouncement,
 
     @Query("""
             select value from SystemAnnouncement value
-             where value.tenantId = :tenantId and value.status = 'PUBLISHED'
+             where value.tenantId = :tenantId and value.status = com.rhn.workmanagement.announcement.SystemAnnouncementStatus.PUBLISHED
                and value.publishAt <= :now and (value.expireAt is null or value.expireAt > :now)
                and (value.scopeType = 'TENANT'
                     or (value.scopeType = 'ORGANIZATION' and value.organizationId = :organizationId)
@@ -35,7 +35,7 @@ interface SystemAnnouncementRepository extends JpaRepository<SystemAnnouncement,
                                         @Param("now") Instant now);
 
     List<SystemAnnouncement> findTop100ByStatusAndPublishAtLessThanEqualOrderByPublishAtAsc(
-            String status, Instant publishAt);
+            SystemAnnouncementStatus status, Instant publishAt);
     List<SystemAnnouncement> findTop100ByStatusAndExpireAtLessThanEqualOrderByExpireAtAsc(
-            String status, Instant expireAt);
+            SystemAnnouncementStatus status, Instant expireAt);
 }

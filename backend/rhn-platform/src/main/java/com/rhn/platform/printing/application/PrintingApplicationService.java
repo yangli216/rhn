@@ -29,6 +29,7 @@ import com.rhn.platform.printing.infrastructure.PrintTemplateVersionRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import com.rhn.platform.idempotency.IdempotencyService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -107,7 +108,7 @@ public class PrintingApplicationService implements PrintingService {
         validateData(resolved, command, data);
         requireScope(context, data.organizationId(), data.departmentId());
 
-        String key = clean(command.idempotencyKey());
+        String key = Strings.trimToNull(command.idempotencyKey());
         String operation = "STANDARD_PRINT:" + resolved.task().taskCode();
         if (key != null) {
             var reservation = idempotencyService.reserve(operation, key, jsonCodec.write(Map.of(
@@ -239,7 +240,7 @@ public class PrintingApplicationService implements PrintingService {
             throw badRequest("PRINT_SOURCE_INVALID", "标准打印任务的来源类型和来源标识不能为空");
         }
         requireCopies(command.copies());
-        String key = clean(command.idempotencyKey());
+        String key = Strings.trimToNull(command.idempotencyKey());
         if (key != null && key.length() > 128) throw badRequest("PRINT_IDEMPOTENCY_KEY_INVALID", "打印幂等键不能超过 128 个字符");
     }
 
@@ -278,7 +279,7 @@ public class PrintingApplicationService implements PrintingService {
         PrintDevice device = delivery.deviceId() == null ? null : deviceRepository.findById(delivery.deviceId()).orElse(null);
         PrintReceipt.DeliveryReceipt deliveryReceipt = new PrintReceipt.DeliveryReceipt(delivery.id(), delivery.revision(),
                 delivery.deviceId(), device == null ? "浏览器 PDF" : device.deviceName(), delivery.channel(),
-                delivery.status(), delivery.attemptCount());
+                delivery.status().name(), delivery.attemptCount());
         return new PrintReceipt(job.id(), output.id(), job.originalJobId(), job.requestType(), job.status(), job.copies(),
                 output.taskCode(), implementationCode, implementationScope, output.payloadSchema(), output.documentType(),
                 template.templateCode(), version.versionNo(), output.fileName(),
@@ -370,6 +371,4 @@ public class PrintingApplicationService implements PrintingService {
         return implementationBindingRepository.findById(output.implementationBindingId())
                 .map(value -> value.scopeType()).orElse("FROZEN");
     }
-
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

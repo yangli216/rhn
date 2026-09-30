@@ -9,6 +9,7 @@ import com.rhn.diagnostics.infrastructure.DiagnosticReportRepository;
 import com.rhn.outpatient.api.ServiceRequestDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,15 +51,15 @@ public class DiagnosticWorkspaceService {
         return exchange.ingestReport(new ReportCommand(LOCAL_ENDPOINT,
                 "LOCAL-RPT-" + task.id() + "-V" + version, context.correlationId(), request.requestNo(),
                 externalId, version, "EXAMINATION".equals(request.serviceType()) ? "IMAGING" : "LABORATORY",
-                status, request.itemCode(), request.itemName() + "报告", Instant.now(), clean(input.conclusion()),
+                status, request.itemCode(), request.itemName() + "报告", Instant.now(), Strings.trimToNull(input.conclusion()),
                 context.actor(), context.actor(), observations));
     }
 
     private ObservationCommand observation(ServiceRequestDirectory.ServiceRequestSnapshot request,
                                            LocalReportCommand input, ExecutionContext context) {
-        String value = clean(input.observationValue());
+        String value = Strings.trimToNull(input.observationValue());
         if (value == null) throw badRequest("LABORATORY_RESULT_VALUE_REQUIRED", "检验结果值不能为空");
-        String valueType = clean(input.valueType());
+        String valueType = Strings.trimToNull(input.valueType());
         if (valueType == null) valueType = "STRING";
         BigDecimal number = null; String text = null;
         if ("NUMBER".equals(valueType)) {
@@ -67,12 +68,10 @@ public class DiagnosticWorkspaceService {
         } else if ("STRING".equals(valueType)) text = value;
         else throw badRequest("LABORATORY_RESULT_TYPE_INVALID", "基层工作台仅支持数值或文本检验结果");
         return new ObservationCommand("urn:rhn:local:diagnostics", null, request.itemCode(), request.itemName(),
-                valueType, Instant.now(), text, number, null, null, null, clean(input.unitCode()),
-                input.referenceRangeLow(), input.referenceRangeHigh(), clean(input.interpretationCode()),
+                valueType, Instant.now(), text, number, null, null, null, Strings.trimToNull(input.unitCode()),
+                input.referenceRangeLow(), input.referenceRangeHigh(), Strings.trimToNull(input.interpretationCode()),
                 context.actor(), context.actor());
     }
-
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 
     public record LocalReportCommand(long expectedRevision, String valueType, String observationValue,
                                      String unitCode, BigDecimal referenceRangeLow, BigDecimal referenceRangeHigh,

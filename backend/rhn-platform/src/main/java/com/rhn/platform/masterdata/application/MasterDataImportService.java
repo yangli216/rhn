@@ -8,7 +8,9 @@ import com.rhn.platform.masterdata.api.MasterDataImportViews.ImportRowView;
 import com.rhn.platform.masterdata.application.MasterDataImportFileParser.ParsedRow;
 import com.rhn.platform.masterdata.application.MasterDataImportMapping.MappedRow;
 import com.rhn.platform.masterdata.domain.MasterDataImportBatch;
+import com.rhn.platform.masterdata.domain.MasterDataImportBatchStatus;
 import com.rhn.platform.masterdata.domain.MasterDataImportRow;
+import com.rhn.platform.masterdata.domain.MasterDataImportRowStatus;
 import com.rhn.platform.masterdata.infrastructure.MasterDataImportBatchRepository;
 import com.rhn.platform.masterdata.infrastructure.MasterDataImportRowRepository;
 import com.rhn.shared.api.BusinessException;
@@ -126,13 +128,13 @@ public class MasterDataImportService {
         MasterDataImportRow target = rowRepository.findByIdAndTenantIdAndBatchId(rowId, context.tenantId(), batch.id())
                 .orElseThrow(() -> notFound("IMPORT_ROW_NOT_FOUND", "未找到导入行"));
         if (target.revision() != expectedRevision) throw conflict("IMPORT_ROW_REVISION_STALE", "导入行已被修改，请刷新后重试");
-        if ("IMPORTED".equals(target.status())) throw conflict("IMPORT_ROW_ALREADY_IMPORTED", "已导入行不能修改");
+        if (target.status() == MasterDataImportRowStatus.IMPORTED) throw conflict("IMPORT_ROW_ALREADY_IMPORTED", "已导入行不能修改");
         if (source == null || source.isEmpty()) throw badRequest("IMPORT_ROW_EMPTY", "修正后的导入行不能为空");
 
         List<MasterDataImportRow> values = rows(context.tenantId(), batch.id());
         Map<Long, Map<String, String>> sources = new LinkedHashMap<>();
         for (MasterDataImportRow row : values) {
-            if (!"IMPORTED".equals(row.status())) {
+            if (row.status() != MasterDataImportRowStatus.IMPORTED) {
                 sources.put(row.id(), row.id().equals(rowId) ? cleanSource(source) : stringMap(jsonCodec.readObject(row.sourceJson())));
             }
         }
@@ -146,7 +148,7 @@ public class MasterDataImportService {
         ExecutionContext context = current();
         MasterDataImportBatch batch = requireMutableBatch(batchId, context.tenantId());
         List<MasterDataImportRow> values = rows(context.tenantId(), batch.id());
-        Map<Long, Map<String, String>> sources = values.stream().filter(row -> !"IMPORTED".equals(row.status()))
+        Map<Long, Map<String, String>> sources = values.stream().filter(row -> row.status() != MasterDataImportRowStatus.IMPORTED)
                 .collect(Collectors.toMap(MasterDataImportRow::id,
                         row -> stringMap(jsonCodec.readObject(row.sourceJson())), (a, b) -> a, LinkedHashMap::new));
         revalidate(batch, values, sources, context.subjectId());
@@ -157,7 +159,7 @@ public class MasterDataImportService {
         batch.startImport(context.subjectId());
         batchRepository.saveAndFlush(batch);
         for (MasterDataImportRow row : values) {
-            if (!"READY".equals(row.status())) continue;
+            if (row.status() != MasterDataImportRowStatus.READY) continue;
             try {
                 executor.execute(context.tenantId(), batch.id(), row.id(), batch.importType(), context.subjectId());
             } catch (BusinessException exception) {
@@ -193,7 +195,7 @@ public class MasterDataImportService {
         for (MasterDataImportRow row : rows(context.tenantId(), batch.id())) {
             for (ImportError error : errors(row.errorsJson())) {
                 csv.append(row.rowNumber()).append(',').append(csv(row.sourceKey())).append(',')
-                        .append(row.status()).append(',').append(csv(error.field())).append(',')
+                        .append(row.status().name()).append(',').append(csv(error.field())).append(',')
                         .append(csv(error.code())).append(',').append(csv(error.message())).append("\r\n");
             }
         }
@@ -213,7 +215,7 @@ public class MasterDataImportService {
         Map<String, Long> counts = mapped.values().stream().map(MappedRow::sourceKey).filter(value -> value != null)
                 .collect(Collectors.groupingBy(value -> value.toUpperCase(Locale.ROOT), Collectors.counting()));
         for (MasterDataImportRow row : rows) {
-            if ("IMPORTED".equals(row.status())) continue;
+            if (row.status() == MasterDataImportRowStatus.IMPORTED) continue;
             Map<String, String> source = sources.get(row.id());
             MappedRow value = mapped.get(row.id());
             List<ImportError> errors = validatedErrors(batch.importType(), value);
@@ -224,7 +226,7 @@ public class MasterDataImportService {
                     value.normalized().isEmpty() ? null : jsonCodec.write(value.normalized()), jsonCodec.write(errors),
                     errors.isEmpty(), actorId);
         }
-        rowRepository.saveAllAndFlush(rows.stream().filter(row -> !"IMPORTED".equals(row.status())).toList());
+        rowRepository.saveAllAndFlush(rows.stream().filter(row -> row.status() != MasterDataImportRowStatus.IMPORTED).toList());
         refresh(batch, rows, actorId);
     }
 
@@ -243,7 +245,7 @@ public class MasterDataImportService {
     }
 
     private void refresh(MasterDataImportBatch batch, List<MasterDataImportRow> values, Long actorId) {
-        Map<String, Long> counts = values.stream().map(MasterDataImportRow::status)
+        Map<String, Long> counts = values.stream().map(row -> row.status().name())
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
         batch.refreshCounts(values.size(), count(counts, "READY"), count(counts, "INVALID"),
                 count(counts, "IMPORTED"), count(counts, "FAILED"), actorId);
@@ -252,7 +254,7 @@ public class MasterDataImportService {
 
     private ImportBatchView view(MasterDataImportBatch batch, List<MasterDataImportRow> rows) {
         return new ImportBatchView(batch.id(), batch.revision(), batch.importType(), batch.fileName(), batch.fileHash(),
-                batch.requestCode(), batch.status(), batch.totalRows(), batch.readyRows(), batch.invalidRows(),
+                batch.requestCode(), batch.status().name(), batch.totalRows(), batch.readyRows(), batch.invalidRows(),
                 batch.importedRows(), batch.failedRows(), batch.createdAt(), batch.createdBy(), batch.updatedAt(),
                 batch.updatedBy(), rows.stream().map(this::view).toList());
     }
@@ -260,7 +262,7 @@ public class MasterDataImportService {
     private ImportRowView view(MasterDataImportRow row) {
         return new ImportRowView(row.id(), row.revision(), row.rowNumber(), row.sourceKey(),
                 jsonCodec.readObject(row.sourceJson()), row.normalizedJson() == null ? Map.of() : jsonCodec.readObject(row.normalizedJson()),
-                errors(row.errorsJson()), row.status(), row.targetId(), row.updatedAt());
+                errors(row.errorsJson()), row.status().name(), row.targetId(), row.updatedAt());
     }
 
     private List<ImportError> errors(String json) {
@@ -275,7 +277,8 @@ public class MasterDataImportService {
 
     private MasterDataImportBatch requireMutableBatch(Long id, Long tenantId) {
         MasterDataImportBatch batch = requireBatch(id, tenantId);
-        if ("COMPLETED".equals(batch.status()) || "CANCELLED".equals(batch.status()) || "IMPORTING".equals(batch.status())) {
+        if (batch.status() == MasterDataImportBatchStatus.COMPLETED || batch.status() == MasterDataImportBatchStatus.CANCELLED
+                || batch.status() == MasterDataImportBatchStatus.IMPORTING) {
             throw conflict("IMPORT_BATCH_IMMUTABLE", "当前批次状态不允许修改或提交");
         }
         return batch;

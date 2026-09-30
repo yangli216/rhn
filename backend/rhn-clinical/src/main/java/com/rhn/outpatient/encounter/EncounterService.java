@@ -19,6 +19,7 @@ import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -242,8 +243,8 @@ public class EncounterService implements EncounterDirectory {
         Encounter encounter = requireEncounterWithLock(encounterId);
         ExecutionContext context = executionContextProvider.requireCurrent();
         long expectedRevision = encounter.version();
-        String commandCode = clean(request.commandCode()) == null
-                ? "SUSPEND-" + encounterId + "-" + expectedRevision : clean(request.commandCode());
+        String commandCode = Strings.trimToNull(request.commandCode()) == null
+                ? "SUSPEND-" + encounterId + "-" + expectedRevision : Strings.trimToNull(request.commandCode());
         String reason = request.reason().trim();
         var reservation = idempotencyService.reserve(SUSPEND_OPERATION, commandCode,
                 canonicalCommand(encounterId, request));
@@ -252,7 +253,7 @@ public class EncounterService implements EncounterDirectory {
                 EncounterStatus.SUSPENDED.name(), expectedRevision, context.practitionerId(), context.subjectId(),
                 commandCode, reason));
         workSessionRepository.findFirstByTenantIdAndEncounterIdAndStatusOrderByStartedAtDesc(
-                encounter.tenantId(), encounter.id(), "ACTIVE").ifPresent(session -> session.close("SUSPENDED"));
+                encounter.tenantId(), encounter.id(), EncounterWorkSessionStatus.ACTIVE).ifPresent(session -> session.close("SUSPENDED"));
         encounter.suspend();
         registrationDirectory.markSuspended(encounterId, commandCode, reason);
         encounterRepository.flush();
@@ -268,8 +269,8 @@ public class EncounterService implements EncounterDirectory {
         }
         ExecutionContext context = executionContextProvider.requireCurrent();
         long expectedRevision = encounter.version();
-        String commandCode = clean(request.commandCode()) == null
-                ? "RESUME-" + encounterId + "-" + expectedRevision : clean(request.commandCode());
+        String commandCode = Strings.trimToNull(request.commandCode()) == null
+                ? "RESUME-" + encounterId + "-" + expectedRevision : Strings.trimToNull(request.commandCode());
         var reservation = idempotencyService.reserve(RESUME_OPERATION, commandCode,
                 canonicalCommand(encounterId, request));
         if (reservation.replay()) return replayEncounter(reservation.responseJson());
@@ -277,7 +278,7 @@ public class EncounterService implements EncounterDirectory {
                 EncounterStatus.IN_PROGRESS.name(), expectedRevision, context.practitionerId(), context.subjectId(),
                 commandCode, "患者返回，恢复门诊接诊"));
         workSessionRepository.save(new EncounterWorkSession(encounter.tenantId(), encounter.id(),
-                context.practitionerId(), context.subjectId(), clean(request.terminalCode())));
+                context.practitionerId(), context.subjectId(), Strings.trimToNull(request.terminalCode())));
         encounter.resume(context.actor());
         registrationDirectory.markResumed(encounterId, commandCode);
         encounterRepository.flush();
@@ -289,6 +290,30 @@ public class EncounterService implements EncounterDirectory {
     public EncounterResponse recordClinicalData(Long encounterId, RecordClinicalDataRequest request) {
         Encounter encounter = requireEncounterWithLock(encounterId);
         Long tenantId = TenantContext.requireTenantId();
+        validateClinicalInput(encounter, request);
+        String commandCode = Strings.trimToNull(request.commandCode()) == null
+                ? "RECORD-" + encounterId + "-" + encounter.version() + "-" + com.rhn.shared.id.GlobalIds.next()
+                : Strings.trimToNull(request.commandCode());
+        var reservation = idempotencyService.reserve(RECORD_OPERATION, commandCode,
+                canonicalCommand(encounterId, request));
+        if (reservation.replay()) return replayEncounter(reservation.responseJson());
+        encounter.recordClinicalData(request.chiefComplaint().trim(), request.systolic(), request.diastolic());
+
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        List<EncounterDiagnosis> diagnoses = syncDiagnoses(tenantId, encounter, request, context);
+        recordDraftNote(encounter, request, diagnoses);
+        encounterRepository.flush();
+        publishBloodPressureEvidence(encounter, tenantId, request, context);
+        publishDiagnosisEvents(encounter, diagnoses);
+        EncounterResponse response = EncounterResponse.from(encounter,
+                diagnoses.stream().map(this::diagnosisResponse).toList());
+        idempotencyService.complete(RECORD_OPERATION, commandCode, "Encounter", encounter.id(), 200,
+                jsonCodec.write(response));
+        return response;
+    }
+
+    /** 校验血压必填规则、生命体征取值范围与诊断输入。 */
+    private void validateClinicalInput(Encounter encounter, RecordClinicalDataRequest request) {
         var birthDate = residentDirectory.requireSnapshot(encounter.residentId()).birthDate();
         var visitDate = encounter.registeredAt().atZone(java.time.ZoneId.of("Asia/Shanghai")).toLocalDate();
         boolean bloodPressureRequired = birthDate == null || birthDate.isAfter(visitDate)
@@ -301,18 +326,14 @@ public class EncounterService implements EncounterDirectory {
                 decimal(request.systolic()), decimal(request.diastolic()), decimal(request.oxygenSaturation()),
                 request.heightCm(), request.weightKg(), null, null));
         validateDiagnoses(request);
-        String commandCode = clean(request.commandCode()) == null
-                ? "RECORD-" + encounterId + "-" + encounter.version() + "-" + com.rhn.shared.id.GlobalIds.next()
-                : clean(request.commandCode());
-        var reservation = idempotencyService.reserve(RECORD_OPERATION, commandCode,
-                canonicalCommand(encounterId, request));
-        if (reservation.replay()) return replayEncounter(reservation.responseJson());
-        encounter.recordClinicalData(request.chiefComplaint().trim(), request.systolic(), request.diastolic());
+    }
 
-        ExecutionContext context = executionContextProvider.requireCurrent();
+    /** 将本次提交的诊断增量落库（新增/更新/恢复/排除），返回保存后的有效诊断列表。 */
+    private List<EncounterDiagnosis> syncDiagnoses(Long tenantId, Encounter encounter, RecordClinicalDataRequest request,
+                                                   ExecutionContext context) {
         List<EncounterDiagnosis> existing = diagnosisRepository
                 .findByTenantIdAndEncounterIdAndDiagnosisStageOrderBySortOrderAscRecordedAtAsc(
-                        tenantId, encounterId, "ENCOUNTER");
+                        tenantId, encounter.id(), "ENCOUNTER");
         Map<String, EncounterDiagnosis> byCode = existing.stream().collect(Collectors.toMap(
                 EncounterDiagnosis::terminologyKey, Function.identity(), (left, right) -> left, LinkedHashMap::new));
         Set<String> incomingCodes = new LinkedHashSet<>();
@@ -328,15 +349,15 @@ public class EncounterService implements EncounterDirectory {
             if (diagnosis == null) {
                 diagnosis = diagnosisRepository.save(new EncounterDiagnosis(tenantId,
                         encounter.residentId(), encounter.organizationId(), encounter.departmentId(),
-                        encounterId, "ENCOUNTER",
+                        encounter.id(), "ENCOUNTER",
                         resolved.conceptId(), resolved.systemCode(), resolved.systemVersion(), resolved.diagnosisDomain(),
-                        clean(input.diagnosisGroupId()), resolved.code(), resolved.display(), input.type(), "CONFIRMED",
+                        Strings.trimToNull(input.diagnosisGroupId()), resolved.code(), resolved.display(), input.type(), "CONFIRMED",
                         resolved.managementJson(), sortOrder, context.subjectId()));
                 changeType = "ADDED";
             } else {
                 changeType = "ACTIVE".equals(diagnosis.diagnosisStatus()) ? "UPDATED" : "RESTORED";
                 diagnosis.revise(resolved.conceptId(), resolved.systemCode(), resolved.systemVersion(),
-                        resolved.diagnosisDomain(), clean(input.diagnosisGroupId()), resolved.display(), input.type(),
+                        resolved.diagnosisDomain(), Strings.trimToNull(input.diagnosisGroupId()), resolved.display(), input.type(),
                         "CONFIRMED", resolved.managementJson(), sortOrder, context.subjectId());
             }
             revisions.add(new EncounterDiagnosisRevision(diagnosis, changeType, "门诊病历保存",
@@ -352,10 +373,14 @@ public class EncounterService implements EncounterDirectory {
         diagnosisRepository.flush();
         diagnosisRevisionRepository.saveAll(revisions);
         diagnosisRevisionRepository.flush();
-        List<EncounterDiagnosis> diagnoses = diagnosisRepository
+        return diagnosisRepository
                 .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
-                        tenantId, encounterId, "ENCOUNTER", "ACTIVE");
+                        tenantId, encounter.id(), "ENCOUNTER", "ACTIVE");
+    }
 
+    /** 组装门诊病历草稿内容（含结构化表单）并写入临床文书。 */
+    private void recordDraftNote(Encounter encounter, RecordClinicalDataRequest request,
+                                 List<EncounterDiagnosis> diagnoses) {
         Map<String, Object> noteContent = new LinkedHashMap<>();
         noteContent.put("encounterNo", encounter.encounterNo());
         noteContent.put("chiefComplaint", request.chiefComplaint().trim());
@@ -390,32 +415,38 @@ public class EncounterService implements EncounterDirectory {
                 encounter.organizationId(), encounter.departmentId(), "OUTPATIENT_NOTE", "门诊病历",
                 noteSchema, noteContent,
                 "门诊接诊记录更新");
-        encounterRepository.flush();
-        if (request.systolic() != null && request.diastolic() != null) {
-            Instant measuredAt = Instant.now();
-            ClinicalObservationDirectory.BloodPressureEvidence bloodPressure = clinicalObservationDirectory
-                    .recordBloodPressure(new ClinicalObservationDirectory.BloodPressureCommand(tenantId,
-                            encounter.residentId(), encounter.id(), request.systolic(), request.diastolic(), measuredAt,
-                            context.practitionerId(), context.actor()));
-            HypertensionCareDirectory.ScreeningOutcome screening = hypertensionCareDirectory.evaluateBloodPressure(
-                    new HypertensionCareDirectory.ScreeningCommand(tenantId, encounter.residentId(), encounter.id(),
-                            encounter.organizationId(), encounter.departmentId(), bloodPressure.systolicObservationId(),
-                            bloodPressure.diastolicObservationId(), bloodPressure.systolic(), bloodPressure.diastolic(),
-                            bloodPressure.unitCode(), bloodPressure.effectiveAt()));
+    }
 
-            Map<String, Object> vitalPayload = new LinkedHashMap<>();
-            vitalPayload.put("systolic", request.systolic());
-            vitalPayload.put("diastolic", request.diastolic());
-            vitalPayload.put("systolicObservationId", bloodPressure.systolicObservationId());
-            vitalPayload.put("diastolicObservationId", bloodPressure.diastolicObservationId());
-            vitalPayload.put("unit", bloodPressure.unitCode());
-            vitalPayload.put("measuredAt", bloodPressure.effectiveAt().toString());
-            vitalPayload.put("hypertensionScreeningDecision", screening.decision());
-            if (screening.conditionId() != null) vitalPayload.put("conditionId", screening.conditionId());
-            if (screening.careTaskId() != null) vitalPayload.put("careTaskId", screening.careTaskId());
-            publish(encounter, "VITAL_SIGNS_RECORDED",
-                    "血压 " + request.systolic() + "/" + request.diastolic() + " mmHg", vitalPayload);
-        }
+    /** 记录血压体征证据并触发高血压筛查，未填写血压时跳过。 */
+    private void publishBloodPressureEvidence(Encounter encounter, Long tenantId,
+                                              RecordClinicalDataRequest request, ExecutionContext context) {
+        if (request.systolic() == null || request.diastolic() == null) return;
+        Instant measuredAt = Instant.now();
+        ClinicalObservationDirectory.BloodPressureEvidence bloodPressure = clinicalObservationDirectory
+                .recordBloodPressure(new ClinicalObservationDirectory.BloodPressureCommand(tenantId,
+                        encounter.residentId(), encounter.id(), request.systolic(), request.diastolic(), measuredAt,
+                        context.practitionerId(), context.actor()));
+        HypertensionCareDirectory.ScreeningOutcome screening = hypertensionCareDirectory.evaluateBloodPressure(
+                new HypertensionCareDirectory.ScreeningCommand(tenantId, encounter.residentId(), encounter.id(),
+                        encounter.organizationId(), encounter.departmentId(), bloodPressure.systolicObservationId(),
+                        bloodPressure.diastolicObservationId(), bloodPressure.systolic(), bloodPressure.diastolic(),
+                        bloodPressure.unitCode(), bloodPressure.effectiveAt()));
+
+        Map<String, Object> vitalPayload = new LinkedHashMap<>();
+        vitalPayload.put("systolic", request.systolic());
+        vitalPayload.put("diastolic", request.diastolic());
+        vitalPayload.put("systolicObservationId", bloodPressure.systolicObservationId());
+        vitalPayload.put("diastolicObservationId", bloodPressure.diastolicObservationId());
+        vitalPayload.put("unit", bloodPressure.unitCode());
+        vitalPayload.put("measuredAt", bloodPressure.effectiveAt().toString());
+        vitalPayload.put("hypertensionScreeningDecision", screening.decision());
+        if (screening.conditionId() != null) vitalPayload.put("conditionId", screening.conditionId());
+        if (screening.careTaskId() != null) vitalPayload.put("careTaskId", screening.careTaskId());
+        publish(encounter, "VITAL_SIGNS_RECORDED",
+                "血压 " + request.systolic() + "/" + request.diastolic() + " mmHg", vitalPayload);
+    }
+
+    private void publishDiagnosisEvents(Encounter encounter, List<EncounterDiagnosis> diagnoses) {
         for (EncounterDiagnosis diagnosis : diagnoses) {
             Map<String, Object> payload = new LinkedHashMap<>();
             if (diagnosis.conceptId() != null) payload.put("conceptId", diagnosis.conceptId());
@@ -432,11 +463,6 @@ public class EncounterService implements EncounterDirectory {
             payload.put("managementPrograms", managementEnvelope(diagnosis).programs());
             publish(encounter, "DIAGNOSIS_RECORDED", diagnosis.display(), payload);
         }
-        EncounterResponse response = EncounterResponse.from(encounter,
-                diagnoses.stream().map(this::diagnosisResponse).toList());
-        idempotencyService.complete(RECORD_OPERATION, commandCode, "Encounter", encounter.id(), 200,
-                jsonCodec.write(response));
-        return response;
     }
 
     private static java.math.BigDecimal decimal(Integer value) {
@@ -453,9 +479,9 @@ public class EncounterService implements EncounterDirectory {
         Encounter encounter = requireEncounterWithLock(encounterId);
         ExecutionContext context = executionContextProvider.requireCurrent();
         referralService.requireNoOpenConsultation(encounter.tenantId(), encounter.id());
-        String commandCode = clean(request.commandCode()) == null
+        String commandCode = Strings.trimToNull(request.commandCode()) == null
                 ? "COMPLETE-" + encounterId + "-" + encounter.version() + "-"
-                + com.rhn.shared.id.GlobalIds.next() : clean(request.commandCode());
+                + com.rhn.shared.id.GlobalIds.next() : Strings.trimToNull(request.commandCode());
         var reservation = idempotencyService.reserve(COMPLETE_OPERATION, commandCode,
                 canonicalCommand(encounterId, request));
         if (reservation.replay()) return replayEncounter(reservation.responseJson());
@@ -484,22 +510,22 @@ public class EncounterService implements EncounterDirectory {
         }
         completionService.recordPassed(encounter, decision, context, commandCode);
         long expectedRevision = encounter.version();
-        String disposition = clean(request.dispositionCode()) == null ? "HOME" : clean(request.dispositionCode());
+        String disposition = Strings.trimToNull(request.dispositionCode()) == null ? "HOME" : Strings.trimToNull(request.dispositionCode());
         String dispositionReason = "诊毕检查通过；转归=" + disposition
-                + (clean(request.dispositionNote()) == null ? "" : "；说明=" + clean(request.dispositionNote()));
+                + (Strings.trimToNull(request.dispositionNote()) == null ? "" : "；说明=" + Strings.trimToNull(request.dispositionNote()));
         statusEventRepository.save(new EncounterStatusEvent(encounter, EncounterStatus.IN_PROGRESS.name(),
                 EncounterStatus.COMPLETED.name(), expectedRevision, context.practitionerId(), context.subjectId(),
                 commandCode, dispositionReason));
         workSessionRepository.findFirstByTenantIdAndEncounterIdAndStatusOrderByStartedAtDesc(
-                encounter.tenantId(), encounter.id(), "ACTIVE").ifPresent(session -> session.close("COMPLETED"));
+                encounter.tenantId(), encounter.id(), EncounterWorkSessionStatus.ACTIVE).ifPresent(session -> session.close("COMPLETED"));
         encounter.complete();
         registrationDirectory.markCompleted(encounterId, commandCode);
         encounterRepository.flush();
         Map<String, Object> completionDetails = new LinkedHashMap<>();
         completionDetails.put("encounterNo", encounter.encounterNo());
         completionDetails.put("dispositionCode", disposition);
-        if (clean(request.dispositionNote()) != null) {
-            completionDetails.put("dispositionNote", clean(request.dispositionNote()));
+        if (Strings.trimToNull(request.dispositionNote()) != null) {
+            completionDetails.put("dispositionNote", Strings.trimToNull(request.dispositionNote()));
         }
         publish(encounter, "ENCOUNTER_COMPLETED", "门诊就诊完成", completionDetails);
         return completeCommand(COMPLETE_OPERATION, commandCode, encounter);
@@ -615,7 +641,9 @@ public class EncounterService implements EncounterDirectory {
             try {
                 departmentName = organizationDirectory.requireDepartment(
                         encounter.tenantId(), encounter.organizationId(), encounter.departmentId()).name();
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+                // 科室已停用或对当前用户不可见时，快照中科室名留空。
+            }
         }
         return new EncounterSnapshot(encounter.id(), encounter.tenantId(), encounter.residentId(),
                 encounter.organizationId(), encounter.departmentId(), encounter.encounterNo(), encounter.clinicianId(),
@@ -728,10 +756,6 @@ public class EncounterService implements EncounterDirectory {
         return value == null ? "" : value.trim();
     }
 
-    private String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
-
     private void publish(Encounter encounter, String type, String summary, Map<String, Object> payload) {
         Map<String, Object> details = new LinkedHashMap<>(payload);
         details.put("encounterNo", encounter.encounterNo());
@@ -806,115 +830,144 @@ public class EncounterService implements EncounterDirectory {
         Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
         Map<Long, String> departmentCache = new java.util.HashMap<>();
 
-        String normalizedStatus = clean(status);
-        String normalizedQuery = clean(query);
+        String normalizedStatus = Strings.trimToNull(status);
+        String normalizedQuery = Strings.trimToNull(query);
         if (normalizedQuery != null) {
             normalizedQuery = normalizedQuery.toLowerCase(java.util.Locale.ROOT);
         }
         final String matchQuery = normalizedQuery;
 
-        List<Encounter> filtered = encounters.stream().filter(enc -> {
-            if (normalizedStatus != null && !enc.status().name().equalsIgnoreCase(normalizedStatus)) {
-                return false;
+        List<Encounter> filtered = encounters.stream()
+                .filter(enc -> matchesEncounter(enc, normalizedStatus, matchQuery,
+                        residentCache, registrationDetails, diagnosisMap))
+                .toList();
+
+        EncounterPageSlice pageSlice = pageOf(filtered, safePage, safeSize);
+        List<Encounter> slice = pageSlice.slice();
+        long totalElements = pageSlice.totalElements();
+        int totalPages = pageSlice.totalPages();
+
+        List<EncounterQueryItem> content = slice.stream()
+                .map(enc -> toQueryItem(enc, residentCache, departmentCache, context, registrationDetails, diagnosisMap))
+                .toList();
+
+        boolean first = safePage == 0;
+        boolean last = totalPages == 0 || safePage >= totalPages - 1;
+        return new EncounterPageView(content, safePage, safeSize, totalElements, totalPages, first, last);
+    }
+
+    private boolean matchesEncounter(Encounter enc, String normalizedStatus, String matchQuery,
+                                     Map<Long, ResidentDirectory.ResidentSnapshot> residentCache,
+                                     Map<Long, OutpatientRegistrationDirectory.EncounterRegistrationDetail> registrationDetails,
+                                     Map<Long, List<EncounterDiagnosis>> diagnosisMap) {
+        if (normalizedStatus != null && !enc.status().name().equalsIgnoreCase(normalizedStatus)) {
+            return false;
+        }
+        if (matchQuery != null) {
+            if (enc.encounterNo() != null && enc.encounterNo().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+            if (enc.chiefComplaint() != null && enc.chiefComplaint().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+
+            ResidentDirectory.ResidentSnapshot res = residentCache.computeIfAbsent(enc.residentId(),
+                    residentDirectory::requireSnapshot);
+            if (res != null) {
+                if (res.fullName() != null && res.fullName().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                if (res.healthRecordNo() != null && res.healthRecordNo().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                if (res.phone() != null && res.phone().contains(matchQuery)) return true;
             }
-            if (matchQuery != null) {
-                if (enc.encounterNo() != null && enc.encounterNo().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
-                if (enc.chiefComplaint() != null && enc.chiefComplaint().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
 
-                ResidentDirectory.ResidentSnapshot res = residentCache.computeIfAbsent(enc.residentId(),
-                        residentDirectory::requireSnapshot);
-                if (res != null) {
-                    if (res.fullName() != null && res.fullName().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
-                    if (res.healthRecordNo() != null && res.healthRecordNo().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
-                    if (res.phone() != null && res.phone().contains(matchQuery)) return true;
-                }
-
-                OutpatientRegistrationDirectory.EncounterRegistrationDetail regDetail = registrationDetails.get(enc.id());
-                if (regDetail != null) {
-                    if (regDetail.registrationNo() != null && regDetail.registrationNo().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
-                    if (regDetail.practitionerName() != null && regDetail.practitionerName().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
-                    if (regDetail.serviceName() != null && regDetail.serviceName().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
-                }
-
-                if (enc.clinicianId() != null && enc.clinicianId().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
-
-                List<EncounterDiagnosis> dxs = diagnosisMap.get(enc.id());
-                if (dxs != null) {
-                    for (EncounterDiagnosis dx : dxs) {
-                        if (dx.display() != null && dx.display().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
-                        if (dx.code() != null && dx.code().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
-                    }
-                }
-
-                return false;
+            OutpatientRegistrationDirectory.EncounterRegistrationDetail regDetail = registrationDetails.get(enc.id());
+            if (regDetail != null) {
+                if (regDetail.registrationNo() != null && regDetail.registrationNo().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                if (regDetail.practitionerName() != null && regDetail.practitionerName().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                if (regDetail.serviceName() != null && regDetail.serviceName().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
             }
-            return true;
-        }).toList();
 
+            if (enc.clinicianId() != null && enc.clinicianId().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+
+            List<EncounterDiagnosis> dxs = diagnosisMap.get(enc.id());
+            if (dxs != null) {
+                for (EncounterDiagnosis dx : dxs) {
+                    if (dx.display() != null && dx.display().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                    if (dx.code() != null && dx.code().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                }
+            }
+
+            return false;
+        }
+        return true;
+    }
+
+    private EncounterPageSlice pageOf(List<Encounter> filtered, int safePage, int safeSize) {
         long totalElements = filtered.size();
         int totalPages = (int) Math.ceil((double) totalElements / safeSize);
         int fromIndex = Math.min((int) totalElements, safePage * safeSize);
         int toIndex = Math.min((int) totalElements, fromIndex + safeSize);
         List<Encounter> slice = filtered.subList(fromIndex, toIndex);
+        return new EncounterPageSlice(slice, totalElements, totalPages);
+    }
 
-        List<EncounterQueryItem> content = slice.stream().map(enc -> {
-            ResidentDirectory.ResidentSnapshot res = residentCache.computeIfAbsent(enc.residentId(),
-                    residentDirectory::requireSnapshot);
-            String deptName = departmentCache.computeIfAbsent(enc.departmentId(), id -> {
-                try {
-                    var d = organizationDirectory.requireDepartment(context.tenantId(), enc.organizationId(), id);
-                    return d != null ? d.name() : null;
-                } catch (Exception ignored) {
-                    return null;
-                }
-            });
+    private record EncounterPageSlice(List<Encounter> slice, long totalElements, int totalPages) {
+    }
 
-            OutpatientRegistrationDirectory.EncounterRegistrationDetail regDetail = registrationDetails.get(enc.id());
-            List<EncounterDiagnosis> dxs = diagnosisMap.getOrDefault(enc.id(), List.of());
-            EncounterDiagnosis primaryDx = dxs.stream()
-                    .filter(d -> d.diagnosisType() == EncounterDiagnosis.DiagnosisType.PRIMARY)
-                    .findFirst()
-                    .orElse(dxs.isEmpty() ? null : dxs.getFirst());
+    private EncounterQueryItem toQueryItem(Encounter enc,
+                                           Map<Long, ResidentDirectory.ResidentSnapshot> residentCache,
+                                           Map<Long, String> departmentCache,
+                                           ExecutionContext context,
+                                           Map<Long, OutpatientRegistrationDirectory.EncounterRegistrationDetail> registrationDetails,
+                                           Map<Long, List<EncounterDiagnosis>> diagnosisMap) {
+        ResidentDirectory.ResidentSnapshot res = residentCache.computeIfAbsent(enc.residentId(),
+                residentDirectory::requireSnapshot);
+        String deptName = departmentCache.computeIfAbsent(enc.departmentId(), id -> {
+            try {
+                var d = organizationDirectory.requireDepartment(context.tenantId(), enc.organizationId(), id);
+                return d != null ? d.name() : null;
+            } catch (Exception ignored) {
+                // 科室不可解析时列表页科室名留空。
+                return null;
+            }
+        });
 
-            String clinicianName = regDetail != null && regDetail.practitionerName() != null
-                    ? regDetail.practitionerName()
-                    : enc.clinicianId();
+        OutpatientRegistrationDirectory.EncounterRegistrationDetail regDetail = registrationDetails.get(enc.id());
+        List<EncounterDiagnosis> dxs = diagnosisMap.getOrDefault(enc.id(), List.of());
+        EncounterDiagnosis primaryDx = dxs.stream()
+                .filter(d -> d.diagnosisType() == EncounterDiagnosis.DiagnosisType.PRIMARY)
+                .findFirst()
+                .orElse(dxs.isEmpty() ? null : dxs.getFirst());
 
-            return new EncounterQueryItem(
-                    enc.id(),
-                    enc.encounterNo(),
-                    enc.residentId(),
-                    res != null ? res.healthRecordNo() : null,
-                    res != null ? res.fullName() : null,
-                    res != null ? res.gender() : null,
-                    res != null ? res.birthDate() : null,
-                    res != null ? res.phone() : null,
-                    enc.organizationId(),
-                    enc.departmentId(),
-                    deptName,
-                    enc.registrationId(),
-                    regDetail != null ? regDetail.registrationNo() : null,
-                    enc.registrationSource(),
-                    enc.visitType(),
-                    enc.clinicianId(),
-                    clinicianName,
-                    enc.status().name(),
-                    enc.chiefComplaint(),
-                    enc.systolic(),
-                    enc.diastolic(),
-                    primaryDx != null ? primaryDx.display() : null,
-                    primaryDx != null ? primaryDx.code() : null,
-                    dxs.size(),
-                    regDetail != null ? regDetail.serviceName() : null,
-                    regDetail != null ? regDetail.locationName() : null,
-                    enc.registeredAt(),
-                    enc.startedAt(),
-                    enc.completedAt()
-            );
-        }).toList();
+        String clinicianName = regDetail != null && regDetail.practitionerName() != null
+                ? regDetail.practitionerName()
+                : enc.clinicianId();
 
-        boolean first = safePage == 0;
-        boolean last = totalPages == 0 || safePage >= totalPages - 1;
-        return new EncounterPageView(content, safePage, safeSize, totalElements, totalPages, first, last);
+        return new EncounterQueryItem(
+                enc.id(),
+                enc.encounterNo(),
+                enc.residentId(),
+                res != null ? res.healthRecordNo() : null,
+                res != null ? res.fullName() : null,
+                res != null ? res.gender() : null,
+                res != null ? res.birthDate() : null,
+                res != null ? res.phone() : null,
+                enc.organizationId(),
+                enc.departmentId(),
+                deptName,
+                enc.registrationId(),
+                regDetail != null ? regDetail.registrationNo() : null,
+                enc.registrationSource(),
+                enc.visitType(),
+                enc.clinicianId(),
+                clinicianName,
+                enc.status().name(),
+                enc.chiefComplaint(),
+                enc.systolic(),
+                enc.diastolic(),
+                primaryDx != null ? primaryDx.display() : null,
+                primaryDx != null ? primaryDx.code() : null,
+                dxs.size(),
+                regDetail != null ? regDetail.serviceName() : null,
+                regDetail != null ? regDetail.locationName() : null,
+                enc.registeredAt(),
+                enc.startedAt(),
+                enc.completedAt()
+        );
     }
 }

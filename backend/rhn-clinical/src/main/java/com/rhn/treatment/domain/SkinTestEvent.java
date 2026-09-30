@@ -2,8 +2,11 @@ package com.rhn.treatment.domain;
 
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -32,7 +35,7 @@ public class SkinTestEvent {
     @Column(name = "SN_ATTEMPT", nullable = false) private int attemptNo;
     @Column(name = "CD_MED_SNAP", nullable = false) private String medicationCodeSnapshot;
     @Column(name = "NA_MED_SNAP", nullable = false) private String medicationNameSnapshot;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private SkinTestEventStatus status;
     @Column(name = "SD_TEST_METHOD", nullable = false) private String testMethod;
     @Column(name = "FG_ORIG_SOLN", nullable = false) private boolean originalSolution;
     @Column(name = "ID_CATALOG_ITEM_SOLN") private Long solutionCatalogItemId;
@@ -87,12 +90,12 @@ public class SkinTestEvent {
         this.departmentId = departmentId; this.residentId = residentId; this.encounterId = encounterId;
         this.medicationRequestId = medicationRequestId; this.medicationId = medicationId;
         this.attemptNo = attemptNo; this.medicationCodeSnapshot = medicationCode;
-        this.medicationNameSnapshot = medicationName; this.status = "IN_PROGRESS"; this.testMethod = method;
+        this.medicationNameSnapshot = medicationName; this.status = SkinTestEventStatus.IN_PROGRESS; this.testMethod = method;
         this.originalSolution = originalSolution; this.solutionCatalogItemId = solutionCatalogItemId;
-        this.solutionNameSnapshot = clean(solutionName); this.stockLotId = stockLotId;
-        this.lotNoSnapshot = clean(lotNo); this.concentration = concentration;
-        this.concentrationUnit = clean(concentrationUnit); this.bodySite = clean(bodySite);
-        this.verificationMethod = clean(verificationMethod) == null
+        this.solutionNameSnapshot = Strings.trimToNull(solutionName); this.stockLotId = stockLotId;
+        this.lotNoSnapshot = Strings.trimToNull(lotNo); this.concentration = concentration;
+        this.concentrationUnit = Strings.trimToNull(concentrationUnit); this.bodySite = Strings.trimToNull(bodySite);
+        this.verificationMethod = Strings.trimToNull(verificationMethod) == null
                 ? "NAME_AND_IDENTIFIER" : upper(verificationMethod);
         this.observationMinutes = observationMinutes; this.performedByUserId = actorId;
         this.performedByPractitionerId = practitionerId; this.startedAt = startedAt; this.createdAt = Instant.now();
@@ -104,17 +107,17 @@ public class SkinTestEvent {
                          Long verifiedByUserId, Long verifiedByPractitionerId, String verifiedByName,
                          Instant occurredAt) {
         requireRevision(expectedRevision);
-        if (!"IN_PROGRESS".equals(status)) throw conflict(
+        if (status != SkinTestEventStatus.IN_PROGRESS) throw conflict(
                 "SKIN_TEST_COMPLETE_STATE_INVALID", "只有进行中的皮试可以判读完成");
         String outcome = upper(result);
         if (!RESULTS.contains(outcome)) throw badRequest("SKIN_TEST_RESULT_INVALID", "判读结果不正确");
         requireNonNegative(whealDiameterMm, "SKIN_TEST_WHEAL_INVALID", "风团直径不能为负数");
         requireNonNegative(flareDiameterMm, "SKIN_TEST_FLARE_INVALID", "红晕直径不能为负数");
-        String reaction = clean(reactionDescription);
+        String reaction = Strings.trimToNull(reactionDescription);
         if ("POSITIVE".equals(outcome) && reaction == null) {
             throw badRequest("SKIN_TEST_POSITIVE_REACTION_REQUIRED", "皮试阳性必须记录临床反应描述");
         }
-        String earlyReason = clean(earlyReadReason);
+        String earlyReason = Strings.trimToNull(earlyReadReason);
         Instant plannedEnd = startedAt.plus(Duration.ofMinutes(observationMinutes));
         if (occurredAt.isBefore(plannedEnd)) {
             if ("NEGATIVE".equals(outcome)) throw conflict(
@@ -122,23 +125,23 @@ public class SkinTestEvent {
             if (earlyReason == null) throw badRequest(
                     "SKIN_TEST_EARLY_READ_REASON_REQUIRED", "提前判读必须说明临床原因");
         }
-        this.status = "COMPLETED"; this.completedAt = occurredAt; this.result = outcome;
+        this.status = SkinTestEventStatus.COMPLETED; this.completedAt = occurredAt; this.result = outcome;
         this.whealDiameterMm = whealDiameterMm; this.flareDiameterMm = flareDiameterMm;
         this.reactionDescription = reaction; this.earlyReadReason = earlyReason;
         this.readByUserId = actorId; this.readByPractitionerId = practitionerId;
         this.verifiedByUserId = verifiedByUserId;
         this.verifiedByPractitionerId = verifiedByPractitionerId;
-        this.verifiedByName = clean(verifiedByName);
+        this.verifiedByName = Strings.trimToNull(verifiedByName);
         this.verifiedAt = occurredAt;
     }
 
     public void cancel(long expectedRevision, String reason, Long actorId, Instant occurredAt) {
         requireRevision(expectedRevision);
-        if (!"IN_PROGRESS".equals(status)) throw conflict(
+        if (status != SkinTestEventStatus.IN_PROGRESS) throw conflict(
                 "SKIN_TEST_CANCEL_STATE_INVALID", "只有进行中的皮试可以取消");
-        String value = clean(reason);
+        String value = Strings.trimToNull(reason);
         if (value == null) throw badRequest("SKIN_TEST_CANCEL_REASON_REQUIRED", "取消皮试必须填写原因");
-        this.status = "CANCELLED"; this.cancelledAt = occurredAt; this.cancelledBy = actorId;
+        this.status = SkinTestEventStatus.CANCELLED; this.cancelledAt = occurredAt; this.cancelledBy = actorId;
         this.cancelReason = value;
     }
 
@@ -147,7 +150,7 @@ public class SkinTestEvent {
                 "SKIN_TEST_REVISION_CONFLICT", "皮试记录已被其他用户更新，请刷新后重试");
     }
     private void requirePair(Object left, Object right, String code, String message) {
-        if ((left == null) != (clean(right == null ? null : right.toString()) == null)) throw badRequest(code, message);
+        if ((left == null) != (Strings.trimToNull(right == null ? null : right.toString()) == null)) throw badRequest(code, message);
     }
     private void requireNonNegative(BigDecimal value, String code, String message) {
         if (value != null && value.signum() < 0) throw badRequest(code, message);
@@ -158,8 +161,7 @@ public class SkinTestEvent {
     private BusinessException conflict(String code, String message) {
         return new BusinessException(code, message, HttpStatus.CONFLICT);
     }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-    private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(); }
+    private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(); }
 
     public Long id() { return id; }
     public long revision() { return revision; }
@@ -173,7 +175,7 @@ public class SkinTestEvent {
     public int attemptNo() { return attemptNo; }
     public String medicationCodeSnapshot() { return medicationCodeSnapshot; }
     public String medicationNameSnapshot() { return medicationNameSnapshot; }
-    public String status() { return status; }
+    public SkinTestEventStatus status() { return status; }
     public String testMethod() { return testMethod; }
     public boolean originalSolution() { return originalSolution; }
     public Long solutionCatalogItemId() { return solutionCatalogItemId; }

@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -22,7 +24,8 @@ public class PrescriptionInventoryFreeze {
     @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
     @Column(name = "QTY_FROZEN", nullable = false, precision = 28, scale = 8) private BigDecimal quantityFrozen;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "SD_STATUS", nullable = false) private PrescriptionInventoryFreezeStatus status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_RLSD") private Instant releasedAt;
@@ -45,14 +48,14 @@ public class PrescriptionInventoryFreeze {
         this.stockLotId = stockLotId;
         this.quantityFrozen = quantityFrozen;
         this.baseUnitCode = baseUnitCode;
-        this.status = "ACTIVE";
+        this.status = PrescriptionInventoryFreezeStatus.ACTIVE;
         this.createdAt = Instant.now();
         this.createdBy = actorId;
     }
 
     public void release(Long actorId, String reason) {
-        if ("RELEASED".equals(status)) return;
-        this.status = "RELEASED";
+        if (status == PrescriptionInventoryFreezeStatus.RELEASED) return;
+        this.status = PrescriptionInventoryFreezeStatus.RELEASED;
         this.releasedAt = Instant.now();
         this.releasedBy = actorId;
         this.releaseReason = reason;
@@ -68,7 +71,7 @@ public class PrescriptionInventoryFreeze {
     public Long stockLotId() { return stockLotId; }
     public BigDecimal quantityFrozen() { return quantityFrozen; }
     public String baseUnitCode() { return baseUnitCode; }
-    public String status() { return status; }
+    public PrescriptionInventoryFreezeStatus status() { return status; }
     public Instant createdAt() { return createdAt; }
     public Long createdBy() { return createdBy; }
     public Instant releasedAt() { return releasedAt; }

@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -21,7 +23,7 @@ public class StockRequisition {
     @Column(name = "ID_STOCK_SITE_DEST") private Long destinationSiteId;
     @Column(name = "CD_REQ_NO", nullable = false) private String requisitionNo;
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private StockRequisitionStatus status;
     @Column(name = "DT_REQD", nullable = false) private Instant requestedAt;
     @Column(name = "ID_USER_REQD", nullable = false) private Long requestedBy;
     @Column(name = "DT_APRVD") private Instant approvedAt;
@@ -45,28 +47,28 @@ public class StockRequisition {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.sourceSiteId = sourceSiteId; this.requestingDepartmentId = requestingDepartmentId;
         this.destinationSiteId = destinationSiteId; this.requisitionNo = requisitionNo; this.requestCode = requestCode;
-        this.status = "DRAFT"; this.requestedAt = requestedAt; this.requestedBy = actorId; this.reason = reason;
+        this.status = StockRequisitionStatus.DRAFT; this.requestedAt = requestedAt; this.requestedBy = actorId; this.reason = reason;
         this.description = description; this.createdAt = Instant.now(); this.updatedAt = createdAt; this.updatedBy = actorId;
     }
 
-    public void submit(Long actorId) { require("DRAFT"); status = "SUBMITTED"; touch(actorId); }
+    public void submit(Long actorId) { require(StockRequisitionStatus.DRAFT); status = StockRequisitionStatus.SUBMITTED; touch(actorId); }
     public void approve(Long actorId, String reason) {
-        require("SUBMITTED"); status = "APPROVED"; approvedAt = Instant.now(); approvedBy = actorId;
+        require(StockRequisitionStatus.SUBMITTED); status = StockRequisitionStatus.APPROVED; approvedAt = Instant.now(); approvedBy = actorId;
         if (reason != null && !reason.isBlank()) this.reason = reason; touch(actorId);
     }
     public void reject(Long actorId, String reason) {
-        require("SUBMITTED"); status = "REJECTED"; approvedAt = Instant.now(); approvedBy = actorId;
+        require(StockRequisitionStatus.SUBMITTED); status = StockRequisitionStatus.REJECTED; approvedAt = Instant.now(); approvedBy = actorId;
         this.reason = reason; touch(actorId);
     }
     public void markPicking(Long actorId) {
-        require("APPROVED"); status = "PICKING"; pickedAt = Instant.now(); pickedBy = actorId; touch(actorId);
+        require(StockRequisitionStatus.APPROVED); status = StockRequisitionStatus.PICKING; pickedAt = Instant.now(); pickedBy = actorId; touch(actorId);
     }
     public void markIssued(Long actorId, Long transactionId) {
-        require("PICKING"); status = "ISSUED"; issuedAt = Instant.now(); issuedBy = actorId;
+        require(StockRequisitionStatus.PICKING); status = StockRequisitionStatus.ISSUED; issuedAt = Instant.now(); issuedBy = actorId;
         inventoryTransactionId = transactionId; touch(actorId);
     }
-    private void require(String expected) {
-        if (!expected.equals(status)) throw new IllegalStateException("请领单状态不允许当前操作");
+    private void require(StockRequisitionStatus expected) {
+        if (expected != status) throw new IllegalStateException("请领单状态不允许当前操作");
     }
     private void touch(Long actorId) { updatedAt = Instant.now(); updatedBy = actorId; }
 
@@ -79,7 +81,7 @@ public class StockRequisition {
     public Long destinationSiteId() { return destinationSiteId; }
     public String requisitionNo() { return requisitionNo; }
     public String requestCode() { return requestCode; }
-    public String status() { return status; }
+    public StockRequisitionStatus status() { return status; }
     public Instant requestedAt() { return requestedAt; }
     public Long requestedBy() { return requestedBy; }
     public Instant approvedAt() { return approvedAt; }

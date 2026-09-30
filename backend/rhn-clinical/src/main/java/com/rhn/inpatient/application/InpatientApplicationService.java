@@ -14,7 +14,9 @@ import com.rhn.inpatient.api.InpatientViews.DischargeDiagnosisView;
 import com.rhn.inpatient.api.InpatientViews.AdmissionDiagnosisListView;
 import com.rhn.inpatient.api.InpatientViews.AdmissionDiagnosisView;
 import com.rhn.inpatient.domain.CareEpisode;
+import com.rhn.inpatient.domain.CareEpisodeStatus;
 import com.rhn.inpatient.domain.EncounterLocationHistory;
+import com.rhn.inpatient.domain.EncounterLocationHistoryStatus;
 import com.rhn.inpatient.domain.InpatientBedOccupancy;
 import com.rhn.inpatient.domain.InpatientBedProfile;
 import com.rhn.inpatient.domain.InpatientEncounter;
@@ -38,6 +40,7 @@ import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.json.JsonCodec;
 import com.rhn.platform.idempotency.IdempotencyService;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,8 +64,9 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class InpatientApplicationService {
-    private static final Set<String> ACTIVE_EPISODE_STATUSES = Set.of(
-            "PLANNED", "PENDING_BED", "ADMITTED", "ON_LEAVE", "DISCHARGE_PENDING");
+    private static final Set<CareEpisodeStatus> ACTIVE_EPISODE_STATUSES = Set.of(
+            CareEpisodeStatus.PLANNED, CareEpisodeStatus.PENDING_BED, CareEpisodeStatus.ADMITTED,
+            CareEpisodeStatus.ON_LEAVE, CareEpisodeStatus.DISCHARGE_PENDING);
     private static final Set<String> BED_OPERATIONAL_STATUSES = Set.of(
             "AVAILABLE", "CLEANING", "BLOCKED", "MAINTENANCE");
 
@@ -124,8 +128,9 @@ public class InpatientApplicationService {
     @Transactional(readOnly = true)
     public BootstrapView bootstrap(String status, String keyword) {
         ExecutionContext context = requireContext();
-        Collection<String> statuses = "ALL".equals(normalize(status))
-                ? Set.of("ADMITTED", "DISCHARGED") : Set.of("ADMITTED");
+        Collection<CareEpisodeStatus> statuses = "ALL".equals(normalize(status))
+                ? Set.of(CareEpisodeStatus.ADMITTED, CareEpisodeStatus.DISCHARGED)
+                : Set.of(CareEpisodeStatus.ADMITTED);
         List<EpisodeView> episodeViews = episodeViews(context, statuses).stream()
                 .filter(value -> matches(value, keyword))
                 .toList();
@@ -167,20 +172,20 @@ public class InpatientApplicationService {
                 department.id(), episode.id(), bedLocation.id(), context.practitionerId(), admittedAt));
         episodeDetails.save(new InpatientEpisodeDetail(
                 episode.id(), context.tenantId(), defaultCode(input.admissionTypeCode(), "GENERAL"),
-                defaultCode(input.admissionSourceCode(), "OUTPATIENT"), bedLocation.id(), trim(input.admissionReason()),
+                defaultCode(input.admissionSourceCode(), "OUTPATIENT"), bedLocation.id(), Strings.trimToNull(input.admissionReason()),
                 defaultCode(input.nursingLevelCode(), "LEVEL_III"), defaultCode(input.dietCode(), "NORMAL"),
                 bedLocation.name(), input.responsibleNurseId(), defaultCode(input.admissionMethodCode(), "WALKING"),
                 defaultCode(input.conditionCode(), "GENERAL"), defaultCode(input.paymentMethodCode(), "SELF_PAY"),
-                trim(input.referralOrganizationName()), trim(input.emergencyContactName()),
-                contactRelationship, trim(input.emergencyContactPhone()),
-                trim(input.admissionNote())));
+                Strings.trimToNull(input.referralOrganizationName()), Strings.trimToNull(input.emergencyContactName()),
+                contactRelationship, Strings.trimToNull(input.emergencyContactPhone()),
+                Strings.trimToNull(input.admissionNote())));
         occupancies.save(new InpatientBedOccupancy(
                 context.tenantId(), bedLocation.id(), episode.id(), encounter.id(), resident.id(), admittedAt));
         locationHistories.save(new EncounterLocationHistory(
                 context.tenantId(), encounter.id(), bedLocation.id(), "入院分床", actorId, admittedAt));
         events.save(new InpatientEvent(
                 context.tenantId(), episode.id(), encounter.id(), "ADMITTED", null, "ADMITTED",
-                null, bedLocation.id(), commandCode, trim(input.admissionReason()), actorId));
+                null, bedLocation.id(), commandCode, Strings.trimToNull(input.admissionReason()), actorId));
         temperatureChart.appendSystemEvent(new SystemChartEventCommand(
                 context.tenantId(), episode.id(), encounter.id(), "ADMISSION", episode.startAt(),
                 null, bedLocation.id(),
@@ -265,7 +270,7 @@ public class InpatientApplicationService {
         occupancies.flush();
         bed.markCleaning(actorId);
         encounter.complete();
-        detail.discharge(occupancy.bedLocationId(), defaultCode(input.dispositionCode(), "HOME"), trim(input.note()));
+        detail.discharge(occupancy.bedLocationId(), defaultCode(input.dispositionCode(), "HOME"), Strings.trimToNull(input.note()));
         episode.discharge(input.expectedRevision(), actorId);
         events.save(new InpatientEvent(
                 context.tenantId(), episode.id(), encounter.id(), "DISCHARGED", "ADMITTED", "DISCHARGED",
@@ -311,7 +316,7 @@ public class InpatientApplicationService {
             return jsonCodec.read(reservation.responseJson(), AdmissionDiagnosisListView.class);
         }
         CareEpisode episode = requireLockedEpisode(context, episodeId);
-        if (!"ADMITTED".equals(episode.status())) {
+        if (episode.status() != CareEpisodeStatus.ADMITTED) {
             throw conflict("INPATIENT_EPISODE_NOT_ADMITTED", "只有在院患者可以维护入院诊断");
         }
         if (episode.revision() != input.expectedEpisodeRevision()) {
@@ -355,7 +360,7 @@ public class InpatientApplicationService {
             return jsonCodec.read(reservation.responseJson(), DischargeDiagnosisListView.class);
         }
         CareEpisode episode = requireLockedEpisode(context, episodeId);
-        if (!"ADMITTED".equals(episode.status())) {
+        if (episode.status() != CareEpisodeStatus.ADMITTED) {
             throw conflict("INPATIENT_EPISODE_NOT_ADMITTED", "只有在院患者可以维护出院诊断");
         }
         if (episode.revision() != input.expectedEpisodeRevision()) {
@@ -399,7 +404,7 @@ public class InpatientApplicationService {
         }
         events.save(new InpatientEvent(
                 context.tenantId(), null, null, "BED_STATUS_CHANGED", before, status,
-                location.id(), location.id(), commandCode, trim(input.reason()), requireActor(context)));
+                location.id(), location.id(), commandCode, Strings.trimToNull(input.reason()), requireActor(context)));
         bedProfiles.flush();
         return bedViews(context).stream().filter(value -> value.id().equals(bedId)).findFirst()
                 .orElseThrow(() -> notFound("INPATIENT_BED_NOT_FOUND", "床位不存在"));
@@ -443,7 +448,7 @@ public class InpatientApplicationService {
                 .toList();
     }
 
-    private List<EpisodeView> episodeViews(ExecutionContext context, Collection<String> statuses) {
+    private List<EpisodeView> episodeViews(ExecutionContext context, Collection<CareEpisodeStatus> statuses) {
         return episodes.findByTenantIdAndOrganizationIdAndEpisodeTypeAndStatusInOrderByStartAtDesc(
                         context.tenantId(), context.organizationId(), "INPATIENT", statuses).stream()
                 .map(value -> episodeView(context, value))
@@ -467,7 +472,7 @@ public class InpatientApplicationService {
         DepartmentView department = organizations.requireDepartment(
                 context.tenantId(), context.organizationId(), encounter.departmentId());
         return new EpisodeView(
-                episode.id(), episode.revision(), episode.episodeNo(), episode.status(),
+                episode.id(), episode.revision(), episode.episodeNo(), episode.status().name(),
                 resident.id(), resident.fullName(), resident.healthRecordNo(), resident.gender(), resident.birthDate(),
                 episode.organizationId(), encounter.departmentId(), department.name(),
                 encounter.id(), encounter.encounterNo(),
@@ -553,7 +558,7 @@ public class InpatientApplicationService {
 
     private EncounterLocationHistory requireActiveLocationHistory(ExecutionContext context, Long encounterId) {
         return locationHistories.findFirstByTenantIdAndEncounterIdAndStatusOrderByStartAtDesc(
-                        context.tenantId(), encounterId, "ACTIVE")
+                        context.tenantId(), encounterId, EncounterLocationHistoryStatus.ACTIVE)
                 .orElseThrow(() -> conflict("INPATIENT_LOCATION_HISTORY_MISSING", "当前床位历史不存在"));
     }
 
@@ -580,7 +585,7 @@ public class InpatientApplicationService {
     }
 
     private static String requireCommand(String value) {
-        String command = trim(value);
+        String command = Strings.trimToNull(value);
         if (command == null) throw badRequest("INPATIENT_COMMAND_REQUIRED", "业务请求号不能为空");
         return command;
     }
@@ -592,7 +597,7 @@ public class InpatientApplicationService {
     }
 
     private static boolean matches(EpisodeView value, String keyword) {
-        String normalized = trim(keyword);
+        String normalized = Strings.trimToNull(keyword);
         if (normalized == null) return true;
         String lowered = normalized.toLowerCase(Locale.ROOT);
         return value.residentName().toLowerCase(Locale.ROOT).contains(lowered)
@@ -602,7 +607,7 @@ public class InpatientApplicationService {
     }
 
     private static String normalize(String value) {
-        String trimmed = trim(value);
+        String trimmed = Strings.trimToNull(value);
         return trimmed == null ? "" : trimmed.toUpperCase(Locale.ROOT);
     }
 
@@ -612,7 +617,7 @@ public class InpatientApplicationService {
     }
 
     private static String defaultText(String value, String fallback) {
-        String normalized = trim(value);
+        String normalized = Strings.trimToNull(value);
         return normalized == null ? fallback : normalized;
     }
 
@@ -663,23 +668,18 @@ public class InpatientApplicationService {
     }
 
     private static String requiredText(String value, String code, String message) {
-        String normalized = trim(value);
+        String normalized = Strings.trimToNull(value);
         if (normalized == null) throw badRequest(code, message);
         return normalized;
     }
 
     private String requireContactRelationship(ExecutionContext context, String value) {
-        String normalized = trim(value);
+        String normalized = Strings.trimToNull(value);
         if (normalized == null) return null;
         boolean valid = dictionaries.resolveActiveItems(context.tenantId(), "PI_RELATED_PERSON_RELATIONSHIP")
                 .stream().anyMatch(item -> item.code().equals(normalized));
         if (!valid) throw badRequest("INPATIENT_CONTACT_RELATIONSHIP_INVALID", "患者关系不在基础字典中");
         return normalized;
-    }
-
-    private static String trim(String value) {
-        if (value == null || value.isBlank()) return null;
-        return value.trim();
     }
 
     public record AdmissionCommand(

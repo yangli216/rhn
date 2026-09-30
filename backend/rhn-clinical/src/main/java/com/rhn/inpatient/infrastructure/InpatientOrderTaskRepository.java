@@ -1,6 +1,7 @@
 package com.rhn.inpatient.infrastructure;
 
 import com.rhn.inpatient.domain.InpatientOrderTask;
+import com.rhn.inpatient.domain.InpatientOrderTaskStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -18,13 +19,13 @@ public interface InpatientOrderTaskRepository extends JpaRepository<InpatientOrd
     List<InpatientOrderTask> findByTenantIdOrderByScheduledAtAsc(Long tenantId);
 
     List<InpatientOrderTask> findByTenantIdAndStatusAndScheduledAtGreaterThanEqualAndScheduledAtLessThanOrderByScheduledAtAsc(
-            Long tenantId, String status, Instant windowFrom, Instant windowTo);
+            Long tenantId, InpatientOrderTaskStatus status, Instant windowFrom, Instant windowTo);
 
     List<InpatientOrderTask> findByTenantIdAndRequestIdInAndStatusOrderByScheduledAtAsc(
-            Long tenantId, Collection<Long> requestIds, String status);
+            Long tenantId, Collection<Long> requestIds, InpatientOrderTaskStatus status);
 
     @Query("select value from InpatientOrderTask value where value.tenantId = :tenantId "
-            + "and value.status = 'PLANNED' and value.requestId in "
+            + "and value.status = com.rhn.inpatient.domain.InpatientOrderTaskStatus.PLANNED and value.requestId in "
             + "(select workflow.requestId from InpatientOrderWorkflow workflow "
             + "where workflow.tenantId = :tenantId and workflow.episodeId = :episodeId) "
             + "order by value.scheduledAt")

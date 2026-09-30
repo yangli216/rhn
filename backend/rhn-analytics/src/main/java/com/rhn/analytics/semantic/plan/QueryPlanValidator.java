@@ -41,7 +41,23 @@ public class QueryPlanValidator {
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
 
-        // 1. 主事实表与别名基本合法性校验
+        validateIdentity(plan, errors);
+        validateMeasures(plan, errors, warnings);
+        validateDimensions(plan, errors);
+        validateJoins(plan, errors);
+        validateSecurityScope(plan, errors);
+        validateTimeRange(plan, errors);
+        validateLimit(plan, errors);
+
+        if (errors.isEmpty()) {
+            return ValidationResult.success(warnings);
+        } else {
+            return new ValidationResult(false, errors, warnings);
+        }
+    }
+
+    // 1. 主事实表与别名基本合法性校验
+    private void validateIdentity(LogicalQueryPlan plan, List<String> errors) {
         if (plan.primaryEntity() == null || plan.primaryEntity().isBlank()) {
             errors.add("主事实实体 (primaryEntity) 不能为空");
         }
@@ -51,8 +67,10 @@ public class QueryPlanValidator {
         if (plan.primaryAlias() == null || plan.primaryAlias().isBlank()) {
             errors.add("主事实表别名 (primaryAlias) 不能为空");
         }
+    }
 
-        // 2. 指标度量（Measures）校验
+    // 2. 指标度量（Measures）校验
+    private void validateMeasures(LogicalQueryPlan plan, List<String> errors, List<String> warnings) {
         if (plan.measures().isEmpty()) {
             errors.add("查询计划必须至少包含一个统计度量项 (measures)");
         } else {
@@ -75,8 +93,10 @@ public class QueryPlanValidator {
                 });
             }
         }
+    }
 
-        // 3. 分组维度（Dimensions）校验
+    // 3. 分组维度（Dimensions）校验
+    private void validateDimensions(LogicalQueryPlan plan, List<String> errors) {
         Set<String> dimCodes = new HashSet<>();
         for (PlannedDimension d : plan.dimensions()) {
             if (d.dimensionCode() == null || d.dimensionCode().isBlank()) {
@@ -89,8 +109,10 @@ public class QueryPlanValidator {
                 errors.add("分组维度 [" + d.dimensionCode() + "] 缺少物理字段或分组表达式");
             }
         }
+    }
 
-        // 4. 连接拓扑（Joins）与扇出风险校验
+    // 4. 连接拓扑（Joins）与扇出风险校验
+    private void validateJoins(LogicalQueryPlan plan, List<String> errors) {
         if (plan.joins().size() > MAX_JOINS) {
             errors.add("Join 表数量超过安全上限 (" + plan.joins().size() + " > " + MAX_JOINS + ")");
         }
@@ -128,8 +150,10 @@ public class QueryPlanValidator {
                 }
             }
         }
+    }
 
-        // 5. 多租户与安全范围强校验 (Security Scope)
+    // 5. 多租户与安全范围强校验 (Security Scope)
+    private void validateSecurityScope(LogicalQueryPlan plan, List<String> errors) {
         PlannedScope scope = plan.scope();
         if (scope != null) {
             if (scope.tenantId() != null) {
@@ -149,8 +173,10 @@ public class QueryPlanValidator {
                 }
             }
         }
+    }
 
-        // 6. 时间窗口边界校验 (Time Range Bounds)
+    // 6. 时间窗口边界校验 (Time Range Bounds)
+    private void validateTimeRange(LogicalQueryPlan plan, List<String> errors) {
         PlannedTimeRange timeRange = plan.timeRange();
         if (timeRange == null) {
             errors.add("查询计划必须包含时间范围规划 (timeRange)");
@@ -168,18 +194,14 @@ public class QueryPlanValidator {
                 }
             }
         }
+    }
 
-        // 7. Limit 与排序代价校验
+    // 7. Limit 与排序代价校验
+    private void validateLimit(LogicalQueryPlan plan, List<String> errors) {
         if (plan.limit() <= 0) {
             errors.add("查询限制行数 (limit) 必须大于 0");
         } else if (plan.limit() > MAX_LIMIT) {
             errors.add("查询限制行数超过最大上限 (" + plan.limit() + " > " + MAX_LIMIT + ")");
-        }
-
-        if (errors.isEmpty()) {
-            return ValidationResult.success(warnings);
-        } else {
-            return new ValidationResult(false, errors, warnings);
         }
     }
 }

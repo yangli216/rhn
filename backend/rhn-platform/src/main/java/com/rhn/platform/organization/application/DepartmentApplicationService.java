@@ -18,6 +18,7 @@ import com.rhn.platform.organization.infrastructure.PersonnelAssignmentRepositor
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.api.RevisionGuard;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -68,7 +69,7 @@ public class DepartmentApplicationService {
         String normalizedProperty = optionalDictionaryItem(tenantId, OrganizationDictionaryCodes.DEPARTMENT_PROPERTY,
                 property, "科室属性");
         DepartmentView value = save(() -> repository.saveAndFlush(new Department(tenantId, organizationId, parentId,
-                        normalizedCode, name.trim(), trimToNull(shortName), trimToNull(description), normalizedType,
+                        normalizedCode, name.trim(), Strings.trimToNull(shortName), Strings.trimToNull(description), normalizedType,
                         normalizedProperty, virtual, sortOrder, validFrom, validTo, actorId())).toView(),
                 "DEPARTMENT_CODE_DUPLICATE", "同一机构内科室代码已经存在");
         synchronizeExtensions(tenantId, value);
@@ -88,7 +89,7 @@ public class DepartmentApplicationService {
         try {
             return RevisionGuard.supply("DEPARTMENT_REVISION_CONFLICT",
                     "科室已被其他用户修改，请刷新后重试", () -> {
-                        department.update(parentId, name.trim(), trimToNull(shortName), trimToNull(description),
+                        department.update(parentId, name.trim(), Strings.trimToNull(shortName), Strings.trimToNull(description),
                                 normalizedType, normalizedProperty, virtual, sortOrder, validFrom, validTo,
                                 expectedRevision, actorId());
                         DepartmentView value = repository.saveAndFlush(department).toView();
@@ -216,7 +217,7 @@ public class DepartmentApplicationService {
                 OrganizationDictionaryCodes.DEPARTMENT_RELATION_TYPE, type, "科室关系类型");
         return save(() -> {
             profileStore.addRelation(department.tenantId(), id, targetId, normalizedType, primary,
-                    trimToNull(description), from, to);
+                    Strings.trimToNull(description), from, to);
             return profileStore.load(department);
         }, "DEPARTMENT_RELATION_DUPLICATE", "相同科室关系已经存在");
     }
@@ -231,8 +232,8 @@ public class DepartmentApplicationService {
         String normalizedVerify = dictionaryItem(department.tenantId(), OrganizationDictionaryCodes.VERIFY_STATUS,
                 verifyStatus, "核验状态");
         return save(() -> {
-            profileStore.addCapability(department.tenantId(), id, normalizedType, trimToNull(qualification),
-                    trimToNull(scope), from, to, normalizedVerify);
+            profileStore.addCapability(department.tenantId(), id, normalizedType, Strings.trimToNull(qualification),
+                    Strings.trimToNull(scope), from, to, normalizedVerify);
             return profileStore.load(department);
         }, "DEPARTMENT_CAPABILITY_DUPLICATE", "相同科室能力和生效日期已经存在");
     }
@@ -241,7 +242,7 @@ public class DepartmentApplicationService {
     public DepartmentProfileView addResponsibility(Long id, Long assignmentId, String externalName,
                                                    String type, boolean primary, LocalDate from, LocalDate to) {
         Department department = requireEntity(currentTenant(), id);
-        String normalizedExternalName = trimToNull(externalName);
+        String normalizedExternalName = Strings.trimToNull(externalName);
         if ((assignmentId == null) == (normalizedExternalName == null)) {
             throw badRequest("DEPARTMENT_RESPONSIBILITY_SUBJECT_INVALID", "内部任职和外部负责人必须且只能填写一项");
         }
@@ -300,7 +301,7 @@ public class DepartmentApplicationService {
     }
 
     private String dictionaryItem(Long tenantId, String dictionaryCode, String value, String label) {
-        String normalized = trimToNull(value);
+        String normalized = Strings.trimToNull(value);
         if (normalized == null) throw badRequest("DICTIONARY_VALUE_REQUIRED", label + "不能为空");
         if (dictionaryDirectory.resolveActiveItems(tenantId, dictionaryCode).stream()
                 .noneMatch(item -> item.code().equals(normalized))) {
@@ -310,16 +311,12 @@ public class DepartmentApplicationService {
     }
 
     private String optionalDictionaryItem(Long tenantId, String code, String value, String label) {
-        String normalized = trimToNull(value);
+        String normalized = Strings.trimToNull(value);
         return normalized == null ? null : dictionaryItem(tenantId, code, normalized, label);
     }
 
     private String normalizeCode(String value) {
         return StrUtil.trim(value).toUpperCase(java.util.Locale.ROOT);
-    }
-
-    private String trimToNull(String value) {
-        return StrUtil.isBlank(value) ? null : value.trim();
     }
 
     private Long currentTenant() { return contextProvider.requireCurrent().tenantId(); }

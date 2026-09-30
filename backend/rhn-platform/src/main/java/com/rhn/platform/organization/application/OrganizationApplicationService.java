@@ -41,6 +41,7 @@ import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.api.RevisionGuard;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -130,7 +131,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         }
         try {
             return organizationRepository.saveAndFlush(new Organization(tenantId, parentId, normalizeCode(code),
-                    name.trim(), trimToNull(shortName), trimToNull(description), kind, type, normalizedProperty,
+                    name.trim(), Strings.trimToNull(shortName), Strings.trimToNull(description), kind, type, normalizedProperty,
                     virtual, sortOrder, normalizedTimezone, normalizedDepartmentType,
                     validFrom, validTo, actorId())).toView();
         } catch (IllegalArgumentException exception) {
@@ -157,7 +158,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         try {
             return RevisionGuard.supply("ORGANIZATION_REVISION_CONFLICT",
                     "组织已被其他用户修改，请刷新后重试", () -> {
-                        organization.update(parentId, name.trim(), trimToNull(shortName), trimToNull(description), type,
+                        organization.update(parentId, name.trim(), Strings.trimToNull(shortName), Strings.trimToNull(description), type,
                                 normalizedProperty, virtual, sortOrder, normalizedTimezone, normalizedDepartmentType,
                                 validFrom, validTo, expectedRevision, actorId());
                         return organizationRepository.saveAndFlush(organization).toView();
@@ -237,8 +238,8 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                 type, "地址类型");
         return save(() -> {
             profileStore.addAddress(organization.tenantId(), id, normalizedType, country.trim(),
-                    trimToNull(province), trimToNull(city), trimToNull(district), street.trim(),
-                    trimToNull(postal), from, to);
+                    Strings.trimToNull(province), Strings.trimToNull(city), Strings.trimToNull(district), street.trim(),
+                    Strings.trimToNull(postal), from, to);
             return profileStore.load(organization);
         }, "ORGANIZATION_ADDRESS_DUPLICATE", "该地址类型和生效日期已经存在");
     }
@@ -254,7 +255,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                 type, "组织关系类型");
         return save(() -> {
             profileStore.addRelation(organization.tenantId(), id, targetId, normalizedType, primary,
-                    trimToNull(description), from, to);
+                    Strings.trimToNull(description), from, to);
             return profileStore.load(organization);
         }, "ORGANIZATION_RELATION_DUPLICATE", "相同组织关系已经存在");
     }
@@ -269,8 +270,8 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         String normalizedVerify = dictionaryItem(organization.tenantId(), OrganizationDictionaryCodes.VERIFY_STATUS,
                 verifyStatus, "核验状态");
         return save(() -> {
-            profileStore.addCapability(organization.tenantId(), id, normalizedType, trimToNull(qualification),
-                    trimToNull(scope), from, to, normalizedVerify);
+            profileStore.addCapability(organization.tenantId(), id, normalizedType, Strings.trimToNull(qualification),
+                    Strings.trimToNull(scope), from, to, normalizedVerify);
             return profileStore.load(organization);
         }, "ORGANIZATION_CAPABILITY_DUPLICATE", "相同服务能力和生效日期已经存在");
     }
@@ -279,7 +280,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     public OrganizationProfileView addResponsibility(Long id, Long assignmentId, String externalName,
                                                      String type, boolean primary, LocalDate from, LocalDate to) {
         Organization organization = requireEntity(current().tenantId(), id);
-        String normalizedExternalName = trimToNull(externalName);
+        String normalizedExternalName = Strings.trimToNull(externalName);
         if ((assignmentId == null) == (normalizedExternalName == null)) {
             throw badRequest("ORGANIZATION_RESPONSIBILITY_SUBJECT_INVALID", "内部任职和外部负责人姓名必须且只能填写一项");
         }
@@ -341,7 +342,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
             throw conflict("POSITION_CODE_DUPLICATE", "岗位代码已经存在");
         }
         Position position = positionRepository.saveAndFlush(new Position(context.tenantId(), normalizedCode,
-                name.trim(), type, trimToNull(dutyDescription), context.subjectId()));
+                name.trim(), type, Strings.trimToNull(dutyDescription), context.subjectId()));
         return positionView(position);
     }
 
@@ -425,7 +426,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         try {
             PersonnelAssignment assignment = assignmentRepository.saveAndFlush(new PersonnelAssignment(
                     context.tenantId(), employmentId, organizationId, departmentId, positionId, normalizedCode, type,
-                    trimToNull(specialtyCode), primaryAssignment, workloadPercent,
+                    Strings.trimToNull(specialtyCode), primaryAssignment, workloadPercent,
                     validFrom, validTo, context.subjectId()));
             return assignmentView(assignment, organization.name(), department.name(),
                     position.name(), position.positionType(),
@@ -735,10 +736,6 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         return StrUtil.trim(value).toUpperCase(java.util.Locale.ROOT);
     }
 
-    private String trimToNull(String value) {
-        return StrUtil.isBlank(value) ? null : value.trim();
-    }
-
     private String departmentType(Long tenantId, OrganizationKind kind, OrganizationType structuralType,
                                   String value) {
         if (kind != OrganizationKind.ORG_UNIT || structuralType == OrganizationType.CAMPUS) return null;
@@ -746,12 +743,12 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     }
 
     private String optionalDictionaryItem(Long tenantId, String dictionaryCode, String value, String label) {
-        String normalized = trimToNull(value);
+        String normalized = Strings.trimToNull(value);
         return normalized == null ? null : dictionaryItem(tenantId, dictionaryCode, normalized, label);
     }
 
     private String dictionaryItem(Long tenantId, String dictionaryCode, String value, String label) {
-        String normalized = trimToNull(value);
+        String normalized = Strings.trimToNull(value);
         if (normalized == null) throw badRequest("DICTIONARY_VALUE_REQUIRED", label + "不能为空");
         boolean supported = dictionaryDirectory.resolveActiveItems(tenantId, dictionaryCode).stream()
                 .anyMatch(item -> item.code().equals(normalized));
@@ -760,7 +757,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     }
 
     private String timezone(String value) {
-        String normalized = trimToNull(value);
+        String normalized = Strings.trimToNull(value);
         if (normalized == null) return null;
         try {
             return ZoneId.of(normalized).getId();

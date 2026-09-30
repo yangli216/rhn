@@ -8,6 +8,7 @@ import com.rhn.outpatient.scheduling.AppointmentContracts.CreateAppointmentReque
 import com.rhn.outpatient.scheduling.AppointmentContracts.RescheduleAppointmentRequest;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +30,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 class AppointmentApplicationService implements OutpatientAppointmentDirectory {
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
-    private static final List<String> ACTIVE_STATUSES = List.of("BOOKED", "REGISTERED");
+    private static final List<AppointmentStatus> ACTIVE_STATUSES = List.of(AppointmentStatus.BOOKED, AppointmentStatus.REGISTERED);
     private static final List<String> BOOKING_SOURCES = List.of(
             "WINDOW", "PHONE", "INTERNAL", "PATIENT_APP", "WECHAT", "THIRD_PARTY");
 
@@ -76,13 +77,13 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
                 .collect(Collectors.toMap(ServiceSchedule::id, Function.identity()));
         Instant start = from.atStartOfDay(BUSINESS_ZONE).toInstant();
         Instant end = to.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
-        String normalizedQuery = clean(query);
+        String normalizedQuery = Strings.trimToNull(query);
         if (normalizedQuery != null) normalizedQuery = normalizedQuery.toLowerCase(Locale.ROOT);
 
         String filter = normalizedQuery;
         return appointmentRepository.findByTenantIdAndScheduleIdInAndStartAtBetweenOrderByStartAt(
                         context.tenantId(), scheduleById.keySet(), start, end).stream()
-                .filter(value -> normalizedStatus == null || normalizedStatus.equals(value.status()))
+                .filter(value -> normalizedStatus == null || normalizedStatus.equals(value.status().name()))
                 .map(value -> toView(value, scheduleById.get(value.scheduleId())))
                 .filter(value -> filter == null || matches(value, filter))
                 .sorted(Comparator.comparing(AppointmentView::startAt).thenComparing(AppointmentView::appointmentNo))
@@ -115,7 +116,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
         if (!appointment.residentId().equals(residentId)) {
             throw badRequest("APPOINTMENT_RESIDENT_MISMATCH", "预约居民与本次挂号居民不一致");
         }
-        if (!"BOOKED".equals(appointment.status())) {
+        if (appointment.status() != AppointmentStatus.BOOKED) {
             throw conflict("APPOINTMENT_NOT_CHECK_IN_READY", "预约当前状态不能办理挂号");
         }
         if (!schedule.serviceDate().equals(LocalDate.now(BUSINESS_ZONE))) {
@@ -150,7 +151,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
         appendSlotEvent(context, pool, schedule.id(), "OCCUPIED", 1, commandCode, "预约确认占用共享号源");
         appointmentEventRepository.save(new AppointmentEvent(context.tenantId(), appointment.id(), null,
                 "BOOKED", null, "BOOKED", commandCode, context.subjectId(),
-                clean(request.reason()) == null ? "工作人员创建预约" : clean(request.reason())));
+                Strings.trimToNull(request.reason()) == null ? "工作人员创建预约" : Strings.trimToNull(request.reason())));
         return toView(appointment, schedule, resident);
     }
 
@@ -170,7 +171,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
         ScheduleSlotPool pool = poolRepository.findWithLockByIdAndTenantId(
                         appointment.slotPoolId(), context.tenantId())
                 .orElseThrow(() -> notFound("SCHEDULE_SLOT_POOL_NOT_FOUND", "预约关联的号源池不存在"));
-        String previous = appointment.status();
+        String previous = appointment.status().name();
         appointment.cancel(request.reason().trim(), context.subjectId());
         pool.releaseOccupiedOne();
         appendSlotEvent(context, pool, schedule.id(), "RELEASED", -1, commandCode, "取消预约返还共享号源");
@@ -193,7 +194,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
                     .orElseThrow(() -> notFound("APPOINTMENT_REPLACEMENT_NOT_FOUND", "改约后的预约记录不存在"));
             return requireScopedView(context, replacement);
         }
-        if (!"BOOKED".equals(original.status())) {
+        if (original.status() != AppointmentStatus.BOOKED) {
             throw conflict("APPOINTMENT_NOT_RESCHEDULABLE", "只有待就诊预约可以改约");
         }
         if (registrationRepository.existsByTenantIdAndAppointmentId(context.tenantId(), original.id())) {
@@ -230,7 +231,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
 
         Appointment replacement = appointmentRepository.save(new Appointment(context.tenantId(), targetSchedule,
                 targetPool, resident.id(), commandCode, original.bookingSource(), original.id(), context.subjectId()));
-        String previous = original.status();
+        String previous = original.status().name();
         original.cancel("改约：" + request.reason().trim(), context.subjectId());
         appendSlotEvent(context, sourcePool, originalSchedule.id(), "RELEASED", -1,
                 commandCode, "改约返还原班次号源");
@@ -265,7 +266,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
                 resident.id(), resident.healthRecordNo(), resident.fullName(), resident.gender(), resident.birthDate(),
                 schedule.id(), schedule.scheduleCode(), schedule.serviceDate(), schedule.dayPart(),
                 appointment.startAt(), appointment.endAt(), appointment.practitionerId(), appointment.practitionerName(),
-                appointment.serviceCode(), appointment.serviceName(), schedule.locationName(), appointment.status(),
+                appointment.serviceCode(), appointment.serviceName(), schedule.locationName(), appointment.status().name(),
                 appointment.bookingSource(), appointment.confirmedAt(), appointment.checkedInAt(),
                 appointment.cancelledAt(), appointment.cancellationReason(), appointment.rescheduledFromId(),
                 appointment.createdAt(), appointment.updatedAt());
@@ -314,7 +315,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
     }
 
     private String requireCode(String value) {
-        String normalized = clean(value);
+        String normalized = Strings.trimToNull(value);
         if (normalized == null || normalized.length() > 128) {
             throw badRequest("APPOINTMENT_COMMAND_REQUIRED", "预约操作必须提供不超过 128 位的业务命令号");
         }
@@ -330,17 +331,12 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
     }
 
     private String normalizeOptionalStatus(String value) {
-        String normalized = clean(value);
+        String normalized = Strings.trimToNull(value);
         if (normalized == null) return null;
         normalized = normalized.toUpperCase(Locale.ROOT);
         if (!List.of("BOOKED", "REGISTERED", "VISITED", "CANCELLED", "NO_SHOW").contains(normalized)) {
             throw badRequest("APPOINTMENT_STATUS_INVALID", "预约状态不正确");
         }
         return normalized;
-    }
-
-    private String clean(String value) {
-        if (value == null || value.isBlank()) return null;
-        return value.trim();
     }
 }

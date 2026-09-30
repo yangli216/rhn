@@ -62,9 +62,9 @@ public class ClinicalTriageAssessmentService {
 
         try {
             ClinicalTriageAiGateway.Result model = aiGateway.assess(new ClinicalTriageAiGateway.Request(
-                    clean(input.chiefComplaint()), clean(input.symptoms()), input.age(), clean(input.gender()),
+                    textOrEmpty(input.chiefComplaint()), textOrEmpty(input.symptoms()), input.age(), textOrEmpty(input.gender()),
                     input.temperature(), input.pulseRate(), input.respiratoryRate(), input.systolic(), input.diastolic(),
-                    input.oxygenSaturation(), input.bloodGlucose(), input.painScore(), clean(input.consciousness()),
+                    input.oxygenSaturation(), input.bloodGlucose(), input.painScore(), textOrEmpty(input.consciousness()),
                     baseline.rule().level(), baseline.rule().reasons(), baseline.candidateDepartments().stream()
                     .map(value -> new ClinicalTriageAiGateway.CandidateDepartment(value.departmentId(),
                             value.departmentName(), value.availableSlotCount(), value.scheduledToday())).toList()), runtime);
@@ -126,7 +126,7 @@ public class ClinicalTriageAssessmentService {
         };
     }
 
-    private static String clean(String value) { return value == null ? "" : value.trim(); }
+    private static String textOrEmpty(String value) { return value == null ? "" : value.trim(); }
     private static String limited(String value, String fallback, int maximum) {
         String clean = value == null || value.isBlank() ? fallback : value.trim();
         return clean == null || clean.length() <= maximum ? clean : clean.substring(0, maximum);

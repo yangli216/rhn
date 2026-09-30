@@ -35,6 +35,7 @@ import com.rhn.platform.search.api.MasterDataSearchDirectory;
 import com.rhn.platform.search.application.SearchEntryProjectionService;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.api.PageResult;
+import com.rhn.shared.text.Strings;
 import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -214,7 +215,7 @@ public class TerminologyApplicationService implements TerminologyDirectory {
     @Transactional(readOnly = true)
     public Optional<ConceptView> findValueSetMember(Long tenantId, String valueSetCode, String codeDisplayOrAlias,
                                                     LocalDate atDate) {
-        String candidate = clean(codeDisplayOrAlias);
+        String candidate = Strings.trimToNull(codeDisplayOrAlias);
         if (candidate == null) return Optional.empty();
         List<ConceptView> concepts = expandValueSet(tenantId, valueSetCode, atDate);
         Optional<ConceptView> direct = concepts.stream()
@@ -578,11 +579,11 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         managementRuleRepository.flush();
         managementMemberRepository.flush();
         normalizedRules.forEach(rule -> managementRuleRepository.save(new DiseaseManagementRule(id,
-                rule.inclusionMode(), clean(rule.diagnosisDomain()), rule.codeSystemId(), clean(rule.conceptType()),
-                clean(rule.chapterCode()), clean(rule.codeFrom()), clean(rule.codeTo()), clean(rule.note()))));
+                rule.inclusionMode(), Strings.trimToNull(rule.diagnosisDomain()), rule.codeSystemId(), Strings.trimToNull(rule.conceptType()),
+                Strings.trimToNull(rule.chapterCode()), Strings.trimToNull(rule.codeFrom()), Strings.trimToNull(rule.codeTo()), Strings.trimToNull(rule.note()))));
         normalizedExceptions.forEach(exception -> managementMemberRepository.save(new DiseaseManagementMember(
                 id, exception.conceptId(), exception.inclusionMode(), value.effectiveFrom(), value.effectiveTo(),
-                clean(exception.note()))));
+                Strings.trimToNull(exception.note()))));
         managementProgramRepository.flush();
         return programWithMembers(value);
     }
@@ -797,10 +798,6 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                             system == null ? "未知编码体系" : system.name(),
                             system == null ? "WESTERN_MEDICINE" : system.diagnosisDomain());
                 }).toList());
-    }
-
-    private String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private ValueSet findValueSet(Long tenantId, String code, LocalDate atDate) {

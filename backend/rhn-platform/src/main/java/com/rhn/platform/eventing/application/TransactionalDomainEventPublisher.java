@@ -7,6 +7,8 @@ import com.rhn.platform.eventing.infrastructure.OutboxEventRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,7 @@ import java.util.Map;
 public class TransactionalDomainEventPublisher implements DomainEventPublisher {
     private static final String SOURCE = "rhn-application";
     private static final int SCHEMA_VERSION = 1;
+    private static final Logger log = LoggerFactory.getLogger(TransactionalDomainEventPublisher.class);
 
     private final OutboxEventRepository outboxRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -45,8 +48,10 @@ public class TransactionalDomainEventPublisher implements DomainEventPublisher {
         outboxRepository.save(new OutboxEvent(event, jsonCodec.write(event.payload())));
         try {
             applicationEventPublisher.publishEvent(event);
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException error) {
             // The durable Outbox remains PENDING and the dispatcher retries after the business transaction commits.
+            log.debug("In-process listener failed for event {} ({}), outbox will retry", event.eventType(),
+                    event.aggregateId(), error);
         }
         return event;
     }

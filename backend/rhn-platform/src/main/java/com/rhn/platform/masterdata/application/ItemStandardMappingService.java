@@ -14,6 +14,7 @@ import com.rhn.platform.terminology.api.ConceptSnapshot;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -151,7 +152,7 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
         requireNoConflict(existing, replaced, system, conceptId, mappingType, primaryMapping, validFrom, validTo);
         if (replaced != null) replaced.supersede(expectedReplacesRevision, validFrom, actor(context));
         mappingRepository.save(new ItemTermMapping(context.tenantId(), subject.id(), conceptId, mappingType,
-                equivalence, primaryMapping, clean(limitation), validFrom, validTo, replacesMappingId, actor(context)));
+                equivalence, primaryMapping, Strings.trimToNull(limitation), validFrom, validTo, replacesMappingId, actor(context)));
         return maintenance(subjectType, targetId, validFrom);
     }
 
@@ -291,7 +292,6 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
 
     private ExecutionContext current() { return contextProvider.requireCurrent(); }
     private boolean blank(String value) { return value == null || value.isBlank(); }
-    private String clean(String value) { return blank(value) ? null : value.trim(); }
     private String normalizeQuery(String value) { return blank(value) ? "" : value.trim().toLowerCase(Locale.ROOT); }
     private boolean contains(String value, String query) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(query);

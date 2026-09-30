@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -21,7 +23,8 @@ public class WardDelivery {
     @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
     @Column(name = "ID_DEPT_NURS_UNIT", nullable = false) private Long nursingUnitDepartmentId;
     @Column(name = "CD_DELIV_NO", nullable = false) private String deliveryNo;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "SD_STATUS", nullable = false) private WardDeliveryStatus status;
     @Column(name = "NA_STOCK_SITE_SNAP", nullable = false) private String stockSiteNameSnapshot;
     @Column(name = "NA_NURS_UNIT_SNAP", nullable = false) private String nursingUnitNameSnapshot;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
@@ -45,7 +48,7 @@ public class WardDelivery {
                         Long actorId, Instant now) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.stockSiteId = stockSiteId; this.nursingUnitDepartmentId = nursingUnitDepartmentId;
-        this.deliveryNo = deliveryNo; this.status = "PENDING_DISPATCH";
+        this.deliveryNo = deliveryNo; this.status = WardDeliveryStatus.PENDING_DISPATCH;
         this.stockSiteNameSnapshot = stockSiteNameSnapshot;
         this.nursingUnitNameSnapshot = nursingUnitNameSnapshot;
         this.createdAt = now; this.createdBy = actorId;
@@ -53,20 +56,22 @@ public class WardDelivery {
 
     public String dispatch(long expectedRevision, Long actorId, Instant now, String note) {
         requireRevision(expectedRevision);
-        if (!"PENDING_DISPATCH".equals(status)) {
+        if (status != WardDeliveryStatus.PENDING_DISPATCH) {
             throw conflict("WARD_DELIVERY_NOT_PENDING", "只有待送出的病区药品可以确认送出");
         }
-        String previous = status; status = "IN_TRANSIT"; dispatchedAt = now; dispatchedBy = actorId;
+        String previous = status.name(); status = WardDeliveryStatus.IN_TRANSIT;
+        dispatchedAt = now; dispatchedBy = actorId;
         dispatchNote = note; return previous;
     }
 
     public String receive(long expectedRevision, Long actorId, Instant now, boolean discrepancy,
                           String note, String discrepancyDescription) {
         requireRevision(expectedRevision);
-        if (!"IN_TRANSIT".equals(status)) {
+        if (status != WardDeliveryStatus.IN_TRANSIT) {
             throw conflict("WARD_DELIVERY_NOT_IN_TRANSIT", "只有配送中的病区药品可以签收");
         }
-        String previous = status; status = discrepancy ? "DISCREPANCY" : "RECEIVED";
+        String previous = status.name();
+        status = discrepancy ? WardDeliveryStatus.DISCREPANCY : WardDeliveryStatus.RECEIVED;
         receivedAt = now; receivedBy = actorId; receiptNote = note;
         discrepancyNote = discrepancy ? discrepancyDescription : null;
         return previous;
@@ -74,10 +79,11 @@ public class WardDelivery {
 
     public String resolve(long expectedRevision, Long actorId, Instant now, String code, String note) {
         requireRevision(expectedRevision);
-        if (!"DISCREPANCY".equals(status)) {
+        if (status != WardDeliveryStatus.DISCREPANCY) {
             throw conflict("WARD_DELIVERY_NO_DISCREPANCY", "只有存在差异的交接单可以确认处置结果");
         }
-        String previous = status; status = "RESOLVED"; resolvedAt = now; resolvedBy = actorId;
+        String previous = status.name(); status = WardDeliveryStatus.RESOLVED;
+        resolvedAt = now; resolvedBy = actorId;
         resolutionCode = code; resolutionNote = note; return previous;
     }
 
@@ -94,7 +100,7 @@ public class WardDelivery {
     public Long stockSiteId() { return stockSiteId; }
     public Long nursingUnitDepartmentId() { return nursingUnitDepartmentId; }
     public String deliveryNo() { return deliveryNo; }
-    public String status() { return status; }
+    public WardDeliveryStatus status() { return status; }
     public String stockSiteNameSnapshot() { return stockSiteNameSnapshot; }
     public String nursingUnitNameSnapshot() { return nursingUnitNameSnapshot; }
     public Instant createdAt() { return createdAt; }

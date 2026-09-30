@@ -13,6 +13,7 @@ import com.rhn.platform.masterdata.infrastructure.OrderFrequencyRepository;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,9 +43,9 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
 
     @Transactional(readOnly = true)
     public List<FrequencyView> list(String query, String status) {
-        Long tenantId = current().tenantId(); String q = text(query);
+        Long tenantId = current().tenantId(); String q = Strings.trimToNull(query);
         return frequencies.findByTenantIdOrderBySortOrderAscNameAsc(tenantId).stream()
-                .filter(v -> text(status) == null || status.equals(v.status()))
+                .filter(v -> Strings.trimToNull(status) == null || status.equals(v.status()))
                 .filter(v -> q == null || matches(q, v.code(), v.name(), v.shortName(), v.description()))
                 .map(v -> view(v, configurations.findByTenantIdAndFrequencyIdOrderByDepartmentIdDescValidFromDesc(tenantId, v.id())))
                 .toList();
@@ -148,8 +149,8 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
                 || at.toLocalDate().isBefore(command.validFrom()) || command.validTo()!=null && at.toLocalDate().isAfter(command.validTo()))
             throw badRequest("ORDER_FREQUENCY_PREVIEW_INACTIVE","主档或当前未保存配置在预演日期未启用，请核对状态与有效期");
         var base=snapshot(frequency,null);
-        var draft=new FrequencySnapshot(base.id(),base.revision(),base.code(),text(command.localName())==null?base.name():command.localName(),base.shortName(),base.description(),base.ruleType(),base.frequencyCount(),base.periodValue(),base.periodUnit(),base.anchorType(),
-                text(command.executionTimes())==null?base.executionTimes():splitTimes(normalizeTimes(command.executionTimes())),upper(command.firstDayPolicy()),base.automaticTaskGeneration());
+        var draft=new FrequencySnapshot(base.id(),base.revision(),base.code(),Strings.trimToNull(command.localName())==null?base.name():command.localName(),base.shortName(),base.description(),base.ruleType(),base.frequencyCount(),base.periodValue(),base.periodUnit(),base.anchorType(),
+                Strings.trimToNull(command.executionTimes())==null?base.executionTimes():splitTimes(normalizeTimes(command.executionTimes())),upper(command.firstDayPolicy()),base.automaticTaskGeneration());
         return schedule(draft,at,occurrences,"UNSAVED_CONFIGURATION");
     }
     private ExecutionContext requireManager() {var c=current(); if(!c.hasAuthority("MASTER_DATA.MANAGE")) throw forbidden("ORDER_FREQUENCY_FORBIDDEN","需要基础数据管理权限"); return c;}
@@ -166,7 +167,7 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
     @Transactional(readOnly = true)
     public FrequencySnapshot requireActive(Long tenantId, String code, Long organizationId, Long departmentId,
             String scene, String orderType, LocalDate businessDate) {
-        if (text(code) == null) throw badRequest("ORDER_FREQUENCY_REQUIRED", "医嘱频次不能为空");
+        if (Strings.trimToNull(code) == null) throw badRequest("ORDER_FREQUENCY_REQUIRED", "医嘱频次不能为空");
         OrderFrequency value = frequencies.findByTenantIdAndCodeIgnoreCase(tenantId, code.trim())
                 .orElseThrow(() -> badRequest("ORDER_FREQUENCY_INVALID", "医嘱频次不存在：" + code));
         LocalDate date = businessDate == null ? LocalDate.now() : businessDate;
@@ -199,7 +200,7 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
     }
 
     private void validateCommand(FrequencyCommand command) {
-        if(command==null || text(command.code())==null || text(command.name())==null) throw badRequest("ORDER_FREQUENCY_REQUIRED","请填写频次编码、名称与定义");
+        if(command==null || Strings.trimToNull(command.code())==null || Strings.trimToNull(command.name())==null) throw badRequest("ORDER_FREQUENCY_REQUIRED","请填写频次编码、名称与定义");
         if(command.frequencyCount()!=null && command.frequencyCount()<=0 || command.periodValue()!=null && command.periodValue().signum()<=0)
             throw badRequest("ORDER_FREQUENCY_PERIOD_VALUE_INVALID","周期次数和周期值必须大于零");
         if(command.periodValue()!=null) {
@@ -255,8 +256,8 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
         if(!Set.of("REMAINING_SLOTS","FULL_SCHEDULE","FROM_ORDER_TIME").contains(Objects.toString(upper(command.firstDayPolicy()),""))) throw badRequest("ORDER_FREQUENCY_CONFIG_POLICY","首日策略不正确");
         if (command.validFrom() == null || command.validTo() != null && command.validTo().isBefore(command.validFrom())) throw badRequest("ORDER_FREQUENCY_CONFIG_PERIOD_INVALID", "配置生效日期不能为空，且失效日期不能早于生效日期");
         String times = normalizeTimes(command.executionTimes());
-        String effectiveTimes = text(times) == null ? frequency.defaultExecutionTimes() : times;
-        if ("STANDARD_TIME".equals(frequency.anchorType()) && text(effectiveTimes) == null) throw badRequest("ORDER_FREQUENCY_EXECUTION_TIMES_REQUIRED", "标准时点频次必须配置执行时间");
+        String effectiveTimes = Strings.trimToNull(times) == null ? frequency.defaultExecutionTimes() : times;
+        if ("STANDARD_TIME".equals(frequency.anchorType()) && Strings.trimToNull(effectiveTimes) == null) throw badRequest("ORDER_FREQUENCY_EXECUTION_TIMES_REQUIRED", "标准时点频次必须配置执行时间");
         if ("TIMES_PER_PERIOD".equals(frequency.ruleType()) && frequency.frequencyCount() != null
                 && splitTimes(effectiveTimes).size() != frequency.frequencyCount()) throw badRequest("ORDER_FREQUENCY_EXECUTION_TIME_COUNT_INVALID", "执行时间数量必须与周期执行次数一致");
     }
@@ -272,9 +273,9 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
     }
     private FrequencySnapshot snapshot(OrderFrequency value, OrderFrequencyConfiguration config) {
         return new FrequencySnapshot(value.id(), value.revision(), value.code(),
-                config != null && text(config.localName()) != null ? config.localName() : value.name(),
+                config != null && Strings.trimToNull(config.localName()) != null ? config.localName() : value.name(),
                 value.shortName(), value.description(), value.ruleType(), value.frequencyCount(),
-                value.periodValue(), value.periodUnit(), value.anchorType(), splitTimes(config != null && text(config.executionTimes()) != null ? config.executionTimes() : value.defaultExecutionTimes()),
+                value.periodValue(), value.periodUnit(), value.anchorType(), splitTimes(config != null && Strings.trimToNull(config.executionTimes()) != null ? config.executionTimes() : value.defaultExecutionTimes()),
                 config == null ? "REMAINING_SLOTS" : config.firstDayPolicy(), value.automaticTaskGeneration());
     }
     private FrequencySnapshot enabledSnapshot(OrderFrequency value, OrderFrequencyConfiguration config) {
@@ -294,10 +295,22 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
             value.enabled(), value.status(), value.validFrom(), value.validTo()); }
     private OrderFrequency require(Long tenantId, Long id) { return frequencies.findByIdAndTenantId(id, tenantId).orElseThrow(() -> notFound("ORDER_FREQUENCY_NOT_FOUND", "未找到医嘱频次")); }
     private ExecutionContext current() { return contextProvider.requireCurrent(); }
-    private static String upper(String value) { return text(value) == null ? null : value.trim().toUpperCase(Locale.ROOT); }
-    private static String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private static String upper(String value) { return Strings.trimToNull(value) == null ? null : value.trim().toUpperCase(Locale.ROOT); }
     private static boolean matches(String query, String... values) { String q = query.toLowerCase(Locale.ROOT); return Arrays.stream(values).filter(Objects::nonNull).anyMatch(v -> v.toLowerCase(Locale.ROOT).contains(q)); }
     private static boolean overlaps(LocalDate aStart, LocalDate aEnd, LocalDate bStart, LocalDate bEnd) { return (aEnd == null || !aEnd.isBefore(bStart)) && (bEnd == null || !bEnd.isBefore(aStart)); }
-    private static String normalizeTimes(String value) { if (text(value) == null) return null; List<String> times = splitTimes(value); if (times.size() != new LinkedHashSet<>(times).size()) throw badRequest("ORDER_FREQUENCY_EXECUTION_TIME_DUPLICATE", "执行时间不能重复"); return String.join(",", times); }
-    private static List<String> splitTimes(String value) { if (text(value) == null) return List.of(); return Arrays.stream(value.split("[,，;；\\s]+")) .filter(v -> !v.isBlank()).map(v -> { try { return LocalTime.parse(v.trim()).toString(); } catch (DateTimeException e) { throw badRequest("ORDER_FREQUENCY_EXECUTION_TIME_INVALID", "执行时间格式应为 HH:mm"); } }).sorted().toList(); }
+    private static String normalizeTimes(String value) {
+        if (Strings.trimToNull(value) == null) return null;
+        List<String> times = splitTimes(value);
+        if (times.size() != new LinkedHashSet<>(times).size()) throw badRequest("ORDER_FREQUENCY_EXECUTION_TIME_DUPLICATE", "执行时间不能重复");
+        return String.join(",", times);
+    }
+    private static List<String> splitTimes(String value) {
+        if (Strings.trimToNull(value) == null) return List.of();
+        return Arrays.stream(value.split("[,，;；\\s]+"))
+                .filter(v -> !v.isBlank())
+                .map(v -> {
+                    try { return LocalTime.parse(v.trim()).toString(); } catch (DateTimeException e) { throw badRequest("ORDER_FREQUENCY_EXECUTION_TIME_INVALID", "执行时间格式应为 HH:mm"); }
+                })
+                .sorted().toList();
+    }
 }

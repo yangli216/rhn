@@ -1,6 +1,7 @@
 package com.rhn;
 
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
+import com.rhn.platform.search.application.SearchEntryProjectionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -24,6 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Autowired
     CatalogLifecycleDirectory catalogLifecycleDirectory;
+    @Autowired
+    SearchEntryProjectionService searchEntryProjections;
 
     @Test
     void medication_product_setup_creates_common_his_profile_atomically() throws Exception {
@@ -677,6 +680,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
 
     @Test
     void disease_search_uses_versioned_terminology_aliases_and_dictionary_text() throws Exception {
+        searchEntryProjections.rebuildAll();
         mockMvc.perform(get("/api/platform/terminology/diseases")
                         .param("query", "高血压病").with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -731,6 +735,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
 
     @Test
     void disease_management_scope_supports_rules_paged_search_and_exact_exceptions() throws Exception {
+        searchEntryProjections.rebuildAll();
         JsonNode created = json(mockMvc.perform(post("/api/platform/terminology/disease-management-programs")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {

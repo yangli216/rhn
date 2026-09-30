@@ -6,6 +6,7 @@ import com.rhn.inpatient.api.InpatientViews.WardMetricsView;
 import com.rhn.inpatient.api.InpatientViews.WardPatientView;
 import com.rhn.inpatient.domain.InpatientCareRequest;
 import com.rhn.inpatient.domain.InpatientOrderTask;
+import com.rhn.inpatient.domain.InpatientOrderTaskStatus;
 import com.rhn.inpatient.domain.InpatientOrderWorkflow;
 import com.rhn.inpatient.infrastructure.InpatientCareRequestRepository;
 import com.rhn.inpatient.infrastructure.InpatientOrderTaskRepository;
@@ -77,7 +78,7 @@ public class InpatientWardBoardService {
         List<Long> requestIds = List.copyOf(episodeByRequest.keySet());
         List<InpatientOrderTask> plannedTasks = requestIds.isEmpty() ? List.of()
                 : tasks.findByTenantIdAndRequestIdInAndStatusOrderByScheduledAtAsc(
-                        context.tenantId(), requestIds, "PLANNED").stream()
+                        context.tenantId(), requestIds, InpatientOrderTaskStatus.PLANNED).stream()
                         // Preserve overdue work, but do not allow later shifts to flood this handover.
                         .filter(value -> value.scheduledAt().isBefore(to))
                         .filter(value -> !value.scheduledAt().isBefore(from)

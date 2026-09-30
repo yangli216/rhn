@@ -3,6 +3,8 @@ package com.rhn.billing.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -23,7 +25,7 @@ public class CashierClose {
     @Column(name = "CD_CLOSE_NO", nullable = false) private String closeNo;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "CD_TRMNL", nullable = false) private String terminalCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private CashierCloseStatus status;
     @Column(name = "DT_RANGE_FROM", nullable = false) private Instant rangeFrom;
     @Column(name = "DT_RANGE_TO", nullable = false) private Instant rangeTo;
     @Column(name = "QTY_TXN", nullable = false) private int transactionCount;
@@ -40,7 +42,7 @@ public class CashierClose {
     protected CashierClose() {}
 
     public CashierClose(Long tenantId, Long organizationId, Long cashierUserId, Long reversesCloseId,
-                        String closeNo, String commandCode, String terminalCode, String status,
+                        String closeNo, String commandCode, String terminalCode, CashierCloseStatus status,
                         Instant rangeFrom, Instant rangeTo, int transactionCount, BigDecimal expectedAmount,
                         BigDecimal actualAmount, BigDecimal differenceAmount, String currencyCode, Long createdBy) {
         this(tenantId, organizationId, 1L, cashierUserId, reversesCloseId, closeNo, commandCode,
@@ -49,7 +51,7 @@ public class CashierClose {
     }
 
     public CashierClose(Long tenantId, Long organizationId, Long departmentId, Long cashierUserId, Long reversesCloseId,
-                        String closeNo, String commandCode, String terminalCode, String status,
+                        String closeNo, String commandCode, String terminalCode, CashierCloseStatus status,
                         Instant rangeFrom, Instant rangeTo, int transactionCount, BigDecimal expectedAmount,
                         BigDecimal actualAmount, BigDecimal differenceAmount, String currencyCode, Long createdBy) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
@@ -63,11 +65,11 @@ public class CashierClose {
     }
 
     public void confirm(Long actorId, String reason) {
-        this.status = "CONFIRMED"; this.confirmedBy = actorId; this.confirmedAt = Instant.now();
+        this.status = CashierCloseStatus.CONFIRMED; this.confirmedBy = actorId; this.confirmedAt = Instant.now();
         this.differenceReason = reason;
     }
 
-    public void markReversed() { this.status = "REVERSED"; }
+    public void markReversed() { this.status = CashierCloseStatus.REVERSED; }
 
     public Long id() { return id; }
     public long revision() { return revision; }
@@ -79,7 +81,7 @@ public class CashierClose {
     public String closeNo() { return closeNo; }
     public String commandCode() { return commandCode; }
     public String terminalCode() { return terminalCode; }
-    public String status() { return status; }
+    public CashierCloseStatus status() { return status; }
     public Instant rangeFrom() { return rangeFrom; }
     public Instant rangeTo() { return rangeTo; }
     public int transactionCount() { return transactionCount; }

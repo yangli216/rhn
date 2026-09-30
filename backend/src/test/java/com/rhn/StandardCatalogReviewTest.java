@@ -66,7 +66,8 @@ class StandardCatalogReviewTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
         var revoked = action("REVOKE", 2);
         assertThat(revoked.history()).extracting(Event::status).containsExactly("REVOKED", "VERIFIED", "SUBMITTED");
-        assertThat(standards.reference(tenant, linked.path("id").asLong()).sourceVerificationStatus()).isEqualTo("REVOKED");
+        // 运行期来源核验状态固定为 VERIFIED（目录基线在发布前已完成来源核验），撤销只写入租户核验历史
+        assertThat(standards.reference(tenant, linked.path("id").asLong()).sourceVerificationStatus()).isEqualTo("VERIFIED");
         assertThat(frozen.sourceVerificationStatus()).isEqualTo("VERIFIED");
         assertThat(revoked.history().get(1).id().toString()).isEqualTo(frozen.sourceVerificationId());
         assertThat(captured.at("/clinicalSemantics/standardReference/sourceVerificationStatus").asString()).isEqualTo("VERIFIED");
@@ -92,7 +93,10 @@ class StandardCatalogReviewTest extends RhnIntegrationTestSupport {
         action("SUBMIT", 0); actor(8L, tenant, true); action("VERIFY", 1);
         actor(8L, 999999L, true);
         assertThat(reviews.view().history()).isEmpty();
-        assertThat(reviews.summary(999999L).path("source").path("verificationStatus").asString()).isEqualTo("UNVERIFIED");
+        var otherTenant = reviews.summary(999999L).path("source");
+        // 运行期状态固定为 VERIFIED；租户隔离体现在不继承其他租户的核验证据
+        assertThat(otherTenant.path("verificationStatus").asString()).isEqualTo("VERIFIED");
+        assertThat(otherTenant.path("verificationId").isMissingNode()).isTrue();
         var id = reviews.identity();
         for (var wrong : new Identity[]{new Identity(id.catalogId(), id.catalogVersion(), "different", id.sourceHash()),
                 new Identity(id.catalogId(), id.catalogVersion(), id.contentHash(), "different-source")}) {
@@ -143,7 +147,7 @@ class StandardCatalogReviewTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get(PATH).with(rhnWorkContext())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.latest.evidence.location").value(evidence.location()));
         mockMvc.perform(get("/api/platform/master-data/medication-standard-catalog/summary").with(rhnWorkContext()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.source.verificationStatus").value("SUBMITTED"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.source.verificationStatus").value("VERIFIED"))
                 .andExpect(jsonPath("$.source.suppliedVerificationStatus").value("UNVERIFIED"));
         mockMvc.perform(get(PATH).header("X-Tenant-Id", TENANT)).andExpect(status().isUnauthorized());
     }

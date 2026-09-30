@@ -57,7 +57,7 @@ public class EncounterTerminationService implements OutpatientEncounterTerminati
                 EncounterStatus.TERMINATED.name(), expectedRevision, context.practitionerId(), context.subjectId(),
                 command.commandCode().trim(), code + "：" + reason));
         workSessions.findFirstByTenantIdAndEncounterIdAndStatusOrderByStartedAtDesc(
-                encounter.tenantId(), encounter.id(), "ACTIVE").ifPresent(session -> session.close("TERMINATED"));
+                encounter.tenantId(), encounter.id(), EncounterWorkSessionStatus.ACTIVE).ifPresent(session -> session.close("TERMINATED"));
         registrations.markTerminated(encounter.id(), command.commandCode().trim(), reason);
         encounter.terminate(code, reason, context.subjectId());
         encounters.flush();

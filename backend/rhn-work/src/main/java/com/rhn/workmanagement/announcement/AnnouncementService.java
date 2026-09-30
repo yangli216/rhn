@@ -2,6 +2,7 @@ package com.rhn.workmanagement.announcement;
 
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -74,10 +75,10 @@ public class AnnouncementService {
     @Transactional(readOnly = true)
     public List<AnnouncementView> managementList(String status) {
         ExecutionContext context = requireManager();
-        String normalized = clean(status) == null ? null : upper(status);
+        String normalized = Strings.trimToNull(status) == null ? null : upper(status);
         return announcements.findByTenantIdOrderByCreatedAtDesc(context.tenantId()).stream()
                 .filter(value -> manageableBy(value, context))
-                .filter(value -> normalized == null || normalized.equals(value.status()))
+                .filter(value -> normalized == null || normalized.equals(value.status().name()))
                 .map(value -> view(value, false)).toList();
     }
 
@@ -144,11 +145,11 @@ public class AnnouncementService {
     public void progressLifecycle() {
         Instant now = Instant.now();
         for (SystemAnnouncement value : announcements
-                .findTop100ByStatusAndPublishAtLessThanEqualOrderByPublishAtAsc("SCHEDULED", now)) {
+                .findTop100ByStatusAndPublishAtLessThanEqualOrderByPublishAtAsc(SystemAnnouncementStatus.SCHEDULED, now)) {
             if (value.activate(now)) changed(value, "SYSTEM_ANNOUNCEMENT_PUBLISHED", now);
         }
         for (SystemAnnouncement value : announcements
-                .findTop100ByStatusAndExpireAtLessThanEqualOrderByExpireAtAsc("PUBLISHED", now)) {
+                .findTop100ByStatusAndExpireAtLessThanEqualOrderByExpireAtAsc(SystemAnnouncementStatus.PUBLISHED, now)) {
             if (value.expire(now)) changed(value, "SYSTEM_ANNOUNCEMENT_EXPIRED", now);
         }
     }
@@ -234,7 +235,7 @@ public class AnnouncementService {
     private AnnouncementView view(SystemAnnouncement value, boolean read) {
         return new AnnouncementView(value.id(), value.revision(), value.scopeType(), value.organizationId(),
                 value.departmentId(), value.category(), value.priority(), value.title(), value.summary(),
-                value.content(), value.pinned(), value.status(), value.publishAt(), value.expireAt(),
+                value.content(), value.pinned(), value.status().name(), value.publishAt(), value.expireAt(),
                 value.createdBy(), value.publishedBy(), value.publishedAt(), value.withdrawnBy(),
                 value.withdrawnAt(), value.createdAt(), value.updatedAt(), read);
     }
@@ -257,9 +258,8 @@ public class AnnouncementService {
     }
 
     private String upper(String value) { return value == null ? "" : value.trim().toUpperCase(Locale.ROOT); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
     private record Scope(String type, Long organizationId, Long departmentId) {}
 }

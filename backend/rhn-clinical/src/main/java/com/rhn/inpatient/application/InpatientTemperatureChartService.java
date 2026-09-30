@@ -6,6 +6,7 @@ import com.rhn.inpatient.api.InpatientTemperatureChartViews.ChartEventView;
 import com.rhn.inpatient.api.InpatientTemperatureChartViews.VitalObservationView;
 import com.rhn.inpatient.api.InpatientTemperatureChartViews.WeekView;
 import com.rhn.inpatient.domain.CareEpisode;
+import com.rhn.inpatient.domain.CareEpisodeStatus;
 import com.rhn.inpatient.domain.InpatientChartEvent;
 import com.rhn.inpatient.domain.InpatientEncounter;
 import com.rhn.inpatient.domain.InpatientObservation;
@@ -20,6 +21,7 @@ import com.rhn.inpatient.infrastructure.ServiceLocationRepository;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -104,7 +106,7 @@ public class InpatientTemperatureChartService {
                 .map(this::chartEventView)
                 .toList();
         return new WeekView(relation.episode().id(), weekStart, weekEnd,
-                !"ADMITTED".equals(relation.episode().status()), observationViews, eventViews);
+                relation.episode().status() != CareEpisodeStatus.ADMITTED, observationViews, eventViews);
     }
 
     @Transactional
@@ -294,7 +296,7 @@ public class InpatientTemperatureChartService {
     }
 
     private void requireWritableEpisode(CareEpisode episode) {
-        if (!"ADMITTED".equals(episode.status())) {
+        if (episode.status() != CareEpisodeStatus.ADMITTED) {
             throw conflict("INPATIENT_CHART_READ_ONLY", "已结束住院的体温单仅供查看");
         }
     }
@@ -404,13 +406,13 @@ public class InpatientTemperatureChartService {
     }
 
     private static String requireCommand(String value) {
-        String result = trim(value);
+        String result = Strings.trimToNull(value);
         if (result == null) throw badRequest("INPATIENT_COMMAND_REQUIRED", "业务请求号不能为空");
         return result;
     }
 
     private static String requireDisplayText(String value) {
-        String result = trim(value);
+        String result = Strings.trimToNull(value);
         if (result == null) throw badRequest("INPATIENT_CHART_EVENT_TEXT_REQUIRED", "体温单事件显示内容不能为空");
         if (result.length() > 200) {
             throw badRequest("INPATIENT_CHART_EVENT_TEXT_TOO_LONG", "体温单事件显示内容不能超过200个字符");
@@ -419,12 +421,8 @@ public class InpatientTemperatureChartService {
     }
 
     private static String normalize(String value) {
-        String result = trim(value);
+        String result = Strings.trimToNull(value);
         return result == null ? null : result.toUpperCase(Locale.ROOT);
-    }
-
-    private static String trim(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public record ObservationCommand(

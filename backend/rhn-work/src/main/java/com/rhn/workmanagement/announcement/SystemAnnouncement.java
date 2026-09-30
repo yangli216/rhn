@@ -3,6 +3,8 @@ package com.rhn.workmanagement.announcement;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -26,7 +28,7 @@ class SystemAnnouncement {
     @Column(name = "DES_SUM", nullable = false) private String summary;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "DES_CONTENT", nullable = false) private String content;
     @Column(name = "FG_PINNED", nullable = false) private boolean pinned;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private SystemAnnouncementStatus status;
     @Column(name = "DT_PUBLISH") private Instant publishAt;
     @Column(name = "DT_EXPIRE") private Instant expireAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
@@ -43,46 +45,46 @@ class SystemAnnouncement {
                        String category, String priority, String title, String summary, String content,
                        boolean pinned, Long createdBy, Instant now) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.createdBy = createdBy;
-        this.status = "DRAFT"; this.createdAt = now; this.updatedAt = now;
+        this.status = SystemAnnouncementStatus.DRAFT; this.createdAt = now; this.updatedAt = now;
         revise(scopeType, organizationId, departmentId, category, priority, title, summary, content, pinned, now);
     }
 
     void revise(String scopeType, Long organizationId, Long departmentId, String category, String priority,
                 String title, String summary, String content, boolean pinned, Instant now) {
-        if (!"DRAFT".equals(status)) throw new IllegalStateException("只有草稿公告可以编辑");
+        if (status != SystemAnnouncementStatus.DRAFT) throw new IllegalStateException("只有草稿公告可以编辑");
         this.scopeType = scopeType; this.organizationId = organizationId; this.departmentId = departmentId;
         this.category = category; this.priority = priority; this.title = title;
         this.summary = summary; this.content = content; this.pinned = pinned; this.updatedAt = now;
     }
 
     boolean schedule(Instant effectiveAt, Instant expiresAt, Long actorId, Instant now) {
-        if (!"DRAFT".equals(status)) throw new IllegalStateException("只有草稿公告可以发布");
+        if (status != SystemAnnouncementStatus.DRAFT) throw new IllegalStateException("只有草稿公告可以发布");
         publishAt = effectiveAt == null ? now : effectiveAt; expireAt = expiresAt; publishedBy = actorId;
-        status = publishAt.isAfter(now) ? "SCHEDULED" : "PUBLISHED";
-        if ("PUBLISHED".equals(status)) publishedAt = now;
+        status = publishAt.isAfter(now) ? SystemAnnouncementStatus.SCHEDULED : SystemAnnouncementStatus.PUBLISHED;
+        if (status == SystemAnnouncementStatus.PUBLISHED) publishedAt = now;
         updatedAt = now;
-        return "PUBLISHED".equals(status);
+        return status == SystemAnnouncementStatus.PUBLISHED;
     }
 
     boolean activate(Instant now) {
-        if (!"SCHEDULED".equals(status) || publishAt == null || publishAt.isAfter(now)) return false;
-        status = "PUBLISHED"; publishedAt = now; updatedAt = now; return true;
+        if (status != SystemAnnouncementStatus.SCHEDULED || publishAt == null || publishAt.isAfter(now)) return false;
+        status = SystemAnnouncementStatus.PUBLISHED; publishedAt = now; updatedAt = now; return true;
     }
 
     boolean expire(Instant now) {
-        if (!"PUBLISHED".equals(status) || expireAt == null || expireAt.isAfter(now)) return false;
-        status = "EXPIRED"; updatedAt = now; return true;
+        if (status != SystemAnnouncementStatus.PUBLISHED || expireAt == null || expireAt.isAfter(now)) return false;
+        status = SystemAnnouncementStatus.EXPIRED; updatedAt = now; return true;
     }
 
     void withdraw(Long actorId, Instant now) {
-        if (!("PUBLISHED".equals(status) || "SCHEDULED".equals(status))) {
+        if (status != SystemAnnouncementStatus.PUBLISHED && status != SystemAnnouncementStatus.SCHEDULED) {
             throw new IllegalStateException("只有已发布或待发布公告可以撤回");
         }
-        status = "WITHDRAWN"; withdrawnBy = actorId; withdrawnAt = now; updatedAt = now;
+        status = SystemAnnouncementStatus.WITHDRAWN; withdrawnBy = actorId; withdrawnAt = now; updatedAt = now;
     }
 
     boolean visibleAt(Instant now) {
-        return "PUBLISHED".equals(status) && publishAt != null && !publishAt.isAfter(now)
+        return status == SystemAnnouncementStatus.PUBLISHED && publishAt != null && !publishAt.isAfter(now)
                 && (expireAt == null || expireAt.isAfter(now));
     }
 
@@ -98,7 +100,7 @@ class SystemAnnouncement {
     String summary() { return summary; }
     String content() { return content; }
     boolean pinned() { return pinned; }
-    String status() { return status; }
+    SystemAnnouncementStatus status() { return status; }
     Instant publishAt() { return publishAt; }
     Instant expireAt() { return expireAt; }
     Long createdBy() { return createdBy; }

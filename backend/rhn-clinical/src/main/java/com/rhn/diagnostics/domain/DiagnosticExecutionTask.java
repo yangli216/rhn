@@ -4,6 +4,8 @@ import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -30,7 +32,7 @@ public class DiagnosticExecutionTask {
     @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
     @Column(name = "SD_SPEC_TYPE_SNAP") private String specimenTypeSnapshot;
     @Column(name = "SD_EXAM_TYPE_SNAP") private String examinationTypeSnapshot;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private DiagnosticExecutionTaskStatus status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_COLLD") private Instant collectedAt;
     @Column(name = "ID_USER_COLLD") private Long collectedBy;
@@ -56,22 +58,24 @@ public class DiagnosticExecutionTask {
         this.requestId = requestId; this.taskNo = "DX-" + requestNo; this.requestType = requestType;
         this.itemCodeSnapshot = itemCode; this.itemNameSnapshot = itemName;
         this.specimenTypeSnapshot = specimenType; this.examinationTypeSnapshot = examinationType;
-        this.status = settlementRequired ? "WAITING_SETTLEMENT" : "READY";
+        this.status = settlementRequired
+                ? DiagnosticExecutionTaskStatus.WAITING_SETTLEMENT : DiagnosticExecutionTaskStatus.READY;
         this.createdAt = createdAt == null ? Instant.now() : createdAt;
     }
 
     public void authorize(Long value, Instant occurredAt) {
         settlementId = value;
-        if ("WAITING_SETTLEMENT".equals(status)) status = "READY";
+        if (status == DiagnosticExecutionTaskStatus.WAITING_SETTLEMENT) status = DiagnosticExecutionTaskStatus.READY;
         exceptionNote = null;
     }
 
     public void reverseAuthorization(Instant occurredAt) {
-        if ("WAITING_SETTLEMENT".equals(status) || "CANCELLED".equals(status)) return;
+        if (status == DiagnosticExecutionTaskStatus.WAITING_SETTLEMENT
+                || status == DiagnosticExecutionTaskStatus.CANCELLED) return;
         settlementId = null;
-        if ("READY".equals(status)) status = "WAITING_SETTLEMENT";
+        if (status == DiagnosticExecutionTaskStatus.READY) status = DiagnosticExecutionTaskStatus.WAITING_SETTLEMENT;
         else {
-            status = "EXCEPTION";
+            status = DiagnosticExecutionTaskStatus.EXCEPTION;
             exceptionNote = "医嘱执行后结算被冲正，请人工核对";
         }
     }
@@ -79,35 +83,36 @@ public class DiagnosticExecutionTask {
     public void collect(long expectedRevision, String value, String note, Long actor, Instant occurredAt) {
         requireRevision(expectedRevision);
         if (!"LABORATORY".equals(requestType)) invalid("DIAGNOSTIC_COLLECTION_TYPE_INVALID", "检查项目不需要标本采集");
-        if (!"READY".equals(status)) invalid("DIAGNOSTIC_COLLECTION_STATE_INVALID", "只有待执行的检验申请可以采集标本");
-        status = "COLLECTED"; specimenNo = value; collectionNote = note;
+        if (status != DiagnosticExecutionTaskStatus.READY) invalid("DIAGNOSTIC_COLLECTION_STATE_INVALID", "只有待执行的检验申请可以采集标本");
+        status = DiagnosticExecutionTaskStatus.COLLECTED; specimenNo = value; collectionNote = note;
         collectedBy = actor; collectedAt = occurredAt;
     }
 
     public void start(long expectedRevision, Long actor, Instant occurredAt) {
         requireRevision(expectedRevision);
-        boolean allowed = "LABORATORY".equals(requestType) ? "COLLECTED".equals(status) : "READY".equals(status);
+        boolean allowed = "LABORATORY".equals(requestType)
+                ? status == DiagnosticExecutionTaskStatus.COLLECTED : status == DiagnosticExecutionTaskStatus.READY;
         if (!allowed) invalid("DIAGNOSTIC_START_STATE_INVALID",
                 "LABORATORY".equals(requestType) ? "检验项目需先完成标本采集" : "当前检查项目不能开始执行");
-        status = "IN_PROGRESS"; startedBy = actor; startedAt = occurredAt;
+        status = DiagnosticExecutionTaskStatus.IN_PROGRESS; startedBy = actor; startedAt = occurredAt;
     }
 
     public void recordReport(Long value, String reportStatus, Long actor, String note, Instant occurredAt) {
         reportId = value;
         if ("CANCELLED".equals(reportStatus)) {
-            status = "EXCEPTION"; exceptionNote = "报告已取消，请重新执行或撤销申请"; return;
+            status = DiagnosticExecutionTaskStatus.EXCEPTION; exceptionNote = "报告已取消，请重新执行或撤销申请"; return;
         }
         if ("PRELIMINARY".equals(reportStatus)) {
-            if (!"COMPLETED".equals(status)) status = "IN_PROGRESS";
+            if (status != DiagnosticExecutionTaskStatus.COMPLETED) status = DiagnosticExecutionTaskStatus.IN_PROGRESS;
             return;
         }
-        status = "COMPLETED"; completedBy = actor; completedAt = occurredAt;
+        status = DiagnosticExecutionTaskStatus.COMPLETED; completedBy = actor; completedAt = occurredAt;
         completionNote = note; exceptionNote = null;
     }
 
     public void cancel(Instant occurredAt) {
-        if ("COMPLETED".equals(status)) return;
-        status = "CANCELLED"; cancelledAt = occurredAt;
+        if (status == DiagnosticExecutionTaskStatus.COMPLETED) return;
+        status = DiagnosticExecutionTaskStatus.CANCELLED; cancelledAt = occurredAt;
     }
 
     private void requireRevision(long expected) {
@@ -132,7 +137,7 @@ public class DiagnosticExecutionTask {
     public String itemNameSnapshot() { return itemNameSnapshot; }
     public String specimenTypeSnapshot() { return specimenTypeSnapshot; }
     public String examinationTypeSnapshot() { return examinationTypeSnapshot; }
-    public String status() { return status; }
+    public DiagnosticExecutionTaskStatus status() { return status; }
     public Instant createdAt() { return createdAt; }
     public Instant collectedAt() { return collectedAt; }
     public Long collectedBy() { return collectedBy; }
@@ -146,4 +151,3 @@ public class DiagnosticExecutionTask {
     public Instant cancelledAt() { return cancelledAt; }
     public String exceptionNote() { return exceptionNote; }
 }
-

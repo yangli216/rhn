@@ -1,6 +1,7 @@
 package com.rhn.healthcore.mpi;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -38,14 +39,14 @@ class ResidentDemographicProfile {
     }
 
     void update(UpdateResidentProfileRequest.DemographicProfileInput value, String actor) {
-        this.nationalityCode = text(value == null ? null : value.nationalityCode());
-        this.ethnicityCode = text(value == null ? null : value.ethnicityCode());
-        this.residencyTypeCode = text(value == null ? null : value.sdResidencyType());
-        this.maritalStatusCode = text(value == null ? null : value.sdMaritalStatus());
-        this.educationCode = text(value == null ? null : value.sdEducationLevel());
-        this.occupationCode = text(value == null ? null : value.sdOccupationType());
-        this.bloodTypeCode = text(value == null ? null : value.sdBloodType());
-        this.rhTypeCode = text(value == null ? null : value.sdRhType());
+        this.nationalityCode = Strings.trimToNull(value == null ? null : value.nationalityCode());
+        this.ethnicityCode = Strings.trimToNull(value == null ? null : value.ethnicityCode());
+        this.residencyTypeCode = Strings.trimToNull(value == null ? null : value.sdResidencyType());
+        this.maritalStatusCode = Strings.trimToNull(value == null ? null : value.sdMaritalStatus());
+        this.educationCode = Strings.trimToNull(value == null ? null : value.sdEducationLevel());
+        this.occupationCode = Strings.trimToNull(value == null ? null : value.sdOccupationType());
+        this.bloodTypeCode = Strings.trimToNull(value == null ? null : value.sdBloodType());
+        this.rhTypeCode = Strings.trimToNull(value == null ? null : value.sdRhType());
         this.updatedAt = Instant.now();
         this.updatedBy = actor;
     }
@@ -59,9 +60,6 @@ class ResidentDemographicProfile {
     String bloodTypeCode() { return bloodTypeCode; }
     String rhTypeCode() { return rhTypeCode; }
 
-    private static String text(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 }
 
 @Entity
@@ -90,9 +88,9 @@ class ResidentEmployment {
     ResidentEmployment(Long tenantId, Long residentId, UpdateResidentProfileRequest.EmploymentInput input,
                        String actor) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
-        this.employerName = input.employerName().trim(); this.occupationCode = text(input.sdOccupationType());
-        this.phone = text(input.phone()); this.postalCode = text(input.postalCode());
-        this.addressText = text(input.addressText()); this.primary = input.primary();
+        this.employerName = input.employerName().trim(); this.occupationCode = Strings.trimToNull(input.sdOccupationType());
+        this.phone = Strings.trimToNull(input.phone()); this.postalCode = Strings.trimToNull(input.postalCode());
+        this.addressText = Strings.trimToNull(input.addressText()); this.primary = input.primary();
         this.validFrom = input.validFrom(); this.validTo = input.validTo(); this.status = "ACTIVE";
         this.createdAt = Instant.now(); this.createdBy = actor; this.updatedAt = createdAt; this.updatedBy = actor;
     }
@@ -100,7 +98,6 @@ class ResidentEmployment {
     Long id() { return id; } String employerName() { return employerName; } String occupationCode() { return occupationCode; }
     String phone() { return phone; } String postalCode() { return postalCode; } String addressText() { return addressText; }
     boolean primary() { return primary; } LocalDate validFrom() { return validFrom; } LocalDate validTo() { return validTo; }
-    private static String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }
 
 @Entity
@@ -131,11 +128,11 @@ class ResidentAddress {
 
     ResidentAddress(Long tenantId, Long residentId, UpdateResidentProfileRequest.AddressInput input, String actor) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
-        this.useCode = input.sdUse().trim(); this.provinceCode = text(input.provinceCode());
-        this.cityCode = text(input.cityCode()); this.districtCode = text(input.districtCode());
-        this.streetCode = text(input.streetCode()); this.communityCode = text(input.communityCode());
+        this.useCode = input.sdUse().trim(); this.provinceCode = Strings.trimToNull(input.provinceCode());
+        this.cityCode = Strings.trimToNull(input.cityCode()); this.districtCode = Strings.trimToNull(input.districtCode());
+        this.streetCode = Strings.trimToNull(input.streetCode()); this.communityCode = Strings.trimToNull(input.communityCode());
         this.addressText = input.addressText().trim();
-        this.postalCode = text(input.postalCode()); this.primary = input.primary();
+        this.postalCode = Strings.trimToNull(input.postalCode()); this.primary = input.primary();
         this.validFrom = input.validFrom(); this.validTo = input.validTo(); this.status = "ACTIVE";
         this.createdAt = Instant.now(); this.createdBy = actor; this.updatedAt = createdAt; this.updatedBy = actor;
     }
@@ -146,7 +143,6 @@ class ResidentAddress {
     String communityCode() { return communityCode; }
     String addressText() { return addressText; } String postalCode() { return postalCode; }
     boolean primary() { return primary; } LocalDate validFrom() { return validFrom; } LocalDate validTo() { return validTo; }
-    private static String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }
 
 @Entity
@@ -176,7 +172,7 @@ class ResidentRelatedPerson {
                           String actor) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
         this.fullName = input.fullName().trim(); this.relationshipCode = input.sdRelationship().trim();
-        this.phone = text(input.phone()); this.addressText = text(input.addressText());
+        this.phone = Strings.trimToNull(input.phone()); this.addressText = Strings.trimToNull(input.addressText());
         this.guardian = input.guardian(); this.emergencyContact = input.emergencyContact();
         this.validFrom = input.validFrom(); this.validTo = input.validTo(); this.status = "ACTIVE";
         this.createdAt = Instant.now(); this.createdBy = actor; this.updatedAt = createdAt; this.updatedBy = actor;
@@ -185,7 +181,6 @@ class ResidentRelatedPerson {
     Long id() { return id; } String fullName() { return fullName; } String relationshipCode() { return relationshipCode; }
     String phone() { return phone; } String addressText() { return addressText; } boolean guardian() { return guardian; }
     boolean emergencyContact() { return emergencyContact; } LocalDate validFrom() { return validFrom; } LocalDate validTo() { return validTo; }
-    private static String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }
 
 @Entity
@@ -212,7 +207,7 @@ class ResidentCoverage {
     ResidentCoverage(Long tenantId, Long residentId, UpdateResidentProfileRequest.CoverageInput input, String actor) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
         this.coverageTypeCode = input.sdCoverageType().trim(); this.payerName = input.payerName().trim();
-        this.memberNo = text(input.memberNo()); this.primary = input.primary();
+        this.memberNo = Strings.trimToNull(input.memberNo()); this.primary = input.primary();
         this.validFrom = input.validFrom(); this.validTo = input.validTo(); this.status = "ACTIVE";
         this.createdAt = Instant.now(); this.createdBy = actor; this.updatedAt = createdAt; this.updatedBy = actor;
     }
@@ -221,7 +216,7 @@ class ResidentCoverage {
                      String memberNo, boolean primary, LocalDate validFrom, LocalDate validTo, String actor) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
         this.coverageTypeCode = coverageTypeCode.trim(); this.payerName = payerName.trim();
-        this.memberNo = text(memberNo); this.primary = primary;
+        this.memberNo = Strings.trimToNull(memberNo); this.primary = primary;
         this.validFrom = validFrom != null ? validFrom : LocalDate.of(2020, 1, 1);
         this.validTo = validTo; this.status = "ACTIVE";
         this.createdAt = Instant.now(); this.createdBy = actor; this.updatedAt = createdAt; this.updatedBy = actor;
@@ -231,5 +226,4 @@ class ResidentCoverage {
     String payerName() { return payerName; } String status() { return status; }
     String memberNo() { return memberNo; } boolean primary() { return primary; }
     LocalDate validFrom() { return validFrom; } LocalDate validTo() { return validTo; }
-    private static String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

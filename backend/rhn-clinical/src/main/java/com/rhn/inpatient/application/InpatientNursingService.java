@@ -11,12 +11,14 @@ import com.rhn.inpatient.api.InpatientNursingViews.NursingRecordView;
 import com.rhn.inpatient.api.InpatientNursingViews.ObservationSummary;
 import com.rhn.inpatient.api.InpatientNursingViews.ShiftHandoffView;
 import com.rhn.inpatient.domain.CareEpisode;
+import com.rhn.inpatient.domain.CareEpisodeStatus;
 import com.rhn.inpatient.domain.InpatientBedOccupancy;
 import com.rhn.inpatient.domain.InpatientEncounter;
 import com.rhn.inpatient.domain.InpatientNursingRecord;
 import com.rhn.inpatient.domain.InpatientShiftHandoff;
 import com.rhn.inpatient.domain.InpatientShiftHandoffItem;
 import com.rhn.inpatient.domain.InpatientShiftHandoffSignature;
+import com.rhn.inpatient.domain.InpatientShiftHandoffStatus;
 import com.rhn.inpatient.domain.ServiceLocation;
 import com.rhn.inpatient.infrastructure.CareEpisodeRepository;
 import com.rhn.inpatient.infrastructure.InpatientBedOccupancyRepository;
@@ -253,7 +255,7 @@ public class InpatientNursingService {
         return handoffs
                 .findByTenantIdAndOrganizationIdAndDepartmentIdAndShiftFromLessThanAndShiftToGreaterThanOrderByShiftFromDescIdDesc(
                         context.tenantId(), context.organizationId(), context.departmentId(), to, from)
-                .stream().filter(value -> status == null || status.equals(value.status()))
+                .stream().filter(value -> status == null || status.equals(value.status().name()))
                 .map(this::handoffView).toList();
     }
 
@@ -291,10 +293,10 @@ public class InpatientNursingService {
         InpatientShiftHandoff handoff = handoffs.findLocked(context.tenantId(), handoffId)
                 .orElseThrow(() -> notFound("INPATIENT_HANDOFF_NOT_FOUND", "交接班记录不存在"));
         requireHandoffScope(context, handoff);
-        if ("HANDOVER".equals(stage) && !"DRAFT".equals(handoff.status())) {
+        if ("HANDOVER".equals(stage) && handoff.status() != InpatientShiftHandoffStatus.DRAFT) {
             throw conflict("INPATIENT_HANDOFF_NOT_DRAFT", "仅草稿交接班可以提交");
         }
-        if ("TAKEOVER".equals(stage) && !"SUBMITTED".equals(handoff.status())) {
+        if ("TAKEOVER".equals(stage) && handoff.status() != InpatientShiftHandoffStatus.SUBMITTED) {
             throw conflict("INPATIENT_HANDOFF_NOT_SUBMITTED", "仅已提交交接班可以接班确认");
         }
         List<InpatientShiftHandoffItem> items = handoffItems
@@ -365,7 +367,7 @@ public class InpatientNursingService {
     }
 
     private void requireWritable(CareEpisode episode) {
-        if (!"ADMITTED".equals(episode.status())) {
+        if (episode.status() != CareEpisodeStatus.ADMITTED) {
             throw conflict("INPATIENT_NURSING_READ_ONLY", "患者已出院，护理与交接班记录只读");
         }
     }
@@ -601,7 +603,7 @@ public class InpatientNursingService {
         return new ShiftHandoffView(
                 value.id(), value.revision(), value.organizationId(), value.departmentId(),
                 value.shiftFrom(), value.shiftTo(), value.wardSummary(), stringList(value.generalItemsJson()),
-                value.status(), value.createdBySubjectId(), value.createdByPractitionerId(),
+                value.status().name(), value.createdBySubjectId(), value.createdByPractitionerId(),
                 value.creatorName(), value.createdAt(), value.updatedAt(), value.contentDigestAlgorithm(),
                 value.contentDigest(), value.integrityEvidenceId(),
                 items.stream().map(item -> new HandoffPatientView(

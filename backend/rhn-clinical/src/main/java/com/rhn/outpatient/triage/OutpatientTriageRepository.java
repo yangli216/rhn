@@ -38,7 +38,7 @@ public interface OutpatientTriageRepository extends JpaRepository<OutpatientTria
             @Param("fromTime") Instant fromTime,
             @Param("toTime") Instant toTime,
             @Param("triageLevel") String triageLevel,
-            @Param("status") String status,
+            @Param("status") OutpatientTriageRecordStatus status,
             @Param("query") String query,
             Pageable pageable);
 

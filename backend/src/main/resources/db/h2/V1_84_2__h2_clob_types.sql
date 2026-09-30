@@ -144,7 +144,9 @@ comment on column RHN_VIS_INP_SHIFT_HANDOFF_ITEM.JSON_RISK_FLAGS is 'risk标志J
 
 -- H2 alone needs CLOB instead of PostgreSQL TEXT for Hibernate LONG32VARCHAR validation.
 alter table RHN_AN_CATALOG_VER alter column JSON_DEF clob;
+comment on column RHN_AN_CATALOG_VER.JSON_DEF is '目录定义 JSON';
 alter table RHN_AN_DRAFT_VER alter column JSON_SPEC clob;
+comment on column RHN_AN_DRAFT_VER.JSON_SPEC is '分析定义 JSON';
 
 alter table RHN_META_PRINT_DRAFT alter column JSON_CONFIG clob;
 comment on column RHN_META_PRINT_DRAFT.JSON_CONFIG is '可视化布局配置';

@@ -1,6 +1,7 @@
 package com.rhn.billing.infrastructure;
 
 import com.rhn.billing.domain.RegistrationBillingIntent;
+import com.rhn.billing.domain.RegistrationBillingIntentStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -12,13 +13,13 @@ import java.util.Collection;
 
 public interface RegistrationBillingIntentRepository extends JpaRepository<RegistrationBillingIntent, Long> {
     boolean existsByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
-            Long tenantId, Long residentId, Long organizationId, Long departmentId, Collection<String> statuses);
+            Long tenantId, Long residentId, Long organizationId, Long departmentId, Collection<RegistrationBillingIntentStatus> statuses);
     Optional<RegistrationBillingIntent> findByIdAndTenantId(Long id, Long tenantId);
     Optional<RegistrationBillingIntent> findByTenantIdAndIdempotencyCode(Long tenantId, String idempotencyCode);
     Optional<RegistrationBillingIntent> findByTenantIdAndSettlementId(Long tenantId, Long settlementId);
     Optional<RegistrationBillingIntent> findByTenantIdAndEncounterId(Long tenantId, Long encounterId);
     Optional<RegistrationBillingIntent> findFirstByTenantIdAndAppointmentIdAndStatusIn(
-            Long tenantId, Long appointmentId, Collection<String> statuses);
+            Long tenantId, Long appointmentId, Collection<RegistrationBillingIntentStatus> statuses);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from RegistrationBillingIntent value where value.id = :id and value.tenantId = :tenantId")

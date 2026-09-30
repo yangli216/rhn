@@ -338,12 +338,16 @@ public class MedicationWorkbenchService {
                 try {
                     var value=json.read(row.medicationSnapshot(),MedicationSnapshot.class);
                     if(value!=null && Objects.equals(row.medicationId(),value.id())) historical=value;
-                } catch(RuntimeException ignored) {}
+                } catch(RuntimeException ignored) {
+                    // 处方快照 JSON 不可解析时，改用药品主数据兜底。
+                }
             }
             boolean historicalSnapshotAvailable=historical!=null;
             if(historical==null && row.medicationId()!=null) {
                 try { historical=knowledge.require(row.medicationId()).medication(); }
-                catch(RuntimeException ignored) {}
+                catch(RuntimeException ignored) {
+                    // 主数据缺失时按“未识别药品”展示，不阻断审方预览。
+                }
             }
             BigDecimal days="DAY".equals(row.durationUnit())?row.durationValue():null;
             return new PrescriptionPreviewItem(row.medicationId(),row.status(),days,row.routeCode(),row.frequencyCode(),

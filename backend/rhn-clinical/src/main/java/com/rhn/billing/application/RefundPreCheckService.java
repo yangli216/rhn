@@ -156,104 +156,97 @@ public class RefundPreCheckService {
         Long sourceId = charge.sourceId();
 
         if (reversedChargeIds.contains(charge.id())) {
-            return new RefundItemPreCheckView(
-                    charge.id(), sourceType, sourceId, charge.requestCode(),
-                    charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
-                    charge.quantity(), charge.unitCode(), charge.totalAmount(),
+            return refundItem(charge, sourceType, sourceId,
                     "RETURNED", "已实物退药/已退费", true,
                     "已实物退药 · 允许退款", "info", null);
         }
 
         if ("MEDICATION_REQUEST".equals(sourceType)) {
-            RefundPharmacyDirectory.RefundFulfillmentStatus fulfillment =
-                    pharmacy.statusForRequest(context.tenantId(), sourceId);
-            if (fulfillment.dispensed()) {
-                return new RefundItemPreCheckView(
-                        charge.id(), sourceType, sourceId, charge.requestCode(),
-                        charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
-                        charge.quantity(), charge.unitCode(), charge.totalAmount(),
-                        "DISPENSED", "已发药", false,
-                        "已发药 · 阻断(需药房退药)", "danger",
-                        "药房已发药出库，严禁直接退款！请先指引患者前往药房办理实物退药核收。");
-            }
-            if (fulfillment.returned()) {
-                return new RefundItemPreCheckView(
-                        charge.id(), sourceType, sourceId, charge.requestCode(),
-                        charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
-                        charge.quantity(), charge.unitCode(), charge.totalAmount(),
-                        "RETURNED", "已退药", true,
-                        "已实物退药 · 允许退款", "info", null);
-            }
-
-            if (unexecutedDirectRefundAllowed) {
-                return new RefundItemPreCheckView(
-                        charge.id(), sourceType, sourceId, charge.requestCode(),
-                        charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
-                        charge.quantity(), charge.unitCode(), charge.totalAmount(),
-                        "UNDISPENSED", "未发药", true,
-                        "未发药 · 允许直接退款", "success", null);
-            }
-            return new RefundItemPreCheckView(
-                    charge.id(), sourceType, sourceId, charge.requestCode(),
-                    charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
-                    charge.quantity(), charge.unitCode(), charge.totalAmount(),
-                    "UNDISPENSED_NEED_CANCEL", "未发药(需作废)", false,
-                    "未发药 · 需医生先作废处方", "warning",
-                    "根据系统策略配置，未发药处方需先由开单医生在门诊工作站作废处方后方可退费。");
+            return evaluateMedicationRequest(context, charge, sourceType, sourceId, unexecutedDirectRefundAllowed);
         }
 
         if ("SERVICE_REQUEST".equals(sourceType)) {
-            if (diagnostics.hasReportForRequest(context.tenantId(), sourceId)) {
-                return new RefundItemPreCheckView(
-                        charge.id(), sourceType, sourceId, charge.requestCode(),
-                        charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
-                        charge.quantity(), charge.unitCode(), charge.totalAmount(),
-                        "REPORTED", "已出具报告", false,
-                        "已出报告 · 阻断(需医技撤销)", "danger",
-                        "检验检查已出具诊断报告，严禁直接退款！需由医技科室撤销执行或作废报告。");
-            }
-
-            if (unexecutedDirectRefundAllowed) {
-                return new RefundItemPreCheckView(
-                        charge.id(), sourceType, sourceId, charge.requestCode(),
-                        charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
-                        charge.quantity(), charge.unitCode(), charge.totalAmount(),
-                        "UNEXECUTED", "未出报告/未执行", true,
-                        "未执行 · 允许直接退款", "success", null);
-            }
-            return new RefundItemPreCheckView(
-                    charge.id(), sourceType, sourceId, charge.requestCode(),
-                    charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
-                    charge.quantity(), charge.unitCode(), charge.totalAmount(),
-                    "UNEXECUTED_NEED_CANCEL", "未执行(需作废)", false,
-                    "未执行 · 需医生先作废申请单", "warning",
-                    "根据系统策略配置，未执行检查申请单需先由开单医生作废后方可退费。");
+            return evaluateServiceRequest(context, charge, sourceType, sourceId, unexecutedDirectRefundAllowed);
         }
 
         if ("TREATMENT".equals(sourceType)) {
-            if (treatment.isExecutedOrInProgress(context.tenantId(), sourceId)) {
-                return new RefundItemPreCheckView(
-                        charge.id(), sourceType, sourceId, charge.requestCode(),
-                        charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
-                        charge.quantity(), charge.unitCode(), charge.totalAmount(),
-                        "EXECUTED", "已执行", false,
-                        "已执行 · 阻断", "danger",
-                        "治疗处置已在执行或已完成，严禁直接退款！需由处置科室处理。");
-            }
-
-            return new RefundItemPreCheckView(
-                    charge.id(), sourceType, sourceId, charge.requestCode(),
-                    charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
-                    charge.quantity(), charge.unitCode(), charge.totalAmount(),
-                    "UNEXECUTED", "未执行", true,
-                    "未执行 · 允许直接退款", "success", null);
+            return evaluateTreatment(context, charge, sourceType, sourceId);
         }
 
+        return refundItem(charge, sourceType, sourceId,
+                "OTHER", "就诊服务", true, "允许直接退款", "success", null);
+    }
+
+    private RefundItemPreCheckView evaluateMedicationRequest(ExecutionContext context, ChargeItem charge,
+                                                            String sourceType, Long sourceId,
+                                                            boolean unexecutedDirectRefundAllowed) {
+        RefundPharmacyDirectory.RefundFulfillmentStatus fulfillment =
+                pharmacy.statusForRequest(context.tenantId(), sourceId);
+        if (fulfillment.dispensed()) {
+            return refundItem(charge, sourceType, sourceId,
+                    "DISPENSED", "已发药", false,
+                    "已发药 · 阻断(需药房退药)", "danger",
+                    "药房已发药出库，严禁直接退款！请先指引患者前往药房办理实物退药核收。");
+        }
+        if (fulfillment.returned()) {
+            return refundItem(charge, sourceType, sourceId,
+                    "RETURNED", "已退药", true,
+                    "已实物退药 · 允许退款", "info", null);
+        }
+
+        if (unexecutedDirectRefundAllowed) {
+            return refundItem(charge, sourceType, sourceId,
+                    "UNDISPENSED", "未发药", true,
+                    "未发药 · 允许直接退款", "success", null);
+        }
+        return refundItem(charge, sourceType, sourceId,
+                "UNDISPENSED_NEED_CANCEL", "未发药(需作废)", false,
+                "未发药 · 需医生先作废处方", "warning",
+                "根据系统策略配置，未发药处方需先由开单医生在门诊工作站作废处方后方可退费。");
+    }
+
+    private RefundItemPreCheckView evaluateServiceRequest(ExecutionContext context, ChargeItem charge,
+                                                          String sourceType, Long sourceId,
+                                                          boolean unexecutedDirectRefundAllowed) {
+        if (diagnostics.hasReportForRequest(context.tenantId(), sourceId)) {
+            return refundItem(charge, sourceType, sourceId,
+                    "REPORTED", "已出具报告", false,
+                    "已出报告 · 阻断(需医技撤销)", "danger",
+                    "检验检查已出具诊断报告，严禁直接退款！需由医技科室撤销执行或作废报告。");
+        }
+
+        if (unexecutedDirectRefundAllowed) {
+            return refundItem(charge, sourceType, sourceId,
+                    "UNEXECUTED", "未出报告/未执行", true,
+                    "未执行 · 允许直接退款", "success", null);
+        }
+        return refundItem(charge, sourceType, sourceId,
+                "UNEXECUTED_NEED_CANCEL", "未执行(需作废)", false,
+                "未执行 · 需医生先作废申请单", "warning",
+                "根据系统策略配置，未执行检查申请单需先由开单医生作废后方可退费。");
+    }
+
+    private RefundItemPreCheckView evaluateTreatment(ExecutionContext context, ChargeItem charge,
+                                                     String sourceType, Long sourceId) {
+        if (treatment.isExecutedOrInProgress(context.tenantId(), sourceId)) {
+            return refundItem(charge, sourceType, sourceId,
+                    "EXECUTED", "已执行", false,
+                    "已执行 · 阻断", "danger",
+                    "治疗处置已在执行或已完成，严禁直接退款！需由处置科室处理。");
+        }
+
+        return refundItem(charge, sourceType, sourceId,
+                "UNEXECUTED", "未执行", true,
+                "未执行 · 允许直接退款", "success", null);
+    }
+
+    private RefundItemPreCheckView refundItem(ChargeItem charge, String sourceType, Long sourceId,
+                                              String decision, String itemStatus, boolean allowed,
+                                              String notice, String tone, String blockReason) {
         return new RefundItemPreCheckView(
                 charge.id(), sourceType, sourceId, charge.requestCode(),
                 charge.itemNameSnapshot(), charge.itemCodeSnapshot(),
                 charge.quantity(), charge.unitCode(), charge.totalAmount(),
-                "OTHER", "就诊服务", true,
-                "允许直接退款", "success", null);
+                decision, itemStatus, allowed, notice, tone, blockReason);
     }
 }

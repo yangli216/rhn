@@ -3,6 +3,8 @@ package com.rhn.outpatient.triage;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -138,8 +140,9 @@ public class OutpatientTriageRecord {
     @Column(name = "SD_DISPOS")
     private String disposition;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "SD_STATUS", nullable = false)
-    private String status;
+    private OutpatientTriageRecordStatus status;
 
     @Column(name = "TXT_NOTES")
     private String notes;
@@ -172,7 +175,7 @@ public class OutpatientTriageRecord {
         this.triageLevel = "LEVEL_4_NON_URGENT";
         this.greenChannel = "NONE";
         this.disposition = "WAITING_QUEUE";
-        this.status = "RECORDED";
+        this.status = OutpatientTriageRecordStatus.RECORDED;
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
     }
@@ -241,11 +244,11 @@ public class OutpatientTriageRecord {
     public void bindEncounter(Long encounterId, Long registrationId) {
         this.encounterId = encounterId;
         this.registrationId = registrationId;
-        this.status = "REGISTERED";
+        this.status = OutpatientTriageRecordStatus.REGISTERED;
         this.updatedAt = Instant.now();
     }
 
-    public void updateStatus(String status) {
+    public void updateStatus(OutpatientTriageRecordStatus status) {
         this.status = status;
         this.updatedAt = Instant.now();
     }
@@ -292,7 +295,7 @@ public class OutpatientTriageRecord {
     public String getTargetDoctorName() { return targetDoctorName; }
     public String getGreenChannel() { return greenChannel; }
     public String getDisposition() { return disposition; }
-    public String getStatus() { return status; }
+    public OutpatientTriageRecordStatus getStatus() { return status; }
     public String getNotes() { return notes; }
     public long getVersion() { return version; }
     public Instant getCreatedAt() { return createdAt; }

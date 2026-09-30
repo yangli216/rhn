@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -27,7 +29,8 @@ public class InpatientMedicationSupplyTask {
     @Column(name = "QTY_RQD_BASE", nullable = false, precision = 28, scale = 8)
     private BigDecimal requiredBaseQuantity;
     @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "SD_STATUS", nullable = false) private InpatientMedicationSupplyTaskStatus status;
     @Column(name = "ACTIVE_SLOT") private Short activeSlot;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;
@@ -52,15 +55,15 @@ public class InpatientMedicationSupplyTask {
         this.quantityUnitCode = quantityUnitCode;
         this.requiredBaseQuantity = requiredBaseQuantity;
         this.baseUnitCode = baseUnitCode;
-        this.status = "ACTIVE";
+        this.status = InpatientMedicationSupplyTaskStatus.ACTIVE;
         this.activeSlot = 1;
         this.createdAt = Instant.now();
         this.createdBy = actorId;
     }
 
     public void cancel(String reason, Long actorId) {
-        if ("CANCELLED".equals(status)) return;
-        this.status = "CANCELLED";
+        if (status == InpatientMedicationSupplyTaskStatus.CANCELLED) return;
+        this.status = InpatientMedicationSupplyTaskStatus.CANCELLED;
         this.activeSlot = null;
         this.cancelledAt = Instant.now();
         this.cancelledBy = actorId;
@@ -78,7 +81,7 @@ public class InpatientMedicationSupplyTask {
     public String quantityUnitCode() { return quantityUnitCode; }
     public BigDecimal requiredBaseQuantity() { return requiredBaseQuantity; }
     public String baseUnitCode() { return baseUnitCode; }
-    public String status() { return status; }
+    public InpatientMedicationSupplyTaskStatus status() { return status; }
     public Short activeSlot() { return activeSlot; }
     public Instant createdAt() { return createdAt; }
     public Long createdBy() { return createdBy; }

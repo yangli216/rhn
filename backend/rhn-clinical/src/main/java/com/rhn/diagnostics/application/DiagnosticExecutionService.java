@@ -3,6 +3,7 @@ package com.rhn.diagnostics.application;
 import com.rhn.diagnostics.api.DiagnosticExecutionTaskView;
 import com.rhn.billing.api.SettlementAuthorizationDirectory;
 import com.rhn.diagnostics.domain.DiagnosticExecutionTask;
+import com.rhn.diagnostics.domain.DiagnosticExecutionTaskStatus;
 import com.rhn.diagnostics.infrastructure.DiagnosticExecutionTaskRepository;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.ServiceRequestDirectory;
@@ -10,6 +11,7 @@ import com.rhn.platform.eventing.api.DomainEventEnvelope;
 import com.rhn.platform.eventing.api.IdempotentDomainEventConsumer;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -65,7 +67,7 @@ public class DiagnosticExecutionService {
         values.forEach(this::reconcileSettlement);
         return values.stream()
                 .filter(value -> typeFilter == null || typeFilter.equals(value.requestType()))
-                .filter(value -> statusFilter == null || statusFilter.equals(value.status()))
+                .filter(value -> statusFilter == null || statusFilter.equals(value.status().name()))
                 .map(this::view).toList();
     }
 
@@ -73,9 +75,9 @@ public class DiagnosticExecutionService {
     public DiagnosticExecutionTaskView collect(Long taskId, long expectedRevision, String specimenNo, String note) {
         ExecutionContext context = requireWorkContext(); DiagnosticExecutionTask task = requireAccessible(taskId, context);
         reconcileSettlement(task);
-        String number = clean(specimenNo);
+        String number = Strings.trimToNull(specimenNo);
         if (number == null) throw conflict("DIAGNOSTIC_SPECIMEN_NO_REQUIRED", "标本号不能为空");
-        task.collect(expectedRevision, number, clean(note), context.subjectId(), Instant.now());
+        task.collect(expectedRevision, number, Strings.trimToNull(note), context.subjectId(), Instant.now());
         tasks.flush(); return view(task);
     }
 
@@ -93,7 +95,7 @@ public class DiagnosticExecutionService {
         reconcileSettlement(task);
         if (task.revision() != expectedRevision) throw conflict(
                 "DIAGNOSTIC_TASK_REVISION_CONFLICT", "医技任务已被其他用户更新，请刷新后重试");
-        if (!"IN_PROGRESS".equals(task.status())) throw conflict(
+        if (task.status() != DiagnosticExecutionTaskStatus.IN_PROGRESS) throw conflict(
                 "DIAGNOSTIC_REPORT_STATE_INVALID", "只有执行中的医技任务可以录入报告");
         return task;
     }
@@ -106,9 +108,10 @@ public class DiagnosticExecutionService {
                 .orElseGet(() -> tasks.save(create(requests.requireForDiagnosticExchange(requestId))));
         requireAccess(context, task);
         reconcileSettlement(task);
-        if ("WAITING_SETTLEMENT".equals(task.status())) throw conflict(
+        if (task.status() == DiagnosticExecutionTaskStatus.WAITING_SETTLEMENT) throw conflict(
                 "DIAGNOSTIC_REQUEST_SETTLEMENT_REQUIRED", "检查检验申请尚未完成结算，不能进入执行流程");
-        if (Set.of("CANCELLED", "EXCEPTION").contains(task.status())) throw conflict(
+        if (Set.of(DiagnosticExecutionTaskStatus.CANCELLED, DiagnosticExecutionTaskStatus.EXCEPTION)
+                .contains(task.status())) throw conflict(
                 "DIAGNOSTIC_REQUEST_EXECUTION_BLOCKED", "当前检查检验申请状态不能进入执行流程");
     }
 
@@ -198,7 +201,7 @@ public class DiagnosticExecutionService {
     private DiagnosticExecutionTaskView view(DiagnosticExecutionTask value) {
         ResidentDirectory.ResidentSnapshot resident = residents.requireSnapshot(value.residentId());
         return new DiagnosticExecutionTaskView(value.id(), value.revision(), value.taskNo(), value.requestType(),
-                value.status(), value.residentId(), resident.fullName(), resident.healthRecordNo(),
+                value.status().name(), value.residentId(), resident.fullName(), resident.healthRecordNo(),
                 value.encounterId(), value.requestId(), value.organizationId(), value.departmentId(),
                 value.settlementId(), value.reportId(), value.itemCodeSnapshot(), value.itemNameSnapshot(),
                 value.specimenTypeSnapshot(), value.examinationTypeSnapshot(), value.createdAt(),
@@ -224,7 +227,6 @@ public class DiagnosticExecutionService {
         String text = text(value); return text == null ? null : new BigDecimal(text);
     }
 
-    private String text(Object value) { return value == null ? null : clean(String.valueOf(value)); }
-    private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private String text(Object value) { return value == null ? null : Strings.trimToNull(String.valueOf(value)); }
+    private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(); }
 }

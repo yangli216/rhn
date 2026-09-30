@@ -10,12 +10,14 @@ import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
 import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
+import com.rhn.platform.masterdata.api.MasterDataViews;
 import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,14 +93,101 @@ class MedicationRequestService implements MedicationRequestDirectory {
         if (input.medicationId() == null && input.catalogItemId() == null) {
             throw badRequest("MEDICATION_REQUEST_TARGET_REQUIRED", "必须选择通用药品，或选择可推导通用药品的具体产品");
         }
+        Prescription prescription = requireDraftPrescription(input, encounterId, tenantId);
+        CreateContext ctx = new CreateContext(encounter, context, tenantId, businessDate, prescription,
+                resolveExecutionScope(input, encounter, prescription, context, tenantId));
 
+        CatalogSelection selection = resolveCatalogSelection(ctx, input);
+        CatalogLifecycleDirectory.CatalogItemSnapshot item = selection.item();
+        CatalogLifecycleDirectory.PackageSnapshot itemPackage = selection.itemPackage();
+        CatalogLifecycleDirectory.MedicationSnapshot medication = selection.medication();
+        MasterDataViews.OrganizationAdoptionView adoption = selection.adoption();
+        MasterDataViews.PriceView resolvedPrice = selection.resolvedPrice();
+        UnitSelection units = resolveUnits(input, selection);
+        DirectionSelection directions = resolveDirections(ctx, input, selection);
+        AllergyAssessment allergies = assessAllergies(ctx, input, medication);
+
+        Long performerOrganizationId = ctx.scope().performerOrganizationId();
+        Long performerDepartmentId = ctx.scope().performerDepartmentId();
+        String baseUnit = units.baseUnit();
+        String quantityUnit = units.quantityUnit();
+        BigDecimal packageFactor = units.packageFactor();
+        BigDecimal baseQuantity = units.baseQuantity();
+        BigDecimal doseValue = directions.doseValue();
+        String doseUnit = directions.doseUnit();
+        MedicationRouteDirectory.RouteSnapshot routeSnapshot = directions.routeSnapshot();
+        String route = directions.route();
+        String frequency = directions.frequency();
+        OrderFrequencyDirectory.FrequencySnapshot frequencySnapshot = directions.frequencySnapshot();
+        MedicationRequest parentRequest = directions.parentRequest();
+
+        BigDecimal priceQuantity = resolvedPrice == null ? null
+                : resolvedPrice.packageId() == null ? baseQuantity : input.quantity();
+        BigDecimal totalAmount = resolvedPrice == null ? null : resolvedPrice.price().multiply(priceQuantity);
+
+        var contexts = new ItemAttributeSnapshotDirectory.AttributeContexts(
+                new ItemAttributeSnapshotDirectory.AttributeScope(encounter.organizationId(), encounter.departmentId()),
+                new ItemAttributeSnapshotDirectory.AttributeScope(ctx.scope().performerOrganizationId(),
+                        ctx.scope().performerDepartmentId()),
+                new ItemAttributeSnapshotDirectory.AttributeScope(ctx.scope().performerOrganizationId(),
+                        ctx.scope().performerDepartmentId()), null);
+        var attributes = attributeDirectory.resolveSnapshot("MEDICATION", medication.id(), businessDate, contexts);
+        var mappings = mappingDirectory.resolve(tenantId, "MEDICATION", medication.id(), null, businessDate);
+        String itemCode = item == null ? medication.code() : item.code();
+        String itemName = item == null ? medication.name() : item.name();
+
+        MedicationRequest value = repository.saveAndFlush(new MedicationRequest(tenantId, encounter.residentId(),
+                encounter.id(), nextRequestNo(), prescription == null ? null : prescription.id(),
+                parentRequest == null ? null : parentRequest.id(),
+                prescription == null ? MedicationRequestStatus.ACTIVE : MedicationRequestStatus.DRAFT, item == null ? null : item.id(), input.packageId(),
+                performerOrganizationId, performerDepartmentId, businessDate, context.subjectId(), Strings.trimToNull(input.reason()),
+                itemCode, itemName, quantityUnit, adoption == null ? null : adoption.localCode(),
+                adoption == null ? null : adoption.localName(), adoption == null ? null : adoption.id(),
+                adoption == null ? null : adoption.revision(), resolvedPrice == null ? null : resolvedPrice.id(),
+                resolvedPrice == null ? null : resolvedPrice.revision(),
+                resolvedPrice == null ? null : resolvedPrice.sdPriceType(),
+                resolvedPrice == null ? null : resolvedPrice.price(), totalAmount,
+                resolvedPrice == null ? null : resolvedPrice.currencyCode(),
+                jsonCodec.write(attributes.jsonItemAttrSnapshot()), attributes.hashItemAttrSnapshot(),
+                attributes.resolvedAt(), jsonCodec.write(mappings), medication.id(), doseValue, doseUnit,
+                routeSnapshot == null ? null : routeSnapshot.id(), route,
+                routeSnapshot == null ? null : routeSnapshot.name(),
+                routeSnapshot == null ? null : routeSnapshot.executionType(), frequency,
+                frequencySnapshot == null ? null : frequencySnapshot.id(),
+                frequencySnapshot == null ? null : frequencySnapshot.name(),
+                frequencySnapshot == null ? null : jsonCodec.write(frequencySnapshot),
+                input.durationValue(), Strings.trimToNull(input.durationUnit()), input.quantity(), baseQuantity, baseUnit, packageFactor,
+                itemPackage == null ? null : itemPackage.unitName(), itemPackage == null ? null : itemPackage.packageSpec(),
+                item == null ? null : item.manufacturerName(),
+                priceQuantity, input.substitutionAllowed(), input.selfProvided(), Strings.trimToNull(input.medicationInstruction()),
+                medication.code(), medication.name(), medication.medicationType(), medication.doseForm(),
+                medication.preparationSpec(), medication.preparationUnit(), medication.skinTestRequired(),
+                Boolean.TRUE.equals(input.skinTestExempt()), Strings.trimToNull(input.skinTestExemptReason()), input.exemptEvidenceEventId(),
+                medication.antimicrobial(), medication.antimicrobialLevel(), jsonCodec.write(semantics.freeze(tenantId,
+                        medication, item == null ? null : item.id(), routeSnapshot, frequencySnapshot,
+                        doseValue, doseUnit, input.durationValue(), Strings.trimToNull(input.durationUnit()), businessDate))));
+        publish(value, prescription == null ? "MEDICATION_REQUEST_AUTHORED" : "MEDICATION_REQUEST_DRAFTED",
+                prescription == null ? "开立药品" : "处方草稿添加药品",
+                authoredEventDetails(value, encounter, allergies, input));
+        return response(value);
+    }
+
+    private Prescription requireDraftPrescription(CreateMedicationRequest input, Long encounterId, Long tenantId) {
         Prescription prescription = input.prescriptionId() == null ? null
                 : prescriptionRepository.findByIdAndTenantId(input.prescriptionId(), tenantId)
                 .filter(value -> value.encounterId().equals(encounterId))
                 .orElseThrow(() -> notFound("PRESCRIPTION_NOT_FOUND", "未找到当前就诊的处方"));
-        if (prescription != null && !"DRAFT".equals(prescription.status())) {
+        if (prescription != null && prescription.status() != PrescriptionStatus.DRAFT) {
             throw conflict("PRESCRIPTION_NOT_EDITABLE", "只有草稿处方可以继续添加药品");
         }
+        return prescription;
+    }
+
+    /** 推导执行机构/科室：处方内药品强制跟随处方头，无处方时回退登录工作上下文与就诊科室。 */
+    private ExecutionScope resolveExecutionScope(CreateMedicationRequest input,
+                                                 EncounterDirectory.EncounterSnapshot encounter,
+                                                 Prescription prescription,
+                                                 ExecutionContext context, Long tenantId) {
         Long performerOrganizationId = prescription == null
                 ? input.performerOrganizationId() == null ? encounter.organizationId() : input.performerOrganizationId()
                 : prescription.performerOrganizationId();
@@ -116,20 +205,26 @@ class MedicationRequestService implements MedicationRequestDirectory {
             throw badRequest("MEDICATION_REQUEST_PERFORMER_CONTEXT_INVALID", "执行机构或科室不在当前可访问范围内");
         }
         organizationDirectory.requireDepartment(tenantId, performerOrganizationId, performerDepartmentId);
+        return new ExecutionScope(performerOrganizationId, performerDepartmentId);
+    }
 
-        String priceType = clean(input.priceType()) == null ? "SALE" : clean(input.priceType()).toUpperCase();
+    /** 按"通用药品开立 / 具体产品开立"两条路径解析目录、机构采用与价格快照。 */
+    private CatalogSelection resolveCatalogSelection(CreateContext ctx, CreateMedicationRequest input) {
+        Long tenantId = ctx.tenantId();
+        LocalDate businessDate = ctx.businessDate();
+        Long performerOrganizationId = ctx.scope().performerOrganizationId();
+        String priceType = Strings.trimToNull(input.priceType()) == null ? "SALE" : Strings.trimToNull(input.priceType()).toUpperCase();
         boolean productSelected = input.catalogItemId() != null;
         boolean pricingRequired = input.pricingRequired() == null
                 ? productSelected && !input.selfProvided() : input.pricingRequired();
         if (!productSelected && pricingRequired) {
             throw conflict("GENERIC_MEDICATION_NOT_PRICEABLE", "仅按通用名开立时尚未确定产品，不能生成价格预览");
         }
-
         CatalogLifecycleDirectory.CatalogItemSnapshot item = null;
         CatalogLifecycleDirectory.PackageSnapshot itemPackage = null;
         CatalogLifecycleDirectory.MedicationSnapshot medication;
-        com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView adoption = null;
-        com.rhn.platform.masterdata.api.MasterDataViews.PriceView resolvedPrice = null;
+        MasterDataViews.OrganizationAdoptionView adoption = null;
+        MasterDataViews.PriceView resolvedPrice = null;
 
         if (productSelected) {
             var catalog = catalogDirectory.resolve(tenantId, input.catalogItemId(), performerOrganizationId,
@@ -166,37 +261,55 @@ class MedicationRequestService implements MedicationRequestDirectory {
             medication = catalogDirectory.requireMedication(tenantId, input.medicationId());
         }
         if (!"ACTIVE".equals(medication.status())) throw conflict("MEDICATION_NOT_ACTIVE", "通用药品知识当前不可用");
+        return new CatalogSelection(item, itemPackage, medication, adoption, resolvedPrice, productSelected);
+    }
 
-        String baseUnit = productSelected ? clean(item.unitCode()) : clean(medication.preparationUnit());
+    /** 解析申请数量单位与基本单位，并校验单位口径一致。 */
+    private UnitSelection resolveUnits(CreateMedicationRequest input, CatalogSelection selection) {
+        CatalogLifecycleDirectory.CatalogItemSnapshot item = selection.item();
+        CatalogLifecycleDirectory.PackageSnapshot itemPackage = selection.itemPackage();
+        CatalogLifecycleDirectory.MedicationSnapshot medication = selection.medication();
+        String baseUnit = selection.productSelected() ? Strings.trimToNull(item.unitCode()) : Strings.trimToNull(medication.preparationUnit());
         if (baseUnit == null) throw conflict("MEDICATION_BASE_UNIT_MISSING", "药品尚未配置可用于申请数量的基本单位");
         String expectedUnit = itemPackage == null ? baseUnit : itemPackage.unitCode();
-        String quantityUnit = clean(input.quantityUnit()) == null ? expectedUnit : clean(input.quantityUnit());
+        String quantityUnit = Strings.trimToNull(input.quantityUnit()) == null ? expectedUnit : Strings.trimToNull(input.quantityUnit());
         boolean unitMatches;
         if (itemPackage != null) {
             unitMatches = expectedUnit.equalsIgnoreCase(quantityUnit)
                     || (itemPackage.unitName() != null && itemPackage.unitName().equalsIgnoreCase(quantityUnit));
         } else {
             unitMatches = expectedUnit.equalsIgnoreCase(quantityUnit)
-                    || (clean(medication.preparationUnit()) != null && clean(medication.preparationUnit()).equalsIgnoreCase(quantityUnit))
-                    || (item != null && clean(item.unitCode()) != null && clean(item.unitCode()).equalsIgnoreCase(quantityUnit));
+                    || (Strings.trimToNull(medication.preparationUnit()) != null && Strings.trimToNull(medication.preparationUnit()).equalsIgnoreCase(quantityUnit))
+                    || (item != null && Strings.trimToNull(item.unitCode()) != null && Strings.trimToNull(item.unitCode()).equalsIgnoreCase(quantityUnit));
         }
         if (!unitMatches) {
             throw badRequest("MEDICATION_REQUEST_QUANTITY_UNIT_INVALID", "申请数量单位必须与当前通用药品或产品包装一致");
         }
         BigDecimal packageFactor = itemPackage == null ? BigDecimal.ONE : itemPackage.quantityFactor();
         BigDecimal baseQuantity = input.quantity().multiply(packageFactor);
+        return new UnitSelection(baseUnit, quantityUnit, packageFactor, baseQuantity);
+    }
+
+    /** 解析用法用量（剂量/疗程/途径/频次）并执行处方方向、抗菌药与父医嘱约束校验。 */
+    private DirectionSelection resolveDirections(CreateContext ctx, CreateMedicationRequest input,
+                                                 CatalogSelection selection) {
+        Long tenantId = ctx.tenantId();
+        LocalDate businessDate = ctx.businessDate();
+        Prescription prescription = ctx.prescription();
+        CatalogLifecycleDirectory.MedicationSnapshot medication = selection.medication();
         BigDecimal doseValue = input.doseValue() == null ? medication.defaultDose() : input.doseValue();
-        String doseUnit = clean(input.doseUnit()) == null ? medication.defaultDoseUnit() : clean(input.doseUnit());
+        String doseUnit = Strings.trimToNull(input.doseUnit()) == null ? medication.defaultDoseUnit() : Strings.trimToNull(input.doseUnit());
         requirePair(doseValue, doseUnit, "MEDICATION_REQUEST_DOSE_INVALID", "单次剂量与剂量单位必须同时填写");
-        requirePair(input.durationValue(), clean(input.durationUnit()), "MEDICATION_REQUEST_DURATION_INVALID",
+        requirePair(input.durationValue(), Strings.trimToNull(input.durationUnit()), "MEDICATION_REQUEST_DURATION_INVALID",
                 "疗程时长与时长单位必须同时填写");
-        String route = clean(input.routeCode()) == null ? medication.defaultRoute() : clean(input.routeCode());
+        String route = Strings.trimToNull(input.routeCode()) == null ? medication.defaultRoute() : Strings.trimToNull(input.routeCode());
         var routeSnapshot = route == null ? null
                 : routeDirectory.requireActive(tenantId, route, "OUTPATIENT", businessDate);
         if (routeSnapshot != null) route = routeSnapshot.code();
-        String frequency = clean(input.frequencyCode()) == null ? medication.defaultFrequency() : clean(input.frequencyCode());
+        String frequency = Strings.trimToNull(input.frequencyCode()) == null ? medication.defaultFrequency() : Strings.trimToNull(input.frequencyCode());
         var frequencySnapshot = frequency == null ? null : frequencyDirectory.requireActive(tenantId, frequency,
-                performerOrganizationId, performerDepartmentId, "OUTPATIENT", "MEDICATION", businessDate);
+                ctx.scope().performerOrganizationId(), ctx.scope().performerDepartmentId(),
+                "OUTPATIENT", "MEDICATION", businessDate);
         if (frequencySnapshot != null) frequency = frequencySnapshot.code();
         if (prescription != null) {
             requirePrescriptionDirections(doseValue, doseUnit, route, frequency);
@@ -204,16 +317,22 @@ class MedicationRequestService implements MedicationRequestDirectory {
         }
         validateOutpatientAntimicrobial(medication, input.durationValue(), input.durationUnit());
         MedicationRequest parentRequest = requireAdministrationParent(input.parentRequestId(), tenantId,
-                encounterId, prescription, routeSnapshot, frequency, input.durationValue());
-        var activeAllergies = allergyDirectory.activeForResident(encounter.residentId());
+                ctx.encounter().id(), prescription, routeSnapshot, frequency, input.durationValue());
+        return new DirectionSelection(doseValue, doseUnit, routeSnapshot, route, frequency, frequencySnapshot, parentRequest);
+    }
+
+    /** 执行门诊过敏状态核对与过敏原命中校验。 */
+    private AllergyAssessment assessAllergies(CreateContext ctx, CreateMedicationRequest input,
+                                              CatalogLifecycleDirectory.MedicationSnapshot medication) {
+        var activeAllergies = allergyDirectory.activeForResident(ctx.encounter().residentId());
         var drugAllergies = activeAllergies.stream()
-                .filter(com.rhn.healthcore.api.AllergyDirectory.AllergySnapshot::isDrugAllergy).toList();
+                .filter(AllergyDirectory.AllergySnapshot::isDrugAllergy).toList();
         boolean drugAllergyStatusRecorded = !drugAllergies.isEmpty() || activeAllergies.stream().anyMatch(allergy ->
                 "NO_KNOWN_ALLERGY".equals(allergy.assertionType())
                         || "NO_KNOWN_DRUG_ALLERGY".equals(allergy.assertionType()));
         boolean allergyReviewConfirmed = Boolean.TRUE.equals(input.allergyReviewConfirmed());
         var allergyVerificationMode = allergyVerificationPolicy.resolve(
-                context, performerOrganizationId, performerDepartmentId);
+                ctx.execution(), ctx.scope().performerOrganizationId(), ctx.scope().performerDepartmentId());
         if (!drugAllergyStatusRecorded && !allergyReviewConfirmed
                 && allergyVerificationMode.blocksUnverifiedAllergies()) {
             throw conflict("MEDICATION_ALLERGY_STATUS_UNKNOWN", "患者药物过敏状态尚未确认，请核对后再加入处方");
@@ -224,55 +343,20 @@ class MedicationRequestService implements MedicationRequestDirectory {
         }
         var matchedAllergies = drugAllergies.stream().filter(allergy ->
                 allergy.allergenId() != null
-                        ? terminologyDirectory.medicationMatchesAllergen(tenantId, medication.id(), allergy.allergenId())
+                        ? terminologyDirectory.medicationMatchesAllergen(ctx.tenantId(), medication.id(), allergy.allergenId())
                         : allergy.substanceCode() != null
                         && allergy.substanceCode().equalsIgnoreCase(medication.code())).toList();
-        if (!matchedAllergies.isEmpty() && clean(input.allergyOverrideReason()) == null) {
+        if (!matchedAllergies.isEmpty() && Strings.trimToNull(input.allergyOverrideReason()) == null) {
             throw conflict("MEDICATION_ALLERGY_MATCH", "所选药品命中患者过敏原，继续开立必须填写临床理由");
         }
-        BigDecimal priceQuantity = resolvedPrice == null ? null
-                : resolvedPrice.packageId() == null ? baseQuantity : input.quantity();
-        BigDecimal totalAmount = resolvedPrice == null ? null : resolvedPrice.price().multiply(priceQuantity);
+        return new AllergyAssessment(allergyReviewConfirmed, allergyVerificationMode, drugAllergyStatusRecorded,
+                drugAllergies, matchedAllergies);
+    }
 
-        var contexts = new ItemAttributeSnapshotDirectory.AttributeContexts(
-                new ItemAttributeSnapshotDirectory.AttributeScope(encounter.organizationId(), encounter.departmentId()),
-                new ItemAttributeSnapshotDirectory.AttributeScope(performerOrganizationId, performerDepartmentId),
-                new ItemAttributeSnapshotDirectory.AttributeScope(performerOrganizationId, performerDepartmentId), null);
-        var attributes = attributeDirectory.resolveSnapshot("MEDICATION", medication.id(), businessDate, contexts);
-        var mappings = mappingDirectory.resolve(tenantId, "MEDICATION", medication.id(), null, businessDate);
-        String itemCode = item == null ? medication.code() : item.code();
-        String itemName = item == null ? medication.name() : item.name();
-
-        MedicationRequest value = repository.saveAndFlush(new MedicationRequest(tenantId, encounter.residentId(),
-                encounter.id(), nextRequestNo(), prescription == null ? null : prescription.id(),
-                parentRequest == null ? null : parentRequest.id(),
-                prescription == null ? "ACTIVE" : "DRAFT", item == null ? null : item.id(), input.packageId(),
-                performerOrganizationId, performerDepartmentId, businessDate, context.subjectId(), clean(input.reason()),
-                itemCode, itemName, quantityUnit, adoption == null ? null : adoption.localCode(),
-                adoption == null ? null : adoption.localName(), adoption == null ? null : adoption.id(),
-                adoption == null ? null : adoption.revision(), resolvedPrice == null ? null : resolvedPrice.id(),
-                resolvedPrice == null ? null : resolvedPrice.revision(),
-                resolvedPrice == null ? null : resolvedPrice.sdPriceType(),
-                resolvedPrice == null ? null : resolvedPrice.price(), totalAmount,
-                resolvedPrice == null ? null : resolvedPrice.currencyCode(),
-                jsonCodec.write(attributes.jsonItemAttrSnapshot()), attributes.hashItemAttrSnapshot(),
-                attributes.resolvedAt(), jsonCodec.write(mappings), medication.id(), doseValue, doseUnit,
-                routeSnapshot == null ? null : routeSnapshot.id(), route,
-                routeSnapshot == null ? null : routeSnapshot.name(),
-                routeSnapshot == null ? null : routeSnapshot.executionType(), frequency,
-                frequencySnapshot == null ? null : frequencySnapshot.id(),
-                frequencySnapshot == null ? null : frequencySnapshot.name(),
-                frequencySnapshot == null ? null : jsonCodec.write(frequencySnapshot),
-                input.durationValue(), clean(input.durationUnit()), input.quantity(), baseQuantity, baseUnit, packageFactor,
-                itemPackage == null ? null : itemPackage.unitName(), itemPackage == null ? null : itemPackage.packageSpec(),
-                item == null ? null : item.manufacturerName(),
-                priceQuantity, input.substitutionAllowed(), input.selfProvided(), clean(input.medicationInstruction()),
-                medication.code(), medication.name(), medication.medicationType(), medication.doseForm(),
-                medication.preparationSpec(), medication.preparationUnit(), medication.skinTestRequired(),
-                Boolean.TRUE.equals(input.skinTestExempt()), clean(input.skinTestExemptReason()), input.exemptEvidenceEventId(),
-                medication.antimicrobial(), medication.antimicrobialLevel(), jsonCodec.write(semantics.freeze(tenantId,
-                        medication, item == null ? null : item.id(), routeSnapshot, frequencySnapshot,
-                        doseValue, doseUnit, input.durationValue(), clean(input.durationUnit()), businessDate))));
+    private Map<String, Object> authoredEventDetails(MedicationRequest value,
+                                                     EncounterDirectory.EncounterSnapshot encounter,
+                                                     AllergyAssessment allergies,
+                                                     CreateMedicationRequest input) {
         Map<String, Object> eventDetails = new LinkedHashMap<>();
         eventDetails.put("medicationId", value.medicationId());
         if (value.catalogItemId() != null) eventDetails.put("catalogItemId", value.catalogItemId());
@@ -282,22 +366,52 @@ class MedicationRequestService implements MedicationRequestDirectory {
         eventDetails.put("medicationName", value.medicationNameSnapshot());
         eventDetails.put("quantity", value.quantity()); eventDetails.put("quantityUnit", value.quantityUnit());
         eventDetails.put("baseQuantity", value.baseQuantity()); eventDetails.put("baseUnit", value.baseUnit());
-        eventDetails.put("allergyReviewConfirmed", allergyReviewConfirmed);
-        eventDetails.put("allergyVerificationMode", allergyVerificationMode.name());
-        eventDetails.put("allergyVerificationWarning", !allergyReviewConfirmed
-                && (!drugAllergyStatusRecorded || !drugAllergies.isEmpty()));
-        eventDetails.put("activeDrugAllergyCount", drugAllergies.size());
-        eventDetails.put("matchedAllergyCount", matchedAllergies.size());
-        if (clean(input.allergyOverrideReason()) != null) {
-            eventDetails.put("allergyOverrideReason", clean(input.allergyOverrideReason()));
+        eventDetails.put("allergyReviewConfirmed", allergies.reviewConfirmed());
+        eventDetails.put("allergyVerificationMode", allergies.mode().name());
+        eventDetails.put("allergyVerificationWarning", !allergies.reviewConfirmed()
+                && (!allergies.drugAllergyStatusRecorded() || !allergies.drugAllergies().isEmpty()));
+        eventDetails.put("activeDrugAllergyCount", allergies.drugAllergies().size());
+        eventDetails.put("matchedAllergyCount", allergies.matchedAllergies().size());
+        if (Strings.trimToNull(input.allergyOverrideReason()) != null) {
+            eventDetails.put("allergyOverrideReason", Strings.trimToNull(input.allergyOverrideReason()));
         }
         eventDetails.put("skinTestExempt", value.skinTestExempt());
         if (value.skinTestExemptReason() != null) eventDetails.put("skinTestExemptReason", value.skinTestExemptReason());
         if (value.exemptEvidenceEventId() != null) eventDetails.put("exemptEvidenceEventId", value.exemptEvidenceEventId());
         eventDetails.putAll(financialEventDetails(value, encounter));
-        publish(value, prescription == null ? "MEDICATION_REQUEST_AUTHORED" : "MEDICATION_REQUEST_DRAFTED",
-                prescription == null ? "开立药品" : "处方草稿添加药品", eventDetails);
-        return response(value);
+        return eventDetails;
+    }
+
+    private record CreateContext(EncounterDirectory.EncounterSnapshot encounter, ExecutionContext execution,
+                                 Long tenantId, LocalDate businessDate, Prescription prescription,
+                                 ExecutionScope scope) {
+    }
+
+    private record ExecutionScope(Long performerOrganizationId, Long performerDepartmentId) {
+    }
+
+    private record CatalogSelection(CatalogLifecycleDirectory.CatalogItemSnapshot item,
+                                    CatalogLifecycleDirectory.PackageSnapshot itemPackage,
+                                    CatalogLifecycleDirectory.MedicationSnapshot medication,
+                                    MasterDataViews.OrganizationAdoptionView adoption,
+                                    MasterDataViews.PriceView resolvedPrice,
+                                    boolean productSelected) {
+    }
+
+    private record UnitSelection(String baseUnit, String quantityUnit, BigDecimal packageFactor,
+                                 BigDecimal baseQuantity) {
+    }
+
+    private record DirectionSelection(BigDecimal doseValue, String doseUnit,
+                                      MedicationRouteDirectory.RouteSnapshot routeSnapshot, String route,
+                                      String frequency, OrderFrequencyDirectory.FrequencySnapshot frequencySnapshot,
+                                      MedicationRequest parentRequest) {
+    }
+
+    private record AllergyAssessment(boolean reviewConfirmed, OutpatientAllergyVerificationPolicy.Mode mode,
+                                     boolean drugAllergyStatusRecorded,
+                                     List<AllergyDirectory.AllergySnapshot> drugAllergies,
+                                     List<AllergyDirectory.AllergySnapshot> matchedAllergies) {
     }
 
     @Transactional(readOnly = true)
@@ -331,7 +445,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
     }
 
     void cancelFromPrescription(MedicationRequest value, String reason, Long actorId) {
-        if ("CANCELLED".equals(value.status())) return;
+        if (value.status() == MedicationRequestStatus.CANCELLED) return;
         value.cancelFromPrescription(reason, actorId);
         publishCancellation(value, reason, actorId);
     }
@@ -369,7 +483,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
         ExecutionContext context = contextProvider.requireCurrent();
         requirePharmacyOrganizationAccess(context, organizationId);
         return repository.findByTenantIdAndPerformerOrganizationIdAndStatusOrderByAuthoredAt(
-                context.tenantId(), organizationId, "ACTIVE").stream()
+                context.tenantId(), organizationId, MedicationRequestStatus.ACTIVE).stream()
                 .filter(value -> !value.selfProvided())
                 .map(this::pharmacySnapshot).toList();
     }
@@ -388,7 +502,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     private MedicationRequestSnapshot pharmacySnapshot(MedicationRequest value) {
         return new MedicationRequestSnapshot(value.id(), value.revision(), value.tenantId(), value.residentId(),
-                value.encounterId(), value.requestGroupId(), value.requestNo(), value.status(), value.catalogItemId(),
+                value.encounterId(), value.requestGroupId(), value.requestNo(), value.status().name(), value.catalogItemId(),
                 value.medicationId(), value.packageId(), value.performerOrganizationId(),
                 value.performerDepartmentId(), value.businessDate(), value.authoredAt(), value.authoredBy(),
                 value.itemCodeSnapshot(), value.itemNameSnapshot(), value.localCodeSnapshot(),
@@ -417,7 +531,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     MedicationRequestResponse response(MedicationRequest value) {
         return new MedicationRequestResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
-                value.requestNo(), value.status(), value.requestGroupId(), value.parentRequestId(),
+                value.requestNo(), value.status().name(), value.requestGroupId(), value.parentRequestId(),
                 value.catalogItemId(), value.medicationId(),
                 value.packageId(), value.performerOrganizationId(), value.performerDepartmentId(), value.businessDate(),
                 value.authoredAt(), value.authoredBy(), value.reasonText(), value.itemCodeSnapshot(), value.itemNameSnapshot(),
@@ -474,7 +588,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                     "该药品不允许门诊常规开立，请按住院或紧急用药审批流程处理");
         }
         if (medication.antimicrobialMaxDays() == null || durationValue == null) return;
-        BigDecimal days = switch (clean(durationUnit) == null ? "" : clean(durationUnit).toUpperCase()) {
+        BigDecimal days = switch (Strings.trimToNull(durationUnit) == null ? "" : Strings.trimToNull(durationUnit).toUpperCase()) {
             case "DAY", "D", "天" -> durationValue;
             case "WEEK", "W", "周" -> durationValue.multiply(BigDecimal.valueOf(7));
             case "MONTH", "月" -> durationValue.multiply(BigDecimal.valueOf(30));
@@ -498,11 +612,11 @@ class MedicationRequestService implements MedicationRequestDirectory {
         MedicationRequest parent = repository.findByIdAndTenantId(parentRequestId, tenantId)
                 .filter(value -> value.encounterId().equals(encounterId)
                         && prescription.id().equals(value.requestGroupId())
-                        && !"CANCELLED".equals(value.status()))
+                        && !MedicationRequestStatus.CANCELLED.equals(value.status()))
                 .orElseThrow(() -> badRequest("MEDICATION_PARENT_REQUEST_INVALID", "输液父医嘱不属于当前处方"));
         if (!"INFUSION".equals(parent.routeExecutionTypeSnapshot())
-                || !clean(parent.routeCode()).equalsIgnoreCase(route.code())
-                || !java.util.Objects.equals(clean(parent.frequencyCode()), clean(frequency))
+                || !Strings.trimToNull(parent.routeCode()).equalsIgnoreCase(route.code())
+                || !java.util.Objects.equals(Strings.trimToNull(parent.frequencyCode()), Strings.trimToNull(frequency))
                 || !sameNumber(parent.durationValue(), durationValue)) {
             throw badRequest("MEDICATION_PARENT_REQUEST_USAGE_MISMATCH", "同组输液医嘱的途径、频次和疗程必须一致");
         }
@@ -601,6 +715,4 @@ class MedicationRequestService implements MedicationRequestDirectory {
             default -> "MEDICATION";
         };
     }
-
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

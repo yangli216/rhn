@@ -1,6 +1,7 @@
 package com.rhn.billing.infrastructure;
 
 import com.rhn.billing.domain.Settlement;
+import com.rhn.billing.domain.SettlementStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -19,7 +20,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
 
     @Query("""
             select value from Settlement value
-            where value.tenantId = :tenantId and value.status = 'SETTLED'
+            where value.tenantId = :tenantId and value.status = :status
               and exists (select account.id from PatientAccount account
                           where account.id = value.patientAccountId and account.tenantId = :tenantId
                             and account.organizationId = :organizationId)
@@ -27,6 +28,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
             """)
     List<Settlement> findRecentCompleted(@Param("tenantId") Long tenantId,
                                          @Param("organizationId") Long organizationId,
+                                         @Param("status") SettlementStatus status,
                                          Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

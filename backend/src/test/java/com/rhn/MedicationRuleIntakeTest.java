@@ -75,7 +75,10 @@ class MedicationRuleIntakeTest extends RhnIntegrationTestSupport {
     }
     @Test void invalid_output_and_provider_errors_are_audited_without_claiming_success() {
         when(ai.generate(anyString(),anyString(),anyString())).thenReturn("{broken");var broken=intakes.analyze(new Request(NEED,null,List.of()));assertThat(broken.result().status()).isEqualTo("INVALID_OUTPUT");assertThat(broken.rawOutput()).isEqualTo("{broken");
-        when(ai.generate(anyString(),anyString(),anyString())).thenThrow(new IllegalStateException("private upstream detail"));var failure=intakes.analyze(new Request(NEED,null,List.of()));assertThat(failure.result().status()).isEqualTo("MODEL_ERROR");assertThat(json.write(failure)).doesNotContain("private upstream detail");
+        when(ai.generate(anyString(),anyString(),anyString())).thenThrow(new IllegalStateException("private upstream detail"));
+        var failure=intakes.analyze(new Request(NEED,null,List.of()));
+        assertThat(failure.result().status()).isEqualTo("MODEL_ERROR");
+        assertThat(json.write(failure)).doesNotContain("private upstream detail");
         assertThat(intakes.history(0).totalElements()).isEqualTo(2);assertThatThrownBy(()->intakes.checkOrigin(T,broken.id(),"DUPLICATE_THERAPY")).hasMessageContaining("没有可进入");
         when(ai.status()).thenReturn(new MedicationRuleAuthoringAi.Status(false,"","disabled"));assertThatThrownBy(()->intakes.analyze(new Request(NEED,null,List.of()))).hasMessageContaining("暂不可用");
     }

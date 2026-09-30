@@ -3,6 +3,7 @@ package com.rhn.pharmacy.application;
 import com.rhn.pharmacy.api.WardDeliveryDirectory;
 import com.rhn.pharmacy.domain.WardDelivery;
 import com.rhn.pharmacy.domain.WardDeliveryLine;
+import com.rhn.pharmacy.domain.WardDeliveryStatus;
 import com.rhn.pharmacy.infrastructure.WardDeliveryLineRepository;
 import com.rhn.pharmacy.infrastructure.WardDeliveryRepository;
 import org.springframework.stereotype.Service;
@@ -17,8 +18,8 @@ import java.util.Set;
 
 @Service
 public class JpaWardDeliveryDirectory implements WardDeliveryDirectory {
-    private static final Set<String> OPEN_STATUSES = Set.of(
-            "PENDING_DISPATCH", "IN_TRANSIT", "DISCREPANCY");
+    private static final Set<WardDeliveryStatus> OPEN_STATUSES = Set.of(
+            WardDeliveryStatus.PENDING_DISPATCH, WardDeliveryStatus.IN_TRANSIT, WardDeliveryStatus.DISCREPANCY);
 
     private final WardDeliveryRepository deliveries;
     private final WardDeliveryLineRepository lines;
@@ -40,7 +41,7 @@ public class JpaWardDeliveryDirectory implements WardDeliveryDirectory {
                         tenantId, organizationId, OPEN_STATUSES);
         if (open.isEmpty()) return WardDeliverySummary.empty();
         Map<Long, String> statusByDelivery = new HashMap<>();
-        open.forEach(value -> statusByDelivery.put(value.id(), value.status()));
+        open.forEach(value -> statusByDelivery.put(value.id(), value.status().name()));
         Map<Long, MutableProgress> grouped = new LinkedHashMap<>();
         MutableProgress total = new MutableProgress();
         for (WardDeliveryLine line : lines.findByTenantIdAndDeliveryIdInOrderByDeliveryIdAscIdAsc(
@@ -63,8 +64,9 @@ public class JpaWardDeliveryDirectory implements WardDeliveryDirectory {
         WardDelivery delivery = deliveries.findByIdAndTenantId(line.deliveryId(), tenantId).orElse(null);
         if (delivery == null) return new DeliveryGate(true, false, line.deliveryId(), "MISSING",
                 line.receivedQuantity(), line.unitCode());
-        boolean ready = "RECEIVED".equals(delivery.status()) || "RESOLVED".equals(delivery.status());
-        return new DeliveryGate(true, ready, delivery.id(), delivery.status(),
+        boolean ready = delivery.status() == WardDeliveryStatus.RECEIVED
+                || delivery.status() == WardDeliveryStatus.RESOLVED;
+        return new DeliveryGate(true, ready, delivery.id(), delivery.status().name(),
                 line.receivedQuantity(), line.unitCode());
     }
 

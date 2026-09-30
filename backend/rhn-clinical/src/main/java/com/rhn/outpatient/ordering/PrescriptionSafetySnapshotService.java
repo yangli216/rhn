@@ -50,7 +50,7 @@ class PrescriptionSafetySnapshotService implements PrescriptionSafetySnapshotDir
         var items = medications.findByTenantIdAndRequestGroupIdOrderByAuthoredAt(encounter.tenantId(), prescriptionId)
                 .stream().map(value -> new PrescriptionSafetySnapshot.MedicationItem(
                         value.id(), value.revision(), value.medicationId(), value.catalogItemId(), value.parentRequestId(),
-                        value.status(), semanticStatus(value.medicationSnapshot()), value.doseValue(), value.doseUnit(), value.routeId(), value.routeCode(),
+                        value.status().name(), semanticStatus(value.medicationSnapshot()), value.doseValue(), value.doseUnit(), value.routeId(), value.routeCode(),
                         value.routeExecutionTypeSnapshot(), value.routeResolutionStatus(), value.frequencyId(),
                         value.frequencyCode(), value.frequencyRuleSnapshot(), value.durationValue(), value.durationUnit(),
                         value.medicationSnapshot(), value.itemAttributeSnapshot(), value.standardMappingSnapshot(),
@@ -91,7 +91,7 @@ class PrescriptionSafetySnapshotService implements PrescriptionSafetySnapshotDir
 
         return new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION, encounter.tenantId(),
                 prescriptionId, prescription.revision(), encounterId, encounter.residentId(),
-                encounter.organizationId(), encounter.departmentId(), prescription.status(), items, patientContext,
+                encounter.organizationId(), encounter.departmentId(), prescription.status().name(), items, patientContext,
                 new PrescriptionSafetySnapshot.EvaluationTiming(evaluationDate,evaluationZone.getId()));
     }
     private String semanticStatus(String saved) {

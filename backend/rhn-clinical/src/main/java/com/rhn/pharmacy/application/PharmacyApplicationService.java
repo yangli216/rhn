@@ -18,6 +18,7 @@ import com.rhn.pharmacy.api.InpatientMedicationStopDirectory;
 import com.rhn.pharmacy.domain.DispenseTask;
 import com.rhn.pharmacy.domain.DispenseTaskLine;
 import com.rhn.pharmacy.domain.MedicationDispense;
+import com.rhn.pharmacy.domain.DispenseTaskStatus;
 import com.rhn.pharmacy.domain.PharmacyReview;
 import com.rhn.pharmacy.domain.PharmacyFulfillmentAuthorization;
 import com.rhn.pharmacy.domain.StockItem;
@@ -35,6 +36,7 @@ import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -202,7 +204,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
             if (!ISSUE_POLICIES.contains(policy)) {
                 throw badRequest("STOCK_ITEM_ISSUE_POLICY_INVALID", "出库策略不受支持");
             }
-            String controlLevel = clean(input.controlLevel());
+            String controlLevel = Strings.trimToNull(input.controlLevel());
             if (!input.controlled() && controlLevel != null) {
                 throw badRequest("STOCK_ITEM_CONTROL_LEVEL_INVALID", "非受控药品不能配置管制级别");
             }
@@ -261,7 +263,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
             List<PharmacyReview> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
                     context.tenantId(), task.id());
             MedicationDispense latestDispense = latestDispense(context.tenantId(), task.id());
-            result.put(request.id(), new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status(), null,
+            result.put(request.id(), new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status().name(), null,
                     line.stockItemId(), line.productNameSnapshot(),
                     reviews.isEmpty() ? null : reviews.get(reviews.size() - 1).result(),
                     resident.fullName(), resident.healthRecordNo(), resident.phone(),
@@ -281,7 +283,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
             List<PharmacyReview> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
                     context.tenantId(), task.id());
             MedicationDispense latestDispense = latestDispense(context.tenantId(), task.id());
-            result.put(request.id(), new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status(),
+            result.put(request.id(), new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status().name(),
                     closure.status(), line.stockItemId(), line.productNameSnapshot(),
                     reviews.isEmpty() ? null : reviews.get(reviews.size() - 1).result(),
                     resident.fullName(), resident.healthRecordNo(), resident.phone(),
@@ -407,7 +409,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         PrescriptionReviewPolicy.Mode reviewMode = reviewPolicy.resolve(
                 context, site.organizationId(), site.departmentId());
         DispenseTask task = new DispenseTask(context.tenantId(), request.residentId(),
-                request.encounterId(), site.id(), nextNo("DT"), careSetting, "ROUTINE", clean(input.description()));
+                request.encounterId(), site.id(), nextNo("DT"), careSetting, "ROUTINE", Strings.trimToNull(input.description()));
         DispenseTaskLine line = new DispenseTaskLine(context.tenantId(), task.id(), request.id(),
                 fulfillmentSourceType, fulfillmentSourceId, stockItem.id(),
                 stockItem.basePackageId(), requestedQuantity, plan.quantity(), plan.unitCode(), plan.factor(),
@@ -462,10 +464,19 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
     public List<DispenseTaskView> tasks(Long siteId, String status) {
         ExecutionContext context = requireWorkContext(); StockSite site = requireSite(context, siteId);
         requireOrganizationAccess(context, site.organizationId());
-        List<DispenseTask> values = clean(status) == null
-                ? taskRepository.findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(context.tenantId(), siteId)
-                : taskRepository.findByTenantIdAndStockSiteIdAndStatusOrderByCreatedAtDesc(
-                        context.tenantId(), siteId, upper(status));
+        List<DispenseTask> values;
+        if (Strings.trimToNull(status) == null) {
+            values = taskRepository.findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(context.tenantId(), siteId);
+        } else {
+            DispenseTaskStatus taskStatus;
+            try {
+                taskStatus = DispenseTaskStatus.valueOf(upper(status));
+            } catch (IllegalArgumentException error) {
+                return List.of();
+            }
+            values = taskRepository.findByTenantIdAndStockSiteIdAndStatusOrderByCreatedAtDesc(
+                    context.tenantId(), siteId, taskStatus);
+        }
         return values.stream().map(this::taskView).toList();
     }
 
@@ -493,7 +504,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         }
         String result = upper(input.result());
         if (!REVIEW_RESULTS.contains(result)) throw badRequest("PHARMACY_REVIEW_RESULT_INVALID", "审方结论不受支持");
-        String reason = clean(input.reasonCode()); String description = clean(input.description());
+        String reason = Strings.trimToNull(input.reasonCode()); String description = Strings.trimToNull(input.description());
         if (!"PASS".equals(result) && (reason == null || description == null)) {
             throw badRequest("PHARMACY_REVIEW_REASON_REQUIRED", "非通过审方必须填写原因编码和说明");
         }
@@ -628,7 +639,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         List<PharmacyReviewView> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
                 task.tenantId(), task.id()).stream().map(this::reviewView).toList();
         return new DispenseTaskView(task.id(), task.revision(), task.residentId(), task.encounterId(),
-                task.stockSiteId(), task.taskNo(), task.taskType(), task.priority(), task.status(), closureStatus,
+                task.stockSiteId(), task.taskNo(), task.taskType(), task.priority(), task.status().name(), closureStatus,
                 task.createdAt(), task.dueAt(), task.pickedAt(), task.assignedPractitionerId(),
                 task.pickedByUserId(), task.pickedAssignmentId(), task.pickDescription(),
                 task.description(), lines, reviews, lines.stream().map(line -> prescriptionSafety.forMedicationRequest(line.requestId()))
@@ -639,7 +650,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         return new DispenseTaskLineView(value.id(), value.requestId(), value.stockItemId(), value.packageId(),
                 value.requestedQuantity(), value.plannedQuantity(), value.dispensedQuantity(),
                 value.returnedQuantity(), value.dispenseUnitCode(), value.baseQuantityFactor(), value.split(),
-                value.traceRequired(), value.status(), value.productCodeSnapshot(), value.productNameSnapshot(),
+                value.traceRequired(), value.status().name(), value.productCodeSnapshot(), value.productNameSnapshot(),
                 value.packageSpecSnapshot(), jsonCodec.readTree(value.itemAttributeSnapshot()), value.itemAttributeHash());
     }
 
@@ -723,10 +734,9 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
     private String nextNo(String prefix) { return prefix + NUMBER_TIME.format(Instant.now())
             + com.rhn.shared.id.GlobalIds.randomSuffix(6); }
     private String required(String value, String code, String message) {
-        String result = clean(value); if (result == null) throw badRequest(code, message); return result;
+        String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }
-    private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(); }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(); }
 
     public record CreateSiteCommand(Long organizationId, Long departmentId, String code, String name,
                                     String siteType, String serviceScope, LocalDate validFrom, LocalDate validTo) {}

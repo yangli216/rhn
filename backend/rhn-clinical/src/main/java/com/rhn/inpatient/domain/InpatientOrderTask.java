@@ -3,6 +3,8 @@ package com.rhn.inpatient.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -20,7 +22,7 @@ public class InpatientOrderTask {
     @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
     @Column(name = "CD_OCC_NO", nullable = false) private int occurrenceNo;
     @Column(name = "DT_SCHEDD", nullable = false) private Instant scheduledAt;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private InpatientOrderTaskStatus status;
     @Column(name = "CD_OUTCOME") private String outcomeCode;
     @Column(name = "DES_EXEC_NOTE") private String executionNote;
     @Column(name = "DT_CMPLD") private Instant completedAt;
@@ -42,7 +44,7 @@ public class InpatientOrderTask {
         this.requestId = workflow.requestId();
         this.occurrenceNo = occurrenceNo;
         this.scheduledAt = scheduledAt;
-        this.status = "PLANNED";
+        this.status = InpatientOrderTaskStatus.PLANNED;
         this.createdAt = now;
         this.createdBy = actorId;
         this.updatedAt = now;
@@ -51,7 +53,7 @@ public class InpatientOrderTask {
 
     public void execute(long expectedRevision, Long actorId, String outcomeCode, String note) {
         requirePlanned(expectedRevision);
-        this.status = "EXECUTED";
+        this.status = InpatientOrderTaskStatus.EXECUTED;
         this.outcomeCode = outcomeCode;
         this.executionNote = note;
         this.completedAt = Instant.now();
@@ -61,7 +63,7 @@ public class InpatientOrderTask {
 
     public void skip(long expectedRevision, Long actorId, String outcomeCode, String note) {
         requirePlanned(expectedRevision);
-        this.status = "SKIPPED";
+        this.status = InpatientOrderTaskStatus.SKIPPED;
         this.outcomeCode = outcomeCode;
         this.executionNote = note;
         this.completedAt = Instant.now();
@@ -70,8 +72,8 @@ public class InpatientOrderTask {
     }
 
     public boolean cancelIfFuture(Instant stoppedAt, Long actorId, String reason) {
-        if (!"PLANNED".equals(status) || !scheduledAt.isAfter(stoppedAt)) return false;
-        this.status = "CANCELLED";
+        if (status != InpatientOrderTaskStatus.PLANNED || !scheduledAt.isAfter(stoppedAt)) return false;
+        this.status = InpatientOrderTaskStatus.CANCELLED;
         this.cancelledAt = stoppedAt;
         this.cancelReason = reason;
         touch(actorId);
@@ -82,7 +84,7 @@ public class InpatientOrderTask {
         if (revision != expectedRevision) {
             throw conflict("INPATIENT_TASK_REVISION_CONFLICT", "执行任务已被其他用户更新，请刷新后重试");
         }
-        if (!"PLANNED".equals(status)) {
+        if (status != InpatientOrderTaskStatus.PLANNED) {
             throw conflict("INPATIENT_TASK_NOT_PLANNED", "只有待执行任务可以执行或跳过");
         }
     }
@@ -92,14 +94,14 @@ public class InpatientOrderTask {
         this.updatedBy = actorId;
     }
 
-    public boolean terminal() { return !"PLANNED".equals(status); }
+    public boolean terminal() { return status != InpatientOrderTaskStatus.PLANNED; }
     public Long id() { return id; }
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }
     public Long requestId() { return requestId; }
     public int occurrenceNo() { return occurrenceNo; }
     public Instant scheduledAt() { return scheduledAt; }
-    public String status() { return status; }
+    public InpatientOrderTaskStatus status() { return status; }
     public String outcomeCode() { return outcomeCode; }
     public String executionNote() { return executionNote; }
     public Instant completedAt() { return completedAt; }

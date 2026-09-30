@@ -153,7 +153,10 @@ public class HistoricalPlanComparisonService {
     private List<String> ingredients(Long tenantId, Long medicationId) {
         if (medicationId == null) return List.of();
         try { return medicationSemantics.ingredientIds(tenantId, medicationId); }
-        catch (RuntimeException ignored) { return List.of(); }
+        catch (RuntimeException ignored) {
+            // 成分查询失败时按“无成分”处理，仅降低比对精度，不阻断历史方案对比。
+            return List.of();
+        }
     }
 
     private boolean sameDose(BigDecimal left, String leftUnit, BigDecimal right, String rightUnit) {

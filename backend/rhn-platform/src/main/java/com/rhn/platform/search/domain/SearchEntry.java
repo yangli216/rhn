@@ -1,6 +1,7 @@
 package com.rhn.platform.search.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -55,11 +56,11 @@ public class SearchEntry {
     public void update(String searchName, String pinyinCode, String wubiCode, String mnemonicCode,
                        boolean primary, String generatorVersion, String status, Long actorId) {
         this.searchName = required(searchName, "检索名称");
-        this.pinyinCode = optional(pinyinCode);
-        this.wubiCode = optional(wubiCode);
-        this.mnemonicCode = optional(mnemonicCode);
+        this.pinyinCode = Strings.trimToNull(pinyinCode);
+        this.wubiCode = Strings.trimToNull(wubiCode);
+        this.mnemonicCode = Strings.trimToNull(mnemonicCode);
         this.primary = primary;
-        this.generatorVersion = optional(generatorVersion);
+        this.generatorVersion = Strings.trimToNull(generatorVersion);
         this.status = required(status, "检索条目状态");
         this.updatedAt = Instant.now();
         this.updatedBy = actorId;
@@ -75,10 +76,6 @@ public class SearchEntry {
     private static String required(String value, String label) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
         return value.trim();
-    }
-
-    private static String optional(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public Long id() { return id; }

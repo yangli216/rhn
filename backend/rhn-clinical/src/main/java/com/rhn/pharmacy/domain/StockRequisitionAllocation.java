@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -20,7 +22,7 @@ public class StockRequisitionAllocation {
     @Column(name = "SD_STOCK_STATUS", nullable = false) private String stockStatus;
     @Column(name = "QTY_ALLOCD", nullable = false, precision = 28, scale = 8) private BigDecimal allocatedQuantity;
     @Column(name = "QTY_ISSUED", nullable = false, precision = 28, scale = 8) private BigDecimal issuedQuantity;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private StockRequisitionAllocationStatus status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
 
@@ -30,11 +32,11 @@ public class StockRequisitionAllocation {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.stockRequisitionLineId = lineId;
         this.stockBinId = binId; this.stockLotId = lotId; this.stockStatus = stockStatus;
         this.allocatedQuantity = allocatedQuantity; this.issuedQuantity = BigDecimal.ZERO;
-        this.status = "ALLOCATED"; this.createdAt = Instant.now(); this.createdBy = actorId;
+        this.status = StockRequisitionAllocationStatus.ALLOCATED; this.createdAt = Instant.now(); this.createdBy = actorId;
     }
     public void markIssued() {
-        if (!"ALLOCATED".equals(status)) throw new IllegalStateException("请领分配明细已处理");
-        issuedQuantity = allocatedQuantity; status = "ISSUED";
+        if (status != StockRequisitionAllocationStatus.ALLOCATED) throw new IllegalStateException("请领分配明细已处理");
+        issuedQuantity = allocatedQuantity; status = StockRequisitionAllocationStatus.ISSUED;
     }
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
@@ -44,7 +46,7 @@ public class StockRequisitionAllocation {
     public String stockStatus() { return stockStatus; }
     public BigDecimal allocatedQuantity() { return allocatedQuantity; }
     public BigDecimal issuedQuantity() { return issuedQuantity; }
-    public String status() { return status; }
+    public StockRequisitionAllocationStatus status() { return status; }
     public Instant createdAt() { return createdAt; }
     public Long createdBy() { return createdBy; }
 }

@@ -5,6 +5,7 @@ import com.rhn.queueing.api.QueueingDirectory;
 import com.rhn.queueing.domain.QueueCounter;
 import com.rhn.queueing.domain.QueueTicket;
 import com.rhn.queueing.domain.QueueTicketEvent;
+import com.rhn.queueing.domain.QueueTicketStatus;
 import com.rhn.queueing.domain.ServiceQueue;
 import com.rhn.queueing.infrastructure.QueueCounterRepository;
 import com.rhn.queueing.infrastructure.QueueTicketEventRepository;
@@ -13,6 +14,7 @@ import com.rhn.queueing.infrastructure.ServiceQueueRepository;
 import com.rhn.shared.api.PageResult;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -145,11 +147,19 @@ public class QueueingApplicationService implements QueueingDirectory {
     public PageResult<TicketSnapshot> page(Long queueId, LocalDate businessDate, String status, int page, int size) {
         ExecutionContext context = requireWorkContext();
         ServiceQueue queue = requireQueue(context, queueId);
-        String normalizedStatus = clean(status) == null ? null : clean(status).toUpperCase(Locale.ROOT);
+        String normalizedStatus = Strings.trimToNull(status) == null ? null : Strings.trimToNull(status).toUpperCase(Locale.ROOT);
         int safePage = Math.max(0, page);
         int safeSize = Math.min(100, Math.max(1, size));
+        QueueTicketStatus statusFilter = null;
+        if (normalizedStatus != null) {
+            try {
+                statusFilter = QueueTicketStatus.valueOf(normalizedStatus);
+            } catch (IllegalArgumentException unknownStatus) {
+                return new PageResult<>(List.of(), 0, 0, safePage, safeSize);
+            }
+        }
         Page<QueueTicket> result = tickets.search(context.tenantId(), queue.id(),
-                businessDate == null ? LocalDate.now(BUSINESS_ZONE) : businessDate, normalizedStatus,
+                businessDate == null ? LocalDate.now(BUSINESS_ZONE) : businessDate, statusFilter,
                 PageRequest.of(safePage, safeSize, Sort.by(Sort.Order.desc("priority"),
                         Sort.Order.asc("checkedInAt"), Sort.Order.asc("sequenceNo"))));
         return new PageResult<>(result.getContent().stream().map(this::snapshot).toList(),
@@ -160,7 +170,7 @@ public class QueueingApplicationService implements QueueingDirectory {
     public TicketSnapshot ready(Long ticketId, String commandCode, String description) {
         return change(ticketId, commandCode, null, "READY", description, (ticket, now) -> {
             if (!ticket.ready(now)) return null;
-            return ticket.status();
+            return ticket.status().name();
         });
     }
 
@@ -249,7 +259,7 @@ public class QueueingApplicationService implements QueueingDirectory {
         TicketSnapshot replay = replay(context, ticket, code);
         if (replay != null) return replay;
         Instant now = Instant.now();
-        if ("WAITING".equals(ticket.status()) && callIfWaiting) {
+        if (ticket.status() == QueueTicketStatus.WAITING && callIfWaiting) {
             String callCode = derivedCode(code, "CALL");
             String previous = ticket.call(serviceLocationId, now);
             append(context, ticket, "CALLED", previous, callCode, serviceLocationId, "开始服务前自动叫号", now);
@@ -325,7 +335,7 @@ public class QueueingApplicationService implements QueueingDirectory {
 
     private void append(ExecutionContext context, QueueTicket ticket, String eventType, String previous,
                         String commandCode, Long locationId, String description, Instant now) {
-        events.save(new QueueTicketEvent(context.tenantId(), ticket.id(), eventType, previous, ticket.status(),
+        events.save(new QueueTicketEvent(context.tenantId(), ticket.id(), eventType, previous, ticket.status().name(),
                 commandCode, now, requireActor(context), locationId, limited(description, 500)));
     }
 
@@ -446,7 +456,7 @@ public class QueueingApplicationService implements QueueingDirectory {
         payload.put("scene", queue.scene());
         payload.put("departmentId", queue.departmentId());
         payload.put("ticketCode", ticket.ticketCode());
-        payload.put("status", ticket.status());
+        payload.put("status", ticket.status().name());
         payload.put("callCount", ticket.callCount());
         payload.put("missedCount", ticket.missedCount());
         if (ticket.currentLocationId() != null) payload.put("serviceLocationId", ticket.currentLocationId());
@@ -462,7 +472,7 @@ public class QueueingApplicationService implements QueueingDirectory {
     private TicketSnapshot snapshot(QueueTicket ticket) {
         return new TicketSnapshot(ticket.id(), ticket.revision(), ticket.serviceQueueId(), ticket.residentId(),
                 ticket.encounterId(), ticket.sourceType(), ticket.sourceId(), ticket.businessDate(),
-                ticket.ticketCode(), ticket.sequenceNo(), ticket.priority(), ticket.status(), ticket.checkedInAt(),
+                ticket.ticketCode(), ticket.sequenceNo(), ticket.priority(), ticket.status().name(), ticket.checkedInAt(),
                 ticket.readyAt(), ticket.calledAt(), ticket.startedAt(), ticket.completedAt(), ticket.callCount(),
                 ticket.missedCount(), ticket.currentLocationId());
     }
@@ -472,13 +482,13 @@ public class QueueingApplicationService implements QueueingDirectory {
     }
 
     private String controlled(String value, Set<String> allowed, String code, String message) {
-        String normalized = clean(value) == null ? null : clean(value).toUpperCase(Locale.ROOT);
+        String normalized = Strings.trimToNull(value) == null ? null : Strings.trimToNull(value).toUpperCase(Locale.ROOT);
         if (normalized == null || !allowed.contains(normalized)) throw badRequest(code, message);
         return normalized;
     }
 
     private String requireCode(String value, String field, int maxLength) {
-        String normalized = clean(value);
+        String normalized = Strings.trimToNull(value);
         if (normalized == null || normalized.length() > maxLength) {
             throw badRequest("QUEUE_FIELD_INVALID", field + "不能为空且长度不能超过" + maxLength);
         }
@@ -491,13 +501,9 @@ public class QueueingApplicationService implements QueueingDirectory {
     }
 
     private String limited(String value, int maxLength) {
-        String normalized = clean(value);
+        String normalized = Strings.trimToNull(value);
         return normalized == null || normalized.length() <= maxLength
                 ? normalized : normalized.substring(0, maxLength);
-    }
-
-    private String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private Long requireActor(ExecutionContext context) {

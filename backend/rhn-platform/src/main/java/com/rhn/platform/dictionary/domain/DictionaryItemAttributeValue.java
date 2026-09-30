@@ -1,6 +1,7 @@
 package com.rhn.platform.dictionary.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -76,8 +77,8 @@ public class DictionaryItemAttributeValue {
                                         String textValue, String codeValue, LocalDate dateValue,
                                         Instant datetimeValue, Long referenceItemId, Long actorId) {
         this.id = GlobalIds.next();
-        this.dictionaryItemId = requireId(dictionaryItemId, "字典项");
-        this.attributeDefinitionId = requireId(attributeDefinitionId, "属性定义");
+        this.dictionaryItemId = Strings.requireId(dictionaryItemId, "字典项");
+        this.attributeDefinitionId = Strings.requireId(attributeDefinitionId, "属性定义");
         this.scopeType = require(scopeType, "配置作用域");
         this.scopeCode = requireText(scopeCode, "规范作用域编码", 512);
         this.tenantId = tenantId;
@@ -88,15 +89,15 @@ public class DictionaryItemAttributeValue {
         this.booleanValue = booleanValue;
         this.integerValue = integerValue;
         this.decimalValue = decimalValue;
-        this.textValue = optionalText(textValue, 4000);
-        this.codeValue = optionalText(codeValue, 256);
+        this.textValue = Strings.optionalText(textValue, 4000);
+        this.codeValue = Strings.optionalText(codeValue, 256);
         this.dateValue = dateValue;
         this.datetimeValue = datetimeValue;
         this.referenceItemId = referenceItemId;
         validateShape();
         this.status = DictionaryStatus.ACTIVE;
         this.createdAt = Instant.now();
-        this.createdBy = requireId(actorId, "操作用户");
+        this.createdBy = Strings.requireId(actorId, "操作用户");
         this.updatedAt = createdAt;
         this.updatedBy = actorId;
     }
@@ -108,15 +109,15 @@ public class DictionaryItemAttributeValue {
                 if (tenantId != null || organizationId != null || departmentId != null) invalidScope();
             }
             case TENANT -> {
-                requireId(tenantId, "租户");
+                Strings.requireId(tenantId, "租户");
                 if (organizationId != null || departmentId != null) invalidScope();
             }
             case ORGANIZATION -> {
-                requireId(tenantId, "租户"); requireId(organizationId, "机构");
+                Strings.requireId(tenantId, "租户"); Strings.requireId(organizationId, "机构");
                 if (departmentId != null) invalidScope();
             }
             case DEPARTMENT -> {
-                requireId(tenantId, "租户"); requireId(organizationId, "机构"); requireId(departmentId, "科室");
+                Strings.requireId(tenantId, "租户"); Strings.requireId(organizationId, "机构"); Strings.requireId(departmentId, "科室");
             }
         }
         int populated = (booleanValue == null ? 0 : 1) + (integerValue == null ? 0 : 1)
@@ -134,26 +135,14 @@ public class DictionaryItemAttributeValue {
         throw new IllegalArgumentException("作用域来源标识与作用域类型不匹配");
     }
 
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
     private static <T> T require(T value, String label) {
         if (value == null) throw new IllegalArgumentException(label + "不能为空");
         return value;
     }
 
     private static String requireText(String value, String label, int max) {
-        String result = optionalText(value, max);
+        String result = Strings.optionalText(value, max);
         if (result == null) throw new IllegalArgumentException(label + "不能为空");
-        return result;
-    }
-
-    private static String optionalText(String value, int max) {
-        if (value == null || value.isBlank()) return null;
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException("文本长度不能超过" + max);
         return result;
     }
 

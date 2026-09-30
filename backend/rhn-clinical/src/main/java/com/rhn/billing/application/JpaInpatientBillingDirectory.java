@@ -7,6 +7,7 @@ import com.rhn.billing.domain.LedgerEntry;
 import com.rhn.billing.domain.PatientAccount;
 import com.rhn.billing.domain.Payment;
 import com.rhn.billing.domain.Settlement;
+import com.rhn.billing.domain.SettlementStatus;
 import com.rhn.billing.infrastructure.ChargeItemComponentRepository;
 import com.rhn.billing.infrastructure.ChargeItemRepository;
 import com.rhn.billing.infrastructure.LedgerEntryRepository;
@@ -77,7 +78,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         var posted = charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(tenantId, account.id())
                 .stream().filter(value -> currencyCode.equals(value.currencyCode()))
                 .map(this::snapshot).toList();
-        return new AccountSnapshot(account.id(), account.status(), deposit, balance,
+        return new AccountSnapshot(account.id(), account.status().name(), deposit, balance,
                 latestSettlement(tenantId, account), depositRecords, posted);
     }
 
@@ -183,7 +184,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         FinancialSettlementSnapshot financial = financialSnapshot(command.tenantId(), account, settlement);
         closeIfSettled(account, financial);
         return new FinalSettlementResult(invoice.id(), settlement.id(), invoice.invoiceNo(), settlement.settlementNo(),
-                settlement.status(), settlement.netAmount(), prepayment, paid,
+                settlement.status().name(), settlement.netAmount(), prepayment, paid,
                 financial.outstandingAmount(), financial.refundableAmount(), financial.financialStatus(),
                 settlement.currencyCode(), existing != null);
     }
@@ -334,10 +335,10 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         String financialStatus;
         if (outstanding.signum() > 0) financialStatus = "PENDING_PAYMENT";
         else if (refundable.signum() > 0) financialStatus = "PENDING_REFUND";
-        else if ("SETTLED".equals(settlement.status())) financialStatus = "SETTLED";
+        else if (settlement.status() == SettlementStatus.SETTLED) financialStatus = "SETTLED";
         else financialStatus = "PAYMENT_REVIEW";
         return new FinancialSettlementSnapshot(settlement.legacyInvoiceId(), settlement.id(), settlement.revision(),
-                settlement.settlementNo(), settlement.settlementNo(), settlement.status(), financialStatus,
+                settlement.settlementNo(), settlement.settlementNo(), settlement.status().name(), financialStatus,
                 money(settlement.netAmount()), prepayment, paid, outstanding, refundable,
                 settlement.currencyCode(), settlement.finalizedAt());
     }

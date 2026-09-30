@@ -27,7 +27,7 @@ class RebuildDatabaseBaselineTest {
                 .load();
 
         var result = flyway.migrate();
-        assertEquals(4, result.migrationsExecuted);
+        assertEquals(8, result.migrationsExecuted);
         assertEquals(0, flyway.migrate().migrationsExecuted);
 
         try (var connection = DriverManager.getConnection(url, "sa", ""); var sql = connection.createStatement()) {
@@ -43,6 +43,14 @@ class RebuildDatabaseBaselineTest {
                 assertEquals("1.84.2", history.getString("version"));
                 assertTrue(history.next());
                 assertEquals("1.85.0", history.getString("version"));
+                assertTrue(history.next());
+                assertEquals("1.86.0", history.getString("version"));
+                assertTrue(history.next());
+                assertEquals("1.87.0", history.getString("version"));
+                assertTrue(history.next());
+                assertEquals("1.88.0", history.getString("version"));
+                assertTrue(history.next());
+                assertEquals("1.89.0", history.getString("version"));
                 assertFalse(history.next());
             }
             assertTrue(count(sql, "select count(*) from information_schema.tables"

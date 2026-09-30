@@ -3,6 +3,8 @@ package com.rhn.billing.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -21,7 +23,7 @@ public class PatientAccount {
     @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "SD_ACCT_TYPE", nullable = false) private String accountType;
     @Column(name = "CD_CCY", nullable = false) private String currencyCode;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PatientAccountStatus status;
     @Column(name = "DT_OPENED", nullable = false) private Instant openedAt;
     @Column(name = "DT_CLOSED") private Instant closedAt;
 
@@ -31,7 +33,7 @@ public class PatientAccount {
                           Long departmentId, String currencyCode) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
         this.encounterId = encounterId; this.organizationId = organizationId; this.departmentId = departmentId;
-        this.accountType = "OUTPATIENT"; this.currencyCode = currencyCode; this.status = "OPEN";
+        this.accountType = "OUTPATIENT"; this.currencyCode = currencyCode; this.status = PatientAccountStatus.OPEN;
         this.openedAt = Instant.now();
     }
 
@@ -41,7 +43,7 @@ public class PatientAccount {
         value.id = GlobalIds.next(); value.tenantId = tenantId; value.residentId = residentId;
         value.organizationId = organizationId; value.departmentId = departmentId;
         value.accountType = "REGISTRATION"; value.currencyCode = currencyCode;
-        value.status = "OPEN"; value.openedAt = Instant.now();
+        value.status = PatientAccountStatus.OPEN; value.openedAt = Instant.now();
         return value;
     }
 
@@ -51,7 +53,7 @@ public class PatientAccount {
         value.id = GlobalIds.next(); value.tenantId = tenantId; value.residentId = residentId;
         value.encounterId = encounterId; value.organizationId = organizationId; value.departmentId = departmentId;
         value.accountType = "INPATIENT"; value.currencyCode = currencyCode;
-        value.status = "OPEN"; value.openedAt = Instant.now();
+        value.status = PatientAccountStatus.OPEN; value.openedAt = Instant.now();
         return value;
     }
 
@@ -64,8 +66,8 @@ public class PatientAccount {
     }
 
     public void close(Instant closedAt) {
-        if ("CLOSED".equals(status)) return;
-        this.status = "CLOSED";
+        if (status == PatientAccountStatus.CLOSED) return;
+        this.status = PatientAccountStatus.CLOSED;
         this.closedAt = closedAt == null ? Instant.now() : closedAt;
     }
 
@@ -78,7 +80,7 @@ public class PatientAccount {
     public Long departmentId() { return departmentId; }
     public String accountType() { return accountType; }
     public String currencyCode() { return currencyCode; }
-    public String status() { return status; }
+    public PatientAccountStatus status() { return status; }
     public Instant openedAt() { return openedAt; }
     public Instant closedAt() { return closedAt; }
 }

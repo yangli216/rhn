@@ -75,7 +75,8 @@ public class MedicationKnowledgePublicationService {
         notices.add("首版要求本批每条观察有最新的一致性研判；这不是临床效果阈值，也不能替代机构对样本充分性及风险的判断");
         var raw=new Basis(operation,sourceId,shadow,through,approval,List.copyOf(observations),outcomes,null);
         var basis=new Basis(operation,sourceId,shadow,through,approval,raw.observations(),outcomes,fingerprint(raw,json));
-        return new Preview(state.revision(),candidateId,actor.organizationId(),actor.departmentId(),basis,List.copyOf(gaps),List.copyOf(notices),state.state().deployments().stream().filter(d->"ENFORCED".equals(d.mode())&&Objects.equals(d.organizationId(),actor.organizationId())&&Objects.equals(d.departmentId(),actor.departmentId())).toList());
+        return new Preview(state.revision(),candidateId,actor.organizationId(),actor.departmentId(),basis,List.copyOf(gaps),List.copyOf(notices),
+                state.state().deployments().stream().filter(d->"ENFORCED".equals(d.mode())&&Objects.equals(d.organizationId(),actor.organizationId())&&Objects.equals(d.departmentId(),actor.departmentId())).toList());
     }
     @Transactional public Deployment command(Long candidateId,Command command) {
         if(command==null||command.sourceDeploymentId()==null||command.throughRunId()==null||blank(command.reason(),2000)||blank(command.assessment(),4000)||blank(command.rollbackPlan(),4000)
@@ -96,7 +97,10 @@ public class MedicationKnowledgePublicationService {
             if("ENFORCED".equals(d.mode())&&(d.effectiveTo()==null||d.effectiveTo().isAfter(now)))releases.set(i,copy(d,"SUPERSEDED",now));
             else if("PROMOTE".equals(command.operation())&&Objects.equals(d.id(),p.basis().shadowDeploymentId())&&"ACTIVE".equals(d.status()))releases.set(i,copy(d,"PAUSED",d.effectiveTo()));
         }
-        var release=new Deployment(deploymentId,candidateId.toString(),candidate.version(),"ENFORCED","ACTIVE",p.basis().approval().action(),actor.organizationId(),actor.departmentId(),now,command.effectiveTo(),actor.subjectId(),now,command.reason().strip(),null,source.executable(),new Release(p.basis().approval(),source.knowledgeRelease().factAdapterVersion(),source.knowledgeRelease().fingerprint(),authorizationId));
+        var release=new Deployment(deploymentId,candidateId.toString(),candidate.version(),"ENFORCED","ACTIVE",p.basis().approval().action(),
+                actor.organizationId(),actor.departmentId(),now,command.effectiveTo(),actor.subjectId(),now,command.reason().strip(),null,
+                source.executable(),new Release(p.basis().approval(),source.knowledgeRelease().factAdapterVersion(),
+                source.knowledgeRelease().fingerprint(),authorizationId));
         releases.add(release);var history=new ArrayList<>(state.state().history());history.add(new AuditEvent(GlobalIds.next(),command.operation(),candidateId.toString(),actor.subjectId(),now,command.reason().strip()));
         governance.save(actor.tenantId(),key,state.revision(),new Governance(state.state().reviews(),List.copyOf(releases),List.copyOf(history)));return release;
     }

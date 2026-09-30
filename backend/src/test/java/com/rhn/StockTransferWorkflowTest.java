@@ -56,11 +56,17 @@ class StockTransferWorkflowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/pharmacy/stock-transfers").with(destination).param("stockSiteId",DESTINATION_SITE).param("role","DESTINATION")).andExpect(status().isOk()).andExpect(jsonPath("$[?(@.id == '%s')].status".formatted(id)).value("IN_TRANSIT"));
         JsonNode received=json(mockMvc.perform(post("/api/pharmacy/stock-transfers/{id}/receive",id).with(destination).contentType(MediaType.APPLICATION_JSON).content("""
                 {"reason":"运输破损2个最小单位","allocations":[{"transferAllocationId":"%s","destinationBinId":"%s","receivedQuantity":%s,"damagedQuantity":2,"discrepancyReason":"外箱挤压"}]}
-                """.formatted(allocationId,destinationBin.get("id").asString(),receivedBaseQuantity.toPlainString()))).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED")).andExpect(jsonPath("$.lines[0].receivedQuantity").value(receivedBaseQuantity.doubleValue())).andExpect(jsonPath("$.lines[0].damagedQuantity").value(2.0)).andReturn().getResponse().getContentAsString());
+                """.formatted(allocationId,destinationBin.get("id").asString(),receivedBaseQuantity.toPlainString())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.lines[0].receivedQuantity").value(receivedBaseQuantity.doubleValue()))
+                .andExpect(jsonPath("$.lines[0].damagedQuantity").value(2.0)).andReturn().getResponse().getContentAsString());
         mockMvc.perform(post("/api/pharmacy/stock-transfers/{id}/receive",id).with(destination).contentType(MediaType.APPLICATION_JSON).content("""
                 {"reason":"运输破损2个最小单位","allocations":[{"transferAllocationId":"%s","destinationBinId":"%s","receivedQuantity":%s,"damagedQuantity":2,"discrepancyReason":"外箱挤压"}]}
                 """.formatted(allocationId,destinationBin.get("id").asString(),receivedBaseQuantity.toPlainString()))).andExpect(status().isOk()).andExpect(jsonPath("$.inboundTransactionId").value(received.get("inboundTransactionId").asString()));
-        mockMvc.perform(get("/api/pharmacy/inventory/balances").with(destination).param("stockSiteId",DESTINATION_SITE).param("stockItemId",destinationItem.get("id").asString())).andExpect(status().isOk()).andExpect(jsonPath("$[?(@.stockStatus == 'AVAILABLE' && @.stockBinId == '%s')].quantityOnHand".formatted(destinationBin.get("id").asString())).value(receivedBaseQuantity.doubleValue())).andExpect(jsonPath("$[?(@.stockStatus == 'DAMAGED')].quantityOnHand").value(2.0));
+        mockMvc.perform(get("/api/pharmacy/inventory/balances").with(destination).param("stockSiteId",DESTINATION_SITE).param("stockItemId",destinationItem.get("id").asString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.stockStatus == 'AVAILABLE' && @.stockBinId == '%s')].quantityOnHand".formatted(destinationBin.get("id").asString())).value(receivedBaseQuantity.doubleValue()))
+            .andExpect(jsonPath("$[?(@.stockStatus == 'DAMAGED')].quantityOnHand").value(2.0));
         mockMvc.perform(get("/api/pharmacy/inventory/transactions").with(source).param("stockSiteId",SOURCE_SITE)).andExpect(status().isOk()).andExpect(jsonPath("$[?(@.id == '%s')].sourceType".formatted(dispatched.get("outboundTransactionId").asString())).value("STOCK_TRANSFER_OUT"));
     }
     private JsonNode createItem(String site,RequestPostProcessor context)throws Exception{return json(mockMvc.perform(post("/api/pharmacy/stock-sites/{id}/stock-items",site).with(context).contentType(MediaType.APPLICATION_JSON).content("""
@@ -72,5 +78,14 @@ class StockTransferWorkflowTest extends RhnIntegrationTestSupport {
     private JsonNode createBin(String site,String code,String name,RequestPostProcessor context)throws Exception{return json(mockMvc.perform(post("/api/pharmacy/stock-sites/{id}/stock-bins",site).with(context).contentType(MediaType.APPLICATION_JSON).content("""
             {"code":"%s","name":"%s","binType":"BIN","stockDefault":"AVAILABLE","receiveAllowed":true,"pickAllowed":true,"countAllowed":true,"sortOrder":10}
             """.formatted(code,name))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());}
-    private RequestPostProcessor workContext(String department){return request->{httpBasic("doctor","test-password").postProcessRequest(request);((MockHttpServletRequest)request).addHeader("X-Tenant-Id",TENANT);((MockHttpServletRequest)request).addHeader("X-Client-Session-Id","test-session-doctor");((MockHttpServletRequest)request).addHeader("X-Organization-Id",ORGANIZATION);((MockHttpServletRequest)request).addHeader("X-Department-Id",department);return request;};}
+    private RequestPostProcessor workContext(String department){
+        return request->{
+            httpBasic("doctor","test-password").postProcessRequest(request);
+            ((MockHttpServletRequest)request).addHeader("X-Tenant-Id",TENANT);
+            ((MockHttpServletRequest)request).addHeader("X-Client-Session-Id","test-session-doctor");
+            ((MockHttpServletRequest)request).addHeader("X-Organization-Id",ORGANIZATION);
+            ((MockHttpServletRequest)request).addHeader("X-Department-Id",department);
+            return request;
+        };
+    }
 }

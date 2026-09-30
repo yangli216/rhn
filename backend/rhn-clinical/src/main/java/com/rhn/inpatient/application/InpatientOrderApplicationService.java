@@ -11,8 +11,10 @@ import com.rhn.inpatient.api.InpatientOrderViews.MedicationClosureView;
 import com.rhn.inpatient.api.InpatientOrderViews.OrderView;
 import com.rhn.inpatient.api.InpatientOrderViews.TaskView;
 import com.rhn.inpatient.domain.CareEpisode;
+import com.rhn.inpatient.domain.CareEpisodeStatus;
 import com.rhn.inpatient.domain.InpatientCareRequest;
 import com.rhn.inpatient.domain.InpatientEncounter;
+import com.rhn.inpatient.domain.InpatientEncounterStatus;
 import com.rhn.inpatient.domain.InpatientOrderEvent;
 import com.rhn.inpatient.domain.InpatientOrderTask;
 import com.rhn.inpatient.domain.InpatientOrderWorkflow;
@@ -37,6 +39,7 @@ import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -140,8 +143,8 @@ public class InpatientOrderApplicationService {
         Long requestId = requestStore.create(new CreateFact(context.tenantId(), episode.id(), encounter.id(),
                 episode.residentId(), episode.organizationId(), encounter.departmentId(), category,
                 input.catalogItemId(), input.itemCode(), input.itemName(), input.dosageAmount(),
-                trim(input.dosageUnit()), normalizeOptional(input.routeCode()), normalizeOptional(input.frequencyCode()),
-                trim(input.instructions()), actorId));
+                Strings.trimToNull(input.dosageUnit()), normalizeOptional(input.routeCode()), normalizeOptional(input.frequencyCode()),
+                Strings.trimToNull(input.instructions()), actorId));
         InpatientCareRequest request = requireRequest(context, requestId);
         RequestDetails details = requestStore.details(context.tenantId(), requestId, category);
         InpatientOrderWorkflow workflow = workflows.saveAndFlush(new InpatientOrderWorkflow(
@@ -283,7 +286,7 @@ public class InpatientOrderApplicationService {
             throw badRequest("INPATIENT_TASK_TIME_RANGE_INVALID", "任务查询结束时间不能早于开始时间");
         }
         List<TaskView> values = tasks.findByTenantIdOrderByScheduledAtAsc(context.tenantId()).stream()
-                .filter(value -> statuses.contains(value.status()))
+                .filter(value -> statuses.contains(value.status().name()))
                 .filter(value -> from == null || !value.scheduledAt().isBefore(from))
                 .filter(value -> to == null || !value.scheduledAt().isAfter(to))
                 .map(value -> new TaskContext(value, requireWorkflow(context, value.requestId()),
@@ -310,14 +313,14 @@ public class InpatientOrderApplicationService {
         if (!Set.of("ACTIVE", "STOPPED").contains(workflow.workflowStatus())) {
             throw conflict("INPATIENT_ORDER_NOT_EXECUTABLE", "医嘱尚未核对或已结束，不能执行任务");
         }
-        String taskBefore = task.status();
+        String taskBefore = task.status().name();
         String orderBefore = workflow.workflowStatus();
         if (skip) {
             String outcome = requiredText(input.outcomeCode(), "INPATIENT_SKIP_REASON_REQUIRED", "跳过原因编码不能为空");
-            task.skip(input.expectedRevision(), requireActor(context), normalizeOptional(outcome), trim(input.note()));
+            task.skip(input.expectedRevision(), requireActor(context), normalizeOptional(outcome), Strings.trimToNull(input.note()));
         } else {
             task.execute(input.expectedRevision(), requireActor(context), normalizeOptional(input.outcomeCode()),
-                    trim(input.note()));
+                    Strings.trimToNull(input.note()));
             consumeMedication(task, workflow, request, commandCode, requireActor(context));
             orderCharges.postExecutedTask(task, request);
         }
@@ -326,7 +329,7 @@ public class InpatientOrderApplicationService {
                 !orderTasks.isEmpty() && orderTasks.stream().allMatch(InpatientOrderTask::terminal), requireActor(context));
         if (completed) request.complete();
         events.save(event(context, workflow, task, skip ? "TASK_SKIPPED" : "TASK_EXECUTED",
-                orderBefore, workflow.workflowStatus(), taskBefore, task.status(), commandCode, trim(input.note())));
+                orderBefore, workflow.workflowStatus(), taskBefore, task.status().name(), commandCode, Strings.trimToNull(input.note())));
         tasks.flush();
         workflows.flush();
         requests.flush();
@@ -410,7 +413,7 @@ public class InpatientOrderApplicationService {
                 request.performerOrganizationId(), request.performerDepartmentId(), request.itemCodeSnapshot(),
                 request.itemNameSnapshot(), request.unitCodeSnapshot(), details.dosageAmount(), details.dosageUnit(),
                 details.routeCode(), details.frequencyCode(), request.reasonText(), task.occurrenceNo(),
-                task.scheduledAt(), task.status(), task.outcomeCode(), task.executionNote(), task.completedAt(),
+                task.scheduledAt(), task.status().name(), task.outcomeCode(), task.executionNote(), task.completedAt(),
                 task.completedBy(), task.cancelledAt(), task.cancelReason(), fulfillmentRequired,
                 fulfillment.completed() || !medicationConsumptions.isEmpty(),
                 fulfillment.dispenseId(), fulfillment.netDispensedQuantity(),
@@ -464,7 +467,7 @@ public class InpatientOrderApplicationService {
                         : value.substanceCode() != null && details.medicationCode() != null
                         && value.substanceCode().equalsIgnoreCase(details.medicationCode()))
                 .toList();
-        String overrideReason = trim(input.allergyOverrideReason());
+        String overrideReason = Strings.trimToNull(input.allergyOverrideReason());
         if (!matched.isEmpty() && overrideReason == null) {
             throw conflict("INPATIENT_MEDICATION_ALLERGY_MATCH",
                     "所选药品命中患者过敏原，继续签署必须填写临床覆盖理由");
@@ -518,7 +521,7 @@ public class InpatientOrderApplicationService {
         if (!context.organizationId().equals(episode.organizationId())) {
             throw forbidden("INPATIENT_ORDER_SCOPE_DENIED", "住院记录不属于当前机构");
         }
-        if (!"ADMITTED".equals(episode.status())) {
+        if (episode.status() != CareEpisodeStatus.ADMITTED) {
             throw conflict("INPATIENT_EPISODE_NOT_ADMITTED", "只有在院患者可以开立住院医嘱");
         }
         return episode;
@@ -526,7 +529,7 @@ public class InpatientOrderApplicationService {
 
     private InpatientEncounter requireActiveEncounter(ExecutionContext context, Long episodeId) {
         InpatientEncounter encounter = requireEncounterSnapshot(context, episodeId);
-        if (!"IN_PROGRESS".equals(encounter.status())) {
+        if (encounter.status() != InpatientEncounterStatus.IN_PROGRESS) {
             throw conflict("INPATIENT_ENCOUNTER_NOT_ACTIVE", "住院接触已结束，不能开立医嘱");
         }
         return encounter;
@@ -605,7 +608,7 @@ public class InpatientOrderApplicationService {
         if (!context.organizationId().equals(episode.organizationId())) {
             throw forbidden("INPATIENT_ORDER_SCOPE_DENIED", "住院记录不属于当前机构");
         }
-        if (!"ADMITTED".equals(episode.status())) {
+        if (episode.status() != CareEpisodeStatus.ADMITTED) {
             throw conflict("INPATIENT_EPISODE_NOT_ADMITTED", "患者已不在院，不能变更住院医嘱");
         }
     }
@@ -673,18 +676,14 @@ public class InpatientOrderApplicationService {
     }
 
     private static String requiredText(String value, String code, String message) {
-        String trimmed = trim(value);
+        String trimmed = Strings.trimToNull(value);
         if (trimmed == null) throw badRequest(code, message);
         return trimmed;
     }
 
     private static String normalizeOptional(String value) {
-        String trimmed = trim(value);
+        String trimmed = Strings.trimToNull(value);
         return trimmed == null ? null : trimmed.toUpperCase(Locale.ROOT);
-    }
-
-    private static String trim(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public record CreateOrderCommand(Long episodeId, String orderCategory, String durationType,

@@ -47,7 +47,9 @@ public class MedicationRuleIntakeService {
     public PageResult<Summary> history(int page) {var t=tenant();if(page<0) throw badRequest("QMED_INTAKE_PAGE","分页参数无效");var c=contexts.requireCurrent();return store.page(t,c.organizationId(),c.departmentId(),page);}
     public void checkOrigin(Long tenant,Long id,String kind) {
         if(id==null) return;var r=require(tenant,id);
-        if(!"ANALYZED".equals(r.result().status())||r.result().intents().stream().noneMatch(i->i.kind().equals(kind)&&i.capability().knowledgeWorkflow())||MedicationRuleIntakeCapabilities.ALL.stream().noneMatch(c->c.kind().equals(kind)&&c.knowledgeWorkflow())) throw badRequest("QMED_INTAKE_ORIGIN","该需求分析没有可进入此知识类型的意图，请核对分析来源");
+        if(!"ANALYZED".equals(r.result().status())||r.result().intents().stream().noneMatch(i->i.kind().equals(kind)&&i.capability().knowledgeWorkflow())
+                ||MedicationRuleIntakeCapabilities.ALL.stream().noneMatch(c->c.kind().equals(kind)&&c.knowledgeWorkflow()))
+            throw badRequest("QMED_INTAKE_ORIGIN","该需求分析没有可进入此知识类型的意图，请核对分析来源");
     }
     public FeedbackOrigin feedbackOrigin(Long id) {require(tenant(),id);return store.origin(tenant(),id);}
     public Run analyze(Request request) {
@@ -115,6 +117,9 @@ public class MedicationRuleIntakeService {
         String text=sources.get(source);if(text==null||quote==null||quote.isBlank()||quote.length()>4000) return null;int start=text.indexOf(quote);return start<0?null:new Citation(source,quote,start,start+quote.length());
     }
     private Run resultRecord(Long parent,Input input,String model,String raw,Result result) {
-        var c=contexts.requireCurrent();var r=new Run(GlobalIds.next(),parent,input,hash(json.write(input)),model,PROMPT_VERSION,MedicationRuleIntakeCapabilities.VERSION,result,hash(json.write(result)),raw==null?"":raw.substring(0,Math.min(raw.length(),60000)),raw!=null&&raw.length()>60000,c.subjectId(),c.actor(),Instant.now());return r;
+        var c=contexts.requireCurrent();
+        var r=new Run(GlobalIds.next(),parent,input,hash(json.write(input)),model,PROMPT_VERSION,MedicationRuleIntakeCapabilities.VERSION,result,hash(json.write(result)),
+                raw==null?"":raw.substring(0,Math.min(raw.length(),60000)),raw!=null&&raw.length()>60000,c.subjectId(),c.actor(),Instant.now());
+        return r;
     }
 }

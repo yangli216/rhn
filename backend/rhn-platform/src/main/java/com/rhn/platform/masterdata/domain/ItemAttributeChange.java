@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -62,22 +63,22 @@ public class ItemAttributeChange {
                                 String reason, String requestCode, Long actorId) {
         if (beforeJson == null && afterJson == null) throw new IllegalArgumentException("属性变更快照不能为空");
         this.id = GlobalIds.next();
-        this.tenantId = requireId(tenantId, "租户");
-        this.attributeDefinitionId = requireId(definitionId, "属性定义");
+        this.tenantId = Strings.requireId(tenantId, "租户");
+        this.attributeDefinitionId = Strings.requireId(definitionId, "属性定义");
         this.itemTypeId = itemTypeId;
         this.itemTypeAttributeId = assignmentId;
         this.attributeSubjectId = subjectId;
         this.attributeValueId = valueId;
         this.attributeOverrideId = overrideId;
-        this.targetType = requireText(targetType, "变更目标", 32);
-        this.changeType = requireText(changeType, "变更类型", 32);
-        this.scopeKey = optionalText(scopeKey, 512);
+        this.targetType = Strings.requireText(targetType, "变更目标", 32);
+        this.changeType = Strings.requireText(changeType, "变更类型", 32);
+        this.scopeKey = Strings.optionalText(scopeKey, 512);
         this.beforeJson = beforeJson;
         this.afterJson = afterJson;
-        this.changeReason = requireText(reason, "变更原因", 1000);
-        this.requestCode = requireText(requestCode, "请求编码", 128);
+        this.changeReason = Strings.requireText(reason, "变更原因", 1000);
+        this.requestCode = Strings.requireText(requestCode, "请求编码", 128);
         this.changedAt = Instant.now();
-        this.changedBy = requireId(actorId, "操作用户");
+        this.changedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public Long id() { return id; }
@@ -98,22 +99,4 @@ public class ItemAttributeChange {
     public Instant changedAt() { return changedAt; }
     public Long changedBy() { return changedBy; }
 
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
-    private static String requireText(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
-    }
-
-    private static String optionalText(String value, int max) {
-        if (value == null || value.isBlank()) return null;
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException("文本长度不能超过" + max);
-        return result;
-    }
 }

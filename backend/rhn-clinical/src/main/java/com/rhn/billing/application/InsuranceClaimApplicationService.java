@@ -2,6 +2,8 @@ package com.rhn.billing.application;
 
 import com.rhn.billing.api.InsuranceResultDirectory;
 import com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView;
+import com.rhn.billing.api.InsuranceResultDirectory.PersonInfoQuery;
+import com.rhn.billing.api.InsuranceResultDirectory.PersonInfoView;
 import com.rhn.billing.api.InsuranceResultDirectory.VerifiedInsuranceResult;
 import com.rhn.billing.api.InsuranceSettlementAdapter;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction;
@@ -9,6 +11,8 @@ import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceQuery;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceReversal;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceResult;
 import com.rhn.billing.domain.InsuranceClaim;
+import com.rhn.billing.infrastructure.insurance.chs.ChsModels;
+import com.rhn.billing.infrastructure.insurance.chs.NationalInsuranceClient;
 import com.rhn.platform.integration.api.ExternalMessageService;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -16,6 +20,7 @@ import com.rhn.shared.idempotency.CommandCodes;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,12 +34,45 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
     private final List<InsuranceSettlementAdapter> adapters;
     private final ExternalMessageService messages;
     private final ExecutionContextProvider contextProvider;
+    private final NationalInsuranceClient nationalInsuranceClient;
 
     InsuranceClaimApplicationService(InsuranceClaimTransactionService transactions,
                                      List<InsuranceSettlementAdapter> adapters,
-                                     ExternalMessageService messages, ExecutionContextProvider contextProvider) {
+                                     ExternalMessageService messages, ExecutionContextProvider contextProvider,
+                                     NationalInsuranceClient nationalInsuranceClient) {
         this.transactions = transactions; this.adapters = List.copyOf(adapters);
         this.messages = messages; this.contextProvider = contextProvider;
+        this.nationalInsuranceClient = nationalInsuranceClient;
+    }
+
+    /** 1101 医保人员信息获取与鉴权（对外契约，屏蔽 CHS 专网报文模型）。 */
+    public PersonInfoView queryPersonInfo(PersonInfoQuery query) {
+        var response = nationalInsuranceClient.queryPersonInfo(
+                new ChsModels.PersonInfoRequest(query.certType(), query.certNo(), query.personName()));
+        return new PersonInfoView(response.psnNo(), response.psnCertType(), response.certno(), response.psnName(),
+                response.gender(), response.birthday(), response.insutype(), response.insutypeName(), response.balc(),
+                response.insuOptins(), response.insuOptinsName(), response.psnType(), response.status());
+    }
+
+    /** 快捷门诊医保预结算：自动组装患者保障上下文、执行范围与目录映射后转入标准预结算流程。 */
+    public InsuranceSettlementView quickPreSettle(Long settlementId, Long coverageId, String insuranceTypeCode,
+                                                 String regionCode, String idempotencyKey) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        String typeCode = insuranceTypeCode == null || insuranceTypeCode.isBlank() ? "01" : insuranceTypeCode.trim();
+        String region = regionCode == null || regionCode.isBlank() ? "360100" : regionCode.trim();
+        var quick = transactions.quickPreSettleContext(settlementId, coverageId, typeCode, region);
+        String organizationCode = context.hasWorkContext() ? "ORG-" + context.organizationId() : "ORG-DEFAULT";
+        String departmentCode = "DEPT-" + quick.account().departmentId();
+        String practitionerCode = context.hasWorkContext() ? "DR-" + context.subjectId() : "DR-DEFAULT";
+        String digest = "MD5-" + quick.settlement().settlementNo();
+        String key = idempotencyKey == null || idempotencyKey.isBlank()
+                ? "PRE-CHS-" + quick.settlement().settlementNo() + "-" + System.currentTimeMillis()
+                : idempotencyKey.trim();
+        return preSettle(new PreSettleCommand(settlementId, quick.coverage().id(), key, region,
+                quick.coverage().coverageTypeCode(), organizationCode, departmentCode, practitionerCode, digest,
+                Instant.now(), null, context.correlationId(),
+                quick.lines().stream().map(line -> new LineMapping(line.settlementLineId(),
+                        line.insuranceItemCode(), line.traceAttributes())).toList()));
     }
 
     public InsuranceSettlementView preSettle(PreSettleCommand input) {

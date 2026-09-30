@@ -2,6 +2,7 @@ package com.rhn.ai.application;
 
 import com.rhn.platform.terminology.api.TerminologyConceptSnapshot;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -30,7 +31,7 @@ public class DiagnosisNormalizationService {
 
     public Result normalize(long tenantId, String codeSystem, String diagnosisDomain,
                             String codeOrName, LocalDate atDate) {
-        String value = clean(codeOrName);
+        String value = Strings.trimToNull(codeOrName);
         if (value == null) return Result.unavailable("诊断名称或编码为空");
         Identity identity = identity(codeSystem, diagnosisDomain);
         if (identity == null) return Result.domainMismatch("诊断编码体系与诊断领域不一致");
@@ -68,8 +69,8 @@ public class DiagnosisNormalizationService {
     }
 
     private Identity identity(String codeSystem, String diagnosisDomain) {
-        String system = clean(codeSystem);
-        String domain = clean(diagnosisDomain);
+        String system = Strings.trimToNull(codeSystem);
+        String domain = Strings.trimToNull(diagnosisDomain);
         if (system == null && domain == null) return new Identity(ICD10_SYSTEM, "WESTERN_MEDICINE");
         if (system == null) system = SYSTEM_BY_DOMAIN.get(domain);
         if (domain == null) {
@@ -95,10 +96,6 @@ public class DiagnosisNormalizationService {
         if (!parent.code().matches("[A-Z]\\d{2}")) return null;
         return sorted.stream().skip(1).allMatch(value -> value.code().startsWith(parent.code() + "."))
                 ? parent : null;
-    }
-
-    private String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public enum Status { EXACT_MATCH, AMBIGUOUS, UNAVAILABLE, DOMAIN_MISMATCH }

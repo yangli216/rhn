@@ -138,14 +138,8 @@ class SchedulingApplicationService {
         ExecutionContext context = requireWorkContext();
         requireQuickRequest(request);
         String idempotencyCode = request.idempotencyCode().trim();
-        ScheduleGenerationRun replay = runRepository
-                .findByTenantIdAndIdempotencyCode(context.tenantId(), idempotencyCode).orElse(null);
-        if (replay != null) {
-            List<ServiceSchedule> existing = scheduleRepository
-                    .findByTenantIdAndGenerationRunIdOrderByStartAt(context.tenantId(), replay.id());
-            return new QuickScheduleResult(replay.id(), true, replay.generatedCount(), replay.skippedCount(),
-                    toViews(context.tenantId(), existing));
-        }
+        QuickScheduleResult replayResult = replayQuickCreate(context, idempotencyCode);
+        if (replayResult != null) return replayResult;
 
         ScheduleRegistrationScope registrationScope = registrationScope(request.registrationScope(), request.practitionerId());
         boolean practitionerScoped = registrationScope == ScheduleRegistrationScope.PRACTITIONER;
@@ -164,7 +158,9 @@ class SchedulingApplicationService {
                         && catalogAdoption.adoption().defaultDepartmentId() != null) {
                     targetDeptId = catalogAdoption.adoption().defaultDepartmentId();
                 }
-            } catch (RuntimeException ignored) {}
+            } catch (RuntimeException ignored) {
+                // 目录项目未采纳或查询失败时没有默认科室，回退到就诊科室。
+            }
         }
         final Long effectiveDepartmentId = targetDeptId;
         String ownerName = practitionerScoped ? staff.practitioner().fullName()
@@ -201,6 +197,41 @@ class SchedulingApplicationService {
         ScheduleGenerationRun run = runRepository.saveAndFlush(new ScheduleGenerationRun(context.tenantId(),
                 template.id(), idempotencyCode, request.dateFrom(), request.dateTo(), jsonCodec.write(request),
                 context.subjectId()));
+        GeneratedSchedules generatedSchedules = generateQuickSchedules(context, request, periods, zoneId, resource,
+                template, run, effectiveDepartmentId, practitionerScoped, ownerName, service, locationName,
+                timezoneCode, assignment);
+        List<ServiceSchedule> generated = generatedSchedules.generated();
+        int skipped = generatedSchedules.skipped();
+        scheduleRepository.saveAllAndFlush(generated);
+
+        persistPoolsAndEvents(context.tenantId(), idempotencyCode, context.subjectId(), generated,
+                generated.stream().map(value -> new ScheduleSlotPool(context.tenantId(), value.id(), request.capacity()))
+                        .toList(),
+                value -> new ServiceScheduleEvent(context.tenantId(), value.id(),
+                        idempotencyCode + ":schedule:" + value.id(), context.subjectId()));
+        run.complete(generated.size(), skipped);
+        runRepository.save(run);
+        return new QuickScheduleResult(run.id(), false, generated.size(), skipped,
+                toViews(context.tenantId(), generated));
+    }
+
+    private QuickScheduleResult replayQuickCreate(ExecutionContext context, String idempotencyCode) {
+        ScheduleGenerationRun replay = runRepository
+                .findByTenantIdAndIdempotencyCode(context.tenantId(), idempotencyCode).orElse(null);
+        if (replay == null) return null;
+        List<ServiceSchedule> existing = scheduleRepository
+                .findByTenantIdAndGenerationRunIdOrderByStartAt(context.tenantId(), replay.id());
+        return new QuickScheduleResult(replay.id(), true, replay.generatedCount(), replay.skippedCount(),
+                toViews(context.tenantId(), existing));
+    }
+
+    private GeneratedSchedules generateQuickSchedules(ExecutionContext context, QuickScheduleRequest request,
+                                                      List<ScheduleTemplatePeriod> periods, ZoneId zoneId,
+                                                      ServiceResource resource, ScheduleTemplate template,
+                                                      ScheduleGenerationRun run, Long effectiveDepartmentId,
+                                                      boolean practitionerScoped, String ownerName,
+                                                      ServiceCatalogSnapshot service, String locationName,
+                                                      String timezoneCode, StaffAssignmentView assignment) {
         List<ServiceSchedule> generated = new ArrayList<>();
         int skipped = 0;
         for (LocalDate date = request.dateFrom(); !date.isAfter(request.dateTo()); date = date.plusDays(1)) {
@@ -231,28 +262,24 @@ class SchedulingApplicationService {
                         request.capacity(), context.subjectId()));
             }
         }
-        scheduleRepository.saveAllAndFlush(generated);
+        return new GeneratedSchedules(generated, skipped);
+    }
 
-        List<ScheduleSlotPool> pools = generated.stream()
-                .map(value -> new ScheduleSlotPool(context.tenantId(), value.id(), request.capacity()))
-                .toList();
+    private void persistPoolsAndEvents(Long tenantId, String idempotencyCode, Long subjectId,
+                                       List<ServiceSchedule> generated, List<ScheduleSlotPool> pools,
+                                       Function<ServiceSchedule, ServiceScheduleEvent> scheduleEventFactory) {
         poolRepository.saveAllAndFlush(pools);
         Map<Long, ScheduleSlotPool> poolsBySchedule = pools.stream()
                 .collect(Collectors.toMap(ScheduleSlotPool::scheduleId, Function.identity()));
-        scheduleEventRepository.saveAll(generated.stream()
-                .map(value -> new ServiceScheduleEvent(context.tenantId(), value.id(),
-                        idempotencyCode + ":schedule:" + value.id(), context.subjectId()))
-                .toList());
+        scheduleEventRepository.saveAll(generated.stream().map(scheduleEventFactory).toList());
         slotEventRepository.saveAll(generated.stream().map(value -> {
             ScheduleSlotPool pool = poolsBySchedule.get(value.id());
-            return new SlotEvent(context.tenantId(), pool.id(), value.id(), pool.totalCount(),
-                    idempotencyCode + ":pool:" + pool.id(), context.subjectId());
+            return new SlotEvent(tenantId, pool.id(), value.id(), pool.totalCount(),
+                    idempotencyCode + ":pool:" + pool.id(), subjectId);
         }).toList());
-        run.complete(generated.size(), skipped);
-        runRepository.save(run);
-        return new QuickScheduleResult(run.id(), false, generated.size(), skipped,
-                toViews(context.tenantId(), generated));
     }
+
+    private record GeneratedSchedules(List<ServiceSchedule> generated, int skipped) {}
 
     @Transactional(readOnly = true)
     List<ProfessionalTemplateView> professionalTemplates() {
@@ -278,19 +305,8 @@ class SchedulingApplicationService {
         }
         requireProfessionalRequest(request);
         String idempotencyCode = request.idempotencyCode().trim();
-        ScheduleGenerationRun replay = runRepository
-                .findByTenantIdAndIdempotencyCode(context.tenantId(), idempotencyCode).orElse(null);
-        if (replay != null) {
-            ScheduleTemplate template = templateRepository.findByIdAndTenantId(replay.templateId(), context.tenantId())
-                    .orElseThrow(() -> notFound("SCHEDULE_TEMPLATE_NOT_FOUND", "专业排班模板不存在"));
-            ServiceResource resource = resourceRepository.findByIdAndTenantId(template.resourceId(), context.tenantId())
-                    .orElseThrow(() -> notFound("SCHEDULE_RESOURCE_NOT_FOUND", "专业排班资源不存在"));
-            List<ServiceSchedule> existing = scheduleRepository
-                    .findByTenantIdAndGenerationRunIdOrderByStartAt(context.tenantId(), replay.id());
-            return new ProfessionalScheduleResult(replay.id(), true, replay.generatedCount(), replay.skippedCount(),
-                    toProfessionalTemplate(context.tenantId(), template, resource),
-                    toViews(context.tenantId(), existing));
-        }
+        ProfessionalScheduleResult replayResult = replayProfessionalTemplate(context, idempotencyCode);
+        if (replayResult != null) return replayResult;
 
         ScheduleRegistrationScope registrationScope = registrationScope(request.registrationScope(), request.practitionerId());
         boolean practitionerScoped = registrationScope == ScheduleRegistrationScope.PRACTITIONER;
@@ -344,6 +360,52 @@ class SchedulingApplicationService {
         ScheduleGenerationRun run = runRepository.saveAndFlush(new ScheduleGenerationRun(context.tenantId(),
                 template.id(), idempotencyCode, request.dateFrom(), request.dateTo(), "MANUAL",
                 jsonCodec.write(request), context.subjectId()));
+        GeneratedSchedules generatedSchedules = generateProfessionalSchedules(context, request, periods, exceptions,
+                zoneId, resource, template, run, practitionerScoped, ownerName, service, locationName, timezoneCode,
+                assignment);
+        List<ServiceSchedule> generated = generatedSchedules.generated();
+        int skipped = generatedSchedules.skipped();
+        scheduleRepository.saveAllAndFlush(generated);
+
+        List<ScheduleSlotPool> pools = new ArrayList<>();
+        for (ServiceSchedule schedule : generated) {
+            pools.add(new ScheduleSlotPool(context.tenantId(), schedule.id(), schedule.totalCapacity(),
+                    request.slotMode().name()));
+        }
+        persistPoolsAndEvents(context.tenantId(), idempotencyCode, context.subjectId(), generated, pools,
+                value -> new ServiceScheduleEvent(context.tenantId(), value.id(), "PUBLISHED", null,
+                        "PUBLISHED", idempotencyCode + ":schedule:" + value.id(), context.subjectId(),
+                        "专业模板生成并发布"));
+        run.complete(generated.size(), skipped);
+        runRepository.save(run);
+        return new ProfessionalScheduleResult(run.id(), false, generated.size(), skipped,
+                toProfessionalTemplate(context.tenantId(), template, resource),
+                toViews(context.tenantId(), generated));
+    }
+
+    private ProfessionalScheduleResult replayProfessionalTemplate(ExecutionContext context, String idempotencyCode) {
+        ScheduleGenerationRun replay = runRepository
+                .findByTenantIdAndIdempotencyCode(context.tenantId(), idempotencyCode).orElse(null);
+        if (replay == null) return null;
+        ScheduleTemplate template = templateRepository.findByIdAndTenantId(replay.templateId(), context.tenantId())
+                .orElseThrow(() -> notFound("SCHEDULE_TEMPLATE_NOT_FOUND", "专业排班模板不存在"));
+        ServiceResource resource = resourceRepository.findByIdAndTenantId(template.resourceId(), context.tenantId())
+                .orElseThrow(() -> notFound("SCHEDULE_RESOURCE_NOT_FOUND", "专业排班资源不存在"));
+        List<ServiceSchedule> existing = scheduleRepository
+                .findByTenantIdAndGenerationRunIdOrderByStartAt(context.tenantId(), replay.id());
+        return new ProfessionalScheduleResult(replay.id(), true, replay.generatedCount(), replay.skippedCount(),
+                toProfessionalTemplate(context.tenantId(), template, resource),
+                toViews(context.tenantId(), existing));
+    }
+
+    private GeneratedSchedules generateProfessionalSchedules(ExecutionContext context, ProfessionalScheduleRequest request,
+                                                             List<ScheduleTemplatePeriod> periods,
+                                                             List<ScheduleException> exceptions, ZoneId zoneId,
+                                                             ServiceResource resource, ScheduleTemplate template,
+                                                             ScheduleGenerationRun run, boolean practitionerScoped,
+                                                             String ownerName, ServiceCatalogSnapshot service,
+                                                             String locationName, String timezoneCode,
+                                                             StaffAssignmentView assignment) {
         Map<Integer, ScheduleTemplatePeriod> periodByWeekday = periods.stream()
                 .collect(Collectors.toMap(ScheduleTemplatePeriod::dayOfWeek, Function.identity()));
         Map<LocalDate, ScheduleException> exceptionByDate = exceptions.stream()
@@ -386,31 +448,7 @@ class SchedulingApplicationService {
                         context.subjectId()));
             }
         }
-        scheduleRepository.saveAllAndFlush(generated);
-
-        List<ScheduleSlotPool> pools = new ArrayList<>();
-        for (ServiceSchedule schedule : generated) {
-            pools.add(new ScheduleSlotPool(context.tenantId(), schedule.id(), schedule.totalCapacity(),
-                    request.slotMode().name()));
-        }
-        poolRepository.saveAllAndFlush(pools);
-        Map<Long, ScheduleSlotPool> poolsBySchedule = pools.stream()
-                .collect(Collectors.toMap(ScheduleSlotPool::scheduleId, Function.identity()));
-        scheduleEventRepository.saveAll(generated.stream()
-                .map(value -> new ServiceScheduleEvent(context.tenantId(), value.id(), "PUBLISHED", null,
-                        "PUBLISHED", idempotencyCode + ":schedule:" + value.id(), context.subjectId(),
-                        "专业模板生成并发布"))
-                .toList());
-        slotEventRepository.saveAll(generated.stream().map(value -> {
-            ScheduleSlotPool pool = poolsBySchedule.get(value.id());
-            return new SlotEvent(context.tenantId(), pool.id(), value.id(), pool.totalCount(),
-                    idempotencyCode + ":pool:" + pool.id(), context.subjectId());
-        }).toList());
-        run.complete(generated.size(), skipped);
-        runRepository.save(run);
-        return new ProfessionalScheduleResult(run.id(), false, generated.size(), skipped,
-                toProfessionalTemplate(context.tenantId(), template, resource),
-                toViews(context.tenantId(), generated));
+        return new GeneratedSchedules(generated, skipped);
     }
 
     @Transactional
@@ -684,6 +722,7 @@ class SchedulingApplicationService {
             StaffAssignmentView assignment = assignmentFor(context, detail, date, date);
             return new PractitionerOption(staff.id(), staff.code(), staff.fullName(), assignment.id());
         } catch (BusinessException ignored) {
+            // 该医生在排班日期内无有效任职，不进入可选医生列表。
             return null;
         }
     }
@@ -704,6 +743,7 @@ class SchedulingApplicationService {
                 try {
                     return organizationDirectory.requireDepartment(tenantId, schedule.organizationId(), did).name();
                 } catch (RuntimeException ignored) {
+                    // 科室不可解析时用排班自带的服务名称兜底展示。
                     return schedule.serviceName();
                 }
             });

@@ -74,7 +74,10 @@ public class StructuredReportEngine {
         args.add(Timestamp.from(scope.start().atStartOfDay(scope.zone()).toInstant()));args.add(Timestamp.from(scope.end().plusDays(1).atStartOfDay(scope.zone()).toInstant()));
         Group group=s.groups().get(dimension);
         String groupSql=group==null?"e.ID_DEPT, e.ID_DEPT":group.keyExpression()+", "+group.labelExpression();
-        StringBuilder sql=new StringBuilder("select "+s.timeExpression()+", e.ID_DEPT, "+f.expression()+", "+groupSql+" from "+s.from()+" where "+s.predicate()+" and e.ID_TNT=? and e.ID_ORG=? and e.ID_DEPT in ("+String.join(",",Collections.nCopies(scope.departments().size(),"?"))+") and "+s.timeExpression()+">=? and "+s.timeExpression()+"<?");
+        StringBuilder sql=new StringBuilder("select "+s.timeExpression()+", e.ID_DEPT, "+f.expression()+", "+groupSql
+                +" from "+s.from()+" where "+s.predicate()+" and e.ID_TNT=? and e.ID_ORG=? and e.ID_DEPT in ("
+                +String.join(",",Collections.nCopies(scope.departments().size(),"?"))
+                +") and "+s.timeExpression()+">=? and "+s.timeExpression()+"<?");
         for(Filter filter:m.filters()) {
             Field ff=field(s,filter.field());sql.append(" and ").append(ff.expression());
             switch(filter.operator()) {
@@ -99,7 +102,11 @@ public class StructuredReportEngine {
             }return null;
         });
         String computation=switch(m.aggregate()){case COUNT->"计数";case COUNT_DISTINCT->"去重计数";case SUM->"求和";case AVG->"逐行平均（空值不参与）";};
-        String filters=m.filters().stream().map(v->{Field ff=field(s,v.field());String op=switch(v.operator()){case EQ->"等于";case IN->"属于";case CONTAINS->"包含";case GTE->"大于等于";case LTE->"小于等于";};return ff.name()+op+String.join("、",v.values().stream().map(x->ff.values().getOrDefault(x,x)).toList());}).reduce((a,b)->a+"；"+b).orElse("未追加筛选");
+        String filters=m.filters().stream().map(v->{
+            Field ff=field(s,v.field());
+            String op=switch(v.operator()){case EQ->"等于";case IN->"属于";case CONTAINS->"包含";case GTE->"大于等于";case LTE->"小于等于";};
+            return ff.name()+op+String.join("、",v.values().stream().map(x->ff.values().getOrDefault(x,x)).toList());
+        }).reduce((a,b)->a+"；"+b).orElse("未追加筛选");
         String definition=s.name()+" · "+f.name()+" · "+computation+"；"+filters+"。"+s.definition()+((m.aggregate()==Aggregate.COUNT_DISTINCT||m.aggregate()==Aggregate.AVG)?" 总计按全部符合条件的明细重新计算，不是分组结果相加。":"");
         return new Result(f.unit(),definition,total.value(),buckets.entrySet().stream().map(e->new Point(e.getKey(),labels.get(e.getKey()),e.getValue().value())).toList());
     }

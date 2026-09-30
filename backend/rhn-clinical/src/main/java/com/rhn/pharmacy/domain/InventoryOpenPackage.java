@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -29,7 +31,8 @@ public class InventoryOpenPackage {
     @Column(name = "PACKAGE_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal packageFactor;
     @Column(name = "QTY_OPENED_BASE", nullable = false, precision = 28, scale = 8) private BigDecimal openedBaseQuantity;
     @Column(name = "QTY_REM_BASE", nullable = false, precision = 28, scale = 8) private BigDecimal remainingBaseQuantity;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "SD_STATUS", nullable = false) private InventoryOpenPackageStatus status;
     @Column(name = "DT_OPENED", nullable = false) private Instant openedAt;
     @Column(name = "ID_USER_OPENED", nullable = false) private Long openedBy;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
@@ -47,18 +50,20 @@ public class InventoryOpenPackage {
         this.stockLotId = stockLotId; this.packageId = packageId; this.traceCodeId = traceCodeId;
         this.requestCode = requestCode; this.sourceUnitCode = sourceUnitCode; this.baseUnitCode = baseUnitCode;
         this.packageFactor = packageFactor; this.openedBaseQuantity = packageFactor;
-        this.remainingBaseQuantity = packageFactor; this.status = "OPEN";
+        this.remainingBaseQuantity = packageFactor; this.status = InventoryOpenPackageStatus.OPEN;
         this.openedAt = occurredAt; this.openedBy = actorId; this.updatedAt = occurredAt; this.updatedBy = actorId;
     }
 
     public void consume(BigDecimal quantity, Long actorId, Instant occurredAt) {
-        if (!"OPEN".equals(status) || quantity == null || quantity.signum() <= 0
+        if (status != InventoryOpenPackageStatus.OPEN || quantity == null || quantity.signum() <= 0
                 || remainingBaseQuantity.compareTo(quantity) < 0) {
             throw new IllegalStateException("拆零包装剩余量不足");
         }
         remainingBaseQuantity = remainingBaseQuantity.subtract(quantity);
         updatedAt = occurredAt; updatedBy = actorId;
-        if (remainingBaseQuantity.signum() == 0) { status = "CONSUMED"; closedAt = occurredAt; }
+        if (remainingBaseQuantity.signum() == 0) {
+            status = InventoryOpenPackageStatus.CONSUMED; closedAt = occurredAt;
+        }
     }
 
     public BigDecimal restorableQuantity() { return openedBaseQuantity.subtract(remainingBaseQuantity); }
@@ -67,7 +72,8 @@ public class InventoryOpenPackage {
         if (quantity == null || quantity.signum() <= 0 || restorableQuantity().compareTo(quantity) < 0) {
             throw new IllegalStateException("拆零包装可恢复数量不足");
         }
-        remainingBaseQuantity = remainingBaseQuantity.add(quantity); status = "OPEN"; closedAt = null;
+        remainingBaseQuantity = remainingBaseQuantity.add(quantity);
+        status = InventoryOpenPackageStatus.OPEN; closedAt = null;
         updatedAt = occurredAt; updatedBy = actorId;
     }
 
@@ -79,7 +85,8 @@ public class InventoryOpenPackage {
     public String requestCode() { return requestCode; } public String sourceUnitCode() { return sourceUnitCode; }
     public String baseUnitCode() { return baseUnitCode; } public BigDecimal packageFactor() { return packageFactor; }
     public BigDecimal openedBaseQuantity() { return openedBaseQuantity; }
-    public BigDecimal remainingBaseQuantity() { return remainingBaseQuantity; } public String status() { return status; }
+    public BigDecimal remainingBaseQuantity() { return remainingBaseQuantity; }
+    public InventoryOpenPackageStatus status() { return status; }
     public Instant openedAt() { return openedAt; } public Long openedBy() { return openedBy; }
     public Instant updatedAt() { return updatedAt; } public Long updatedBy() { return updatedBy; }
     public Instant closedAt() { return closedAt; }

@@ -62,6 +62,7 @@ import com.rhn.platform.search.application.SearchEntryProjectionService;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.api.PageResult;
+import com.rhn.shared.text.Strings;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -1064,7 +1065,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     }
 
     private String skinTestInstructions(MedicationCommand command) {
-        return command.skinTestRequired() ? clean(command.skinTestInstructions()) : null;
+        return command.skinTestRequired() ? Strings.trimToNull(command.skinTestInstructions()) : null;
     }
 
     private String defaultIfBlank(String value, String defaultValue) {
@@ -1147,6 +1148,5 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     }
 
     private boolean blank(String value) { return value == null || value.isBlank(); }
-    private String clean(String value) { return blank(value) ? null : value.trim(); }
     private ExecutionContext current() { return contextProvider.requireCurrent(); }
 }

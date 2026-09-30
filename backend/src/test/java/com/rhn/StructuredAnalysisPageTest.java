@@ -36,13 +36,25 @@ class StructuredAnalysisPageTest extends RhnIntegrationTestSupport {
     }
     private long charge(Long encounter,Long order,String amount,String day,String currency,Long reverses) {
         Long account=jdbc.queryForObject("select min(ID_PAT_ACCT) from RHN_BIL_PAT_ACCT where ID_TNT=? and ID_PAT=?",Long.class,Long.valueOf(TENANT),PATIENT);
-        if(account==null){account=GlobalIds.next();jdbc.update("insert into RHN_BIL_PAT_ACCT (ID_PAT_ACCT,ID_TNT,ID_PAT,ID_ORG,ID_DEPT,SD_ACCT_TYPE,CD_CCY,SD_STATUS,DT_OPENED) values (?,?,?,?,?,?,?,?,?)",account,Long.valueOf(TENANT),PATIENT,Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"OUTPATIENT","CNY","OPEN",TIME);}
+        if(account==null) {
+            account=GlobalIds.next();
+            jdbc.update("insert into RHN_BIL_PAT_ACCT (ID_PAT_ACCT,ID_TNT,ID_PAT,ID_ORG,ID_DEPT,SD_ACCT_TYPE,CD_CCY,SD_STATUS,DT_OPENED) values (?,?,?,?,?,?,?,?,?)",
+                account,Long.valueOf(TENANT),PATIENT,Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"OUTPATIENT","CNY","OPEN",TIME);
+        }
         long id=GlobalIds.next();
         jdbc.update("insert into RHN_BIL_CHARGE_ITEM (ID_CHARGE_ITEM,ID_TNT,ID_PAT_ACCT,ID_PAT,ID_ENC,ID_CARE_REQ,ID_CATALOG_ITEM,ID_ORG,ID_DEPT,SD_SRC_TYPE,ID_SRC,CD_REQ,SD_STATUS,QTY_CHARGE,CD_UNIT,PRICE_UNIT,AMT_TOTAL,CD_CCY,CD_ITEM_SNAP,NA_ITEM_SNAP,DT_OCCRD,ID_USER_ENTERED,ID_CHARGE_ITEM_RVRS) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",id,Long.valueOf(TENANT),account,PATIENT,encounter,order,item(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"TEST",id,"PLAN"+id,"POSTED",amount.startsWith("-")?-1:1,"EA",100,new java.math.BigDecimal(amount),currency,"P01","测试收费",Timestamp.from(OffsetDateTime.parse(day).toInstant()),1L,reverses);return id;
     }
     private Map<String,Object> measure(String code,String source,String aggregate,String field,List<?> filters){return Map.of("code",code,"name",source+field,"source",source,"sourceVersion",1,"aggregate",aggregate,"field",field,"filters",filters);}
-    private Map<String,Object> spec(List<Map<String,Object>> measures,String dimension){return Map.of("title","门诊组合统计","template","LIST","metrics",measures.stream().map(m->m.get("code")).toList(),"measures",measures,"dimension",dimension,"scope","CURRENT","period",Map.of("kind","FIXED","startDate","2036-01-01","endDate","2036-01-31"),"limit",10);}
-    private String query(Map<String,Object> spec) throws Exception {return mockMvc.perform(post("/api/analytics/pages/query").with(rhnWorkContext()).contentType("application/json").content(objectMapper.writeValueAsString(spec))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();}
+    private Map<String,Object> spec(List<Map<String,Object>> measures,String dimension){
+        return Map.of("title","门诊组合统计","template","LIST","metrics",measures.stream().map(m->m.get("code")).toList(),
+            "measures",measures,"dimension",dimension,"scope","CURRENT","period",Map.of("kind","FIXED","startDate","2036-01-01","endDate","2036-01-31"),
+            "limit",10);
+    }
+    private String query(Map<String,Object> spec) throws Exception {
+        return mockMvc.perform(post("/api/analytics/pages/query").with(rhnWorkContext()).contentType("application/json").content(objectMapper.writeValueAsString(spec)))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+    }
     @Test void independently_aggregates_orders_charge_reversals_and_global_distinct_without_fanout() throws Exception {
         long enc=encounter(Long.parseLong(DEPARTMENT),"OUTPATIENT");
         long order=order(enc,"MEDICATION","ACTIVE","2036-01-01T00:00:00+08:00");

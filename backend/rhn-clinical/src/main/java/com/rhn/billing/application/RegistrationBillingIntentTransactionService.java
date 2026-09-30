@@ -10,7 +10,9 @@ import com.rhn.billing.domain.LedgerEntry;
 import com.rhn.billing.domain.PatientAccount;
 import com.rhn.billing.domain.Payment;
 import com.rhn.billing.domain.RegistrationBillingIntent;
+import com.rhn.billing.domain.RegistrationBillingIntentStatus;
 import com.rhn.billing.domain.Settlement;
+import com.rhn.billing.domain.SettlementStatus;
 import com.rhn.billing.infrastructure.ChargeItemComponentRepository;
 import com.rhn.billing.infrastructure.ChargeItemRepository;
 import com.rhn.billing.infrastructure.InvoiceCategorySummaryRepository;
@@ -122,7 +124,8 @@ class RegistrationBillingIntentTransactionService {
                 throw badRequest("REGISTRATION_APPOINTMENT_SCHEDULE_MISMATCH", "预约与挂号班次不一致");
             }
             var active = intents.findFirstByTenantIdAndAppointmentIdAndStatusIn(context.tenantId(), appointmentId,
-                    List.of("PAYMENT_PENDING", "PAID", "COMPLETING", "COMPLETION_FAILED"));
+                    List.of(RegistrationBillingIntentStatus.PAYMENT_PENDING, RegistrationBillingIntentStatus.PAID,
+                            RegistrationBillingIntentStatus.COMPLETING, RegistrationBillingIntentStatus.COMPLETION_FAILED));
             if (active.isPresent()) {
                 throw conflict("REGISTRATION_APPOINTMENT_INTENT_ACTIVE", "该预约已有进行中的挂号办理，请继续原流程");
             }
@@ -208,7 +211,7 @@ class RegistrationBillingIntentTransactionService {
                 .orElseThrow(() -> notFound("REGISTRATION_INTENT_NOT_FOUND", "未找到支付对应的挂号意向"));
         var settlement = settlementRepository.findByIdAndTenantId(settlementId, context.tenantId())
                 .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到挂号正式结算单"));
-        if (!"SETTLED".equals(settlement.status())) {
+        if (settlement.status() != SettlementStatus.SETTLED) {
             throw conflict("REGISTRATION_PAYMENT_INCOMPLETE", "挂号费尚未足额结清，不能生成挂号记录");
         }
         return beginLocked(value.id(), paymentOrderId, accountId);
@@ -239,7 +242,7 @@ class RegistrationBillingIntentTransactionService {
         if (expectedAccountId != null && !expectedAccountId.equals(value.patientAccountId())) {
             throw conflict("REGISTRATION_PAYMENT_ACCOUNT_MISMATCH", "支付账户与挂号意向不一致");
         }
-        if ("COMPLETED".equals(value.status())) return plan(value, false);
+        if (value.status() == RegistrationBillingIntentStatus.COMPLETED) return plan(value, false);
         if (value.expiresAt() != null && !value.expiresAt().isAfter(Instant.now())
                 && value.paymentOrderId() == null && paymentOrderId == null) {
             throw conflict("REGISTRATION_INTENT_EXPIRED", "挂号意向已经过期");
@@ -280,14 +283,14 @@ class RegistrationBillingIntentTransactionService {
                 .orElse(null);
         if (value == null) return CancellationPlan.notApplicable();
         requireOrganizationContext(value.organizationId());
-        if ("CANCELLED".equals(value.status())) {
-            return new CancellationPlan(value.id(), value.status(), value.feeAmount(), value.currencyCode(),
+        if (value.status() == RegistrationBillingIntentStatus.CANCELLED) {
+            return new CancellationPlan(value.id(), value.status().name(), value.feeAmount(), value.currencyCode(),
                     null, true);
         }
         value.beginCancellation();
         if (value.feeAmount().signum() == 0) {
             value.cancelledAfterCompletion();
-            return new CancellationPlan(value.id(), value.status(), value.feeAmount(), value.currencyCode(),
+            return new CancellationPlan(value.id(), value.status().name(), value.feeAmount(), value.currencyCode(),
                     null, true);
         }
         ChargeItem original = charges.findByTenantIdAndSourceTypeAndSourceId(
@@ -317,7 +320,7 @@ class RegistrationBillingIntentTransactionService {
         }
         Payment payment = payments.findByTenantIdAndPaymentOrderId(context.tenantId(), value.paymentOrderId())
                 .orElseThrow(() -> notFound("REGISTRATION_PAYMENT_NOT_FOUND", "未找到挂号费原支付事实"));
-        return new CancellationPlan(value.id(), value.status(), value.feeAmount(), value.currencyCode(),
+        return new CancellationPlan(value.id(), value.status().name(), value.feeAmount(), value.currencyCode(),
                 payment.id(), false);
     }
 
@@ -440,7 +443,7 @@ class RegistrationBillingIntentTransactionService {
                 value.departmentId(), value.appointmentId(), value.scheduleId(), value.catalogItemId(), value.slotHoldId(),
                 value.patientAccountId(), value.settlementId(), value.paymentOrderId(), value.encounterId(),
                 value.idempotencyCode(), value.registrationSource(), value.visitType(), value.settlementMode(),
-                value.coverageId(), value.coverageTypeCode(), value.coveragePayerName(), value.status(),
+                value.coverageId(), value.coverageTypeCode(), value.coveragePayerName(), value.status().name(),
                 value.feeAmount(), value.currencyCode(), value.itemCode(), value.itemName(), value.expiresAt(),
                 value.completionAttempts(), value.lastErrorCode(), value.lastErrorMessage(), value.createdAt(),
                 value.updatedAt(), value.completedAt(), duplicate);

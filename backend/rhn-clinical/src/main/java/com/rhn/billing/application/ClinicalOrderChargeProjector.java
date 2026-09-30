@@ -11,6 +11,7 @@ import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.platform.eventing.api.DomainEventEnvelope;
 import com.rhn.platform.eventing.api.IdempotentDomainEventConsumer;
 import com.rhn.shared.event.EventPayload;
+import com.rhn.shared.text.Strings;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -87,12 +88,12 @@ public class ClinicalOrderChargeProjector {
         String unitCode = textOr(payload.text("chargeUnit"), "次");
         String itemCode = textOr(payload.text("itemCode"), event.aggregateType());
         String itemName = textOr(payload.text("itemName"), "门诊医嘱");
-        String prescriptionNo = clean(payload.text("prescriptionNo"));
+        String prescriptionNo = Strings.trimToNull(payload.text("prescriptionNo"));
         String requestNo = prescriptionNo != null ? prescriptionNo
                 : textOr(payload.text("requestNo"), event.aggregateType() + event.aggregateId());
         Instant occurredAt = event.occurredAt() == null ? Instant.now() : event.occurredAt();
         Long clinicalRequestId = event.aggregateId();
-        String accountingCategory = clean(payload.text("accountingCategory"));
+        String accountingCategory = Strings.trimToNull(payload.text("accountingCategory"));
         if (accountingCategory == null) {
             accountingCategory = sourceType.startsWith("MEDICATION") ? "WESTERN_MED" : "TREATMENT";
         }
@@ -146,6 +147,5 @@ public class ClinicalOrderChargeProjector {
     private String textOr(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
     }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private BigDecimal money(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
 }

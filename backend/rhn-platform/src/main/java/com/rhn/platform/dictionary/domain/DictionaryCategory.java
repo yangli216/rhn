@@ -2,6 +2,7 @@ package com.rhn.platform.dictionary.domain;
 
 import com.rhn.shared.api.StaleRevisionException;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -45,13 +46,13 @@ public class DictionaryCategory {
         this.id = GlobalIds.next();
         this.revision = null;
         this.scopeType = scopeType;
-        this.tenantId = scopeType == DictionaryScopeType.TENANT ? requireId(currentTenantId, "租户") : null;
+        this.tenantId = scopeType == DictionaryScopeType.TENANT ? Strings.requireId(currentTenantId, "租户") : null;
         this.scopeCode = scopeType == DictionaryScopeType.PLATFORM ? "PLATFORM" : "TENANT:" + tenantId;
         this.code = DictionaryCodePolicy.requireCategoryCode(code);
         this.status = DictionaryStatus.ACTIVE;
         apply(parentId, name, description, sortOrder);
         this.createdAt = Instant.now();
-        this.createdBy = requireId(actorId, "操作用户");
+        this.createdBy = Strings.requireId(actorId, "操作用户");
         this.updatedAt = createdAt;
         this.updatedBy = actorId;
     }
@@ -81,7 +82,7 @@ public class DictionaryCategory {
         if (parentId != null && parentId <= 0) throw new IllegalArgumentException("父分类标识不正确");
         if (parentId != null && parentId.equals(id)) throw new IllegalArgumentException("分类不能以自身作为父分类");
         this.parentId = parentId;
-        this.name = requireText(name, "分类名称", 200);
+        this.name = Strings.requireText(name, "分类名称", 200);
         this.description = optionalText(description, 1000);
         if (sortOrder < 0) throw new IllegalArgumentException("分类排序不能小于0");
         this.sortOrder = sortOrder;
@@ -96,19 +97,7 @@ public class DictionaryCategory {
 
     private void touch(Long actorId) {
         updatedAt = Instant.now();
-        updatedBy = requireId(actorId, "操作用户");
-    }
-
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
-    private static String requireText(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
+        updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     private static String optionalText(String value, int max) {

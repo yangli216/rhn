@@ -1,6 +1,7 @@
 package com.rhn.inpatient.infrastructure;
 
 import com.rhn.inpatient.domain.CareEpisode;
+import com.rhn.inpatient.domain.CareEpisodeStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -13,9 +14,9 @@ import java.util.Optional;
 
 public interface CareEpisodeRepository extends JpaRepository<CareEpisode, Long> {
     List<CareEpisode> findByTenantIdAndOrganizationIdAndEpisodeTypeAndStatusInOrderByStartAtDesc(
-            Long tenantId, Long organizationId, String episodeType, Collection<String> statuses);
+            Long tenantId, Long organizationId, String episodeType, Collection<CareEpisodeStatus> statuses);
     boolean existsByTenantIdAndResidentIdAndEpisodeTypeAndStatusIn(
-            Long tenantId, Long residentId, String episodeType, Collection<String> statuses);
+            Long tenantId, Long residentId, String episodeType, Collection<CareEpisodeStatus> statuses);
     Optional<CareEpisode> findByIdAndTenantId(Long id, Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

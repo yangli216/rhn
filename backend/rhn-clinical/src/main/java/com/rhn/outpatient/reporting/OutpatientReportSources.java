@@ -39,7 +39,10 @@ public class OutpatientReportSources implements ReportSourceProvider {
                 "RHN_EX_CARE_REQ → RHN_VIS_ENC：ID_ENC + ID_TNT，多对一；不与收费明细直接展开连接。",
                 "RHN_EX_CARE_REQ r join RHN_VIS_ENC e on e.ID_ENC=r.ID_ENC and e.ID_TNT=r.ID_TNT",
                 "e.SD_ENC_CLASS='OUTPATIENT' and r.SD_REQ_KIND in ('MEDICATION','SERVICE')","r.DT_AUTHRD",
-                List.of(id("orderId","医嘱条数","r.ID_CARE_REQ","条"),id("encounterId","有医嘱的就诊","e.ID_ENC","人次"),id("patientId","有医嘱的患者","e.ID_PAT","人"),text("status","医嘱状态","r.SD_STATUS",orderStatus),text("kind","医嘱类别","r.SD_REQ_KIND",kind),text("itemName","医嘱项目名称","r.NA_ITEM_SNAP",Map.of()),text("itemCode","医嘱项目编码","r.CD_ITEM_SNAP",Map.of())),
+                List.of(id("orderId","医嘱条数","r.ID_CARE_REQ","条"),id("encounterId","有医嘱的就诊","e.ID_ENC","人次"),
+                    id("patientId","有医嘱的患者","e.ID_PAT","人"),text("status","医嘱状态","r.SD_STATUS",orderStatus),
+                    text("kind","医嘱类别","r.SD_REQ_KIND",kind),text("itemName","医嘱项目名称","r.NA_ITEM_SNAP",Map.of()),
+                    text("itemCode","医嘱项目编码","r.CD_ITEM_SNAP",Map.of())),
                 Map.of("ITEM",new Group("coalesce(cast(r.ID_CATALOG_ITEM as varchar(64)),'CODE/' || r.SD_REQ_KIND || '/' || r.CD_ITEM_SNAP)","r.NA_ITEM_SNAP",Map.of()),"ORDER_TYPE",new Group("r.SD_REQ_KIND","r.SD_REQ_KIND",kind),"STATUS",new Group("r.SD_STATUS","r.SD_STATUS",orderStatus)))
         );
     }

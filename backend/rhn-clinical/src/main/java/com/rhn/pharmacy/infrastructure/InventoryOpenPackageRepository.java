@@ -19,7 +19,7 @@ public interface InventoryOpenPackageRepository extends JpaRepository<InventoryO
     @Query("""
             select p from InventoryOpenPackage p
             where p.tenantId = :tenantId and p.stockBinId = :binId and p.stockItemId = :itemId
-              and p.stockLotId = :lotId and p.status = 'OPEN'
+              and p.stockLotId = :lotId and p.status = com.rhn.pharmacy.domain.InventoryOpenPackageStatus.OPEN
             order by p.openedAt asc, p.id asc
             """)
     List<InventoryOpenPackage> lockOpenByDimension(@Param("tenantId") Long tenantId,
@@ -31,7 +31,7 @@ public interface InventoryOpenPackageRepository extends JpaRepository<InventoryO
     @Query("""
             select p from InventoryOpenPackage p
             where p.tenantId = :tenantId and p.stockBinId = :binId and p.stockItemId = :itemId
-              and p.stockLotId = :lotId and p.status in ('OPEN', 'CONSUMED')
+              and p.stockLotId = :lotId and p.status in (com.rhn.pharmacy.domain.InventoryOpenPackageStatus.OPEN, com.rhn.pharmacy.domain.InventoryOpenPackageStatus.CONSUMED)
               and p.remainingBaseQuantity < p.openedBaseQuantity
             order by p.updatedAt desc, p.id desc
             """)
@@ -45,7 +45,7 @@ public interface InventoryOpenPackageRepository extends JpaRepository<InventoryO
             select p from InventoryOpenPackage p
             where p.tenantId = :tenantId and p.id in :ids and p.stockBinId = :binId
               and p.stockItemId = :itemId and p.stockLotId = :lotId
-              and p.status in ('OPEN', 'CONSUMED') and p.remainingBaseQuantity < p.openedBaseQuantity
+              and p.status in (com.rhn.pharmacy.domain.InventoryOpenPackageStatus.OPEN, com.rhn.pharmacy.domain.InventoryOpenPackageStatus.CONSUMED) and p.remainingBaseQuantity < p.openedBaseQuantity
             order by p.updatedAt desc, p.id desc
             """)
     List<InventoryOpenPackage> lockRestorableByIds(@Param("tenantId") Long tenantId, @Param("ids") List<Long> ids,
@@ -55,7 +55,7 @@ public interface InventoryOpenPackageRepository extends JpaRepository<InventoryO
     @Query("""
             select coalesce(sum(p.remainingBaseQuantity), 0) from InventoryOpenPackage p
             where p.tenantId = :tenantId and p.stockBinId = :binId and p.stockItemId = :itemId
-              and p.stockLotId = :lotId and p.status = 'OPEN'
+              and p.stockLotId = :lotId and p.status = com.rhn.pharmacy.domain.InventoryOpenPackageStatus.OPEN
             """)
     BigDecimal sumOpenRemaining(@Param("tenantId") Long tenantId, @Param("binId") Long binId,
                                 @Param("itemId") Long itemId, @Param("lotId") Long lotId);

@@ -17,6 +17,7 @@ import com.rhn.platform.masterdata.api.MasterDataViews.PriceView;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.stereotype.Service;
@@ -106,7 +107,7 @@ public class InventoryPriceAdjustmentApplicationService {
                  DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, 0, 0, 0, ?, ?, ?, ?)
                 """, id, context.tenantId(), site.organizationId(), site.id(), adjustmentNo, requestCode, hash,
-                type, priceType, sqlDate(date), currency, clean(command.priceDocumentCode()), reason,
+                type, priceType, sqlDate(date), currency, Strings.trimToNull(command.priceDocumentCode()), reason,
                 command.lines().size(), sqlTimestamp(now), context.subjectId(), sqlTimestamp(now), context.subjectId());
         int lineNo = 0;
         for (AdjustmentLineCommand input : command.lines()) {
@@ -494,10 +495,9 @@ public class InventoryPriceAdjustmentApplicationService {
     private static BigDecimal quantity(BigDecimal value) { return value.setScale(8, RoundingMode.HALF_UP); }
     private static BigDecimal amount(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
     private static BigDecimal zeroAmount() { return BigDecimal.ZERO.setScale(6, RoundingMode.HALF_UP); }
-    private static String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private static String upper(String value) { return required(value, "VALUE_REQUIRED", "必填值不能为空").toUpperCase(); }
     private static String required(String value, String code, String message) {
-        String cleaned = clean(value); if (cleaned == null) throw badRequest(code, message); return cleaned;
+        String cleaned = Strings.trimToNull(value); if (cleaned == null) throw badRequest(code, message); return cleaned;
     }
     private static SqlParameterValue sqlDate(LocalDate value) { return new SqlParameterValue(Types.DATE, java.sql.Date.valueOf(value)); }
     private static SqlParameterValue sqlTimestamp(Instant value) { return new SqlParameterValue(Types.TIMESTAMP, Timestamp.from(value)); }

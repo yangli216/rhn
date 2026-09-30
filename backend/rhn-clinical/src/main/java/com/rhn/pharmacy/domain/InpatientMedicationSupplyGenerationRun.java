@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -33,7 +35,8 @@ public class InpatientMedicationSupplyGenerationRun {
     @Column(name = "CD_JOB_KEY", nullable = false) private String jobKey;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "SD_TRIGGER_TYPE", nullable = false) private String triggerType;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "SD_STATUS", nullable = false) private InpatientMedicationSupplyGenerationRunStatus status;
     @Column(name = "QTY_ATTEMPT", nullable = false) private int attemptCount;
     @Column(name = "DT_NEXT_ATTEMPT", nullable = false) private Instant nextAttemptAt;
     @Column(name = "ID_USER_CLAIMED") private String claimedBy;
@@ -72,7 +75,8 @@ public class InpatientMedicationSupplyGenerationRun {
         this.jobKey = jobKey;
         this.commandCode = commandCode;
         this.triggerType = "AUTO";
-        this.status = hasRoute() ? "PENDING" : "ROUTING_BLOCKED";
+        this.status = hasRoute() ? InpatientMedicationSupplyGenerationRunStatus.PENDING
+                : InpatientMedicationSupplyGenerationRunStatus.ROUTING_BLOCKED;
         this.attemptCount = 0;
         this.nextAttemptAt = now;
         if (!hasRoute()) {
@@ -84,7 +88,7 @@ public class InpatientMedicationSupplyGenerationRun {
     }
 
     public int claim(String workerId, Instant now, Duration lease) {
-        status = "RUNNING";
+        status = InpatientMedicationSupplyGenerationRunStatus.RUNNING;
         attemptCount++;
         claimedBy = workerId;
         claimedUntil = now.plus(lease);
@@ -95,7 +99,7 @@ public class InpatientMedicationSupplyGenerationRun {
 
     public boolean succeed(String workerId, int expectedAttemptCount, Long generatedBatchId, Instant now) {
         if (!ownsClaim(workerId, expectedAttemptCount)) return false;
-        status = "SUCCEEDED";
+        status = InpatientMedicationSupplyGenerationRunStatus.SUCCEEDED;
         batchId = generatedBatchId;
         completedAt = now;
         lastErrorCode = null;
@@ -107,7 +111,7 @@ public class InpatientMedicationSupplyGenerationRun {
 
     public boolean noDemand(String workerId, int expectedAttemptCount, Instant now) {
         if (!ownsClaim(workerId, expectedAttemptCount)) return false;
-        status = "NO_DEMAND";
+        status = InpatientMedicationSupplyGenerationRunStatus.NO_DEMAND;
         completedAt = now;
         lastErrorCode = null;
         lastError = null;
@@ -119,13 +123,14 @@ public class InpatientMedicationSupplyGenerationRun {
     public boolean fail(String workerId, int expectedAttemptCount, String code,
                         RuntimeException error, Instant now) {
         if (!ownsClaim(workerId, expectedAttemptCount)) return false;
-        status = attemptCount >= MAX_ATTEMPTS ? "EXHAUSTED" : "FAILED";
+        status = attemptCount >= MAX_ATTEMPTS ? InpatientMedicationSupplyGenerationRunStatus.EXHAUSTED
+                : InpatientMedicationSupplyGenerationRunStatus.FAILED;
         lastErrorCode = errorCode(code, "INPATIENT_SUPPLY_GENERATION_FAILED");
         String message = error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
         lastError = truncate(message, 1000);
         long delaySeconds = Math.min(300, 1L << Math.min(attemptCount, 8));
         nextAttemptAt = now.plusSeconds(delaySeconds);
-        if ("EXHAUSTED".equals(status)) completedAt = now;
+        if (status == InpatientMedicationSupplyGenerationRunStatus.EXHAUSTED) completedAt = now;
         releaseClaim();
         updatedAt = now;
         return true;
@@ -137,7 +142,7 @@ public class InpatientMedicationSupplyGenerationRun {
         stockSiteId = null;
         dispenseRouteId = null;
         dispenseRouteRevision = null;
-        status = "ROUTING_BLOCKED";
+        status = InpatientMedicationSupplyGenerationRunStatus.ROUTING_BLOCKED;
         lastErrorCode = errorCode(code, "INPATIENT_SUPPLY_ROUTE_NOT_FOUND");
         lastError = errorMessage(message, "未找到可用的住院供药路由");
         releaseClaim();
@@ -147,12 +152,12 @@ public class InpatientMedicationSupplyGenerationRun {
 
     public boolean recoverRouting(Long stockSiteId, Long dispenseRouteId,
                                   Long dispenseRouteRevision, Instant now) {
-        if (!"ROUTING_BLOCKED".equals(status)) return false;
+        if (status != InpatientMedicationSupplyGenerationRunStatus.ROUTING_BLOCKED) return false;
         requireCompleteRoute(stockSiteId, dispenseRouteId, dispenseRouteRevision);
         this.stockSiteId = stockSiteId;
         this.dispenseRouteId = dispenseRouteId;
         this.dispenseRouteRevision = dispenseRouteRevision;
-        status = "PENDING";
+        status = InpatientMedicationSupplyGenerationRunStatus.PENDING;
         nextAttemptAt = now;
         lastErrorCode = null;
         lastError = null;
@@ -162,15 +167,15 @@ public class InpatientMedicationSupplyGenerationRun {
     }
 
     public void refreshRoutingBlock(String code, String message, Instant now) {
-        if (!"ROUTING_BLOCKED".equals(status)) return;
+        if (status != InpatientMedicationSupplyGenerationRunStatus.ROUTING_BLOCKED) return;
         lastErrorCode = errorCode(code, "INPATIENT_SUPPLY_ROUTE_NOT_FOUND");
         lastError = errorMessage(message, "未找到可用的住院供药路由");
         updatedAt = now;
     }
 
     private boolean ownsClaim(String workerId, int expectedAttemptCount) {
-        return "RUNNING".equals(status) && workerId != null && workerId.equals(claimedBy)
-                && attemptCount == expectedAttemptCount;
+        return status == InpatientMedicationSupplyGenerationRunStatus.RUNNING && workerId != null
+                && workerId.equals(claimedBy) && attemptCount == expectedAttemptCount;
     }
 
     private boolean hasRoute() {
@@ -216,7 +221,7 @@ public class InpatientMedicationSupplyGenerationRun {
     public Instant windowEnd() { return windowEnd; }
     public String jobKey() { return jobKey; }
     public String commandCode() { return commandCode; }
-    public String status() { return status; }
+    public InpatientMedicationSupplyGenerationRunStatus status() { return status; }
     public int attemptCount() { return attemptCount; }
     public String claimedBy() { return claimedBy; }
     public Long batchId() { return batchId; }

@@ -11,6 +11,7 @@ import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,7 +81,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
             throw badRequest("SERVICE_REQUEST_PERFORMER_CONTEXT_INVALID", "执行机构或科室不在当前可访问范围内");
         }
         organizationDirectory.requireDepartment(tenantId, performerOrganizationId, performerDepartmentId);
-        String priceType = clean(input.priceType()) == null ? "SALE" : clean(input.priceType()).toUpperCase();
+        String priceType = Strings.trimToNull(input.priceType()) == null ? "SALE" : Strings.trimToNull(input.priceType()).toUpperCase();
         boolean pricingRequired = input.pricingRequired() == null || input.pricingRequired();
 
         if (input.packageId() != null) {
@@ -107,7 +108,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
         if (!adoption.orderable()) {
             throw conflict("ORGANIZATION_CATALOG_NOT_ORDERABLE", "当前机构未开放该项目的开立能力");
         }
-        String unitCode = clean(input.unitCode()) == null ? item.unitCode() : clean(input.unitCode());
+        String unitCode = Strings.trimToNull(input.unitCode()) == null ? item.unitCode() : Strings.trimToNull(input.unitCode());
         if (unitCode == null || !unitCode.equals(item.unitCode())) {
             throw badRequest("SERVICE_REQUEST_UNIT_INVALID", "申请单位必须与目录项目单位一致");
         }
@@ -134,14 +135,14 @@ class ServiceRequestService implements ServiceRequestDirectory {
 
         ServiceRequest value = repository.saveAndFlush(new ServiceRequest(tenantId, encounter.residentId(),
                 encounter.id(), nextRequestNo(), input.catalogItemId(), input.packageId(), performerOrganizationId,
-                performerDepartmentId, businessDate, context.subjectId(), clean(input.reason()), item.code(),
+                performerDepartmentId, businessDate, context.subjectId(), Strings.trimToNull(input.reason()), item.code(),
                 item.name(), unitCode, adoption.localCode(), adoption.localName(), adoption.id(), adoption.revision(),
                 price == null ? null : price.id(), price == null ? null : price.revision(),
                 price == null ? null : price.sdPriceType(), price == null ? null : price.price(), totalAmount,
                 price == null ? null : price.currencyCode(), jsonCodec.write(attributes.jsonItemAttrSnapshot()),
                 attributes.hashItemAttrSnapshot(), attributes.resolvedAt(), jsonCodec.write(mappings),
                 item.serviceType(), item.specimenType(), item.examinationType(),
-                input.quantity(), clean(input.clinicalDescription())));
+                input.quantity(), Strings.trimToNull(input.clinicalDescription())));
         publish(value, "SERVICE_REQUEST_AUTHORED", "开立诊疗项目",
                 financialEventDetails(value, encounter, item.accountingCategory()));
         return response(value);
@@ -193,7 +194,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
 
     private ServiceRequestResponse response(ServiceRequest value) {
         return new ServiceRequestResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
-                value.requestNo(), value.status(), value.catalogItemId(), value.packageId(),
+                value.requestNo(), value.status().name(), value.catalogItemId(), value.packageId(),
                 value.performerOrganizationId(), value.performerDepartmentId(), value.businessDate(),
                 value.authoredAt(), value.authoredBy(), value.reasonText(), value.itemCodeSnapshot(),
                 value.itemNameSnapshot(), value.unitCodeSnapshot(), value.localCodeSnapshot(),
@@ -204,7 +205,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 value.serviceTypeSnapshot(), value.specimenTypeSnapshot(), value.examinationTypeSnapshot(),
                 value.clinicalDescription(), value.cancelledAt(), value.cancelledBy(), value.cancelReason(),
                 documentInfoSupport.read(value.documentInfoJson()),
-                "ACTIVE".equals(value.status()) && List.of("LABORATORY", "EXAMINATION").contains(value.serviceTypeSnapshot())
+                value.status() == ServiceRequestStatus.ACTIVE && List.of("LABORATORY", "EXAMINATION").contains(value.serviceTypeSnapshot())
                         && diagnosticDocuments.isAmendable(value.tenantId(), value.id()));
     }
 
@@ -250,7 +251,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
 
     private ServiceRequestSnapshot snapshot(ServiceRequest value) {
         return new ServiceRequestSnapshot(value.id(), value.revision(), value.tenantId(), value.residentId(),
-                value.encounterId(), value.requestNo(), value.status(), value.serviceTypeSnapshot(),
+                value.encounterId(), value.requestNo(), value.status().name(), value.serviceTypeSnapshot(),
                 value.catalogItemId(), value.itemCodeSnapshot(), value.itemNameSnapshot(),
                 value.localCodeSnapshot(), value.localNameSnapshot(), value.specimenTypeSnapshot(),
                 value.examinationTypeSnapshot(), value.quantity(), value.unitCodeSnapshot(),
@@ -313,9 +314,5 @@ class ServiceRequestService implements ServiceRequestDirectory {
             case "BED" -> "BED";
             default -> "TREATMENT";
         };
-    }
-
-    private String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 }

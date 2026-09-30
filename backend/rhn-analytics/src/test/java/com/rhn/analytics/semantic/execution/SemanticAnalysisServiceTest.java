@@ -5,6 +5,9 @@ import com.rhn.analytics.semantic.model.*;
 import com.rhn.analytics.semantic.plan.*;
 import com.rhn.analytics.semantic.registry.OutpatientSemanticCatalogProvider;
 import com.rhn.analytics.semantic.resolver.*;
+import com.rhn.shared.api.BusinessException;
+import com.rhn.shared.context.ExecutionContext;
+import com.rhn.shared.context.ExecutionContextProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -195,5 +198,42 @@ class SemanticAnalysisServiceTest {
 
         assertEquals(ResolutionStatus.READY, result.status());
         assertEquals(1, result.totalRows());
+    }
+
+    @Test
+    @DisplayName("作用域解析安全底线：缺失租户上下文时抛出 AUTH_CONTEXT_REQUIRED，严禁回退默认测试租户")
+    void resolveCurrentScope_withoutContext_throwsUnauthorized() {
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.resolveCurrentScope(ScopeIntent.AUTHORIZED));
+        assertEquals("AUTH_CONTEXT_REQUIRED", ex.code());
+    }
+
+    @Test
+    @DisplayName("作用域解析：携带合法上下文时正确组装 PlannedScope")
+    void resolveCurrentScope_withValidContext_returnsPlannedScope() {
+        ExecutionContextProvider mockProvider = Mockito.mock(ExecutionContextProvider.class);
+        ExecutionContext mockContext = new ExecutionContext(
+                1001L, 2001L, "user1", "corr-1",
+                java.util.Set.of("PORTAL.ACCESS"), 3001L, 4001L,
+                null, java.util.Set.of(), java.util.Set.of(), null);
+        Mockito.when(mockProvider.requireCurrent()).thenReturn(mockContext);
+
+        SemanticAnalysisService serviceWithContext = new SemanticAnalysisService(
+                mockInterpreter,
+                new SemanticResolver(new OutpatientSemanticCatalogProvider()),
+                new QueryPlanner(new OutpatientSemanticCatalogProvider()),
+                new QueryPlanValidator(new OutpatientSemanticCatalogProvider()),
+                new QueryCompiler(),
+                Mockito.mock(StructuredExecutionEngine.class),
+                mockProvider,
+                null
+        );
+
+        PlannedScope scope = serviceWithContext.resolveCurrentScope(ScopeIntent.CURRENT);
+        assertNotNull(scope);
+        assertEquals(1001L, scope.tenantId());
+        assertEquals(3001L, scope.organizationId());
+        assertEquals(ScopeIntent.CURRENT, scope.intent());
+        assertEquals("当前科室", scope.authorizedDepartments().get(4001L));
     }
 }

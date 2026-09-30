@@ -1,6 +1,7 @@
 package com.rhn.billing.infrastructure;
 
 import com.rhn.billing.domain.CashierClose;
+import com.rhn.billing.domain.CashierCloseStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -8,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,7 +25,7 @@ public interface CashierCloseRepository extends JpaRepository<CashierClose, Long
             select value from CashierClose value
              where value.tenantId = :tenantId and value.organizationId = :organizationId
                and value.cashierUserId = :cashierUserId and value.terminalCode = :terminalCode
-               and value.status in ('CALCULATED', 'CONFIRMED')
+               and value.status in :statuses
                and value.rangeFrom < :rangeTo and value.rangeTo > :rangeFrom
             """)
     List<CashierClose> findOverlapping(@Param("tenantId") Long tenantId,
@@ -31,7 +33,8 @@ public interface CashierCloseRepository extends JpaRepository<CashierClose, Long
                                        @Param("cashierUserId") Long cashierUserId,
                                        @Param("terminalCode") String terminalCode,
                                        @Param("rangeFrom") Instant rangeFrom,
-                                       @Param("rangeTo") Instant rangeTo);
+                                       @Param("rangeTo") Instant rangeTo,
+                                       @Param("statuses") Collection<CashierCloseStatus> statuses);
 
     List<CashierClose> findTop100ByTenantIdAndOrganizationIdAndCashierUserIdOrderByCreatedAtDesc(
             Long tenantId, Long organizationId, Long cashierUserId);

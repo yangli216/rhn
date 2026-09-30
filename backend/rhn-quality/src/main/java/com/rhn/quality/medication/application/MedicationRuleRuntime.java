@@ -45,10 +45,17 @@ public class MedicationRuleRuntime {
         for(var chosen:selected) {
             var d=chosen.deployment();MedicationSafetyEngine.Result result;MedicationKnowledgeRuntime.Evaluation knowledgeEvaluation=null;com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Result knowledgeResult=null;
             try {
-                if(d.knowledgeRelease()!=null) {knowledgeEvaluation=MedicationKnowledgeRuntime.evaluate(d,snapshot,json,"ENFORCED".equals(d.mode())?publications.require(snapshot.tenantId(),d.knowledgeRelease().authorizationId()):null);knowledgeResult=knowledgeEvaluation.result();result=knowledge(d,knowledgeResult,knowledgeEvaluation.input()!=null);}
+                if(d.knowledgeRelease()!=null) {
+                    knowledgeEvaluation=MedicationKnowledgeRuntime.evaluate(d,snapshot,json,"ENFORCED".equals(d.mode())?publications.require(snapshot.tenantId(),d.knowledgeRelease().authorizationId()):null);
+                    knowledgeResult=knowledgeEvaluation.result();
+                    result=knowledge(d,knowledgeResult,knowledgeEvaluation.input()!=null);
+                }
                 else result=d.candidate()==null?engine.evaluateSelected(snapshot,List.of(d.executable()),now):candidate(snapshot,d);
             }
-            catch(RuntimeException e) {if(d.knowledgeRelease()!=null) knowledgeResult=new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Result("UNAVAILABLE",List.of("知识规则执行失败，请核查运行版本及冻结事实"),List.of());result=new MedicationSafetyEngine.Result(List.of(),List.of(new RuleExecution(chosen.key(),d.version(),"UNAVAILABLE","RULE_EXECUTION_FAILED")),List.of("RULE_EXECUTION_FAILED"));}
+            catch(RuntimeException e) {
+                if(d.knowledgeRelease()!=null) knowledgeResult=new com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Result("UNAVAILABLE",List.of("知识规则执行失败，请核查运行版本及冻结事实"),List.of());
+                result=new MedicationSafetyEngine.Result(List.of(),List.of(new RuleExecution(chosen.key(),d.version(),"UNAVAILABLE","RULE_EXECUTION_FAILED")),List.of("RULE_EXECUTION_FAILED"));
+            }
             findings.addAll(result.findings());executions.addAll(result.executions());failures.addAll(result.failureCodes());
             String decision=result.executions().stream().allMatch(r->"NOT_APPLICABLE".equals(r.outcome()))?"NOT_APPLICABLE":result.decision().name();
             try {
@@ -74,8 +81,12 @@ public class MedicationRuleRuntime {
                 List.of(new RuleExecution(rule.definition().code(),rule.version(),"UNAVAILABLE","KNOWLEDGE_FACTS_UNAVAILABLE")),List.of());
         }
         var findings="MATCH".equals(result.outcome())?List.of(new MedicationSafetyFinding(GlobalIds.next(),rule,
-                d.knowledgeRelease().approval().basis().candidate().knowledge().body().clinicalMeaning()+"；"+String.join("；",result.reasons()),result.matchedOrderIds().stream().map(Long::valueOf).toList(),"SHADOW".equals(d.mode())?"旁路观察：请核对审核依据及适用条件，本记录不改变处方提交结果。":"请核对审核依据及适用条件，按已批准的正式策略处理。")):List.<MedicationSafetyFinding>of();
-        return new MedicationSafetyEngine.Result(findings,List.of(new RuleExecution(rule.definition().code(),rule.version(),unavailable?"UNAVAILABLE":"NOT_APPLICABLE".equals(result.outcome())?"NOT_APPLICABLE":"COMPLETED",unavailable?"KNOWLEDGE_FACTS_UNAVAILABLE":null)),unavailable?List.of("KNOWLEDGE_FACTS_UNAVAILABLE"):List.of());
+                d.knowledgeRelease().approval().basis().candidate().knowledge().body().clinicalMeaning()+"；"+String.join("；",result.reasons()),
+                result.matchedOrderIds().stream().map(Long::valueOf).toList(),
+                "SHADOW".equals(d.mode())?"旁路观察：请核对审核依据及适用条件，本记录不改变处方提交结果。":"请核对审核依据及适用条件，按已批准的正式策略处理。")):List.<MedicationSafetyFinding>of();
+        return new MedicationSafetyEngine.Result(findings,List.of(new RuleExecution(rule.definition().code(),rule.version(),
+                unavailable?"UNAVAILABLE":"NOT_APPLICABLE".equals(result.outcome())?"NOT_APPLICABLE":"COMPLETED",
+                unavailable?"KNOWLEDGE_FACTS_UNAVAILABLE":null)),unavailable?List.of("KNOWLEDGE_FACTS_UNAVAILABLE"):List.of());
     }
     private MedicationSafetyEngine.Result candidate(PrescriptionSafetySnapshot snapshot,Deployment release) {
         var c=release.candidate();var rule=release.executable();

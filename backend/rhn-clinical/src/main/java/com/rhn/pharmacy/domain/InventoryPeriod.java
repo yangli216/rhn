@@ -3,6 +3,8 @@ package com.rhn.pharmacy.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -22,7 +24,7 @@ public class InventoryPeriod {
     @Column(name = "CD_PERIOD", nullable = false) private String periodCode;
     @Column(name = "DA_PERIOD_FROM", nullable = false) private LocalDate periodFrom;
     @Column(name = "DA_PERIOD_TO", nullable = false) private LocalDate periodTo;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private InventoryPeriodStatus status;
     @Column(name = "DT_CLOSED") private Instant closedAt;
     @Column(name = "ID_USER_CLOSED") private Long closedBy;
     @Column(name = "DES_INV_PERIOD") private String description;
@@ -41,21 +43,21 @@ public class InventoryPeriod {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.stockSiteId = stockSiteId;
         this.previousPeriodId = previousPeriodId;
         this.periodCode = periodCode; this.periodFrom = periodFrom; this.periodTo = periodTo;
-        this.status = "OPEN"; this.createdAt = Instant.now(); this.createdBy = actorId;
+        this.status = InventoryPeriodStatus.OPEN; this.createdAt = Instant.now(); this.createdBy = actorId;
     }
 
     public boolean accepts(LocalDate date) {
-        return "OPEN".equals(status) && !date.isBefore(periodFrom) && !date.isAfter(periodTo);
+        return status == InventoryPeriodStatus.OPEN && !date.isBefore(periodFrom) && !date.isAfter(periodTo);
     }
 
     public void beginClosing() {
-        if (!"OPEN".equals(status)) throw new IllegalStateException("Inventory period is not open");
-        status = "CLOSING";
+        if (status != InventoryPeriodStatus.OPEN) throw new IllegalStateException("Inventory period is not open");
+        status = InventoryPeriodStatus.CLOSING;
     }
 
     public void close(Long closeRunId, Long actorId) {
-        if (!"CLOSING".equals(status)) throw new IllegalStateException("Inventory period is not closing");
-        this.status = "CLOSED"; this.closingRunId = closeRunId;
+        if (status != InventoryPeriodStatus.CLOSING) throw new IllegalStateException("Inventory period is not closing");
+        this.status = InventoryPeriodStatus.CLOSED; this.closingRunId = closeRunId;
         this.closedAt = Instant.now(); this.closedBy = actorId;
     }
 
@@ -68,7 +70,7 @@ public class InventoryPeriod {
     public String periodCode() { return periodCode; }
     public LocalDate periodFrom() { return periodFrom; }
     public LocalDate periodTo() { return periodTo; }
-    public String status() { return status; }
+    public InventoryPeriodStatus status() { return status; }
     public Instant closedAt() { return closedAt; }
     public Long closedBy() { return closedBy; }
     public String description() { return description; }

@@ -4,6 +4,7 @@ import com.rhn.diagnostics.api.CriticalValueAlertChanged;
 import com.rhn.diagnostics.api.CriticalValueAlertView;
 import com.rhn.diagnostics.domain.CriticalValueAlert;
 import com.rhn.diagnostics.domain.CriticalValueAlertEvent;
+import com.rhn.diagnostics.domain.CriticalValueAlertStatus;
 import com.rhn.diagnostics.domain.DiagnosticReport;
 import com.rhn.diagnostics.domain.Observation;
 import com.rhn.diagnostics.infrastructure.CriticalValueAlertEventRepository;
@@ -13,6 +14,7 @@ import com.rhn.outpatient.api.ServiceRequestDirectory.ServiceRequestSnapshot;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.text.Strings;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -33,7 +35,8 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 public class CriticalValueAlertService {
     private static final Set<String> CRITICAL_FLAGS = Set.of("HH", "LL", "CRITICAL", "PANIC");
-    private static final List<String> ACTIVE_STATUSES = List.of("OPEN", "ESCALATED", "ACKNOWLEDGED");
+    private static final List<CriticalValueAlertStatus> ACTIVE_STATUSES = List.of(
+            CriticalValueAlertStatus.OPEN, CriticalValueAlertStatus.ESCALATED, CriticalValueAlertStatus.ACKNOWLEDGED);
     private final CriticalValueAlertRepository alerts;
     private final CriticalValueAlertEventRepository history;
     private final ExecutionContextProvider contextProvider;
@@ -70,7 +73,7 @@ public class CriticalValueAlertService {
                     report.residentId(), report.encounterId(), report.requestId(), request.authoredBy(),
                     "CRITICAL", "LIS_INTERPRETATION_" + flag, 1, observation.observationCode(),
                     observation.observationName(), evidence(observation), now, now.plus(acknowledgementWindow)));
-            history.save(new CriticalValueAlertEvent(value.tenantId(), value.id(), "DETECT", null, value.status(),
+            history.save(new CriticalValueAlertEvent(value.tenantId(), value.id(), "DETECT", null, value.status().name(),
                     null, value.triggerEvidence(), contextProvider.requireCurrent().correlationId(), now));
             publish(value, "DIAGNOSTIC_CRITICAL_VALUE_OPENED", now);
             return value;
@@ -91,11 +94,11 @@ public class CriticalValueAlertService {
         CriticalValueAlert value = requireLocked(context, alertId);
         if (!canAccess(context, value)) throw forbidden("CRITICAL_VALUE_FORBIDDEN", "当前账号不能确认该危急值");
         requireRevision(value, expectedRevision);
-        String previous = value.status(); Instant now = Instant.now();
-        try { value.acknowledge(context.subjectId(), clean(note), now); }
+        String previous = value.status().name(); Instant now = Instant.now();
+        try { value.acknowledge(context.subjectId(), Strings.trimToNull(note), now); }
         catch (IllegalStateException error) { throw conflict("CRITICAL_VALUE_ACKNOWLEDGE_INVALID", error.getMessage()); }
         history.save(new CriticalValueAlertEvent(context.tenantId(), value.id(), "ACKNOWLEDGE", previous,
-                value.status(), context.subjectId(), clean(note), context.correlationId(), now));
+                value.status().name(), context.subjectId(), Strings.trimToNull(note), context.correlationId(), now));
         publish(value, "DIAGNOSTIC_CRITICAL_VALUE_ACKNOWLEDGED", now);
         return view(value);
     }
@@ -106,11 +109,11 @@ public class CriticalValueAlertService {
         CriticalValueAlert value = requireLocked(context, alertId);
         if (!canAccess(context, value)) throw forbidden("CRITICAL_VALUE_FORBIDDEN", "当前账号不能关闭该危急值");
         requireRevision(value, expectedRevision);
-        String previous = value.status(); Instant now = Instant.now();
-        try { value.close(context.subjectId(), required(dispositionCode), clean(note), now); }
+        String previous = value.status().name(); Instant now = Instant.now();
+        try { value.close(context.subjectId(), required(dispositionCode), Strings.trimToNull(note), now); }
         catch (IllegalStateException error) { throw conflict("CRITICAL_VALUE_CLOSE_INVALID", error.getMessage()); }
         history.save(new CriticalValueAlertEvent(context.tenantId(), value.id(), "CLOSE", previous,
-                value.status(), context.subjectId(), clean(note), context.correlationId(), now));
+                value.status().name(), context.subjectId(), Strings.trimToNull(note), context.correlationId(), now));
         publish(value, "DIAGNOSTIC_CRITICAL_VALUE_CLOSED", now);
         return view(value);
     }
@@ -121,10 +124,10 @@ public class CriticalValueAlertService {
         Instant now = Instant.now();
         for (CriticalValueAlert value : alerts
                 .findTop100ByStatusInAndAcknowledgeDeadlineAtBeforeOrderByAcknowledgeDeadlineAtAsc(
-                        List.of("OPEN"), now)) {
-            String previous = value.status(); value.escalate(now);
+                        List.of(CriticalValueAlertStatus.OPEN), now)) {
+            String previous = value.status().name(); value.escalate(now);
             history.save(new CriticalValueAlertEvent(value.tenantId(), value.id(), "ESCALATE", previous,
-                    value.status(), null, "危急值超过确认时限", "critical-value-escalation", now));
+                    value.status().name(), null, "危急值超过确认时限", "critical-value-escalation", now));
             applicationEvents.publishEvent(new CriticalValueAlertChanged(value.id(), value.tenantId(),
                     value.organizationId(), value.departmentId(), value.recipientUserId(), value.id(),
                     value.encounterId(), "DIAGNOSTIC_CRITICAL_VALUE_ESCALATED", now));
@@ -133,10 +136,10 @@ public class CriticalValueAlertService {
 
     private void supersedePrevious(DiagnosticReport previous, DiagnosticReport replacement, Instant now) {
         for (CriticalValueAlert value : alerts.findByTenantIdAndReportId(previous.tenantId(), previous.id())) {
-            String before = value.status(); value.supersede(replacement.id(), now);
-            if (before.equals(value.status())) continue;
+            String before = value.status().name(); value.supersede(replacement.id(), now);
+            if (before.equals(value.status().name())) continue;
             history.save(new CriticalValueAlertEvent(value.tenantId(), value.id(), "SUPERSEDE", before,
-                    value.status(), null, "报告被新版本替代", contextProvider.requireCurrent().correlationId(), now));
+                    value.status().name(), null, "报告被新版本替代", contextProvider.requireCurrent().correlationId(), now));
             publish(value, "DIAGNOSTIC_CRITICAL_VALUE_SUPERSEDED", now);
         }
     }
@@ -146,7 +149,7 @@ public class CriticalValueAlertService {
                 value.id(), value.revision() + 1, value.residentId(), occurredAt, Map.of(
                         "alertId", value.id(), "encounterId", value.encounterId(),
                         "departmentId", value.departmentId(), "recipientUserId", value.recipientUserId(),
-                        "status", value.status(), "severity", value.severity()));
+                        "status", value.status().name(), "severity", value.severity()));
     }
 
     private boolean isCritical(Observation value) {
@@ -194,15 +197,14 @@ public class CriticalValueAlertService {
         return new CriticalValueAlertView(value.id(), value.revision(), value.reportId(), value.observationId(),
                 value.residentId(), value.encounterId(), value.requestId(), value.organizationId(),
                 value.departmentId(), value.recipientUserId(), value.severity(), value.observationCode(),
-                value.observationName(), value.triggerEvidence(), value.status(), value.detectedAt(),
+                value.observationName(), value.triggerEvidence(), value.status().name(), value.detectedAt(),
                 value.acknowledgeDeadlineAt(), value.acknowledgedBy(), value.acknowledgedAt(),
                 value.acknowledgeNote(), value.closedBy(), value.closedAt(), value.dispositionCode(),
                 value.closeNote(), value.supersededByReportId(), value.escalationLevel());
     }
 
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String required(String value) {
-        String result = clean(value);
+        String result = Strings.trimToNull(value);
         if (result == null) throw conflict("CRITICAL_VALUE_DISPOSITION_REQUIRED", "关闭危急值必须填写处置结果编码");
         return result;
     }

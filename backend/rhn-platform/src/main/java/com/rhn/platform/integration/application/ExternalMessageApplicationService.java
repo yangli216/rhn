@@ -7,6 +7,7 @@ import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,8 +55,8 @@ public class ExternalMessageApplicationService implements ExternalMessageService
         var existing = repository.findByTenantIdAndEndpointCodeAndDirectionAndBusinessMessageId(
                 tenantId, command.endpointCode(), "INBOUND", command.businessMessageId());
         if (existing.isPresent()) return sameOrConflict(existing.get(), digest);
-        ExternalMessage value = repository.save(ExternalMessage.inbound(tenantId, clean(command.endpointCode()),
-                clean(command.messageType()), clean(command.businessMessageId()), clean(command.correlationId()),
+        ExternalMessage value = repository.save(ExternalMessage.inbound(tenantId, Strings.trimToNull(command.endpointCode()),
+                Strings.trimToNull(command.messageType()), Strings.trimToNull(command.businessMessageId()), Strings.trimToNull(command.correlationId()),
                 command.organizationId(), command.departmentId(), payload, digest));
         return receipt(value, false);
     }
@@ -72,7 +73,7 @@ public class ExternalMessageApplicationService implements ExternalMessageService
     @Transactional
     public ExternalMessageReceipt markDelivery(Long messageId, boolean delivered, String errorCode, String errorMessage) {
         ExternalMessage value = require(messageId); requireScope(value.organizationId(), value.departmentId());
-        try { value.markDelivery(delivered, clean(errorCode), clean(errorMessage)); }
+        try { value.markDelivery(delivered, Strings.trimToNull(errorCode), Strings.trimToNull(errorMessage)); }
         catch (IllegalStateException exception) { throw conflict("EXTERNAL_MESSAGE_STATE_INVALID", exception.getMessage()); }
         return receipt(value, false);
     }
@@ -85,7 +86,7 @@ public class ExternalMessageApplicationService implements ExternalMessageService
                         TenantContext.requireTenantId(), endpointCode, "OUTBOUND", businessMessageId)
                 .orElseThrow(() -> notFound("OUTBOUND_MESSAGE_NOT_FOUND", "未找到对应的外发申请消息"));
         requireScope(value.organizationId(), value.departmentId());
-        try { value.acknowledge(accepted, clean(errorCode), clean(errorMessage)); }
+        try { value.acknowledge(accepted, Strings.trimToNull(errorCode), Strings.trimToNull(errorMessage)); }
         catch (IllegalStateException exception) { throw conflict("EXTERNAL_MESSAGE_STATE_INVALID", exception.getMessage()); }
         return receipt(value, false);
     }
@@ -93,14 +94,14 @@ public class ExternalMessageApplicationService implements ExternalMessageService
     @Override
     @Transactional(readOnly = true)
     public List<ExternalMessageReceipt> listOutbound(String endpointCode, String status) {
-        if (clean(endpointCode) == null) throw badRequest("INTEGRATION_ENDPOINT_REQUIRED", "接口端点编码不能为空");
+        if (Strings.trimToNull(endpointCode) == null) throw badRequest("INTEGRATION_ENDPOINT_REQUIRED", "接口端点编码不能为空");
         Long tenantId = TenantContext.requireTenantId();
         ExecutionContext context = contextProvider.requireCurrent();
         if (!context.hasWorkContext() || context.departmentId() == null) {
             throw com.rhn.shared.api.BusinessErrors.forbidden(
                     "INTEGRATION_WORK_CONTEXT_REQUIRED", "查询交换队列前必须选择工作机构和科室");
         }
-        List<ExternalMessage> values = clean(status) == null
+        List<ExternalMessage> values = Strings.trimToNull(status) == null
                 ? repository.findTop100ByTenantIdAndOrganizationIdAndDepartmentIdAndEndpointCodeAndDirectionOrderByCreatedAtAsc(
                         tenantId, context.organizationId(), context.departmentId(), endpointCode, "OUTBOUND")
                 : repository.findTop100ByTenantIdAndOrganizationIdAndDepartmentIdAndEndpointCodeAndDirectionAndStatusOrderByCreatedAtAsc(
@@ -121,7 +122,7 @@ public class ExternalMessageApplicationService implements ExternalMessageService
     }
 
     private void validate(String endpointCode, String messageType, String businessMessageId) {
-        if (clean(endpointCode) == null || clean(messageType) == null || clean(businessMessageId) == null) {
+        if (Strings.trimToNull(endpointCode) == null || Strings.trimToNull(messageType) == null || Strings.trimToNull(businessMessageId) == null) {
             throw badRequest("EXTERNAL_MESSAGE_IDENTITY_REQUIRED", "端点、消息类型和业务消息号不能为空");
         }
     }
@@ -141,8 +142,6 @@ public class ExternalMessageApplicationService implements ExternalMessageService
         catch (Exception exception) { throw new IllegalStateException("SHA-256 is unavailable", exception); }
     }
 
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-
     private ExternalMessageReceipt receipt(ExternalMessage value, boolean duplicate) {
         return new ExternalMessageReceipt(value.id(), value.revision(), value.endpointCode(), value.direction(),
                 value.messageType(), value.businessMessageId(), value.correlationId(), value.status(),
@@ -154,8 +153,8 @@ public class ExternalMessageApplicationService implements ExternalMessageService
 
     private final class ExternalMessageFactory {
         ExternalMessage outbound(Long tenantId, OutboundMessage command, String payload, String digest) {
-            return ExternalMessage.outbound(tenantId, clean(command.endpointCode()), clean(command.messageType()),
-                    clean(command.businessMessageId()), clean(command.correlationId()),
+            return ExternalMessage.outbound(tenantId, Strings.trimToNull(command.endpointCode()), Strings.trimToNull(command.messageType()),
+                    Strings.trimToNull(command.businessMessageId()), Strings.trimToNull(command.correlationId()),
                     command.organizationId(), command.departmentId(), payload, digest,
                     command.relatedResourceType(), command.relatedResourceId(), command.relatedResourceVersion());
         }

@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -74,7 +75,7 @@ public class ItemGroup {
         this.executionDepartmentId = executionDepartmentId;
         this.name = require(name, "组套名称");
         this.groupType = groupType;
-        this.usageType = trim(usageType);
+        this.usageType = Strings.trimToNull(usageType);
         this.pointOfCare = pointOfCare;
         this.status = status;
         this.validFrom = validFrom;
@@ -87,7 +88,6 @@ public class ItemGroup {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
         return value.trim();
     }
-    private static String trim(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private void requireRevision(long expected) {
         if (revision != expected) throw new IllegalStateException("项目组套已被其他用户修改，请刷新后重试");
     }

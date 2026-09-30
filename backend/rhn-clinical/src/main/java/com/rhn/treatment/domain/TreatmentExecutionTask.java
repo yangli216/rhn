@@ -2,8 +2,11 @@ package com.rhn.treatment.domain;
 
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -29,7 +32,7 @@ public class TreatmentExecutionTask {
     @Column(name = "ID_CARE_REQ_SRC_GRP", nullable = false) private Long sourceGroupId;
     @Column(name = "CD_TASK_NO", nullable = false) private String taskNo;
     @Column(name = "SD_TASK_TYPE", nullable = false) private String taskType;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private TreatmentExecutionTaskStatus status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "DT_STARTED") private Instant startedAt;
     @Column(name = "ID_USER_STARTED") private Long startedBy;
@@ -52,60 +55,60 @@ public class TreatmentExecutionTask {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.departmentId = departmentId; this.residentId = residentId; this.encounterId = encounterId;
         this.sourceGroupId = sourceGroupId; this.taskNo = "TX" + NUMBER_TIME.format(createdAt)
-                + GlobalIds.randomSuffix(6); this.taskType = taskType; this.status = "WAITING_SETTLEMENT";
+                + GlobalIds.randomSuffix(6); this.taskType = taskType; this.status = TreatmentExecutionTaskStatus.WAITING_SETTLEMENT;
         this.createdAt = createdAt; this.adverseReaction = false;
     }
 
     public void synchronize(boolean anyActive, boolean allSettled, boolean allFulfilled,
                             boolean allSkinTestsPassed, boolean skinTestPositive, String gateNote) {
-        if ("COMPLETED".equals(status) || "CANCELLED".equals(status)) return;
-        if (!anyActive) { status = "CANCELLED"; return; }
-        if ("IN_PROGRESS".equals(status)) {
+        if (status == TreatmentExecutionTaskStatus.COMPLETED || status == TreatmentExecutionTaskStatus.CANCELLED) return;
+        if (!anyActive) { status = TreatmentExecutionTaskStatus.CANCELLED; return; }
+        if (status == TreatmentExecutionTaskStatus.IN_PROGRESS) {
             if (!allSettled || !allFulfilled) {
-                status = "EXCEPTION";
+                status = TreatmentExecutionTaskStatus.EXCEPTION;
                 exceptionNote = gateNote;
             }
             return;
         }
-        if ("EXCEPTION".equals(status) && (exceptionNote == null || !exceptionNote.startsWith("[SKIN_TEST]"))) return;
+        if (status == TreatmentExecutionTaskStatus.EXCEPTION && (exceptionNote == null || !exceptionNote.startsWith("[SKIN_TEST]"))) return;
         if (skinTestPositive) {
-            status = "EXCEPTION";
+            status = TreatmentExecutionTaskStatus.EXCEPTION;
             exceptionNote = "[SKIN_TEST] 皮试阳性，当前用药禁止执行，请医生调整医嘱";
             return;
         }
-        status = !allSettled ? "WAITING_SETTLEMENT" : !allFulfilled ? "WAITING_DISPENSE"
-                : !allSkinTestsPassed ? "WAITING_SKIN_TEST" : "READY";
-        if (!"EXCEPTION".equals(status)) exceptionNote = null;
+        status = !allSettled ? TreatmentExecutionTaskStatus.WAITING_SETTLEMENT : !allFulfilled ? TreatmentExecutionTaskStatus.WAITING_DISPENSE
+                : !allSkinTestsPassed ? TreatmentExecutionTaskStatus.WAITING_SKIN_TEST : TreatmentExecutionTaskStatus.READY;
+        if (status != TreatmentExecutionTaskStatus.EXCEPTION) exceptionNote = null;
     }
 
     public void start(long expectedRevision, boolean identityVerified, String verificationMethod,
                       String executionSite, String note, Long actorId, Instant occurredAt) {
         requireRevision(expectedRevision);
-        if (!"READY".equals(status)) throw conflict("TREATMENT_START_STATE_INVALID", "只有已满足执行条件的治疗任务可以开始");
+        if (status != TreatmentExecutionTaskStatus.READY) throw conflict("TREATMENT_START_STATE_INVALID", "只有已满足执行条件的治疗任务可以开始");
         if (!identityVerified) throw conflict("TREATMENT_IDENTITY_VERIFICATION_REQUIRED", "开始治疗前必须完成患者身份核对");
-        this.status = "IN_PROGRESS"; this.startedAt = occurredAt; this.startedBy = actorId;
-        this.verificationMethod = clean(verificationMethod) == null ? "NAME_AND_IDENTIFIER" : clean(verificationMethod);
-        this.executionSite = clean(executionSite); this.startNote = clean(note);
+        this.status = TreatmentExecutionTaskStatus.IN_PROGRESS; this.startedAt = occurredAt; this.startedBy = actorId;
+        this.verificationMethod = Strings.trimToNull(verificationMethod) == null ? "NAME_AND_IDENTIFIER" : Strings.trimToNull(verificationMethod);
+        this.executionSite = Strings.trimToNull(executionSite); this.startNote = Strings.trimToNull(note);
     }
 
     public void complete(long expectedRevision, String resultCode, String note, boolean adverseReaction,
                          String adverseReactionDetail, Long actorId, Instant occurredAt) {
         requireRevision(expectedRevision);
-        if (!"IN_PROGRESS".equals(status)) throw conflict(
+        if (status != TreatmentExecutionTaskStatus.IN_PROGRESS) throw conflict(
                 "TREATMENT_COMPLETE_STATE_INVALID", "只有执行中的治疗任务可以结束");
-        String result = clean(resultCode) == null ? "COMPLETED" : clean(resultCode).toUpperCase();
+        String result = Strings.trimToNull(resultCode) == null ? "COMPLETED" : Strings.trimToNull(resultCode).toUpperCase();
         if (!java.util.Set.of("COMPLETED", "INTERRUPTED", "NOT_COMPLETED").contains(result)) {
             throw conflict("TREATMENT_RESULT_CODE_INVALID", "治疗结果编码不正确");
         }
-        String reactionDetail = clean(adverseReactionDetail);
+        String reactionDetail = Strings.trimToNull(adverseReactionDetail);
         if (adverseReaction && reactionDetail == null) throw conflict(
                 "TREATMENT_ADVERSE_REACTION_DETAIL_REQUIRED", "记录不良反应时必须填写具体表现和处置");
         this.completedAt = occurredAt; this.completedBy = actorId; this.resultCode = result;
-        this.completionNote = clean(note); this.adverseReaction = adverseReaction;
+        this.completionNote = Strings.trimToNull(note); this.adverseReaction = adverseReaction;
         this.adverseReactionDetail = reactionDetail;
-        if ("COMPLETED".equals(result) && !adverseReaction) this.status = "COMPLETED";
+        if ("COMPLETED".equals(result) && !adverseReaction) this.status = TreatmentExecutionTaskStatus.COMPLETED;
         else {
-            this.status = "EXCEPTION";
+            this.status = TreatmentExecutionTaskStatus.EXCEPTION;
             this.exceptionNote = adverseReaction ? "治疗过程中记录不良反应，需继续随访处置"
                     : "治疗未正常完成：" + result;
         }
@@ -119,8 +122,6 @@ public class TreatmentExecutionTask {
     private BusinessException conflict(String code, String message) {
         return new BusinessException(code, message, HttpStatus.CONFLICT);
     }
-    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-
     public Long id() { return id; }
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }
@@ -131,7 +132,7 @@ public class TreatmentExecutionTask {
     public Long sourceGroupId() { return sourceGroupId; }
     public String taskNo() { return taskNo; }
     public String taskType() { return taskType; }
-    public String status() { return status; }
+    public TreatmentExecutionTaskStatus status() { return status; }
     public Instant createdAt() { return createdAt; }
     public Instant startedAt() { return startedAt; }
     public Long startedBy() { return startedBy; }

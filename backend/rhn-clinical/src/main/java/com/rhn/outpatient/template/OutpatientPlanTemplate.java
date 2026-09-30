@@ -26,7 +26,7 @@ class OutpatientPlanTemplate {
     @Column(name = "QTY_USE", nullable = false) private long useCount;
     @Column(name = "DT_LAST_USED") private Instant lastUsedAt;
     @Column(name = "SD_SOURCE_TYPE", nullable = false) private String sourceType;
-    @Column(name = "JSON_GUIDELINE_REF") private String guidelineReference;
+    @Column(name = "JSON_GDLN_REF") private String guidelineReference;
     @Column(name = "ID_OP_NOTE_TMPL") private Long noteTemplateId;
     @Column(name = "JSON_PLAN_TASKS") private String planTasks;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;

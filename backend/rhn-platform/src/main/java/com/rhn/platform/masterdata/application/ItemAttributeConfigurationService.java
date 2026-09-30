@@ -20,6 +20,7 @@ import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -388,7 +389,7 @@ public class ItemAttributeConfigurationService {
         return !current.dataType().equals(validated.dataType())
                 || !current.cardinality().equals(validated.cardinality())
                 || !Objects.equals(current.dictionaryId(), command.dictionaryId())
-                || !Objects.equals(current.unitCode(), clean(command.unitCode()))
+                || !Objects.equals(current.unitCode(), Strings.trimToNull(command.unitCode()))
                 || !json(current.schemaJson()).equals(command.schema())
                 || !current.variability().equals(validated.variability())
                 || !current.overridePolicy().equals(validated.overridePolicy())
@@ -568,10 +569,6 @@ public class ItemAttributeConfigurationService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-    }
-
-    private String clean(String value) {
-        return blank(value) ? null : value.trim();
     }
 
     private boolean blank(String value) {

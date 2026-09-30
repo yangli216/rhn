@@ -3,6 +3,8 @@ package com.rhn.inpatient.domain;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -15,7 +17,7 @@ public class EncounterLocationHistory {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "ID_SVC_LOC", nullable = false) private Long locationId;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private EncounterLocationHistoryStatus status;
     @Column(name = "DT_START", nullable = false) private Instant startAt;
     @Column(name = "DT_END") private Instant endAt;
     @Column(name = "DES_CHG_REASON") private String changeReason;
@@ -35,15 +37,15 @@ public class EncounterLocationHistory {
         this.tenantId = tenantId;
         this.encounterId = encounterId;
         this.locationId = locationId;
-        this.status = "ACTIVE";
+        this.status = EncounterLocationHistoryStatus.ACTIVE;
         this.startAt = startedAt;
         this.changeReason = reason;
         this.changedBy = actorId;
     }
 
     public void close(String reason, Long actorId) {
-        if (!"ACTIVE".equals(status)) throw new IllegalStateException("LOCATION_ALREADY_CLOSED");
-        this.status = "COMPLETED";
+        if (status != EncounterLocationHistoryStatus.ACTIVE) throw new IllegalStateException("LOCATION_ALREADY_CLOSED");
+        this.status = EncounterLocationHistoryStatus.COMPLETED;
         this.endAt = Instant.now();
         this.changeReason = reason;
         this.changedBy = actorId;
@@ -53,7 +55,7 @@ public class EncounterLocationHistory {
     public Long tenantId() { return tenantId; }
     public Long encounterId() { return encounterId; }
     public Long locationId() { return locationId; }
-    public String status() { return status; }
+    public EncounterLocationHistoryStatus status() { return status; }
     public Instant startAt() { return startAt; }
     public Instant endAt() { return endAt; }
 }

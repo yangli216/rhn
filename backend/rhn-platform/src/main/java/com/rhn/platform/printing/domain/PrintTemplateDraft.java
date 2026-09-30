@@ -4,6 +4,8 @@ import com.rhn.shared.api.StaleRevisionException;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
@@ -25,7 +27,7 @@ public class PrintTemplateDraft {
     @Column(name = "NA_TMPL", nullable = false) private String templateName;
     @Column(name = "JSON_LAYOUT_SCHEMA", nullable = false) private String layoutSchema;
     @Lob @Column(name = "JSON_CONFIG", nullable = false) private String configJson;
-    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PrintTemplateDraftStatus status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
@@ -39,38 +41,38 @@ public class PrintTemplateDraft {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.templateId = templateId;
         this.documentDefinitionId = documentDefinitionId; this.mediaProfileId = mediaProfileId;
         this.templateCode = templateCode; this.templateName = templateName; this.layoutSchema = layoutSchema;
-        this.configJson = configJson; this.status = "DRAFT"; this.createdAt = Instant.now();
+        this.configJson = configJson; this.status = PrintTemplateDraftStatus.DRAFT; this.createdAt = Instant.now();
         this.createdBy = actorId; this.updatedAt = createdAt; this.updatedBy = actorId;
     }
 
     public void update(Long documentDefinitionId, Long mediaProfileId, String templateName, String layoutSchema,
                        String configJson, long expectedRevision, Long actorId) {
         requireRevision(expectedRevision);
-        if (!"DRAFT".equals(status) && !"REJECTED".equals(status)) {
+        if (status != PrintTemplateDraftStatus.DRAFT && status != PrintTemplateDraftStatus.REJECTED) {
             throw new IllegalStateException("只有草稿或退回状态的模板可以编辑");
         }
         this.documentDefinitionId = documentDefinitionId; this.mediaProfileId = mediaProfileId;
         this.templateName = templateName; this.layoutSchema = layoutSchema; this.configJson = configJson;
-        this.status = "DRAFT"; touch(actorId);
+        this.status = PrintTemplateDraftStatus.DRAFT; touch(actorId);
     }
 
     public void submit(long expectedRevision, Long actorId) {
         requireRevision(expectedRevision);
-        if (!"DRAFT".equals(status)) throw new IllegalStateException("只有草稿可以提交审核");
-        status = "IN_REVIEW"; touch(actorId);
+        if (status != PrintTemplateDraftStatus.DRAFT) throw new IllegalStateException("只有草稿可以提交审核");
+        status = PrintTemplateDraftStatus.IN_REVIEW; touch(actorId);
     }
 
     public void reject(long expectedRevision, Long actorId) {
         requireRevision(expectedRevision);
-        if (!"IN_REVIEW".equals(status)) throw new IllegalStateException("只有待审核模板可以退回");
-        status = "REJECTED"; touch(actorId);
+        if (status != PrintTemplateDraftStatus.IN_REVIEW) throw new IllegalStateException("只有待审核模板可以退回");
+        status = PrintTemplateDraftStatus.REJECTED; touch(actorId);
     }
 
     public void publish(Long templateId, Long versionId, long expectedRevision, Long actorId) {
         requireRevision(expectedRevision);
-        if (!"IN_REVIEW".equals(status)) throw new IllegalStateException("只有待审核模板可以发布");
+        if (status != PrintTemplateDraftStatus.IN_REVIEW) throw new IllegalStateException("只有待审核模板可以发布");
         this.templateId = templateId; this.publishedVersionId = versionId;
-        this.status = "PUBLISHED"; touch(actorId);
+        this.status = PrintTemplateDraftStatus.PUBLISHED; touch(actorId);
     }
 
     private void requireRevision(long expectedRevision) {
@@ -90,7 +92,7 @@ public class PrintTemplateDraft {
     public String templateName() { return templateName; }
     public String layoutSchema() { return layoutSchema; }
     public String configJson() { return configJson; }
-    public String status() { return status; }
+    public PrintTemplateDraftStatus status() { return status; }
     public Instant updatedAt() { return updatedAt; }
     public Long updatedBy() { return updatedBy; }
 }
