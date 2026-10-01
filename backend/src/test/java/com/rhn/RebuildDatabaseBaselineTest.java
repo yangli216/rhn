@@ -27,7 +27,7 @@ class RebuildDatabaseBaselineTest {
                 .load();
 
         var result = flyway.migrate();
-        assertEquals(8, result.migrationsExecuted);
+        assertEquals(10, result.migrationsExecuted);
         assertEquals(0, flyway.migrate().migrationsExecuted);
 
         try (var connection = DriverManager.getConnection(url, "sa", ""); var sql = connection.createStatement()) {
@@ -51,10 +51,17 @@ class RebuildDatabaseBaselineTest {
                 assertEquals("1.88.0", history.getString("version"));
                 assertTrue(history.next());
                 assertEquals("1.89.0", history.getString("version"));
+                assertTrue(history.next());
+                assertEquals("1.90.0", history.getString("version"));
+                assertTrue(history.next());
+                assertEquals("1.92.0", history.getString("version"));
                 assertFalse(history.next());
             }
             assertTrue(count(sql, "select count(*) from information_schema.tables"
                     + " where table_schema = current_schema() and table_name like 'rhn_%'") >= 318);
+            assertEquals(1, count(sql, "select count(*) from information_schema.columns"
+                    + " where table_schema = current_schema() and table_name = 'rhn_meta_op_plan_tmpl'"
+                    + " and column_name = 'json_gdln_ref'"));
             assertEquals(1, count(sql, "select count(*) from RHN_PI_PAT where ID_PAT = 362387869900101"));
             assertEquals(0, count(sql, "select count(*) from information_schema.columns"
                     + " where table_schema = current_schema() and table_name = 'rhn_bd_allergen'"

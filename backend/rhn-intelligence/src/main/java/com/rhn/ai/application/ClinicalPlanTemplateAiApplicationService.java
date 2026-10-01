@@ -12,7 +12,6 @@ import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.ServiceInput;
 import com.rhn.outpatient.api.OutpatientPlanTemplateDirectory;
 import com.rhn.platform.masterdata.api.MedicationKnowledgeDirectory;
-import com.rhn.platform.masterdata.api.ServiceCatalogDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -43,7 +42,7 @@ import static com.rhn.shared.api.BusinessErrors.forbidden;
 @Service
 public class ClinicalPlanTemplateAiApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ClinicalPlanTemplateAiApplicationService.class);
-    private static final String PROMPT_VERSION = "RHN-PLAN-COMPILER-V2";
+    private static final String PROMPT_VERSION = "RHN-PLAN-COMPILER-V3";
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private static final Set<String> KINDS = Set.of("DIAGNOSIS", "MEDICATION", "LABORATORY",
             "EXAMINATION", "EDUCATION", "FOLLOW_UP", "CONDITION");
@@ -51,7 +50,7 @@ public class ClinicalPlanTemplateAiApplicationService {
     private final MedicationIntentParser medicationParser;
     private final MedicationCandidateMatchingService medicationMatcher;
     private final MedicationKnowledgeDirectory medicationKnowledgeDirectory;
-    private final ServiceCatalogDirectory serviceCatalog;
+    private final PlanInvestigationDecisionService investigationDecisions;
     private final DiagnosisNormalizationService diagnosisNormalizer;
     private final ClinicalPlanRetrievalService planRetrieval;
     private final OutpatientPlanTemplateDirectory planDirectory;
@@ -63,7 +62,7 @@ public class ClinicalPlanTemplateAiApplicationService {
     public ClinicalPlanTemplateAiApplicationService(MedicationIntentParser medicationParser,
                                                      MedicationCandidateMatchingService medicationMatcher,
                                                      MedicationKnowledgeDirectory medicationKnowledgeDirectory,
-                                                     ServiceCatalogDirectory serviceCatalog,
+                                                     PlanInvestigationDecisionService investigationDecisions,
                                                      DiagnosisNormalizationService diagnosisNormalizer,
                                                      ClinicalPlanRetrievalService planRetrieval,
                                                      OutpatientPlanTemplateDirectory planDirectory,
@@ -74,7 +73,7 @@ public class ClinicalPlanTemplateAiApplicationService {
         this.medicationParser = medicationParser;
         this.medicationMatcher = medicationMatcher;
         this.medicationKnowledgeDirectory = medicationKnowledgeDirectory;
-        this.serviceCatalog = serviceCatalog;
+        this.investigationDecisions = investigationDecisions;
         this.diagnosisNormalizer = diagnosisNormalizer;
         this.planRetrieval = planRetrieval;
         this.planDirectory = planDirectory;
@@ -177,9 +176,7 @@ public class ClinicalPlanTemplateAiApplicationService {
         if (name == null || name.isBlank()) name = clipped(text, 100);
         String narrative = intent.narrative();
         if (narrative == null || narrative.isBlank()) {
-            throw new BusinessException("AI_PLAN_NARRATIVE_MISSING",
-                    "模型未生成完整的门诊文字方案，请重新生成或补充更具体的诊疗意图。",
-                    HttpStatus.BAD_GATEWAY);
+            narrative = revisionContext(intent.items());
         }
         String guidelineReference = null;
         if ("GUIDELINE".equals(mode)) {
@@ -195,7 +192,41 @@ public class ClinicalPlanTemplateAiApplicationService {
                 .map(item -> reviewItem(item, context.tenantId(), today))
                 .toList();
         return new PlanTextDraft(scope, name, clipped(narrative, 4000),
-                "GUIDELINE".equals(mode) ? "AI_GUIDELINE" : "AI_INPUT", guidelineReference, reviewItems);
+                "GUIDELINE".equals(mode) ? "AI_GUIDELINE" : "AI_INPUT", guidelineReference, reviewItems, noteTemplateContent(intent));
+    }
+
+    private String revisionContext(List<ClinicalAiModelGateway.PlanIntentItem> items) {
+        return items.stream()
+                .map(item -> switch (item.kind()) {
+                    case "DIAGNOSIS" -> "诊断";
+                    case "CONDITION" -> "适用条件";
+                    case "MEDICATION" -> "用药";
+                    case "LABORATORY" -> "检验";
+                    case "EXAMINATION" -> "检查";
+                    case "EDUCATION" -> "健康宣教";
+                    case "FOLLOW_UP" -> "复诊与转诊";
+                    default -> "其他";
+                } + "：" + item.name()
+                        + (item.details() == null || item.details().isBlank() ? "" : "；" + item.details()))
+                .collect(java.util.stream.Collectors.joining("\n"));
+    }
+
+    private static final java.util.regex.Pattern FABRICATED_VITALS_PREFIX = java.util.regex.Pattern.compile(
+            "^(?:(?:[Tt体温]\\s*[:：]?\\s*\\d+(?:\\.\\d+)?\\s*[℃度]?|[Pp脉搏心率]\\s*[:：]?\\s*\\d+\\s*(?:次/分|bpm)?|[Rr呼吸]\\s*[:：]?\\s*\\d+\\s*(?:次/分)?|[Bb][Pp]血压\\s*[:：]?\\s*\\d+/\\d+\\s*(?:mmHg)?)[,，、；;\\s]*)+");
+
+    private Map<String, String> noteTemplateContent(ClinicalAiModelGateway.PlanIntent intent) {
+        Map<String, String> content = new LinkedHashMap<>();
+        for (String key : List.of("chiefComplaint", "presentIllness", "medicalHistory", "physicalExam",
+                "healthEducation", "followUp")) {
+            String value = intent.noteTemplateContent().get(key);
+            if (value != null && !value.isBlank()) {
+                if ("physicalExam".equals(key)) {
+                    value = FABRICATED_VITALS_PREFIX.matcher(value.stripLeading()).replaceFirst("").stripLeading();
+                }
+                content.put(key, clipped(value, "chiefComplaint".equals(key) ? 1000 : 4000));
+            }
+        }
+        return content;
     }
 
     private PlanReviewItem reviewItem(ClinicalAiModelGateway.PlanIntentItem item, long tenantId, LocalDate today) {
@@ -240,8 +271,14 @@ public class ClinicalPlanTemplateAiApplicationService {
         Set<Long> serviceIds = new LinkedHashSet<>();
         LocalDate today = LocalDate.now(ZONE);
         boolean doctorConfirmedItems = reviewedItems != null;
-        for (var item : intent.items()) {
-            ValidatedItem value = validateItem(item, text, doctorConfirmedItems);
+        var validatedItems = intent.items().stream().map(item -> validateItem(item, text, doctorConfirmedItems)).toList();
+        var investigationMatches = investigationDecisions.resolve(validatedItems.stream()
+                .filter(value -> doctorConfirmedItems || value.explicit())
+                .filter(value -> Set.of("LABORATORY", "EXAMINATION").contains(value.kind()))
+                .map(value -> new PlanInvestigationDecisionService.Intent(value.kind(), value.name())).toList(), context, today);
+        for (int index = 0; index < intent.items().size(); index++) {
+            var item = intent.items().get(index);
+            ValidatedItem value = validatedItems.get(index);
             String status = "NEEDS_REVIEW";
             String details = value.details();
             if (doctorConfirmedItems || value.explicit()) {
@@ -249,7 +286,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                     case "DIAGNOSIS", "CONDITION" ->
                             matchDiagnoses(value, context, today, diagnoses, diagnosisCodes);
                     case "LABORATORY", "EXAMINATION" ->
-                            matchInvestigations(value, context, today, services, serviceIds);
+                            matchInvestigations(value, investigationMatches.get(value.kind() + "|" + value.name()), services, serviceIds);
                     case "MEDICATION" -> matchMedications(value, item, context, medications,
                             medicationProductIds, medicationIds);
                     default -> new ItemOutcome(status, details);
@@ -348,31 +385,23 @@ public class ClinicalPlanTemplateAiApplicationService {
         return new ItemOutcome(status, details);
     }
 
-    private ItemOutcome matchInvestigations(ValidatedItem value, ExecutionContext context, LocalDate today,
+    private ItemOutcome matchInvestigations(ValidatedItem value, PlanInvestigationDecisionService.Resolution resolution,
                                             List<ServiceInput> services, Set<Long> serviceIds) {
-        String status = "NEEDS_REVIEW";
         String details = value.details();
-        String type = value.kind();
-        var matches = serviceCatalog.searchOrderableServices(value.name(), type,
-                context.organizationId(), today).stream()
-                .filter(candidate -> exactServiceMatch(value.name(), candidate))
-                .toList();
-        if (matches.size() == 1) {
-            var matched = matches.getFirst();
+        if (resolution != null && !resolution.detail().isBlank()) details = appendDetails(details, resolution.detail());
+        if (resolution != null && resolution.item() != null) {
+            var matched = resolution.item();
             if (serviceIds.add(matched.id())) {
                 services.add(new ServiceInput(matched.id(), matched.code(), matched.name(),
                         matched.sdServiceType(), BigDecimal.ONE,
                         matched.unitCode(), "SALE", true, value.name(), value.details()));
             }
-            status = "MATCHED";
-        } else if (matches.isEmpty()) {
-            status = "UNMATCHED";
-            details = appendDetails(details, "当前机构目录未找到同名检验检查项目");
-        } else {
-            status = "NEEDS_REVIEW";
-            details = appendDetails(details, "当前机构存在多个同名项目，请通过对话明确具体项目");
+            return new ItemOutcome("MATCHED", details);
         }
-        return new ItemOutcome(status, details);
+        if (resolution != null && resolution.exactCount() > 1) {
+            return new ItemOutcome("NEEDS_REVIEW", appendDetails(details, "当前机构存在多个同名项目，请明确具体项目"));
+        }
+        return new ItemOutcome("UNMATCHED", appendDetails(details, "当前机构目录未找到可确认的检验检查项目"));
     }
 
     private ItemOutcome matchMedications(ValidatedItem value, ClinicalAiModelGateway.PlanIntentItem item,
@@ -462,13 +491,6 @@ public class ClinicalPlanTemplateAiApplicationService {
     }
 
     private record ItemOutcome(String status, String details) {}
-
-    private boolean exactServiceMatch(String query, com.rhn.platform.masterdata.api.MasterDataViews.ServiceView candidate) {
-        if (query.equalsIgnoreCase(candidate.name()) || query.equalsIgnoreCase(candidate.code())) return true;
-        var adoption = candidate.organizationAdoption();
-        return adoption != null && (query.equalsIgnoreCase(adoption.localName())
-                || query.equalsIgnoreCase(adoption.localCode()));
-    }
 
     private String appendDetails(String details, String addition) {
         if (details == null || details.isBlank()) return addition;

@@ -35,7 +35,7 @@ interface AiAdoptionIntent {
 
 export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies, allergyState, api, disabled,
   onAdoptionBusyChange, onApply, surfaces, onOpenDetail, onOpenHistory, onOpenResults, historyEncounters, onFieldStream,
-  onReviewTreatment, existingTreatmentKeys = [] }: {
+  onReviewTreatment, onReviewRecommendedPlan, existingTreatmentKeys = [] }: {
   encounter: Encounter
   currentContext: ClinicalAiDraftContext
   allergies: AllergyIntolerance[]
@@ -51,6 +51,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   historyEncounters?: Encounter[]
   onFieldStream?: (stream: ClinicalAiFieldStream | null) => void
   onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[], onCompleted: (acceptedKeys: string[]) => void) => void
+  onReviewRecommendedPlan?: (plan: ClinicalAiRecommendedPlan) => void
   existingTreatmentKeys?: string[]
 }) {
   const queryClient = useQueryClient()
@@ -654,12 +655,23 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       canAdopt={auditFeature} error={localError || (error ? errorMessage(error) : '')}
       voiceInput={voiceInput} interimTranscript={interimTranscript} question={question} onQuestionChange={setQuestion}
       onClearVoice={() => { setVoiceTranscript(''); setInterimTranscript('') }}
+      planInputKey={inputKey}
+      onFindPlans={onReviewRecommendedPlan ? async () => {
+        const context = latestContext.current
+        const fingerprint = clinicalAiContextFingerprint(context)
+        const plans = await api.clinicalAi.recommendPlans(encounter.id, {
+          clientContextFingerprint: fingerprint, question: question.trim() || undefined,
+          voiceTranscript: voiceTranscript.trim() || undefined, draft: clinicalAiDraftInput(context),
+        })
+        if (clinicalAiContextFingerprint(latestContext.current) !== fingerprint) throw new Error('问诊资料已变化，请重新匹配诊疗方案。')
+        return plans
+      } : undefined}
+      onReviewRecommendedPlan={onReviewRecommendedPlan}
       onGenerate={async (focus) => (await generate.mutateAsync({ focus })).value.id} onApply={applyInline}
-      onReviewPlan={(plan) => { setViewMode('current'); setSelectedPlan(plan) }}
       onOpenDetail={onOpenDetail} onOpenHistory={onOpenHistory} onOpenResults={onOpenResults}
       onReviewTreatment={reviewTreatments}
       existingTreatmentKeys={[...new Set([...existingTreatmentKeys, ...acceptedTreatmentKeys])]}
-      templatesPending={templates.isPending}
+
       sceneAssessment={sceneAssessment}
       sceneLoading={reportsQuery.isPending || historyReportQueries.some((query) => query.isPending)} />
     {surfaces.detail && createPortal(assistantPanel, surfaces.detail)}
@@ -1056,7 +1068,12 @@ function clinicalContextCoreFingerprint(value: ClinicalAiDraftContext) {
     presentIllness: value.presentIllness?.trim() ?? '',
     medicalHistory: value.medicalHistory?.trim() ?? '',
     physicalExam: value.physicalExam?.trim() ?? '',
-    treatmentPlan: value.treatmentPlan?.trim() ?? '',
+    allergyHistory: value.allergyHistory?.trim() ?? '',
+    medicationHistory: value.medicationHistory?.trim() ?? '',
+    auxiliaryExaminations: value.auxiliaryExaminations?.trim() ?? '',
+    healthEducation: value.healthEducation?.trim() ?? '',
+    followUp: value.followUp?.trim() ?? '',
+
     structuredContextFingerprint: value.structuredContextFingerprint,
     diagnoses: [...value.diagnoses]
       .map(({ code, display, type }) => ({ code: code.trim().toUpperCase(), display: display.trim(), type }))

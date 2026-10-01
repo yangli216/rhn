@@ -3,6 +3,7 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, EmptyState, LoadingState, PageHeader, Panel, PanelHead, StatusBadge } from '../../shared/ui'
 import { formatTime } from '../../shared/format'
+import '../../styles/features/dashboard-analytics.css'
 
 export function TasksWorkspace({ api, onNavigate }: { api: RhnApi; onNavigate: (path: string) => void }) {
   const queryClient = useQueryClient()

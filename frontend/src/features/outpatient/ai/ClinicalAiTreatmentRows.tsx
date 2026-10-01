@@ -96,7 +96,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
           <span className="doctor-unified-cell-type"><label className="doctor-ai-order-select">
             <input type="checkbox" aria-label={`选择 ${item.name}`} checked={!excluded.includes(key)} disabled={disabled}
               onChange={() => setExcluded((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key])} />
-            <span className="doctor-ai-pending-badge"><Icon name="sparkles" />
+            <span className="doctor-ai-pending-badge">
               {{ MEDICATION: '药品', LABORATORY: '检验', EXAMINATION: '检查' }[item.type]}</span></label></span>
           <span className="doctor-unified-cell-name"><strong>{item.name}</strong><small>{medication ? resolved?.specification || item.specification || item.code : item.code}</small></span>
           <span className="doctor-unified-cell-directions">{result.isPending ? '正在补齐目录用法…' : result.isError
@@ -107,6 +107,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
             </span> : resolved?.specification || '按项目执行流程'}
           </span>
           <span className="doctor-unified-cell-qty">{resolved ? `${details.quantity} ${resolved.unit}` : '—'}</span>
+          <span className="doctor-unified-cell-dept">核对后确定</span>
           <span className="doctor-unified-cell-instruction" title={details.instruction || item.rationale}>{details.instruction || item.rationale}</span>
           <span className="doctor-unified-cell-price">{resolved?.price === undefined ? '—' : `¥${resolved.price.toFixed(2)}`}</span>
           <span className="doctor-unified-cell-status"><span className="doctor-ai-review-status">{resolved && !valid ? '需补全' : '待核对'}</span></span>

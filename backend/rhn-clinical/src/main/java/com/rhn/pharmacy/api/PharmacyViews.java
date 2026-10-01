@@ -67,6 +67,10 @@ public final class PharmacyViews {
             List<T> content, int page, int size, long totalElements, int totalPages,
             boolean first, boolean last) {}
 
+    public record InventoryTransactionPageView(
+            List<InventoryTransactionView> content, int page, int size, long totalElements, int totalPages,
+            boolean first, boolean last, BigDecimal firstEntryQuantityAfter) {}
+
     public record InventoryReservationView(
             Long id, long revision, Long stockSiteId, Long stockBinId, String stockBinCode,
             Long stockItemId, Long stockLotId, String lotNo, LocalDate expiryDate,

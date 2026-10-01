@@ -42,7 +42,7 @@ public final class ClinicalAssistantSettings {
                                      @Value("${rhn.ai.endpoint:}") String endpoint,
                                      @Value("${rhn.ai.api-key:}") String apiKey,
                                      @Value("${rhn.ai.connect-timeout:PT5S}") Duration connectTimeout,
-                                     @Value("${rhn.ai.first-visible-timeout:PT8S}") Duration firstVisibleTimeout,
+                                     @Value("${rhn.ai.first-visible-timeout:PT30S}") Duration firstVisibleTimeout,
                                      @Value("${rhn.ai.request-timeout:PT45S}") Duration requestTimeout,
                                      @Value("${rhn.ai.max-output-tokens:3000}") int maxOutputTokens,
                                      @Value("${rhn.ai.speech-endpoint:}") String speechEndpoint,
@@ -68,7 +68,7 @@ public final class ClinicalAssistantSettings {
         this.requestTimeout = requestTimeout == null || requestTimeout.isNegative() || requestTimeout.isZero()
                 ? Duration.ofSeconds(45) : requestTimeout;
         this.connectTimeout = validTimeout(connectTimeout, Duration.ofSeconds(5), this.requestTimeout);
-        this.firstVisibleTimeout = validTimeout(firstVisibleTimeout, Duration.ofSeconds(8), this.requestTimeout);
+        this.firstVisibleTimeout = validTimeout(firstVisibleTimeout, Duration.ofSeconds(30), this.requestTimeout);
         this.maxOutputTokens = Math.max(512, Math.min(maxOutputTokens, 8000));
         this.speechEndpoint = endpointUri(speechEndpoint);
         this.speechModel = clean(speechModel, "gpt-transcribe");
@@ -88,7 +88,7 @@ public final class ClinicalAssistantSettings {
                                      String enabledOrganizationIds, String enabledDepartmentIds, int rolloutPercentage) {
         this(mode, provider, model, suggestionTtl, endpoint, apiKey,
                 defaultTimeout(requestTimeout, Duration.ofSeconds(5)),
-                defaultTimeout(requestTimeout, Duration.ofSeconds(8)), requestTimeout, maxOutputTokens,
+                defaultTimeout(requestTimeout, Duration.ofSeconds(30)), requestTimeout, maxOutputTokens,
                 speechEndpoint, speechModel, maxAudioBytes, knowledgeEndpoint, knowledgeApiKey,
                 maxKnowledgeResults, enabledOrganizationIds, enabledDepartmentIds, rolloutPercentage);
     }

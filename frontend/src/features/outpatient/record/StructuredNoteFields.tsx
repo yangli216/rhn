@@ -60,8 +60,11 @@ export function ClinicalRecordReadView({ value, bmi, structuredForm, structuredV
     { label: '现病史', value: value.presentIllness },
     { label: '既往史', value: value.medicalHistory },
     { label: '查体所见', value: value.physicalExam },
-    { label: '诊疗计划', value: value.treatmentPlan },
+    { label: '辅助检查结果', value: value.auxiliaryExaminations },
+    { label: '健康宣教', value: value.healthEducation },
+    { label: '随访复诊', value: value.followUp },
   ]
+
   const vitals = [
     { label: '体温', value: value.temperature, unit: '℃' },
     { label: '脉搏', value: value.pulseRate, unit: '次/分' },

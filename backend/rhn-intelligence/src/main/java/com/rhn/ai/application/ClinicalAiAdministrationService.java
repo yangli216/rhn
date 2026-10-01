@@ -43,7 +43,7 @@ import static com.rhn.shared.api.BusinessErrors.forbidden;
 
 @Service
 public class ClinicalAiAdministrationService {
-    private static final List<Descriptor> DESCRIPTORS = List.of(
+    private static final List<Descriptor> DESCRIPTORS = java.util.stream.Stream.concat(List.of(
             descriptor("mode", "运行策略", "AI运行模式", "控制关闭、本地规则辅助或模型辅助", "STRING"),
             descriptor("model", "模型服务", "临床模型标识", "OpenAI-compatible 请求使用的模型名称", "STRING"),
             descriptor("endpoint", "模型服务", "模型服务地址", "Chat Completions 完整 HTTP/HTTPS 地址", "STRING"),
@@ -52,6 +52,12 @@ public class ClinicalAiAdministrationService {
             descriptor("max-output-tokens", "模型服务", "最大输出 Token", "单次模型建议的最大输出量", "NUMBER"),
             descriptor("suggestion-ttl-minutes", "临床治理", "建议有效期", "建议生成后允许采纳的分钟数", "NUMBER"),
             descriptor("rollout-percentage", "临床治理", "医生灰度比例", "按执业人员稳定分桶启用的百分比", "NUMBER"),
+            descriptor("decision-mode", "决策公共配置", "决策总开关", "所有决策场景共用：关闭时不调用；旁路只观察；辅助匹配使用高置信度结果，失败保留原流程", "STRING"),
+            descriptor("decision-model", "决策公共配置", "Jev 模型标识", "固定版本以便复核与对比，不使用自动升级别名", "STRING"),
+            descriptor("decision-endpoint", "决策公共配置", "Jev 服务地址", "TypeSafe systemone 完整 HTTP/HTTPS 地址", "STRING"),
+            secret("decision-api-key", "决策公共配置", "Jev API Key", "独立加密存储，不继承大模型服务密钥，不回传明文"),
+            descriptor("decision-timeout-seconds", "决策公共配置", "决策请求超时", "单次目录决策最多等待秒数，超时回退原流程", "NUMBER"),
+            descriptor("decision-min-confidence-percent", "决策公共配置", "匹配置信度门槛", "试用门槛，仅表示分布集中程度，不代表医学正确率", "NUMBER"),
             descriptor("voice-enabled", "语音能力", "启用语音转写", "是否允许调用服务端语音转写", "BOOLEAN"),
             descriptor("voice-max-audio-mb", "语音能力", "单次录音上限", "上传音频的最大 MB 数", "NUMBER"),
             descriptor("speech-endpoint", "语音能力", "语音服务地址", "Audio Transcriptions 完整 HTTP/HTTPS 地址", "STRING"),
@@ -59,7 +65,8 @@ public class ClinicalAiAdministrationService {
             descriptor("knowledge-enabled", "知识能力", "启用医学知识检索", "是否允许调用医学知识服务", "BOOLEAN"),
             descriptor("knowledge-max-results", "知识能力", "知识结果上限", "单次返回的可追溯知识结果数量", "NUMBER"),
             descriptor("knowledge-endpoint", "知识能力", "医学知识服务地址", "PMPHAI-compatible 完整 HTTP/HTTPS 地址", "STRING"),
-            secret("knowledge-api-key", "知识能力", "医学知识 API Key", "未单独配置时使用模型服务 API Key"));
+            secret("knowledge-api-key", "知识能力", "医学知识 API Key", "未单独配置时使用模型服务 API Key")).stream(), java.util.Arrays.stream(DecisionScene.values()).map(scene -> descriptor(scene.settingKey(),
+            "决策业务场景", scene.label(), scene.description() + "；受决策总开关控制，共用模型和连接配置", "BOOLEAN"))).toList();
     private static final Map<String, Descriptor> BY_KEY = DESCRIPTORS.stream()
             .collect(java.util.stream.Collectors.toUnmodifiableMap(Descriptor::key, value -> value));
 
@@ -69,19 +76,21 @@ public class ClinicalAiAdministrationService {
     private final SecretEncryptionService secretEncryption;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
+    private final com.rhn.ai.application.DecisionModelGateway decisionGateway;
 
     public ClinicalAiAdministrationService(ConfigurationAdministration configurationAdministration,
                                             ClinicalAiRuntimePolicy runtimePolicy,
                                             ClinicalAssistantSettings fallback,
                                             SecretEncryptionService secretEncryption,
                                             ExecutionContextProvider contextProvider,
-                                            JsonCodec jsonCodec) {
+                                            JsonCodec jsonCodec, com.rhn.ai.application.DecisionModelGateway decisionGateway) {
         this.configurationAdministration = configurationAdministration;
         this.runtimePolicy = runtimePolicy;
         this.fallback = fallback;
         this.secretEncryption = secretEncryption;
         this.contextProvider = contextProvider;
         this.jsonCodec = jsonCodec;
+        this.decisionGateway = decisionGateway;
     }
 
     @Transactional(readOnly = true)
@@ -119,7 +128,40 @@ public class ClinicalAiAdministrationService {
         if ("SPEECH".equals(target)) {
             return testSpeech(request, context);
         }
+        if ("DECISION".equals(target)) return testDecision(request, context);
+        if (!"MODEL".equals(target)) throw badRequest("AI_TEST_TARGET_INVALID", "不支持的模型测试目标。");
         return testModel(request, context);
+    }
+
+    private ConfigurationTestResult testDecision(ConfigurationTestRequest request, ExecutionContext context) {
+        long start = System.nanoTime();
+        try {
+            String endpoint = Strings.trimToNull(request.endpoint());
+            if (endpoint == null) endpoint = resolveText("decision-endpoint", request.scope(), context);
+            URI uri = URI.create(endpoint);
+            if (uri.getHost() == null || uri.getUserInfo() != null || uri.getFragment() != null
+                    || !("http".equals(uri.getScheme()) || "https".equals(uri.getScheme())))
+                throw new IllegalArgumentException();
+            String model = Strings.trimToNull(request.model());
+            if (model == null) model = resolveText("decision-model", request.scope(), context);
+            String key = Strings.trimToNull(request.secretValue());
+            if (key == null) key = resolveSecret("decision-api-key", request.scope(), context);
+            var settings = new DecisionModelSettings(DecisionModelSettings.Mode.SHADOW, uri, model, key,
+                    Duration.ofSeconds(request.timeoutSeconds() != null && request.timeoutSeconds() >= 1
+                            && request.timeoutSeconds() <= 30 ? request.timeoutSeconds() : 8), 0.9);
+            var question = new com.rhn.ai.application.DecisionModelGateway.ChoiceQuestion("catalog_probe",
+                    "Select the catalog item equivalent to state.intent. If none matches, choose NONE.",
+                    Map.of("MATCH", "Complete blood count (CBC)", "NONE", "No equivalent catalog item"));
+            var result = decisionGateway.decide(new com.rhn.ai.application.DecisionModelGateway.Request("RHN-CATALOG-PROBE-V1",
+                    jsonCodec.readTree("{\"intent\":\"Complete blood count (CBC)\"}"), List.of(question)), settings);
+            boolean matched = "MATCH".equals(result.answers().get("catalog_probe").choice());
+            return new ConfigurationTestResult("DECISION", matched, 200, result.latencyMs(),
+                    matched ? "Jev 连接及结构化响应校验通过；模型：" + result.model() + "。测试使用虚构目录，无患者数据。"
+                            : "Jev 返回了有效响应，但虚构目录匹配测试未通过。", null);
+        } catch (RuntimeException e) {
+            return new ConfigurationTestResult("DECISION", false, 0, (System.nanoTime() - start) / 1_000_000,
+                    "Jev 测试失败，请核对独立 API Key、模型、服务地址及网络。", null);
+        }
     }
 
     private int probeTimeout(ConfigurationTestRequest request) {
@@ -451,7 +493,7 @@ public class ClinicalAiAdministrationService {
         if (platformOverride != null && platformOverride.active() && platformOverride.valueMode() == ValueMode.OVERRIDE && platformOverride.secretReference() != null) {
             return secretEncryption.decrypt(platformOverride.secretReference(), ClinicalAiRuntimePolicy.binding("PLATFORM", fullKey));
         }
-        return "api-key".equals(key) ? fallback.apiKey() : fallback.knowledgeApiKey();
+        return fallbackSecret(key);
     }
 
     private void save(Descriptor descriptor, SettingUpdate update, Scope scope,
@@ -503,7 +545,7 @@ public class ClinicalAiAdministrationService {
         boolean inherited = false;
         boolean secretConfigured;
         if (descriptor.secret()) {
-            String fallbackSecret = "api-key".equals(descriptor.key()) ? fallback.apiKey() : fallback.knowledgeApiKey();
+            String fallbackSecret = fallbackSecret(descriptor.key());
             String secretReference = resolved == null ? activeSecretRef(override) : resolved.secretReference();
             secretConfigured = secretReference != null || Strings.trimToNull(fallbackSecret) != null;
             if (resolved != null && resolved.secretReference() != null) {
@@ -532,6 +574,9 @@ public class ClinicalAiAdministrationService {
     }
 
     private JsonNode fallbackValue(String key) {
+        for (var scene : DecisionScene.values()) {
+            if (scene.settingKey().equals(key)) return jsonCodec.readTree(Boolean.toString(scene.defaultEnabled()));
+        }
         Object value = switch (key) {
             case "mode" -> fallback.mode().name();
             case "model" -> fallback.model();
@@ -547,9 +592,22 @@ public class ClinicalAiAdministrationService {
             case "knowledge-enabled" -> fallback.knowledgeAvailable();
             case "knowledge-max-results" -> fallback.maxKnowledgeResults();
             case "knowledge-endpoint" -> fallback.knowledgeEndpoint() == null ? null : fallback.knowledgeEndpoint().toString();
+            case "decision-mode" -> "DISABLED";
+            case "decision-model" -> DecisionModelSettings.DEFAULT_MODEL;
+            case "decision-endpoint" -> DecisionModelSettings.DEFAULT_ENDPOINT;
+            case "decision-timeout-seconds" -> 8;
+            case "decision-min-confidence-percent" -> 90;
             default -> null;
         };
         return value == null ? null : jsonCodec.readTree(jsonCodec.write(value));
+    }
+
+    private String fallbackSecret(String key) {
+        return switch (key) {
+            case "api-key" -> fallback.apiKey();
+            case "knowledge-api-key" -> fallback.knowledgeApiKey();
+            default -> null;
+        };
     }
 
     private void requireScope(Scope scope, ExecutionContext context) {

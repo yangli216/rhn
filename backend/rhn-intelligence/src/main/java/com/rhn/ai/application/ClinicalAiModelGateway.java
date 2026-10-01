@@ -53,9 +53,14 @@ public interface ClinicalAiModelGateway {
     }
 
     record PlanIntent(String name, String description, String narrative,
-                      List<PlanIntentItem> items, Long referenceTemplateId) {
+                      List<PlanIntentItem> items, Long referenceTemplateId, java.util.Map<String, String> noteTemplateContent) {
+        public PlanIntent(String name, String description, String narrative,
+                          List<PlanIntentItem> items, Long referenceTemplateId) {
+            this(name, description, narrative, items, referenceTemplateId, java.util.Map.of());
+        }
         public PlanIntent {
             items = items == null ? List.of() : List.copyOf(items);
+            noteTemplateContent = noteTemplateContent == null ? java.util.Map.of() : new java.util.LinkedHashMap<>(noteTemplateContent);
         }
         public PlanIntent(String name, String description, List<PlanIntentItem> items, Long referenceTemplateId) {
             this(name, description, null, items, referenceTemplateId);

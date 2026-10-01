@@ -10,13 +10,22 @@ export const noteTemplateFields: Array<{ key: NoteTemplateField; label: string }
   { key: 'presentIllness', label: '现病史' },
   { key: 'medicalHistory', label: '既往史' },
   { key: 'physicalExam', label: '查体所见' },
-  { key: 'treatmentPlan', label: '诊疗计划' },
+  { key: 'healthEducation', label: '健康宣教' },
+  { key: 'followUp', label: '随访复诊' },
 ]
+
+export const clinicalRecordAdditionalFields: Array<{ key: NoteTemplateField; label: string }> = [
+  { key: 'auxiliaryExaminations', label: '辅助检查结果' },
+  { key: 'healthEducation', label: '健康宣教' },
+  { key: 'followUp', label: '随访复诊' },
+]
+
 
 export function mergeNoteTemplateContent(current: OutpatientNoteTemplateContent,
   template: OutpatientNoteTemplateContent, fields: Set<NoteTemplateField>, overwrite: boolean) {
   const next = { ...current }
   fields.forEach((key) => {
+    if (key === 'treatmentPlan') return
     const incoming = template[key]?.trim()
     if (incoming && (overwrite || !current[key]?.trim())) next[key] = incoming
   })

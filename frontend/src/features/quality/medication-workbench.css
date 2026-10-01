@@ -1,51 +1,14 @@
-/* 合理用药规则工作台 · 现代 PC 宽屏样式规范 (1280px ~ 1920px+) */
-
-/* 1. 视口锁定与防溢出约束：绝对杜绝整页滚动条 */
-.workspace-content:has(.qmed-workbench) {
-  overflow: hidden !important;
-  height: 100% !important;
-  max-height: 100% !important;
-}
-
-.workspace-panel:has(.qmed-workbench),
-.workspace-panel:has(.qmed-workbench) > .page,
-.page:has(.qmed-workbench),
-.page:has(> .qmed-workbench) {
-  height: 100% !important;
-  min-height: 0 !important;
-  max-height: 100% !important;
-  overflow: hidden !important;
-  padding: 0 !important;
-}
-
+/* 合理用药规则工作台 · PC 宽屏样式 */
 .qmed-workbench {
-  height: 100% !important;
-  max-height: 100% !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
-  padding: 8px 20px 10px !important;
-  gap: 6px !important;
-  box-sizing: border-box !important;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: var(--layout-workspace-gutter);
+  gap: var(--layout-panel-gap);
+  box-sizing: border-box;
   color: var(--color-text-primary);
-}
-
-.qmed-workbench > .ui-page-header {
-  flex-shrink: 0;
-  margin-bottom: 0;
-  min-height: 42px !important;
-  height: 42px;
-  padding-left: 10px;
-}
-
-.qmed-workbench > .ui-page-header h1 {
-  font-size: 18px;
-}
-
-.qmed-workbench > .ui-page-header .ui-page-header__actions .ui-button {
-  min-height: 32px;
-  padding-block: 5px;
 }
 
 /* 顶部极简元数据状态条 (紧凑不占纵向高度) */
@@ -132,58 +95,6 @@
 }
 
 .qmed-kpi-val.text-accent {
-  color: var(--color-success);
-}
-
-/* 主 Tab 导航 (吸顶固定) */
-.qmed-tabs {
-  flex-shrink: 0;
-  display: flex;
-  gap: 4px;
-  border-bottom: 2px solid var(--color-border);
-  padding-bottom: 2px;
-}
-
-.qmed-tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  padding: 5px 12px;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -4px;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  border-radius: 6px 6px 0 0;
-  transition: all 0.15s ease;
-}
-
-.qmed-tab-btn:hover {
-  color: var(--color-success);
-  background-color: var(--color-surface-subtle);
-}
-
-.qmed-tab-btn.is-active {
-  color: var(--color-success);
-  border-bottom-color: var(--color-success);
-  font-weight: 600;
-}
-
-.qmed-tab-badge {
-  display: inline-block;
-  padding: 2px 7px;
-  font-size: var(--font-size-small);
-  font-weight: 600;
-  border-radius: 9999px;
-  background: var(--color-border);
-  color: var(--color-text-secondary);
-}
-
-.qmed-tab-btn.is-active .qmed-tab-badge {
-  background: var(--color-success-soft);
   color: var(--color-success);
 }
 
@@ -2056,91 +1967,91 @@
 
 /* 1. 规则卡片元数据规格网格 (高密度 2 列专业工作台排版) */
 .qmed-cand-spec-grid {
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 8px 16px !important;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2) var(--space-4);
   font-size: var(--font-size-small);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
-  border-radius: 6px !important;
-  padding: 10px 14px !important;
-  box-sizing: border-box !important;
+  border-radius: var(--radius-sm);
+  padding: calc(var(--space-1) * 2.5) calc(var(--space-1) * 3.5);
+  box-sizing: border-box;
 }
 
 .qmed-spec-col {
-  display: flex !important;
-  align-items: baseline !important;
-  gap: 8px !important;
-  min-width: 0 !important;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .qmed-spec-col.full {
-  grid-column: 1 / -1 !important;
+  grid-column: 1 / -1;
 }
 
 .qmed-spec-k {
   color: var(--color-text-secondary);
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  white-space: nowrap !important;
-  flex-shrink: 0 !important;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .qmed-spec-v {
   color: var(--color-text-primary);
-  font-size: 12.5px !important;
-  font-weight: 500 !important;
-  word-break: break-word !important;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  word-break: break-word;
 }
 
 .qmed-spec-v.spec-source {
   color: var(--color-text-primary);
-  font-style: normal !important;
-  line-height: 1.4 !important;
+  font-style: normal;
+  line-height: var(--line-height-body);
 }
 
 .qmed-spec-v.spec-msg {
   color: var(--color-warning-strong);
   background: var(--color-warning-soft);
   border: 1px solid var(--color-warning-soft);
-  padding: 2px 8px !important;
-  border-radius: 4px !important;
-  line-height: 1.4 !important;
+  padding: calc(var(--space-1) * 0.5) var(--space-2);
+  border-radius: var(--radius-sm);
+  line-height: var(--line-height-body);
 }
 
 /* 2. 虚拟患者画像标题行右侧“调入门诊真实历史处方”链接按钮 */
 .qmed-patient-sim-title {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px !important;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
   color: var(--color-text-primary);
   font-size: 12px;
   font-weight: 600;
 }
 
 .qmed-patient-sim-title .title-left {
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .qmed-link-import-his {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 5px !important;
-  background: transparent !important;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-1) * 1.25);
+  background: transparent;
   border: 1px solid var(--color-info-border);
   background-color: var(--color-info-soft);
   color: var(--color-info-strong);
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  padding: 3px 10px !important;
-  border-radius: 4px !important;
-  cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  padding: calc(var(--space-1) * 0.75) calc(var(--space-1) * 2.5);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--motion-fast) var(--ease-standard);
 }
 
 .qmed-link-import-his:hover {
@@ -2151,192 +2062,8 @@
 
 /* 3. 医嘱录入式搜索下拉组件 (MedicationSearchSelect) */
 .qmed-med-picker-col {
-  flex: 2 !important;
-  min-width: 220px !important;
-}
-
-.qmed-search-select-wrap {
-  position: relative !important;
-  width: 100% !important;
-}
-
-.qmed-search-select-control {
-  display: flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  min-height: 30px !important;
-  height: 30px !important;
-  padding: 2px 8px !important;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 4px !important;
-  background: var(--color-surface);
-  cursor: pointer !important;
-  box-sizing: border-box !important;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
-}
-
-.qmed-search-select-control:hover {
-  border-color: var(--color-text-disabled);
-}
-
-.qmed-search-select-control.is-open {
-  border-color: var(--color-brand-primary);
-  box-shadow: var(--shadow-focus);
-}
-
-.qmed-search-select-icon {
-  color: var(--color-text-disabled);
-  display: flex !important;
-  align-items: center !important;
-  font-size: 13px !important;
-}
-
-.qmed-search-select-input {
-  flex: 1 !important;
-  border: none !important;
-  outline: none !important;
-  font-size: 12px !important;
-  color: var(--color-text-primary);
-  background: transparent !important;
-  padding: 0 !important;
-}
-
-.qmed-search-select-value {
-  flex: 1 !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  font-size: 12px !important;
-}
-
-.qmed-search-select-value .med-name {
-  color: var(--color-text-primary);
-  font-weight: 600 !important;
-}
-
-.qmed-search-select-value .med-spec {
-  color: var(--color-text-secondary);
-}
-
-.qmed-search-select-value .med-placeholder {
-  color: var(--color-text-disabled);
-}
-
-.qmed-search-select-clear {
-  background: none !important;
-  border: none !important;
-  color: var(--color-text-disabled);
-  font-size: 14px !important;
-  cursor: pointer !important;
-  padding: 0 4px !important;
-  line-height: 1 !important;
-}
-
-.qmed-search-select-clear:hover {
-  color: var(--color-danger);
-}
-
-.qmed-search-select-arrow {
-  color: var(--color-text-disabled);
-  font-size: var(--font-size-small);
-}
-
-.qmed-search-select-dropdown {
-  position: absolute !important;
-  top: calc(100% + 4px) !important;
-  left: 0 !important;
-  right: 0 !important;
-  min-width: 320px !important;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 6px !important;
-  box-shadow: var(--shadow-sm);
-  z-index: 1050 !important;
-  overflow: hidden !important;
-}
-
-.qmed-search-select-hint {
-  padding: 6px 10px !important;
-  background: var(--color-surface-subtle);
-  border-bottom: 1px solid var(--color-border);
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-}
-
-.qmed-search-select-list {
-  max-height: 220px !important;
-  overflow-y: auto !important;
-}
-
-.qmed-search-select-item {
-  padding: 7px 10px !important;
-  cursor: pointer !important;
-  border-bottom: 1px solid var(--color-surface-muted);
-  transition: background-color 0.12s ease !important;
-}
-
-.qmed-search-select-item:hover {
-  background-color: var(--color-success-soft);
-}
-
-.qmed-search-select-item.is-selected {
-  background-color: var(--color-success-soft);
-}
-
-.qmed-search-select-item .item-row-top {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-}
-
-.qmed-search-select-item .item-name {
-  font-size: 12.5px !important;
-  font-weight: 600 !important;
-  color: var(--color-text-primary);
-}
-
-.qmed-search-select-item .item-spec {
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-}
-
-.qmed-search-select-item .item-tag {
-  font-size: var(--font-size-small);
-  padding: 1px 5px !important;
-  border-radius: 3px !important;
-}
-
-.qmed-search-select-item .item-tag.tag-anti {
-  background: var(--color-danger-soft);
-  color: var(--color-danger-strong);
-}
-
-.qmed-search-select-item .item-tag.tag-cat {
-  background: var(--color-info-soft);
-  color: var(--color-info-strong);
-}
-
-.qmed-search-select-item .item-row-bottom {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  margin-top: 3px !important;
-  font-size: var(--font-size-small);
-  color: var(--color-text-disabled);
-}
-
-.qmed-search-select-item .item-code {
-  font-family: monospace !important;
-}
-
-.qmed-search-select-empty {
-  padding: 14px !important;
-  text-align: center !important;
-  font-size: 12px !important;
-  color: var(--color-text-disabled);
+  flex: 2;
+  min-width: 13.75rem;
 }
 
 /* 4. 给药途径与频次下拉选择框 */
@@ -2376,65 +2103,6 @@
   color: var(--color-text-primary);
 }
 
-.qmed-his-cards-grid {
-  display: grid !important;
-  grid-template-columns: repeat(2, 1fr) !important;
-  gap: 10px !important;
-  margin-top: 8px !important;
-}
-
-.qmed-his-card {
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
-  border-radius: 6px !important;
-  padding: 10px 12px !important;
-  cursor: pointer !important;
-  transition: all 0.15s ease !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 4px !important;
-}
-
-.qmed-his-card:hover {
-  border-color: var(--color-brand-primary);
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-1px) !important;
-}
-
-.qmed-his-card-head {
-  display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-}
-
-.qmed-his-card-head strong {
-  font-size: 12.5px !important;
-  color: var(--color-text-primary);
-}
-
-.qmed-his-card-patient {
-  margin: 0 !important;
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-}
-
-.qmed-his-card-rx {
-  font-size: 12px !important;
-  color: var(--color-text-primary);
-  background: var(--color-surface-subtle);
-  padding: 3px 6px !important;
-  border-radius: 4px !important;
-  border: 1px solid var(--color-surface-muted);
-}
-
-.qmed-his-card-action {
-  font-size: var(--font-size-small);
-  color: var(--color-brand-primary);
-  font-weight: 600 !important;
-  align-self: flex-end !important;
-  margin-top: 2px !important;
-}
-
 .custom-input-section {
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
@@ -2463,7 +2131,6 @@
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-  border: 0;
 }
 
 .qmed-req-box .ui-field__control,
@@ -2510,7 +2177,6 @@
   height: 32px;
   margin-top: 4px;
   padding-inline: 8px;
-  font-size: 12px;
 }
 
 .qmed-med-picker-col .ui-select,
@@ -2588,4 +2254,32 @@
 
 .qmed-his-input-field .ui-field__control {
   width: 100% !important;
+}
+
+.qmed-loading-spinner {
+  margin-right: calc(var(--space-1) * 1.5);
+}
+
+.qmed-med-empty {
+  padding: var(--space-2);
+}
+
+.qmed-candidate-empty {
+  padding: var(--space-2) 0;
+}
+
+.qmed-cabin-description {
+  margin: 0;
+  font-size: var(--font-size-small);
+}
+
+.qmed-scenario-card .ui-button__label,
+.qmed-candidate-item .ui-button__label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  gap: var(--space-1);
 }

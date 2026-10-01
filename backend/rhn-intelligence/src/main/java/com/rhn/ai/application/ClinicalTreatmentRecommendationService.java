@@ -20,10 +20,12 @@ public class ClinicalTreatmentRecommendationService {
     private final ServiceCatalogDirectory services;
     private final ExecutionContextProvider contexts;
     private final ClinicalAiModelGateway gateway;
+    private final TreatmentCatalogDecisionService decisions;
 
     public ClinicalTreatmentRecommendationService(OutpatientPrescriptionInventoryDirectory inventory,
-            ServiceCatalogDirectory services, ExecutionContextProvider contexts, ClinicalAiModelGateway gateway) {
-        this.inventory = inventory; this.services = services; this.contexts = contexts; this.gateway = gateway;
+            ServiceCatalogDirectory services, ExecutionContextProvider contexts, ClinicalAiModelGateway gateway,
+            TreatmentCatalogDecisionService decisions) {
+        this.inventory = inventory; this.services = services; this.contexts = contexts; this.gateway = gateway; this.decisions = decisions;
     }
 
     public record Result(List<TreatmentRecommendation> items, List<SafetyAlert> alerts) {}
@@ -34,6 +36,7 @@ public class ClinicalTreatmentRecommendationService {
         var available = new LinkedHashMap<String, TreatmentRecommendation>();
         var deterministic = new LinkedHashMap<String, TreatmentRecommendation>();
         var ambiguous = new LinkedHashMap<String, TreatmentRecommendation>();
+        var decisionGroups = new ArrayList<TreatmentCatalogDecisionService.Group>();
         var alerts = new ArrayList<SafetyAlert>();
         var seen = new java.util.HashSet<String>();
         for (var intent : intents.stream().limit(12).toList()) {
@@ -82,6 +85,7 @@ public class ClinicalTreatmentRecommendationService {
                         deterministic.putIfAbsent(key(exact.getFirst()), exact.getFirst());
                     } else {
                         unique.forEach(candidate -> ambiguous.putIfAbsent(key(candidate), candidate));
+                        decisionGroups.add(new TreatmentCatalogDecisionService.Group(intent, unique));
                     }
                 }
             } catch (RuntimeException exception) {
@@ -93,25 +97,37 @@ public class ClinicalTreatmentRecommendationService {
             return new Result(deterministic.values().stream().limit(8).toList(), alerts);
         }
         var candidates = ambiguous.values().stream().limit(64).toList();
+        var allowedKeys = candidates.stream().map(ClinicalTreatmentRecommendationService::key).collect(java.util.stream.Collectors.toSet());
+        var decision = decisions.match(decisionGroups, context);
+        alerts.addAll(decision.alerts());
+        if (decision.applied()) {
+            var result = new LinkedHashMap<String, TreatmentRecommendation>(deterministic);
+            decision.items().stream().filter(item -> allowedKeys.contains(key(item)))
+                    .forEach(item -> result.putIfAbsent(key(item), item));
+            return new Result(result.values().stream().limit(8).toList(), alerts);
+        }
         try {
             var selection = gateway.analyze(new ClinicalAiModelGateway.ModelRequest(request.promptVersion(), request.question(),
                     request.voiceTranscript(), request.draft(), request.resident(), request.allergies(), request.availablePlans(),
                     request.diagnosticReports(), request.clinicalHistory(), request.priorSuggestion(), request.receptionScene(),
                     request.receptionSceneContext(), "CATALOG_TREATMENT", candidates, request.temporalContext()), runtime);
             var result = new LinkedHashMap<String, TreatmentRecommendation>(deterministic);
+            var baseline = new ArrayList<TreatmentRecommendation>();
             for (var item : selection.treatmentRecommendations()) {
                 if (item == null || item.catalogItemId() == null) continue;
                 var mapped = candidates.stream().filter(candidate -> key(candidate).equals(key(item))).findFirst().orElse(null);
                 if (mapped == null) continue;
+                baseline.add(mapped);
                 String rationale = item.rationale() == null ? "请结合当前病情核对适应证。" : item.rationale().substring(0, Math.min(500, item.rationale().length()));
                 result.putIfAbsent(key(mapped), new TreatmentRecommendation(mapped.type(), mapped.catalogItemId(),
                         mapped.medicationId(), mapped.code(), mapped.name(), mapped.specification(), rationale));
                 if (result.size() >= 8) break;
             }
+            decisions.compare(decision, baseline, context);
             return new Result(result.values().stream().limit(8).toList(), alerts);
         } catch (RuntimeException exception) {
             alerts.add(new SafetyAlert("WARNING", "治疗推荐未完成", "病历及诊断已整理，目录治疗推荐暂未完成，请在医嘱区检索核对。"));
-            return new Result(List.of(), alerts);
+            return new Result(deterministic.values().stream().limit(8).toList(), alerts);
         }
     }
 

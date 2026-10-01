@@ -1,4 +1,4 @@
-import { diagnosisDraftSignature, moveDiagnosis, normalizeDiagnosisOrder, structuredFormSignature, validateStructuredForm } from './record/clinicalRecordDraft'
+import { clinicalRecordContent, createRecordSchema, diagnosisDraftSignature, moveDiagnosis, normalizeDiagnosisOrder, structuredFormSignature, validateStructuredForm } from './record/clinicalRecordDraft'
 import { describe, expect, it } from 'vitest'
 import { draftStateLabels, mergeNoteTemplateContent, prescriptionCategoryLabel, printPurposeLabel,
   type NoteTemplateField } from './DoctorWorkstation'
@@ -10,6 +10,24 @@ const allFields = new Set<NoteTemplateField>([
 ])
 
 describe('病历模板带入', () => {
+  it('保存书写内容而不提交自由文本诊疗计划', () => {
+    const form = createRecordSchema(false).parse({ chiefComplaint: '患者主诉', presentIllness: '', medicalHistory: '', physicalExam: '',
+      treatmentPlan: '不能提交的文字计划', healthEducation: '健康宣教', followUp: '复诊安排', auxiliaryExaminations: '已有结果' })
+    const saved = clinicalRecordContent(form, [{ code: 'J06.9', display: '结构化诊断', type: 'PRIMARY' }], '', {})
+    expect(saved.treatmentPlan).toBeUndefined()
+    expect(saved.healthEducation).toBe('健康宣教')
+    expect(saved.followUp).toBe('复诊安排')
+    expect(saved.diagnoses[0].code).toBe('J06.9')
+  })
+
+  it('带入书写字段并拒绝模板文字性诊疗计划', () => {
+    const content = mergeNoteTemplateContent({}, { healthEducation: '健康宣教', followUp: '复诊安排', treatmentPlan: '旧模板开药文字' },
+      new Set<NoteTemplateField>(['healthEducation', 'followUp', 'treatmentPlan']), true)
+    expect(content.healthEducation).toBe('健康宣教')
+    expect(content.followUp).toBe('复诊安排')
+    expect(content.treatmentPlan).toBeUndefined()
+  })
+
   it('默认只填充空白段落并保留医生已经书写的内容', () => {
     const result = mergeNoteTemplateContent(
       { chiefComplaint: '患者本次真实主诉', presentIllness: '' },

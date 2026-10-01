@@ -1,3 +1,4 @@
+import type { OutpatientNoteTemplateContent } from './outpatientNoteTemplatesApi'
 import type { CreateMedicationRequestInput, CreateServiceRequestInput, DiagnosisInput } from './encountersApi'
 import type { ApiClient } from './httpClient'
 
@@ -87,6 +88,7 @@ export interface PlanTextDraft {
   sourceType?: OutpatientPlanTemplateSourceType
   guidelineReference?: string
   reviewItems: PlanTextReviewItem[]
+  noteTemplateContent?: OutpatientNoteTemplateContent
 }
 
 export interface PlanTextReviewItem {
@@ -137,6 +139,8 @@ export async function consumePlanTextDraftStream(response: Response,
 }
 
 export interface PlanStreamPreviewResult {
+  noteTemplateContent?: OutpatientNoteTemplateContent
+  noteTemplateComplete?: boolean
   name: string
   narrative: string
   items: PlanTextReviewItem[]
@@ -216,40 +220,43 @@ function extractStreamingItems(source: string): PlanTextReviewItem[] {
   return items
 }
 
-export function planTextStreamPreview(source: string): PlanStreamPreviewResult {
-  const readTopLevelString = (target: string) => {
-    let position = 0
-    const whitespace = () => { while (/\s/.test(source[position] ?? '') && position < source.length) position++ }
-    const string = () => {
-      let value = ''; position++
-      while (position < source.length) {
-        const character = source[position++]
-        if (character === '"') return value
-        if (character !== '\\') { value += character; continue }
-        const escape = source[position++]
-        if (!escape) break
-        if (escape === 'u') {
-          const hex = source.slice(position, position + 4)
-          if (!/^[a-fA-F0-9]{4}$/.test(hex)) break
-          value += String.fromCharCode(parseInt(hex, 16)); position += 4
-        } else {
-          const escaped: Record<string, string> = { '"': '"', '\\': '\\', '/': '/', n: '\n', r: '\r', t: '\t', b: '\b', f: '\f' }
-          if (!(escape in escaped)) break
-          value += escaped[escape]
-        }
+function readStreamingString(source: string, path: string[], requireClosed = false): string | undefined {
+  let position = 0
+  const whitespace = () => { while (position < source.length && /\s/.test(source[position])) position++ }
+  const string = () => {
+    let value = ''; position++
+    while (position < source.length) {
+      const character = source[position++]
+      if (character === '"') return value
+      if (character !== '\\') { value += character; continue }
+      const escape = source[position++]
+      if (!escape) break
+      if (escape === 'u') {
+        const hex = source.slice(position, position + 4)
+        if (!/^[a-fA-F0-9]{4}$/.test(hex)) break
+        value += String.fromCharCode(parseInt(hex, 16)); position += 4
+      } else {
+        const escaped: Record<string, string> = { '"': '"', '\\': '\\', '/': '/', n: '\n', r: '\r', t: '\t', b: '\b', f: '\f' }
+        if (!(escape in escaped)) break
+        value += escaped[escape]
       }
-      return value
     }
+    return requireClosed ? undefined : value
+  }
+  const object = (keys: string[]): string | undefined => {
     whitespace()
-    if (source[position++] !== '{') return ''
+    if (source[position++] !== '{') return undefined
     while (position < source.length) {
       whitespace()
-      if (source[position] !== '"') return ''
+      if (source[position] !== '"') return undefined
       const key = string()
       whitespace()
-      if (source[position++] !== ':') return ''
+      if (source[position++] !== ':') return undefined
       whitespace()
-      if (key === target && source[position] === '"') return string()
+      if (key === keys[0]) {
+        if (keys.length > 1) return object(keys.slice(1))
+        return source[position] === '"' ? string() : undefined
+      }
       let depth = 0, quoted = false, escaped = false
       while (position < source.length) {
         const character = source[position]
@@ -263,18 +270,36 @@ export function planTextStreamPreview(source: string): PlanStreamPreviewResult {
         if (character === '"') { quoted = true; position++; continue }
         if (character === '{' || character === '[') depth++
         else if (character === '}' || character === ']') {
-          if (depth === 0) return ''
+          if (depth === 0) return undefined
           depth--
         } else if (character === ',' && depth === 0) { position++; break }
         position++
       }
     }
-    return ''
+    return undefined
+  }
+  return object(path)
+}
+
+const FABRICATED_VITALS_PREFIX = /^(?:(?:[Tt体温]\s*[:：]?\s*\d+(?:\.\d+)?\s*[℃度]?|[Pp脉搏心率]\s*[:：]?\s*\d+\s*(?:次\/分|bpm)?|[Rr呼吸]\s*[:：]?\s*\d+\s*(?:次\/分)?|[Bb][Pp]血压\s*[:：]?\s*\d+\/\d+\s*(?:mmHg)?)[,，、；;\s]*)+/
+
+export function planTextStreamPreview(source: string): PlanStreamPreviewResult {
+  const noteTemplateContent: OutpatientNoteTemplateContent = {}
+  const fields = ['chiefComplaint', 'presentIllness', 'medicalHistory', 'physicalExam',
+    'healthEducation', 'followUp'] as const
+  for (const key of fields) {
+    let value = readStreamingString(source, ['noteTemplateContent', key])
+    if (value !== undefined) {
+      if (key === 'physicalExam') value = value.replace(FABRICATED_VITALS_PREFIX, '').trimStart()
+      noteTemplateContent[key] = value.slice(0, key === 'chiefComplaint' ? 1000 : 4000)
+    }
   }
   return {
-    name: readTopLevelString('name'),
-    narrative: readTopLevelString('narrative'),
+    name: readStreamingString(source, ['name']) ?? '',
+    narrative: readStreamingString(source, ['narrative']) ?? '',
     items: extractStreamingItems(source),
+    ...(Object.keys(noteTemplateContent).length ? { noteTemplateContent,
+      noteTemplateComplete: fields.every((key) => readStreamingString(source, ['noteTemplateContent', key], true) !== undefined) } : {}),
   }
 }
 
@@ -364,32 +389,18 @@ export function createOutpatientPlanTemplatesApi(client: ApiClient) {
       }),
     compileDraftStream: async (naturalInput: string, scopeType: OutpatientPlanTemplateScope,
       signal: AbortSignal, onDelta: (text: string) => void) => {
-      try {
-        return await consumePlanTextDraftStream(
-          await client.eventStream('/api/ai/clinical-assistant/plan-templates/draft/stream', signal, undefined, {
-            method: 'POST', body: JSON.stringify({ naturalInput, scopeType }),
-          }), onDelta)
-      } catch (streamError) {
-        if (signal.aborted) throw streamError
-        return await client.request<PlanTextDraft>('/api/ai/clinical-assistant/plan-templates/draft', {
-          method: 'POST', body: JSON.stringify({ naturalInput, scopeType }), signal,
-        })
-      }
+      return await consumePlanTextDraftStream(
+        await client.eventStream('/api/ai/clinical-assistant/plan-templates/draft/stream', signal, undefined, {
+          method: 'POST', body: JSON.stringify({ naturalInput, scopeType }),
+        }), onDelta)
     },
     reviseDraftStream: async (naturalInput: string, currentNarrative: string, revisionInstruction: string,
       scopeType: OutpatientPlanTemplateScope, signal: AbortSignal, onDelta: (text: string) => void) => {
       const body = JSON.stringify({ naturalInput, confirmedNarrative: currentNarrative, revisionInstruction, scopeType })
-      try {
-        return await consumePlanTextDraftStream(
-          await client.eventStream('/api/ai/clinical-assistant/plan-templates/draft/stream', signal, undefined, {
-            method: 'POST', body,
-          }), onDelta)
-      } catch (streamError) {
-        if (signal.aborted) throw streamError
-        return await client.request<PlanTextDraft>('/api/ai/clinical-assistant/plan-templates/draft', {
-          method: 'POST', body, signal,
-        })
-      }
+      return await consumePlanTextDraftStream(
+        await client.eventStream('/api/ai/clinical-assistant/plan-templates/draft/stream', signal, undefined, {
+          method: 'POST', body,
+        }), onDelta)
     },
     convertDraft: (naturalInput: string, confirmedNarrative: string, confirmedName: string,
       reviewItems: PlanTextReviewItem[], scopeType: OutpatientPlanTemplateScope = 'PERSONAL') =>
@@ -404,34 +415,20 @@ export function createOutpatientPlanTemplatesApi(client: ApiClient) {
       }),
     compileGuidelineStream: async (guidelineText: string, guidelineName: string, versionYear: string | undefined,
       scopeType: OutpatientPlanTemplateScope, signal: AbortSignal, onDelta: (text: string) => void) => {
-      try {
-        return await consumePlanTextDraftStream(
-          await client.eventStream('/api/ai/clinical-assistant/plan-templates/guideline-extract/stream', signal, undefined, {
-            method: 'POST', body: JSON.stringify({ guidelineText, guidelineName, versionYear, scopeType }),
-          }), onDelta)
-      } catch (streamError) {
-        if (signal.aborted) throw streamError
-        return await client.request<PlanTextDraft>('/api/ai/clinical-assistant/plan-templates/guideline-extract', {
-          method: 'POST', body: JSON.stringify({ guidelineText, guidelineName, versionYear, scopeType }), signal,
-        })
-      }
+      return await consumePlanTextDraftStream(
+        await client.eventStream('/api/ai/clinical-assistant/plan-templates/guideline-extract/stream', signal, undefined, {
+          method: 'POST', body: JSON.stringify({ guidelineText, guidelineName, versionYear, scopeType }),
+        }), onDelta)
     },
     reviseGuidelineStream: async (guidelineText: string, guidelineName: string, versionYear: string | undefined,
       currentNarrative: string, revisionInstruction: string, scopeType: OutpatientPlanTemplateScope,
       signal: AbortSignal, onDelta: (text: string) => void) => {
       const body = JSON.stringify({ guidelineText, guidelineName, versionYear, confirmedNarrative: currentNarrative,
         revisionInstruction, scopeType })
-      try {
-        return await consumePlanTextDraftStream(
-          await client.eventStream('/api/ai/clinical-assistant/plan-templates/guideline-extract/stream', signal, undefined, {
-            method: 'POST', body,
-          }), onDelta)
-      } catch (streamError) {
-        if (signal.aborted) throw streamError
-        return await client.request<PlanTextDraft>('/api/ai/clinical-assistant/plan-templates/guideline-extract', {
-          method: 'POST', body, signal,
-        })
-      }
+      return await consumePlanTextDraftStream(
+        await client.eventStream('/api/ai/clinical-assistant/plan-templates/guideline-extract/stream', signal, undefined, {
+          method: 'POST', body,
+        }), onDelta)
     },
     convertGuideline: (guidelineText: string, guidelineName: string, versionYear: string | undefined,
                        confirmedNarrative: string, scopeType: OutpatientPlanTemplateScope = 'HOSPITAL') =>

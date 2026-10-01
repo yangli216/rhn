@@ -1,5 +1,5 @@
 import { createRef } from 'react'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { Dialog, FormField, Select } from './index'
@@ -47,5 +47,82 @@ describe('Dialog form keyboard navigation', () => {
     const textarea = screen.getByLabelText('说明')
     await userEvent.type(textarea, '第一行{Enter}第二行')
     expect(textarea).toHaveValue('第一行\n第二行')
+  })
+})
+
+
+describe('Content-bound drawer', () => {
+  it('tracks content bounds and retains Escape, backdrop protection and focus restoration', async () => {
+    const boundary = document.createElement('div')
+    const trigger = document.createElement('button')
+    document.body.append(boundary, trigger)
+    trigger.focus()
+    let width = 1200
+    vi.spyOn(boundary, 'getBoundingClientRect').mockImplementation(() => ({
+      top: 80, left: 240, width, height: 800, right: 240 + width, bottom: 880, x: 240, y: 80,
+      toJSON: () => ({}),
+    }))
+    const onClose = vi.fn()
+    const { unmount } = render(<Dialog title="智能建方" presentation="drawer" boundary={boundary}
+      closeOnBackdrop={false} onClose={onClose}><FormField label="主诉"><textarea /></FormField></Dialog>)
+    const backdrop = screen.getByRole('dialog').parentElement!
+    expect(backdrop).toHaveStyle({ top: '80px', left: '240px', width: '1200px', height: '800px' })
+    await userEvent.click(backdrop)
+    expect(onClose).not.toHaveBeenCalled()
+    width = 1000
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    await userEvent.click(screen.getByLabelText('主诉'))
+    expect(backdrop).toHaveStyle({ width: '1000px' })
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(1)
+    unmount()
+    expect(trigger).toHaveFocus()
+    boundary.remove()
+    trigger.remove()
+  })
+
+  it('does not set #root inert in drawer mode and hides backdrop when host panel is hidden', async () => {
+    const root = document.createElement('div')
+    root.id = 'root'
+    const panel = document.createElement('div')
+    panel.className = 'workspace-panel'
+    const boundary = document.createElement('div')
+    boundary.className = 'workspace-content'
+    panel.appendChild(boundary)
+    root.appendChild(panel)
+    document.body.appendChild(root)
+
+    vi.spyOn(boundary, 'getBoundingClientRect').mockImplementation(() => ({
+      top: 50, left: 200, width: 1000, height: 600, right: 1200, bottom: 650, x: 200, y: 50,
+      toJSON: () => ({}),
+    }))
+
+    const { unmount } = render(
+      <Dialog title="抽屉测试" presentation="drawer" boundary={boundary} onClose={vi.fn()}>
+        <div>内容</div>
+      </Dialog>,
+      { container: panel }
+    )
+
+    expect(root).not.toHaveAttribute('inert')
+    const backdrop = screen.getByRole('dialog').parentElement!
+    expect(backdrop).not.toHaveStyle({ display: 'none' })
+
+    act(() => {
+      panel.setAttribute('hidden', '')
+    })
+    await vi.waitFor(() => {
+      expect(backdrop).toHaveStyle({ display: 'none' })
+    })
+
+    act(() => {
+      panel.removeAttribute('hidden')
+    })
+    await vi.waitFor(() => {
+      expect(backdrop).not.toHaveStyle({ display: 'none' })
+    })
+
+    unmount()
+    root.remove()
   })
 })

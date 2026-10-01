@@ -17,7 +17,7 @@
   flex: 1;
   height: auto;
   min-height: 0;
-  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr);
 }
 
 .doctor-plan-pool-header {
@@ -109,18 +109,25 @@
   padding: var(--space-2) var(--space-3);
 }
 
+button.doctor-plan-item-card,
 .doctor-plan-item-card {
   width: 100%;
-  padding: var(--space-3);
+  height: auto;
+  min-height: auto;
+  white-space: normal;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: var(--space-1);
   text-align: left;
   font: inherit;
+  transition: all var(--motion-fast) var(--ease-standard);
 }
 
 .doctor-note-template-preview.is-workspace {
@@ -138,15 +145,24 @@
 }
 
 .doctor-clinical-template-note-section {
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: var(--space-1) 0;
+  line-height: var(--line-height-body);
+  display: grid;
+  grid-template-columns: 6.8rem minmax(0, 1fr);
+  gap: var(--space-1) var(--space-2);
+  align-items: baseline;
 }
+.doctor-clinical-template-note-section > strong {
+  text-align: right;
+  width: 100%;
+  white-space: nowrap;
+  font-weight: var(--font-weight-bold);
+}
+.doctor-clinical-template-note-section > strong::after { content: '：'; }
 
 .doctor-clinical-template-note-section > p {
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-secondary);
+  margin: 0;
+  color: var(--color-text-primary);
   line-height: var(--line-height-body);
   white-space: pre-wrap;
 }
@@ -468,10 +484,10 @@
 }
 
 .doctor-plan-item-card__title {
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  line-height: var(--line-height-body);
+  line-height: var(--line-height-small);
 }
 
 .doctor-plan-item-card__desc {
@@ -479,7 +495,7 @@
   color: var(--color-text-secondary);
   line-height: var(--line-height-small);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -487,10 +503,10 @@
 .doctor-plan-item-card__meta {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   font-size: var(--font-size-small);
   color: var(--color-text-disabled);
-  margin-top: var(--space-1);
+  margin-top: 0;
 }
 
 .doctor-plan-pool-detail {
@@ -568,12 +584,14 @@
 
 .doctor-plan-items-table th {
   background: var(--color-surface-subtle);
-  padding: var(--space-2) var(--space-3);
+  height: 2.25rem;
+  padding: 0 var(--space-3);
   color: var(--color-text-secondary);
   border-bottom: 1px solid var(--color-border);
   font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-small);
-  line-height: var(--line-height-small);
+  font-size: var(--font-size-table);
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .doctor-plan-items-table td {
@@ -581,7 +599,7 @@
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-primary);
   vertical-align: middle;
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-table);
   line-height: var(--line-height-body);
 }
 
@@ -597,16 +615,74 @@
 .doctor-plan-items-table th.ui-table-cell--control,
 .doctor-plan-items-table td.ui-table-cell--control {
   width: 44px;
+  min-width: 44px;
+  max-width: 44px;
   text-align: center;
-  padding-left: var(--space-2);
-  padding-right: var(--space-2);
+  vertical-align: middle;
+  padding: 0 var(--space-2);
+}
+
+.doctor-plan-items-table th.ui-table-cell--control input[type="checkbox"],
+.doctor-plan-items-table td.ui-table-cell--control input[type="checkbox"] {
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  margin: 0 auto;
+}
+
+.doctor-plan-items-table th.doctor-col--med-name,
+.doctor-plan-items-table td.doctor-col--med-name {
+  min-width: 160px;
+}
+
+.doctor-plan-items-table th.doctor-col--dose,
+.doctor-plan-items-table td.doctor-col--dose {
+  width: 80px;
+  white-space: nowrap;
+}
+
+.doctor-plan-items-table th.doctor-col--route,
+.doctor-plan-items-table td.doctor-col--route {
+  width: 70px;
+  white-space: nowrap;
+}
+
+.doctor-plan-items-table th.doctor-col--frequency,
+.doctor-plan-items-table td.doctor-col--frequency {
+  width: 70px;
+  white-space: nowrap;
+}
+
+.doctor-plan-items-table th.doctor-col--duration,
+.doctor-plan-items-table td.doctor-col--duration {
+  width: 70px;
+  white-space: nowrap;
+}
+
+.doctor-plan-items-table th.doctor-col--instruction,
+.doctor-plan-items-table td.doctor-col--instruction {
+  min-width: 160px;
+}
+
+.doctor-plan-instruction-cell {
+  max-width: 24rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+  word-break: break-all;
+  cursor: default;
 }
 
 .doctor-plan-items-table td.doctor-plan-table-empty {
   text-align: center;
   color: var(--color-text-disabled);
   padding: var(--space-4);
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-table);
 }
 
 .doctor-plan-pool-detail__footer {
@@ -700,3 +776,16 @@
   line-height: var(--line-height-small);
 }
 
+
+/* Shared buttons keep catalog summaries aligned from the same left edge. */
+.doctor-plan-item-card .ui-button__label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  gap: var(--space-1);
+  white-space: normal;
+  text-align: left;
+}

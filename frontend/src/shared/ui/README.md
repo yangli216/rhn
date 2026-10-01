@@ -262,3 +262,5 @@ npm run check
 ```
 
 该命令先执行规则回归测试、原有全量 UI 门禁和新增规则检查，再运行前端测试、TypeScript 与生产构建。新增规则的历史基线不豁免原有门禁。例外与人工验收要求见前端开发入口。
+
+病历连续文书可使用 `FormField appearance="document"`，保留标签、错误关联及键盘焦点，正文随内容增长。`Dialog presentation="drawer" boundary={contentElement}` 覆盖指定内容区并跟随尺寸变化；未传 boundary 时覆盖视口。沿用焦点约束与恢复，有草稿时设置 `closeOnBackdrop={false}`。

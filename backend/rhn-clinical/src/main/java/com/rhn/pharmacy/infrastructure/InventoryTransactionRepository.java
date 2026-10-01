@@ -7,6 +7,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,7 +22,7 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
             select distinct t from InventoryTransaction t, InventoryTransactionLine l
             where t.tenantId = :tenantId and t.inventoryPeriodId = :periodId
               and l.inventoryTransactionId = t.id and l.tenantId = :tenantId and l.stockItemId = :stockItemId
-            order by t.postedAt desc
+            order by t.postedAt desc, t.id desc
             """, countQuery = """
             select count(distinct t.id) from InventoryTransaction t, InventoryTransactionLine l
             where t.tenantId = :tenantId and t.inventoryPeriodId = :periodId
@@ -35,7 +37,7 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
             select distinct t from InventoryTransaction t, InventoryTransactionLine l
             where t.tenantId = :tenantId and t.inventoryPeriodId = :periodId
               and l.inventoryTransactionId = t.id and l.tenantId = :tenantId and l.stockItemId = :stockItemId
-            order by t.postedAt desc
+            order by t.postedAt desc, t.id desc
             """)
     List<InventoryTransaction> findPeriodItemHistory(@Param("tenantId") Long tenantId,
                                                       @Param("periodId") Long periodId,
@@ -46,7 +48,7 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
             where t.tenantId = :tenantId
               and p.id = t.inventoryPeriodId and p.tenantId = :tenantId and p.stockSiteId = :siteId
               and l.inventoryTransactionId = t.id and l.tenantId = :tenantId and l.stockItemId = :stockItemId
-            order by t.postedAt desc
+            order by t.postedAt desc, t.id desc
             """)
     List<InventoryTransaction> findItemHistory(@Param("tenantId") Long tenantId,
                                                @Param("siteId") Long siteId,
@@ -57,7 +59,7 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
             where t.tenantId = :tenantId
               and p.id = t.inventoryPeriodId and p.tenantId = :tenantId and p.stockSiteId = :siteId
               and l.inventoryTransactionId = t.id and l.tenantId = :tenantId and l.stockItemId = :stockItemId
-            order by t.postedAt desc
+            order by t.postedAt desc, t.id desc
             """, countQuery = """
             select count(distinct t.id) from InventoryTransaction t, InventoryPeriod p, InventoryTransactionLine l
             where t.tenantId = :tenantId
@@ -68,4 +70,54 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
                                                @Param("siteId") Long siteId,
                                                @Param("stockItemId") Long stockItemId,
                                                Pageable pageable);
+
+    @Query(value = """
+            select distinct t from InventoryTransaction t, InventoryPeriod p, InventoryTransactionLine l,
+              StockLot lot, StockBin bin
+            where t.tenantId = :tenantId
+              and p.id = t.inventoryPeriodId and p.tenantId = :tenantId and p.stockSiteId = :siteId
+              and l.inventoryTransactionId = t.id and l.tenantId = :tenantId and l.stockItemId = :stockItemId
+              and lot.id = l.stockLotId and lot.tenantId = :tenantId
+              and bin.id = l.stockBinId and bin.tenantId = :tenantId
+              and (lower(t.transactionNo) like concat('%', :keyword, '%')
+                or lower(t.sourceCode) like concat('%', :keyword, '%')
+                or lower(coalesce(t.description, '')) like concat('%', :keyword, '%')
+                or lower(lot.lotNo) like concat('%', :keyword, '%')
+                or lower(bin.code) like concat('%', :keyword, '%')
+                or lower(bin.name) like concat('%', :keyword, '%'))
+            order by t.postedAt desc, t.id desc
+            """, countQuery = """
+            select count(distinct t.id) from InventoryTransaction t, InventoryPeriod p, InventoryTransactionLine l,
+              StockLot lot, StockBin bin
+            where t.tenantId = :tenantId
+              and p.id = t.inventoryPeriodId and p.tenantId = :tenantId and p.stockSiteId = :siteId
+              and l.inventoryTransactionId = t.id and l.tenantId = :tenantId and l.stockItemId = :stockItemId
+              and lot.id = l.stockLotId and lot.tenantId = :tenantId
+              and bin.id = l.stockBinId and bin.tenantId = :tenantId
+              and (lower(t.transactionNo) like concat('%', :keyword, '%')
+                or lower(t.sourceCode) like concat('%', :keyword, '%')
+                or lower(coalesce(t.description, '')) like concat('%', :keyword, '%')
+                or lower(lot.lotNo) like concat('%', :keyword, '%')
+                or lower(bin.code) like concat('%', :keyword, '%')
+                or lower(bin.name) like concat('%', :keyword, '%'))
+            """)
+    Page<InventoryTransaction> findItemHistoryByKeyword(@Param("tenantId") Long tenantId,
+                                                        @Param("siteId") Long siteId,
+                                                        @Param("stockItemId") Long stockItemId,
+                                                        @Param("keyword") String keyword,
+                                                        Pageable pageable);
+
+    @Query("""
+            select coalesce(sum(l.quantityDelta), 0) from InventoryTransaction t, InventoryPeriod p,
+              InventoryTransactionLine l
+            where t.tenantId = :tenantId
+              and p.id = t.inventoryPeriodId and p.tenantId = :tenantId and p.stockSiteId = :siteId
+              and l.inventoryTransactionId = t.id and l.tenantId = :tenantId and l.stockItemId = :stockItemId
+              and (t.postedAt > :postedAt or (t.postedAt = :postedAt and t.id > :transactionId))
+            """)
+    BigDecimal sumItemQuantityDeltaPostedAfter(@Param("tenantId") Long tenantId,
+                                               @Param("siteId") Long siteId,
+                                               @Param("stockItemId") Long stockItemId,
+                                               @Param("postedAt") Instant postedAt,
+                                               @Param("transactionId") Long transactionId);
 }

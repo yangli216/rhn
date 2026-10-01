@@ -85,4 +85,25 @@ public interface MedicationProductRepository extends JpaRepository<MedicationPro
             """)
     Page<MedicationProduct> search(@Param("tenantId") Long tenantId, @Param("query") String query,
                                    @Param("status") String status, Pageable pageable);
+
+    @Query("""
+            select p from MedicationProduct p
+            where p.tenantId = :tenantId and p.itemType = 'MED_PRODUCT' and p.status = 'ACTIVE'
+              and (:query is null or :query = '' or lower(p.code) like lower(concat('%', :query, '%'))
+                   or lower(p.name) like lower(concat('%', :query, '%'))
+                   or lower(coalesce(p.tradeName, '')) like lower(concat('%', :query, '%'))
+                   or lower(coalesce(p.approvalCode, '')) like lower(concat('%', :query, '%')))
+              and not exists (select local.id from OrganizationCatalogItem local
+                   where local.tenantId = p.tenantId and local.catalogItemId = p.id
+                     and local.organizationId = :organizationId
+                     and local.validFrom <= :at and (local.validTo is null or local.validTo >= :at))
+              and (:sourceOrganizationId is null or not exists (select shared.id from OrganizationCatalogItem shared
+                   where shared.tenantId = p.tenantId and shared.catalogItemId = p.id
+                     and shared.organizationId = :sourceOrganizationId and shared.status <> 'SUSPENDED'
+                     and shared.validFrom <= :at and (shared.validTo is null or shared.validTo >= :at)))
+            """)
+    Page<MedicationProduct> searchUnadopted(@Param("tenantId") Long tenantId, @Param("query") String query,
+                                            @Param("organizationId") Long organizationId,
+                                            @Param("sourceOrganizationId") Long sourceOrganizationId,
+                                            @Param("at") java.time.LocalDate at, Pageable pageable);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { ClinicalAiCapabilities, ClinicalAiDraftContext,
-  ClinicalAiSuggestion } from '../../../shared/api/clinicalAiApi'
+  ClinicalAiSuggestion, ClinicalAiRecommendedPlan } from '../../../shared/api/clinicalAiApi'
 import { Button, FormField, Icon, StatusBadge } from '../../../shared/ui'
 import type { ClinicalAiPreview } from '../../../shared/api/clinicalAiStream'
 import { clinicalAiDraftStatusPresentation } from '../../../shared/presentation'
@@ -8,6 +8,7 @@ import { aiRecordDraftFields, aiRecordDraftValue, aiVitalDefinitions, formatAiRe
   isAiVitalField, recordDraftFieldLabels, type AiRecordDraftField } from './aiDraftAdapter'
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
 import { ClinicalAiPipelineStepper } from './ClinicalAiPipelineStepper'
+import { clinicalAiContextFingerprint } from './aiDraftAdapter'
 import type { ClinicalAiSurfaces, InlineAiSelection } from './ClinicalAiInlineWorkspace'
 
 export interface ClinicalAiCopilotHubProps {
@@ -29,6 +30,9 @@ export interface ClinicalAiCopilotHubProps {
   onQuestionChange: (value: string) => void
   onClearVoice?: () => void
   onGenerate: (focus?: string) => Promise<string>
+  planInputKey?: string
+  onFindPlans?: () => Promise<ClinicalAiRecommendedPlan[]>
+  onReviewRecommendedPlan?: (plan: ClinicalAiRecommendedPlan) => void
   onApply: (selection: InlineAiSelection) => void
   onOpenDetail?: () => void
   onOpenHistory?: () => void
@@ -41,9 +45,21 @@ export interface ClinicalAiCopilotHubProps {
 export function ClinicalAiCopilotHub({
   context, capability, suggestion, current, busy, generating, inputBusy, preview,
   onView, disabled, canAdopt, error, voiceInput, interimTranscript, question,
-  onQuestionChange, onClearVoice, onGenerate, onApply, onOpenDetail, onOpenHistory,
+  onQuestionChange, onClearVoice, onGenerate, planInputKey, onFindPlans, onReviewRecommendedPlan, onApply, onOpenDetail, onOpenHistory,
   onOpenResults, sceneAssessment, sceneLoading, surfaces,
 }: ClinicalAiCopilotHubProps) {
+  const [findingPlans, setFindingPlans] = useState(false)
+  const [planError, setPlanError] = useState('')
+  const [planChoice, setPlanChoice] = useState<{ plans: ClinicalAiRecommendedPlan[]; focus?: string; auto: boolean; key: string }>()
+  const inputIdentity = planInputKey ?? `${clinicalAiContextFingerprint(context)}:${question}`
+  const latestPlanInput = useRef(inputIdentity)
+  latestPlanInput.current = inputIdentity
+  const requestSequence = useRef(0)
+  useEffect(() => {
+    requestSequence.current++
+    setPlanChoice(undefined); setPlanError(''); setFindingPlans(false)
+  }, [inputIdentity])
+  useEffect(() => () => { requestSequence.current++ }, [])
   const [hubOpen, setHubOpen] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -92,14 +108,17 @@ export function ClinicalAiCopilotHub({
       .map((field) => [field, editedValue(field)])) : undefined,
   })
 
-  const generate = (focus?: string) => {
+  const generate = async (focus?: string, skipPlans = false) => {
+    if (!skipPlans && await offerPlans(false, focus)) return
     appliedSuggestionId.current = null
     setReviewOpen(true)
     void onGenerate(focus).catch(() => undefined)
   }
 
-  const generateAndApply = async (presetPrompt?: string) => {
+  const generateAndApply = async (presetPrompt?: string, skipPlans = false) => {
     if (disabled || busy || !canAdopt || !recordFeature || sceneLoading) return
+    if (!skipPlans && presetPrompt && onFindPlans) { onQuestionChange(presetPrompt); return }
+    if (!skipPlans && !presetPrompt && await offerPlans(true, 'RECORD')) return
     if (presetPrompt) {
       onQuestionChange(presetPrompt)
     }
@@ -109,6 +128,23 @@ export function ClinicalAiCopilotHub({
       appliedSuggestionId.current = id || null
     } catch {
       appliedSuggestionId.current = null
+    }
+  }
+
+  async function offerPlans(auto: boolean, focus?: string) {
+    if (!onFindPlans) return false
+    const key = inputIdentity, request = ++requestSequence.current
+    setFindingPlans(true); setPlanError(''); setPlanChoice(undefined)
+    try {
+      const plans = await onFindPlans()
+      if (request !== requestSequence.current || key !== latestPlanInput.current) return true
+      if (plans.length) { setPlanChoice({ plans, auto, focus, key }); return true }
+      return false
+    } catch (error) {
+      if (request === requestSequence.current) setPlanError(error instanceof Error ? error.message : '方案匹配失败，请重试。')
+      return true
+    } finally {
+      if (request === requestSequence.current) setFindingPlans(false)
     }
   }
 
@@ -262,7 +298,7 @@ export function ClinicalAiCopilotHub({
                       size="sm"
                       variant="secondary"
                       className="doctor-ai-quick-btn"
-                      disabled={disabled || busy || !canAdopt || sceneLoading}
+                      disabled={findingPlans || Boolean(planChoice) || disabled || busy || !canAdopt || sceneLoading}
                       onClick={() => generateAndApply('原发性慢病规律复诊配药，目前病情平稳，无特殊不适，要求按医嘱续开长期用药。')}
                     >
                       <Icon name="sparkles" />
@@ -303,7 +339,7 @@ export function ClinicalAiCopilotHub({
                       size="sm"
                       variant="secondary"
                       className="doctor-ai-quick-btn"
-                      disabled={disabled || busy || !canAdopt || sceneLoading}
+                      disabled={findingPlans || Boolean(planChoice) || disabled || busy || !canAdopt || sceneLoading}
                       onClick={() => generateAndApply('看检查检验结果复诊，结合异常指标评估疗效并调整下一步诊疗。')}
                     >
                       <Icon name="sparkles" />
@@ -317,7 +353,7 @@ export function ClinicalAiCopilotHub({
                   variant="secondary"
                   className="doctor-ai-btn--refresh doctor-ai-quick-btn"
                   aria-label="分析当前病历"
-                  disabled={disabled || busy}
+                  disabled={findingPlans || Boolean(planChoice) || disabled || busy}
                   onClick={() => generate()}
                   title="根据当前病历重新分析"
                 >
@@ -390,7 +426,7 @@ export function ClinicalAiCopilotHub({
                   disabled={disabled || inputBusy}
                   onChange={(event) => onQuestionChange(event.target.value)}
                   placeholder={
-                    isChronic
+                    onFindPlans ? '输入或口述问诊要点，先匹配整体诊疗方案；不采用方案时继续 AI 共写。' : isChronic
                       ? '输入或口述慢病复诊要点（如：血压控制良好，无不适，来配降压药），AI 将直接生成规范复诊病历。'
                       : isReport
                         ? '输入或口述报告回诊要点（如：看血常规化验单），AI 将结合报告异常直接生成规范回诊病历。'
@@ -403,18 +439,18 @@ export function ClinicalAiCopilotHub({
                     <Button
                       size="sm"
                       variant="primary"
-                      disabled={disabled || busy || !canAdopt || !recordFeature || sceneLoading}
-                      title="直接按问诊要点生成病历草稿并自动填充至各字段"
+                      disabled={findingPlans || Boolean(planChoice) || disabled || busy || !canAdopt || !recordFeature || sceneLoading}
+                      title="先匹配整体诊疗方案；无匹配方案时继续生成病历草稿"
                       onClick={() => generateAndApply()}
                     >
                       <Icon name="sparkles" />
-                      {generating ? 'AI 正在共写…' : '直接生成并带入病历'}
+                      {findingPlans ? '正在匹配方案…' : generating ? 'AI 正在共写…' : onFindPlans ? '匹配方案并继续' : '直接生成并带入病历'}
                     </Button>
                     <Button
                       size="sm"
                       variant="secondary"
-                      disabled={disabled || busy}
-                      title="生成建议并在下方展示段落对照，由您逐条勾选采纳"
+                      disabled={findingPlans || Boolean(planChoice) || disabled || busy}
+                      title="先匹配整体方案；不采用方案时生成建议并逐条核对采纳"
                       onClick={() => {
                         setReviewOpen(true)
                         generate()
@@ -427,6 +463,25 @@ export function ClinicalAiCopilotHub({
               </div>
             </section>
 
+            {planError && <div role="alert">{planError}
+              <Button size="sm" variant="secondary" disabled={disabled || busy}
+                onClick={() => void generate(undefined, true)}>跳过方案匹配，继续对照建议</Button></div>}
+            {planChoice && <section className="doctor-ai-whole-plan-choice" aria-label="整体诊疗方案推荐">
+              <strong>先核对是否采用整体诊疗方案</strong>
+              <p>方案可包含配套病历模板、诊断、药品及诊疗项目。核对后由你决定是否整体带入草稿。</p>
+              {planChoice.plans.map((plan) => <article key={plan.templateId}>
+                <div><strong>{plan.name}</strong><p>{plan.description || plan.rationale}</p></div>
+                <Button size="sm" variant="secondary" disabled={disabled || busy}
+                  onClick={() => { setHubOpen(false); onReviewRecommendedPlan?.(plan) }}>核对整体方案</Button>
+              </article>)}
+              <Button size="sm" disabled={disabled || busy} onClick={() => {
+                const choice = planChoice
+                setPlanChoice(undefined)
+                if (choice.key !== latestPlanInput.current) return
+                if (choice.auto) void generateAndApply(undefined, true)
+                else void generate(choice.focus, true)
+              }}>不采用方案，继续 AI 共写</Button>
+            </section>}
             {/* 4. Stepper & Diagnostics Details */}
             {generating && (
               <div className="doctor-ai-generation-box" role="status" aria-live="polite">

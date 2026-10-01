@@ -4,6 +4,7 @@ import com.rhn.pharmacy.api.PharmacyViews.InventoryBalanceView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryReservationView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryPageView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionLineView;
+import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionPageView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionView;
 import com.rhn.pharmacy.api.PharmacyViews.ReservationResultView;
 import com.rhn.pharmacy.api.PharmacyViews.StockBinView;
@@ -472,11 +473,13 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
     }
 
     @Transactional(readOnly = true)
-    public InventoryPageView<InventoryTransactionView> transactionPage(Long siteId, String periodCode,
-                                                                        Long stockItemId, boolean allPeriods,
-                                                                        int page, int size) {
+    public InventoryTransactionPageView transactionPage(Long siteId, String periodCode,
+                                                         Long stockItemId, boolean allPeriods,
+                                                         String query, int page, int size) {
         ExecutionContext context = requireWorkContext(); StockSite site = requireSite(context, siteId);
         requireOrganizationAccess(context, site.organizationId()); PageRequest request = pageRequest(page, size);
+        String keyword = Strings.trimToNull(query);
+        if (keyword != null) keyword = keyword.toLowerCase(java.util.Locale.ROOT);
         if (stockItemId != null) {
             StockItem item = requireItem(context, stockItemId);
             if (!item.stockSiteId().equals(siteId)) {
@@ -487,19 +490,34 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         if (allPeriods) {
             if (stockItemId == null) throw badRequest(
                     "INVENTORY_HISTORY_ITEM_REQUIRED", "查询全部期间流水时必须指定经营项目");
-            values = transactionRepository.findItemHistory(context.tenantId(), siteId, stockItemId, request);
+            values = keyword == null
+                    ? transactionRepository.findItemHistory(context.tenantId(), siteId, stockItemId, request)
+                    : transactionRepository.findItemHistoryByKeyword(
+                            context.tenantId(), siteId, stockItemId, keyword, request);
         } else {
             String code = Strings.trimToNull(periodCode);
             if (code == null) code = YearMonth.now(ZoneOffset.UTC).toString().replace("-", "");
             InventoryPeriod period = periodRepository.findByTenantIdAndStockSiteIdAndPeriodCode(
                     context.tenantId(), siteId, code).orElse(null);
-            if (period == null) return new InventoryPageView<>(List.of(), page, size, 0, 0, page == 0, true);
+            if (period == null) return new InventoryTransactionPageView(
+                    List.of(), page, size, 0, 0, page == 0, true, null);
             values = stockItemId == null
                     ? transactionRepository.findByTenantIdAndInventoryPeriodIdOrderByPostedAtDesc(
                             context.tenantId(), period.id(), request)
                     : transactionRepository.findPeriodItemHistory(context.tenantId(), period.id(), stockItemId, request);
         }
-        return pageView(values, transactionViews(context.tenantId(), values.getContent()));
+        BigDecimal firstEntryQuantityAfter = null;
+        if (allPeriods && stockItemId != null && !values.isEmpty()) {
+            InventoryTransaction firstEntry = values.getContent().getFirst();
+            BigDecimal currentQuantity = availabilityService.findByItem(context.tenantId(), siteId, stockItemId)
+                    .stream().map(InventoryBalance::quantityOnHand).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal newerQuantityDelta = transactionRepository.sumItemQuantityDeltaPostedAfter(
+                    context.tenantId(), siteId, stockItemId, firstEntry.postedAt(), firstEntry.id());
+            firstEntryQuantityAfter = currentQuantity.subtract(newerQuantityDelta);
+        }
+        return new InventoryTransactionPageView(transactionViews(context.tenantId(), values.getContent()),
+                values.getNumber(), values.getSize(), values.getTotalElements(), values.getTotalPages(),
+                values.isFirst(), values.isLast(), firstEntryQuantityAfter);
     }
 
     @Transactional

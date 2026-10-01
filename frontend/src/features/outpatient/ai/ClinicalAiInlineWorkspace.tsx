@@ -1,7 +1,7 @@
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
 import { ClinicalAiTreatmentRows } from './ClinicalAiTreatmentRows'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { ClinicalAiCapabilities, ClinicalAiDraftContext, ClinicalAiRecordDraft,
   ClinicalAiSuggestion, ClinicalAiRecommendedPlan, ClinicalAiTreatmentRecommendation } from '../../../shared/api/clinicalAiApi'
@@ -31,7 +31,7 @@ export interface InlineAiSelection {
 /** One analysis session, rendered beside the clinical objects it can help edit. */
 export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, capability, suggestion, current, busy,
   generating, inputBusy, preview, onView, disabled, canAdopt, error, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
-  onReviewPlan, onReviewTreatment, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, templatesPending, sceneAssessment, sceneLoading }: {
+  onFindPlans, planInputKey, onReviewRecommendedPlan, onReviewTreatment, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults,  sceneAssessment, sceneLoading }: {
   api: RhnApi
   encounter: Encounter
   surfaces: ClinicalAiSurfaces
@@ -56,14 +56,21 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   onApply: (selection: InlineAiSelection) => void
   onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[]) => void
   existingTreatmentKeys?: string[]
-  onReviewPlan: (plan: ClinicalAiRecommendedPlan) => void
+  planInputKey?: string
+  onFindPlans?: () => Promise<ClinicalAiRecommendedPlan[]>
+  onReviewRecommendedPlan?: (plan: ClinicalAiRecommendedPlan) => void
   onOpenDetail?: () => void
   onOpenHistory?: () => void
   onOpenResults?: () => void
-  templatesPending: boolean
   sceneAssessment?: ReceptionSceneAssessment
   sceneLoading?: boolean
 }) {
+  const session = `${context.encounterId}:${suggestion?.id}`
+  const [diagnosisSelection, setDiagnosisSelection] = useState<{ session: string; excluded: string[] }>({ session: '', excluded: [] })
+  const excludedDiagnoses = diagnosisSelection.session === session ? diagnosisSelection.excluded : []
+  const diagnoses = (suggestion?.diagnosisCandidates ?? []).filter((item) =>
+    !context.diagnoses.some((diagnosis) => diagnosis.code.toUpperCase() === item.code.toUpperCase()))
+  const selectedDiagnoses = diagnoses.filter((item) => !excludedDiagnoses.includes(item.code))
   const diagnosisFeature = capability.features.includes('TERMINOLOGY_VALIDATION')
   const planFeature = capability.features.includes('PLAN_RECOMMENDATIONS')
   const availableTreatmentItems = planFeature
@@ -92,6 +99,9 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
         onQuestionChange={onQuestionChange}
         onClearVoice={onClearVoice}
         onGenerate={onGenerate}
+        planInputKey={planInputKey}
+        onFindPlans={onFindPlans}
+        onReviewRecommendedPlan={onReviewRecommendedPlan}
         onApply={onApply}
         onOpenDetail={onOpenDetail}
         onOpenHistory={onOpenHistory}
@@ -111,40 +121,33 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
           const exists = context.diagnoses.some((diagnosis) => diagnosis.code.toUpperCase() === item.code.toUpperCase())
           if (exists) return null
           return <div className="doctor-diagnosis-row is-ai-suggestion" role="row" key={item.code}>
-            <span className="doctor-diag-col-type"><span className="doctor-ai-pending-badge"><Icon name="sparkles" />AI 建议</span></span>
+            <span className="doctor-diag-col-type"><label className="doctor-ai-order-select">
+              <input type="checkbox" aria-label={`选择 ${item.display}`} checked={!excludedDiagnoses.includes(item.code)}
+                disabled={disabled || busy || !canAdopt} onChange={() => setDiagnosisSelection({ session,
+                  excluded: excludedDiagnoses.includes(item.code) ? excludedDiagnoses.filter((code) => code !== item.code) : [...excludedDiagnoses, item.code] })} />
+              <span className="doctor-ai-pending-badge">AI 建议</span></label></span>
             <span className="doctor-diag-col-main"><span className="doctor-diag-name-wrap">
               <strong className="doctor-diag-name">{item.display}</strong><span className="doctor-diag-code-pill">{item.code}</span>
             </span></span>
             <span className="doctor-diag-col-domain"><span className="doctor-diag-badge is-secondary">待医生确认</span></span>
             <span className="doctor-diag-col-management" title={item.rationale || undefined}>{item.rationale || '请结合当前病历核对。'}</span>
             <span className="doctor-diag-col-actions"><Button size="sm" variant="secondary"
-              disabled={disabled || busy || !canAdopt}
+              disabled={disabled || busy || !canAdopt || excludedDiagnoses.includes(item.code)}
               onClick={() => onApply({ diagnoses: [{ code: item.code, display: item.display, type: item.type }] })}>确认录入</Button>
               <Button size="sm" variant="text" onClick={onOpenDetail}>查看依据</Button></span>
           </div>
         })}
+        <div className="doctor-ai-order-batch is-diagnosis" role="row"><span>已选 {selectedDiagnoses.length} 项，核对后录入诊断。</span>
+          <Button size="sm" disabled={disabled || busy || !canAdopt || selectedDiagnoses.length === 0}
+            onClick={() => onApply({ diagnoses: selectedDiagnoses.map(({ code, display, type }) => ({ code, display, type })) })}>
+            <Icon name="check" />确认所选诊断（{selectedDiagnoses.length}）</Button></div>
       </div>, surfaces.diagnoses, 'diagnoses')}
 
     {current && planFeature && treatmentItems.length > 0 && portal(
       <ClinicalAiTreatmentRows key={`${context.encounterId}:${suggestion?.id}`} items={treatmentItems}
         api={api} encounter={encounter} disabled={disabled || busy || !canAdopt || !onReviewTreatment}
         onReview={(items) => onReviewTreatment?.(items)} />, surfaces.plans, 'treatments')}
-    {current && planFeature && Boolean(suggestion?.recommendedPlans.length) && portal(
-      <div className="doctor-ai-order-suggestions" aria-label="AI 院内方案待确认">
-        {suggestion!.recommendedPlans.map((plan) => <div className="doctor-unified-order-row is-ai-suggestion is-plan"
-          role="row" key={plan.templateId}>
-          <span className="doctor-unified-cell-type"><span className="doctor-ai-pending-badge"><Icon name="sparkles" />方案</span></span>
-          <span className="doctor-unified-cell-name"><strong>{plan.name}</strong></span>
-          <span className="doctor-unified-cell-directions">包含诊断、药品及诊疗项目</span>
-          <span className="doctor-unified-cell-qty">—</span>
-          <span className="doctor-unified-cell-instruction">{plan.rationale || plan.description}</span>
-          <span className="doctor-unified-cell-price">—</span>
-          <span className="doctor-unified-cell-status"><span className="doctor-ai-review-status">AI 待确认</span></span>
-          <span className="doctor-unified-cell-actions"><Button size="sm" variant="secondary"
-            disabled={disabled || busy || !current || !canAdopt || templatesPending}
-            onClick={() => onReviewPlan(plan)}>核对方案</Button></span>
-        </div>)}
-      </div>, surfaces.plans, 'plans')}
+
   </>
 }
 

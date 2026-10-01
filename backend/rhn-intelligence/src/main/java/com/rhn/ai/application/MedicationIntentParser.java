@@ -35,12 +35,17 @@ public class MedicationIntentParser {
     public ParsedMedication parse(String name, String details) {
         String source = join(name, details);
         String medicationName = cleanMedicationName(name);
-        Matcher dose = DOSE.matcher(source);
+        // 优先解析明确的单次剂量；规格与包装含量不能参与剂量回退。
+        String doseSource = source.replaceAll("(?:建议规格|规格|每粒含量|每片含量|含量)[：:]\\s*[^；;，,。\\n]+", " ");
+        Matcher explicit = Pattern.compile("(?:单次剂量|每次|一次)[：:]?\\s*" + NUMBER
+                + "\\s*(kg|g|mg|ug|μg|µg|ng|L|mL|ml|uL|μL|µL|千克|克|毫克|微克|纳克|升|毫升|微升|片|粒|支|袋|包)", Pattern.CASE_INSENSITIVE).matcher(source);
+        Matcher dose = explicit.find() ? explicit : DOSE.matcher(doseSource);
+        boolean hasDose = dose == explicit || dose.find();
         BigDecimal doseValue = null;
         String doseUnit = null;
-        if (dose.find()) {
+        if (hasDose) {
             doseValue = decimal(dose.group(1));
-            doseUnit = ClinicalDoseUnits.resolve(dose.group(2)).map(ClinicalDoseUnits.Unit::code).orElse(null);
+            doseUnit = ClinicalDoseUnits.resolve(dose.group(2)).map(ClinicalDoseUnits.Unit::code).orElse(dose.group(2));
         }
         Matcher duration = DURATION.matcher(source);
         BigDecimal durationValue = duration.find() ? decimal(duration.group(1)) : null;

@@ -28,7 +28,12 @@ public record RecordClinicalDataRequest(
         Integer oxygenSaturation,
         Long noteFormVersionId,
         @Size(max = 40) Map<@Size(max = 64) String, Object> structuredData,
-        @NotEmpty(message = "至少录入一条诊断") List<@Valid DiagnosisInput> diagnoses
+        @NotEmpty(message = "至少录入一条诊断") List<@Valid DiagnosisInput> diagnoses,
+        @Size(max = 4000) String allergyHistory,
+        @Size(max = 4000) String medicationHistory,
+        @Size(max = 4000) String auxiliaryExaminations,
+        @Size(max = 4000) String healthEducation,
+        @Size(max = 4000) String followUp
 ) {
     public record DiagnosisInput(
             Long conceptId,

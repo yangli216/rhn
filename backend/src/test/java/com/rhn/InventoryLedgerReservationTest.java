@@ -165,14 +165,32 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.totalElements").value(2))
                 .andExpect(jsonPath("$.totalPages").value(2));
         mockMvc.perform(get("/api/pharmacy/inventory/transactions/page").with(rhnWorkContext())
-                        .queryParam("stockSiteId", fixture.siteId()).queryParam("periodCode", "202608")
+                        .queryParam("stockSiteId", fixture.siteId()).queryParam("allPeriods", "true")
                         .queryParam("stockItemId", fixture.stockItemId()).queryParam("page", "0")
                         .queryParam("size", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].lines.length()").value(1))
                 .andExpect(jsonPath("$.totalElements").value(2))
-                .andExpect(jsonPath("$.totalPages").value(2));
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.firstEntryQuantityAfter").value(42));
+        mockMvc.perform(get("/api/pharmacy/inventory/transactions/page").with(rhnWorkContext())
+                        .queryParam("stockSiteId", fixture.siteId()).queryParam("allPeriods", "true")
+                        .queryParam("stockItemId", fixture.stockItemId()).queryParam("page", "1")
+                        .queryParam("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.firstEntryQuantityAfter").value(14));
+        mockMvc.perform(get("/api/pharmacy/inventory/transactions/page").with(rhnWorkContext())
+                        .queryParam("stockSiteId", fixture.siteId()).queryParam("allPeriods", "true")
+                        .queryParam("stockItemId", fixture.stockItemId()).queryParam("query", "EARLY-" + suffix)
+                        .queryParam("page", "0").queryParam("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].lines[0].stockLotId")
+                        .value(earlyLot.get("id").asString()))
+                .andExpect(jsonPath("$.firstEntryQuantityAfter").value(14));
     }
 
     @Test

@@ -22,6 +22,11 @@ export interface OutpatientNoteContent {
   medicalHistory?: string
   physicalExam?: string
   treatmentPlan?: string
+  allergyHistory?: string
+  medicationHistory?: string
+  auxiliaryExaminations?: string
+  healthEducation?: string
+  followUp?: string
   vitalSigns?: {
     systolic?: number
     diastolic?: number

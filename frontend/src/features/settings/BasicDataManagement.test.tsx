@@ -280,6 +280,7 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
         defaultFrequency: 'TID',
         sdStatus: 'ACTIVE' as const,
         sdStatusText: '有效',
+        standardReference: { status: 'LINKED' as const, specificationId: 'STD-001', issues: [] },
         products: [
           {
             id: 'prod-001',
@@ -349,6 +350,7 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(skinTestMarker).toHaveTextContent('皮')
     expect(skinTestMarker).not.toHaveAttribute('title')
     expect(screen.queryByText('20分钟')).not.toBeInTheDocument()
+    expect(screen.queryByText('已关联标准规格')).not.toBeInTheDocument()
 
     // 操作列中已移除重复的“加产品”按钮，且已移除“标准映射”按钮
     expect(screen.queryByRole('button', { name: '加产品' })).not.toBeInTheDocument()

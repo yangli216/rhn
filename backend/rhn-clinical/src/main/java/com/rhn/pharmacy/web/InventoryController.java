@@ -3,6 +3,7 @@ package com.rhn.pharmacy.web;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryBalanceView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryPageView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionView;
+import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionPageView;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTraceView;
 import com.rhn.pharmacy.api.PharmacyViews.MedicationDispenseView;
 import com.rhn.pharmacy.api.PharmacyViews.PreparationResultView;
@@ -115,14 +116,15 @@ public class InventoryController {
 
     @GetMapping("/inventory/transactions/page")
     @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
-    InventoryPageView<InventoryTransactionView> transactionPage(
+    InventoryTransactionPageView transactionPage(
             @RequestParam Long stockSiteId,
             @RequestParam(required = false) String periodCode,
             @RequestParam(required = false) Long stockItemId,
             @RequestParam(defaultValue = "false") boolean allPeriods,
+            @RequestParam(required = false) @Size(max = 100) String query,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
-        return service.transactionPage(stockSiteId, periodCode, stockItemId, allPeriods, page, size);
+        return service.transactionPage(stockSiteId, periodCode, stockItemId, allPeriods, query, page, size);
     }
 
     @GetMapping("/dispense/trace-code")

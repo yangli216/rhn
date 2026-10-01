@@ -29,3 +29,20 @@ describe('outpatient plan text streaming', () => {
       'event: delta\ndata: {"text":"半成品"}\n\n'), vi.fn())).rejects.toThrow('连接已中断')
   })
 })
+
+
+it('previews partial note strings with escapes and ignores nested or quoted lookalike fields', () => {
+  const source = JSON.stringify({ name: '测试方案', description: '"noteTemplateContent":{"chiefComplaint":"伪字段"}',
+    items: [{ kind: 'CONDITION', name: '条件', noteTemplateContent: { chiefComplaint: '不应显示' } }],
+    noteTemplateContent: { chiefComplaint: '[主要不适]，[持续时间]', presentIllness: '需询问起病\n伴随"症状"',
+      treatmentPlan: '禁止进入病历' } })
+  const cut = source.indexOf('伴随') + 2
+  expect(planTextStreamPreview(source.slice(0, cut)).noteTemplateContent).toEqual({
+    chiefComplaint: '[主要不适]，[持续时间]', presentIllness: '需询问起病\n伴随',
+  })
+  expect(planTextStreamPreview(source).noteTemplateContent).toEqual({
+    chiefComplaint: '[主要不适]，[持续时间]', presentIllness: '需询问起病\n伴随"症状"',
+  })
+  expect(planTextStreamPreview('{"noteTemplateContent":{"chiefComplaint":"待\\u8be').noteTemplateContent)
+    .toEqual({ chiefComplaint: '待' })
+})

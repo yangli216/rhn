@@ -2,7 +2,8 @@ import { useClinicalAiDraft, type AiRecordUndo } from './record/useClinicalAiDra
 import { DiagnosisPanel } from './record/DiagnosisPanel'
 import { ClinicalVitalsFields } from './record/ClinicalVitalsFields'
 import { StructuredNoteForm, ClinicalRecordReadView } from './record/StructuredNoteFields'
-import { NoteTemplateBar, mergeNoteTemplateContent, noteTemplateFields, type NoteTemplateField } from './record/NoteTemplateBar'
+
+import { NoteTemplateBar, mergeNoteTemplateContent, noteTemplateFields, clinicalRecordAdditionalFields, type NoteTemplateField } from './record/NoteTemplateBar'
 export { mergeNoteTemplateContent, type NoteTemplateField } from './record/NoteTemplateBar'
 import { createClinicalDraftSaver } from './record/saveClinicalDraft'
 import { clinicalRecordContent, createRecordSchema, diagnosisDraftSignature,
@@ -37,7 +38,7 @@ import type {
 } from '../../shared/api/encountersApi'
 import type { TerminateEncounterInput } from '../../shared/api/outpatientFlowApi'
 import type { OutpatientPlanTemplate, MinedPlanSuggestion, HistoricalStablePlan } from '../../shared/api/outpatientPlanTemplatesApi'
-import { planSourceReferenceLabel, planTaskKindLabel } from './templates/planTaskPresentation'
+import { planSourceReferenceLabel } from './templates/planTaskPresentation'
 import type {
   OutpatientNoteTemplate, OutpatientNoteTemplateContent,
 } from '../../shared/api/outpatientNoteTemplatesApi'
@@ -483,10 +484,10 @@ export function QueueRow({ item, busy, canEdit, onEnter, onView }: {
 
 type WorkTool = 'assistant' | 'plans' | 'history' | 'results' | 'coordination' | 'allergy'
 type GuardedPatientAction = 'queue' | 'suspend' | 'complete' | 'terminate'
-type HistoryRecordField = 'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'treatmentPlan'
+type HistoryRecordField = 'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'allergyHistory' | 'medicationHistory' | 'auxiliaryExaminations' | 'healthEducation' | 'followUp'
 type HistoryCopyField = HistoryRecordField | `diagnosis:${string}`
 type HistoryCopyRecord = Partial<Pick<ClinicalRecordInput,
-  'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'treatmentPlan'>>
+  'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'allergyHistory' | 'medicationHistory' | 'auxiliaryExaminations' | 'healthEducation' | 'followUp'>>
 
 interface HistoryCopyDraft {
   targetEncounterId?: string
@@ -525,6 +526,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   const [aiDiagnoses, setAiDiagnoses] = useState<HTMLDivElement | null>(null)
   const [aiPlans, setAiPlans] = useState<HTMLDivElement | null>(null)
   const [aiDetail, setAiDetail] = useState<HTMLDivElement | null>(null)
+  const [recommendedPlanId, setRecommendedPlanId] = useState<string>()
   const [planTemplateDrawerHost, setPlanTemplateDrawerHost] = useState<HTMLDivElement | null>(null)
   const workspaceDrawerRef = useRef<HTMLElement | null>(null)
   const aiSurfaceRefs = useMemo<ClinicalAiSurfaceRefs>(() => ({
@@ -543,6 +545,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   const allergyState: ClinicalAiDraftContext['allergyState'] = allergies.isFetching
     ? 'LOADING' : allergies.error ? 'ERROR' : 'READY'
   const encounter = encounters.data?.find((item) => item.id === encounterId)
+  useEffect(() => { setRecommendedPlanId(undefined) }, [encounterId])
     ?? encounters.data?.find((item) => ['IN_PROGRESS', 'SUSPENDED', 'REGISTERED'].includes(item.status))
     ?? encounters.data?.[0]
   const currentEnhancedItem = enhancedQueueItems.find((i) => i.residentId === resident.id || i.encounterId === encounter?.id)
@@ -854,7 +857,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                 aiPreConsultation={currentEnhancedItem?.aiPreConsultation}
                 triageVitals={effectiveTriageVitals}
                 historyEncounters={encounters.data ?? []}
-                planTemplateDrawerHost={planTemplateDrawerHost}
+                planTemplateDrawerHost={planTemplateDrawerHost} recommendedPlanId={recommendedPlanId}
                 onClosePlanDrawer={() => setActiveTool(null)} />
           </main>
           {editing && encounter.status === 'IN_PROGRESS' && aiContext?.encounterId === encounter.id
@@ -866,6 +869,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                   disabled={outpatientNote?.status === 'SIGNED' || draftState.busy}
                   surfaces={{ summary: aiNote, note: aiNote, diagnoses: aiDiagnoses, plans: aiPlans, detail: aiDetail }}
                   onOpenDetail={() => setActiveTool('assistant')}
+                  onReviewRecommendedPlan={(plan) => { setRecommendedPlanId(plan.templateId); setActiveTool('plans') }}
                   onOpenHistory={() => setActiveTool('history')} onOpenResults={() => setActiveTool('results')}
                   onAdoptionBusyChange={setAiAdoptionBusy} onApply={setAiDraft} onFieldStream={setAiFieldStream}
                   existingTreatmentKeys={existingTreatmentKeys}
@@ -1045,10 +1049,10 @@ function AllergyContextValue({ allergies, loading, error, disabled, onClick }: {
     ? `${actual.slice(0, 2).map((item) => item.substanceDisplay).join('、')}${actual.length > 2 ? `等${actual.length}项` : ''}`
     : noKnown ? '无已知药物过敏' : '尚未核对'
   return <Tooltip content={`${summary}；点击查看和维护`}>
-    <button type="button" className={`doctor-context-allergy is-${tone}`} disabled={disabled}
+    <Button variant="text" size="sm" type="button" className={`doctor-context-allergy is-${tone}`} disabled={disabled}
       aria-label={`过敏信息：${summary}，点击查看和维护`} onClick={onClick}>
       <span>{summary}</span><Icon name="chevron-right" />
-    </button>
+    </Button>
   </Tooltip>
 }
 
@@ -1178,10 +1182,10 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
               <span>待收金额</span>
             </div>
             {statement.data && statement.data.uninvoicedAmount > 0 && (
-              <button type="button" className="doctor-fee-quick-invoice-btn" disabled={issueInvoice.isPending}
+              <Button variant="text" size="sm" type="button" className="doctor-fee-quick-invoice-btn" disabled={issueInvoice.isPending}
                 onClick={() => issueInvoice.mutate()}>
                 {issueInvoice.isPending ? '生成中…' : '生成结算单'}
-              </button>
+              </Button>
             )}
           </div>
           <div className="doctor-fee-stat-content">
@@ -1263,7 +1267,7 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
                 <span className="doctor-quick-phrases__label">常用语</span>
                 <div className="doctor-quick-phrases__chips">
                   {quickDispositionPhrases.map((phrase) => (
-                    <button
+                    <Button variant="text" size="sm"
                       type="button"
                       key={phrase}
                       className="doctor-quick-phrase-chip"
@@ -1272,7 +1276,7 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
                         setRequestCommand(commandCode('COMPLETE', encounter.id))
                       }}>
                       {phrase}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -1456,7 +1460,7 @@ function allergenConceptTypeLabel(value: AllergenTerm['conceptType']) {
 
 
 type AmendmentDraft = Pick<RecordForm,
-  'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'treatmentPlan'>
+  'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'allergyHistory' | 'medicationHistory' | 'auxiliaryExaminations' | 'healthEducation' | 'followUp'>
 
 export function prescriptionSplitSummary(drafts: MedicationPlanDraft[], existingPrescriptions: Prescription[] = []) {
   const totals = new Map<string, number>()
@@ -1476,7 +1480,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, onRegisterSaveDraft, onSaveDraftNotice,
   editing, canEdit, completionMode, enteringEdit, onRequestEditing,
   onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters, aiSurfaceRefs, aiFieldStream,
-  aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange, currentDepartmentName, planTemplateDrawerHost,
+  aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange, currentDepartmentName, planTemplateDrawerHost, recommendedPlanId,
   onClosePlanDrawer }: {
   encounter: Encounter; birthDate?: string; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
   completionMode: OutpatientCompletionMode
@@ -1497,6 +1501,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   triageVitals?: VitalsSummary
   historyEncounters?: Encounter[]
   currentDepartmentName?: string
+  recommendedPlanId?: string
   planTemplateDrawerHost?: HTMLDivElement | null
   onClosePlanDrawer?: () => void
 }) {
@@ -1511,7 +1516,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const [amendmentOpen, setAmendmentOpen] = useState(false)
   const [amendmentReason, setAmendmentReason] = useState('')
   const [amendmentDraft, setAmendmentDraft] = useState<AmendmentDraft>({
-    chiefComplaint: '', presentIllness: '', medicalHistory: '', physicalExam: '', treatmentPlan: '',
+    chiefComplaint: '', presentIllness: '', medicalHistory: '', physicalExam: '', allergyHistory: '', medicationHistory: '', auxiliaryExaminations: '', healthEducation: '', followUp: '',
   })
   const [selectedNoteFormId, setSelectedNoteFormId] = useState('')
   const [structuredValues, setStructuredValues] = useState<Record<string, unknown>>({})
@@ -1523,7 +1528,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const recordSchema = useMemo(() => createRecordSchema(bloodPressureRequired), [bloodPressureRequired])
   const form = useForm<RecordForm>({
     resolver: zodResolver(recordSchema),
-    defaultValues: { chiefComplaint: '', presentIllness: '', medicalHistory: '', physicalExam: '', treatmentPlan: '',
+    defaultValues: { chiefComplaint: '', presentIllness: '', medicalHistory: '', physicalExam: '', treatmentPlan: '', allergyHistory: '', medicationHistory: '', auxiliaryExaminations: '', healthEducation: '', followUp: '',
       systolic: undefined, diastolic: undefined, temperature: undefined, pulseRate: undefined,
       respiratoryRate: undefined, heightCm: undefined, weightKg: undefined, oxygenSaturation: undefined },
   })
@@ -1570,7 +1575,12 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         presentIllness: form.presentIllness,
         medicalHistory: form.medicalHistory,
         physicalExam: form.physicalExam,
-        treatmentPlan: form.treatmentPlan,
+        allergyHistory: form.allergyHistory,
+        medicationHistory: form.medicationHistory,
+        auxiliaryExaminations: form.auxiliaryExaminations,
+        healthEducation: form.healthEducation,
+        followUp: form.followUp,
+
         systolic: form.systolic,
         diastolic: form.diastolic,
         temperature: form.temperature,
@@ -1621,7 +1631,11 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
     || (getValues().presentIllness?.trim() ?? '') !== (document?.content.presentIllness?.trim() ?? '')
     || (getValues().medicalHistory?.trim() ?? '') !== (document?.content.medicalHistory?.trim() ?? '')
     || (getValues().physicalExam?.trim() ?? '') !== (document?.content.physicalExam?.trim() ?? '')
-    || (getValues().treatmentPlan?.trim() ?? '') !== (document?.content.treatmentPlan?.trim() ?? '')
+    || (getValues().allergyHistory?.trim() ?? '') !== (document?.content.allergyHistory?.trim() ?? '')
+    || (getValues().medicationHistory?.trim() ?? '') !== (document?.content.medicationHistory?.trim() ?? '')
+    || (getValues().auxiliaryExaminations?.trim() ?? '') !== (document?.content.auxiliaryExaminations?.trim() ?? '')
+    || (getValues().healthEducation?.trim() ?? '') !== (document?.content.healthEducation?.trim() ?? '')
+    || (getValues().followUp?.trim() ?? '') !== (document?.content.followUp?.trim() ?? '')
   useEffect(() => {
     if (save.isPending) return
     const hasLocalWork = recordContentChanged || structuredChanged || diagnosesChanged
@@ -1631,7 +1645,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
 
     reset({ chiefComplaint: encounter.chiefComplaint ?? '', presentIllness: document?.content.presentIllness ?? '',
       medicalHistory: document?.content.medicalHistory ?? '', physicalExam: document?.content.physicalExam ?? '',
-      treatmentPlan: document?.content.treatmentPlan ?? '', systolic: encounter.systolic, diastolic: encounter.diastolic,
+      treatmentPlan: '', allergyHistory: document?.content.allergyHistory ?? '', medicationHistory: document?.content.medicationHistory ?? '', auxiliaryExaminations: document?.content.auxiliaryExaminations ?? '', healthEducation: document?.content.healthEducation ?? '', followUp: document?.content.followUp ?? '',  systolic: encounter.systolic, diastolic: encounter.diastolic,
       temperature: document?.content.vitalSigns?.temperature, pulseRate: document?.content.vitalSigns?.pulseRate,
       respiratoryRate: document?.content.vitalSigns?.respiratoryRate, heightCm: document?.content.vitalSigns?.heightCm,
       weightKg: document?.content.vitalSigns?.weightKg, oxygenSaturation: document?.content.vitalSigns?.oxygenSaturation })
@@ -1774,7 +1788,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const currentNoteContent = (): OutpatientNoteTemplateContent => {
     const value = getValues()
     return { chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
-      medicalHistory: value.medicalHistory, physicalExam: value.physicalExam, treatmentPlan: value.treatmentPlan }
+      medicalHistory: value.medicalHistory, physicalExam: value.physicalExam, allergyHistory: value.allergyHistory, medicationHistory: value.medicationHistory, auxiliaryExaminations: value.auxiliaryExaminations, healthEducation: value.healthEducation, followUp: value.followUp,  }
   }
   const openAmendment = () => {
     setAmendmentReason('')
@@ -1783,7 +1797,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       presentIllness: document?.content.presentIllness ?? '',
       medicalHistory: document?.content.medicalHistory ?? '',
       physicalExam: document?.content.physicalExam ?? '',
-      treatmentPlan: document?.content.treatmentPlan ?? '',
+      allergyHistory: document?.content.allergyHistory ?? '', medicationHistory: document?.content.medicationHistory ?? '', auxiliaryExaminations: document?.content.auxiliaryExaminations ?? '', healthEducation: document?.content.healthEducation ?? '', followUp: document?.content.followUp ?? '',
     })
     setAmendmentOpen(true)
   }
@@ -1830,7 +1844,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         更正草稿尚未签署。<Button size="sm" busy={sign.isPending} onClick={() => sign.mutate()}>重新签署更正版</Button>
       </Alert>}
       {error && <Alert>{errorMessage(error)}</Alert>}
-      {copyNotice && <div className="doctor-history-copy-notice"><Icon name="roadmap" /><span>{copyNotice}</span>
+      {copyNotice && <div className="doctor-record-adoption-notice"><Icon name="roadmap" /><span>{copyNotice}</span>
         {editing && aiRecordUndo && <Button size="sm" variant="text" disabled={!canUndoAiRecord}
           title={canUndoAiRecord ? '恢复本次采纳前的病历段落' : '相关段落已修改或保存，不能撤销此前采纳'}
           onClick={undoAiRecord}>撤销本次病历采纳</Button>}</div>}
@@ -1865,24 +1879,26 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
             </div>
           </div>
         )}
-        <FormField className="doctor-record-narrative doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
+        <FormField appearance="document" className="doctor-record-narrative doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
           <textarea {...register('chiefComplaint')} {...streamingField('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" rows={2} />
         </FormField>
-        <FormField className="doctor-record-narrative doctor-record-field--present" label="现病史" error={formState.errors.presentIllness?.message}>
+        <FormField appearance="document" className="doctor-record-narrative doctor-record-field--present" label="现病史" error={formState.errors.presentIllness?.message}>
           <textarea {...register('presentIllness')} {...streamingField('presentIllness')} disabled={signed} placeholder="起病、演变、伴随症状及诊治经过" rows={3} />
         </FormField>
-        <FormField className="doctor-record-narrative doctor-record-field--history" label="既往史" error={formState.errors.medicalHistory?.message}>
+        <FormField appearance="document" className="doctor-record-narrative doctor-record-field--history" label="既往史" error={formState.errors.medicalHistory?.message}>
           <textarea {...register('medicalHistory')} {...streamingField('medicalHistory')} disabled={signed} placeholder="既往疾病、手术、过敏及长期用药" rows={2} />
         </FormField>
         <ClinicalVitalsFields api={api} encounterId={encounter.id} historyEncounters={historyEncounters}
           triageVitals={triageVitals} form={form} recordValues={recordValues} bmi={bmi}
           signed={signed} bloodPressureRequired={bloodPressureRequired} />
-        <FormField className="doctor-record-narrative doctor-record-field--exam" label="查体所见" error={formState.errors.physicalExam?.message}>
+        <FormField appearance="document" className="doctor-record-narrative doctor-record-field--exam" label="查体所见" error={formState.errors.physicalExam?.message}>
           <textarea {...register('physicalExam')} {...streamingField('physicalExam')} disabled={signed} placeholder="阳性体征及必要的阴性体征" rows={3} />
         </FormField>
-        <FormField className="doctor-record-narrative doctor-record-field--plan" label="诊疗计划" error={formState.errors.treatmentPlan?.message}>
-          <textarea {...register('treatmentPlan')} {...streamingField('treatmentPlan')} disabled={signed} placeholder="检查、治疗、用药和随访安排" rows={3} />
-        </FormField>
+        {clinicalRecordAdditionalFields
+          .map(({ key, label }) => <FormField appearance="document" key={key} className="doctor-record-narrative doctor-record-writing-field" label={label} error={formState.errors[key]?.message}>
+            <textarea {...register(key)} {...streamingField(key)} disabled={signed} rows={2}
+              placeholder={key === 'auxiliaryExaminations' ? '记录已获得的检查结果及日期；拟开检查在医嘱区管理' : `记录本次${label}，缺失资料请留空或注明待询问`} />
+          </FormField>)}
         {selectedNoteForm && <StructuredNoteForm form={selectedNoteForm} values={structuredValues}
           errors={structuredErrors} disabled={signed} onChange={(code, value) => {
             setStructuredValues((current) => ({ ...current, [code]: value }))
@@ -1899,6 +1915,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       </form> : <ClinicalRecordReadView value={recordValues} bmi={bmi} structuredForm={selectedNoteForm}
         structuredValues={structuredValues} />}
     </Panel>
+
     </div>
     <aside className="doctor-clinical-aside" aria-label="诊断与医嘱工作区">
       <DiagnosisPanel encounterId={encounter.id} api={api} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
@@ -1911,7 +1928,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         currentDepartmentName={currentDepartmentName} />
     </aside>
     {editing && !signed && planTemplateDrawerHost && createPortal(
-      <PlanTemplatePanel encounterId={encounter.id} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
+      <PlanTemplatePanel initialPlanId={recommendedPlanId} encounterId={encounter.id} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
         medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
         serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts}
         onApplyNoteTemplate={applyNoteTemplate}
@@ -1944,8 +1961,9 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
             onChange={(event) => setAmendmentDraft((current) => ({ ...current, chiefComplaint: event.target.value }))} />
         </FormField>
         {([
-          ['presentIllness', '现病史'], ['medicalHistory', '既往史'], ['physicalExam', '体格检查'], ['treatmentPlan', '处置计划'],
+          ['presentIllness', '现病史'], ['medicalHistory', '既往史'], ['physicalExam', '体格检查'], ['auxiliaryExaminations', '辅助检查结果'], ['healthEducation', '健康宣教'], ['followUp', '随访复诊'],
         ] as const).map(([field, label]) => <FormField key={field} label={label}>
+
           <textarea className="ui-field__control" value={amendmentDraft[field]}
             onChange={(event) => setAmendmentDraft((current) => ({ ...current, [field]: event.target.value }))} />
         </FormField>)}
@@ -1954,8 +1972,9 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   </section>
 }
 
-function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
+function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
   serviceDrafts, setServiceDrafts, api, onApplyNoteTemplate, onClose, onNotice }: {
+  initialPlanId?: string
   encounterId?: string
   diagnoses: DiagnosisInput[]
   setDiagnoses: Dispatch<SetStateAction<DiagnosisInput[]>>
@@ -1973,8 +1992,11 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
   const [selectedKind, setSelectedKind] = useState<'NOTE' | 'PLAN'>('PLAN')
   const [scopeFilter, setScopeFilter] = useState<'ALL' | 'PERSONAL' | 'DEPARTMENT' | 'HOSPITAL' | 'HISTORICAL' | 'MINED'>('ALL')
   const [searchKeyword, setSearchKeyword] = useState('')
-  const [selectedId, setSelectedId] = useState('')
+  const [selectedId, setSelectedId] = useState(initialPlanId ?? '')
   const [selectedNoteId, setSelectedNoteId] = useState('')
+  useEffect(() => {
+    if (initialPlanId) { setSelectedId(initialPlanId); setSelectedKind('PLAN') }
+  }, [initialPlanId])
   const [checkedNoteFields, setCheckedNoteFields] = useState<Set<NoteTemplateField>>(new Set())
   const [overwriteNoteFields, setOverwriteNoteFields] = useState(false)
   const [selectedMinedKey, setSelectedMinedKey] = useState('')
@@ -2056,8 +2078,9 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
   }, [noteTemplates.data, searchKeyword])
 
   const selected = useMemo(() => {
-    return filteredTemplates.find((v) => v.id === selectedId) || filteredTemplates[0] || null
-  }, [filteredTemplates, selectedId])
+    return filteredTemplates.find((v) => v.id === selectedId)
+      || (initialPlanId && selectedId === initialPlanId ? null : filteredTemplates[0]) || null
+  }, [filteredTemplates, selectedId, initialPlanId])
 
   const selectedNote = useMemo(() => filteredNoteTemplates.find((value) => value.id === selectedNoteId)
     || filteredNoteTemplates[0] || null, [filteredNoteTemplates, selectedNoteId])
@@ -2448,7 +2471,7 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
               {templateKind === 'NOTE' ? (
                 noteTemplates.isPending ? <LoadingState label="正在加载病历模板..." /> :
                 filteredNoteTemplates.length ? filteredNoteTemplates.map((item) => (
-                  <button key={item.id} type="button"
+                  <Button variant="text" size="sm" key={item.id} type="button"
                     className={`doctor-plan-item-card ${selectedNote?.id === item.id ? 'is-selected' : ''}`}
                     onClick={() => { setSelectedNoteId(item.id); setSelectedKind('NOTE') }}>
                     <div className="doctor-plan-item-card__top">
@@ -2459,17 +2482,19 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                       <small className="doctor-plan-card-meta-text">已用 {item.useCount} 次</small>
                     </div>
                     <div className="doctor-plan-item-card__title">{item.name}</div>
-                    <div className="doctor-plan-item-card__desc">{item.description || '门诊病历段落模板'}</div>
+                    {item.description && item.description !== item.name && item.description !== '门诊病历段落模板' && (
+                      <div className="doctor-plan-item-card__desc">{item.description}</div>
+                    )}
                     <div className="doctor-plan-item-card__meta">
                       <span>可用段落 {noteTemplateFields.filter(({ key }) => item.content[key]?.trim()).length}</span>
                     </div>
-                  </button>
+                  </Button>
                 )) : <div className="doctor-plan-pool-empty-text">未找到匹配的病历模板</div>
               ) : templateKind === 'ALL' ? (
                 noteTemplates.isPending || templates.isPending ? <LoadingState label="正在加载临床模板..." /> :
                 filteredNoteTemplates.length || filteredTemplates.length ? <>
                   {filteredNoteTemplates.map((item) => (
-                    <button key={`note-${item.id}`} type="button"
+                    <Button variant="text" size="sm" key={`note-${item.id}`} type="button"
                       className={`doctor-plan-item-card ${selectedKind === 'NOTE' && selectedNote?.id === item.id ? 'is-selected' : ''}`}
                       onClick={() => { setSelectedNoteId(item.id); setSelectedKind('NOTE') }}>
                       <div className="doctor-plan-item-card__top">
@@ -2480,14 +2505,16 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                         <small className="doctor-plan-card-meta-text">已用 {item.useCount} 次</small>
                       </div>
                       <div className="doctor-plan-item-card__title">{item.name}</div>
-                      <div className="doctor-plan-item-card__desc">{item.description || '门诊病历段落模板'}</div>
+                      {item.description && item.description !== item.name && item.description !== '门诊病历段落模板' && (
+                        <div className="doctor-plan-item-card__desc">{item.description}</div>
+                      )}
                       <div className="doctor-plan-item-card__meta">
                         <span>病历段落 {noteTemplateFields.filter(({ key }) => item.content[key]?.trim()).length}</span>
                       </div>
-                    </button>
+                    </Button>
                   ))}
                   {filteredTemplates.map((item) => (
-                    <button key={`plan-${item.id}`} type="button"
+                    <Button variant="text" size="sm" key={`plan-${item.id}`} type="button"
                       className={`doctor-plan-item-card ${selectedKind === 'PLAN' && selected?.id === item.id ? 'is-selected' : ''}`}
                       onClick={() => { setSelectedId(item.id); setSelectedKind('PLAN') }}>
                       <div className="doctor-plan-item-card__top">
@@ -2498,14 +2525,16 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                         <small className="doctor-plan-card-meta-text">已用 {item.useCount} 次</small>
                       </div>
                       <div className="doctor-plan-item-card__title">{item.name}</div>
-                      <div className="doctor-plan-item-card__desc">{item.description || item.name}</div>
+                      {item.description && item.description !== item.name && item.description !== '由医生审核确认的诊疗方案' && (
+                        <div className="doctor-plan-item-card__desc">{item.description}</div>
+                      )}
                       <div className="doctor-plan-item-card__meta">
                         {item.noteTemplateId && <><span>病历 1</span><span>·</span></>}
                         <span>诊断 {item.diagnoses.length}</span><span>·</span>
                         <span>药品 {item.medications.length}</span><span>·</span>
                         <span>诊疗 {item.services.length}</span>
                       </div>
-                    </button>
+                    </Button>
                   ))}
                 </> : <div className="doctor-plan-pool-empty-text">未找到匹配的临床模板</div>
               ) : scopeFilter === 'HISTORICAL' ? (
@@ -2595,7 +2624,9 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                           📖 {item.guidelineReference}
                         </div>
                       )}
-                      <div className="doctor-plan-item-card__desc">{item.description || item.name}</div>
+                      {item.description && item.description !== item.name && item.description !== '由医生审核确认的诊疗方案' && (
+                        <div className="doctor-plan-item-card__desc">{item.description}</div>
+                      )}
                       <div className="doctor-plan-item-card__meta">
                         {item.noteTemplateId && <><span>病历 1</span><span>·</span></>}
                         <span>诊断 {item.diagnoses.length}</span>
@@ -2992,7 +3023,6 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                             <th className={tableCellClass('text')}>途径</th>
                             <th className={tableCellClass('text')}>频次</th>
                             <th className={tableCellClass('numeric')}>疗程</th>
-                            <th className={tableCellClass('numeric')}>数量</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3022,13 +3052,12 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                                   <td className={tableCellClass('text')}>{m.routeCode || '—'}</td>
                                   <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
                                   <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
-                                  <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
                                 </tr>
                               )
                             })
                           ) : (
                             <tr>
-                              <td colSpan={7} className="doctor-plan-table-empty">暂无开方药品</td>
+                              <td colSpan={6} className="doctor-plan-table-empty">暂无开方药品</td>
                             </tr>
                           )}
                         </tbody>
@@ -3082,16 +3111,6 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                           : '可能已停用或超出当前科室可见范围；诊断和医嘱仍可单独带入。'}</small>
                       </span>
                     </label>
-                  </div>}
-
-                  {!!selected.tasks?.length && <div className="doctor-plan-detail-section">
-                    <div className="doctor-plan-detail-section__title">诊疗任务与原文依据 ({selected.tasks.length})</div>
-                    {selected.tasks.map((task, index) => <div key={`${task.kind}-${index}`} className="ai-plan-modal-row ai-plan-modal-row-bordered">
-                      <div><strong>{planTaskKindLabel[task.kind]} · {task.text}</strong><small className="ai-plan-modal-row-sub">{task.sourceQuote ? `原文：“${task.sourceQuote}”` : '模型建议，原文未明确提出'}</small></div>
-                      <StatusBadge tone={task.status === 'MATCHED' ? 'success' : task.status === 'UNMATCHED' ? 'danger' : 'warning'}>
-                        {task.status === 'MATCHED' ? '目录已匹配' : task.status === 'UNMATCHED' ? '未匹配' : '待核对'}
-                      </StatusBadge>
-                    </div>)}
                   </div>}
 
                   <div className="doctor-plan-detail-section">
@@ -3184,13 +3203,12 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                                 disabled={selected.medications.length === 0}
                               />
                             </th>
-                            <th className={tableCellClass('text')}>药品名称及规格</th>
-                            <th className={tableCellClass('numeric')}>单次剂量</th>
-                            <th className={tableCellClass('text')}>途径</th>
-                            <th className={tableCellClass('text')}>频次</th>
-                            <th className={tableCellClass('numeric')}>疗程</th>
-                            <th className={tableCellClass('numeric')}>数量</th>
-                            <th className={tableCellClass('text')}>用法说明</th>
+                            <th className={`${tableCellClass('text')} doctor-col--med-name`}>药品名称及规格</th>
+                            <th className={`${tableCellClass('numeric')} doctor-col--dose`}>单次剂量</th>
+                            <th className={`${tableCellClass('text')} doctor-col--route`}>途径</th>
+                            <th className={`${tableCellClass('text')} doctor-col--frequency`}>频次</th>
+                            <th className={`${tableCellClass('numeric')} doctor-col--duration`}>疗程</th>
+                            <th className={`${tableCellClass('text')} doctor-col--instruction`}>用法说明</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3215,22 +3233,25 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                                       }}
                                     />
                                   </td>
-                                  <td className={tableCellClass('text')}>
+                                  <td className={`${tableCellClass('text')} doctor-col--med-name`}>
                                     <div><strong>{m.medicationName}</strong></div>
                                     {m.preparationSpec && <small className="doctor-plan-item-subtext">{m.preparationSpec}</small>}
                                   </td>
-                                  <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
-                                  <td className={tableCellClass('text')}>{m.routeName || m.routeCode || '—'}</td>
-                                  <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
-                                  <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
-                                  <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
-                                  <td className={tableCellClass('text')}><small>{m.medicationInstruction || '—'}</small></td>
+                                  <td className={`${tableCellClass('numeric')} doctor-col--dose`}>{m.doseValue} {m.doseUnit}</td>
+                                  <td className={`${tableCellClass('text')} doctor-col--route`}>{m.routeName || m.routeCode || '—'}</td>
+                                  <td className={`${tableCellClass('text')} doctor-col--frequency`}>{m.frequencyCode || '—'}</td>
+                                  <td className={`${tableCellClass('numeric')} doctor-col--duration`}>{m.durationValue} {m.durationUnit}</td>
+                                  <td className={`${tableCellClass('text')} doctor-col--instruction`}>
+                                    <div className="doctor-plan-instruction-cell" title={m.medicationInstruction || undefined}>
+                                      {m.medicationInstruction || '—'}
+                                    </div>
+                                  </td>
                                 </tr>
                               )
                             })
                           ) : (
                             <tr>
-                              <td colSpan={8} className="doctor-plan-table-empty">暂无处方药品</td>
+                              <td colSpan={7} className="doctor-plan-table-empty">暂无处方药品</td>
                             </tr>
                           )}
                         </tbody>
@@ -3262,7 +3283,7 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                             </th>
                             <th className={tableCellClass('text')}>项目名称</th>
                             <th className={tableCellClass('status')} style={{ width: '90px' }}>类型</th>
-                            <th className={tableCellClass('numeric')} style={{ width: '100px' }}>数量</th>
+                            <th className={tableCellClass('numeric')} style={{ width: '80px' }}>数量</th>
                             <th className={tableCellClass('text')}>临床要求</th>
                           </tr>
                         </thead>
@@ -3289,7 +3310,7 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                                     />
                                   </td>
                                   <td className={tableCellClass('text')}>
-                                    <strong>{s.itemName}</strong> <small className="doctor-plan-card-meta-text">({s.itemCode})</small>
+                                    <strong>{s.itemName}</strong> <small className="doctor-plan-item-subtext">({s.itemCode})</small>
                                   </td>
                                   <td className={tableCellClass('status')}>
                                     <StatusBadge tone="neutral">
@@ -3297,7 +3318,11 @@ function PlanTemplatePanel({ encounterId, diagnoses, setDiagnoses, medicationDra
                                     </StatusBadge>
                                   </td>
                                   <td className={tableCellClass('numeric')}>{s.quantity} {s.unitCode}</td>
-                                  <td className={tableCellClass('text')}><small>{s.clinicalDescription || '—'}</small></td>
+                                  <td className={tableCellClass('text')}>
+                                    <div className="doctor-plan-instruction-cell" title={s.clinicalDescription || undefined}>
+                                      {s.clinicalDescription || '—'}
+                                    </div>
+                                  </td>
                                 </tr>
                               )
                             })
@@ -4263,7 +4288,12 @@ function HistoryPanel({ encounters, currentEncounterId, api, copyDisabled = fals
     { key: 'presentIllness', label: '现病史', value: note?.content.presentIllness ?? '' },
     { key: 'medicalHistory', label: '既往史', value: note?.content.medicalHistory ?? '' },
     { key: 'physicalExam', label: '查体所见', value: note?.content.physicalExam ?? '' },
-    { key: 'treatmentPlan', label: '诊疗计划', value: note?.content.treatmentPlan ?? '' },
+    { key: 'allergyHistory', label: '过敏史补充', value: note?.content.allergyHistory ?? '' },
+    { key: 'medicationHistory', label: '用药史', value: note?.content.medicationHistory ?? '' },
+    { key: 'auxiliaryExaminations', label: '辅助检查结果', value: note?.content.auxiliaryExaminations ?? '' },
+    { key: 'healthEducation', label: '健康宣教', value: note?.content.healthEducation ?? '' },
+    { key: 'followUp', label: '随访复诊', value: note?.content.followUp ?? '' },
+
   ] : []
   const recordItems = allRecordItems.filter((item) => Boolean(item.value.trim()))
   const diagnosisItems: HistoryCopyItem[] = selected?.diagnoses.map((item) => ({
@@ -4294,7 +4324,12 @@ function HistoryPanel({ encounters, currentEncounterId, api, copyDisabled = fals
     if (checked.has('presentIllness') && note?.content.presentIllness) record.presentIllness = note.content.presentIllness
     if (checked.has('medicalHistory') && note?.content.medicalHistory) record.medicalHistory = note.content.medicalHistory
     if (checked.has('physicalExam') && note?.content.physicalExam) record.physicalExam = note.content.physicalExam
-    if (checked.has('treatmentPlan') && note?.content.treatmentPlan) record.treatmentPlan = note.content.treatmentPlan
+    if (checked.has('allergyHistory') && note?.content.allergyHistory) record.allergyHistory = note.content.allergyHistory
+    if (checked.has('medicationHistory') && note?.content.medicationHistory) record.medicationHistory = note.content.medicationHistory
+    if (checked.has('auxiliaryExaminations') && note?.content.auxiliaryExaminations) record.auxiliaryExaminations = note.content.auxiliaryExaminations
+    if (checked.has('healthEducation') && note?.content.healthEducation) record.healthEducation = note.content.healthEducation
+    if (checked.has('followUp') && note?.content.followUp) record.followUp = note.content.followUp
+
     onCopy({ requestId: Date.now(), sourceEncounterNo: selected.encounterNo, sourceRegisteredAt: selected.registeredAt,
       record, diagnoses: selected.diagnoses.filter((item) => checked.has(historyDiagnosisKey(item.code)))
         .map(({ code, display, type }) => ({ code, display, type })) })
@@ -4304,13 +4339,13 @@ function HistoryPanel({ encounters, currentEncounterId, api, copyDisabled = fals
     {history.length === 0 ? <EmptyState icon="roadmap" title="暂无历史就诊" copy="完成本次就诊后可在后续复诊中查看和复用。" />
       : <div className="doctor-history-browser">
         <div className="doctor-history-visits" role="list" aria-label="历史就诊列表">{history.map((item) =>
-          <button type="button" role="listitem" key={item.id} className={item.id === selectedId ? 'is-selected' : ''}
+          <Button variant="text" size="sm" type="button" role="listitem" key={item.id} className={item.id === selectedId ? 'is-selected' : ''}
             aria-pressed={item.id === selectedId} onClick={() => setSelectedId(item.id)}>
             <span><strong>{formatTime(item.registeredAt)}</strong><small>{item.encounterNo}</small></span>
             <span><strong>{item.chiefComplaint || '门诊就诊'}</strong>
               <small>{item.diagnoses.map((diagnosis) => diagnosis.display).join('、') || '尚无诊断'}</small></span>
             <Icon name="chevron-right" />
-          </button>)}</div>
+          </Button>)}</div>
         <section className="doctor-history-detail" aria-label="历史就诊详情">
           {selected && <HistoryPrescriptionReference key={selected.id} encounter={selected} api={api}
             disabled={copyDisabled || !onCopy} allergies={allergies} allergyReady={allergyReady}

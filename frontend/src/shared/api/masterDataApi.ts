@@ -1542,10 +1542,12 @@ export function createMasterDataApi(client: ApiClient) {
           organizationId, businessDate,
         })}`,
       ),
-    adoptionCandidates: (organizationId: string, itemType: 'SERVICE' | 'MED_PRODUCT', query = '', page = 0, size = 20) =>
+    adoptionCandidates: (organizationId: string, itemType: 'SERVICE' | 'MED_PRODUCT', query = '', page = 0, size = 20,
+      businessDate = '', onlyUnadopted = false) =>
       client.request<MasterDataPage<CatalogAdoptionCandidate>>(
         `/api/platform/master-data/catalog-lifecycle/adoption-candidates${queryString({
-          organizationId, itemType, query, page: String(page), size: String(size),
+          organizationId, itemType, query, page: String(page), size: String(size), businessDate,
+          onlyUnadopted: onlyUnadopted ? 'true' : '',
         })}`,
       ),
     createLifecycleAdoption: (catalogItemId: string, input: LifecycleAdoptionInput) =>

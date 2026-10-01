@@ -16,6 +16,12 @@ export const createRecordSchema = (bloodPressureRequired: boolean) => z.object({
   medicalHistory: z.string().trim().max(4000),
   physicalExam: z.string().trim().max(4000),
   treatmentPlan: z.string().trim().max(4000),
+  allergyHistory: z.string().trim().max(4000).optional(),
+  medicationHistory: z.string().trim().max(4000).optional(),
+  auxiliaryExaminations: z.string().trim().max(4000).optional(),
+  healthEducation: z.string().trim().max(4000).optional(),
+  followUp: z.string().trim().max(4000).optional(),
+
   systolic: vitalNumber('收缩压', VITAL_HARD_LIMITS.systolicPressure, true).optional(),
   diastolic: vitalNumber('舒张压', VITAL_HARD_LIMITS.diastolicPressure, true).optional(),
   temperature: vitalNumber('体温', VITAL_HARD_LIMITS.temperature, false).optional(),
@@ -91,7 +97,13 @@ export function clinicalRecordContent(form: RecordForm, diagnoses: DiagnosisInpu
   structuredValues: Record<string, unknown>): Omit<ClinicalRecordInput, 'commandCode'> {
   return {
     chiefComplaint: form.chiefComplaint, presentIllness: form.presentIllness, medicalHistory: form.medicalHistory,
-    physicalExam: form.physicalExam, treatmentPlan: form.treatmentPlan,
+    physicalExam: form.physicalExam,
+    allergyHistory: form.allergyHistory,
+    medicationHistory: form.medicationHistory,
+    auxiliaryExaminations: form.auxiliaryExaminations,
+    healthEducation: form.healthEducation,
+    followUp: form.followUp,
+
     systolic: form.systolic, diastolic: form.diastolic, temperature: form.temperature,
     pulseRate: form.pulseRate, respiratoryRate: form.respiratoryRate, heightCm: form.heightCm,
     weightKg: form.weightKg, oxygenSaturation: form.oxygenSaturation,

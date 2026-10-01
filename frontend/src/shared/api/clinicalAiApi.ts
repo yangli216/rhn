@@ -49,7 +49,7 @@ export interface ClinicalAiConfigurationUpdate {
 
 export interface ClinicalAiConfigurationTestInput {
   scope: ClinicalAiConfigurationScope
-  target: 'MODEL' | 'SPEECH'
+  target: 'MODEL' | 'SPEECH' | 'DECISION'
   endpoint?: string
   model?: string
   secretValue?: string
@@ -57,7 +57,7 @@ export interface ClinicalAiConfigurationTestInput {
 }
 
 export interface ClinicalAiConfigurationTestResult {
-  target: 'MODEL' | 'SPEECH'
+  target: 'MODEL' | 'SPEECH' | 'DECISION'
   success: boolean
   statusCode: number
   latencyMs: number
@@ -80,6 +80,11 @@ export interface ClinicalAiRecordText {
   medicalHistory?: string
   physicalExam?: string
   treatmentPlan?: string
+  allergyHistory?: string
+  medicationHistory?: string
+  auxiliaryExaminations?: string
+  healthEducation?: string
+  followUp?: string
 }
 
 export interface ClinicalAiVitalSigns {
@@ -286,6 +291,10 @@ export function createClinicalAiApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify(input),
       }),
     capabilities: () => client.request<ClinicalAiCapabilities>('/api/ai/clinical-assistant/capabilities'),
+    recommendPlans: (encounterId: string, input: GenerateClinicalAiSuggestionInput) =>
+      client.request<ClinicalAiRecommendedPlan[]>(`/api/ai/clinical-assistant/encounters/${encounterId}/plan-recommendations`, {
+        method: 'POST', body: JSON.stringify(input),
+      }),
     generate: (encounterId: string, input: GenerateClinicalAiSuggestionInput) =>
       client.request<ClinicalAiSuggestion>(
         `/api/ai/clinical-assistant/encounters/${encounterId}/suggestions`,

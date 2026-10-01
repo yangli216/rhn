@@ -467,7 +467,7 @@ export function createPrintingApi(client: ApiClient) {
     clinicalPrintOutput: (downloadUrl: string) => client.download(downloadUrl),
     submitTask: (command: {
       taskCode: string
-      source: { sourceType: string; sourceId: number; encounterId?: number | null }
+      source: { sourceType: string; sourceId: string; encounterId?: string | null }
       purpose?: PrintPurpose
       copies?: number
       idempotencyKey?: string
@@ -481,15 +481,15 @@ export function createPrintingApi(client: ApiClient) {
         idempotencyKey: command.idempotencyKey ?? `TASK-PRINT-${command.taskCode}-${command.source.sourceId}-${Date.now()}`,
       }),
     }),
-    registrationTicket: (registrationId: string | number, encounterId?: string | number | null, copies = 1) =>
+    registrationTicket: (registrationId: string, encounterId?: string | null, copies = 1) =>
       client.request<PrintReceipt>('/api/platform/printing/tasks', {
         method: 'POST',
         body: JSON.stringify({
           taskCode: 'OP.REGISTRATION.TICKET.PRINT',
           source: {
             sourceType: 'PatientRegistration',
-            sourceId: Number(registrationId),
-            encounterId: encounterId ? Number(encounterId) : null,
+            sourceId: registrationId,
+            encounterId: encounterId ?? null,
           },
           purpose: 'PATIENT_COPY',
           copies,

@@ -1385,3 +1385,45 @@
   border-top: 1px solid var(--color-border);
 }
 
+
+/* Keep draft provenance beside the note and reserve space for review actions. */
+.doctor-record-adoption-notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-size: var(--font-size-small);
+}
+.doctor-record-adoption-notice > span { flex: 1; min-width: 16rem; }
+.doctor-record-adoption-notice > .ui-icon,
+.doctor-record-adoption-notice > .ui-button { flex-shrink: 0; }
+.doctor-ai-order-batch { flex-wrap: wrap; }
+.doctor-ai-order-batch.is-diagnosis { min-width: 48rem; }
+.doctor-unified-order-row.is-ai-suggestion > .doctor-unified-cell-actions {
+  overflow: visible;
+  display: flex;
+  justify-content: flex-end;
+}
+.doctor-unified-order-row.is-ai-suggestion > .doctor-unified-cell-status { overflow: visible; }
+
+.doctor-ai-whole-plan-choice {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.doctor-ai-whole-plan-choice p { margin: 0; color: var(--color-text-secondary); }
+.doctor-ai-whole-plan-choice article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.doctor-ai-whole-plan-choice article > div { min-width: 0; }
+.doctor-ai-whole-plan-choice article > .ui-button { flex-shrink: 0; }

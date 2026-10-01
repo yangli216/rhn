@@ -8,6 +8,11 @@ export interface OutpatientNoteTemplateContent {
   medicalHistory?: string
   physicalExam?: string
   treatmentPlan?: string
+  allergyHistory?: string
+  medicationHistory?: string
+  auxiliaryExaminations?: string
+  healthEducation?: string
+  followUp?: string
 }
 
 export interface OutpatientNoteTemplate {

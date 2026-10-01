@@ -40,7 +40,7 @@ export function aiContextFromDraft(value: RecordForm, diagnoses: DiagnosisInput[
     busy: state.busy,
     chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
     medicalHistory: value.medicalHistory, physicalExam: value.physicalExam,
-    treatmentPlan: value.treatmentPlan, systolic: value.systolic, diastolic: value.diastolic,
+    allergyHistory: value.allergyHistory, medicationHistory: value.medicationHistory, auxiliaryExaminations: value.auxiliaryExaminations, healthEducation: value.healthEducation, followUp: value.followUp,  systolic: value.systolic, diastolic: value.diastolic,
     temperature: value.temperature, pulseRate: value.pulseRate, respiratoryRate: value.respiratoryRate,
     oxygenSaturation: value.oxygenSaturation, heightCm: value.heightCm, weightKg: value.weightKg,
     diagnoses: diagnoses.map(({ code, display, type }) => ({ code, display, type })),

@@ -100,6 +100,11 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
   const selectedLinkedNoteTemplate = useMemo(() => selectedTemplate?.noteTemplateId
     ? noteTemplatesQuery.data?.find((value) => value.id === selectedTemplate.noteTemplateId) || null
     : null, [noteTemplatesQuery.data, selectedTemplate?.noteTemplateId])
+  const visibleSupportingTasks = (selectedTemplate?.tasks ?? []).filter((task) =>
+    task.kind === 'CONDITION'
+    || (task.kind === 'EDUCATION' && !selectedLinkedNoteTemplate?.content.healthEducation?.trim())
+    || (task.kind === 'FOLLOW_UP' && !selectedLinkedNoteTemplate?.content.followUp?.trim()))
+
 
   useEffect(() => {
     if (templateType === 'PLAN' && selectedTemplate && selectedTemplate.id !== selectedId) {
@@ -328,7 +333,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
           {templateType === 'NOTE' ? (
             noteTemplatesQuery.isPending ? <LoadingState label="正在加载病历模板..." />
               : filteredNoteTemplates.length ? filteredNoteTemplates.map((item) => (
-                <button key={item.id} type="button"
+                <Button variant="text" size="sm" key={item.id} type="button"
                   className={`doctor-plan-item-card ${selectedNoteTemplate?.id === item.id ? 'is-selected' : ''}`}
                   onClick={() => setSelectedId(item.id)}>
                   <div className="doctor-plan-item-card__top">
@@ -343,7 +348,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                   <div className="doctor-plan-item-card__meta">
                     <span>病历段落 {noteTemplateFields.filter(({ key }) => item.content[key]?.trim()).length}</span>
                   </div>
-                </button>
+                </Button>
               )) : <div className="doctor-plan-pool-empty-text">未找到匹配的病历模板</div>
           ) : scopeFilter === 'MINED' ? (
             minedQuery.isPending ? (
@@ -490,7 +495,6 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                         <th className={tableCellClass('text')}>途径</th>
                         <th className={tableCellClass('text')}>频次</th>
                         <th className={tableCellClass('numeric')}>疗程</th>
-                        <th className={tableCellClass('numeric')}>数量</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -502,12 +506,11 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                             <td className={tableCellClass('text')}>{m.routeCode || '—'}</td>
                             <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
                             <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
-                            <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={6} className="doctor-plan-table-empty">暂无开方药品</td>
+                          <td colSpan={5} className="doctor-plan-table-empty">暂无开方药品</td>
                         </tr>
                       )}
                     </tbody>
@@ -520,15 +523,12 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
           )
         ) : selectedTemplate ? (
           <>
-            {(selectedTemplate.guidelineReference || selectedTemplate.description) && (
+            {selectedTemplate.guidelineReference && (
               <div className="doctor-plan-detail-hero">
                 {selectedTemplate.guidelineReference && (
                   <div className="doctor-plan-detail-guideline">
                     📖 用户录入的条文来源（未核验）：{planSourceReferenceLabel(selectedTemplate.guidelineReference)}
                   </div>
-                )}
-                {selectedTemplate.description && (
-                  <p className="doctor-plan-detail-desc">{selectedTemplate.description}</p>
                 )}
               </div>
             )}
@@ -546,16 +546,13 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                     : '请人工编辑方案并重新选择可用病历模板。'}</small>
                 </div>
               </div>
-            </div>}
-
-            {!!selectedTemplate.tasks?.length && <div className="doctor-plan-detail-section">
-              <div className="doctor-plan-detail-section__title">诊疗任务与原文依据 ({selectedTemplate.tasks.length})</div>
-              {selectedTemplate.tasks.map((task, index) => <div key={`${task.kind}-${index}`} className="ai-plan-modal-row ai-plan-modal-row-bordered">
-                <div><strong>{planTaskKindLabel[task.kind]} · {task.text}</strong><small className="ai-plan-modal-row-sub">{task.sourceQuote ? `原文：“${task.sourceQuote}”` : '模型建议，原文未明确提出'}</small></div>
-                <StatusBadge tone={task.status === 'MATCHED' ? 'success' : task.status === 'UNMATCHED' ? 'danger' : 'warning'}>
-                  {task.status === 'MATCHED' ? '目录已匹配' : task.status === 'UNMATCHED' ? '未匹配' : '待核对'}
-                </StatusBadge>
-              </div>)}
+              {selectedLinkedNoteTemplate && <div className="doctor-note-template-preview is-workspace">
+                {noteTemplateFields.filter(({ key }) => selectedLinkedNoteTemplate.content[key]?.trim()).map(({ key, label }) => (
+                  <div key={key} className="doctor-clinical-template-note-section">
+                    <strong>{label}</strong><p>{selectedLinkedNoteTemplate.content[key]}</p>
+                  </div>
+                ))}
+              </div>}
             </div>}
 
             <div className="doctor-plan-detail-section">
@@ -598,34 +595,36 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                 <DataTable compact className="doctor-plan-items-table">
                   <thead>
                     <tr>
-                      <th className={tableCellClass('text')}>药品名称及规格</th>
-                      <th className={tableCellClass('numeric')}>单次剂量</th>
-                      <th className={tableCellClass('text')}>途径</th>
-                      <th className={tableCellClass('text')}>频次</th>
-                      <th className={tableCellClass('numeric')}>疗程</th>
-                      <th className={tableCellClass('numeric')}>数量</th>
-                      <th className={tableCellClass('text')}>用法说明</th>
+                      <th className={`${tableCellClass('text')} doctor-col--med-name`}>药品名称及规格</th>
+                      <th className={`${tableCellClass('numeric')} doctor-col--dose`}>单次剂量</th>
+                      <th className={`${tableCellClass('text')} doctor-col--route`}>途径</th>
+                      <th className={`${tableCellClass('text')} doctor-col--frequency`}>频次</th>
+                      <th className={`${tableCellClass('numeric')} doctor-col--duration`}>疗程</th>
+                      <th className={`${tableCellClass('text')} doctor-col--instruction`}>用法说明</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedTemplate.medications.length > 0 ? (
                       selectedTemplate.medications.map((m) => (
                         <tr key={m.lineId}>
-                          <td className={tableCellClass('text')}>
+                          <td className={`${tableCellClass('text')} doctor-col--med-name`}>
                             <div><strong>{m.medicationName}</strong></div>
                             {m.preparationSpec && <small className="doctor-plan-item-subtext">{m.preparationSpec}</small>}
                           </td>
-                          <td className={tableCellClass('numeric')}>{m.doseValue} {m.doseUnit}</td>
-                          <td className={tableCellClass('text')}>{m.routeName || m.routeCode || '—'}</td>
-                          <td className={tableCellClass('text')}>{m.frequencyCode || '—'}</td>
-                          <td className={tableCellClass('numeric')}>{m.durationValue} {m.durationUnit}</td>
-                          <td className={tableCellClass('numeric')}>{m.quantity} {m.quantityUnit}</td>
-                          <td className={tableCellClass('text')}><small>{m.medicationInstruction || '—'}</small></td>
+                          <td className={`${tableCellClass('numeric')} doctor-col--dose`}>{m.doseValue} {m.doseUnit}</td>
+                          <td className={`${tableCellClass('text')} doctor-col--route`}>{m.routeName || m.routeCode || '—'}</td>
+                          <td className={`${tableCellClass('text')} doctor-col--frequency`}>{m.frequencyCode || '—'}</td>
+                          <td className={`${tableCellClass('numeric')} doctor-col--duration`}>{m.durationValue} {m.durationUnit}</td>
+                          <td className={`${tableCellClass('text')} doctor-col--instruction`}>
+                            <div className="doctor-plan-instruction-cell" title={m.medicationInstruction || undefined}>
+                              {m.medicationInstruction || '—'}
+                            </div>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={7} className="doctor-plan-table-empty">暂无处方药品</td>
+                        <td colSpan={6} className="doctor-plan-table-empty">暂无处方药品</td>
                       </tr>
                     )}
                   </tbody>
@@ -641,7 +640,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                     <tr>
                       <th className={tableCellClass('text')}>项目名称</th>
                       <th className={tableCellClass('status')} style={{ width: '90px' }}>类型</th>
-                      <th className={tableCellClass('numeric')} style={{ width: '100px' }}>数量</th>
+                      <th className={tableCellClass('numeric')} style={{ width: '80px' }}>数量</th>
                       <th className={tableCellClass('text')}>临床要求</th>
                     </tr>
                   </thead>
@@ -650,7 +649,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                       selectedTemplate.services.map((s, idx) => (
                         <tr key={idx}>
                           <td className={tableCellClass('text')}>
-                            <strong>{s.itemName}</strong> <small className="doctor-plan-card-meta-text">({s.itemCode})</small>
+                            <strong>{s.itemName}</strong> <small className="doctor-plan-item-subtext">({s.itemCode})</small>
                           </td>
                           <td className={tableCellClass('status')}>
                             <StatusBadge tone="neutral">
@@ -658,7 +657,11 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                             </StatusBadge>
                           </td>
                           <td className={tableCellClass('numeric')}>{s.quantity} {s.unitCode}</td>
-                          <td className={tableCellClass('text')}><small>{s.clinicalDescription || '—'}</small></td>
+                          <td className={tableCellClass('text')}>
+                            <div className="doctor-plan-instruction-cell" title={s.clinicalDescription || undefined}>
+                              {s.clinicalDescription || '—'}
+                            </div>
+                          </td>
                         </tr>
                       ))
                     ) : (
@@ -670,6 +673,29 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                 </DataTable>
               </TableShell>
             </div>
+            {visibleSupportingTasks.length > 0 && (
+              <div className="doctor-plan-detail-section">
+                <div className="doctor-plan-detail-section__title">宣教、随访与适用条件</div>
+                <TableShell className="doctor-plan-table-shell">
+                  <DataTable compact className="doctor-plan-items-table">
+                    <thead><tr>
+                      <th className={tableCellClass('text')}>类别</th>
+                      <th className={tableCellClass('text')}>内容</th>
+                    </tr></thead>
+                    <tbody>
+                      {visibleSupportingTasks
+                        .map((task, index) => <tr key={`${task.kind}-${index}`}>
+                          <td className={tableCellClass('text')}>{planTaskKindLabel[task.kind]}</td>
+                          <td className={tableCellClass('text')}>
+                            <strong>{task.text}</strong>
+                            {task.details && <p>{task.details}</p>}
+                          </td>
+                        </tr>)}
+                    </tbody>
+                  </DataTable>
+                </TableShell>
+              </div>
+            )}
           </>
         ) : (
           <EmptyState icon="clinical" title="请选择方案" copy="从左侧列表中选择诊疗方案查看明细，或点击上方进行 AI 建方。" />

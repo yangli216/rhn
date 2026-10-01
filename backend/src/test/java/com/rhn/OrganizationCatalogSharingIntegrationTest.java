@@ -22,6 +22,14 @@ class OrganizationCatalogSharingIntegrationTest extends RhnIntegrationTestSuppor
 
     @Test
     void shares_one_source_catalog_and_keeps_local_rules_as_overrides() throws Exception {
+        mockMvc.perform(get("/api/platform/master-data/catalog-lifecycle/adoption-candidates").with(rhnWorkContext())
+                        .param("organizationId", ORGANIZATION).param("itemType", "SERVICE")
+                        .param("query", "SRV-CBC").param("businessDate", "2026-09-06")
+                        .param("onlyUnadopted", "true").param("size", "100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.content").isEmpty());
+
         JsonNode child = createOrganization("目录共享分中心");
         String childId = child.get("id").asString();
 
@@ -45,6 +53,14 @@ class OrganizationCatalogSharingIntegrationTest extends RhnIntegrationTestSuppor
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[?(@.id == '362387869795101')].adoptionSourceType")
                         .value("SHARED"));
+
+        mockMvc.perform(get("/api/platform/master-data/catalog-lifecycle/adoption-candidates").with(rhnWorkContext())
+                        .param("organizationId", childId).param("itemType", "SERVICE")
+                        .param("query", "SRV-CBC").param("businessDate", "2026-09-06")
+                        .param("onlyUnadopted", "true").param("size", "100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.content").isEmpty());
 
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/catalog-items/{id}/adoptions",
                                 "362387869795101").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""

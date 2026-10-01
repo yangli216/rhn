@@ -22,12 +22,14 @@ class ClinicalTreatmentRecommendationServiceTest {
     final ExecutionContextProvider contexts = mock(ExecutionContextProvider.class);
     final ClinicalAiModelGateway gateway = mock(ClinicalAiModelGateway.class);
     final ClinicalAssistantSettings settings = mock(ClinicalAssistantSettings.class);
-    final ClinicalTreatmentRecommendationService service = new ClinicalTreatmentRecommendationService(inventory, services, contexts, gateway);
+    final TreatmentCatalogDecisionService decisions = mock(TreatmentCatalogDecisionService.class);
+    final ClinicalTreatmentRecommendationService service = new ClinicalTreatmentRecommendationService(inventory, services, contexts, gateway, decisions);
     final ClinicalAiModelGateway.ModelRequest request = new ClinicalAiModelGateway.ModelRequest("V8", "发热3天", null,
             null, null, List.of(), List.of(), List.of(), List.of(),
             new SuggestionContent("已生成病历", new RecordDraft("发热3天", null, null, null, null),
                     List.of(), List.of(), List.of(), List.of(), List.of(), "待核对"));
     @BeforeEach void context() {
+        when(decisions.match(anyList(), any())).thenReturn(new TreatmentCatalogDecisionService.Attempt(false, List.of(), List.of(), null, false));
         when(contexts.requireCurrent()).thenReturn(new ExecutionContext(1L, 2L, "doctor", "test", Set.of(),
                 3L, 4L, "DEPARTMENT", Set.of(), Set.of()));
     }
@@ -107,5 +109,28 @@ class ClinicalTreatmentRecommendationServiceTest {
                         null, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO));
         var result = service.recommend(List.of(intent("MEDICATION", "退热药")), request, settings);
         assertTrue(result.items().isEmpty()); verifyNoInteractions(gateway);
+    }
+
+    @Test void assistedMatchSkipsLlmAndStillCanonicalizesAllowedIds() {
+        laboratory();
+        when(services.searchOrderableServices(eq("血常规检查"), eq("LABORATORY"), eq(3L), any()))
+                .thenAnswer(invocation -> services.searchOrderableServices("血常规", "LABORATORY", 3L, LocalDate.now()));
+        var candidate = new TreatmentRecommendation("LABORATORY", 101L, null, "LAB001", "血常规", null, "按病情评估");
+        var invented = new TreatmentRecommendation("LABORATORY", 999L, null, "X", "虚构", null, "错误");
+        when(decisions.match(anyList(), any())).thenReturn(new TreatmentCatalogDecisionService.Attempt(true,
+                List.of(candidate, invented), List.of(), null, false));
+        var result = service.recommend(List.of(intent("LABORATORY", "血常规检查")), request, settings);
+        assertEquals(List.of(101L), result.items().stream().map(TreatmentRecommendation::catalogItemId).toList());
+        verifyNoInteractions(gateway);
+    }
+
+    @Test void failuresPreserveExactMatchesFromOtherIntents() {
+        laboratory();
+        var other = mock(MasterDataViews.ServiceView.class);
+        when(other.id()).thenReturn(201L); when(other.name()).thenReturn("肝功能组合");
+        when(services.searchOrderableServices(eq("肝功能"), eq("LABORATORY"), eq(3L), any())).thenReturn(List.of(other));
+        when(gateway.analyze(any(), any())).thenThrow(new IllegalStateException("private error"));
+        var result = service.recommend(List.of(intent("LABORATORY", "血常规"), intent("LABORATORY", "肝功能")), request, settings);
+        assertEquals(List.of(101L), result.items().stream().map(TreatmentRecommendation::catalogItemId).toList());
     }
 }

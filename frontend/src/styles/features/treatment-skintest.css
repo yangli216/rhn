@@ -1473,8 +1473,7 @@
 .resident-list { padding: var(--space-2) var(--space-5) var(--space-4); }
 .resident-row { width: 100%; min-height: 4rem; padding: var(--space-3) var(--space-2); display: grid; grid-template-columns: 2.625rem minmax(13.125rem, 1fr) minmax(10.625rem, 0.6fr) 1.5rem; align-items: center; gap: var(--space-3); border: 0; border-bottom: 1px solid var(--color-border); background: transparent; color: var(--color-text-primary); text-align: left; }
 .resident-row:hover { background: var(--color-surface-subtle); }
-.resident-avatar { width: 2.5rem; height: 2.5rem; display: grid; place-items: center; border-radius: var(--radius-lg); color: var(--color-brand-strong); background: var(--color-brand-soft); font-size: var(--font-size-body); font-weight: var(--font-weight-bold); }
-.resident-avatar.female { color: var(--color-violet); background: var(--color-violet-soft); }
+.resident-row .resident-avatar { width: 2.5rem; height: 2.5rem; border-radius: var(--radius-lg); font-size: var(--font-size-body); }
 .resident-main strong, .resident-main span, .resident-row div:nth-child(3) > * { display: block; }
 .resident-main strong { font-size: var(--font-size-body); }
 .resident-main span, .resident-row div:nth-child(3) small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
@@ -1892,7 +1891,6 @@
 .parameter-card small { margin-top: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .parameter-card > .ui-icon { align-self: center; color: var(--color-text-disabled); }
 
-.master-data-feedback { margin: calc(-1 * var(--space-2)) 0 var(--space-5); }
 .partner-feedback { margin: calc(-1 * var(--space-2)) 0 var(--space-5); }
 .partner-panel { min-width: 0; overflow: hidden; }
 .partner-toolbar { min-height: 4.75rem; padding: var(--space-4) var(--space-6); display: flex; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
@@ -1907,22 +1905,6 @@
 .partner-form-grid .ui-field { min-width: 0; margin: 0; }
 .partner-form-grid .ui-select { width: 100%; }
 .partner-form-grid__wide { grid-column: 1 / -1; }
-.master-data-panel { min-width: 0; overflow: hidden; }
-.master-data-body { min-width: 0; }
-.disease-management-mode { min-height: 2.75rem; padding: 0 var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
-.master-data-toolbar { min-height: 3.5rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
-.master-data-toolbar > .ui-select { width: 9.5rem; }
-.master-data-toolbar__search { min-width: 16rem; max-width: 32rem; flex: 1; }
-.master-data-count { margin-left: auto; color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
-.master-data-table-wrap { min-width: 0; overflow-x: auto; }
-.master-data-table { min-width: 62rem; }
-.master-data-table td { vertical-align: middle; }
-.master-data-table td > strong, .master-data-table td > code, .master-data-table td > small { display: block; }
-.master-data-table td > code { margin-top: var(--space-1); color: var(--color-text-secondary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
-.master-data-table td > small { margin-top: var(--space-1); color: var(--color-text-secondary); line-height: 1.5; }
-.master-data-table td > .ui-badge + .ui-badge { margin-left: var(--space-1); }
-.master-data-table.is-compact { min-width: 68rem; }
-
 /* 发药药房设置：四维 KPI 概览与标准管理页 */
 .dispense-header-actions { display: flex; align-items: center; gap: var(--space-2); }
 .dispense-route-summary { margin-bottom: var(--space-4); grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -2021,20 +2003,6 @@
 .disease-search-results > div:not(.disease-search-pagination) { grid-template-columns: minmax(14rem, 1fr) 8rem auto auto; }
 .disease-search-pagination { padding-top: var(--space-2); display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 
-@media (min-width: 70.01rem) {
-  .master-data-page { height: calc(100dvh - var(--layout-topbar-height) - var(--space-4) - var(--space-4)); min-height: 0; display: flex; flex-direction: column; }
-  .master-data-page > .ui-page-header, .master-data-page > .master-data-feedback { flex: none; }
-  .master-data-page > .master-data-panel { min-height: 0; display: flex; flex: 1; flex-direction: column; }
-  .master-data-page .master-data-tabs, .master-data-page .master-data-toolbar, .master-data-page .disease-management-mode { flex: none; }
-  .master-data-page .master-data-body { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .master-data-page .master-data-body > .ui-table-shell { min-height: 0; flex: 1; }
-  .master-data-page .master-data-body > .attribute-config-center { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: auto; }
-  .master-data-page .master-data-body > .operational-master-data { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .master-data-page .master-data-body > .clinical-medication-standards,
-  .master-data-page .master-data-body > .medication-readiness { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .master-data-page .master-data-table-wrap { overflow: auto; }
-  .master-data-page .master-data-table th { position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--color-border); box-shadow: 0 1px 0 var(--color-border); }
-}
 .operational-master-data { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .operational-master-data > .ui-alert { flex: none; margin: var(--space-4) var(--space-5) 0; }
 .operational-master-data > .ui-tabs { flex: none; }

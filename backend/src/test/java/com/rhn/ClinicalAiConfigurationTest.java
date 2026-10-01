@@ -16,13 +16,50 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class ClinicalAiConfigurationTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.rhn.ai.application.ClinicalAiRuntimePolicy runtimePolicy;
+
+    @Test
+    void decisionConfigurationIsDisabledByDefaultAndHasIndependentEncryptedKey() throws Exception {
+        mockMvc.perform(get("/api/ai/administration/configuration").param("scope", "TENANT").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-mode')].effectiveValue").value("DISABLED"))
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-scene-plan-compilation-enabled')].effectiveValue").value(false))
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-api-key')].secretConfigured").value(false));
+        String saved = mockMvc.perform(put("/api/ai/administration/configuration").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"scope":"TENANT","settings":[
+                      {"key":"decision-mode","value":"SHADOW"},
+                      {"key":"decision-api-key","secretValue":"independent-jev-key"},
+                      {"key":"decision-timeout-seconds","value":5},
+                      {"key":"decision-scene-plan-compilation-enabled","value":true}
+                    ]}
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-mode')].effectiveValue").value("SHADOW"))
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-scene-plan-compilation-enabled')].effectiveValue").value(true))
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-api-key')].secretConfigured").value(true))
+                .andReturn().getResponse().getContentAsString();
+        assertFalse(saved.contains("independent-jev-key"));
+        org.junit.jupiter.api.Assertions.assertEquals("independent-jev-key",
+                runtimePolicy.secret(Long.valueOf(TENANT), "decision-api-key", null));
+        mockMvc.perform(put("/api/ai/administration/configuration").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"scope":"TENANT","settings":[{"key":"decision-mode","value":"UNSUPPORTED"}]}
+                    """))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/ai/administration/configuration").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"scope":"TENANT","settings":[{"key":"decision-timeout-seconds","value":999}]}
+                    """))
+                .andExpect(status().isBadRequest());
+    }
 
     @Test
     void encryptsTenantSecretsAndAppliesConfigurationWithoutRestart() throws Exception {
         mockMvc.perform(get("/api/ai/administration/configuration").param("scope", "TENANT").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scope").value("TENANT"))
-                .andExpect(jsonPath("$.settings.length()").value(16))
+                .andExpect(jsonPath("$.settings.length()").value(24))
                 .andExpect(jsonPath("$.encryptionAvailable").value(true));
 
         JsonNode saved = json(mockMvc.perform(put("/api/ai/administration/configuration").with(rhnWorkContext())

@@ -220,6 +220,31 @@ public class ClinicalAssistantApplicationService {
         return bytes + " bytes";
     }
 
+    /** Match visible, existing whole plans before generating any clinical draft. */
+    public List<RecommendedPlan> recommendPlans(Long encounterId, GenerateRequest input) {
+        Access access = requireAccess(encounterId, true);
+        var matches = retrievePlans(input, planDirectory.visibleForCurrentContext());
+        var exact = recommendedPlans(matches, List.of());
+        if (!exact.isEmpty() || matches.isEmpty()) return exact;
+        ClinicalAssistantSettings runtime = runtimePolicy.current(access.context());
+        if (runtime.mode() != ClinicalAssistantSettings.Mode.MODEL) return List.of();
+        requireAvailable(runtime, access.context());
+        var context = loadServerContext(access);
+        var candidates = matches.stream().map(ClinicalPlanRetrievalService.Match::plan).toList();
+        var request = new ClinicalAiModelGateway.ModelRequest("CLINICAL_PLAN_MATCH_V1", input.question(),
+                input.voiceTranscript(), input.draft(), context.resident(), context.allergies(), candidates,
+                List.of(), List.of(), null, input.receptionScene(), input.receptionSceneContext(),
+                "PLAN_MATCH", List.of(), new ClinicalAiModelGateway.TemporalContext(Instant.now(), access.encounter().registeredAt()));
+        // A separate matching prompt returns existing IDs only; no suggestion or draft is persisted.
+        try {
+            var result = modelGateway.analyze(request, runtime);
+            return validatedPlans(result == null ? List.of() : result.recommendedPlans(), candidates);
+        } catch (ClinicalAiModelException exception) {
+            log.warn("Whole plan matching failed, reason={}, correlationId={}", exception.reason(), access.context().correlationId());
+            throw conflict("AI_PLAN_MATCH_UNAVAILABLE", "诊疗方案匹配暂不可用，可重试或跳过匹配继续 AI 共写。");
+        }
+    }
+
     public Suggestion generate(Long encounterId, GenerateRequest input) {
         return generate(encounterId, input, null);
     }
@@ -661,7 +686,7 @@ public class ClinicalAssistantApplicationService {
         if (value == null) return new RecordDraft(null, null, null, null, null);
         return new RecordDraft(clipped(value.chiefComplaint(), 1000), clipped(value.presentIllness(), 4000),
                 clipped(value.medicalHistory(), 4000), clipped(value.physicalExam(), 4000),
-                clipped(value.treatmentPlan(), 4000),
+                null,
                 validatedVital(value.temperature(), 20, 45, false),
                 validatedVital(value.pulseRate(), 0, 300, true),
                 validatedVital(value.respiratoryRate(), 0, 100, true),
@@ -669,7 +694,7 @@ public class ClinicalAssistantApplicationService {
                 validatedVital(value.diastolic(), 10, 200, true),
                 validatedVital(value.oxygenSaturation(), 0, 100, true),
                 validatedVital(value.heightCm(), 20, 250, false),
-                validatedVital(value.weightKg(), 0.1, 500, false));
+                validatedVital(value.weightKg(), 0.1, 500, false), clipped(value.allergyHistory(), 4000), clipped(value.medicationHistory(), 4000), clipped(value.auxiliaryExaminations(), 4000), clipped(value.healthEducation(), 4000), clipped(value.followUp(), 4000));
     }
 
     private RecordDraft enrichRecordDraftFromInput(RecordDraft value, GenerateRequest input) {
@@ -695,7 +720,7 @@ public class ClinicalAssistantApplicationService {
         java.math.BigDecimal height = input.draft().heightCm() == null ? draft.heightCm() : input.draft().heightCm();
         return new RecordDraft(draft.chiefComplaint(), draft.presentIllness(), draft.medicalHistory(), draft.physicalExam(),
                 draft.treatmentPlan(), temperature, pulse, respiratoryRate, systolic, diastolic, oxygenSaturation,
-                height, weight);
+                height, weight, draft.allergyHistory(), draft.medicationHistory(), draft.auxiliaryExaminations(), draft.healthEducation(), draft.followUp());
     }
 
     private java.math.BigDecimal extractCurrentTemperature(String source) {

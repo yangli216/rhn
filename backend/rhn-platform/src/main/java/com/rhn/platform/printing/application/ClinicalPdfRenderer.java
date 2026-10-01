@@ -104,6 +104,11 @@ class ClinicalPdfRenderer {
         }).reduce((left, right) -> left + "；" + right).orElse("未记录");
         addSection(document, "诊断", diagnosisText);
         addSection(document, "诊疗计划", text(content, "treatmentPlan", "按本次门诊医嘱执行。"));
+        addSection(document, "过敏史补充", text(content, "allergyHistory", "未记录"));
+        addSection(document, "用药史", text(content, "medicationHistory", "未记录"));
+        addSection(document, "辅助检查结果", text(content, "auxiliaryExaminations", "未记录"));
+        addSection(document, "健康宣教", text(content, "healthEducation", "未记录"));
+        addSection(document, "随访复诊", text(content, "followUp", "未记录"));
         renderStructuredNote(document, content);
 
         PdfPTable signature = new PdfPTable(new float[]{1, 2.4f, 1, 2.4f});

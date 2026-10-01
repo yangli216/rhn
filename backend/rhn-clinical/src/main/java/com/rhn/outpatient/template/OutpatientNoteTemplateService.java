@@ -140,13 +140,17 @@ class OutpatientNoteTemplateService {
         if (input == null) return new OutpatientNoteTemplateContracts.NoteContent(null, null, null, null, null);
         return new OutpatientNoteTemplateContracts.NoteContent(Strings.trimToNull(input.chiefComplaint()),
                 Strings.trimToNull(input.presentIllness()), Strings.trimToNull(input.medicalHistory()), Strings.trimToNull(input.physicalExam()),
-                Strings.trimToNull(input.treatmentPlan()));
+                null, Strings.trimToNull(input.allergyHistory()), Strings.trimToNull(input.medicationHistory()), Strings.trimToNull(input.auxiliaryExaminations()), Strings.trimToNull(input.healthEducation()), Strings.trimToNull(input.followUp()));
     }
 
     private boolean empty(OutpatientNoteTemplateContracts.NoteContent content) {
         return content.chiefComplaint() == null && content.presentIllness() == null
                 && content.medicalHistory() == null && content.physicalExam() == null
-                && content.treatmentPlan() == null;
+                && content.allergyHistory() == null
+                && content.medicationHistory() == null
+                && content.auxiliaryExaminations() == null
+                && content.healthEducation() == null
+                && content.followUp() == null;
     }
 
     private ExecutionContext requireContext() {

@@ -12,7 +12,7 @@ import type {
   MedicationTrialItem,
   MedicationTrialRun
 } from '../../shared/api/medicationWorkbenchApi'
-import { Alert, Button, Dialog, FormField, IconButton, Icon, PageHeader, SearchField, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, DataTable, Dialog, FormField, IconButton, Icon, PageHeader, SearchField, Select, StatusBadge, Tabs, tableCellClass } from '../../shared/ui'
 import { medicationCandidateStatusPresentation } from '../../shared/presentation'
 import './medication-workbench.css'
 import { MedicationRuleIntake, type IntakeSeed } from './MedicationRuleIntake'
@@ -520,37 +520,19 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
       {error && <Alert tone="error">{error}</Alert>}
       {notice && <Alert>{notice}</Alert>}
 
-      {/* 主 Tab 导航 */}
-      <nav className="qmed-tabs" aria-label="工作台主导航">
-        <button
-          className={`qmed-tab-btn ${tab === 'catalog' ? 'is-active' : ''}`}
-          onClick={() => setTab('catalog')}
-        >
-          <strong>在行规则目录</strong>
-        </button>
-        <button
-          className={`qmed-tab-btn ${tab === 'evaluations' ? 'is-active' : ''}`}
-          onClick={() => setTab('evaluations')}
-        >
-          <strong>处方质量审查日志</strong>
-          <span className="qmed-tab-badge">{evaluations.length}</span>
-        </button>
-        <button
-          className={`qmed-tab-btn ${tab === 'sandbox' ? 'is-active' : ''}`}
-          onClick={() => openActiveSandbox('ALL')}
-        >
-          <strong>内置规则验证沙箱</strong>
-          <span className="qmed-tab-badge">单条 / 全部</span>
-        </button>
-        <button
-          className={`qmed-tab-btn ${tab === 'factory' ? 'is-active' : ''}`}
-          onClick={() => setTab('factory')}
-        >
-          <strong>AI 规则工坊与候选孵化</strong>
-          <span className="qmed-tab-badge">{candidates.length}</span>
-        </button>
-        <button className={`qmed-tab-btn ${tab === 'knowledge' ? 'is-active' : ''}`} onClick={() => setTab('knowledge')}><strong>规则知识草稿</strong></button>
-      </nav>
+      <Tabs
+        value={tab}
+        label="工作台主导航"
+        variant="workspace"
+        items={[
+          { value: 'catalog', label: '在行规则目录' },
+          { value: 'evaluations', label: '处方质量审查日志', meta: evaluations.length },
+          { value: 'sandbox', label: '内置规则验证沙箱', meta: '单条 / 全部' },
+          { value: 'factory', label: 'AI 规则工坊与候选孵化', meta: candidates.length },
+          { value: 'knowledge', label: '规则知识草稿' },
+        ]}
+        onChange={(value) => value === 'sandbox' ? openActiveSandbox('ALL') : setTab(value)}
+      />
 
       {/* Tab 主体内容容器：自适应高度并杜绝外部整页滚动 */}
       <div className="qmed-tab-content">
@@ -615,9 +597,9 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                     <span><Icon name="user" /> 虚拟门诊患者画像</span>
                     <div className="qmed-age-quick-chips">
                       <span className="chip-label">快速预设:</span>
-                      <button type="button" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(14); setActiveSandboxRun(null) }}>14岁儿童</button>
-                      <button type="button" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(35); setActiveSandboxRun(null) }}>35岁成人</button>
-                      <button type="button" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(72); setActiveSandboxRun(null) }}>72岁老年</button>
+                      <Button size="sm" variant="text" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(14); setActiveSandboxRun(null) }}>14岁儿童</Button>
+                      <Button size="sm" variant="text" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(35); setActiveSandboxRun(null) }}>35岁成人</Button>
+                      <Button size="sm" variant="text" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(72); setActiveSandboxRun(null) }}>72岁老年</Button>
                     </div>
                   </div>
                 </div>
@@ -754,7 +736,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
           </div>
 
           <div className="qmed-table-wrap">
-            <table className="qmed-table">
+            <DataTable className="qmed-table" aria-label="处方质量审查记录">
               <thead>
                 <tr>
                   <th>评价 ID</th>
@@ -762,16 +744,16 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   <th>处方 ID</th>
                   <th>就诊 ID</th>
                   <th>规则集</th>
-                  <th>模式</th>
-                  <th>评价结论</th>
-                  <th>风险项数</th>
+                  <th className={tableCellClass('status')}>模式</th>
+                  <th className={tableCellClass('status')}>评价结论</th>
+                  <th className={tableCellClass('numeric')}>风险项数</th>
                 </tr>
               </thead>
               <tbody>
                 {evalsLoading ? (
                   <tr>
                     <td colSpan={8} className="qmed-empty-cell">
-                      <span className="ui-spinner" style={{ marginRight: '6px' }} />
+                      <span className="ui-spinner qmed-loading-spinner" />
                       <span>正在拉取真实处方审查流水记录…</span>
                     </td>
                   </tr>
@@ -784,9 +766,9 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                       <td>{ev.prescriptionId}</td>
                       <td>{ev.encounterId}</td>
                       <td><small>{ev.ruleSetVersion}</small></td>
-                      <td><span className="qmed-tag">{ev.mode === 'ENFORCED' ? '正式审查' : ev.mode === 'SHADOW' ? '旁路观察' : ev.mode || '模式待核对'}</span></td>
-                      <td><span className={`qmed-dec-badge dec-${dec.tone}`}>{dec.label}</span></td>
-                      <td>
+                      <td className={tableCellClass('status')}><span className="qmed-tag">{ev.mode === 'ENFORCED' ? '正式审查' : ev.mode === 'SHADOW' ? '旁路观察' : ev.mode || '模式待核对'}</span></td>
+                      <td className={tableCellClass('status')}><span className={`qmed-dec-badge dec-${dec.tone}`}>{dec.label}</span></td>
+                      <td className={tableCellClass('numeric')}>
                         {ev.findingCount > 0 ? (
                           <strong className="text-danger">{ev.findingCount} 项风险</strong>
                         ) : (
@@ -804,7 +786,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   </tr>
                 )}
               </tbody>
-            </table>
+            </DataTable>
           </div>
         </div>
       )}
@@ -858,33 +840,36 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
 
             <div className="qmed-preset-group">
               <span className="qmed-preset-label">快捷场景:</span>
-              <button
-                type="button"
+              <Button
+                variant="text"
+                size="sm"
                 className="qmed-preset-btn"
                 onClick={loadAgeContraindicationPreset}
                 title="一键装配18岁以下未成年人禁用喹诺酮类场景"
               >
                 <Icon name="sparkles" />
                 <span>未成年人禁用喹诺酮类</span>
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="text"
+                size="sm"
                 className="qmed-preset-btn"
                 onClick={loadNsaidPreset}
                 title="一键选择基药布洛芬/双氯芬酸并填入重复核对规范需求"
               >
                 <Icon name="sparkles" />
                 <span>解热镇痛药重复核对</span>
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="text"
+                size="sm"
                 className="qmed-preset-btn"
                 onClick={loadAntimicrobialPreset}
                 title="一键选择基药头孢菌素/阿莫西林并填入抗菌药疗程上限需求"
               >
                 <Icon name="sparkles" />
                 <span>门诊抗菌药疗程上限</span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -897,30 +882,33 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                 <div className="qmed-req-header">
                   <strong>规则审查需求描述</strong>
                   <div className="qmed-preset-btns">
-                    <button
-                      type="button"
+                    <Button
+                      variant="text"
+                      size="sm"
                       className="qmed-chip-btn"
                       aria-label="预设模板 未成年禁忌"
                       onClick={() => setRequirement('18岁以下未成年人门诊禁用左氧氟沙星、诺氟沙星等喹诺酮类抗菌药物。')}
                     >
                       模板: 儿童禁忌
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
+                      variant="text"
+                      size="sm"
                       className="qmed-chip-btn"
                       aria-label="预设模板 通用药重复核对"
                       onClick={() => setRequirement('同一张门诊处方中，解热镇痛抗炎类药物出现两次以上时拦截，已撤销项目不参与。')}
                     >
                       模板: 重复核对
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
+                      variant="text"
+                      size="sm"
                       className="qmed-chip-btn"
                       aria-label="预设模板 抗菌药疗程上限"
                       onClick={() => setRequirement('门诊抗菌药物处方单张疗程天数不得超过 7 天上限，超期需阻断。')}
                     >
                       模板: 疗程上限
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <FormField label="规则审查需求描述" className="qmed-visually-labelled-field">
@@ -956,7 +944,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                 <SearchField label="搜索 HIS 药品" placeholder="检索药品 / 编码 / 别名（回车筛选）"
                   value={query} onChange={setQuery} />
               </form>
-              <div className="qmed-med-scroll-list" style={{ maxHeight: '180px' }}>
+              <div className="qmed-med-scroll-list">
                 {meds.map(m => (
                   <label className="qmed-med-item" key={m.medication.id}>
                     <input
@@ -988,7 +976,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                     </div>
                   </label>
                 ))}
-                {meds.length === 0 && <p className="qmed-muted" style={{ padding: '8px' }}>{medsLoading ? '正在载入 HIS 药品…' : '未搜索到匹配的 HIS 药品'}</p>}
+                {meds.length === 0 && <p className="qmed-muted qmed-med-empty">{medsLoading ? '正在载入 HIS 药品…' : '未搜索到匹配的 HIS 药品'}</p>}
               </div>
 
               {/* AI 模型状态与生成主操作栏 (紧凑高密度单行) */}
@@ -1033,7 +1021,9 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
 
               <div className="qmed-saved">
                 {candidates.map(c => (
-                  <button
+                  <Button
+                    variant="text"
+                    size="sm"
                     disabled={!!busy}
                     className={`qmed-candidate-item ${candidate?.id === c.id ? 'is-active' : ''}`}
                     key={c.id}
@@ -1054,10 +1044,10 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                     <small>
                       v{c.version} · {c.rule.categoryName || templateName(c.rule.template)} · {new Date(c.createdAt).toLocaleDateString()}
                     </small>
-                  </button>
+                  </Button>
                 ))}
                 {candidates.length === 0 && (
-                  <p className="qmed-muted" style={{ padding: '8px 0' }}>{candidatesLoading ? '正在载入候选规则…' : '暂无候选规则，请在上方输入需求生成或按需点击预设体验。'}</p>
+                  <p className="qmed-muted qmed-candidate-empty">{candidatesLoading ? '正在载入候选规则…' : '暂无候选规则，请在上方输入需求生成或按需点击预设体验。'}</p>
                 )}
               </div>
             </div>
@@ -1082,7 +1072,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   </div>
 
                   <div className="qmed-scenario-cards-grid">
-                    <div className="qmed-scenario-card" onClick={loadAgeContraindicationPreset} role="button" tabIndex={0}>
+                    <Button variant="text" className="qmed-scenario-card" onClick={loadAgeContraindicationPreset}>
                       <div className="qmed-scenario-header">
                         <span className="qmed-scenario-tag tag-blue">儿童用药禁忌</span>
                         <span className="qmed-scenario-action">一键装配 ➔</span>
@@ -1095,9 +1085,9 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                         <span>规则串：IF Patient.Age &lt; 18 AND Category == '喹诺酮类' THEN BLOCK</span>
                         <span>模拟患者：李小明（男，14岁儿童）</span>
                       </div>
-                    </div>
+                    </Button>
 
-                    <div className="qmed-scenario-card" onClick={loadNsaidPreset} role="button" tabIndex={0}>
+                    <Button variant="text" className="qmed-scenario-card" onClick={loadNsaidPreset}>
                       <div className="qmed-scenario-header">
                         <span className="qmed-scenario-tag tag-blue">基药重复用药</span>
                         <span className="qmed-scenario-action">一键装配 ➔</span>
@@ -1110,9 +1100,9 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                         <span>规则串：IF Prescription.Count(Category == '解热镇痛抗炎药') &gt;= 2 THEN WARN</span>
                         <span>模拟患者：张伟（男，28岁成人）</span>
                       </div>
-                    </div>
+                    </Button>
 
-                    <div className="qmed-scenario-card" onClick={loadAntimicrobialPreset} role="button" tabIndex={0}>
+                    <Button variant="text" className="qmed-scenario-card" onClick={loadAntimicrobialPreset}>
                       <div className="qmed-scenario-header">
                         <span className="qmed-scenario-tag tag-teal">抗菌药专项质控</span>
                         <span className="qmed-scenario-action">一键装配 ➔</span>
@@ -1125,7 +1115,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                         <span>规则串：IF Medication.IsAntimicrobial == true AND DurationDays &gt; 7 THEN BLOCK</span>
                         <span>模拟患者：陈芳（女，35岁，开具10天超期）</span>
                       </div>
-                    </div>
+                    </Button>
                   </div>
 
                   <div className="qmed-standards-pipeline">
@@ -1231,7 +1221,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                     <div className="qmed-sim-cabin-header">
                       <div className="qmed-cabin-title">
                         <h4><Icon name="clinical" /> 模拟门诊就诊测试舱</h4>
-                        <p className="qmed-muted" style={{ margin: 0, fontSize: '12px' }}>
+                        <p className="qmed-muted qmed-cabin-description">
                           设定虚拟患者画像并模拟门诊医生开方，调用候选模板解释器验证结构化参数的判定效果；表达式用于审阅，不直接执行自由文本。
                         </p>
                       </div>
@@ -1264,38 +1254,42 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                           <span><Icon name="user" /> 虚拟门诊患者画像</span>
                           <div className="qmed-age-quick-chips">
                           <span className="chip-label">快速预设:</span>
-                          <button
-                            type="button"
+                          <Button
+                            variant="text"
+                            size="sm"
                             className={`qmed-quick-age-btn ${simPatientAge === 14 ? 'is-active' : ''}`}
                             onClick={() => { setSimPatientAge(14); setSimPatientName('李小明'); setSimPatientGender('男'); setRun(null) }}
                           >
                             14岁儿童
-                          </button>
-                          <button
-                            type="button"
+                          </Button>
+                          <Button
+                            variant="text"
+                            size="sm"
                             className={`qmed-quick-age-btn ${simPatientAge === 28 ? 'is-active' : ''}`}
                             onClick={() => { setSimPatientAge(28); setSimPatientName('张伟'); setSimPatientGender('男'); setRun(null) }}
                           >
                             28岁成人
-                          </button>
-                          <button
-                            type="button"
+                          </Button>
+                          <Button
+                            variant="text"
+                            size="sm"
                             className={`qmed-quick-age-btn ${simPatientAge === 72 ? 'is-active' : ''}`}
                             onClick={() => { setSimPatientAge(72); setSimPatientName('赵大爷'); setSimPatientGender('男'); setRun(null) }}
                           >
                             72岁老年
-                          </button>
+                          </Button>
                           </div>
                         </div>
-                        <button
-                          type="button"
+                        <Button
+                          variant="text"
+                          size="sm"
                           className="qmed-link-import-his"
                           onClick={() => setShowHisModal(true)}
                           title="从 HIS 真实历史处方库调入就诊与开方明细"
                         >
                           <Icon name="copy" />
                           <span>调入门诊真实历史处方</span>
-                        </button>
+                        </Button>
                       </div>
                       <div className="qmed-patient-sim-fields">
                         <FormField label="患者姓名" className="qmed-inline-field qmed-patient-name-field">
@@ -1325,8 +1319,9 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                         <h5><Icon name="pill" /> 门诊处方开具明细 ({items.length} 项)</h5>
                         <div className="qmed-rx-presets">
                           <span className="chip-label">模拟用例:</span>
-                          <button
-                            type="button"
+                          <Button
+                            variant="text"
+                            size="sm"
                             className="qmed-sample-btn"
                             onClick={() => {
                               const quinolone = meds.find(m => m.medication.name.includes('左氧氟沙星') || m.medication.name.includes('诺氟沙星'))
@@ -1340,9 +1335,10 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                             }}
                           >
                             未成年开喹诺酮
-                          </button>
-                          <button
-                            type="button"
+                          </Button>
+                          <Button
+                            variant="text"
+                            size="sm"
                             className="qmed-sample-btn"
                             onClick={() => {
                               const cef = meds.find(m => m.medication.name.includes('头孢') || m.medication.antimicrobial)
@@ -1355,9 +1351,10 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                             }}
                           >
                             抗菌药超7天疗程
-                          </button>
-                          <button
-                            type="button"
+                          </Button>
+                          <Button
+                            variant="text"
+                            size="sm"
                             className="qmed-sample-btn"
                             onClick={() => {
                               const nsaids = meds.filter(m => m.medication.name.includes('布洛芬') || m.medication.name.includes('双氯芬酸') || m.medication.name.includes('阿司匹林'))
@@ -1373,7 +1370,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                             }}
                           >
                             同类NSAIDs双重开药
-                          </button>
+                          </Button>
                         </div>
                       </div>
 

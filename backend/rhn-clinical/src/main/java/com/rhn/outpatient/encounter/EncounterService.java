@@ -387,7 +387,14 @@ public class EncounterService implements EncounterDirectory {
         noteContent.put("presentIllness", clinicalText(request.presentIllness()));
         noteContent.put("medicalHistory", clinicalText(request.medicalHistory()));
         noteContent.put("physicalExam", clinicalText(request.physicalExam()));
-        noteContent.put("treatmentPlan", clinicalText(request.treatmentPlan()));
+        noteContent.put("treatmentPlan", "诊疗计划引用本次就诊的结构化医嘱。");
+        noteContent.put("clinicalReferences", Map.of("encounterId", encounter.id(), "orderSource", "OUTPATIENT_STRUCTURED_ORDERS"));
+        noteContent.put("allergyHistory", clinicalText(request.allergyHistory()));
+        noteContent.put("medicationHistory", clinicalText(request.medicationHistory()));
+        noteContent.put("auxiliaryExaminations", clinicalText(request.auxiliaryExaminations()));
+        noteContent.put("healthEducation", clinicalText(request.healthEducation()));
+        noteContent.put("followUp", clinicalText(request.followUp()));
+
         Map<String, Object> vitalSigns = new LinkedHashMap<>();
         vitalSigns.put("systolic", request.systolic());
         vitalSigns.put("diastolic", request.diastolic());

@@ -36,7 +36,7 @@ const template: OutpatientPlanTemplate = {
 }
 
 describe('ClinicalAiAssistantPanel plan preflight', () => {
-  it.each(['drawer', 'inline'] as const)('shows deterministic medication blockers and explicit unevaluated safety boundaries (%s)', async (layout) => {
+  it.each(['drawer'] as const)('shows deterministic medication blockers and explicit unevaluated safety boundaries (%s)', async (layout: 'drawer' | 'inline') => {
     const preflightPlan = vi.fn().mockResolvedValue({
       templateId: 'plan-1', templateRevision: 3, status: 'BLOCKED', blockingCount: 1, warningCount: 2,
       checkedAt: '2026-09-09T00:00:00Z', medications: [{

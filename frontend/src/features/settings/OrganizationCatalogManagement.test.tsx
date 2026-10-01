@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { OrganizationCatalogManagement } from './OrganizationCatalogManagement'
+import { OrganizationCatalogImportDialog } from './BasicDataManagement'
 import type { Organization } from '../../shared/model'
 import type { RhnApi } from '../../shared/rhnApi'
 
@@ -90,5 +91,61 @@ describe('OrganizationCatalogManagement active search trigger', () => {
     await user.click(resetBtn)
     expect(searchInput).toHaveValue('')
     expect(api.masterData.adoptionCandidates).toHaveBeenLastCalledWith('org-test', 'SERVICE', '', 0, 20)
+  })
+})
+
+describe('OrganizationCatalogImportDialog', () => {
+  const organization = { id: 'org-test', code: 'ORG01', name: '测试医院' } as unknown as Organization
+
+  it('loads only unadopted items, keeps a cross-search batch, and submits service capabilities', async () => {
+    const user = userEvent.setup()
+    const adoptionCandidates = vi.fn().mockResolvedValue({
+      content: [
+        { id: 'cat-1', code: 'SRV-001', name: '血常规检验', itemType: 'SERVICE', centerStatus: 'ACTIVE',
+          adoptionSourceType: 'NONE', packages: [] },
+        { id: 'cat-2', code: 'SRV-002', name: '肝功能检查', itemType: 'SERVICE', centerStatus: 'ACTIVE',
+          adoptionSourceType: 'NONE', packages: [] },
+      ],
+      page: 0,
+      size: 20,
+      totalPages: 1,
+      totalElements: 2,
+    })
+    const adoptionBatch = vi.fn().mockResolvedValue({})
+    const onCompleted = vi.fn().mockResolvedValue(undefined)
+    const api = { masterData: { adoptionCandidates, adoptionBatch } } as unknown as RhnApi
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <OrganizationCatalogImportDialog api={api} organization={organization} initialItemType="SERVICE"
+        onClose={vi.fn()} onCompleted={onCompleted} />
+    </QueryClientProvider>)
+
+    expect(await screen.findByRole('dialog', { name: '机构项目调入' })).toBeInTheDocument()
+    expect(adoptionCandidates).toHaveBeenCalledWith(
+      'org-test', 'SERVICE', '', 0, 20, expect.any(String), true,
+    )
+    expect(screen.queryByText('本机构')).not.toBeInTheDocument()
+    expect(screen.queryByText('共享')).not.toBeInTheDocument()
+
+    await user.click(await screen.findByRole('checkbox', { name: '选择 血常规检验' }))
+    const batch = screen.getByRole('complementary', { name: '本批调入配置' })
+    expect(within(batch).getByText('血常规检验')).toBeInTheDocument()
+
+    const search = screen.getByRole('searchbox', { name: '搜索待调入目录' })
+    await user.type(search, '肝功')
+    await user.click(screen.getByRole('button', { name: '查询' }))
+    expect(within(batch).getByText('血常规检验')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '确认调入 1 项' }))
+    expect(adoptionBatch).toHaveBeenCalledWith(expect.objectContaining({
+      organizationId: 'org-test',
+      catalogItemIds: ['cat-1'],
+      template: expect.objectContaining({
+        orderable: true, executable: true, chargeable: true,
+        purchasable: false, stocked: false, dispensable: false, returnable: false,
+      }),
+    }))
+    expect(onCompleted).toHaveBeenCalled()
   })
 })

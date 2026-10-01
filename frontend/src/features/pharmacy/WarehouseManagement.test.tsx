@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { StockSite } from '../../shared/api'
@@ -69,6 +69,9 @@ function createMockApi(): RhnApi {
       ]),
       balances: vi.fn().mockResolvedValue([]),
       transactions: vi.fn().mockResolvedValue([]),
+      transactionPage: vi.fn().mockResolvedValue({
+        content: [], page: 0, size: 50, totalElements: 0, totalPages: 0, first: true, last: true,
+      }),
       purchaseOrders: vi.fn().mockResolvedValue([]),
       transferOrders: vi.fn().mockResolvedValue([]),
       requisitionOrders: vi.fn().mockResolvedValue([]),
@@ -126,5 +129,80 @@ describe('WarehouseManagement', () => {
     expect(await screen.findByText('当前工作上下文未配置库存站点')).toBeInTheDocument()
     expect(screen.getByText('请使用顶部栏切换到已配置药库、药房或科室库的工作上下文。')).toBeInTheDocument()
     expect(api.pharmacy.stockBins).not.toHaveBeenCalled()
+  })
+
+  it('uses shared paginated tables and loads ledger pages from the server', async () => {
+    const api = createMockApi()
+    const transactionPage = vi.mocked(api.pharmacy.transactionPage)
+    transactionPage.mockImplementation(async (_siteId, options = {}) => options.stockItemId ? {
+      content: [{
+        id: `transaction-${options.page ?? 0}`,
+        inventoryPeriodId: 'period-1',
+        transactionNo: `IT-${options.page ?? 0}`,
+        requestCode: `REQUEST-${options.page ?? 0}`,
+        transactionType: 'RECEIPT',
+        sourceType: 'OPENING',
+        sourceCode: 'OPENING-STOCK',
+        occurredAt: '2026-09-04T22:38:12Z',
+        postedAt: '2026-09-04T22:38:12Z',
+        postedBy: 'operator-1',
+        lines: [{
+          id: `line-${options.page ?? 0}`,
+          sortOrder: 1,
+          stockSiteId: 'site-warehouse',
+          stockBinId: 'bin-1',
+          stockItemId: 'item-1',
+          stockLotId: 'lot-1',
+          packageId: 'package-1',
+          stockStatus: 'AVAILABLE',
+          operationQuantity: 1,
+          operationUnitCode: '盒',
+          baseQuantityFactor: 14,
+          quantityDelta: 14,
+          unitCost: 0.6,
+          amountDelta: 8.4,
+        }],
+      }],
+      page: options.page ?? 0,
+      size: options.size ?? 20,
+      totalElements: 21,
+      totalPages: 2,
+      first: (options.page ?? 0) === 0,
+      last: (options.page ?? 0) === 1,
+      firstEntryQuantityAfter: (options.page ?? 0) === 0 ? 14 : 0,
+    } : {
+      content: [], page: 0, size: 1, totalElements: 21, totalPages: 21, first: true, last: false,
+    })
+
+    renderComponent(api, {
+      organization: { id: 'org-1', name: '三江中心卫生院' },
+      department: { id: 'dept-warehouse', name: '中心药库' },
+    } as unknown as ClinicalContext)
+
+    fireEvent.click(await screen.findByRole('button', { name: /库存查询/ }))
+    expect(await screen.findByRole('table', { name: '库存查询结果' })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: '库存列表分页' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '查看流水' }))
+    expect(await screen.findByRole('table', { name: '药品库存变动流水' })).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('OPENING-STOCK')).toBeInTheDocument()
+    expect(within(dialog).queryByText('IT-0')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText('OPENING')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText('operator-1')).not.toBeInTheDocument()
+    await waitFor(() => expect(transactionPage).toHaveBeenCalledWith('site-warehouse', {
+      stockItemId: 'item-1', allPeriods: true, page: 0, size: 20,
+    }))
+
+    const ledgerPagination = screen.getByRole('navigation', { name: '药品流水分页' })
+    fireEvent.click(within(ledgerPagination).getByRole('button', { name: '下一页' }))
+    await waitFor(() => expect(transactionPage).toHaveBeenCalledWith('site-warehouse', {
+      stockItemId: 'item-1', allPeriods: true, page: 1, size: 20,
+    }))
+
+    fireEvent.change(within(dialog).getByLabelText('查询库存流水'), { target: { value: 'OPENING-STOCK' } })
+    await waitFor(() => expect(transactionPage).toHaveBeenCalledWith('site-warehouse', {
+      stockItemId: 'item-1', allPeriods: true, query: 'OPENING-STOCK', page: 0, size: 20,
+    }))
   })
 })

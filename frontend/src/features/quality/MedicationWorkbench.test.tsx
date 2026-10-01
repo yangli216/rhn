@@ -198,13 +198,13 @@ describe('MedicationWorkbench', () => {
     expect(header.getByText('内置验证规则')).toBeInTheDocument()
     expect(header.getByText('按规则发布设置')).toBeInTheDocument()
     expect(header.queryByText('旁路监控')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '在行规则目录' })).toHaveTextContent(/^在行规则目录$/)
+    expect(screen.getByRole('tab', { name: '在行规则目录' })).toHaveTextContent(/^在行规则目录$/)
   })
   it('shows formal review as formal and does not equate zero findings with absence of risk', async () => {
     const api = setup(true)
     api.evaluations.mockResolvedValue([{ ...mockEvaluations[0], mode: 'ENFORCED', findingCount: 0, decision: 'UNAVAILABLE' }])
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: /处方质量审查日志/ }))
+    await user.click(await screen.findByRole('tab', { name: /处方质量审查日志/ }))
     await user.click(screen.getByRole('button', { name: '刷新日志' }))
     expect(await screen.findByText('正式审查')).toBeInTheDocument()
     expect(screen.getByText('未记录命中项')).toBeInTheDocument()
@@ -215,7 +215,7 @@ describe('MedicationWorkbench', () => {
   it('opens requirement clarification first while retaining the explicit template history entry', async () => {
     setup(true)
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: /AI 规则工坊与候选孵化/ }))
+    await user.click(await screen.findByRole('tab', { name: /AI 规则工坊与候选孵化/ }))
     expect(screen.getByLabelText('待分析的用药规则需求')).toHaveValue('')
     expect(screen.getByRole('button', { name: '模板候选与历史' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'AI 生成候选规则' })).not.toBeInTheDocument()
@@ -233,7 +233,7 @@ describe('MedicationWorkbench', () => {
   it('starts candidate authoring from a blank form without injecting demo content', async () => {
     setup(true, [candidate])
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: /AI 规则工坊与候选孵化/ }))
+    await user.click(await screen.findByRole('tab', { name: /AI 规则工坊与候选孵化/ }))
     await user.click(screen.getByRole('button', { name: '模板候选与历史' }))
     expect(screen.getByLabelText('规则审查需求描述')).toHaveValue('')
     expect(screen.queryByText('按通用药 ID 核对')).not.toBeInTheDocument()
@@ -262,7 +262,7 @@ describe('MedicationWorkbench', () => {
   it('navigates to evaluations tab and displays prescription audit records', async () => {
     setup(true)
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: /处方质量审查日志/ }))
+    await user.click(await screen.findByRole('tab', { name: /处方质量审查日志/ }))
     expect(await screen.findByText('8001')).toBeInTheDocument()
     expect(screen.getByText('9001')).toBeInTheDocument()
     expect(screen.getByText('1 项风险')).toBeInTheDocument()
@@ -271,7 +271,7 @@ describe('MedicationWorkbench', () => {
   it('navigates to AI factory, generates candidate, and approves it', async () => {
     const api = setup(true, [candidate])
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: /AI 规则工坊与候选孵化/ }))
+    await user.click(await screen.findByRole('tab', { name: /AI 规则工坊与候选孵化/ }))
     await user.click(screen.getByRole('button', { name: '模板候选与历史' }))
     await user.click(await screen.findByRole('button', { name: /候选版本 重复核对/ }))
     expect(screen.getByText('按通用药 ID 核对')).toBeInTheDocument()
@@ -284,7 +284,7 @@ describe('MedicationWorkbench', () => {
   it('disables generation when actual AI is unavailable', async () => {
     const api = setup(false)
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: /AI 规则工坊与候选孵化/ }))
+    await user.click(await screen.findByRole('tab', { name: /AI 规则工坊与候选孵化/ }))
     await user.click(screen.getByRole('button', { name: '模板候选与历史' }))
     await user.click(await screen.findByRole('checkbox', { name: /选择药品 阿莫西林/ }))
     expect(screen.getByRole('button', { name: 'AI 生成候选规则' })).toBeDisabled()
@@ -294,7 +294,7 @@ describe('MedicationWorkbench', () => {
   it('supports simulated consultation trial run for candidates', async () => {
     const api = setup(true, [candidate])
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: /AI 规则工坊与候选孵化/ }))
+    await user.click(await screen.findByRole('tab', { name: /AI 规则工坊与候选孵化/ }))
     await user.click(screen.getByRole('button', { name: '模板候选与历史' }))
     await user.click(await screen.findByRole('button', { name: /候选版本 重复核对/ }))
     expect(screen.getAllByText('IF Patient.RxCount(Medication.Id) >= 2 THEN WARN').length).toBeGreaterThanOrEqual(1)
@@ -307,7 +307,7 @@ describe('MedicationWorkbench', () => {
   it('uses system controls and imports a real HIS prescription preview before review', async () => {
     const api = setup(true, [candidate])
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: /AI 规则工坊与候选孵化/ }))
+    await user.click(await screen.findByRole('tab', { name: /AI 规则工坊与候选孵化/ }))
     await user.click(screen.getByRole('button', { name: '模板候选与历史' }))
     await user.click(await screen.findByRole('button', { name: /候选版本 重复核对/ }))
 

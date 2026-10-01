@@ -61,7 +61,7 @@ export function clinicalAiDraftInput(value: ClinicalAiDraftContext): ClinicalAiD
   return {
     chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
     medicalHistory: value.medicalHistory, physicalExam: value.physicalExam,
-    treatmentPlan: value.treatmentPlan, systolic: value.systolic, diastolic: value.diastolic,
+    allergyHistory: value.allergyHistory, medicationHistory: value.medicationHistory, auxiliaryExaminations: value.auxiliaryExaminations, healthEducation: value.healthEducation, followUp: value.followUp,  systolic: value.systolic, diastolic: value.diastolic,
     temperature: value.temperature, pulseRate: value.pulseRate,
     respiratoryRate: value.respiratoryRate, oxygenSaturation: value.oxygenSaturation,
     heightCm: value.heightCm, weightKg: value.weightKg,
@@ -110,7 +110,7 @@ export function canApplyClinicalAiSuggestion(suggestion: ClinicalAiSuggestion,
 }
 
 export const recordDraftFields = [
-  'chiefComplaint', 'presentIllness', 'medicalHistory', 'physicalExam', 'treatmentPlan',
+  'chiefComplaint', 'presentIllness', 'medicalHistory', 'physicalExam', 'allergyHistory', 'medicationHistory', 'auxiliaryExaminations', 'healthEducation', 'followUp',
 ] as const
 
 export const vitalDraftFields = [
@@ -153,7 +153,7 @@ export function formatAiRecordDraftValue(field: AiRecordDraftField, value: unkno
 
 export const recordDraftFieldLabels: Record<AiRecordDraftField, string> = {
   chiefComplaint: '主诉', presentIllness: '现病史', medicalHistory: '既往史',
-  physicalExam: '查体所见', treatmentPlan: '诊疗计划',
+  physicalExam: '查体所见', allergyHistory: '过敏史补充', medicationHistory: '用药史', auxiliaryExaminations: '辅助检查结果', healthEducation: '健康宣教', followUp: '随访复诊',
   temperature: '体温', pulseRate: '脉搏', respiratoryRate: '呼吸', systolic: '收缩压', diastolic: '舒张压',
   oxygenSaturation: '血氧', heightCm: '身高', weightKg: '体重',
 }

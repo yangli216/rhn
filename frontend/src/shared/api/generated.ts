@@ -788,6 +788,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/outpatient/plan-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_7"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/outpatient/note-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_8"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/inpatient/episodes/{episodeId}/discharge-diagnoses": {
         parameters: {
             query?: never;
@@ -892,7 +924,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["update_7"];
+        put: operations["update_9"];
         post?: never;
         delete?: never;
         options?: never;
@@ -924,7 +956,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["configuration"];
-        put: operations["update_8"];
+        put: operations["update_10"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2868,6 +2900,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/master-data/medication-standard-catalog/specification-dispositions/{specificationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/master-data/medication-standard-catalog/source-review": {
         parameters: {
             query?: never;
@@ -2925,7 +2973,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["change"];
+        post: operations["change_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7109,6 +7157,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/clinical-assistant/plan-templates/guideline-extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["compileGuidelinePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/clinical-assistant/plan-templates/guideline-extract/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["compileGuidelinePlanStream"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/clinical-assistant/plan-templates/guideline-extract/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["convertGuidelinePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/clinical-assistant/plan-templates/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["compilePlanDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/clinical-assistant/plan-templates/draft/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["compilePlanDraftStream"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/clinical-assistant/plan-templates/draft/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["convertPlanDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai/clinical-assistant/encounters/{encounterId}/transcriptions": {
         parameters: {
             query?: never;
@@ -7167,6 +7311,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["preflightPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/clinical-assistant/encounters/{encounterId}/plan-recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["recommendPlans"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8357,6 +8517,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/master-data/medication-standard-catalog/specification-dispositions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/master-data/medication-standard-catalog/source-document": {
         parameters: {
             query?: never;
@@ -8365,6 +8541,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["sourceDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/entries/{id}/medications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["standardMedicationUsage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8460,7 +8652,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["view"];
+        get: operations["view_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10374,6 +10566,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/clinical-assistant/plan-templates/mined-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["minedPlanSuggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/clinical-assistant/encounters/{encounterId}/historical-stable-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getHistoricalStablePlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/clinical-assistant/encounters/{encounterId}/historical-plan-comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["compareHistoricalPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai/clinical-assistant/capabilities": {
         parameters: {
             query?: never;
@@ -10544,22 +10784,22 @@ export interface components {
             sdOccupationType?: string;
             sdBloodType?: string;
             sdRhType?: string;
-            /** @description 字典 PI_RH_TYPE 的显示文本 */
-            readonly sdRhTypeText?: string;
-            /** @description 字典 PI_RESIDENCY_TYPE 的显示文本 */
-            readonly sdResidencyTypeText?: string;
-            /** @description 字典 PI_BLOOD_TYPE 的显示文本 */
-            readonly sdBloodTypeText?: string;
-            /** @description 字典 PI_MARITAL_STATUS 的显示文本 */
-            readonly sdMaritalStatusText?: string;
-            /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
-            readonly sdOccupationTypeText?: string;
-            /** @description 字典 PI_NATIONALITY 的显示文本 */
-            readonly nationalityCodeText?: string;
-            /** @description 字典 PI_ETHNICITY 的显示文本 */
-            readonly ethnicityCodeText?: string;
             /** @description 字典 PI_EDUCATION_LEVEL 的显示文本 */
             readonly sdEducationLevelText?: string;
+            /** @description 字典 PI_ETHNICITY 的显示文本 */
+            readonly ethnicityCodeText?: string;
+            /** @description 字典 PI_NATIONALITY 的显示文本 */
+            readonly nationalityCodeText?: string;
+            /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
+            readonly sdOccupationTypeText?: string;
+            /** @description 字典 PI_MARITAL_STATUS 的显示文本 */
+            readonly sdMaritalStatusText?: string;
+            /** @description 字典 PI_BLOOD_TYPE 的显示文本 */
+            readonly sdBloodTypeText?: string;
+            /** @description 字典 PI_RESIDENCY_TYPE 的显示文本 */
+            readonly sdResidencyTypeText?: string;
+            /** @description 字典 PI_RH_TYPE 的显示文本 */
+            readonly sdRhTypeText?: string;
         };
         EmploymentView: {
             /** @example 824633720832983041 */
@@ -10574,10 +10814,10 @@ export interface components {
             validFrom?: string;
             /** Format: date */
             validTo?: string;
-            /** @description 字典 EMPLOYMENT_TYPE 的显示文本 */
-            readonly sdEmploymentTypeText?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
+            /** @description 字典 EMPLOYMENT_TYPE 的显示文本 */
+            readonly sdEmploymentTypeText?: string;
             /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
             readonly sdOccupationTypeText?: string;
         };
@@ -10707,12 +10947,12 @@ export interface components {
             replacementConceptId?: string;
             aliases?: components["schemas"]["ConceptAliasView"][];
             managementPrograms?: components["schemas"]["DiseaseManagementTagView"][];
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
-            readonly sdDiagnosisDomainText?: string;
             /** @description 字典 BD_CONCEPT_TYPE 的显示文本 */
             readonly sdConceptTypeText?: string;
+            /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
+            readonly sdDiagnosisDomainText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
         };
         DiseaseManagementTagView: {
             /** @example 824633720832983041 */
@@ -10724,10 +10964,10 @@ export interface components {
             reportCardType?: string;
             /** Format: int32 */
             reportDeadlineHours?: number;
-            /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
-            readonly sdManagementTypeText?: string;
             /** @description 字典 BD_DISEASE_TRIGGER_ACTION 的显示文本 */
             readonly sdTriggerActionText?: string;
+            /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
+            readonly sdManagementTypeText?: string;
         };
         UpdateDiseaseManagementProgramRequest: {
             expectedRevision: number;
@@ -10772,10 +11012,10 @@ export interface components {
             members?: components["schemas"]["MemberView"][];
             /** @description 字典 BD_DISEASE_TRIGGER_ACTION 的显示文本 */
             readonly sdTriggerActionText?: string;
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
             /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
             readonly sdManagementTypeText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
         };
         MemberView: {
             /** @example 824633720832983041 */
@@ -10802,10 +11042,10 @@ export interface components {
             codeFrom?: string;
             codeTo?: string;
             note?: string;
-            /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
-            readonly sdDiagnosisDomainText?: string;
             /** @description 字典 BD_CONCEPT_TYPE 的显示文本 */
             readonly sdConceptTypeText?: string;
+            /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
+            readonly sdDiagnosisDomainText?: string;
         };
         DiseaseManagementExceptionRequest: {
             /** @example 824633720832983041 */
@@ -10947,10 +11187,10 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 PRACT_GENDER 的显示文本 */
-            readonly sdPractGenderText?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
+            /** @description 字典 PRACT_GENDER 的显示文本 */
+            readonly sdPractGenderText?: string;
         };
         CatalogSourceRequest: {
             /** @example 824633720832983041 */
@@ -11023,16 +11263,16 @@ export interface components {
             updatedAt?: string;
             /** @description 字典 ORG_PROPERTY 的显示文本 */
             readonly sdOrgPropertyText?: string;
-            /** @description 字典 ORG_STATUS 的显示文本 */
-            readonly sdOrgStatusText?: string;
-            /** @description 字典 ORG_KIND 的显示文本 */
-            readonly sdOrgKindText?: string;
-            /** @description 字典 DEPT_PROPERTY 的显示文本 */
-            readonly sdDepartmentPropertyText?: string;
-            /** @description 字典 ORG_TYPE 的显示文本 */
-            readonly sdOrgTypeText?: string;
             /** @description 字典 DEPT_TYPE 的显示文本 */
             readonly sdDepartmentTypeText?: string;
+            /** @description 字典 ORG_TYPE 的显示文本 */
+            readonly sdOrgTypeText?: string;
+            /** @description 字典 DEPT_PROPERTY 的显示文本 */
+            readonly sdDepartmentPropertyText?: string;
+            /** @description 字典 ORG_KIND 的显示文本 */
+            readonly sdOrgKindText?: string;
+            /** @description 字典 ORG_STATUS 的显示文本 */
+            readonly sdOrgStatusText?: string;
         };
         UpdateServiceRequest: {
             expectedRevision: number;
@@ -11155,10 +11395,10 @@ export interface components {
             sdStatus?: string;
             /** @example 824633720832983041 */
             replacesPriceId?: string;
-            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
-            readonly sdPriceTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
+            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
+            readonly sdPriceTypeText?: string;
         };
         ServiceVariantView: {
             /** @example 824633720832983041 */
@@ -11218,14 +11458,14 @@ export interface components {
             examination?: components["schemas"]["ExaminationServiceView"];
             organizationAdoption?: components["schemas"]["OrganizationAdoptionView"];
             prices?: components["schemas"]["PriceView"][];
-            /** @description 字典 BD_SERVICE_USE 的显示文本 */
-            readonly sdUsageTypeText?: string;
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
-            readonly sdServiceTypeText?: string;
             /** @description 字典 BD_SERVICE_DUPLICATE_RULE 的显示文本 */
             readonly sdDuplicateRuleText?: string;
+            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
+            readonly sdServiceTypeText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 BD_SERVICE_USE 的显示文本 */
+            readonly sdUsageTypeText?: string;
         };
         PackageRequest: {
             /** @example 824633720832983041 */
@@ -11264,10 +11504,10 @@ export interface components {
             validFrom?: string;
             /** Format: date */
             validTo?: string;
-            /** @description 字典 BD_PACKAGE_USE 的显示文本 */
-            readonly sdUsageTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
+            /** @description 字典 BD_PACKAGE_USE 的显示文本 */
+            readonly sdUsageTypeText?: string;
         };
         UpdateFrequencyRequest: {
             /** @example 824633720832983041 */
@@ -11303,12 +11543,12 @@ export interface components {
             status?: string;
             reason?: string;
             explanation?: string;
-            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
-            readonly sdVerifyStatusText?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
             readonly sdCapabilityTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
+            readonly sdVerifyStatusText?: string;
         };
         ConfigurationView: {
             /** @example 824633720832983041 */
@@ -11860,7 +12100,6 @@ export interface components {
             float?: boolean;
             /** @enum {string} */
             nodeType?: "ARRAY" | "BINARY" | "BOOLEAN" | "MISSING" | "NULL" | "NUMBER" | "OBJECT" | "POJO" | "STRING";
-            string?: boolean;
             integralNumber?: boolean;
             missingNode?: boolean;
             valueNode?: boolean;
@@ -11878,6 +12117,7 @@ export interface components {
             textual?: boolean;
             boolean?: boolean;
             binary?: boolean;
+            string?: boolean;
             container?: boolean;
             embeddedValue?: boolean;
         };
@@ -11947,12 +12187,12 @@ export interface components {
             prices?: components["schemas"]["PriceView"][];
             /** @description 字典 BD_SHELF_LIFE_UNIT 的显示文本 */
             readonly sdShelfLifeUnitText?: string;
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
-            readonly sdProductionPlaceText?: string;
             /** @description 字典 BD_PRODUCT_MARKET_STATUS 的显示文本 */
             readonly sdMarketStatusText?: string;
+            /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
+            readonly sdProductionPlaceText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
         };
         MedicationStandardReference: {
             status?: string;
@@ -12021,16 +12261,16 @@ export interface components {
             allergenConceptIds?: string[];
             products?: components["schemas"]["MedicationProductView"][];
             standardReference?: components["schemas"]["MedicationStandardReference"];
-            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
-            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
-            /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
-            readonly sdMedicationTypeText?: string;
-            /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
-            readonly sdAntimicrobialLevelText?: string;
+            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
+            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly sdDoseFormText?: string;
+            /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
+            readonly sdAntimicrobialLevelText?: string;
+            /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
+            readonly sdMedicationTypeText?: string;
         };
         Component: {
             ingredientId?: string;
@@ -12105,12 +12345,12 @@ export interface components {
             countryCode?: string;
             address?: string;
             sdStatus?: string;
-            /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
-            readonly sdProductionPlaceText?: string;
-            /** @description 字典 BD_MANUFACTURER_TYPE 的显示文本 */
-            readonly sdManufacturerTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
+            /** @description 字典 BD_MANUFACTURER_TYPE 的显示文本 */
+            readonly sdManufacturerTypeText?: string;
+            /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
+            readonly sdProductionPlaceText?: string;
         };
         SaveOverrideRequest: {
             subjectType: string;
@@ -12490,10 +12730,10 @@ export interface components {
             /** @example 824633720832983041 */
             updatedBy?: string;
             items?: components["schemas"]["DictionaryItemResponse"][];
-            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
-            readonly sdDictScopeTypeText?: string;
             /** @description 字典 DICT_STATUS 的显示文本 */
             readonly sdDictStatusText?: string;
+            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
+            readonly sdDictScopeTypeText?: string;
         };
         DictionaryItemResponse: {
             /** @example 824633720832983041 */
@@ -12641,10 +12881,10 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
-            readonly sdDictScopeTypeText?: string;
             /** @description 字典 DICT_CATEGORY_STATUS 的显示文本 */
             readonly sdDictCategoryStatusText?: string;
+            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
+            readonly sdDictScopeTypeText?: string;
         };
         DefinitionRequest: {
             expectedRevision?: number;
@@ -12728,18 +12968,18 @@ export interface components {
             dependencyBehavior?: "DISABLE_AND_SUPPRESS" | "HIDE";
             dependsOnName?: string;
             dependencySatisfied?: boolean;
-            /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
-            readonly sdParamValueTypeText?: string;
             /** @description 字典 PARAM_SENSITIVITY 的显示文本 */
             readonly sdParamSensitivityText?: string;
-            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
-            readonly sdParamControlTypeText?: string;
-            /** @description 字典 PARAM_DISPLAY_POLICY 的显示文本 */
-            readonly sdParamDisplayPolicyText?: string;
-            /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
-            readonly sdParamConfigTypeText?: string;
+            /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
+            readonly sdParamValueTypeText?: string;
             /** @description 字典 PARAM_STATUS 的显示文本 */
             readonly sdParamStatusText?: string;
+            /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
+            readonly sdParamConfigTypeText?: string;
+            /** @description 字典 PARAM_DISPLAY_POLICY 的显示文本 */
+            readonly sdParamDisplayPolicyText?: string;
+            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
+            readonly sdParamControlTypeText?: string;
         };
         ParameterValueResponse: {
             /** @example 824633720832983041 */
@@ -12768,12 +13008,12 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 PARAM_VALUE_MODE 的显示文本 */
-            readonly sdParamValueModeText?: string;
-            /** @description 字典 PARAM_SCOPE_TYPE 的显示文本 */
-            readonly sdParamScopeTypeText?: string;
             /** @description 字典 PARAM_STATUS 的显示文本 */
             readonly sdParamStatusText?: string;
+            /** @description 字典 PARAM_SCOPE_TYPE 的显示文本 */
+            readonly sdParamScopeTypeText?: string;
+            /** @description 字典 PARAM_VALUE_MODE 的显示文本 */
+            readonly sdParamValueModeText?: string;
         };
         SaveValueRequest: {
             expectedRevision?: number;
@@ -13072,16 +13312,119 @@ export interface components {
             feePriceDocumentCode?: string;
             /** @description 字典 SC_BOOKING_POLICY 的显示文本 */
             readonly sdBookingPolicyText?: string;
-            /** @description 字典 SC_SLOT_MODE 的显示文本 */
-            readonly sdSlotModeText?: string;
-            /** @description 字典 SC_SCHEDULE_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
-            readonly sdDayPartText?: string;
-            /** @description 字典 SC_SCHEDULE_MANAGEMENT_MODE 的显示文本 */
-            readonly sdManagementModeText?: string;
             /** @description 字典 SC_REGISTRATION_SCOPE 的显示文本 */
             readonly sdRegistrationScopeText?: string;
+            /** @description 字典 SC_SCHEDULE_MANAGEMENT_MODE 的显示文本 */
+            readonly sdManagementModeText?: string;
+            /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
+            readonly sdDayPartText?: string;
+            /** @description 字典 SC_SCHEDULE_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 SC_SLOT_MODE 的显示文本 */
+            readonly sdSlotModeText?: string;
+        };
+        DiagnosisInput: {
+            codeSystem?: string;
+            diagnosisDomain?: string;
+            code: string;
+            display: string;
+            type: string;
+        };
+        MedicationInput: {
+            /** @example 824633720832983041 */
+            medicationId: string;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            /** @example 824633720832983041 */
+            packageId?: string;
+            medicationName?: string;
+            preparationSpec?: string;
+            doseValue?: number;
+            doseUnit?: string;
+            routeCode?: string;
+            frequencyCode?: string;
+            durationValue?: number;
+            durationUnit?: string;
+            quantity: number;
+            quantityUnit?: string;
+            substitutionAllowed?: boolean;
+            selfProvided?: boolean;
+            medicationInstruction?: string;
+            priceType?: string;
+            pricingRequired?: boolean;
+            reason?: string;
+        };
+        PlanTaskInput: {
+            kind: string;
+            text: string;
+            sourceQuote?: string;
+            origin: string;
+            status: string;
+            details?: string;
+        };
+        ServiceInput: {
+            /** @example 824633720832983041 */
+            catalogItemId: string;
+            itemCode?: string;
+            itemName?: string;
+            serviceType?: string;
+            quantity: number;
+            unitCode?: string;
+            priceType?: string;
+            pricingRequired?: boolean;
+            reason?: string;
+            clinicalDescription?: string;
+        };
+        UpdateRequest: {
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+            scopeType: string;
+            name: string;
+            description?: string;
+            /** Format: int32 */
+            sortOrder?: number;
+            guidelineReference?: string;
+            /** @example 824633720832983041 */
+            noteTemplateId?: string;
+            diagnoses?: components["schemas"]["DiagnosisInput"][];
+            medications?: components["schemas"]["MedicationInput"][];
+            services?: components["schemas"]["ServiceInput"][];
+            tasks?: components["schemas"]["PlanTaskInput"][];
+        };
+        DiagnosisView: {
+            codeSystem?: string;
+            diagnosisDomain?: string;
+            code?: string;
+            display?: string;
+            type?: string;
+        };
+        View: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            scopeType?: string;
+            name?: string;
+            description?: string;
+            status?: string;
+            sourceType?: string;
+            guidelineReference?: string;
+            /** @example 824633720832983041 */
+            noteTemplateId?: string;
+            /** Format: int32 */
+            sortOrder?: number;
+            /** Format: int64 */
+            useCount?: number;
+            /** Format: date-time */
+            lastUsedAt?: string;
+            diagnoses?: components["schemas"]["DiagnosisView"][];
+            medications?: components["schemas"]["MedicationView"][];
+            services?: components["schemas"]["ServiceView"][];
+            tasks?: components["schemas"]["PlanTaskInput"][];
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
         };
         DiagnosisRequest: {
             code: string;
@@ -13401,16 +13744,6 @@ export interface components {
             outcome?: string;
             failureCode?: string;
         };
-        DiagnosisInput: {
-            /** @example 824633720832983041 */
-            conceptId?: string;
-            diagnosisDomain?: string;
-            code: string;
-            display: string;
-            /** @enum {string} */
-            type: "PRIMARY" | "SECONDARY";
-            diagnosisGroupId?: string;
-        };
         RecordClinicalDataRequest: {
             commandCode?: string;
             chiefComplaint: string;
@@ -13437,6 +13770,11 @@ export interface components {
                 [key: string]: unknown;
             };
             diagnoses: components["schemas"]["DiagnosisInput"][];
+            allergyHistory?: string;
+            medicationHistory?: string;
+            auxiliaryExaminations?: string;
+            healthEducation?: string;
+            followUp?: string;
         };
         DiagnosisResponse: {
             /** @example 824633720832983041 */
@@ -13555,21 +13893,6 @@ export interface components {
             /** @example 824633720832983041 */
             signatureEvidenceId?: string;
         };
-        UpdateRequest: {
-            /** @example 824633720832983041 */
-            expectedRevision: string;
-            scopeType: string;
-            /** @example 824633720832983041 */
-            organizationId?: string;
-            /** @example 824633720832983041 */
-            departmentId?: string;
-            category: string;
-            priority: string;
-            title: string;
-            summary: string;
-            content: string;
-            pinned?: boolean;
-        };
         AnnouncementView: {
             /** @example 824633720832983041 */
             id?: string;
@@ -13664,6 +13987,21 @@ export interface components {
             /** Format: int32 */
             version?: number;
             archived?: boolean;
+        };
+        ClinicalAiConfigurationUpdateRequest: {
+            /** @enum {string} */
+            scope: "PLATFORM" | "TENANT";
+            settings: components["schemas"]["SettingUpdate"][];
+            reason?: string;
+        };
+        SettingUpdate: {
+            key: string;
+            value?: components["schemas"]["JsonNode"];
+            secretValue?: string;
+            clearSecret?: boolean;
+            clearOverride?: boolean;
+            /** @example 824633720832983041 */
+            expectedRevision?: string;
         };
         StartRequest: {
             /** @example 824633720832983041 */
@@ -15313,10 +15651,10 @@ export interface components {
             sdPositionType?: string;
             dutyDescription?: string;
             sdPersonnelStatus?: string;
-            /** @description 字典 POSITION_TYPE 的显示文本 */
-            readonly sdPositionTypeText?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
+            /** @description 字典 POSITION_TYPE 的显示文本 */
+            readonly sdPositionTypeText?: string;
         };
         LegacyOrganizationRequest: {
             /** @example 824633720832983041 */
@@ -15387,10 +15725,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_ADDRESS_TYPE 的显示文本 */
             readonly sdAddressTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
         };
         Contact: {
             /** @example 824633720832983041 */
@@ -15406,12 +15744,12 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_CONTACT_USE 的显示文本 */
-            readonly sdContactUseText?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
             readonly sdContactTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_CONTACT_USE 的显示文本 */
+            readonly sdContactUseText?: string;
         };
         Identifier: {
             /** @example 824633720832983041 */
@@ -15432,12 +15770,12 @@ export interface components {
             /** @example 824633720832983041 */
             verifiedBy?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
-            readonly sdVerifyStatusText?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_IDENTIFIER_TYPE 的显示文本 */
             readonly sdIdentifierTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
+            readonly sdVerifyStatusText?: string;
         };
         OrganizationProfileView: {
             organization?: components["schemas"]["OrganizationView"];
@@ -15462,10 +15800,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_RELATION_TYPE 的显示文本 */
-            readonly sdRelationTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_RELATION_TYPE 的显示文本 */
+            readonly sdRelationTypeText?: string;
         };
         Responsibility: {
             /** @example 824633720832983041 */
@@ -15480,10 +15818,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_RESPONSIBILITY_TYPE 的显示文本 */
             readonly sdResponsibilityTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
         };
         CreateRelationRequest: {
             /** @example 824633720832983041 */
@@ -16008,24 +16346,8 @@ export interface components {
             identity?: components["schemas"]["Identity"];
             /** Format: int32 */
             expectedRevision?: number;
-            action?: string;
-            evidence?: components["schemas"]["Evidence"];
-            reason?: string;
-        };
-        View: {
-            identity?: components["schemas"]["Identity"];
-            /** Format: int32 */
-            revision?: number;
             status?: string;
-            latest?: components["schemas"]["Event"];
-            history?: components["schemas"]["Event"][];
-            /** Format: int32 */
-            totalEvents?: number;
-            /** Format: int32 */
-            historyPage?: number;
-            /** Format: int32 */
-            historyPageSize?: number;
-            allowedActions?: string[];
+            note?: string;
         };
         Import: {
             fileName?: string;
@@ -16634,14 +16956,14 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 DEPT_TYPE 的显示文本 */
-            readonly sdDepartmentTypeText?: string;
-            /** @description 字典 ORG_TYPE 的显示文本 */
-            readonly sdOrgTypeText?: string;
-            /** @description 字典 ORG_STATUS 的显示文本 */
-            readonly sdOrgStatusText?: string;
             /** @description 字典 DEPT_PROPERTY 的显示文本 */
             readonly sdDepartmentPropertyText?: string;
+            /** @description 字典 ORG_STATUS 的显示文本 */
+            readonly sdOrgStatusText?: string;
+            /** @description 字典 ORG_TYPE 的显示文本 */
+            readonly sdOrgTypeText?: string;
+            /** @description 字典 DEPT_TYPE 的显示文本 */
+            readonly sdDepartmentTypeText?: string;
         };
         DepartmentCapability: {
             /** @example 824633720832983041 */
@@ -16655,12 +16977,12 @@ export interface components {
             validTo?: string;
             sdVerifyStatus?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
-            readonly sdVerifyStatusText?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 DEPT_CAPABILITY_TYPE 的显示文本 */
             readonly sdCapabilityTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
+            readonly sdVerifyStatusText?: string;
         };
         DepartmentContact: {
             /** @example 824633720832983041 */
@@ -16676,12 +16998,12 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_CONTACT_USE 的显示文本 */
-            readonly sdContactUseText?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
             readonly sdContactTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_CONTACT_USE 的显示文本 */
+            readonly sdContactUseText?: string;
         };
         DepartmentProfileView: {
             department?: components["schemas"]["DepartmentView"];
@@ -16704,10 +17026,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 DEPT_RELATION_TYPE 的显示文本 */
-            readonly sdRelationTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 DEPT_RELATION_TYPE 的显示文本 */
+            readonly sdRelationTypeText?: string;
         };
         DepartmentResponsibility: {
             /** @example 824633720832983041 */
@@ -16722,10 +17044,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 DEPT_RESPONSIBILITY_TYPE 的显示文本 */
             readonly sdResponsibilityTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
         };
         CreateDepartmentRelationRequest: {
             /** @example 824633720832983041 */
@@ -16801,12 +17123,12 @@ export interface components {
             validTo?: string;
             /** @description 字典 ASSIGNMENT_TYPE 的显示文本 */
             readonly sdAssignmentTypeText?: string;
-            /** @description 字典 PERSONNEL_STATUS 的显示文本 */
-            readonly sdPersonnelStatusText?: string;
-            /** @description 字典 POSITION_TYPE 的显示文本 */
-            readonly sdPositionTypeText?: string;
             /** @description 字典 PRACT_GENDER 的显示文本 */
             readonly sdPractGenderText?: string;
+            /** @description 字典 POSITION_TYPE 的显示文本 */
+            readonly sdPositionTypeText?: string;
+            /** @description 字典 PERSONNEL_STATUS 的显示文本 */
+            readonly sdPersonnelStatusText?: string;
         };
         IntakeRequest: {
             /** @example 824633720832983041 */
@@ -18740,47 +19062,20 @@ export interface components {
         AcceptRequest: {
             commandCode: string;
         };
-        MedicationInput: {
-            /** @example 824633720832983041 */
-            medicationId: string;
-            /** @example 824633720832983041 */
-            catalogItemId?: string;
-            /** @example 824633720832983041 */
-            packageId?: string;
-            doseValue?: number;
-            doseUnit?: string;
-            routeCode?: string;
-            frequencyCode?: string;
-            durationValue?: number;
-            durationUnit?: string;
-            quantity: number;
-            quantityUnit?: string;
-            substitutionAllowed?: boolean;
-            selfProvided?: boolean;
-            medicationInstruction?: string;
-            priceType?: string;
-            pricingRequired?: boolean;
-            reason?: string;
-        };
         SaveRequest: {
             scopeType: string;
             name: string;
             description?: string;
             /** Format: int32 */
             sortOrder?: number;
+            sourceType?: string;
+            guidelineReference?: string;
+            /** @example 824633720832983041 */
+            noteTemplateId?: string;
             diagnoses?: components["schemas"]["DiagnosisInput"][];
             medications?: components["schemas"]["MedicationInput"][];
             services?: components["schemas"]["ServiceInput"][];
-        };
-        ServiceInput: {
-            /** @example 824633720832983041 */
-            catalogItemId: string;
-            quantity: number;
-            unitCode?: string;
-            priceType?: string;
-            pricingRequired?: boolean;
-            reason?: string;
-            clinicalDescription?: string;
+            tasks?: components["schemas"]["PlanTaskInput"][];
         };
         Field: {
             code: string;
@@ -18866,12 +19161,12 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 SC_APPOINTMENT_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 SC_APPOINTMENT_SOURCE 的显示文本 */
-            readonly sdBookingSourceText?: string;
             /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
             readonly sdDayPartText?: string;
+            /** @description 字典 SC_APPOINTMENT_SOURCE 的显示文本 */
+            readonly sdBookingSourceText?: string;
+            /** @description 字典 SC_APPOINTMENT_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
         };
         RescheduleAppointmentRequest: {
             /** @example 824633720832983041 */
@@ -20479,25 +20774,25 @@ export interface components {
             externalTransactionNo?: string;
             description?: string;
         };
-        PersonInfoRequest: {
-            psnCertType?: string;
-            certno?: string;
-            psnName?: string;
+        PersonInfoQuery: {
+            certType?: string;
+            certNo?: string;
+            personName?: string;
         };
-        PersonInfoResponse: {
-            psnNo?: string;
-            psnCertType?: string;
-            certno?: string;
-            psnName?: string;
+        PersonInfoView: {
+            personNo?: string;
+            certType?: string;
+            certNo?: string;
+            personName?: string;
             gender?: string;
             /** Format: date */
             birthday?: string;
-            insutype?: string;
-            insutypeName?: string;
-            balc?: number;
-            insuOptins?: string;
-            insuOptinsName?: string;
-            psnType?: string;
+            insuranceType?: string;
+            insuranceTypeName?: string;
+            accountBalance?: number;
+            regionCode?: string;
+            regionName?: string;
+            personCategory?: string;
             status?: string;
         };
         OperationRequest: {
@@ -21217,6 +21512,40 @@ export interface components {
             contextHash: string;
             detail?: string;
         };
+        CompileGuidelinePlanRequest: {
+            guidelineText: string;
+            guidelineName: string;
+            versionYear?: string;
+            scopeType?: string;
+            confirmedNarrative?: string;
+            revisionInstruction?: string;
+        };
+        PlanReviewItem: {
+            kind: string;
+            text: string;
+            sourceQuote?: string;
+            origin: string;
+            details?: string;
+        };
+        PlanTextDraft: {
+            scopeType?: string;
+            name?: string;
+            narrative?: string;
+            sourceType?: string;
+            guidelineReference?: string;
+            reviewItems?: components["schemas"]["PlanReviewItem"][];
+            noteTemplateContent?: {
+                [key: string]: string;
+            };
+        };
+        CompilePlanDraftRequest: {
+            naturalInput: string;
+            scopeType: string;
+            confirmedNarrative?: string;
+            revisionInstruction?: string;
+            confirmedName?: string;
+            reviewItems?: components["schemas"]["PlanReviewItem"][];
+        };
         Transcription: {
             text?: string;
             provider?: string;
@@ -21256,6 +21585,11 @@ export interface components {
             oxygenSaturation?: number;
             heightCm?: number;
             weightKg?: number;
+            allergyHistory?: string;
+            medicationHistory?: string;
+            auxiliaryExaminations?: string;
+            healthEducation?: string;
+            followUp?: string;
         };
         SafetyAlert: {
             level?: string;
@@ -21892,10 +22226,10 @@ export interface components {
             /** Format: date */
             effectiveTo?: string;
             publisher?: string;
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
             /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
             readonly sdDiagnosisDomainText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
         };
         PrintTemplateView: {
             /** @example 824633720832983041 */
@@ -22124,6 +22458,18 @@ export interface components {
             firstDayPolicy?: string;
             automaticTaskGeneration?: boolean;
         };
+        SemanticVersionView: {
+            /** @example 824633720832983041 */
+            revision?: string;
+            kind?: string;
+            conceptId?: string;
+            semanticVersion?: string;
+            changeType?: string;
+            source?: string;
+            snapshot?: string;
+            /** Format: date-time */
+            recordedAt?: string;
+        };
         PageResultMedicationView: {
             content?: components["schemas"]["MedicationView"][];
             /** Format: int64 */
@@ -22145,6 +22491,25 @@ export interface components {
             page?: number;
             /** Format: int32 */
             size?: number;
+        };
+        EntryMedicationUsage: {
+            entryId?: string;
+            specifications?: components["schemas"]["SpecificationMedicationUsage"][];
+        };
+        MedicationRecord: {
+            /** @example 824633720832983041 */
+            id?: string;
+            code?: string;
+            name?: string;
+            specification?: string;
+            status?: string;
+            /** Format: int32 */
+            productCount?: number;
+            relationType?: string;
+        };
+        SpecificationMedicationUsage: {
+            specificationId?: string;
+            records?: components["schemas"]["MedicationRecord"][];
         };
         PageResultEdition: {
             content?: components["schemas"]["Edition"][];
@@ -22451,10 +22816,10 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
-            readonly sdDictScopeTypeText?: string;
             /** @description 字典 DICT_STATUS 的显示文本 */
             readonly sdDictStatusText?: string;
+            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
+            readonly sdDictScopeTypeText?: string;
         };
         DictionaryChangeResponse: {
             /** @example 824633720832983041 */
@@ -22479,10 +22844,10 @@ export interface components {
             changedAt?: string;
             /** @example 824633720832983041 */
             changedBy?: string;
-            /** @description 字典 DICT_CHANGE_TARGET_TYPE 的显示文本 */
-            readonly sdDictChangeTargetTypeText?: string;
             /** @description 字典 DICT_CHANGE_TYPE 的显示文本 */
             readonly sdDictChangeTypeText?: string;
+            /** @description 字典 DICT_CHANGE_TARGET_TYPE 的显示文本 */
+            readonly sdDictChangeTargetTypeText?: string;
         };
         SystemEnumDefinition: {
             code?: string;
@@ -22572,14 +22937,14 @@ export interface components {
             dependsOnValue?: string;
             /** @enum {string} */
             dependencyBehavior?: "DISABLE_AND_SUPPRESS" | "HIDE";
-            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
-            readonly sdParamControlTypeText?: string;
-            /** @description 字典 PARAM_STATUS 的显示文本 */
-            readonly sdParamStatusText?: string;
-            /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
-            readonly sdParamValueTypeText?: string;
             /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
             readonly sdParamConfigTypeText?: string;
+            /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
+            readonly sdParamValueTypeText?: string;
+            /** @description 字典 PARAM_STATUS 的显示文本 */
+            readonly sdParamStatusText?: string;
+            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
+            readonly sdParamControlTypeText?: string;
         };
         ParameterChangeResponse: {
             /** @example 824633720832983041 */
@@ -22600,10 +22965,10 @@ export interface components {
             changedAt?: string;
             /** @example 824633720832983041 */
             changedBy?: string;
-            /** @description 字典 PARAM_CHANGE_TYPE 的显示文本 */
-            readonly sdParamChangeTypeText?: string;
             /** @description 字典 PARAM_CHANGE_TARGET_TYPE 的显示文本 */
             readonly sdParamChangeTargetTypeText?: string;
+            /** @description 字典 PARAM_CHANGE_TYPE 的显示文本 */
+            readonly sdParamChangeTypeText?: string;
         };
         ReturnableMedicationLineView: {
             /** @example 824633720832983041 */
@@ -22990,9 +23355,9 @@ export interface components {
             paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
-            unpaged?: boolean;
             /** Format: int32 */
             pageSize?: number;
+            unpaged?: boolean;
         };
         SortObject: {
             empty?: boolean;
@@ -23472,16 +23837,16 @@ export interface components {
             packageUnitName?: string;
             packageFactor?: number;
             products?: components["schemas"]["MedicationProductView"][];
-            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
-            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
-            /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
-            readonly sdMedicationTypeText?: string;
-            /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
-            readonly sdAntimicrobialLevelText?: string;
+            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
+            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly sdDoseFormText?: string;
+            /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
+            readonly sdAntimicrobialLevelText?: string;
+            /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
+            readonly sdMedicationTypeText?: string;
         };
         EncounterPageView: {
             content?: components["schemas"]["EncounterQueryItem"][];
@@ -23764,6 +24129,84 @@ export interface components {
             queryExecutionEnabled?: boolean;
             contractVersion?: string;
             pilotEnabled?: boolean;
+        };
+        MinedPlanSuggestionView: {
+            patternKey?: string;
+            suggestedName?: string;
+            description?: string;
+            /** Format: int64 */
+            occurrenceCount?: number;
+            diagnoses?: components["schemas"]["DiagnosisInput"][];
+            medications?: components["schemas"]["MedicationInput"][];
+            services?: components["schemas"]["ServiceInput"][];
+        };
+        HistoricalStablePlanView: {
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            /** @example 824633720832983041 */
+            sourceEncounterId?: string;
+            /** Format: date-time */
+            sourceEncounterTime?: string;
+            conditionTitle?: string;
+            summary?: string;
+            diagnoses?: components["schemas"]["DiagnosisInput"][];
+            medications?: components["schemas"]["MedicationInput"][];
+            services?: components["schemas"]["ServiceInput"][];
+            guidanceNotes?: string[];
+        };
+        DiagnosisSnapshot: {
+            codeSystem?: string;
+            diagnosisDomain?: string;
+            code?: string;
+            display?: string;
+            type?: string;
+        };
+        HistoricalPlanComparisonView: {
+            historicalPlan?: components["schemas"]["HistoricalStablePlanView"];
+            standardPlan?: components["schemas"]["PlanTemplateSnapshot"];
+            differences?: components["schemas"]["PlanDifferenceView"][];
+        };
+        PlanDifferenceView: {
+            key?: string;
+            category?: string;
+            status?: string;
+            /** Format: int32 */
+            historicalIndex?: number;
+            /** Format: int32 */
+            standardIndex?: number;
+            historicalDisplay?: string;
+            standardDisplay?: string;
+            reason?: string;
+        };
+        PlanTemplateSnapshot: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            scopeType?: string;
+            sourceType?: string;
+            guidelineReference?: string;
+            name?: string;
+            description?: string;
+            /** Format: int64 */
+            useCount?: number;
+            diagnoses?: components["schemas"]["DiagnosisSnapshot"][];
+            medications?: components["schemas"]["MedicationSnapshot"][];
+            services?: components["schemas"]["ServiceSnapshot"][];
+            tasks?: components["schemas"]["PlanTaskInput"][];
+        };
+        ServiceSnapshot: {
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            itemCode?: string;
+            itemName?: string;
+            serviceType?: string;
+            quantity?: number;
+            unitCode?: string;
+            priceType?: string;
+            pricingRequired?: boolean;
+            reason?: string;
+            clinicalDescription?: string;
         };
         Capabilities: {
             mode?: string;
@@ -25781,6 +26224,76 @@ export interface operations {
             };
         };
     };
+    update_7: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["View"];
+                };
+            };
+        };
+    };
+    update_8: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["View"];
+                };
+            };
+        };
+    };
     dischargeDiagnoses: {
         parameters: {
             query?: never;
@@ -26055,7 +26568,7 @@ export interface operations {
             };
         };
     };
-    update_7: {
+    update_9: {
         parameters: {
             query?: never;
             header: {
@@ -26156,7 +26669,7 @@ export interface operations {
             };
         };
     };
-    update_8: {
+    update_10: {
         parameters: {
             query?: never;
             header: {
@@ -26174,7 +26687,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateRequest"];
+                "application/json": components["schemas"]["ClinicalAiConfigurationUpdateRequest"];
             };
         };
         responses: {
@@ -31334,6 +31847,41 @@ export interface operations {
             };
         };
     };
+    change: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                specificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
     sourceReview: {
         parameters: {
             query?: {
@@ -31497,7 +32045,7 @@ export interface operations {
             };
         };
     };
-    change: {
+    change_1: {
         parameters: {
             query?: never;
             header: {
@@ -40971,7 +41519,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PersonInfoRequest"];
+                "application/json": components["schemas"]["PersonInfoQuery"];
             };
         };
         responses: {
@@ -40981,7 +41529,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PersonInfoResponse"];
+                    "*/*": components["schemas"]["PersonInfoView"];
                 };
             };
         };
@@ -42081,6 +42629,200 @@ export interface operations {
             };
         };
     };
+    compileGuidelinePlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompileGuidelinePlanRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PlanTextDraft"];
+                };
+            };
+        };
+    };
+    compileGuidelinePlanStream: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompileGuidelinePlanRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    convertGuidelinePlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompileGuidelinePlanRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SaveRequest"];
+                };
+            };
+        };
+    };
+    compilePlanDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompilePlanDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PlanTextDraft"];
+                };
+            };
+        };
+    };
+    compilePlanDraftStream: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompilePlanDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    convertPlanDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompilePlanDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SaveRequest"];
+                };
+            };
+        };
+    };
     transcribe: {
         parameters: {
             query?: never;
@@ -42250,6 +42992,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PlanPreflight"];
+                };
+            };
+        };
+    };
+    recommendPlans: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecommendedPlan"][];
                 };
             };
         };
@@ -44492,7 +45269,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Version"][];
+                    "*/*": components["schemas"]["SemanticVersionView"][];
                 };
             };
         };
@@ -44628,6 +45405,35 @@ export interface operations {
             };
         };
     };
+    view: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["View"];
+                };
+            };
+        };
+    };
     sourceDocument: {
         parameters: {
             query?: never;
@@ -44653,6 +45459,39 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+        };
+    };
+    standardMedicationUsage: {
+        parameters: {
+            query?: {
+                organizationId?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EntryMedicationUsage"];
                 };
             };
         };
@@ -44820,7 +45659,7 @@ export interface operations {
             };
         };
     };
-    view: {
+    view_1: {
         parameters: {
             query?: never;
             header: {
@@ -45465,6 +46304,8 @@ export interface operations {
                 organizationId: string;
                 itemType: string;
                 query?: string;
+                businessDate?: string;
+                onlyUnadopted?: boolean;
                 page?: number;
                 size?: number;
             };
@@ -48619,6 +49460,99 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AllergenTerm"][];
+                };
+            };
+        };
+    };
+    minedPlanSuggestions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MinedPlanSuggestionView"][];
+                };
+            };
+        };
+    };
+    getHistoricalStablePlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HistoricalStablePlanView"];
+                };
+            };
+        };
+    };
+    compareHistoricalPlan: {
+        parameters: {
+            query: {
+                templateId: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HistoricalPlanComparisonView"];
                 };
             };
         };

@@ -23,7 +23,18 @@ public final class OutpatientNoteTemplateContracts {
             @Size(max = 4000) String presentIllness,
             @Size(max = 4000) String medicalHistory,
             @Size(max = 4000) String physicalExam,
-            @Size(max = 4000) String treatmentPlan) {}
+            @Size(max = 4000) String treatmentPlan,
+            @Size(max = 4000) String allergyHistory,
+            @Size(max = 4000) String medicationHistory,
+            @Size(max = 4000) String auxiliaryExaminations,
+            @Size(max = 4000) String healthEducation,
+            @Size(max = 4000) String followUp) {
+        public NoteContent(String chiefComplaint, String presentIllness, String medicalHistory,
+                           String physicalExam, String treatmentPlan) {
+            this(chiefComplaint, presentIllness, medicalHistory, physicalExam, treatmentPlan,
+                    null, null, null, null, null);
+        }
+    }
 
     public record RevisionRequest(@NotNull Long expectedRevision) {}
 

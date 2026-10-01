@@ -227,8 +227,8 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
                   <tr key={resident.id} className="resident-table-row">
                     <td>
                       <div className="resident-cell-name">
-                        <span className={`resident-avatar ${resident.gender.toLowerCase()}`}>
-                          {resident.fullName.slice(-1)}
+                        <span className={`resident-avatar ${(resident.gender || '').toLowerCase()}`}>
+                          {resident.fullName ? resident.fullName.slice(-1) : '居'}
                         </span>
                         <strong>{resident.fullName}</strong>
                       </div>

@@ -1064,7 +1064,7 @@ function ScheduleDetailDrawer({
         <Button variant="secondary" onClick={onResume}>恢复预约</Button>
       )}
       {['PUBLISHED', 'SUSPENDED'].includes(schedule.sdStatus) && (
-        <Button variant="text" className="action-danger" onClick={onCancel}>取消排班</Button>
+        <Button variant="danger" onClick={onCancel}>取消排班</Button>
       )}
     </>}
   >

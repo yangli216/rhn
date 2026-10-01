@@ -74,18 +74,18 @@ public class ClinicalAiRuntimePolicy {
         return "scope:" + scopeCode + ":parameter:" + key;
     }
 
-    private String secret(Long tenantId, String suffix, String fallbackValue) {
+    public String secret(Long tenantId, String suffix, String fallbackValue) {
         ConfigurationValue value = resolve(tenantId, suffix);
         return value == null || value.secretReference() == null ? fallbackValue : decrypt(value);
     }
 
-    private String text(Long tenantId, String suffix, String fallbackValue) {
+    public String text(Long tenantId, String suffix, String fallbackValue) {
         ConfigurationValue value = resolve(tenantId, suffix);
         JsonNode node = value == null ? null : value.value();
         return node == null || node.isNull() || node.asString().isBlank() ? fallbackValue : node.asString().trim();
     }
 
-    private long number(Long tenantId, String suffix, long fallbackValue) {
+    public long number(Long tenantId, String suffix, long fallbackValue) {
         ConfigurationValue value = resolve(tenantId, suffix);
         JsonNode node = value == null ? null : value.value();
         return node == null || node.isNull() || !node.canConvertToLong() ? fallbackValue : node.asLong();

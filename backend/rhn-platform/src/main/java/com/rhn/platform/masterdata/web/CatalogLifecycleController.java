@@ -54,9 +54,11 @@ public class CatalogLifecycleController {
             @RequestParam Long organizationId,
             @RequestParam @Pattern(regexp = "SERVICE|MED_PRODUCT") String itemType,
             @RequestParam(required = false, defaultValue = "") String query,
+            @RequestParam(required = false) LocalDate businessDate,
+            @RequestParam(defaultValue = "false") boolean onlyUnadopted,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) int size) {
-        return service.searchAdoptionCandidates(organizationId, itemType, query, page, size);
+        return service.searchAdoptionCandidates(organizationId, itemType, query, businessDate, onlyUnadopted, page, size);
     }
 
     @PostMapping("/catalog-items/{catalogItemId}/adoptions")

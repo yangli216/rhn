@@ -47,4 +47,27 @@ public interface ServiceCatalogItemRepository extends JpaRepository<ServiceCatal
                                     @Param("searchIds") java.util.Collection<Long> searchIds,
                                     @Param("serviceType") String serviceType, @Param("status") String status,
                                     Pageable pageable);
+
+    @Query("""
+            select s from ServiceCatalogItem s
+            where s.tenantId = :tenantId and s.itemType = 'SERVICE' and s.status = 'ACTIVE'
+              and (:query is null or :query = '' or lower(s.code) like lower(concat(:query, '%'))
+                   or lower(s.name) like lower(concat('%', :query, '%'))
+                   or lower(coalesce(s.serviceSubtype, '')) like lower(concat('%', :query, '%'))
+                   or lower(coalesce(s.specimenType, '')) like lower(concat('%', :query, '%'))
+                   or lower(coalesce(s.examinationType, '')) like lower(concat('%', :query, '%'))
+                   or lower(coalesce(s.accountingCategory, '')) like lower(concat('%', :query, '%')))
+              and not exists (select local.id from OrganizationCatalogItem local
+                   where local.tenantId = s.tenantId and local.catalogItemId = s.id
+                     and local.organizationId = :organizationId
+                     and local.validFrom <= :at and (local.validTo is null or local.validTo >= :at))
+              and (:sourceOrganizationId is null or not exists (select shared.id from OrganizationCatalogItem shared
+                   where shared.tenantId = s.tenantId and shared.catalogItemId = s.id
+                     and shared.organizationId = :sourceOrganizationId and shared.status <> 'SUSPENDED'
+                     and shared.validFrom <= :at and (shared.validTo is null or shared.validTo >= :at)))
+            """)
+    Page<ServiceCatalogItem> searchUnadopted(@Param("tenantId") Long tenantId, @Param("query") String query,
+                                             @Param("organizationId") Long organizationId,
+                                             @Param("sourceOrganizationId") Long sourceOrganizationId,
+                                             @Param("at") java.time.LocalDate at, Pageable pageable);
 }

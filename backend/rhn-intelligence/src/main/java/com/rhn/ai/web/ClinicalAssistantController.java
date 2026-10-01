@@ -58,6 +58,11 @@ class ClinicalAssistantController {
         return service.capabilities();
     }
 
+    @PostMapping("/encounters/{encounterId}/plan-recommendations")
+    List<RecommendedPlan> recommendPlans(@PathVariable Long encounterId, @Valid @RequestBody GenerateRequest input) {
+        return service.recommendPlans(encounterId, input);
+    }
+
     @PostMapping("/encounters/{encounterId}/suggestions")
     @ResponseStatus(HttpStatus.CREATED)
     Suggestion generate(@PathVariable Long encounterId, @Valid @RequestBody GenerateRequest input) {

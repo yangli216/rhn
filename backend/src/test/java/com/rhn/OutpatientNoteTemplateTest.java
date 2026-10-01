@@ -29,7 +29,12 @@ class OutpatientNoteTemplateTest extends RhnIntegrationTestSupport {
                                     "presentIllness":"近期家庭血压监测情况：",
                                     "medicalHistory":"既往高血压病史：",
                                     "physicalExam":"心肺查体：",
-                                    "treatmentPlan":"继续监测血压并评估用药调整。"
+                                    "treatmentPlan":"不允许保存的文字性诊疗计划",
+                                    "allergyHistory":"过敏药物及反应待询问",
+                                    "medicationHistory":"近期用药待询问",
+                                    "auxiliaryExaminations":"已有检查结果待补充",
+                                    "healthEducation":"记录健康宣教内容",
+                                    "followUp":"记录随访安排"
                                   }
                                 }
                                 """.formatted(name)))
@@ -39,6 +44,10 @@ class OutpatientNoteTemplateTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.documentType").value("OUTPATIENT_NOTE"))
                 .andExpect(jsonPath("$.contentSchema").value("RHN.OUTPATIENT_NOTE_TEMPLATE.V1"))
                 .andExpect(jsonPath("$.content.chiefComplaint").value("血压升高复诊"))
+                .andExpect(jsonPath("$.content.treatmentPlan").doesNotExist())
+                .andExpect(jsonPath("$.content.healthEducation").value("记录健康宣教内容"))
+                .andExpect(jsonPath("$.content.followUp").value("记录随访安排"))
+                .andExpect(jsonPath("$.content.auxiliaryExaminations").value("已有检查结果待补充"))
                 .andExpect(jsonPath("$.content.vitalSigns").doesNotExist())
                 .andExpect(jsonPath("$.content.diagnoses").doesNotExist())
                 .andReturn().getResponse().getContentAsString());

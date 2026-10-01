@@ -109,7 +109,17 @@ public final class ClinicalAssistantContracts {
             @Min(50) @Max(100) Integer oxygenSaturation,
             @DecimalMin("20") @DecimalMax("250") BigDecimal heightCm,
             @DecimalMin("0.1") @DecimalMax("500") BigDecimal weightKg,
-            @Size(max = 20) List<@NotNull @Valid DiagnosisInput> diagnoses) {
+            @Size(max = 20) List<@NotNull @Valid DiagnosisInput> diagnoses,
+            @Size(max = 4000) String allergyHistory, @Size(max = 4000) String medicationHistory,
+            @Size(max = 4000) String auxiliaryExaminations, @Size(max = 4000) String healthEducation, @Size(max = 4000) String followUp) {
+        public Draft(String chiefComplaint, String presentIllness, String medicalHistory, String physicalExam,
+                     String treatmentPlan, Integer systolic, Integer diastolic, BigDecimal temperature,
+                     Integer pulseRate, Integer respiratoryRate, Integer oxygenSaturation,
+                     BigDecimal heightCm, BigDecimal weightKg, List<DiagnosisInput> diagnoses) {
+            this(chiefComplaint, presentIllness, medicalHistory, physicalExam, treatmentPlan, systolic, diastolic,
+                    temperature, pulseRate, respiratoryRate, oxygenSaturation, heightCm, weightKg, diagnoses,
+                    null, null, null, null, null);
+        }
         public Draft(String chiefComplaint, String presentIllness, String medicalHistory, String physicalExam,
                      String treatmentPlan, Integer systolic, Integer diastolic, BigDecimal temperature,
                      Integer pulseRate, Integer respiratoryRate, Integer oxygenSaturation, List<DiagnosisInput> diagnoses) {
@@ -149,7 +159,16 @@ public final class ClinicalAssistantContracts {
                               String physicalExam, String treatmentPlan,
                               BigDecimal temperature, BigDecimal pulseRate, BigDecimal respiratoryRate,
                               BigDecimal systolic, BigDecimal diastolic, BigDecimal oxygenSaturation,
-                              BigDecimal heightCm, BigDecimal weightKg) {
+                              BigDecimal heightCm, BigDecimal weightKg,
+                              String allergyHistory, String medicationHistory, String auxiliaryExaminations, String healthEducation, String followUp) {
+        public RecordDraft(String chiefComplaint, String presentIllness, String medicalHistory,
+                           String physicalExam, String treatmentPlan, BigDecimal temperature, BigDecimal pulseRate,
+                           BigDecimal respiratoryRate, BigDecimal systolic, BigDecimal diastolic,
+                           BigDecimal oxygenSaturation, BigDecimal heightCm, BigDecimal weightKg) {
+            this(chiefComplaint, presentIllness, medicalHistory, physicalExam, treatmentPlan, temperature,
+                    pulseRate, respiratoryRate, systolic, diastolic, oxygenSaturation, heightCm, weightKg,
+                    null, null, null, null, null);
+        }
         public RecordDraft(String chiefComplaint, String presentIllness, String medicalHistory,
                            String physicalExam, String treatmentPlan) {
             this(chiefComplaint, presentIllness, medicalHistory, physicalExam, treatmentPlan,
@@ -235,7 +254,11 @@ public final class ClinicalAssistantContracts {
 
     public record PlanTextDraft(String scopeType, String name, String narrative,
                                 String sourceType, String guidelineReference,
-                                List<PlanReviewItem> reviewItems) {
+                                List<PlanReviewItem> reviewItems, java.util.Map<String, String> noteTemplateContent) {
+        public PlanTextDraft(String scopeType, String name, String narrative, String sourceType,
+                             String guidelineReference, List<PlanReviewItem> reviewItems) {
+            this(scopeType, name, narrative, sourceType, guidelineReference, reviewItems, java.util.Map.of());
+        }
         public PlanTextDraft {
             reviewItems = reviewItems == null ? List.of() : List.copyOf(reviewItems);
         }

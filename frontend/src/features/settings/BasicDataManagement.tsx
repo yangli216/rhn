@@ -839,7 +839,7 @@ export function MedicationKnowledgeTable({
 
         <td className="medication-col-status">
           <DataStatus value={value.sdStatus} text={value.sdStatusText} />
-          <small>{{ LINKED: '已关联标准规格', UNMAPPED: '待关联标准规格', AMBIGUOUS: '标准关联冲突', STALE: '标准版本待核对', MISMATCH: '标准规格不一致' }[value.standardReference?.status ?? 'UNMAPPED']}</small>
+          {value.standardReference?.status !== 'LINKED' && <small>{{ UNMAPPED: '待关联标准规格', AMBIGUOUS: '标准关联冲突', STALE: '标准版本待核对', MISMATCH: '标准规格不一致' }[value.standardReference?.status ?? 'UNMAPPED']}</small>}
         </td>
 
         <td className="medication-col-actions">
@@ -2213,6 +2213,7 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(20)
+  const [businessDate, setBusinessDate] = useState(today())
   const [selected, setSelected] = useState<Map<string, CatalogAdoptionCandidate>>(new Map())
   const [pending, setPending] = useState(false)
   const [operationError, setOperationError] = useState('')
@@ -2237,10 +2238,13 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
   }
 
   const candidates = useQuery({
-    queryKey: ['master-data-adoption-candidates', organization.id, itemType, query, page, pageSize],
-    queryFn: () => api.masterData.adoptionCandidates(organization.id, itemType, query, page, pageSize),
+    queryKey: ['master-data-adoption-candidates', organization.id, itemType, query, businessDate, page, pageSize],
+    queryFn: () => api.masterData.adoptionCandidates(
+      organization.id, itemType, query, page, pageSize, businessDate, true,
+    ),
   })
-  useEffect(() => { setPage(0); setSelected(new Map()) }, [itemType, query, pageSize])
+  useEffect(() => { setPage(0); setSelected(new Map()) }, [itemType, businessDate])
+  useEffect(() => { setPage(0) }, [query, pageSize])
   const values = candidates.data?.content ?? []
   const totalPages = Math.max(1, candidates.data?.totalPages ?? 1)
   const toggle = (value: CatalogAdoptionCandidate) => setSelected((current) => {
@@ -2248,7 +2252,8 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
     if (next.has(value.id)) next.delete(value.id); else next.set(value.id, value)
     return next
   })
-  const selectable = values.filter((value) => value.adoptionSourceType !== 'LOCAL')
+  const allPageSelected = values.length > 0 && values.every((value) => selected.has(value.id))
+  const selectedValues = [...selected.values()]
   const submit = async (form: FormData) => {
     if (!selected.size) { setOperationError('请至少选择一个待调入项目'); return }
     setPending(true); setOperationError(''); setFeedback('')
@@ -2265,55 +2270,99 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
       await onCompleted()
     } catch (error) { setOperationError(errorMessage(error)) } finally { setPending(false) }
   }
-  return <Dialog title="机构项目调入" eyebrow={organization.name} size="xwide" onClose={onClose}>
+  return <Dialog title="机构项目调入" eyebrow={organization.name} size="xwide" onClose={onClose}
+    className="master-data-catalog-import-dialog"
+    description="仅展示当前生效日期下尚未调入的中心目录项目；本批项目将共用同一套机构业务能力。"
+    footer={<div className="master-data-catalog-import-footer">
+      <span>本批已选 <strong>{selected.size}</strong> 项</span>
+      <div><Button variant="secondary" onClick={onClose}>取消</Button>
+        <Button type="submit" form="organization-catalog-import-form" disabled={!selected.size} busy={pending}>
+          确认调入 {selected.size ? `${selected.size} 项` : ''}
+        </Button></div>
+    </div>}>
     <div className="master-data-catalog-import">
       {operationError && <Alert>{operationError}</Alert>}
       {feedback && <Alert tone="success">{feedback}</Alert>}
-      <form className="master-data-batch-lifecycle" onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)) }}>
-        <section className="master-data-batch-picker"><header><div><h3>中心目录</h3><p>已选择 {selected.size} 项</p></div>
-          <Button size="sm" variant="text" disabled={!selectable.length} onClick={() => setSelected((current) => {
-            const next = new Map(current); selectable.forEach((value) => next.set(value.id, value)); return next
-          })}>选择本页待调入项</Button></header>
-          <Tabs value={itemType} onChange={handleItemTypeChange}
-            label="目录类型" variant="line" items={[{ value: 'SERVICE', label: '诊疗项目' }, { value: 'MED_PRODUCT', label: '药品产品' }]} />
-          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-            <SearchField label="搜索中心目录" value={keyword} onChange={setKeyword} onSearch={handleSearch} placeholder="项目名称或编码（回车或点击查询）" />
+      <form id="organization-catalog-import-form" onSubmit={(event) => {
+        event.preventDefault(); void submit(new FormData(event.currentTarget))
+      }}>
+        <div className="master-data-catalog-import-toolbar">
+          <Tabs value={itemType} onChange={handleItemTypeChange} label="待调入目录类型" variant="line"
+            items={[{ value: 'SERVICE', label: '诊疗项目' }, { value: 'MED_PRODUCT', label: '药品产品' }]} />
+          <div className="master-data-catalog-import-search">
+            <SearchField label="搜索待调入目录" value={keyword} onChange={setKeyword} onSearch={handleSearch}
+              placeholder="项目名称或编码" />
             <Button size="sm" variant="primary" type="button" onClick={handleSearch}>查询</Button>
             <Button size="sm" variant="secondary" type="button" onClick={handleReset}>重置</Button>
           </div>
-          {candidates.isPending ? <LoadingState label="正在读取中心目录…" /> : !values.length
-            ? <EmptyState icon="clinical" title="没有匹配项目" copy="请调整搜索条件。" />
-            : <div className="master-data-catalog-candidates">{values.map((value) => {
-              const local = value.adoptionSourceType === 'LOCAL'
-              return <label key={value.id} className={local ? 'is-disabled' : ''}><input type="checkbox"
-                disabled={local} checked={selected.has(value.id)} onChange={() => toggle(value)} />
-                <span><strong>{value.name}</strong><code>{value.code}</code></span>
-                <StatusBadge tone={value.adoptionSourceType === 'LOCAL' ? 'success'
-                  : value.adoptionSourceType === 'SHARED' ? 'warning' : 'neutral'}>
-                  {value.adoptionSourceType === 'LOCAL' ? '本机构' : value.adoptionSourceType === 'SHARED' ? '共享' : '未调入'}
-                </StatusBadge></label>
-            })}</div>}
-          <Pagination page={candidates.data?.page ?? page} totalPages={totalPages}
-            total={candidates.data?.totalElements ?? 0} pageSize={pageSize} onPageSizeChange={setPageSize}
-            onChange={setPage} label="中心目录分页" />
-        </section>
-        <section className="master-data-batch-config"><header><h3>本机构能力</h3></header>
-          <div className="master-data-lifecycle-form"><FormField label="生效日期" required>
-            <input name="businessDate" type="date" defaultValue={today()} required /></FormField>
-            <Checkboxes key={itemType} title="允许的业务范围">
-              <Checkbox name="orderable" label="允许开立" defaultChecked />
-              <Checkbox name="executable" label="允许执行" defaultChecked={itemType === 'SERVICE'} />
-              <Checkbox name="chargeable" label="允许收费" defaultChecked />
-              <Checkbox name="purchasable" label="允许采购" defaultChecked={itemType === 'MED_PRODUCT'} />
-              <Checkbox name="stocked" label="允许入库" defaultChecked={itemType === 'MED_PRODUCT'} />
-              <Checkbox name="dispensable" label="允许发放" defaultChecked={itemType === 'MED_PRODUCT'} />
-              <Checkbox name="returnable" label="允许退药/退库" defaultChecked={itemType === 'MED_PRODUCT'} />
-            </Checkboxes>
-          </div><div className="master-data-lifecycle-editor-actions"><Button type="submit"
-            disabled={!selected.size} busy={pending}>调入所选项目</Button></div>
-        </section>
+          <span className="master-data-count">{candidates.isFetching ? '正在刷新…'
+            : `${candidates.data?.totalElements ?? 0} 项待调入`}</span>
+        </div>
+
+        <div className="master-data-catalog-import-workspace">
+          <section className="master-data-catalog-import-candidates" aria-label="待调入中心目录">
+            <header><div><h3>待调入中心目录</h3><p>勾选后加入右侧本批清单，支持跨页累计选择。</p></div>
+              <Button size="sm" variant="text" disabled={!values.length} onClick={() => setSelected((current) => {
+                const next = new Map(current)
+                values.forEach((value) => allPageSelected ? next.delete(value.id) : next.set(value.id, value))
+                return next
+              })}>{allPageSelected ? '取消本页选择' : '选择本页'}</Button></header>
+            {candidates.isPending ? <LoadingState label="正在读取待调入目录…" /> : !values.length
+              ? <EmptyState icon="clinical" title={query ? '没有匹配的待调入项目' : '没有待调入项目'}
+                copy={query ? '请调整查询条件。' : '当前类型的中心目录均已调入或由共享目录提供。'} />
+              : <TableShell className="master-data-catalog-import-table" scrollLabel="待调入中心目录列表"
+                resetScrollKey={`${itemType}-${query}-${businessDate}-${page}`}
+                footer={<Pagination page={candidates.data?.page ?? page} totalPages={totalPages}
+                  total={candidates.data?.totalElements ?? 0} pageSize={pageSize} onPageSizeChange={setPageSize}
+                  onChange={setPage} label="待调入目录分页" />}>
+                <DataTable compact>
+                  <thead><tr><th className="master-data-select-column">选择</th><th>中心项目</th><th>中心编码</th><th>目录信息</th></tr></thead>
+                  <tbody>{values.map((value) => <tr key={value.id} className={selected.has(value.id) ? 'is-selected' : ''}>
+                    <td><input type="checkbox" aria-label={`选择 ${value.name}`} checked={selected.has(value.id)}
+                      onChange={() => toggle(value)} /></td>
+                    <td><strong>{value.name}</strong></td>
+                    <td><code>{value.code}</code></td>
+                    <td>{itemType === 'MED_PRODUCT'
+                      ? value.packages.length ? `${value.packages.length} 种有效包装` : '暂无有效包装'
+                      : '诊疗服务项目'}</td>
+                  </tr>)}</tbody>
+                </DataTable>
+              </TableShell>}
+          </section>
+
+          <aside className="master-data-catalog-import-batch" aria-label="本批调入配置">
+            <section className="master-data-catalog-import-selected">
+              <header><div><h3>本批调入清单</h3><p>共用下方生效日期和业务能力。</p></div>
+                <Button size="sm" variant="text" disabled={!selected.size}
+                  onClick={() => setSelected(new Map())}>清空</Button></header>
+              {!selectedValues.length ? <div className="master-data-catalog-import-selected-empty">
+                <Icon name="tasks" /><strong>尚未选择项目</strong><span>从左侧勾选本批需要调入的目录项目。</span>
+              </div> : <div className="master-data-catalog-import-selected-list">{selectedValues.map((value) =>
+                <article key={value.id}><div><strong>{value.name}</strong><code>{value.code}</code></div>
+                  <Button size="sm" variant="text" aria-label={`移除 ${value.name}`} title="移除"
+                    onClick={() => toggle(value)}><Icon name="close" /></Button></article>)}</div>}
+            </section>
+            <section className="master-data-catalog-import-config">
+              <header><div><h3>机构业务能力</h3><p>{itemType === 'SERVICE'
+                ? '配置项目在本机构的开立、执行和收费能力。'
+                : '配置药品产品从采购入库到发药退回的业务能力。'}</p></div></header>
+              <FormField label="生效日期" required><input name="businessDate" type="date" value={businessDate}
+                onChange={(event) => setBusinessDate(event.target.value)} required /></FormField>
+              <Checkboxes key={itemType} title={itemType === 'SERVICE' ? '诊疗业务范围' : '药品业务范围'}>
+                <Checkbox name="orderable" label="允许开立" defaultChecked />
+                {itemType === 'SERVICE' && <Checkbox name="executable" label="允许执行" defaultChecked />}
+                <Checkbox name="chargeable" label="允许收费" defaultChecked />
+                {itemType === 'MED_PRODUCT' && <>
+                  <Checkbox name="purchasable" label="允许采购" defaultChecked />
+                  <Checkbox name="stocked" label="允许入库" defaultChecked />
+                  <Checkbox name="dispensable" label="允许发放" defaultChecked />
+                  <Checkbox name="returnable" label="允许退药/退库" defaultChecked />
+                </>}
+              </Checkboxes>
+            </section>
+          </aside>
+        </div>
       </form>
-      <div className="ui-form-actions"><Button variant="secondary" onClick={onClose}>关闭</Button></div>
     </div>
   </Dialog>
 }
@@ -2917,7 +2966,7 @@ function DynamicItemAttributesSection({
   if (!attributes.length) {
     return (
       <FormSection title="扩展属性" description="当前项目类型装配的长尾自定义扩展属性。">
-        <p className="master-data-attribute-empty-hint" style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-small)', margin: 'var(--space-2) 0' }}>
+        <p className="master-data-attribute-empty-hint">
           当前项目类型未装配自定义扩展属性。
         </p>
       </FormSection>

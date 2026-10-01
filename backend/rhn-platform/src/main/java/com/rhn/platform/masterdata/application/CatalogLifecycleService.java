@@ -138,7 +138,8 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
 
     @Transactional(readOnly = true)
     public PageResult<CatalogAdoptionCandidateView> searchAdoptionCandidates(
-            Long organizationId, String itemType, String query, int page, int size) {
+            Long organizationId, String itemType, String query, LocalDate businessDate,
+            boolean onlyUnadopted, int page, int size) {
         ExecutionContext context = current();
         requireOrganizationScope(context, organizationId);
         organizationDirectory.requireOrganization(context.tenantId(), organizationId);
@@ -149,17 +150,22 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         int normalizedSize = Math.min(Math.max(size, 10), 100);
         var pageable = PageRequest.of(normalizedPage, normalizedSize,
                 Sort.by("name").ascending().and(Sort.by("id").ascending()));
-        LocalDate today = LocalDate.now();
+        LocalDate today = businessDate == null ? LocalDate.now() : businessDate;
+        Long sourceOrganizationId = organizationDirectory.catalogSourceOrganizationId(context.tenantId(), organizationId);
         if ("SERVICE".equals(itemType)) {
-            Page<com.rhn.platform.masterdata.domain.ServiceCatalogItem> result = serviceRepository.search(
-                    context.tenantId(), query, java.util.List.of(-1L), "", "ACTIVE", pageable);
+            Page<com.rhn.platform.masterdata.domain.ServiceCatalogItem> result = onlyUnadopted
+                    ? serviceRepository.searchUnadopted(context.tenantId(), query, organizationId,
+                            sourceOrganizationId, today, pageable)
+                    : serviceRepository.search(context.tenantId(), query, java.util.List.of(-1L), "", "ACTIVE", pageable);
             List<CatalogAdoptionCandidateView> values = result.getContent().stream().map(value -> candidate(
                     context.tenantId(), organizationId, value.id(), value.code(), value.name(), "SERVICE",
                     value.status(), today)).toList();
             return new PageResult<>(values, result.getTotalElements(), result.getTotalPages(), result.getNumber(), result.getSize());
         }
-        Page<com.rhn.platform.masterdata.domain.MedicationProduct> result = productRepository.search(
-                context.tenantId(), query, "ACTIVE", pageable);
+        Page<com.rhn.platform.masterdata.domain.MedicationProduct> result = onlyUnadopted
+                ? productRepository.searchUnadopted(context.tenantId(), query, organizationId,
+                        sourceOrganizationId, today, pageable)
+                : productRepository.search(context.tenantId(), query, "ACTIVE", pageable);
         List<Long> productIds = result.getContent().stream().map(value -> value.id()).toList();
         Map<Long, List<CatalogPackageOptionView>> packages = (productIds.isEmpty() ? List.<ItemPackage>of()
                 : packageRepository.findByTenantIdAndCatalogItemIdInOrderByCatalogItemIdAscQuantityFactorAsc(

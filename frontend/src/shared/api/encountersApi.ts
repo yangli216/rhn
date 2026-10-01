@@ -39,6 +39,11 @@ export type ClinicalRecordInput = Omit<ClinicalRecordContract, 'diagnoses'> & {
   medicalHistory?: string
   physicalExam?: string
   treatmentPlan?: string
+  allergyHistory?: string
+  medicationHistory?: string
+  auxiliaryExaminations?: string
+  healthEducation?: string
+  followUp?: string
   temperature?: number
   pulseRate?: number
   respiratoryRate?: number

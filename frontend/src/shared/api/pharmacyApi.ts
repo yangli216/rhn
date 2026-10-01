@@ -187,6 +187,17 @@ export interface InventoryTransaction {
   lines: InventoryTransactionLine[]
 }
 
+export interface InventoryTransactionPage {
+  content: InventoryTransaction[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+  firstEntryQuantityAfter?: number
+}
+
 export interface Supplier {
   id: string; revision: number; organizationId: string; code: string; name: string
   unifiedCreditCode?: string; licenseNo?: string; licenseValidTo?: string
@@ -849,6 +860,20 @@ export function createPharmacyApi(client: ApiClient) {
       if (options.stockItemId) params.set('stockItemId', options.stockItemId)
       if (options.allPeriods) params.set('allPeriods', 'true')
       return client.request<InventoryTransaction[]>(`/api/pharmacy/inventory/transactions?${params}`)
+    },
+    transactionPage: (stockSiteId: string, options: {
+      periodCode?: string; stockItemId?: string; allPeriods?: boolean; query?: string; page?: number; size?: number
+    } = {}) => {
+      const params = new URLSearchParams({
+        stockSiteId,
+        page: String(options.page ?? 0),
+        size: String(options.size ?? 50),
+      })
+      if (options.periodCode) params.set('periodCode', options.periodCode)
+      if (options.stockItemId) params.set('stockItemId', options.stockItemId)
+      if (options.allPeriods) params.set('allPeriods', 'true')
+      if (options.query?.trim()) params.set('query', options.query.trim())
+      return client.request<InventoryTransactionPage>(`/api/pharmacy/inventory/transactions/page?${params}`)
     },
     receive: (input: {
       requestCode: string

@@ -39,6 +39,26 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
     @MockitoBean ClinicalAiModelGateway modelGateway;
 
     @Test
+    void matchesExistingWholePlansBeforeAnyModelGeneration() throws Exception {
+        String encounterId = createStartedEncounter();
+        String name = "整体方案" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"scopeType":"DEPARTMENT","name":"%s","diagnoses":[{"code":"I10","display":"原发性高血压","type":"PRIMARY"}],"medications":[],"services":[]}
+                                """.formatted(name)))
+                .andExpect(status().isCreated());
+        org.mockito.Mockito.clearInvocations(modelGateway);
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/plan-recommendations", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"PLAN-FIRST","question":"%s","draft":{"diagnoses":[]}}
+                                """.formatted(name)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].name").value(name));
+        org.mockito.Mockito.verifyNoInteractions(modelGateway);
+        mockMvc.perform(get("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void streamsPreviewThenCommittedSuggestionAndRollsBackOnProviderFailure() throws Exception {
         String encounterId = createStartedEncounter();
         when(modelGateway.analyzeStreaming(any(), any(), any())).thenAnswer(invocation -> {

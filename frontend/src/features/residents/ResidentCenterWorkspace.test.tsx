@@ -120,6 +120,14 @@ describe('ResidentCenterWorkspace', () => {
       expect(screen.getByText('HR0002')).toBeInTheDocument()
       expect(screen.getByText('共 2 条档案记录')).toBeInTheDocument()
     })
+
+    const maleAvatar = screen.getByText('海')
+    expect(maleAvatar).toHaveClass('resident-avatar')
+    expect(maleAvatar).toHaveClass('male')
+
+    const femaleAvatar = screen.getByText('丽')
+    expect(femaleAvatar).toHaveClass('resident-avatar')
+    expect(femaleAvatar).toHaveClass('female')
   })
 
   it('triggers search with query parameters when submitting filter form', async () => {

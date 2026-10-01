@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
-import type { ClinicalAiDraftContext, ClinicalAiSuggestion, GenerateClinicalAiSuggestionInput } from '../../../shared/api/clinicalAiApi'
+import type { ClinicalAiDraftContext, ClinicalAiRecommendedPlan, ClinicalAiSuggestion, GenerateClinicalAiSuggestionInput } from '../../../shared/api/clinicalAiApi'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
 import { ClinicalAiAssistantPanel } from './ClinicalAiAssistantPanel'
@@ -17,12 +17,17 @@ function result(input: GenerateClinicalAiSuggestionInput): ClinicalAiSuggestion 
     expiresAt: new Date(Date.now() + 600000).toISOString(), summary: '已整理合成资料', recordDraft: { chiefComplaint: '待核对的测试主诉' },
     diagnosisCandidates: [], differentialDiagnoses: [], missingInformation: [], safetyAlerts: [], recommendedPlans: [], disclaimer: '待核对' }
 }
-function setup(generateStream = vi.fn().mockImplementation(async (_id, input) => result(input)), withTreatmentReview = false) {
+function setup(generateStream = vi.fn().mockImplementation(async (_id, input) => result(input)), withTreatmentReview = false, plans?: ClinicalAiRecommendedPlan[]) {
+  const reviewRecommendedPlan = vi.fn()
+  const recommendPlans = vi.fn().mockResolvedValue(plans ?? [])
   const recordEvent = vi.fn().mockResolvedValue(undefined), apply = vi.fn(), onFieldStream = vi.fn()
   const api = { clinicalAi: { capabilities: vi.fn().mockResolvedValue({ available: true, mode: 'MODEL', provider: 'test',
-    features: ['BACKGROUND_DRAFT', 'STREAMING_DRAFT', 'RECORD_COMPLETENESS', 'PLAN_RECOMMENDATIONS', 'AUDIT_TRAIL'] }),
-    generateStream, history: vi.fn().mockResolvedValue([]), recordEvent },
-    masterData: { searchServices: vi.fn().mockResolvedValue({ content: [
+    features: ['BACKGROUND_DRAFT', 'STREAMING_DRAFT', 'RECORD_COMPLETENESS', 'PLAN_RECOMMENDATIONS', 'TERMINOLOGY_VALIDATION', 'AUDIT_TRAIL'] }),
+    generateStream, recommendPlans, history: vi.fn().mockResolvedValue([]), recordEvent },
+    masterData: { diseases: vi.fn().mockResolvedValue([
+      { code: 'J06.9', display: '测试诊断甲', sdStatus: 'ACTIVE', systemCode: 'WHO.BD.CS.ICD10' },
+      { code: 'R50.9', display: '测试诊断乙', sdStatus: 'ACTIVE', systemCode: 'WHO.BD.CS.ICD10' },
+    ]), searchServices: vi.fn().mockResolvedValue({ content: [
       { id: 'lab-1', code: 'LAB001', name: '血常规', prices: [] },
       { id: 'exam-1', code: 'EXAM001', name: '胸部X线', prices: [] },
     ] }) },
@@ -38,6 +43,7 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
       <ClinicalAiAssistantPanel encounter={encounter} currentContext={{ ...base, presentIllness: text,
           serviceDraftFingerprint: treatmentKeys.join('|') || 's' }}
         api={api} allergies={[]} allergyState="READY" disabled={false} surfaces={surfaces}
+        onReviewRecommendedPlan={plans ? reviewRecommendedPlan : undefined}
         existingTreatmentKeys={treatmentKeys}
         onReviewTreatment={withTreatmentReview ? (items, completed) => {
           const keys = items.map((item) => `${item.type}:${item.catalogItemId}`)
@@ -53,7 +59,7 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
       fireEvent.click(pill)
     }
   }
-  return { generateStream, recordEvent, apply, surfaces, onFieldStream, openHub }
+  return { generateStream, recommendPlans, reviewRecommendedPlan, recordEvent, apply, surfaces, onFieldStream, openHub }
 }
 async function advance(ms: number) { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
@@ -201,6 +207,71 @@ describe('quiet clinical AI workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认所选（2）' }))
     await advance(100)
     expect(screen.queryByLabelText('AI 医嘱待确认')).not.toBeInTheDocument()
+  })
+
+  it('offers whole plans before generation and continues only after the doctor declines', async () => {
+    const plans = [{ templateId: 'plan-1', name: '院内整体方案', description: '病历、诊断及医嘱', rationale: '资料匹配' }]
+    const { openHub, generateStream, recommendPlans, reviewRecommendedPlan, apply } = setup(undefined, true, plans)
+    await advance(20)
+    openHub()
+    fireEvent.change(screen.getByLabelText('问诊要点或辅助要求'), { target: { value: '合成问诊要点' } })
+    fireEvent.click(screen.getByRole('button', { name: '匹配方案并继续' }))
+    await advance(100)
+    expect(recommendPlans).toHaveBeenCalledTimes(1)
+    expect(generateStream).not.toHaveBeenCalled()
+    expect(apply).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('整体诊疗方案推荐')).toHaveTextContent('院内整体方案')
+    fireEvent.click(screen.getByRole('button', { name: '核对整体方案' }))
+    expect(reviewRecommendedPlan).toHaveBeenCalledWith(plans[0])
+    expect(generateStream).not.toHaveBeenCalled()
+    openHub()
+    fireEvent.click(screen.getByRole('button', { name: '不采用方案，继续 AI 共写' }))
+    await advance(100)
+    expect(generateStream).toHaveBeenCalledTimes(1)
+    expect(generateStream.mock.calls[0][1].question).toContain('合成问诊要点')
+  })
+
+  it('continues the existing workflow when no whole plan matches', async () => {
+    const { openHub, generateStream, recommendPlans } = setup(undefined, true, [])
+    await advance(20)
+    openHub()
+    fireEvent.click(screen.getByRole('button', { name: '整理并对照建议' }))
+    await advance(100)
+    expect(recommendPlans).toHaveBeenCalledTimes(1)
+    expect(generateStream).toHaveBeenCalledTimes(1)
+    expect(screen.queryByLabelText('整体诊疗方案推荐')).not.toBeInTheDocument()
+  })
+
+  it('invalidates a pending plan choice when the question changes', async () => {
+    const plans = [{ templateId: 'plan-1', name: '旧方案', description: '', rationale: '' }]
+    const { openHub, generateStream } = setup(undefined, true, plans)
+    await advance(20)
+    openHub()
+    fireEvent.click(screen.getByRole('button', { name: '匹配方案并继续' }))
+    await advance(100)
+    fireEvent.change(screen.getByLabelText('问诊要点或辅助要求'), { target: { value: '新的合成内容' } })
+    await advance(20)
+    expect(screen.queryByLabelText('整体诊疗方案推荐')).not.toBeInTheDocument()
+    expect(generateStream).not.toHaveBeenCalled()
+  })
+
+  it('adopts only the checked diagnosis candidates in a batch', async () => {
+    const generateStream = vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
+      diagnosisCandidates: [
+        { code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY', rationale: '需核对' },
+        { code: 'R50.9', display: '测试诊断乙', type: 'SECONDARY', rationale: '需核对' },
+      ] }))
+    const { openHub, apply } = setup(generateStream)
+    await advance(20)
+    openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await advance(100)
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 测试诊断乙' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认所选诊断（1）' }))
+    await advance(100)
+    expect(apply).toHaveBeenCalledWith(expect.objectContaining({ diagnoses: [
+      { code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY' },
+    ] }))
   })
 
   it('shows a partial draft early, keeps input editable, and discards a stale completion', async () => {

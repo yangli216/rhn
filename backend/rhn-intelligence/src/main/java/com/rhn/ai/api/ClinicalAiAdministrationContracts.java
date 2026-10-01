@@ -60,9 +60,10 @@ public final class ClinicalAiAdministrationContracts {
         }
     }
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "ClinicalAiConfigurationUpdateRequest")
     public record UpdateRequest(
             @NotNull Scope scope,
-            @NotEmpty @Size(max = 16) List<@Valid SettingUpdate> settings,
+            @NotEmpty @Size(max = 32) List<@Valid SettingUpdate> settings,
             @Size(max = 1000) String reason) {
     }
 
@@ -101,4 +102,3 @@ public final class ClinicalAiAdministrationContracts {
             String rawDetail) {
     }
 }
-

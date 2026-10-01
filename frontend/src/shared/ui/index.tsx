@@ -412,6 +412,8 @@ export function Dialog({
   className = '',
   initialFocusRef,
   enterNavigation = true,
+  presentation = 'dialog',
+  boundary,
 }: PropsWithChildren<{
   title: string
   eyebrow?: string
@@ -423,13 +425,63 @@ export function Dialog({
   className?: string
   initialFocusRef?: RefObject<HTMLElement | null>
   enterNavigation?: boolean
+  presentation?: 'dialog' | 'drawer'
+  boundary?: HTMLElement | null
 }>) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  const anchorRef = useRef<HTMLSpanElement>(null)
   const triggerRef = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null)
   const initialFocusTargetRef = useRef(initialFocusRef)
   const onCloseRef = useRef(onClose)
   const titleId = useId()
   const descriptionId = useId()
+  const [drawerBounds, setDrawerBounds] = useState<CSSProperties | undefined>(() => {
+    if (presentation === 'drawer' && boundary) {
+      const { top, left, width, height } = boundary.getBoundingClientRect()
+      return { top, left, width, height, right: 'auto', bottom: 'auto' }
+    }
+    return undefined
+  })
+  const [isPanelHidden, setIsPanelHidden] = useState(false)
+
+  useLayoutEffect(() => {
+    if (presentation !== 'drawer' || !boundary) return
+    const measure = () => {
+      const { top, left, width, height } = boundary.getBoundingClientRect()
+      setDrawerBounds({ top, left, width, height, right: 'auto', bottom: 'auto' })
+    }
+    const checkVisibility = () => {
+      const hidden = Boolean(
+        (anchorRef.current && anchorRef.current.closest('[hidden]')) ||
+        (boundary && boundary.closest('[hidden]'))
+      )
+      setIsPanelHidden(hidden)
+      if (!hidden) measure()
+    }
+    measure()
+    checkVisibility()
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure)
+    observer?.observe(boundary)
+
+    const hostPanel = anchorRef.current?.closest('.workspace-panel') ?? document.getElementById('root')
+    const mutationObserver = typeof MutationObserver === 'undefined' ? undefined : new MutationObserver(checkVisibility)
+    if (hostPanel && mutationObserver) {
+      mutationObserver.observe(hostPanel, { attributes: true, attributeFilter: ['hidden', 'class', 'style'] })
+      const appRoot = document.getElementById('root')
+      if (appRoot && appRoot !== hostPanel) {
+        mutationObserver.observe(appRoot, { attributes: true, attributeFilter: ['hidden'], subtree: true })
+      }
+    }
+
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+    return () => {
+      observer?.disconnect()
+      mutationObserver?.disconnect()
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
+  }, [presentation, boundary])
 
   useLayoutEffect(() => {
     onCloseRef.current = onClose
@@ -440,8 +492,11 @@ export function Dialog({
     const previousOverflow = document.body.style.overflow
     const applicationRoot = document.getElementById('root')
     const applicationWasInert = applicationRoot?.hasAttribute('inert') ?? false
-    document.body.style.overflow = 'hidden'
-    applicationRoot?.setAttribute('inert', '')
+
+    if (presentation !== 'drawer') {
+      document.body.style.overflow = 'hidden'
+      applicationRoot?.setAttribute('inert', '')
+    }
 
     const dialog = dialogRef.current
     const focusable = dialog ? focusableElements(dialog) : []
@@ -477,37 +532,43 @@ export function Dialog({
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = previousOverflow
-      if (!applicationWasInert) applicationRoot?.removeAttribute('inert')
+      if (presentation !== 'drawer') {
+        document.body.style.overflow = previousOverflow
+        if (!applicationWasInert) applicationRoot?.removeAttribute('inert')
+      }
       previouslyFocused?.focus()
     }
-  }, [])
+  }, [presentation])
 
-  return createPortal(<div className="ui-dialog-backdrop" onMouseDown={closeOnBackdrop ? onClose : undefined}>
-    <div
-      ref={dialogRef}
-      className={`ui-dialog ${size !== 'default' ? `ui-dialog--${size}` : ''} ${className}`}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      aria-describedby={description ? descriptionId : undefined}
-      tabIndex={-1}
-      onMouseDown={(event) => event.stopPropagation()}
-      onKeyDown={enterNavigation ? advanceDialogFormOnEnter : undefined}
-    >
-      <div className="ui-dialog__head">
-        <div className="ui-dialog__heading">
-          {eyebrow && <span className="ui-eyebrow">{eyebrow}</span>}
-          {eyebrow && <span className="ui-dialog__heading-sep" aria-hidden="true">·</span>}
-          <h2 id={titleId}>{title}</h2>
+  return <>
+    <span ref={anchorRef} style={{ display: 'none' }} aria-hidden="true" />
+    {createPortal(<div className={`ui-dialog-backdrop ${presentation === 'drawer' ? 'ui-dialog-backdrop--drawer' : ''}`}
+      style={presentation === 'drawer' ? { ...drawerBounds, display: isPanelHidden ? 'none' : undefined } : undefined} onMouseDown={closeOnBackdrop ? onClose : undefined}>
+      <div
+        ref={dialogRef}
+        className={`ui-dialog ${presentation === 'drawer' ? 'ui-dialog--drawer' : ''} ${size !== 'default' ? `ui-dialog--${size}` : ''} ${className}`}
+        role="dialog"
+        aria-modal={presentation !== 'drawer'}
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
+        tabIndex={-1}
+        onMouseDown={(event) => event.stopPropagation()}
+        onKeyDown={enterNavigation ? advanceDialogFormOnEnter : undefined}
+      >
+        <div className="ui-dialog__head">
+          <div className="ui-dialog__heading">
+            {eyebrow && <span className="ui-eyebrow">{eyebrow}</span>}
+            {eyebrow && <span className="ui-dialog__heading-sep" aria-hidden="true">·</span>}
+            <h2 id={titleId}>{title}</h2>
+          </div>
+          <IconButton icon="close" label={presentation === 'drawer' ? '关闭抽屉' : '关闭弹窗'} onClick={onClose} />
         </div>
-        <IconButton icon="close" label="关闭弹窗" onClick={onClose} />
+        {description && <p className="ui-dialog__description" id={descriptionId}>{description}</p>}
+        {children}
+        {footer && <div className="ui-form-actions">{footer}</div>}
       </div>
-      {description && <p className="ui-dialog__description" id={descriptionId}>{description}</p>}
-      {children}
-      {footer && <div className="ui-form-actions">{footer}</div>}
-    </div>
-  </div>, document.body)
+    </div>, document.body)}
+  </>
 }
 
 type FormControlProps = {
@@ -534,13 +595,14 @@ function FieldHint({ label, hint, hintId }: { label: ReactNode; hint: string; hi
   </span>
 }
 
-export function FormField({ label, error, hint, required = false, className = '', children }: {
+export function FormField({ label, error, hint, required = false, className = '', appearance = 'default', children }: {
   label: ReactNode
   error?: string
   hint?: string
   required?: boolean
   className?: string
   children: ReactElement<FormControlProps>
+  appearance?: 'default' | 'document'
 }) {
   const generatedId = useId()
   const child = Children.only(children)
@@ -556,7 +618,7 @@ export function FormField({ label, error, hint, required = false, className = ''
     'aria-describedby': describedBy,
   }) : child
 
-  return <div className={`ui-field ${error ? 'is-invalid' : ''} ${className}`}>
+  return <div className={`ui-field ${appearance === 'document' ? 'ui-field--document' : ''} ${error ? 'is-invalid' : ''} ${className}`}>
     <div className="ui-field__label-row">
       <label className="ui-field__label" htmlFor={controlId}>{label}
         {required && <span className="ui-field__required" aria-hidden="true">*</span>}

@@ -1,6 +1,7 @@
 package com.rhn;
 
 import com.rhn.ai.application.ClinicalAiModelGateway;
+import com.rhn.ai.application.DecisionModelGateway;
 import com.rhn.ai.application.ClinicalAiModelException;
 import com.rhn.platform.search.application.SearchEntryProjectionService;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -32,8 +34,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
     @MockitoBean ClinicalAiModelGateway modelGateway;
+    @MockitoBean DecisionModelGateway decisionGateway;
     @Autowired
     SearchEntryProjectionService searchEntryProjections;
+
+    @Test
+    void plan_preview_builds_revision_context_from_items_without_waiting_for_duplicate_narrative() throws Exception {
+        when(modelGateway.compilePlan(any(), any())).thenReturn(new ClinicalAiModelGateway.PlanIntent(
+                "血压升高初诊评估", "待核对", List.of(
+                new ClinicalAiModelGateway.PlanIntentItem("DIAGNOSIS",
+                        "血压读数升高，未诊断为高血压 [R03.0]", "", "SUGGESTED", "建议复测确认"),
+                new ClinicalAiModelGateway.PlanIntentItem("EXAMINATION", "24小时动态血压监测",
+                        "", "SUGGESTED", "用于确认诊室外血压水平")), null));
+
+        mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft")
+                        .with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"naturalInput":"血压升高初诊评估","scopeType":"PERSONAL"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.narrative", org.hamcrest.Matchers.containsString("诊断：血压读数升高")))
+                .andExpect(jsonPath("$.narrative", org.hamcrest.Matchers.containsString("检查：24小时动态血压监测")))
+                .andExpect(jsonPath("$.reviewItems.length()").value(2));
+    }
 
     @Test
     void natural_input_is_compiled_to_plan_draft_and_can_be_persisted_as_hospital_plan() throws Exception {
@@ -49,7 +73,8 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 new ClinicalAiModelGateway.PlanIntentItem("DIAGNOSIS", "原发性高血压", "原发性高血压", "EXPLICIT", null),
                 new ClinicalAiModelGateway.PlanIntentItem("EXAMINATION", "心电图", "心电图", "EXPLICIT", null),
                 new ClinicalAiModelGateway.PlanIntentItem("MEDICATION", "硝苯地平控释片", "硝苯地平控释片", "EXPLICIT", "30mg qd"),
-                new ClinicalAiModelGateway.PlanIntentItem("FOLLOW_UP", "复诊", "复诊", "EXPLICIT", "一周后")), null));
+                new ClinicalAiModelGateway.PlanIntentItem("FOLLOW_UP", "复诊", "复诊", "EXPLICIT", "一周后")), null,
+                java.util.Map.of("chiefComplaint", "主要症状：[填写]；持续时间：[填写]", "healthEducation", "监测记录待核对", "treatmentPlan", "不能进入病历模板的文字计划")));
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String name = "AI高血压指南方-" + suffix;
 
@@ -64,6 +89,8 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                                 }
                 """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.noteTemplateContent.chiefComplaint").value("主要症状：[填写]；持续时间：[填写]"))
+                .andExpect(jsonPath("$.noteTemplateContent.treatmentPlan").doesNotExist())
                 .andExpect(jsonPath("$.scopeType").value("HOSPITAL"))
                 .andExpect(jsonPath("$.sourceType").value("AI_INPUT"))
                 .andExpect(jsonPath("$.reviewItems.length()").value(4))
@@ -128,6 +155,37 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.tasks[0].details").value(org.hamcrest.Matchers.containsString(name)));
         verify(modelGateway).compilePlan(argThat(request -> request.availablePlans().stream()
                 .anyMatch(plan -> plan.id().equals(Long.valueOf(templateId)))), any());
+    }
+
+    @Test
+    void shared_decision_configuration_enables_fuzzy_investigations_during_plan_conversion() throws Exception {
+        searchEntryProjections.rebuildAll();
+        mockMvc.perform(put("/api/ai/administration/configuration").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"scope":"TENANT","reason":"验证智能建方决策场景","settings":[
+                      {"key":"decision-mode","value":"ASSIST"},
+                      {"key":"decision-api-key","secretValue":"synthetic-test-key"},
+                      {"key":"decision-scene-plan-compilation-enabled","value":true}]}
+                    """))
+                .andExpect(status().isOk());
+        when(decisionGateway.decide(any(), any())).thenAnswer(call -> {
+            DecisionModelGateway.Request request = call.getArgument(0);
+            String id = "LABORATORY|362387869795101";
+            org.junit.jupiter.api.Assertions.assertTrue(request.questions().getFirst().criteria().containsKey(id));
+            return new DecisionModelGateway.Result("synthetic-trace", "jev-1.13.0", java.util.Map.of(
+                    "intent_0", new DecisionModelGateway.ChoiceAnswer(id, java.util.Map.of(id, 0.99, "NONE", 0.01), 0.99)), 10);
+        });
+        mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"naturalInput":"上感方案","confirmedNarrative":"完善血常规检查","scopeType":"PERSONAL",
+                     "reviewItems":[{"kind":"LABORATORY","text":"血常规检查","origin":"SUGGESTED"}]}
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.services[0].catalogItemId").value(362387869795101L))
+                .andExpect(jsonPath("$.services[0].itemName").value("血细胞分析"))
+                .andExpect(jsonPath("$.tasks[0].status").value("MATCHED"));
+        verify(decisionGateway).decide(argThat(request -> request.version().endsWith("PLAN_COMPILATION")), any());
+        verifyNoInteractions(modelGateway);
     }
 
     @Test
