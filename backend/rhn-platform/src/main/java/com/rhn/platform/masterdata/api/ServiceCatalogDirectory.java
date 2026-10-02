@@ -7,6 +7,11 @@ public interface ServiceCatalogDirectory {
     java.util.List<MasterDataViews.ServiceView> searchOrderableServices(String query, String serviceType,
                                                                       Long organizationId, LocalDate businessDate);
 
+    default java.util.List<MasterDataViews.ServiceView> findOrderableServicesByIds(java.util.Collection<Long> serviceIds,
+                                                                                  Long organizationId, LocalDate businessDate) {
+        return java.util.List.of();
+    }
+
     ServiceCatalogSnapshot requireActiveService(Long tenantId, Long catalogItemId, LocalDate businessDate);
 
     /**

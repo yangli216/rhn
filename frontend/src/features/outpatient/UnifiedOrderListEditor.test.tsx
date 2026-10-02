@@ -196,6 +196,26 @@ describe('UnifiedOrderListEditor', () => {
     )
   }
 
+  it('renders one category header for interleaved orders imported from a plan', () => {
+    renderComponent({
+      medicationDrafts: [
+        { ...mockMedicationDraft, id: 'med1', sequence: 2 },
+        { ...mockMedicationDraft, id: 'med2', sequence: 4, medicationName: '阿奇霉素片' },
+      ],
+      serviceDrafts: [
+        { id: 'lab1', sequence: 1, catalogItemId: 'lab1', itemName: '血细胞分析', serviceType: 'LABORATORY', quantity: 1 },
+        { id: 'lab2', sequence: 3, catalogItemId: 'lab2', itemName: 'C反应蛋白测定', serviceType: 'LABORATORY', quantity: 1 },
+        { id: 'exam', sequence: 5, catalogItemId: 'exam', itemName: '胸片', serviceType: 'EXAMINATION', quantity: 1 },
+      ],
+    })
+    expect(screen.getAllByLabelText('西药/中成药处方分组')).toHaveLength(1)
+    expect(screen.getByLabelText('西药/中成药处方分组')).toHaveTextContent('共 2 项')
+    expect(screen.getAllByLabelText('检验申请分组')).toHaveLength(1)
+    expect(screen.getByLabelText('检验申请分组')).toHaveTextContent('共 2 项')
+    expect(screen.getAllByLabelText('检查申请分组')).toHaveLength(1)
+    expect(screen.getAllByRole('row', { name: /编辑待确认医嘱/ })).toHaveLength(5)
+  })
+
   it('renders saved orders with document rows and preserves pending drafts', async () => {
     const onOpenDocument = vi.fn(), setServiceDrafts = vi.fn()
     renderComponent({ services: [{ id: 's1', serviceType: 'LABORATORY', itemName: '已存血常规', quantity: 1,

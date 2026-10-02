@@ -7,6 +7,7 @@ import com.rhn.ai.api.ClinicalAssistantContracts.PlanTextDraft;
 import com.rhn.ai.api.ClinicalAssistantContracts.PlanReviewItem;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.DiagnosisInput;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.MedicationInput;
+import com.rhn.outpatient.api.AiPlanOrderInstructions;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.PlanTaskInput;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.ServiceInput;
@@ -416,7 +417,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                 if (serviceIds.add(matched.id())) {
                     services.add(new ServiceInput(matched.id(), matched.code(), matched.name(),
                             matched.serviceType(), matched.quantity(),
-                            matched.unitCode(), "SALE", true, value.name(), value.details()));
+                            matched.unitCode(), "SALE", true, value.name(), AiPlanOrderInstructions.service(value.details())));
                 }
             }
             return new ItemOutcome("MATCHED", details);
@@ -433,7 +434,7 @@ public class ClinicalPlanTemplateAiApplicationService {
         String status = "NEEDS_REVIEW";
         String details = value.details();
         String extra = Stream.of(value.details(), value.sourceQuote(), item.details())
-                .filter(s -> s != null && !s.isBlank())
+                .filter(s -> s != null && !s.isBlank()).distinct()
                 .collect(Collectors.joining(" "));
         var parsed = medicationParser.parse(value.name(), extra);
         var match = medicationMatcher.match(context.tenantId(), context.organizationId(),
@@ -465,7 +466,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                         medication.name(), medication.preparationSpec(), doseValue,
                         doseUnit, route, frequency,
                         durationValue, durationUnit, qty,
-                        unit, true, false, parsed.sourceText(), "SALE", true,
+                        unit, true, false, AiPlanOrderInstructions.medication(value.details()), "SALE", true,
                         value.name()));
             }
             status = "MATCHED";
@@ -495,7 +496,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                             medication.name(), medication.preparationSpec(), doseValue,
                             doseUnit, route, frequency,
                             durationValue, durationUnit, qty,
-                            unit, true, false, parsed.sourceText(), "SALE", false,
+                            unit, true, false, AiPlanOrderInstructions.medication(value.details()), "SALE", false,
                             value.name()));
                 }
                 status = "MATCHED";

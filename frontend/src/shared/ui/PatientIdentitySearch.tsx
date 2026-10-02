@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { age } from '../format'
+import { age, genderLabel } from '../format'
 import type { Resident } from '../model'
 import { Icon, type IconName } from './Icon'
 
@@ -294,7 +294,7 @@ export function PatientIdentitySearch({
                 <span>
                   <span className="ui-patient-search__candidate-title">
                     <strong>{resident.fullName}</strong>
-                    <small>{resident.genderText ?? '未知'} · {age(resident.birthDate)} 岁</small>
+                    <small>{resident.genderText || genderLabel(resident.gender)} · {age(resident.birthDate)} 岁</small>
                   </span>
                   <span className="ui-patient-search__candidate-meta">
                     <small>档案号: {resident.healthRecordNo}</small>
@@ -318,7 +318,7 @@ export function PatientIdentitySearch({
     {selected && showSelectedSummary && <div className="ui-patient-search__selected" aria-live="polite">
       <span className={`resident-avatar ${selected.gender.toLowerCase()}`}>{selected.fullName.slice(-1)}</span>
       <div><small>{autoResolvedQuery ? `${lookupKind || '唯一身份'}识别并自动回填` : '已确认患者'}</small>
-        <strong>{selected.fullName}</strong><span>{selected.genderText ?? '未知'} · {age(selected.birthDate)} 岁 · 档案号: {selected.healthRecordNo}{selected.maskedNationalId ? ` · 身份证: ${selected.maskedNationalId}` : ''}</span></div>
+        <strong>{selected.fullName}</strong><span>{selected.genderText || genderLabel(selected.gender)} · {age(selected.birthDate)} 岁 · 档案号: {selected.healthRecordNo}{selected.maskedNationalId ? ` · 身份证: ${selected.maskedNationalId}` : ''}</span></div>
       <span className="ui-badge ui-badge--success"><Icon name="check" />已回填</span>
       {onClear && <button type="button" className="ui-patient-search__clear" disabled={disabled}
         onClick={() => { setAutoResolvedQuery(''); onClear() }}>重新选择</button>}

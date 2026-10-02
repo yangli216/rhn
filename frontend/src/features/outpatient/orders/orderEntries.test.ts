@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { MedicationRequest, ServiceRequest } from '../../../shared/api/encountersApi'
 import type { MedicationPlanDraft } from './medicationDraft'
 import type { ServicePlanDraft } from './orderDraftTypes'
+import { draftToBatchItem, matchSplitPreviewDraft } from './persistOrderDrafts'
 import { buildAdministrationGroups } from './administrationGroups'
 import { draftOrderEntries, savedOrderEntries, findGroupingComposerTarget } from './orderEntries'
 
@@ -13,6 +14,21 @@ const medication = (id: string, group: string | undefined, sequence: number): Me
 })
 
 describe('order list projections', () => {
+  it('passes the selected stock site to the shared preview and batch split payload', () => {
+    const draft = { ...medication('med1', undefined, 1), stockSiteId: 'pharmacy-2', stockSiteName: '门诊药房' }
+    expect(draftToBatchItem(draft)).toMatchObject({ stockSiteId: 'pharmacy-2', stockSiteName: '门诊药房' })
+  })
+
+  it('matches generic split preview drugs by nonempty identity and distinguishes repeated doses', () => {
+    const amoxicillin = medication('amox', undefined, 1)
+    const azithromycin = medication('azith', undefined, 2)
+    const secondDose = { ...amoxicillin, id: 'amox-second', request: { ...amoxicillin.request, doseValue: 1 } }
+    const drafts = [amoxicillin, azithromycin, secondDose]
+    expect(matchSplitPreviewDraft(drafts, draftToBatchItem(azithromycin))).toBe(azithromycin)
+    expect(matchSplitPreviewDraft(drafts, draftToBatchItem(secondDose))).toBe(secondDose)
+    expect(matchSplitPreviewDraft(drafts, { ...draftToBatchItem(azithromycin), medicationId: undefined })).toBeUndefined()
+  })
+
   it('places the shared composer after the last draft in its group, ahead of unrelated rows', () => {
     const drafts = draftOrderEntries([], [medication('head', 'request:saved', 1),
       medication('tail', 'request:saved', 2), medication('other', 'g2', 3)])
@@ -36,8 +52,20 @@ describe('order list projections', () => {
   it('keeps infusion members together using the first member sequence without mutating input', () => {
     const medications = [medication('tail', 'g1', 4), medication('single', undefined, 3), medication('head', 'g1', 1)]
     const services: ServicePlanDraft[] = [{ id: 'lab', sequence: 2, catalogItemId: 'lab', itemCode: 'LAB', itemName: '检验', quantity: 1 }]
-    expect(draftOrderEntries(services, medications).map((item) => item.value.id)).toEqual(['head', 'tail', 'lab', 'single'])
+    expect(draftOrderEntries(services, medications).map((item) => item.value.id)).toEqual(['head', 'tail', 'single', 'lab'])
     expect(medications.map((item) => item.id)).toEqual(['tail', 'single', 'head'])
+  })
+
+  it('keeps interleaved template medications and services in single contiguous categories', () => {
+    const services: ServicePlanDraft[] = [
+      { id: 'lab1', sequence: 1, catalogItemId: 'lab1', itemCode: 'LAB1', itemName: '血常规', serviceType: 'LABORATORY', quantity: 1 },
+      { id: 'lab2', sequence: 3, catalogItemId: 'lab2', itemCode: 'LAB2', itemName: 'CRP', serviceType: 'LABORATORY', quantity: 1 },
+      { id: 'exam', sequence: 5, catalogItemId: 'exam', itemCode: 'EXAM', itemName: '胸片', serviceType: 'EXAMINATION', quantity: 1 },
+    ]
+    const medications = [medication('med1', undefined, 2), medication('med2', undefined, 4)]
+    expect(draftOrderEntries(services, medications).map((entry) => entry.value.id))
+      .toEqual(['lab1', 'lab2', 'med1', 'med2', 'exam'])
+    expect(services.map((entry) => entry.id)).toEqual(['lab1', 'lab2', 'exam'])
   })
 
   it('keeps saved prescription rows adjacent while ordering documents by first authored time', () => {

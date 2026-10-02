@@ -155,4 +155,39 @@ class PlanInvestigationDecisionServiceTest {
         assertEquals(3, value.items().size());
         assertTrue(value.detail().contains("组套"));
     }
+
+    @Test
+    void chestRadiographyExpandsAnatomicalSiteAndCallsJevDecision() {
+        var chestDr = item(203L, "胸部数字化X线摄影", "EXAMINATION");
+        var chestIntent = new PlanInvestigationDecisionService.Intent("EXAMINATION", "胸部X线摄片");
+        when(catalog.searchOrderableServices("胸部X线摄片", "EXAMINATION", 3L, today)).thenReturn(List.of());
+        when(catalog.searchOrderableServices("胸部X线摄影", "EXAMINATION", 3L, today)).thenReturn(List.of());
+        when(catalog.searchOrderableServices("胸部", "EXAMINATION", 3L, today)).thenReturn(List.of(chestDr));
+        answer("EXAMINATION|203", .98);
+
+        var result = service.resolve(List.of(chestIntent), context, today).get(chestIntent.key());
+        assertSame(chestDr, result.item());
+        assertEquals("DECISION", result.matchType());
+    }
+
+    @Test
+    void aliasDirectLookupWorksEvenWhenInitialSearchIsEmpty() {
+        ItemAliasDirectory aliases = mock(ItemAliasDirectory.class);
+        ItemGroupDirectory groups = mock(ItemGroupDirectory.class);
+        var chestDr = item(203L, "胸部数字化X线摄影", "EXAMINATION");
+        var chestIntent = new PlanInvestigationDecisionService.Intent("EXAMINATION", "胸部X线摄片");
+
+        when(catalog.searchOrderableServices("胸部X线摄片", "EXAMINATION", 3L, today)).thenReturn(List.of());
+        when(aliases.findActiveServiceIdsByAlias(1L, "胸部X线摄片")).thenReturn(Set.of(203L));
+        when(catalog.findOrderableServicesByIds(Set.of(203L), 3L, today)).thenReturn(List.of(chestDr));
+
+        var value = new PlanInvestigationDecisionService(catalog, decisions, aliases, groups)
+                .resolve(List.of(chestIntent), context, today)
+                .get(chestIntent.key());
+
+        assertSame(chestDr, value.item());
+        assertEquals("ALIAS", value.matchType());
+        assertTrue(value.detail().contains("别名"));
+        verifyNoInteractions(gateway);
+    }
 }

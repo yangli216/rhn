@@ -360,7 +360,7 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                                   "scopeType":"PERSONAL",
                                   "reviewItems":[
                                     {"kind":"DIAGNOSIS","text":"急性上呼吸道感染，未特指 [J06.9]","origin":"SUGGESTED"},
-                                    {"kind":"MEDICATION","text":"对乙酰氨基酚","origin":"SUGGESTED","details":"发热或疼痛时考虑"},
+                                    {"kind":"MEDICATION","text":"对乙酰氨基酚","origin":"SUGGESTED","details":"常规用法：每次0.5g 口服 PRN 疗程3天；适用条件：发热或疼痛时考虑；目的：解热镇痛；嘱托：发热或疼痛时服用"},
                                     {"kind":"LABORATORY","text":"血常规","origin":"SUGGESTED","details":"高热持续时考虑"}
                                   ]
                                 }
@@ -376,6 +376,8 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.medications[0].frequencyCode").value("PRN"))
                 .andExpect(jsonPath("$.medications[0].durationValue").value(3))
                 .andExpect(jsonPath("$.medications[0].durationUnit").value("天"))
+                .andExpect(jsonPath("$.medications[0].medicationInstruction").value("发热或疼痛时服用"))
+                .andExpect(jsonPath("$.tasks[1].details").value(org.hamcrest.Matchers.containsString("目的：解热镇痛")))
                 .andExpect(jsonPath("$.services.length()").value(1))
                 .andExpect(jsonPath("$.services[0].catalogItemId").value(362387869795101L))
                 .andExpect(jsonPath("$.services[0].itemName").value("血细胞分析"))

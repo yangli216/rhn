@@ -1,8 +1,8 @@
-import { useId } from 'react'
+import { createContext, useContext, useId, useState, type ReactNode } from 'react'
 import type { Encounter } from '../../../shared/model'
 import type { OrderDocumentInfo } from '../../../shared/api/encountersApi'
-import { StatusBadge, DataTable, Select, TableShell } from '../../../shared/ui'
-import { IconFlask, IconPill, IconPlant2, IconScan, IconFileText, IconAlertCircle, IconCheck } from '@tabler/icons-react'
+import { StatusBadge, DataTable, Select, TableShell, Tooltip, IconButton, Button, FormField, tableCellClass } from '../../../shared/ui'
+import { IconFlask, IconPill, IconPlant2, IconScan, IconFileText, IconAlertCircle } from '@tabler/icons-react'
 import { checkDocumentInfoMissing } from './orderDocumentDefaults'
 
 export interface ReviewItemDisplay {
@@ -28,11 +28,33 @@ function supplementaryInstruction(routeAndFreqText?: string, instruction?: strin
     .join('；')
 }
 
+function supplementaryServiceNote(note?: string, purpose?: string | null) {
+  if (!purpose || !note || note === purpose) return ''
+  const suffix = ` · ${purpose}`
+  return note.endsWith(suffix) ? note.slice(0, -suffix.length) : note
+}
+
+const ReviewListContext = createContext(false)
+
+export function OrderDocumentReviewList({ children }: { children: ReactNode }) {
+  return <ReviewListContext.Provider value>
+    <TableShell className="doctor-review-list" scrollLabel="分单核查清单">
+      <DataTable compact className="doctor-review-table" aria-label="分单核查清单">
+        <colgroup><col className="doctor-review-name-col" /><col /><col className="doctor-review-quantity-col" /></colgroup>
+        <thead><tr><th>药品 / 项目</th><th>用法 / 检查目的</th>
+          <th className={tableCellClass('numeric')}>数量</th></tr></thead>
+        {children}
+      </DataTable>
+    </TableShell>
+  </ReviewListContext.Provider>
+}
+
 export function OrderDocumentReviewCard({
   cardKey,
   title,
   kind,
   deptOrSite,
+  ruleReasons,
   items,
   info,
   onChangeInfo,
@@ -43,6 +65,7 @@ export function OrderDocumentReviewCard({
   title: string
   kind: 'western' | 'patent' | 'herbal' | 'lab' | 'exam' | 'treatment'
   deptOrSite?: string
+  ruleReasons?: string[]
   items: ReviewItemDisplay[]
   info: OrderDocumentInfo
   onChangeInfo: (next: OrderDocumentInfo) => void
@@ -54,6 +77,8 @@ export function OrderDocumentReviewCard({
   const requiresExaminationPurpose = kind === 'lab' || kind === 'exam'
   const missing = checkDocumentInfoMissing(info, requiresExaminationPurpose ? 'service' : 'prescription')
   const baseId = useId()
+  const inList = useContext(ReviewListContext)
+  const [expanded, setExpanded] = useState(false)
 
   const availableDiagnoses = encounter.diagnoses ?? []
   const hasDiagnoses = availableDiagnoses.length > 0
@@ -96,119 +121,66 @@ export function OrderDocumentReviewCard({
     })
   }
 
-  return (
-    <div className={`doctor-prescription-preview-card ${isService ? 'is-service-card' : ''}`} data-card-key={cardKey}>
-      <div className="doctor-prescription-preview-card__head">
-        <div className="doctor-prescription-preview-card__title">
-          {renderIcon()}
-          <strong>{title}</strong>
-          {deptOrSite && (
-            <span className="doctor-prescription-preview-card__site">
-              {deptOrSite}
-            </span>
-          )}
+  const content = <tbody data-card-key={cardKey} aria-label={`${title}单据`}>
+    <tr className="doctor-review-document-head"><td colSpan={3}>
+      <div className="doctor-review-document-summary">
+        <div className="doctor-review-document-identity">
+          {renderIcon()}<strong>{title}</strong>
+          {ruleReasons && ruleReasons.length > 0 && <Tooltip content={ruleReasons.join('；')}>
+            <IconButton icon="info" label="查看分方原因" title="" />
+          </Tooltip>}
+          <span>{deptOrSite}</span><span>{items.length} 项</span>
         </div>
-        <div className="doctor-review-card__head-controls">
-          {hasDiagnoses ? (
-            <Select
-              multiple
-              className="doctor-review-card__diagnosis-select"
-              aria-label="诊断"
-              disabled={readOnly}
-              clearable={!readOnly}
-              value={info.diagnoses.map((diagnosis) => diagnosis.code)}
-              options={diagnosisOptions}
-              placeholder="选择诊断"
-              onChange={changeDiagnoses}
-            />
-          ) : (
-            <span className="doctor-review-card__empty-hint">病历未录入诊断</span>
-          )}
-
-          {isPrescription && <>
-            <label className="doctor-review-checkbox-label">
-              <input
-                type="checkbox"
-                disabled={readOnly}
-                checked={Boolean(info.externalPrescription)}
-                onChange={(event) => onChangeInfo({ ...info, externalPrescription: event.target.checked })}
-              />
-              <span>外配</span>
-            </label>
-            <input
-              type="text"
-              className="doctor-review-card__text-input"
-              aria-label="门诊特病病种"
-              disabled={readOnly}
-              placeholder="特病病种（选填）"
-              value={info.specialDisease || ''}
-              maxLength={120}
-              onChange={(event) => onChangeInfo({ ...info, specialDisease: event.target.value })}
-            />
-          </>}
-
-          {requiresExaminationPurpose && <input
-            id={`${baseId}-purpose`}
-            type="text"
-            className={`doctor-review-card__text-input is-purpose ${!info.examinationPurpose?.trim() ? 'is-missing' : ''}`}
-            aria-label="检查目的"
-            aria-required="true"
-            disabled={readOnly}
-            placeholder="检查目的（必填）"
-            value={info.examinationPurpose || ''}
-            maxLength={500}
-            onChange={(event) => onChangeInfo({ ...info, examinationPurpose: event.target.value })}
-          />}
+        <div className="doctor-review-document-diagnoses">
+          {info.diagnoses.length ? info.diagnoses.map(diagnosis => diagnosis.display).join('、')
+            : hasDiagnoses ? '未关联诊断' : '病历未录入诊断'}
+          {isPrescription && info.externalPrescription && <span> · 外配</span>}
+          {isPrescription && info.specialDisease && <span> · {info.specialDisease}</span>}
         </div>
-        <div className="doctor-review-card-head-right">
-          {missing.length > 0 ? (
-            <span title={`待补充：${missing.join('、')}`}>
-              <StatusBadge tone="warning">
-                <IconAlertCircle size={12} stroke={2} /> 缺{missing.join('、')}
-              </StatusBadge>
-            </span>
-          ) : (
-            <span className="doctor-review-card__complete" aria-label="信息齐备" title="信息齐备">
-              <IconCheck size={16} stroke={2} />
-            </span>
-          )}
+        <div className="doctor-review-document-actions">
+          {missing.length > 0 && <StatusBadge tone="warning">
+            <IconAlertCircle size={12} stroke={2} /> 缺{missing.join('、')}
+          </StatusBadge>}
+          {!readOnly && <Button size="sm" variant="text" aria-expanded={expanded}
+            aria-controls={`${baseId}-editor`} onClick={() => setExpanded(value => !value)}>
+            {expanded ? '收起' : missing.length ? '补充' : '修改'}
+          </Button>}
         </div>
       </div>
-
-      <TableShell>
-        <DataTable compact className="doctor-prescription-preview-table">
-          <thead>
-            <tr>
-              <th>{isService ? '项目名称' : '药品名称'}</th>
-              {!isService && <th>剂量</th>}
-              {!isService && <th>途径/频次</th>}
-              <th>数量</th>
-              {isService && <th>临床说明</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, idx) => (
-              <tr key={item.id ?? idx} className={item.isInfusionGroup ? 'is-infusion-row' : ''}>
-                <td>
-                  <strong>{item.name}</strong>
-                  {(item.manufacturer || item.spec) && <small>
-                    {[item.manufacturer, item.spec].filter(Boolean).join(' / ')}
-                  </small>}
-                  {item.isGroupLeader && <span className="doctor-split-group-badge">输液组首药</span>}
-                </td>
-                {!isService && <td>{item.doseText || '—'}</td>}
-                {!isService && <td>{item.routeAndFreqText || '—'}
-                  {supplementaryInstruction(item.routeAndFreqText, item.instruction) && (
-                    <small>{supplementaryInstruction(item.routeAndFreqText, item.instruction)}</small>
-                  )}
-                </td>}
-                <td>{item.quantityText}</td>
-                {isService && <td>{item.note || '—'}</td>}
-              </tr>
-            ))}
-          </tbody>
-        </DataTable>
-      </TableShell>
-    </div>
-  )
+    </td></tr>
+    {expanded && !readOnly && <tr><td colSpan={3}>
+      <div id={`${baseId}-editor`} className="doctor-review-document-editor">
+        <FormField label="关联诊断">
+          <Select multiple aria-label="诊断" clearable value={info.diagnoses.map(diagnosis => diagnosis.code)}
+            options={diagnosisOptions} placeholder="选择诊断" onChange={changeDiagnoses} />
+        </FormField>
+        {isPrescription && <>
+          <FormField label="门诊特病病种"><input aria-label="门诊特病病种" placeholder="选填"
+            value={info.specialDisease || ''} maxLength={120}
+            onChange={event => onChangeInfo({ ...info, specialDisease: event.target.value })} /></FormField>
+          <label className="doctor-review-external"><input type="checkbox" checked={Boolean(info.externalPrescription)}
+            onChange={event => onChangeInfo({ ...info, externalPrescription: event.target.checked })} />外配处方</label>
+        </>}
+        {requiresExaminationPurpose && <FormField label="检查目的" required>
+          <input aria-label="检查目的" aria-required="true" value={info.examinationPurpose || ''} maxLength={500}
+            placeholder="填写检查目的" onChange={event => onChangeInfo({ ...info, examinationPurpose: event.target.value })} />
+        </FormField>}
+      </div>
+    </td></tr>}
+    {items.map((item, index) => <tr key={item.id ?? index} className={item.isInfusionGroup ? 'is-infusion-row' : ''}>
+      <td><strong>{item.name}</strong>
+        {(item.manufacturer || item.spec) && <small>{[item.manufacturer, item.spec].filter(Boolean).join(' / ')}</small>}
+        {item.isGroupLeader && <span className="doctor-split-group-badge">输液组首药</span>}
+      </td>
+      <td>{isService ? (info.examinationPurpose || item.note || '—')
+        : [item.doseText, item.routeAndFreqText].filter(Boolean).join(' · ') || '—'}
+        {isService && supplementaryServiceNote(item.note, info.examinationPurpose)
+          && <small>{supplementaryServiceNote(item.note, info.examinationPurpose)}</small>}
+        {!isService && supplementaryInstruction(item.routeAndFreqText, item.instruction)
+          && <small>{supplementaryInstruction(item.routeAndFreqText, item.instruction)}</small>}
+      </td>
+      <td className={tableCellClass('numeric')}>{item.quantityText}</td>
+    </tr>)}
+  </tbody>
+  return inList ? content : <OrderDocumentReviewList>{content}</OrderDocumentReviewList>
 }

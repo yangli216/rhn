@@ -226,6 +226,27 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public List<ServiceView> findOrderableServicesByIds(Collection<Long> serviceIds, Long organizationId, LocalDate date) {
+        if (serviceIds == null || serviceIds.isEmpty()) return List.of();
+        ExecutionContext context = current();
+        List<ServiceCatalogItem> items = serviceRepository.findAllById(serviceIds).stream()
+                .filter(item -> context.tenantId().equals(item.tenantId()) && "ACTIVE".equals(item.status()))
+                .toList();
+        return serviceViews(context.tenantId(), items, organizationId).stream()
+                .filter(value -> value.orderable() && java.util.Set.of("OUTPATIENT", "COMMON").contains(value.sdUsageType()))
+                .filter(value -> value.validFrom() == null || !value.validFrom().isAfter(date))
+                .filter(value -> value.validTo() == null || !value.validTo().isBefore(date))
+                .filter(value -> value.organizationAdoption() != null
+                        && organizationId.equals(value.organizationAdoption().organizationId())
+                        && "ACTIVE".equals(value.organizationAdoption().sdStatus())
+                        && value.organizationAdoption().orderable() && value.organizationAdoption().executable()
+                        && (value.organizationAdoption().validFrom() == null || !value.organizationAdoption().validFrom().isAfter(date))
+                        && (value.organizationAdoption().validTo() == null || !value.organizationAdoption().validTo().isBefore(date)))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public ServiceCatalogSnapshot requireActiveService(Long tenantId, Long catalogItemId, LocalDate businessDate) {
         ServiceCatalogItem item = requireService(tenantId, catalogItemId);
         LocalDate date = businessDate == null ? LocalDate.now() : businessDate;

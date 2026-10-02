@@ -101,7 +101,7 @@ export function OrderDocumentGroupHeader({
               variant="text"
               onClick={onPrint}
               aria-label={`打印${title}`}
-              title={`打印${title}`}
+              title={`受控打印${title}`}
             >
               <IconPrinter size={16} stroke={1.75} />
             </Button>

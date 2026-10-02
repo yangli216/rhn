@@ -678,6 +678,7 @@ export function UnifiedOrderListEditor({
       routeExecutionType: herbal ? 'NONE'
         : routes.data?.find((value) => value.code === medicationEntry.routeCode)?.executionType,
       administrationGroupKey: assignedGroupKey,
+      stockSiteId: medicationEntry.stockSiteId,
       stockSiteName: medicationEntry.stockSiteName,
       availablePackageQuantity: medicationEntry.availablePackageQuantity,
       packageUnitName: medicationEntry.packageUnitName,
@@ -1016,7 +1017,7 @@ export function UnifiedOrderListEditor({
         <span className="doctor-unified-cell-directions">用法用量 / 执行要求</span>
         <span className="doctor-unified-cell-qty">总量</span>
         <span className="doctor-unified-cell-dept">执行科室</span>
-        <span className="doctor-unified-cell-instruction">嘱托 / 说明</span>
+        <span className="doctor-unified-cell-instruction">患者嘱托</span>
         <span className="doctor-unified-cell-price">单价</span>
         <span className="doctor-unified-cell-status">状态</span>
         {!readOnly && <span className="doctor-unified-cell-actions">操作</span>}

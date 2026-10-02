@@ -19,6 +19,7 @@ export interface MedicationPlanDraft {
   routeExecutionType?: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
   parentRequestId?: string
   administrationGroupKey?: string
+  stockSiteId?: string
   stockSiteName?: string
   availablePackageQuantity?: number
   packageUnitName?: string

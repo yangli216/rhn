@@ -15,7 +15,6 @@ export const noteTemplateFields: Array<{ key: NoteTemplateField; label: string }
 ]
 
 export const clinicalRecordAdditionalFields: Array<{ key: NoteTemplateField; label: string }> = [
-  { key: 'auxiliaryExaminations', label: '辅助检查结果' },
   { key: 'healthEducation', label: '健康宣教' },
   { key: 'followUp', label: '随访复诊' },
 ]

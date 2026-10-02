@@ -116,7 +116,7 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
             currencyCode: product.currencyCode,
             routeName: activeRoutes.find((value) => value.code === routeCode)?.name,
             routeExecutionType,
-            stockSiteName: raw.stockSiteName, availablePackageQuantity: raw.availablePackageQuantity,
+            stockSiteId: raw.stockSiteId, stockSiteName: raw.stockSiteName, availablePackageQuantity: raw.availablePackageQuantity,
             packageUnitName: raw.packageUnitName,
             skinTestRequired: Boolean(raw.skinTestRequired),
             skinTestResultValidityHours: raw.skinTestResultValidityHours,

@@ -7,7 +7,7 @@ import type { RhnApi } from '../../../shared/rhnApi'
 import { roundNumber } from '../../../shared/utils/precision'
 import type { MedicationPlanDraft } from './medicationDraft'
 import type { ServicePlanDraft, OrderEntryType } from './orderDraftTypes'
-import type { DraftOrderEntry } from './orderEntries'
+import { draftCategoryOf, type DraftOrderEntry } from './orderEntries'
 import type { EditingOrderDraft, GroupingComposerTarget, HerbalComposerFormula } from './orderListTypes'
 import { extractSpecialMethod, parseHerbalInstruction, buildHerbalInstruction } from './herbalInstructions'
 import { HerbalFormulaHeaderBar } from './HerbalFormulaHeaderBar'
@@ -51,15 +51,6 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
   skinTests: { data?: SkinTestWorkItem[] }
 }) {
   return <>{draftEntries.map((entry, index) => {
-        const draftCategoryOf = (e: typeof draftEntries[0]) => {
-          if (e.kind === 'medication' && (e.value.categoryCode === 'HERBAL' || e.value.editorMode === 'herbal')) return 'herbal'
-          if (e.kind === 'medication') return 'regular-med'
-          const sType = (e.value as ServicePlanDraft).serviceType
-          if (e.kind === 'service' && sType === 'LABORATORY') return 'lab'
-          if (e.kind === 'service' && sType === 'EXAMINATION') return 'exam'
-          return 'other-service'
-        }
-
         const currCat = draftCategoryOf(entry)
         const prevCat = index > 0 ? draftCategoryOf(draftEntries[index - 1]) : null
         const isFirstOfDraftCat = currCat !== prevCat

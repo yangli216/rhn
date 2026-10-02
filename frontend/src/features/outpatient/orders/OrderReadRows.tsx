@@ -1,13 +1,13 @@
 import type { MedicationRequest, ServiceRequest } from '../../../shared/api/encountersApi'
 import type { SkinTestWorkItem } from '../../../shared/api/treatmentApi'
 import { Button, Popconfirm, StatusBadge } from '../../../shared/ui'
-import { formatPackageUnit, resolveExecutingDepartment, serviceTypeLabel, formatServiceExecution, orderStatusLabel, formatUnitPrice } from './orderPresentation'
+import { formatPackageUnit, resolveExecutingDepartment, formatServiceExecution, orderStatusLabel, formatUnitPrice } from './orderPresentation'
 import { OrderTypeBadge, AdministrationGroupBracket } from './OrderRowDecorations'
 
-export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isTail, isMid, onCancel, onPrint, currentDept, documentLink }: {
+export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isTail, isMid, onCancel, currentDept, documentLink }: {
   value: MedicationRequest; skinTest?: SkinTestWorkItem; busy: boolean; readOnly: boolean
   isHead?: boolean; isTail?: boolean; isMid?: boolean
-  onCancel: () => void; onPrint?: () => void
+  onCancel: () => void
   documentLink?: { key: string; label: string; selected: boolean }
   currentDept?: string
 }) {
@@ -66,7 +66,6 @@ export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isT
       ) : null}
     </span>
     {!readOnly && <span className="doctor-unified-order-actions">
-      {onPrint && <Button size="sm" variant="text" onClick={onPrint}>打印</Button>}
       {value.status !== 'CANCELLED' && (
         <Popconfirm
           title={`确认撤销“${value.itemName || value.medicationName}”？`}
@@ -92,8 +91,8 @@ export function doctorSkinTestLabel(value?: SkinTestWorkItem['status']) {
   return '待皮试'
 }
 
-export function ServiceReadRow({ value, busy, readOnly, onCancel, onPrint, currentDept, documentLink }: {
-  value: ServiceRequest; busy: boolean; readOnly: boolean; onCancel: () => void; onPrint?: () => void
+export function ServiceReadRow({ value, busy, readOnly, onCancel, currentDept, documentLink }: {
+  value: ServiceRequest; busy: boolean; readOnly: boolean; onCancel: () => void
   documentLink?: { key: string; label: string; selected: boolean }
   currentDept?: string
 }) {
@@ -104,6 +103,7 @@ export function ServiceReadRow({ value, busy, readOnly, onCancel, onPrint, curre
     </span>
     <span className="doctor-unified-directions">
       <span className="doctor-direction-service">{formatServiceExecution(value.serviceType)}</span>
+      {value.clinicalDescription && <span className="doctor-unified-order-detail" title={value.clinicalDescription}>临床说明：{value.clinicalDescription}</span>}
     </span>
     <span className="doctor-unified-cell-qty">
       <strong>{value.quantity}</strong> <small>{value.unitCode}</small>
@@ -117,13 +117,12 @@ export function ServiceReadRow({ value, busy, readOnly, onCancel, onPrint, curre
         }, currentDept)}
       </span>
     </span>
-    <span className="doctor-unified-order-detail">{value.clinicalDescription || serviceTypeLabel(value.serviceType)}</span>
+    <span className="doctor-unified-order-detail">—</span>
     <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span className="doctor-order-status-stack">
       <StatusBadge tone={value.status === 'ACTIVE' ? 'success' : 'neutral'}>{orderStatusLabel(value.status)}</StatusBadge>
     </span>
     {!readOnly && <span className="doctor-unified-order-actions">
-      {onPrint && <Button size="sm" variant="text" onClick={onPrint}>打印</Button>}
       {value.status === 'ACTIVE' && (
         <Popconfirm
           title={`确认撤销“${value.itemName}”？`}

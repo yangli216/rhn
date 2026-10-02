@@ -170,6 +170,8 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
     mutationFn: (template: OutpatientPlanTemplate) =>
       api.outpatientPlanTemplates.disable(template.id, template.revision),
     onSuccess: async (updated) => {
+      queryClient.setQueriesData<OutpatientPlanTemplate[]>({ queryKey: ['outpatient-plan-templates'] },
+        (current) => current?.filter((template) => template.id !== updated.id))
       await queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
       setNotice(`已成功停用方案“${updated.name}”。`)
     },

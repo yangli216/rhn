@@ -62,6 +62,9 @@ public class PlanInvestigationDecisionService {
             if (aliases != null) {
                 var aliasIds = aliases.findActiveServiceIdsByAlias(context.tenantId(), intent.name());
                 var aliasMatches = found.stream().filter(item -> aliasIds.contains(item.id())).toList();
+                if (aliasMatches.isEmpty() && !aliasIds.isEmpty()) {
+                    aliasMatches = catalog.findOrderableServicesByIds(aliasIds, context.organizationId(), today);
+                }
                 if (aliasMatches.size() == 1) {
                     ServiceView item = aliasMatches.getFirst();
                     resolved.put(intent.key(), new Resolution(item, List.of(toResolved(item)),
@@ -93,6 +96,9 @@ public class PlanInvestigationDecisionService {
                 }
                 if (found.isEmpty() && !intent.name().endsWith("测定")) {
                     found = catalog.searchOrderableServices(intent.name() + "测定", intent.type(), context.organizationId(), today);
+                }
+                if (found.isEmpty() && "EXAMINATION".equals(intent.type())) {
+                    found = expandExaminationCandidates(intent.name(), context.organizationId(), today);
                 }
                 exact = found.stream().filter(item -> exact(intent.name(), item)).toList();
                 if (exact.size() == 1) {
@@ -174,6 +180,53 @@ public class PlanInvestigationDecisionService {
         if (name.equalsIgnoreCase(item.code()) || matchesExactOrAssay(name, item.name())) return true;
         var adoption = item.organizationAdoption();
         return adoption != null && (name.equalsIgnoreCase(adoption.localCode()) || matchesExactOrAssay(name, adoption.localName()));
+    }
+
+    private List<ServiceView> expandExaminationCandidates(String intentName, Long organizationId, LocalDate today) {
+        if (intentName == null || intentName.isBlank()) return List.of();
+        String transformed = intentName
+                .replace("摄片", "摄影")
+                .replace("X光", "X线")
+                .replace("平片", "摄影");
+        if (!transformed.equals(intentName)) {
+            var direct = catalog.searchOrderableServices(transformed, "EXAMINATION", organizationId, today);
+            if (!direct.isEmpty()) return direct;
+        }
+
+        for (String site : List.of("胸部", "腹部", "头颅", "颅脑", "盆腔", "颈部", "腰椎", "胸椎", "颈椎",
+                "骨盆", "双肺", "肺部", "膝关节", "肩关节", "肘关节", "腕关节", "髋关节", "踝关节", "心脏", "乳腺", "甲状腺")) {
+            if (intentName.contains(site)) {
+                var siteCandidates = catalog.searchOrderableServices(site, "EXAMINATION", organizationId, today);
+                if (siteCandidates.isEmpty()) continue;
+                boolean isRadiology = intentName.matches(".*(?:X线|X光|摄片|摄影|DR|CR|透视|平片|拍片).*");
+                if (isRadiology) {
+                    var filtered = siteCandidates.stream()
+                            .filter(item -> item.name() != null && item.name().matches(".*(?:X线|摄影|DR|CR|透视|放射).*"))
+                            .toList();
+                    if (!filtered.isEmpty()) return filtered;
+                }
+                if (intentName.matches(".*(?:CT|计算机断层).*")) {
+                    var filtered = siteCandidates.stream()
+                            .filter(item -> item.name() != null && item.name().toUpperCase().contains("CT"))
+                            .toList();
+                    if (!filtered.isEmpty()) return filtered;
+                }
+                if (intentName.matches(".*(?:MRI|磁共振).*")) {
+                    var filtered = siteCandidates.stream()
+                            .filter(item -> item.name() != null && (item.name().toUpperCase().contains("MRI") || item.name().contains("磁共振")))
+                            .toList();
+                    if (!filtered.isEmpty()) return filtered;
+                }
+                if (intentName.matches(".*(?:超声|B超|彩超).*")) {
+                    var filtered = siteCandidates.stream()
+                            .filter(item -> item.name() != null && (item.name().contains("超声") || item.name().contains("彩超")))
+                            .toList();
+                    if (!filtered.isEmpty()) return filtered;
+                }
+                return siteCandidates;
+            }
+        }
+        return List.of();
     }
 
     private boolean matchesExactOrAssay(String name, String catalogName) {

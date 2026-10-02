@@ -252,6 +252,7 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
         boolean businessFieldMatch = startsWith(medView.code(), normalizedQuery)
                 || contains(medView.name(), normalizedQuery)
                 || contains(medView.aliasName(), normalizedQuery)
+                || matchesCompoundForm(medView.name(), normalizedQuery)
                 || contains(medView.preparationSpec(), normalizedQuery)
                 || matchedProduct != null && (startsWith(matchedProduct.code(), normalizedQuery)
                         || contains(matchedProduct.name(), normalizedQuery)
@@ -259,6 +260,29 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                         || startsWith(matchedProduct.registrationCode(), normalizedQuery)
                         || startsWith(matchedProduct.purchaseCode(), normalizedQuery));
         return directoryMatch || businessFieldMatch;
+    }
+
+    private static final java.util.regex.Pattern COMPOUND_FORM_PATTERN =
+            java.util.regex.Pattern.compile("^(.*?)[（\\(](.*?)[）\\)]$");
+
+    private boolean matchesCompoundForm(String catalogName, String normalizedQuery) {
+        if (catalogName == null || normalizedQuery == null || normalizedQuery.isBlank()) return false;
+        var matcher = COMPOUND_FORM_PATTERN.matcher(catalogName.trim());
+        if (!matcher.matches()) return false;
+        String baseName = matcher.group(1).trim().toLowerCase(java.util.Locale.ROOT).replaceAll("[\\p{P}\\p{Z}\\s]+", "");
+        String formPart = matcher.group(2).trim().toLowerCase(java.util.Locale.ROOT);
+        String normQuery = normalizedQuery.trim().toLowerCase(java.util.Locale.ROOT).replaceAll("[\\p{P}\\p{Z}\\s]+", "");
+        if (baseName.isBlank() || formPart.isBlank()) return false;
+        if (!normQuery.startsWith(baseName)) return false;
+        String suffix = normQuery.substring(baseName.length());
+        if (suffix.isBlank()) return false;
+        for (String form : formPart.split("[,，、/\\s]+")) {
+            String cleanForm = form.replaceAll("[\\p{P}\\p{Z}\\s]+", "");
+            if (suffix.equals(cleanForm) || suffix.equals(cleanForm.replaceAll("剂$", "")) || (cleanForm + "剂").equals(suffix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private record SiteStockCandidates(

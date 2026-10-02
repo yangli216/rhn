@@ -34,6 +34,16 @@ export function savedOrderEntries(services: ServiceRequest[], medications: Medic
   })
 }
 
+// Pending rows are category groups, not the backend's final split documents.
+export function draftCategoryOf(entry: DraftOrderEntry) {
+  if (entry.kind === 'medication') {
+    return entry.value.categoryCode === 'HERBAL' || entry.value.editorMode === 'herbal' ? 'herbal' : 'regular-med'
+  }
+  if (entry.value.serviceType === 'LABORATORY') return 'lab'
+  if (entry.value.serviceType === 'EXAMINATION') return 'exam'
+  return 'other-service'
+}
+
 export function draftOrderEntries(serviceDrafts: ServicePlanDraft[], medicationDrafts: MedicationPlanDraft[]): DraftOrderEntry[] {
   const rawEntries: Array<
     { kind: 'service'; value: ServicePlanDraft } | { kind: 'medication'; value: MedicationPlanDraft }
@@ -54,7 +64,18 @@ export function draftOrderEntries(serviceDrafts: ServicePlanDraft[], medicationD
     }
   }
 
+  // Keep each category contiguous; preserve first-appearance order and infusion order within it.
+  const categoryMinSequence = new Map<string, number>()
+  for (const entry of rawEntries) {
+    const category = draftCategoryOf(entry)
+    categoryMinSequence.set(category, Math.min(categoryMinSequence.get(category) ?? Infinity, entry.value.sequence ?? 0))
+  }
+  const categories = [...categoryMinSequence.keys()].sort((left, right) =>
+    categoryMinSequence.get(left)! - categoryMinSequence.get(right)!)
+
   return rawEntries.sort((left, right) => {
+    const categoryOrder = categories.indexOf(draftCategoryOf(left)) - categories.indexOf(draftCategoryOf(right))
+    if (categoryOrder) return categoryOrder
     const leftGroup = left.kind === 'medication' ? left.value.administrationGroupKey : undefined
     const rightGroup = right.kind === 'medication' ? right.value.administrationGroupKey : undefined
 

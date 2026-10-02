@@ -1,7 +1,7 @@
 import { Button, Popconfirm, StatusBadge } from '../../../shared/ui'
 import type { MedicationPlanDraft } from './medicationDraft'
 import { type ServicePlanDraft } from './orderDraftTypes'
-import { formatPackageUnit, resolveExecutingDepartment, serviceTypeLabel, formatServiceExecution, formatUnitPrice } from './orderPresentation'
+import { formatPackageUnit, resolveExecutingDepartment, formatServiceExecution, formatUnitPrice } from './orderPresentation'
 import { OrderTypeBadge, AdministrationGroupBracket } from './OrderRowDecorations'
 
 export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRemove, onAppendToGroup, currentDept }: {
@@ -99,6 +99,7 @@ export function ServiceDraftRow({ value, onEdit, onRemove, currentDept }: {
     </span>
     <span className="doctor-unified-directions">
       <span className="doctor-direction-service">{formatServiceExecution(value.serviceType)}</span>
+      {value.clinicalDescription && <span className="doctor-unified-order-detail" title={value.clinicalDescription}>临床说明：{value.clinicalDescription}</span>}
     </span>
     <span className="doctor-unified-cell-qty">
       <strong>{value.quantity}</strong> <small>{value.unitCode}</small>
@@ -112,7 +113,7 @@ export function ServiceDraftRow({ value, onEdit, onRemove, currentDept }: {
         }, currentDept)}
       </span>
     </span>
-    <span className="doctor-unified-order-detail">{value.clinicalDescription || serviceTypeLabel(value.serviceType)}</span>
+    <span className="doctor-unified-order-detail">—</span>
     <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span className="doctor-order-status-stack">
       <StatusBadge tone="warning">待确认</StatusBadge>

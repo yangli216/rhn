@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
-import { OrderDocumentReviewCard, type ReviewItemDisplay } from './OrderDocumentReviewCard'
+import { OrderDocumentReviewCard, OrderDocumentReviewList, type ReviewItemDisplay } from './OrderDocumentReviewCard'
 import { buildDefaultDocumentInfo, getPrimaryDiagnosis } from './orderDocumentDefaults'
 import type { Encounter } from '../../../shared/model'
 
@@ -34,6 +34,51 @@ describe('OrderDocumentReviewCard', () => {
     },
   ]
 
+  it('shows split reasons only when hovering or focusing the information icon', async () => {
+    const user = userEvent.setup()
+    render(<OrderDocumentReviewCard cardKey="preview" title="西1" kind="western" items={defaultItems}
+      ruleReasons={['单列药品一药一方']} info={buildDefaultDocumentInfo(mockEncounter, 'prescription')}
+      onChangeInfo={vi.fn()} encounter={mockEncounter} />)
+    const trigger = screen.getByRole('button', { name: '查看分方原因' })
+    expect(screen.queryByText('单列药品一药一方')).not.toBeInTheDocument()
+    await user.hover(trigger)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('单列药品一药一方')
+    await user.unhover(trigger)
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    fireEvent.focus(trigger)
+    expect(screen.getByRole('tooltip')).toHaveTextContent('单列药品一药一方')
+    fireEvent.blur(trigger)
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it('keeps distinct document boundaries with one shared header and collapsed optional fields', async () => {
+    const user = userEvent.setup()
+    render(<OrderDocumentReviewList>
+      <OrderDocumentReviewCard cardKey="rx" title="西1" kind="western" deptOrSite="西药房"
+        items={[...defaultItems, { id: 'second', name: '第二项药品', quantityText: '2 盒' }]}
+        info={{ ...buildDefaultDocumentInfo(mockEncounter, 'prescription'), externalPrescription: true, specialDisease: '慢病' }}
+        onChangeInfo={vi.fn()} encounter={mockEncounter} />
+      <OrderDocumentReviewCard cardKey="lab" title="检1" kind="lab" deptOrSite="检验科"
+        items={[{ name: '血常规', quantityText: '1 次', note: '全血 · 明确感染类型' }]}
+        info={buildDefaultDocumentInfo(mockEncounter, 'service', '明确感染类型')}
+        onChangeInfo={vi.fn()} encounter={mockEncounter} readOnly />
+    </OrderDocumentReviewList>)
+    expect(screen.getAllByRole('table')).toHaveLength(1)
+    expect(screen.getAllByRole('columnheader')).toHaveLength(3)
+    const prescription = screen.getByRole('rowgroup', { name: '西1单据' })
+    expect(prescription).toHaveTextContent('2 项')
+    expect(prescription).toHaveTextContent('外配')
+    expect(prescription).toHaveTextContent('慢病')
+    const laboratory = screen.getByRole('rowgroup', { name: '检1单据' })
+    expect(within(laboratory).queryByRole('button', { name: '修改' })).not.toBeInTheDocument()
+    expect(screen.getAllByText('明确感染类型')).toHaveLength(1)
+    expect(within(laboratory).getByText('全血')).toBeInTheDocument()
+    await user.click(within(prescription).getByRole('button', { name: '修改' }))
+    expect(screen.getByRole('checkbox', { name: '外配处方' })).toBeChecked()
+    await user.click(within(prescription).getByRole('button', { name: '收起' }))
+    expect(screen.queryByRole('checkbox', { name: '外配处方' })).not.toBeInTheDocument()
+  })
+
   it('inherits primary diagnosis by default', () => {
     const primary = getPrimaryDiagnosis(mockEncounter)
     expect(primary?.code).toBe('J06.9')
@@ -64,7 +109,10 @@ describe('OrderDocumentReviewCard', () => {
     expect(screen.getByText('连花清瘟胶囊')).toBeInTheDocument()
     expect(screen.getByText('示范制药 / 0.35g*24粒/盒')).toBeInTheDocument()
     expect(screen.queryByText('口服；每日一次')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('信息齐备')).toBeInTheDocument()
+    expect(screen.queryByLabelText('信息齐备')).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('门诊特病病种')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '修改' }))
     const diagnosisSelect = screen.getByRole('combobox', { name: '诊断' })
     expect(diagnosisSelect).toHaveTextContent('急性上呼吸道感染，未特指')
 
@@ -103,6 +151,7 @@ describe('OrderDocumentReviewCard', () => {
     expect(screen.getByText('检验科')).toBeInTheDocument()
     expect(screen.getByText('缺检查目的')).toBeInTheDocument()
 
+    fireEvent.click(screen.getByRole('button', { name: '补充' }))
     fireEvent.change(screen.getByLabelText('检查目的'), { target: { value: '明确感染类型' } })
     expect(onChangeInfo).toHaveBeenCalledWith(expect.objectContaining({
       examinationPurpose: '明确感染类型',
@@ -122,7 +171,7 @@ describe('OrderDocumentReviewCard', () => {
       />
     )
 
-    expect(screen.getByLabelText('信息齐备')).toBeInTheDocument()
+    expect(screen.queryByText(/缺检查目的/)).not.toBeInTheDocument()
     expect(screen.queryByLabelText('检查目的')).not.toBeInTheDocument()
   })
 })

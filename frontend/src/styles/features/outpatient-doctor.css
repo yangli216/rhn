@@ -171,7 +171,9 @@
 .doctor-note-template-facts { margin-top: var(--space-3); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .doctor-note-template-facts > span { padding: var(--space-2); border-radius: var(--radius-sm); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); }
 .doctor-note-template-facts > span.is-ready { color: var(--color-success-strong); background: var(--color-success-soft); }
-.doctor-record-form { padding: var(--space-2) var(--space-3) var(--space-3); display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-2); background: var(--color-surface); line-height: var(--line-height-body); border-bottom-left-radius: calc(var(--radius-md) - var(--radius-sm)); border-bottom-right-radius: calc(var(--radius-md) - var(--radius-sm)); }
+.doctor-record-form { --doctor-record-label-width: 6em; padding: var(--space-2) var(--space-3) var(--space-3); display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-2); background: var(--color-surface); line-height: var(--line-height-body); border-bottom-left-radius: calc(var(--radius-md) - var(--radius-sm)); border-bottom-right-radius: calc(var(--radius-md) - var(--radius-sm)); }
+
+.doctor-record-form > .doctor-record-narrative { grid-template-columns: var(--doctor-record-label-width) minmax(0, 1fr); }
 
 .doctor-record-field--chief textarea.ui-field__control { min-height: 2.75rem; }
 .doctor-record-field--present textarea.ui-field__control { min-height: 4.25rem; }
@@ -181,7 +183,7 @@
   min-width: 0;
   padding: var(--space-1) 0;
   display: grid;
-  grid-template-columns: 6.8rem minmax(0, 1fr);
+  grid-template-columns: var(--doctor-record-label-width, 6em) minmax(0, 1fr);
   align-items: start;
   gap: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
@@ -1725,7 +1727,7 @@
 }
 
 /* ==========================================================================
-   门诊处方自动分方规则工作台 (PC 端桌面宽屏多列网格卡片流)
+   门诊开立核查：共用列头、单据分组、按需编辑
    ========================================================================== */
 .doctor-split-review-container {
   display: flex;
@@ -1850,150 +1852,22 @@
   margin-left: auto;
 }
 
-.doctor-split-prescriptions-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: var(--space-3);
-  max-height: 58vh;
-  overflow-y: auto;
-  padding: var(--space-1);
-}
-
-.doctor-prescription-preview-card {
-  display: flex;
-  flex-direction: column;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.doctor-prescription-preview-card.is-service-card {
-  border-left: 3px solid var(--color-brand-strong);
-}
-
-.doctor-prescription-preview-card__head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface-subtle);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.doctor-prescription-preview-card__title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: 0 0 auto;
-}
-
-.doctor-prescription-preview-card__site {
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.doctor-review-card-head-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.doctor-review-card__complete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-success);
-}
-
-.doctor-review-card__head-controls {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-  gap: var(--space-2);
-  font-size: var(--font-size-small);
-}
-
-.doctor-review-card__head-controls .ui-select {
-  flex: 1;
-  min-width: 0;
-}
-
-.doctor-review-card__diagnosis-select {
-  min-width: 16rem;
-}
-
-.doctor-review-card__empty-hint {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-small);
-}
-
-.doctor-review-checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  cursor: pointer;
-}
-
-.doctor-review-card__text-input {
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--font-size-small);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  min-width: 12rem;
-}
-
-.doctor-review-card__text-input.is-purpose {
-  flex: 1;
-}
-
-.doctor-review-card__text-input.is-missing {
-  border-color: var(--color-warning);
-}
+.doctor-review-list { max-height: 58vh; min-height: 0; }
+.doctor-review-name-col { width: 32%; }
+.doctor-review-quantity-col { width: 12%; }
+.doctor-review-document-head { background: var(--color-surface-subtle); }
+.doctor-review-document-summary { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.doctor-review-document-identity { display: flex; align-items: center; gap: var(--space-2); }
+.doctor-review-document-identity span { color: var(--color-text-secondary); }
+.doctor-review-document-diagnoses { flex: 1; min-width: 12rem; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-review-document-actions { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+.doctor-review-document-editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: var(--space-3); }
+.doctor-review-external { display: flex; align-items: center; gap: var(--space-1); padding-block: var(--space-2); }
+.doctor-review-table td small { display: block; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-review-table tr.is-infusion-row { background: color-mix(in srgb, var(--color-brand-soft) 35%, transparent); }
 
 .doctor-safety-review-loading {
   margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-small);
-}
-
-.doctor-prescription-preview-table {
-  width: 100%;
-  font-size: var(--font-size-small);
-}
-
-.doctor-prescription-preview-table th {
-  background: var(--color-surface-subtle);
-  padding: var(--space-1) var(--space-2);
-  text-align: left;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.doctor-prescription-preview-table td {
-  padding: var(--space-2);
-  border-bottom: 1px solid var(--color-border);
-  vertical-align: middle;
-}
-
-.doctor-prescription-preview-table tr.is-infusion-row {
-  background: color-mix(in srgb, var(--color-brand-soft) 35%, transparent);
-}
-
-.doctor-prescription-preview-table td strong {
-  display: block;
-  color: var(--color-text-primary);
-}
-
-.doctor-prescription-preview-table td small {
-  display: block;
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
 }
@@ -4626,3 +4500,254 @@
   min-width: var(--target-size-min);
   min-height: var(--target-size-min);
 }
+
+/* Controlled Print Center & Workstation Outputs */
+.doctor-print-center-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.doctor-print-center-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  overflow-y: auto;
+}
+.doctor-print-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.doctor-print-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.doctor-print-section-header strong {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+.doctor-print-section-header small {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+.doctor-print-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.doctor-print-doc-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+}
+.doctor-print-doc-item.is-draft {
+  opacity: 0.75;
+}
+.doctor-print-doc-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.doctor-print-doc-title {
+  font-weight: var(--font-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doctor-print-doc-meta small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+.doctor-print-compliance-notice {
+  margin: var(--space-3) 0;
+}
+
+/* 门诊就诊文书批量受控打印 */
+.doctor-batch-print-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 38rem;
+  max-width: 52rem;
+}
+
+.doctor-batch-print-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.doctor-batch-select-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doctor-batch-count-hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  margin-left: var(--space-2);
+}
+
+.doctor-batch-count-hint strong {
+  color: var(--color-brand-primary);
+}
+
+.doctor-batch-options {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.doctor-batch-option-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.doctor-batch-option-item input {
+  padding: var(--space-1);
+  font-size: var(--font-size-small);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.doctor-batch-option-item input[type="number"] {
+  width: 3.5rem;
+}
+
+.doctor-batch-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 24rem;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.doctor-batch-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.doctor-batch-item:hover:not(.is-disabled) {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-surface));
+}
+
+.doctor-batch-item.is-checked {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-surface));
+}
+
+.doctor-batch-item.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--color-surface-subtle);
+}
+
+.doctor-batch-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.doctor-batch-item-info strong {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.doctor-batch-item-info small {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.doctor-batch-item-reason {
+  color: var(--color-warning);
+}
+
+.doctor-batch-receipts-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.doctor-batch-receipts-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.doctor-batch-receipt-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 20rem;
+  overflow-y: auto;
+}
+
+.doctor-batch-receipt-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.doctor-batch-receipt-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.doctor-batch-receipt-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doctor-completion-print-option {
+  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+

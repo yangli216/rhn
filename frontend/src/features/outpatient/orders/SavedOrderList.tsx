@@ -164,11 +164,8 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
         if (entry.kind === 'service') {
           rowNode = <ServiceReadRow key={`service-${entry.value.id}`} value={entry.value}
             busy={busy || Boolean(documentEditing && documentRows[entry.value.id]?.selected)} readOnly={readOnly} currentDept={currentDept}
-            documentLink={documentRows[entry.value.id]} onCancel={() => onCancelService(entry.value)}
-            onPrint={entry.value.status === 'ACTIVE' ? () => onPrintService(entry.value) : undefined} />
+            documentLink={documentRows[entry.value.id]} onCancel={() => onCancelService(entry.value)} />
         } else {
-          const prescription = prescriptions.find((value) => value.id === entry.value.prescriptionId)
-          const firstLine = prescription?.medicationRequests.find((value) => value.status === 'ACTIVE')?.id === entry.value.id
           const prev = index > 0 ? savedEntries[index - 1] : undefined
           const next = index < savedEntries.length - 1 ? savedEntries[index + 1] : undefined
           const entryGroupId = entry.value.parentRequestId || entry.value.id
@@ -216,8 +213,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
             readOnly={readOnly}
             currentDept={currentDept}
             skinTest={skinTestByRequest.get(entry.value.id)}
-            onCancel={() => onCancelMedication(entry.value)}
-            onPrint={prescription && firstLine && canPrintPrescription(prescription) ? () => onPrint(prescription) : undefined} />
+            onCancel={() => onCancelMedication(entry.value)} />
         }
         if (groupingComposerTarget?.type === 'saved' && groupingComposerTarget.index === index) {
           return (

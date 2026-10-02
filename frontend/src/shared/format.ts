@@ -1,5 +1,9 @@
-import type { Encounter } from './model'
+import type { Encounter, Resident } from './model'
 import { encounterStatusPresentation } from './presentation'
+
+export function genderLabel(gender?: Resident['gender'] | string) {
+  return gender === 'MALE' ? '男' : gender === 'FEMALE' ? '女' : '未知'
+}
 
 export function age(birthDate: string) {
   const birth = new Date(birthDate)

@@ -26,10 +26,17 @@ public class MedicationCandidateMatchingService {
         List<OutpatientPrescriptionInventoryDirectory.OrderableMedicationView> medications = inventory
                 .findOrderableMedications(tenantId, organizationId, departmentId, intent.medicationName()).stream()
                 .filter(value -> "ACTIVE".equals(value.sdStatus()))
-                .filter(value -> exact(intent.medicationName(), value.name())
-                        || exact(intent.medicationName(), value.code())
-                        || exact(intent.medicationName(), value.aliasName()))
+                .filter(value -> matchesMedication(intent.medicationName(), value))
                 .toList();
+        if (medications.isEmpty()) {
+            String stem = extractMedicationStem(intent.medicationName());
+            if (stem != null && !stem.isBlank() && !stem.equals(intent.medicationName())) {
+                medications = inventory.findOrderableMedications(tenantId, organizationId, departmentId, stem).stream()
+                        .filter(value -> "ACTIVE".equals(value.sdStatus()))
+                        .filter(value -> matchesMedication(intent.medicationName(), value))
+                        .toList();
+            }
+        }
         if (medications.isEmpty()) return Result.unavailable("当前机构可开药目录没有通用名精确匹配项");
         if (medications.size() > 1) return Result.ambiguous("MEDICATION", medications.size());
         var medication = medications.getFirst();
@@ -76,6 +83,60 @@ public class MedicationCandidateMatchingService {
     private boolean exact(String left, String right) {
         return !blank(left) && !blank(right) && normalized(left).equals(normalized(right));
     }
+    private boolean matchesMedication(String intentName, OutpatientPrescriptionInventoryDirectory.OrderableMedicationView value) {
+        if (exact(intentName, value.name()) || exact(intentName, value.code())) {
+            return true;
+        }
+        if (!blank(value.aliasName())) {
+            for (String alias : value.aliasName().split("[,，;；\\s]+")) {
+                if (exact(intentName, alias)) return true;
+            }
+        }
+        return matchesCompoundDosageForm(intentName, value.name());
+    }
+
+    private static final java.util.regex.Pattern COMPOUND_FORM_PATTERN =
+            java.util.regex.Pattern.compile("^(.*?)[（\\(](.*?)[）\\)]$");
+
+    private boolean matchesCompoundDosageForm(String intentName, String catalogName) {
+        if (blank(intentName) || blank(catalogName)) return false;
+        var matcher = COMPOUND_FORM_PATTERN.matcher(catalogName.trim());
+        if (!matcher.matches()) return false;
+        String baseName = matcher.group(1).trim();
+        String formPart = matcher.group(2).trim();
+        if (baseName.isBlank() || formPart.isBlank()) return false;
+
+        String normIntent = normalized(intentName);
+        String normBase = normalized(baseName);
+        if (!normIntent.startsWith(normBase)) return false;
+
+        String intentSuffix = normIntent.substring(normBase.length());
+        if (intentSuffix.isBlank()) return false;
+
+        String[] forms = formPart.split("[,，、/\\s]+");
+        for (String form : forms) {
+            String normForm = normalized(form);
+            if (normForm.isBlank()) continue;
+            if (intentSuffix.equals(normForm)
+                    || intentSuffix.equals(normForm.replaceAll("剂$", ""))
+                    || (normForm + "剂").equals(intentSuffix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static final java.util.regex.Pattern DOSAGE_FORM_SUFFIX = java.util.regex.Pattern.compile(
+            "(?:胶囊剂|胶囊|片剂|片|口服溶液|口服液|颗粒剂|颗粒|混悬滴剂|混悬液|糖浆剂|糖浆|滴剂|注射液|注射用冻干粉针|冻干粉针|注射剂"
+                    + "|软膏剂|软膏|乳膏剂|乳膏|凝胶剂|凝胶|滴眼液|滴鼻液|喷雾剂|吸入气雾剂|气雾剂|栓剂|栓|贴膏剂|贴膏|贴剂|散剂|散|洗剂)$");
+
+    private String extractMedicationStem(String medicationName) {
+        if (blank(medicationName)) return null;
+        String trimmed = medicationName.trim();
+        String stem = DOSAGE_FORM_SUFFIX.matcher(trimmed).replaceFirst("").trim();
+        return (stem.length() >= 2 && !stem.equals(trimmed)) ? stem : null;
+    }
+
     private boolean contains(String source, String candidate) {
         return !blank(source) && !blank(candidate) && normalized(source).contains(normalized(candidate));
     }

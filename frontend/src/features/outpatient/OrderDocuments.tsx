@@ -51,11 +51,20 @@ export function documentMissing(doc: OrderDocument): string[] {
       && !info?.examinationPurpose?.trim() ? '检查目的' : ''].filter(Boolean)
 }
 
-export function OrderDocumentSummary({ documents, selectedKey, onSelect }: {
-  documents: OrderDocument[]; selectedKey: string | null; onSelect: (key: string) => void
+export function OrderDocumentSummary({
+  documents,
+  selectedKey,
+  onSelect,
+}: {
+  documents: OrderDocument[]
+  selectedKey: string | null
+  onSelect: (key: string) => void
+  onPrintDocument?: (doc: OrderDocument) => void
+  onOpenPrintCenter?: () => void
 }) {
   if (!documents.length) return null
   const missing = documents.filter(doc => documentMissing(doc).length > 0).length
+
   return <nav className="doctor-document-summary" aria-label="本次就诊单据">
     <strong>单据</strong>
     <div className="doctor-document-chips">{documents.map(doc => <button type="button" key={doc.key}
@@ -67,9 +76,11 @@ export function OrderDocumentSummary({ documents, selectedKey, onSelect }: {
       {doc.value.documentInfo?.specialDisease && <em>特病</em>}
       {documentMissing(doc).length > 0 && <span className="doctor-document-missing" aria-label="待完善">·</span>}
     </button>)}</div>
-    <Button size="sm" variant="text" onClick={() => onSelect((documents.find(doc => documentMissing(doc).length) || documents[0]).key)}>
-      {missing ? `${missing}张待完善` : '单据管理'}
-    </Button>
+    <div className="doctor-document-summary-actions">
+      <Button size="sm" variant="text" onClick={() => onSelect((documents.find(doc => documentMissing(doc).length) || documents[0]).key)}>
+        {missing ? `${missing}张待完善` : '单据管理'}
+      </Button>
+    </div>
   </nav>
 }
 

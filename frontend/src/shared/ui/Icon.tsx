@@ -20,6 +20,7 @@ export type IconName =
   | 'syringe'
   | 'close'
   | 'copy'
+  | 'download'
   | 'error'
   | 'credential'
   | 'drag'
@@ -83,6 +84,7 @@ function iconPath(name: IconName) {
     case 'syringe': return <><path d="m18 2 4 4M17 7l3-3M19 9 8.7 19.3a1 1 0 0 1-1.4 0l-2.6-2.6a1 1 0 0 1 0-1.4L15 5M9 11l4 4M5 19l-3 3M14 4l6 6" /></>
     case 'close': return <><path d="m6 6 12 12" /><path d="m18 6-12 12" /></>
     case 'copy': return <><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></>
+    case 'download': return <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></>
     case 'error': return <><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" /></>
     case 'credential': return <><rect x="5" y="2" width="14" height="20" rx="2" /><path d="M9 6h6M8 17h8" /><path d="m9 13 2 2 4-4" /></>
     case 'drag': return <><circle cx="9" cy="6" r="1" fill="currentColor" stroke="none" /><circle cx="15" cy="6" r="1" fill="currentColor" stroke="none" /><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="9" cy="18" r="1" fill="currentColor" stroke="none" /><circle cx="15" cy="18" r="1" fill="currentColor" stroke="none" /></>

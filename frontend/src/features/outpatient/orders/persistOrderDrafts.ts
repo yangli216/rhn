@@ -33,6 +33,7 @@ export function draftToBatchItem(draft: MedicationPlanDraft): BatchOrderMedicati
     allergyOverrideReason: draft.request.allergyOverrideReason,
     priceType: draft.request.priceType,
     pricingRequired: draft.request.pricingRequired,
+    stockSiteId: draft.stockSiteId,
     stockSiteName: draft.stockSiteName,
     administrationGroupKey: draft.administrationGroupKey,
     routeExecutionType: draft.routeExecutionType,
@@ -42,6 +43,23 @@ export function draftToBatchItem(draft: MedicationPlanDraft): BatchOrderMedicati
     exemptEvidenceEventId: draft.request.exemptEvidenceEventId,
     reason: draft.request.reason,
   }
+}
+
+/** Missing product IDs must never match two unrelated generic medication drafts. */
+export function matchSplitPreviewDraft(drafts: MedicationPlanDraft[], item: BatchOrderMedicationItem) {
+  const sameId = (left: unknown, right: unknown) => left != null && right != null && String(left) === String(right)
+  const candidates = drafts.filter((draft) => {
+    if (item.medicationId != null && !sameId(draft.request.medicationId, item.medicationId)) return false
+    if (item.catalogItemId != null && !sameId(draft.request.catalogItemId, item.catalogItemId)) return false
+    return item.medicationId != null || item.catalogItemId != null
+  })
+  if (candidates.length === 1) return candidates[0]
+  const fields = ['packageId', 'doseValue', 'doseUnit', 'routeCode', 'frequencyCode', 'durationValue',
+    'durationUnit', 'quantity', 'quantityUnit', 'medicationInstruction', 'administrationGroupKey'] as const
+  return candidates.find((draft) => {
+    const source = draftToBatchItem(draft)
+    return fields.every((key) => String(source[key] ?? '') === String(item[key] ?? ''))
+  })
 }
 
 export async function persistOrderDrafts(
