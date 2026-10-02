@@ -1,5 +1,8 @@
 package com.rhn.pharmacy.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -10,7 +13,9 @@ public final class InventoryPriceAdjustmentViews {
 
     public record PriceAdjustmentView(
             Long id, long revision, Long stockSiteId, Long inventoryPeriodId, String adjustmentNo,
-            String requestCode, String adjustmentType, String priceType, LocalDate businessDate,
+            String requestCode, String adjustmentType,
+            @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
+            LocalDate businessDate,
             String currencyCode, String priceDocumentCode, String reason, String status,
             int lineCount, BigDecimal totalValueBefore, BigDecimal totalValueAfter,
             BigDecimal totalAdjustmentAmount, Instant createdAt, Long createdBy,

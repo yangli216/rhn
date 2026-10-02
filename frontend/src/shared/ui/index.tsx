@@ -407,6 +407,7 @@ export function Dialog({
   onClose,
   children,
   footer,
+  actions,
   closeOnBackdrop = true,
   size = 'default',
   className = '',
@@ -420,6 +421,7 @@ export function Dialog({
   description?: string
   onClose: () => void
   footer?: ReactNode
+  actions?: ReactNode
   closeOnBackdrop?: boolean
   size?: 'default' | 'wide' | 'xwide'
   className?: string
@@ -503,7 +505,7 @@ export function Dialog({
     const autoFocusTarget = dialog?.querySelector<HTMLElement>('[autofocus]')
     const focusedInsideDialog = document.activeElement instanceof HTMLElement && dialog?.contains(document.activeElement)
       ? document.activeElement : null
-    ;(initialFocusTargetRef.current?.current ?? focusedInsideDialog ?? autoFocusTarget ?? focusable[0] ?? dialog)?.focus()
+    ;(initialFocusTargetRef.current?.current ?? focusedInsideDialog ?? autoFocusTarget ?? focusable[0] ?? dialog)?.focus({ preventScroll: true })
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -515,17 +517,17 @@ export function Dialog({
       const elements = focusableElements(dialog)
       if (elements.length === 0) {
         event.preventDefault()
-        dialog.focus()
+        dialog.focus({ preventScroll: true })
         return
       }
       const first = elements[0]
       const last = elements[elements.length - 1]
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault()
-        last.focus()
+        last.focus({ preventScroll: true })
       } else if (!event.shiftKey && document.activeElement === last) {
         event.preventDefault()
-        first.focus()
+        first.focus({ preventScroll: true })
       }
     }
 
@@ -536,7 +538,7 @@ export function Dialog({
         document.body.style.overflow = previousOverflow
         if (!applicationWasInert) applicationRoot?.removeAttribute('inert')
       }
-      previouslyFocused?.focus()
+      previouslyFocused?.focus({ preventScroll: true })
     }
   }, [presentation])
 
@@ -561,6 +563,7 @@ export function Dialog({
             {eyebrow && <span className="ui-dialog__heading-sep" aria-hidden="true">·</span>}
             <h2 id={titleId}>{title}</h2>
           </div>
+          {actions && <div className="ui-dialog__head-actions">{actions}</div>}
           <IconButton icon="close" label={presentation === 'drawer' ? '关闭抽屉' : '关闭弹窗'} onClick={onClose} />
         </div>
         {description && <p className="ui-dialog__description" id={descriptionId}>{description}</p>}

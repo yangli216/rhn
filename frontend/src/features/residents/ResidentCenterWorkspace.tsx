@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { useState, type ReactNode } from 'react'
-import { age, formatTime, genderLabel } from '../../shared/format'
+import { age, formatTime } from '../../shared/format'
 import type { Resident } from '../../shared/model'
 import type {
   CreateResidentInput, ResidentIdentifierInput, ResidentProfile, UpdateResidentProfileInput,
@@ -102,7 +102,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
   if (selected) return <>
     <BackButton onClick={() => { setSelected(null); setShowEdit(false) }}>返回居民列表</BackButton>
     <ObjectContextBar avatar={selected.fullName.slice(-1)} title={selected.fullName}
-      description={`${genderLabel(selected.gender)} · ${age(selected.birthDate)} 岁 · ${selected.maskedNationalId || '无身份证标识'}`}
+      description={`${selected.genderText ?? '未知'} · ${age(selected.birthDate)} 岁 · ${selected.maskedNationalId || '无身份证标识'}`}
       facts={[{ label: '健康档案号', value: selected.healthRecordNo }, { label: '联系电话', value: selected.phone || '未登记' }]}
       actions={<><Button variant="secondary" onClick={() => onNavigate(`/outpatient/registration?residentId=${selected.id}`)}>
         <Icon name="clinical" />门诊挂号</Button>
@@ -234,7 +234,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
                       </div>
                     </td>
                     <td>
-                      <span>{genderLabel(resident.gender)} · {age(resident.birthDate)} 岁</span>
+                      <span>{resident.genderText ?? '未知'} · {age(resident.birthDate)} 岁</span>
                       <small className="resident-birth-sub">{resident.birthDate}</small>
                     </td>
                     <td>

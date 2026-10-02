@@ -1,5 +1,7 @@
 package com.rhn.outpatient.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
@@ -23,7 +25,8 @@ public interface MedicationRequestDirectory {
             Long performerOrganizationId, Long performerDepartmentId, LocalDate businessDate,
             Instant authoredAt, Long authoredBy,
             String itemCode, String itemName, String localCode, String localName,
-            String medicationCode, String medicationName, String medicationType,
+            String medicationCode, String medicationName,
+            @DictionaryBinding(MasterDataDictionaryCodes.MEDICATION_TYPE) String medicationType,
             BigDecimal quantity, String quantityUnit, BigDecimal baseQuantity, String baseUnit,
             BigDecimal packageFactor, boolean substitutionAllowed, boolean selfProvided,
             Long parentRequestId, BigDecimal doseValue, String doseUnit, Long routeId, String routeCode,
@@ -31,7 +34,8 @@ public interface MedicationRequestDirectory {
             String frequencyCode, Long frequencyId, String frequencyName, JsonNode frequencyRule,
             BigDecimal durationValue, String durationUnit,
             boolean skinTestRequired, boolean skinTestExempt, String skinTestExemptReason, Long exemptEvidenceEventId,
-            Long priceId, Long priceRevision, String priceType,
+            Long priceId, Long priceRevision,
+            @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
             BigDecimal unitPrice, BigDecimal priceQuantity, BigDecimal totalAmount, String currencyCode,
             JsonNode medicationSnapshot, JsonNode itemAttributeSnapshot, String itemAttributeHash,
             Instant itemAttributeResolvedAt, JsonNode standardMappings,

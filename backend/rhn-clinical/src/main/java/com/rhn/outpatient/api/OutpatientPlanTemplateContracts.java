@@ -1,5 +1,7 @@
 package com.rhn.outpatient.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -54,7 +56,7 @@ public final class OutpatientPlanTemplateContracts {
 
     public record DiagnosisInput(
             @Size(max = 64) String codeSystem,
-            @Size(max = 32) String diagnosisDomain,
+            @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") @Size(max = 32) String diagnosisDomain,
             @NotBlank @Size(max = 64) String code,
             @NotBlank @Size(max = 200) String display,
             @NotBlank @Size(max = 24) String type) {
@@ -73,7 +75,8 @@ public final class OutpatientPlanTemplateContracts {
             @Size(max = 32) String durationUnit,
             @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity,
             @Size(max = 64) String quantityUnit, boolean substitutionAllowed, boolean selfProvided,
-            @Size(max = 1000) String medicationInstruction, @Size(max = 32) String priceType,
+            @Size(max = 1000) String medicationInstruction,
+            @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) @Size(max = 32) String priceType,
             Boolean pricingRequired, @Size(max = 1000) String reason) {
         public MedicationInput(Long medicationId, Long catalogItemId, Long packageId,
                                BigDecimal doseValue, String doseUnit, String routeCode,
@@ -89,9 +92,11 @@ public final class OutpatientPlanTemplateContracts {
 
     public record ServiceInput(
             @NotNull Long catalogItemId,
-            String itemCode, String itemName, String serviceType,
+            String itemCode, String itemName,
+            @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_TYPE) String serviceType,
             @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity,
-            @Size(max = 64) String unitCode, @Size(max = 32) String priceType,
+            @Size(max = 64) String unitCode,
+            @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) @Size(max = 32) String priceType,
             Boolean pricingRequired, @Size(max = 1000) String reason,
             @Size(max = 2000) String clinicalDescription) {
         public ServiceInput(Long catalogItemId, BigDecimal quantity, String unitCode,
@@ -124,7 +129,8 @@ public final class OutpatientPlanTemplateContracts {
                        List<ServiceView> services, List<PlanTaskInput> tasks,
                        Instant createdAt, Instant updatedAt) {}
 
-    public record DiagnosisView(String codeSystem, String diagnosisDomain,
+    public record DiagnosisView(String codeSystem,
+                                @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") String diagnosisDomain,
                                 String code, String display, String type) {}
     public record MedicationView(Long lineId, Long medicationId, Long catalogItemId, Long packageId, String editorMode,
                                  String categoryCode, String medicationCode, String medicationName,
@@ -133,9 +139,13 @@ public final class OutpatientPlanTemplateContracts {
                                  String routeExecutionType, String frequencyCode,
                                  BigDecimal durationValue, String durationUnit, BigDecimal quantity,
                                  String quantityUnit, boolean substitutionAllowed, boolean selfProvided,
-                                 String medicationInstruction, String priceType, boolean pricingRequired,
+                                 String medicationInstruction,
+                                 @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
+                                 boolean pricingRequired,
                                  String reason) {}
-    public record ServiceView(Long catalogItemId, String itemCode, String itemName, String serviceType,
-                              BigDecimal quantity, String unitCode, String priceType,
+    public record ServiceView(Long catalogItemId, String itemCode, String itemName,
+                              @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_TYPE) String serviceType,
+                              BigDecimal quantity, String unitCode,
+                              @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
                               boolean pricingRequired, String reason, String clinicalDescription) {}
 }

@@ -169,7 +169,7 @@ export function QueuePeekDrawer({
                       <span className="drawer-card-ticket">{item.ticketNo}</span>
                       <strong className="drawer-card-name">{item.residentName}</strong>
                       <span className="drawer-card-meta">
-                        {item.gender === 'MALE' ? '男' : '女'} ·{' '}
+                        {item.genderText ?? ''} ·{' '}
                         {item.birthDate ? `${new Date().getFullYear() - parseInt(item.birthDate.slice(0, 4), 10)}岁` : ''}
                       </span>
                       {isCurrent && <span className="current-badge">正在接诊</span>}

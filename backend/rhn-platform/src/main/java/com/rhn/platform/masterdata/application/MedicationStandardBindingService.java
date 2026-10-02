@@ -1,5 +1,7 @@
 package com.rhn.platform.masterdata.application;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
 import com.rhn.platform.masterdata.api.MedicationStandardReference;
 import com.rhn.platform.masterdata.api.StandardCatalogReview.Identity;
 import com.rhn.platform.masterdata.domain.Medication;
@@ -87,7 +89,9 @@ public class MedicationStandardBindingService {
         semantics.captureMedication(medication);
         return preview(medication);
     }
-    public record LocalMedication(Long id, long revision, String code, String name, String medicationType, String doseForm,
+    public record LocalMedication(Long id, long revision, String code, String name,
+            @DictionaryBinding(MasterDataDictionaryCodes.MEDICATION_TYPE) String medicationType,
+            @DictionaryBinding(MasterDataDictionaryCodes.DOSE_FORM) String doseForm,
             String preparationSpec, String presentationUnit, BigDecimal strengthValue, String strengthUnit, String status) {}
     public record Candidate(JsonNode specification, List<String> issues, Long boundMedicationId, boolean canBind) {}
     public record Binding(String catalogId, String catalogVersion, String entryId, String specificationId, String contentHash) {}

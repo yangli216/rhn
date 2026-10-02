@@ -1,5 +1,8 @@
 package com.rhn.outpatient.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -37,7 +40,8 @@ public interface OutpatientPlanTemplateDirectory {
         }
     }
 
-    record DiagnosisSnapshot(String codeSystem, String diagnosisDomain,
+    record DiagnosisSnapshot(String codeSystem,
+                             @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") String diagnosisDomain,
                              String code, String display, String type) {
         public DiagnosisSnapshot(String code, String display, String type) {
             this("WHO.BD.CS.ICD10", "WESTERN_MEDICINE", code, display, type);
@@ -51,9 +55,13 @@ public interface OutpatientPlanTemplateDirectory {
                               String frequencyCode, BigDecimal durationValue, String durationUnit,
                               BigDecimal quantity, String quantityUnit, String medicationInstruction,
                               boolean substitutionAllowed, boolean selfProvided,
-                              String priceType, boolean pricingRequired, String reason) {}
+                              @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
+                              boolean pricingRequired, String reason) {}
 
-    record ServiceSnapshot(Long catalogItemId, String itemCode, String itemName, String serviceType,
-                           BigDecimal quantity, String unitCode, String priceType, boolean pricingRequired, String reason,
+    record ServiceSnapshot(Long catalogItemId, String itemCode, String itemName,
+                           @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_TYPE) String serviceType,
+                           BigDecimal quantity, String unitCode,
+                           @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
+                           boolean pricingRequired, String reason,
                            String clinicalDescription) {}
 }

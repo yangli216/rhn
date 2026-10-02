@@ -1,5 +1,7 @@
 package com.rhn.platform.masterdata.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +19,7 @@ public interface MedicationTerminologyDirectory {
                                     String classificationType, String code, String display, String path,
                                     String mappingRole, boolean primary) {}
 
-    record AllergenTerm(Long id, Long parentId, String categoryCode, String conceptType,
+    record AllergenTerm(Long id, Long parentId, String categoryCode,
+                        @DictionaryBinding("BD_CONCEPT_TYPE") String conceptType,
                         String codeSystemUri, String code, String display, String aliases) {}
 }

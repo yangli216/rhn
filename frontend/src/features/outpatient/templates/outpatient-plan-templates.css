@@ -789,3 +789,169 @@ button.doctor-plan-item-card,
   white-space: normal;
   text-align: left;
 }
+
+/* ==========================================================================
+   Doctor Plan Detail Cards & Sheets (规整化卡片体系)
+   ========================================================================== */
+.doctor-plan-detail-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.doctor-plan-detail-card__header {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 2.5rem;
+}
+
+.doctor-plan-detail-card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.doctor-plan-detail-card__sub {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.doctor-plan-card-count {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-normal);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+}
+
+.doctor-plan-detail-card__body {
+  padding: var(--space-3);
+}
+
+.doctor-plan-detail-card__table-wrapper {
+  overflow-x: auto;
+}
+
+/* 结构化病历单格 */
+.doctor-note-sheet-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.doctor-note-sheet-row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: baseline;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px dashed var(--color-border-subtle);
+}
+
+.doctor-note-sheet-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.doctor-note-sheet-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.doctor-note-sheet-content {
+  color: var(--color-text-primary);
+  line-height: var(--line-height-body);
+  font-size: var(--font-size-body);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 拟诊记录紧凑条形列表 */
+.doctor-plan-diagnosis-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.doctor-plan-diagnosis-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-table);
+}
+
+.doctor-plan-diagnosis-strip.is-primary {
+  border-color: var(--color-warning-border, var(--color-border));
+  background: var(--color-warning-soft);
+}
+
+.doctor-plan-diagnosis-code {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.doctor-plan-diagnosis-name {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.doctor-plan-empty-strip {
+  text-align: center;
+  color: var(--color-text-disabled);
+  padding: var(--space-3);
+  font-size: var(--font-size-table);
+}
+
+/* 处方与检查检验列宽微调 */
+.doctor-col--service-name {
+  min-width: 180px;
+}
+.doctor-col--service-type {
+  width: 80px;
+  text-align: center;
+}
+.doctor-col--service-qty {
+  width: 80px;
+}
+.doctor-col--service-desc {
+  min-width: 180px;
+}
+
+.doctor-plan-task-details {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+

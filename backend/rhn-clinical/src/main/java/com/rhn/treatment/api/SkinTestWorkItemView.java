@@ -1,5 +1,7 @@
 package com.rhn.treatment.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -7,7 +9,8 @@ import java.time.LocalDate;
 public record SkinTestWorkItemView(
         Long medicationRequestId, long medicationRequestRevision, String requestNo,
         Long residentId, String residentName, String healthRecordNo,
-        String gender, LocalDate birthDate, Long encounterId,
+        @DictionaryBinding("RESIDENT_GENDER") String gender,
+        LocalDate birthDate, Long encounterId,
         Long organizationId, Long departmentId, Long medicationId,
         String medicationCode, String medicationName, String itemName,
         String routeCode, BigDecimal doseValue, String doseUnit,

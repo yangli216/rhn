@@ -1075,6 +1075,8 @@ input[type="checkbox"]:disabled {
   height: 100%;
   box-sizing: border-box;
   background: transparent;
+  overflow: hidden;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 .ui-date-range-icon {
@@ -1084,6 +1086,8 @@ input[type="checkbox"]:disabled {
   flex: 0 0 auto;
   color: var(--color-text-secondary);
   margin-right: .125rem;
+  cursor: pointer;
+  user-select: none;
 }
 
 .ui-date-range-icon .ui-icon {
@@ -1091,10 +1095,10 @@ input[type="checkbox"]:disabled {
   height: 1rem;
 }
 
-/* 强制隔离内部 input 样式并确保年月日及图标完整显示 */
+/* 强制隔离内部 input 样式并确保年月日完整显示 */
 .ui-date-range-inputs input.ui-date-range-input {
   width: 100% !important;
-  min-width: 7.2rem !important;
+  min-width: 5.8rem !important;
   flex: 1 1 0% !important;
   height: 100% !important;
   min-height: unset !important;
@@ -1110,6 +1114,18 @@ input[type="checkbox"]:disabled {
   padding: 0 !important;
   text-align: center !important;
   box-sizing: border-box !important;
+  cursor: pointer;
+}
+
+/* 隐藏浏览器原生冗余日历图标与调节旋钮，保持统一单图标与无溢出呈现 */
+.ui-date-range-inputs input.ui-date-range-input::-webkit-calendar-picker-indicator {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
+
+.ui-date-range-inputs input.ui-date-range-input::-webkit-inner-spin-button {
+  display: none !important;
+  -webkit-appearance: none !important;
 }
 
 .ui-date-range-inputs input.ui-date-range-input:disabled {
@@ -1166,7 +1182,7 @@ input[type="checkbox"]:disabled {
 }
 
 .ui-date-range-picker--compact .ui-date-range-inputs input.ui-date-range-input {
-  min-width: 5.8rem !important;
+  min-width: 5.2rem !important;
   font-size: var(--font-size-small) !important;
 }
 .ui-dictionary-select__error { margin-top: var(--space-1); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); color: var(--color-danger); font-size: var(--font-size-small); font-weight: var(--font-weight-regular); }
@@ -1371,10 +1387,12 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
   box-shadow: 0 -4px 16px color-mix(in srgb, var(--color-text-primary) 5%, transparent);
 }
 /* Content-bound drawer keeps the shared dialog focus and keyboard behavior. */
-.ui-dialog-backdrop--drawer {
+.ui-dialog-backdrop.ui-dialog-backdrop--drawer {
   padding: 0;
+  display: block;
   overflow: hidden;
   place-items: stretch;
+  background: transparent;
   backdrop-filter: none;
   animation: none;
 }
@@ -1382,26 +1400,40 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
   width: 100%;
   height: 100%;
   max-height: 100%;
-  padding: var(--space-3);
+  padding: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: none;
   border-radius: 0;
   will-change: transform;
-  animation: drawer-slide-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  box-shadow: -6px 0 24px color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  animation: drawer-slide-in 0.32s cubic-bezier(0.2, 0, 0, 1) both;
 }
 .ui-dialog--drawer > .ui-dialog__head {
   flex: none;
   top: 0;
-  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) var(--space-3);
-  padding: 0 var(--space-4);
+  height: 2.75rem;
+  min-height: 2.75rem;
+  margin: 0;
+  padding: 0 var(--space-3);
   border-top-left-radius: 0;
   border-top-right-radius: 0;
+}
+.ui-dialog--drawer > .ui-dialog__head h2 {
+  font-size: var(--font-size-h3);
+  line-height: var(--line-height-h3);
+}
+.ui-dialog__head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
 }
 .ui-dialog.ui-dialog--drawer > .ui-form-actions {
   position: static;
   flex: none;
-  margin: var(--space-2) calc(-1 * var(--space-3)) calc(-1 * var(--space-3));
+  margin: var(--space-2) 0 0;
   padding: var(--space-2) var(--space-3);
   height: auto;
   border-radius: 0;
@@ -2430,7 +2462,7 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 /* Narrative document fields keep labels, validation and focus semantics. */
 .ui-field.ui-field--document {
   display: grid;
-  grid-template-columns: 6.8rem minmax(0, 1fr);
+  grid-template-columns: 4.8rem minmax(0, 1fr);
   align-items: baseline;
   gap: var(--space-1) var(--space-2);
   margin: 0;

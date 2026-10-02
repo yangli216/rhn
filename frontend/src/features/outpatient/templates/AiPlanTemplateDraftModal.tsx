@@ -24,7 +24,8 @@ interface AiPlanTemplateDraftModalProps {
 }
 
 const reviewGroups: Array<{ key: string; label: string; icon: IconName; kinds: PlanTextReviewItem['kind'][] }> = [
-  { key: 'diagnosis', label: '诊断与评估', icon: 'stethoscope', kinds: ['DIAGNOSIS', 'CONDITION'] },
+  { key: 'diagnosis', label: '诊断与评估', icon: 'stethoscope', kinds: ['DIAGNOSIS'] },
+  { key: 'condition', label: '适用条件', icon: 'tasks', kinds: ['CONDITION'] },
   { key: 'medication', label: '用药建议', icon: 'pill', kinds: ['MEDICATION'] },
   { key: 'service', label: '检验检查', icon: 'flask', kinds: ['LABORATORY', 'EXAMINATION'] },
   { key: 'follow-up', label: '宣教与随访', icon: 'tasks', kinds: ['EDUCATION', 'FOLLOW_UP'] },
@@ -122,7 +123,7 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
                         {item.kind === 'DIAGNOSIS' && hasIcd10Code(item.text) && (
                           <StatusBadge tone="info">ICD-10 标准诊断</StatusBadge>
                         )}
-                        {item.kind === 'CONDITION' && (
+                        {item.kind === 'CONDITION' && item.details?.includes('尚未匹配院内 ICD-10 术语') && (
                           <StatusBadge tone="warning">待对齐诊断</StatusBadge>
                         )}
                         {item.details && !isTextItem && (
@@ -1090,8 +1091,7 @@ export function AiPlanTemplateDraftModal({
 
   return (
     <Dialog
-      title={isEditing ? `调整诊疗方案 “${editingTemplate?.name}”` : 'AI 诊疗方案助手'}
-      eyebrow={isEditing ? '方案调整与明细微调' : '智能方案构建'}
+      title={isEditing ? '方案调整与明细微调' : '智能方案构建'}
       size="xwide"
       presentation="drawer"
       boundary={document.querySelector<HTMLElement>('.workspace-content')}
@@ -1102,22 +1102,30 @@ export function AiPlanTemplateDraftModal({
         compileAbortRef.current?.abort()
         onClose()
       }}
-      footer={
-        <>
-          <div className="ai-plan-footer-tip">
+      actions={
+        <div className="ai-plan-head-actions">
+          <div className="ai-plan-head-tip">
             <Icon name="info" />
             <span>AI 草稿 · 保存前请核对</span>
           </div>
-          <Button variant="secondary" disabled={saving} onClick={() => {
+          <Button size="sm" variant="secondary" disabled={saving} onClick={() => {
             compileAbortRef.current?.abort()
             onClose()
           }}>
             取消
           </Button>
-          {stage === 'TEXT_REVIEW' && textDraft ? <Button busy={converting}
-            disabled={converting || !textDraft.narrative.trim() || textDraft.reviewItems.length === 0} onClick={handleConvert}>
-            确认方案并匹配院内目录
-          </Button> : compiledDraft ? <Button
+          {stage === 'TEXT_REVIEW' && textDraft ? (
+            <Button
+              size="sm"
+              busy={converting}
+              disabled={converting || !textDraft.narrative.trim() || textDraft.reviewItems.length === 0}
+              onClick={handleConvert}
+            >
+              确认方案并匹配院内目录
+            </Button>
+          ) : compiledDraft ? (
+            <Button
+              size="sm"
               busy={saving}
               disabled={saving || compiling || (Boolean(editingTemplate?.noteTemplateId) && (linkedNotes.isPending || linkedNotes.isError)) || !compiledDraft.name.trim()
                 || missingStandardDiagnosis
@@ -1127,8 +1135,9 @@ export function AiPlanTemplateDraftModal({
               onClick={handleSave}
             >
               {isEditing ? '确认保存调整' : '确认存入方案池'}
-            </Button> : null}
-        </>
+            </Button>
+          ) : null}
+        </div>
       }
     >
       <div className="ai-plan-modal-body">
@@ -1354,14 +1363,6 @@ export function AiPlanTemplateDraftModal({
               </div>
             ) : compiledDraft ? (
               <div className="ai-plan-header-config">
-                <div className="ai-plan-modal-right-head">
-                  <div>
-                    <h3>{isEditing ? '方案调整与明细微调' : '系统方案核对'}</h3>
-                  </div>
-                  <StatusBadge tone="success">
-                    {isEditing ? '待核对后保存' : compiledDraft.sourceType === 'AI_GUIDELINE' ? '条文提取完成 · 来源未核验' : '目录匹配完成 · 待确认'}
-                  </StatusBadge>
-                </div>
                 <div className="ai-plan-modal-info-grid">
                   <FormField label="方案名称" required>
                     <input
@@ -1673,9 +1674,9 @@ export function AiPlanTemplateDraftModal({
                               <div className="ai-plan-review-item__title-row">
                                 <strong className="ai-plan-review-item__name">{m.medicationName || `在库药品 #${m.medicationId}`}</strong>
                                 <StatusBadge tone={m.preparationSpec ? 'neutral' : 'warning'}>
-                                  {m.preparationSpec ? `${m.catalogItemId ? '实际规格' : '主档规格'}：${m.preparationSpec}` : '规格待确认'}
+                                  {m.preparationSpec || '规格待确认'}
                                 </StatusBadge>
-                                <StatusBadge tone="success">{m.catalogItemId ? '在库已对齐' : '主档已对齐'}</StatusBadge>
+                                <StatusBadge tone="success">{m.catalogItemId ? '在库已对齐' : '已对齐'}</StatusBadge>
                               </div>
                               {editingMedIndex === idx ? (
                                 <div className="ai-plan-med-edit-form">
@@ -1729,7 +1730,10 @@ export function AiPlanTemplateDraftModal({
                                       className="ai-plan-mini-input"
                                       style={{ width: '3.5rem' }}
                                       value={m.durationValue ?? ''}
-                                      onChange={(e) => updateMedication(idx, { durationValue: e.target.value === '' ? undefined : Number(e.target.value) })}
+                                      onChange={(e) => updateMedication(idx, {
+                                        durationValue: e.target.value === '' ? undefined : Number(e.target.value),
+                                        durationUnit: m.durationUnit || '天',
+                                      })}
                                     />
                                     天
                                   </label>
@@ -1740,7 +1744,7 @@ export function AiPlanTemplateDraftModal({
                                   formatRouteName(m.routeCode),
                                   m.frequencyCode,
                                   medicationSingleDoseLabel(m),
-                                  m.durationValue && m.durationUnit ? `${m.durationValue}${m.durationUnit}` : '疗程待开立时确认',
+                                  m.durationValue ? `${m.durationValue}${m.durationUnit || '天'}` : '疗程待开立时确认',
                                 ].filter(Boolean).join(' · ')}</small>
                               )}
                             </div>

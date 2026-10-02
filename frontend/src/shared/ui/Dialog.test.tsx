@@ -125,4 +125,19 @@ describe('Content-bound drawer', () => {
     unmount()
     root.remove()
   })
+
+  it('renders header actions when actions prop is provided', () => {
+    render(
+      <Dialog
+        title="测试标题"
+        actions={<button type="button">头部操作</button>}
+        onClose={vi.fn()}
+      >
+        <div>测试内容</div>
+      </Dialog>
+    )
+
+    expect(screen.getByRole('button', { name: '头部操作' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: '测试标题' })).toBeInTheDocument()
+  })
 })

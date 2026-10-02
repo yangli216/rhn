@@ -4,7 +4,7 @@ import type { ClinicalContext } from '../../app/AppShell'
 import { systemEnumItemName } from '../../shared/api/dictionaryApi'
 import type { CancelEncounterResult } from '../../shared/api/encountersApi'
 import { REGISTRATION_SOURCE_LABELS, SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem } from '../../shared/api/schedulingApi'
-import { age, genderLabel } from '../../shared/format'
+import { age } from '../../shared/format'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
   Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, getTodayRange, Icon, LoadingState, PageHeader, Pagination, Panel, PanelHead, Select,
@@ -229,7 +229,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
               <strong className="registration-ticket">{item.ticketNo}</strong>
               <div>
                 <strong>{item.residentName}</strong>
-                <small>{genderLabel(item.gender)} · {age(item.birthDate)} 岁 · {item.healthRecordNo}</small>
+                <small>{item.genderText ?? '未知'} · {age(item.birthDate)} 岁 · {item.healthRecordNo}</small>
               </div>
               <div>
                 <strong>{item.registrationNo}</strong>

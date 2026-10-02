@@ -1,5 +1,6 @@
 package com.rhn.quality.medication.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
 import com.rhn.platform.masterdata.api.MedicationKnowledgeDirectory.Knowledge;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,7 +33,9 @@ public final class MedicationWorkbenchContracts {
             this(requirement, source, List.of(), parentId);
         }
     }
-    public record PatientSimulationContext(Integer patientAgeYears, String gender, List<String> activeAllergies) {
+    public record PatientSimulationContext(Integer patientAgeYears,
+                                           @DictionaryBinding("RESIDENT_GENDER") String gender,
+                                           List<String> activeAllergies) {
         public PatientSimulationContext {
             activeAllergies = activeAllergies == null ? List.of() : List.copyOf(activeAllergies);
         }

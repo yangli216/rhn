@@ -46,14 +46,18 @@ public final class InpatientViews {
             Long id, long revision, Long organizationId, Long departmentId, String departmentName,
             Long wardId, String wardName, Long roomId, String roomName,
             String code, String bedNo, String bedType, String genderRestriction,
-            String operationalStatus, String displayStatus, String nursingGroupCode,
+            String operationalStatus,
+            @DictionaryBinding("BED_DISPLAY_STATUS") String displayStatus,
+            String nursingGroupCode,
             BigDecimal dailyBedRate, Long episodeId, Long residentId, String residentName,
             Instant occupiedAt) {
     }
 
     public record EpisodeView(
             Long id, long revision, String episodeNo, String status,
-            Long residentId, String residentName, String healthRecordNo, String gender, LocalDate birthDate,
+            Long residentId, String residentName, String healthRecordNo,
+            @DictionaryBinding("RESIDENT_GENDER") String gender,
+            LocalDate birthDate,
             Long organizationId, Long departmentId, String departmentName,
             Long encounterId, String encounterNo,
             Long wardId, String wardName, Long roomId, String roomName, Long bedId, String bedNo,

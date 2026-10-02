@@ -332,7 +332,7 @@ export function DedicatedWaitingWorkspace({
                       <div className="patient-identity">
                         <strong className="patient-name">{item.residentName}</strong>
                         <span className="patient-demographics">
-                          {item.gender === 'MALE' ? '男' : item.gender === 'FEMALE' ? '女' : '未知'} ·{' '}
+                          {item.genderText ?? '未知'} ·{' '}
                           {item.birthDate ? `${new Date().getFullYear() - parseInt(item.birthDate.slice(0, 4), 10)} 岁` : ''} ·{' '}
                           {item.healthRecordNo}
                         </span>

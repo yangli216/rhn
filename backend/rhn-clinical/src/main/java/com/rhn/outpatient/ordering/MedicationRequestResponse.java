@@ -1,5 +1,7 @@
 package com.rhn.outpatient.ordering;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
@@ -13,12 +15,18 @@ record MedicationRequestResponse(
         Instant authoredAt, Long authoredBy, String reason,
         String itemCode, String itemName, String localCode, String localName,
         Long adoptionId, Long adoptionRevision,
-        Long priceId, Long priceRevision, String priceType, BigDecimal unitPrice,
+        Long priceId, Long priceRevision,
+        @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
+        BigDecimal unitPrice,
         BigDecimal priceQuantity, BigDecimal totalAmount, String currencyCode,
-        String medicationCode, String medicationName, String medicationType, String manufacturerName, String doseForm,
+        String medicationCode, String medicationName,
+        @DictionaryBinding(MasterDataDictionaryCodes.MEDICATION_TYPE) String medicationType,
+        String manufacturerName,
+        @DictionaryBinding(MasterDataDictionaryCodes.DOSE_FORM) String doseForm,
         String preparationSpec, String preparationUnit, boolean skinTestRequired,
         boolean skinTestExempt, String skinTestExemptReason, Long exemptEvidenceEventId,
-        boolean antimicrobial, String antimicrobialLevel,
+        boolean antimicrobial,
+        @DictionaryBinding(MasterDataDictionaryCodes.ANTIMICROBIAL_LEVEL) String antimicrobialLevel,
         BigDecimal doseValue, String doseUnit, Long routeId, String routeCode, String routeName,
         String routeExecutionType, String frequencyCode,
         Long frequencyId, String frequencyName, JsonNode frequencyRule,

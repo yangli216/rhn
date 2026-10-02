@@ -40,6 +40,8 @@ export function DateRangePicker({
   placeholder = ['开始日期', '结束日期'],
 }: DateRangePickerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const startInputRef = useRef<HTMLInputElement>(null)
+  const endInputRef = useRef<HTMLInputElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const defaultId = useId()
   const componentId = id ?? defaultId
@@ -157,16 +159,30 @@ export function DateRangePicker({
       )}
 
       <div className="ui-date-range-inputs">
-        <span className="ui-date-range-icon" aria-hidden="true">
+        <span
+          className="ui-date-range-icon"
+          aria-hidden="true"
+          onClick={() => {
+            try {
+              startInputRef.current?.showPicker?.()
+            } catch {}
+          }}
+        >
           <Icon name="calendar" />
         </span>
         <input
+          ref={startInputRef}
           type="date"
           className="ui-date-range-input ui-date-range-input--start"
           aria-label={startAriaLabel}
           placeholder={placeholder[0]}
           value={value.from}
           onChange={handleStartChange}
+          onClick={(e) => {
+            try {
+              e.currentTarget.showPicker?.()
+            } catch {}
+          }}
           min={min}
           max={value.to || max}
           disabled={disabled}
@@ -175,12 +191,18 @@ export function DateRangePicker({
           至
         </span>
         <input
+          ref={endInputRef}
           type="date"
           className="ui-date-range-input ui-date-range-input--end"
           aria-label={endAriaLabel}
           placeholder={placeholder[1]}
           value={value.to}
           onChange={handleEndChange}
+          onClick={(e) => {
+            try {
+              e.currentTarget.showPicker?.()
+            } catch {}
+          }}
           min={value.from || min}
           max={max}
           disabled={disabled}

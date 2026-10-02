@@ -92,6 +92,7 @@ export interface SkinTestWorkItem {
   residentName: string
   healthRecordNo: string
   gender?: string
+  genderText?: string
   birthDate?: string
   encounterId: string
   organizationId: string

@@ -21,7 +21,7 @@ export function money(value?: number, currency = 'CNY') {
 }
 
 function patientDemographics(item: BillingWorkItem) {
-  const gender = item.gender === 'MALE' ? '男' : item.gender === 'FEMALE' ? '女' : ''
+  const gender = item.genderText ?? ''
   const birth = item.birthDate ? new Date(`${item.birthDate}T00:00:00`) : null
   const today = new Date()
   let age = birth && !Number.isNaN(birth.getTime()) ? today.getFullYear() - birth.getFullYear() : undefined

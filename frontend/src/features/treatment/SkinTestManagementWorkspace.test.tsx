@@ -241,6 +241,7 @@ describe('SkinTestManagementWorkspace', () => {
     const itemWithDemographics: SkinTestWorkItem = {
       ...dilutedItem,
       gender: 'MALE',
+      genderText: '男',
       birthDate: '1992-05-10',
     }
     renderWorkspace(itemWithDemographics)

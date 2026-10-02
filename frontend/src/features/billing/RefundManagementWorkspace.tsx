@@ -9,6 +9,22 @@ import type { RefundItemPreCheckView } from '../../shared/api/billingApi'
 import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 
+const PAYMENT_METHOD_NAMES: Record<string, string> = {
+  CASH: '现金',
+  WECHAT: '微信支付',
+  ALIPAY: '支付宝',
+  BANK_CARD: '银行卡',
+  MEDICAL_INSURANCE: '医保支付',
+  INTERNAL_TRANSFER: '内部转账',
+  SELF_PAY: '自费',
+  OTHER: '其他',
+}
+
+function paymentMethodText(code?: string): string {
+  if (!code) return '—'
+  return PAYMENT_METHOD_NAMES[code] || code
+}
+
 export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnApi; clinicalContext: ClinicalContext }) {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -94,16 +110,23 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
   useEffect(() => {
     if (refundMode === 'DIRECT') {
       if (selectedItemsTotalAmount > 0) {
-        setAmount(String(selectedItemsTotalAmount))
+        setAmount(selectedItemsTotalAmount.toFixed(2))
       } else if (preCheck.data?.refundableAmount && preCheck.data.refundableAmount > 0) {
-        setAmount(String(preCheck.data.refundableAmount))
+        setAmount(preCheck.data.refundableAmount.toFixed(2))
       } else {
         setAmount('')
       }
     } else {
-      setAmount(maximumStandardRefund > 0 ? String(maximumStandardRefund) : '')
+      setAmount(maximumStandardRefund > 0 ? maximumStandardRefund.toFixed(2) : '')
     }
   }, [refundMode, selectedItemsTotalAmount, preCheck.data?.refundableAmount, maximumStandardRefund])
+
+  const handleAmountBlur = () => {
+    const val = Number(amount)
+    if (!Number.isNaN(val) && val > 0) {
+      setAmount(val.toFixed(2))
+    }
+  }
 
   const refresh = async () => {
     await Promise.all([
@@ -185,17 +208,10 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
     <PageHeader
       eyebrow="收费管理"
       title="退费管理"
-      description="临床-医技-药房协同审批闭环与退费防损管理，支持未发药未执行医嘱误收费直接退款及已发药严控拦截。"
+      description={`临床-医技-药房协同审批闭环与退费防损管理 · 当前机构: ${clinicalContext.organization.name}（${clinicalContext.department.name}）`}
       actions={<Button variant="secondary" onClick={() => void refresh()}>刷新</Button>}
     />
     {error && <Alert tone="error">{errorMessage(error)}</Alert>}
-
-    <div className="billing-context-bar billing-context-bar--compact">
-      <div><span>当前收费机构</span><strong>{clinicalContext.organization.name} · {clinicalContext.department.name}</strong></div>
-      <div><span>待处理就诊</span><strong>{filteredQueueItems.length}</strong></div>
-      <div><span>可直接退款金额</span><strong>{money(preCheck.data?.refundableAmount ?? 0, currency)}</strong></div>
-      <div><span>当前待退负余额</span><strong>{money(maximumStandardRefund, currency)}</strong></div>
-    </div>
 
     {worklist.isPending ? <LoadingState label="正在加载退费队列…" /> : <div className="billing-refund-workspace">
       <div>
@@ -371,7 +387,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                         onClick={() => setPaymentId(item.id)}
                       >
                         <td><strong>{item.paymentNo}</strong><code>{item.externalTransactionNo || item.id}</code></td>
-                        <td>{item.paymentMethodCode}</td>
+                        <td>{paymentMethodText(item.paymentMethodCode)}</td>
                         <td>{money(item.amount, item.currencyCode)}</td>
                         <td>{new Date(item.paidAt).toLocaleString('zh-CN')}</td>
                         <td><StatusBadge tone="success">已支付</StatusBadge></td>
@@ -431,27 +447,39 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                 options={refundablePayments.map((item) => ({
                   value: item.id,
                   label: item.paymentNo,
-                  secondaryText: money(item.amount, item.currencyCode),
+                  secondaryText: `${paymentMethodText(item.paymentMethodCode)} · ${money(item.amount, item.currencyCode)}`,
                 }))}
               />
             </FormField>
 
             {selectedPayment && (
               <div className="billing-refund-origin">
-                <span>原支付金额</span>
+                <span>原支付金额（{paymentMethodText(selectedPayment.paymentMethodCode)}）</span>
                 <strong>{money(selectedPayment.amount, selectedPayment.currencyCode)}</strong>
               </div>
             )}
 
+            {refundMode === 'STANDARD' && (
+              <div className="billing-refund-origin billing-refund-origin--negative">
+                <span>当前待退负余额</span>
+                <strong>{money(maximumStandardRefund, currency)}</strong>
+              </div>
+            )}
+
             <FormField label="退款金额">
-              <input
-                className="ui-field__control"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-              />
+              <div className="billing-refund-amount-input-wrap">
+                <span className="billing-refund-amount-prefix" aria-hidden="true">¥</span>
+                <input
+                  className="ui-field__control billing-refund-amount-input"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  onBlur={handleAmountBlur}
+                />
+              </div>
             </FormField>
 
             <FormField label="退款原因">

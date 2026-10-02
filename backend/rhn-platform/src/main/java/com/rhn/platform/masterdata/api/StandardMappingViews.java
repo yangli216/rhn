@@ -1,5 +1,7 @@
 package com.rhn.platform.masterdata.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -14,7 +16,8 @@ public final class StandardMappingViews {
 
     public record StandardTermView(
             Long id, Long codeSystemId, String systemCode, String systemName, String systemVersion,
-            String authorityType, String code, String display, String shortDisplay, String conceptType,
+            String authorityType, String code, String display, String shortDisplay,
+            @DictionaryBinding("BD_CONCEPT_TYPE") String conceptType,
             String status, LocalDate effectiveFrom, LocalDate effectiveTo) {}
 
     public record ItemTermMappingView(

@@ -552,6 +552,37 @@
 .billing-refund-action { position: sticky; top: var(--space-4); }
 .billing-refund-origin { min-height: 3rem; padding: var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
 .billing-refund-origin span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.billing-refund-origin--negative strong { color: var(--color-warning); }
+.billing-refund-amount-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.billing-refund-amount-prefix {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
+  pointer-events: none;
+  user-select: none;
+}
+.billing-refund-amount-input-wrap .billing-refund-amount-input {
+  width: 100%;
+  padding-left: var(--space-6);
+  padding-right: var(--space-3);
+  text-align: right;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+.billing-refund-amount-input-wrap .billing-refund-amount-input::-webkit-outer-spin-button,
+.billing-refund-amount-input-wrap .billing-refund-amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
 
 /* 临床-医技-药房-退费协同防损与审批卡片样式 */
 .billing-collaboration-card {

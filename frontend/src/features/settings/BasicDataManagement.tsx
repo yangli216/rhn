@@ -279,8 +279,8 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
             : tab === 'service' ? '项目名称、编码或分类（回车或点击查询）'
             : medicationMode === 'product' ? '产品名、生产厂家、批准文号或通用名（回车或点击查询）'
             : '通用名、别名、剂型或编码（回车或点击查询）'} />
-        <Select value={typeFilter} onChange={setTypeFilter} showValue placeholder="全部类型" options={typeOptions} />
-        <Select value={statusFilter} onChange={setStatusFilter} showValue placeholder="全部状态"
+        <Select value={typeFilter} onChange={setTypeFilter} placeholder="全部类型" options={typeOptions} />
+        <Select value={statusFilter} onChange={setStatusFilter} placeholder="全部状态"
           options={options(dictionaries.data, 'BD_MASTER_STATUS')} />
         <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
         <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
@@ -453,7 +453,7 @@ function DiseaseManagementTable({ values, loading, pagination, onEdit, onMembers
         {value.sdManagementTypeText}</StatusBadge><small>{value.sdTriggerActionText}</small></td>
       <td><strong>{value.ruleCount} 条规则</strong><small>{value.exceptionCount
         ? `${value.exceptionCount} 个精确例外` : value.ruleCount ? '按规则自动识别，无精确例外' : '尚未配置适用范围'}</small></td>
-      <td>{value.reportCardType || '不适用'}<small>{value.reportDeadlineHours
+      <td>{reportCardTypeLabel(value.reportCardType)}<small>{value.reportDeadlineHours
         ? `${value.reportDeadlineHours} 小时内` : value.sdManagementType === 'DISEASE_REPORT' ? '按适用规则确认' : '—'}</small></td>
       <td><DataStatus value={value.sdStatus} text={value.sdStatusText} />
         <small>{value.effectiveFrom} 至 {value.effectiveTo || '长期'}</small></td>
@@ -463,6 +463,12 @@ function DiseaseManagementTable({ values, loading, pagination, onEdit, onMembers
           {value.sdStatus === 'ACTIVE' ? '暂停' : '启用'}</Button></RowActions></td>
     </tr>)}
   </Table>
+}
+
+function reportCardTypeLabel(value?: string) {
+  if (!value) return '不适用'
+  const labels: Record<string, string> = { INFECTIOUS_DISEASE: '传染病报告卡' }
+  return labels[value] ?? value
 }
 
 export const SERVICE_SUBTYPE_MAP: Record<string, string> = {
@@ -747,7 +753,7 @@ export function MedicationKnowledgeTable({
   onComposition?: (value: MedicationKnowledge) => void;
 }) {
   return <Table
-    headers={['药品通用名 / 编码', '分类与剂型', '规格与含量', '默认用法', '安全监管', '厂家产品', '状态', '操作']}
+    headers={['药品通用名', '分类与剂型', '规格与含量', '默认用法', '安全监管', '厂家产品', '状态', '操作']}
     footer={pagination}
     className="medication-knowledge-table">
     {values.map((value) => {
@@ -772,7 +778,6 @@ export function MedicationKnowledgeTable({
         <td className="medication-col-name">
           <div className="medication-name-wrap">
             <strong className="medication-item-name" title={`药品编码: ${value.code}`}>{value.name}</strong>
-            <code className="medication-code-tag">{value.code}</code>
           </div>
         </td>
 
@@ -1376,8 +1381,7 @@ export function MedicationProductTable({ values, pagination, onModeChange, onPro
                   {medication.name}
                 </strong>
                 <div className="medication-parent-meta">
-                  <code>{medication.code}</code>
-                  <span> · {medication.sdMedicationTypeText}</span>
+                  <span>{medication.sdMedicationTypeText}</span>
                 </div>
               </div>
             </td>
@@ -1720,7 +1724,7 @@ export function StandardMappingDialog({ api, subjectType, targetId, itemName, sy
           <Button size="sm" variant="text" onClick={() => setReplacement(undefined)}>取消替代</Button></Alert>}
         <div className="master-data-mapping-form">
           <FormField label="映射用途" required><Select value={mappingType} disabled={Boolean(replacement)}
-            onChange={(value) => setMappingType(value as StandardMappingType)} showValue options={[
+            onChange={(value) => setMappingType(value as StandardMappingType)} options={[
               { value: 'CLINICAL', label: '临床标准' }, { value: 'INSURANCE', label: '医保目录' },
               { value: 'REGULATORY', label: '监管标准' }, { value: 'LOCAL', label: '地方 / 院内标准' },
             ]} /></FormField>
@@ -1735,7 +1739,7 @@ export function StandardMappingDialog({ api, subjectType, targetId, itemName, sy
               searchKeywords: [value.shortDisplay ?? '', value.conceptType ?? ''],
             }))} /></FormField>
           <FormField label="等价关系" required><Select value={equivalence}
-            onChange={(value) => setEquivalence(value as StandardEquivalence)} showValue options={[
+            onChange={(value) => setEquivalence(value as StandardEquivalence)} options={[
               { value: 'EXACT', label: '完全匹配' }, { value: 'EQUIVALENT', label: '语义等价' },
               { value: 'WIDER', label: '本地范围更宽' }, { value: 'NARROWER', label: '本地范围更窄' },
               { value: 'RELATED', label: '相关但不等价' },
@@ -2447,7 +2451,7 @@ export function AttributeManagementDialog({ api, organization, subjectType, targ
           <Select value={scopeType} onChange={(value) => setScopeType(value as 'ORGANIZATION' | 'DEPARTMENT')}
             options={[{ value: 'ORGANIZATION', label: '当前机构' }, { value: 'DEPARTMENT', label: '指定科室' }]} />
           {scopeType === 'DEPARTMENT' && <Select value={departmentId} onChange={setDepartmentId}
-            placeholder="选择科室" showValue options={(departments.data ?? []).map((value: Department) => ({
+            placeholder="选择科室" options={(departments.data ?? []).map((value: Department) => ({
               value: value.id, label: value.name, secondaryText: value.code,
             }))} />}
         </div>
@@ -2528,7 +2532,7 @@ function AttributeEditorRow({ api, organization, scopeType, departmentId, subjec
 
   return <tr><td className="master-data-attribute-definition"><strong>{attribute.name}{attribute.required && ' *'}</strong>
     <code>{attribute.code}</code><small>{attribute.description || '未维护属性说明'}</small>
-    <div><StatusBadge>{attribute.dataType}{attribute.cardinality === 'MULTIPLE' ? ' · 多值' : ''}</StatusBadge>
+    <div><StatusBadge>{attributeDataTypeLabel(attribute.dataType)}{attribute.cardinality === 'MULTIPLE' ? ' · 多值' : ''}</StatusBadge>
       {projected && <StatusBadge tone="warning">强类型投影</StatusBadge>}
       {attribute.unitCode && <span className="master-data-attribute-unit">单位：{attribute.unitCode}</span>}</div></td>
     <td>{projected ? <AttributeReadOnlyHint text="请在左侧强类型基础信息中维护" />
@@ -2574,9 +2578,9 @@ function AttributeValueEditor({ api, attribute, value, onChange, placeholder, ac
   const selectedValues = attribute.cardinality === 'MULTIPLE' ? parseRawArray(value) : []
   return <div className="master-data-attribute-editor">
     {selectable && attribute.cardinality === 'MULTIPLE' ? <Select multiple value={selectedValues}
-      onChange={(values) => onChange(JSON.stringify(values))} placeholder={placeholder || '请选择'} showValue
+      onChange={(values) => onChange(JSON.stringify(values))} placeholder={placeholder || '请选择'}
       options={options} loading={dictionary.isPending && attribute.dataType === 'DICT_REF'} disabled={disabled} />
-      : selectable ? <Select value={value} onChange={onChange} placeholder={placeholder || '请选择'} showValue
+      : selectable ? <Select value={value} onChange={onChange} placeholder={placeholder || '请选择'}
       options={options} loading={dictionary.isPending && attribute.dataType === 'DICT_REF'} disabled={disabled} />
       : attribute.dataType === 'BOOLEAN' ? <Select value={value} onChange={onChange} placeholder={placeholder || '请选择'}
         options={[{ value: 'true', label: '是' }, { value: 'false', label: '否' }]} disabled={disabled} />
@@ -2896,7 +2900,6 @@ function DynamicAttributeField({
           value={value}
           onChange={onChange}
           placeholder="请选择"
-          showValue
           options={options}
           loading={dictionary.isPending}
           clearable={!attribute.required}
@@ -3433,11 +3436,11 @@ export function MedicationDialog({
           onChange={(e) => handleStrengthUnitChange(e.target.value)}
           placeholder={vaccine ? 'ml、IU' : 'mg、g、IU'} /></FormField></>}
         <FormField label="默认给药途径"><Select name="defaultRoute" value={defaultRoute}
-          onChange={setDefaultRoute} showValue placeholder="请选择给药途径"
+          onChange={setDefaultRoute} placeholder="请选择给药途径"
           options={routes.map((route) => ({ value: route.code, label: route.name,
             secondaryText: route.code, searchKeywords: [route.code, route.name] }))} /></FormField>
         {!vaccine && <FormField label={herbal ? '默认服用频次' : '默认频次'}><Select name="defaultFrequency"
-          value={defaultFrequency} onChange={setDefaultFrequency} showValue placeholder="请选择医嘱频次"
+          value={defaultFrequency} onChange={setDefaultFrequency} placeholder="请选择医嘱频次"
           options={frequencies.map((frequency) => ({ value: frequency.code, label: frequency.name,
             secondaryText: `${frequency.code}${frequency.executionTimes.length ? ` · ${frequency.executionTimes.join('/')}` : ''}` }))} /></FormField>}
         <SelectField name="sdStorageType" label={vaccine ? '冷链 / 储藏方式' : '储藏方式'}
@@ -3908,6 +3911,11 @@ export function Table({ headers, children, compact = false, footer, className = 
 function RowActions({ children }: { children: ReactNode }) { return <div className="master-data-row-actions">{children}</div> }
 function DataStatus({ value, text }: { value: MasterDataStatus; text: string }) {
   return <StatusBadge tone={value === 'ACTIVE' ? 'success' : value === 'SUSPENDED' ? 'warning' : 'neutral'}>{text}</StatusBadge>
+}
+function attributeDataTypeLabel(value: ItemAttributeSchema['dataType']) {
+  return ({ TEXT: '文本', BOOLEAN: '布尔', INTEGER: '整数', DECIMAL: '小数', ENUM: '枚举',
+    DICT_REF: '字典引用', DATE: '日期', DATETIME: '日期时间', DURATION: '时长',
+    TERM_REF: '术语引用', OBJECT: '结构化对象' } as Record<string, string>)[value] ?? value
 }
 function Flag({ value, label }: { value: boolean; label: string }) { return <StatusBadge tone={value ? 'success' : 'neutral'}>{value ? label : `不可${label.slice(1)}`}</StatusBadge> }
 function options(values: DictionaryMap | undefined, code: string) {

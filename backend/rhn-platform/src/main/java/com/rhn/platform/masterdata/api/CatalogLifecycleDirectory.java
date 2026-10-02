@@ -1,5 +1,6 @@
 package com.rhn.platform.masterdata.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
 import com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView;
 import com.rhn.platform.masterdata.api.MasterDataViews.PriceView;
 
@@ -56,10 +57,14 @@ public interface CatalogLifecycleDirectory {
     /** Generic medication knowledge frozen independently from the selected manufacturer product. */
     record MedicationSnapshot(
             Long id, Long itemTypeId, String code, String name, String aliasName,
-            String medicationType, String doseForm, String preparationSpec, String preparationUnit,
-            java.math.BigDecimal strengthValue, String strengthUnit, String storageType,
+            @DictionaryBinding(MasterDataDictionaryCodes.MEDICATION_TYPE) String medicationType,
+            @DictionaryBinding(MasterDataDictionaryCodes.DOSE_FORM) String doseForm,
+            String preparationSpec, String preparationUnit,
+            java.math.BigDecimal strengthValue, String strengthUnit,
+            @DictionaryBinding(MasterDataDictionaryCodes.STORAGE_TYPE) String storageType,
             boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
-            String antimicrobialLevel, boolean antimicrobialOutpatientAllowed,
+            @DictionaryBinding(MasterDataDictionaryCodes.ANTIMICROBIAL_LEVEL) String antimicrobialLevel,
+            boolean antimicrobialOutpatientAllowed,
             boolean antimicrobialConsultationRequired, boolean antimicrobialEmergencyAllowed,
             Integer antimicrobialMaxDays, boolean skinTestRequired, String skinTestMethod,
             String skinTestSolutionMode, Integer skinTestObservationMinutes,

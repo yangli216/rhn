@@ -106,7 +106,7 @@ export function BusinessPartnerManagement({ api, organization }: { api: RhnApi; 
         <SearchField className="partner-toolbar__search" label="搜索业务主体" value={keyword} onChange={setKeyword}
           onSearch={handleSearch}
           placeholder={tab === 'manufacturers' ? '搜索企业名称、简称或编码（回车或点击查询）' : '搜索供应商、编码、证照或联系人（回车或点击查询）'} />
-        <Select value={status} onChange={setStatus} placeholder="全部状态" showValue options={[
+        <Select value={status} onChange={setStatus} placeholder="全部状态" options={[
           { value: 'ACTIVE', label: '已启用' }, { value: 'SUSPENDED', label: '已禁用' },
           { value: 'RETIRED', label: '已停用' },
         ]} />
@@ -146,9 +146,9 @@ function ManufacturerTable({ values, loading, pendingId, onEdit, onStatus }: {
   return <TableShell scrollClassName="dictionary-table-wrap"><DataTable className="dictionary-table partner-table"><thead><tr>
     <th>企业</th><th>主体类型</th><th>生产地</th><th>国家 / 地址</th><th>状态</th><th>操作</th>
   </tr></thead><tbody>{values.map((value) => <tr key={value.id}>
-    <td><strong>{value.name}</strong><code>{value.code}</code><small>{value.shortName || '未维护简称'}</small></td>
+    <td><strong title={`企业编码：${value.code}`}>{value.name}</strong><small>{value.shortName || '未维护简称'}</small></td>
     <td>{value.sdManufacturerTypeText}</td><td>{value.sdProductionPlaceText || '—'}</td>
-    <td>{value.countryCode || '—'}<small>{value.address || '未维护地址'}</small></td>
+    <td>{countryName(value.countryCode)}<small>{value.address || '未维护地址'}</small></td>
     <td><PartnerStatus status={value.sdStatus} text={value.sdStatusText} /></td>
     <td><div className="dictionary-row-actions"><Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑</Button>
       {value.sdStatus !== 'RETIRED' && <Button size="sm" variant="text" busy={pendingId === value.id}
@@ -165,7 +165,7 @@ function SupplierTable({ values, loading, pendingId, onEdit, onStatus }: {
   return <TableShell scrollClassName="dictionary-table-wrap"><DataTable className="dictionary-table partner-table"><thead><tr>
     <th>供应商</th><th>资质</th><th>联系方式</th><th>业务有效期</th><th>状态</th><th>操作</th>
   </tr></thead><tbody>{values.map((value) => <tr key={value.id}>
-    <td><strong>{value.name}</strong><code>{value.code}</code><small>{value.unifiedCreditCode || '未维护统一信用代码'}</small></td>
+    <td><strong title={`供应商编码：${value.code}`}>{value.name}</strong><small>{value.unifiedCreditCode || '未维护统一信用代码'}</small></td>
     <td>{value.licenseNo || '—'}<small>{value.licenseValidTo ? `有效至 ${value.licenseValidTo}` : '未设置资质到期日'}</small></td>
     <td>{value.contactName || '—'}<small>{value.contactPhone || '未维护电话'}</small></td>
     <td>{value.validFrom}<small>{value.validTo ? `至 ${value.validTo}` : '长期有效'}</small></td>
@@ -179,6 +179,12 @@ function SupplierTable({ values, loading, pendingId, onEdit, onStatus }: {
 function PartnerStatus({ status, text }: { status: string; text?: string }) {
   return <StatusBadge tone={status === 'ACTIVE' ? 'success' : status === 'SUSPENDED' ? 'warning' : 'neutral'}>
     {text || statusText[status] || status}</StatusBadge>
+}
+
+function countryName(code?: string) {
+  if (!code) return '—'
+  try { return new Intl.DisplayNames(['zh-CN'], { type: 'region' }).of(code) ?? code }
+  catch { return code }
 }
 
 function ManufacturerEditor({ value, types, places, onClose, onSave }: {
@@ -208,9 +214,9 @@ function ManufacturerEditor({ value, types, places, onClose, onSave }: {
       <FormField label="企业编码" required><input className="ui-field__control" autoFocus value={code} onChange={(e) => setCode(e.target.value)} /></FormField>
       <FormField label="企业名称" required><input className="ui-field__control" value={name} onChange={(e) => setName(e.target.value)} /></FormField>
       <FormField label="企业简称"><input className="ui-field__control" value={shortName} onChange={(e) => setShortName(e.target.value)} /></FormField>
-      <FormField label="主体类型" required><Select value={type} onChange={setType} clearable={false} showValue
+      <FormField label="主体类型" required><Select value={type} onChange={setType} clearable={false}
         options={types.map(option)} /></FormField>
-      <FormField label="生产地类别"><Select value={place} onChange={setPlace} showValue options={places.map(option)} /></FormField>
+      <FormField label="生产地类别"><Select value={place} onChange={setPlace} options={places.map(option)} /></FormField>
       <FormField label="国家 / 地区代码"><input className="ui-field__control" value={countryCode} onChange={(e) => setCountryCode(e.target.value)} /></FormField>
       <FormField label="注册或生产地址" className="partner-form-grid__wide"><input className="ui-field__control" value={address} onChange={(e) => setAddress(e.target.value)} /></FormField>
     </div>

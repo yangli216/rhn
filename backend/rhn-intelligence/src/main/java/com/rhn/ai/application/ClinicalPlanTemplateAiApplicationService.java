@@ -147,11 +147,11 @@ public class ClinicalPlanTemplateAiApplicationService {
                 ClinicalPlanRetrievalService.MODEL_CANDIDATE_LIMIT);
         List<ClinicalAiModelGateway.PlanCandidate> availablePlans = retrievedPlans.stream()
                 .map(match -> candidate(match.plan(), match.evidence())).toList();
-        ClinicalAiModelGateway.PlanIntent intent;
+        ClinicalAiModelGateway.PlanIntent rawIntent;
         try {
             var request = new ClinicalAiModelGateway.PlanInput(PROMPT_VERSION, mode, text, availablePlans,
                     currentNarrative, revisionInstruction);
-            intent = onDelta == null ? modelGateway.compilePlan(request, runtime)
+            rawIntent = onDelta == null ? modelGateway.compilePlan(request, runtime)
                     : modelGateway.compilePlanStreaming(request, runtime, onDelta);
         } catch (RuntimeException exception) {
             ClinicalAiModelException modelError = exception instanceof ClinicalAiModelException value ? value : null;
@@ -162,6 +162,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                     modelError == null ? "模型方案编译暂时不可用，请稍后重试。" : modelError.userMessage(),
                     HttpStatus.BAD_GATEWAY);
         }
+        ClinicalAiModelGateway.PlanIntent intent = sanitizeIntent(rawIntent);
         if (intent == null || intent.items() == null || intent.items().isEmpty() || intent.items().size() > 30) {
             throw new BusinessException("AI_PLAN_NO_INTENT", "模型未提取到可确认的文字方案，请补充具体诊疗意图。",
                     HttpStatus.UNPROCESSABLE_ENTITY);
@@ -209,6 +210,26 @@ public class ClinicalPlanTemplateAiApplicationService {
                 } + "：" + item.name()
                         + (item.details() == null || item.details().isBlank() ? "" : "；" + item.details()))
                 .collect(java.util.stream.Collectors.joining("\n"));
+    }
+
+    private static final java.util.regex.Pattern BEDSIDE_PHYSICAL_EXAM_PATTERN = java.util.regex.Pattern.compile(
+            ".*(?:触诊|听诊|叩诊|视诊|查体|体格检查|咽部检查|扁桃体检查|淋巴结检查).*");
+
+    private boolean isBedsidePhysicalExam(ClinicalAiModelGateway.PlanIntentItem item) {
+        if (item == null || item.name() == null) return false;
+        if (!"LABORATORY".equals(item.kind()) && !"EXAMINATION".equals(item.kind())) {
+            return false;
+        }
+        return BEDSIDE_PHYSICAL_EXAM_PATTERN.matcher(item.name()).matches();
+    }
+
+    private ClinicalAiModelGateway.PlanIntent sanitizeIntent(ClinicalAiModelGateway.PlanIntent intent) {
+        if (intent == null || intent.items() == null) return intent;
+        var sanitizedItems = intent.items().stream()
+                .filter(item -> !isBedsidePhysicalExam(item))
+                .toList();
+        return new ClinicalAiModelGateway.PlanIntent(intent.name(), intent.description(), intent.narrative(),
+                sanitizedItems, intent.referenceTemplateId(), intent.noteTemplateContent());
     }
 
     private static final java.util.regex.Pattern FABRICATED_VITALS_PREFIX = java.util.regex.Pattern.compile(
@@ -308,12 +329,12 @@ public class ClinicalPlanTemplateAiApplicationService {
     private ClinicalAiModelGateway.PlanIntent resolveIntent(ExecutionContext context, String mode, String text,
                                                             String confirmedName, List<PlanReviewItem> reviewedItems,
                                                             List<ClinicalAiModelGateway.PlanCandidate> availablePlans) {
-        ClinicalAiModelGateway.PlanIntent intent;
+        ClinicalAiModelGateway.PlanIntent rawIntent;
         if (reviewedItems != null) {
             if (reviewedItems.isEmpty()) {
                 throw badRequest("AI_PLAN_REVIEW_ITEMS_EMPTY", "请至少保留一个诊疗项目后再匹配院内目录");
             }
-            intent = new ClinicalAiModelGateway.PlanIntent(clipped(confirmedName, 100),
+            rawIntent = new ClinicalAiModelGateway.PlanIntent(clipped(confirmedName, 100),
                     "由医生审核确认的诊疗方案", reviewedItems.stream()
                     .map(item -> new ClinicalAiModelGateway.PlanIntentItem(item.kind(), item.text(),
                             item.sourceQuote(), item.origin(), item.details()))
@@ -325,7 +346,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                         "方案编译需要在当前工作上下文启用并配置真实模型服务。", HttpStatus.SERVICE_UNAVAILABLE);
             }
             try {
-                intent = modelGateway.compilePlan(new ClinicalAiModelGateway.PlanInput(
+                rawIntent = modelGateway.compilePlan(new ClinicalAiModelGateway.PlanInput(
                         PROMPT_VERSION, mode, text, availablePlans), runtime);
             } catch (RuntimeException exception) {
                 ClinicalAiModelException modelError = exception instanceof ClinicalAiModelException value ? value : null;
@@ -337,6 +358,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                         HttpStatus.BAD_GATEWAY);
             }
         }
+        ClinicalAiModelGateway.PlanIntent intent = sanitizeIntent(rawIntent);
         if (intent == null || intent.items() == null || intent.items().isEmpty() || intent.items().size() > 30) {
             throw new BusinessException("AI_PLAN_NO_INTENT", "模型未提取到可核对的方案任务，请补充具体诊疗意图。",
                     HttpStatus.UNPROCESSABLE_ENTITY);
@@ -421,10 +443,19 @@ public class ClinicalPlanTemplateAiApplicationService {
             var medication = match.medication();
             var product = match.product();
             var itemPackage = match.itemPackage();
-            BigDecimal doseValue = parsed.doseValue() != null ? parsed.doseValue() : medication.defaultDose();
-            String doseUnit = parsed.doseUnit() != null ? parsed.doseUnit() : medication.defaultDoseUnit();
+            BigDecimal doseValue = parsed.doseValue() != null ? parsed.doseValue()
+                    : (medication.defaultDose() != null ? medication.defaultDose()
+                    : (medication.strengthValue() != null ? medication.strengthValue()
+                    : BigDecimal.ONE));
+            String doseUnit = parsed.doseUnit() != null && !parsed.doseUnit().isBlank() ? parsed.doseUnit()
+                    : (medication.defaultDoseUnit() != null && !medication.defaultDoseUnit().isBlank() ? medication.defaultDoseUnit()
+                    : (medication.strengthUnit() != null && !medication.strengthUnit().isBlank() ? medication.strengthUnit()
+                    : (medication.preparationUnit() != null && !medication.preparationUnit().isBlank() ? medication.preparationUnit()
+                    : "片")));
             String route = parsed.routeCode() != null ? parsed.routeCode() : medication.defaultRoute();
             String frequency = parsed.frequencyCode() != null ? parsed.frequencyCode() : medication.defaultFrequency();
+            BigDecimal durationValue = parsed.durationValue() != null ? parsed.durationValue() : BigDecimal.valueOf(3);
+            String durationUnit = parsed.durationUnit() != null && !parsed.durationUnit().isBlank() ? parsed.durationUnit() : "天";
             BigDecimal qty = parsed.quantity() != null ? parsed.quantity() : BigDecimal.ONE;
             String unit = parsed.quantityUnit() != null && !parsed.quantityUnit().isBlank()
                     ? parsed.quantityUnit() : itemPackage.unitCode();
@@ -432,7 +463,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                 medications.add(new MedicationInput(medication.id(), product.id(), itemPackage.id(),
                         medication.name(), medication.preparationSpec(), doseValue,
                         doseUnit, route, frequency,
-                        parsed.durationValue(), parsed.durationUnit(), qty,
+                        durationValue, durationUnit, qty,
                         unit, true, false, parsed.sourceText(), "SALE", true,
                         value.name()));
             }
@@ -442,10 +473,19 @@ public class ClinicalPlanTemplateAiApplicationService {
             if (genericKnowledge != null) {
                 var medication = genericKnowledge.medication();
                 if (medicationIds.add(medication.id())) {
-                    BigDecimal doseValue = parsed.doseValue() != null ? parsed.doseValue() : medication.defaultDose();
-                    String doseUnit = parsed.doseUnit() != null ? parsed.doseUnit() : medication.defaultDoseUnit();
+                    BigDecimal doseValue = parsed.doseValue() != null ? parsed.doseValue()
+                            : (medication.defaultDose() != null ? medication.defaultDose()
+                            : (medication.strengthValue() != null ? medication.strengthValue()
+                            : BigDecimal.ONE));
+                    String doseUnit = parsed.doseUnit() != null && !parsed.doseUnit().isBlank() ? parsed.doseUnit()
+                            : (medication.defaultDoseUnit() != null && !medication.defaultDoseUnit().isBlank() ? medication.defaultDoseUnit()
+                            : (medication.strengthUnit() != null && !medication.strengthUnit().isBlank() ? medication.strengthUnit()
+                            : (medication.preparationUnit() != null && !medication.preparationUnit().isBlank() ? medication.preparationUnit()
+                            : "片")));
                     String route = parsed.routeCode() != null ? parsed.routeCode() : medication.defaultRoute();
                     String frequency = parsed.frequencyCode() != null ? parsed.frequencyCode() : medication.defaultFrequency();
+                    BigDecimal durationValue = parsed.durationValue() != null ? parsed.durationValue() : BigDecimal.valueOf(3);
+                    String durationUnit = parsed.durationUnit() != null && !parsed.durationUnit().isBlank() ? parsed.durationUnit() : "天";
                     BigDecimal qty = parsed.quantity() != null ? parsed.quantity() : BigDecimal.ONE;
                     String unit = parsed.quantityUnit() != null && !parsed.quantityUnit().isBlank()
                             ? parsed.quantityUnit()
@@ -453,7 +493,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                     medications.add(new MedicationInput(medication.id(), null, null,
                             medication.name(), medication.preparationSpec(), doseValue,
                             doseUnit, route, frequency,
-                            parsed.durationValue(), parsed.durationUnit(), qty,
+                            durationValue, durationUnit, qty,
                             unit, true, false, parsed.sourceText(), "SALE", false,
                             value.name()));
                 }

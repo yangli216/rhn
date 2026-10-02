@@ -1,6 +1,8 @@
 package com.rhn.pharmacy.api;
 
 import com.rhn.outpatient.api.MedicationRequestDirectory.MedicationRequestSnapshot;
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
@@ -18,7 +20,9 @@ public final class PharmacyViews {
 
     public record DispenseRouteView(
             Long id, long revision, Long organizationId, String code, String name,
-            String careSetting, Long sourceDepartmentId, String medicationType, Long targetStockSiteId,
+            String careSetting, Long sourceDepartmentId,
+            @DictionaryBinding(MasterDataDictionaryCodes.MEDICATION_TYPE) String medicationType,
+            Long targetStockSiteId,
             boolean active, LocalDate validFrom, LocalDate validTo,
             String description, Instant updatedAt) {}
 

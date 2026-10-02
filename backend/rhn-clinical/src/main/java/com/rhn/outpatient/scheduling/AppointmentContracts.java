@@ -37,7 +37,7 @@ final class AppointmentContracts {
             Long residentId,
             String healthRecordNo,
             String residentName,
-            String gender,
+            @DictionaryBinding("RESIDENT_GENDER") String gender,
             LocalDate birthDate,
             Long scheduleId,
             String scheduleCode,

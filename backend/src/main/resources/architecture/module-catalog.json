@@ -180,6 +180,7 @@
         "healthcore",
         "outpatient",
         "pharmacy",
+        "platform",
         "shared",
         "treatment"
       ],

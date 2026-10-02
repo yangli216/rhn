@@ -42,6 +42,14 @@ public class PlanInvestigationDecisionService {
                 if (query.length() >= 2 && !query.equals(intent.name())) {
                     found = catalog.searchOrderableServices(query, intent.type(), context.organizationId(), today);
                 }
+                if (found.isEmpty() && !intent.name().endsWith("测定")) {
+                    found = catalog.searchOrderableServices(intent.name() + "测定", intent.type(), context.organizationId(), today);
+                }
+                exact = found.stream().filter(item -> exact(intent.name(), item)).toList();
+                if (exact.size() == 1) {
+                    resolved.put(intent.key(), new Resolution(exact.getFirst(), "", 1));
+                    continue;
+                }
             }
             var unique = new LinkedHashMap<Long, ServiceView>();
             (exact.isEmpty() ? found : exact).stream().filter(item -> intent.type().equals(item.sdServiceType()))
@@ -76,8 +84,16 @@ public class PlanInvestigationDecisionService {
     }
 
     private boolean exact(String name, ServiceView item) {
-        if (name.equalsIgnoreCase(item.code()) || name.equalsIgnoreCase(item.name())) return true;
+        if (name.equalsIgnoreCase(item.code()) || matchesExactOrAssay(name, item.name())) return true;
         var adoption = item.organizationAdoption();
-        return adoption != null && (name.equalsIgnoreCase(adoption.localName()) || name.equalsIgnoreCase(adoption.localCode()));
+        return adoption != null && (name.equalsIgnoreCase(adoption.localCode()) || matchesExactOrAssay(name, adoption.localName()));
+    }
+
+    private boolean matchesExactOrAssay(String name, String catalogName) {
+        if (catalogName == null) return false;
+        if (name.equalsIgnoreCase(catalogName)) return true;
+        if ((name + "测定").equalsIgnoreCase(catalogName)) return true;
+        if (name.endsWith("测定") && name.substring(0, name.length() - 2).equalsIgnoreCase(catalogName)) return true;
+        return false;
     }
 }

@@ -38,6 +38,7 @@ export interface TriageRecord {
   triageNurseName?: string
   patientName: string
   gender: string
+  genderText?: string
   age?: number
   birthDate?: string
   phone?: string
@@ -80,6 +81,7 @@ export interface CreateTriageInput {
   registrationId?: string
   patientName: string
   gender: string
+  genderText?: string
   age?: number
   birthDate?: string
   phone?: string

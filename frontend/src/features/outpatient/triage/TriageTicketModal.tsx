@@ -87,7 +87,7 @@ export function TriageTicketModal({
               </div>
               <div className="triage-ticket-row">
                 <span className="triage-ticket-label">性　　别：</span>
-                <span className="triage-ticket-value">{record.gender === 'MALE' ? '男' : (record.gender === 'FEMALE' ? '女' : record.gender)}</span>
+                <span className="triage-ticket-value">{record.genderText ?? record.gender}</span>
               </div>
               <div className="triage-ticket-row">
                 <span className="triage-ticket-label">年　　龄：</span>

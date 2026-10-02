@@ -2653,6 +2653,7 @@
   gap: var(--space-3);
   flex: 1;
   min-height: 0;
+  padding: var(--space-2) var(--space-3) var(--space-3);
 }
 
 .ai-plan-modal-grid {
@@ -3211,8 +3212,8 @@
   height: 14px;
 }
 
-.ai-plan-footer-tip {
-  margin-right: auto;
+.ai-plan-footer-tip,
+.ai-plan-head-tip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
@@ -3225,7 +3226,22 @@
   cursor: default;
 }
 
-.ai-plan-footer-tip svg {
+.ai-plan-footer-tip {
+  margin-right: auto;
+}
+
+.ai-plan-head-tip {
+  margin-right: var(--space-2);
+}
+
+.ai-plan-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ai-plan-footer-tip svg,
+.ai-plan-head-tip svg {
   width: 1rem;
   height: 1rem;
   color: var(--color-text-secondary);
@@ -4283,7 +4299,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.8fr);
   gap: var(--space-3);
-  align-items: start;
+  align-items: center;
 }
 
 .ai-plan-modal-content {
@@ -4298,6 +4314,24 @@
 
 .ai-plan-modal-info-grid .ui-field {
   margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.ai-plan-modal-info-grid .ui-field__label-row {
+  width: auto;
+  min-height: auto;
+  white-space: nowrap;
+}
+
+.ai-plan-modal-info-grid .ui-field__control {
+  min-width: 0;
+}
+
+.ai-plan-modal-info-grid .ui-field__message {
+  grid-column: 2;
 }
 
 .ai-plan-modal-section {
@@ -4573,7 +4607,7 @@
   min-height: 0;
   min-width: 0;
   display: grid;
-  grid-template-columns: 47rem minmax(0, 1fr);
+  grid-template-columns: minmax(28rem, 1fr) minmax(34rem, 1.25fr);
   gap: var(--layout-panel-gap);
 }
 .ai-plan-note-writing-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }

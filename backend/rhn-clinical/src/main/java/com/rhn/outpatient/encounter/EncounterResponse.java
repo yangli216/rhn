@@ -1,5 +1,7 @@
 package com.rhn.outpatient.encounter;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.time.Instant;
 import java.util.List;
 
@@ -40,11 +42,14 @@ public record EncounterResponse(
     }
 
     public record DiagnosisResponse(Long conceptId, String systemCode, String systemVersion,
-                                    String diagnosisDomain, String diagnosisGroupId,
+                                    @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") String diagnosisDomain,
+                                    String diagnosisGroupId,
                                     String code, String display, String type, int sortOrder,
                                     List<ManagementProgramResponse> managementPrograms) {}
 
-    public record ManagementProgramResponse(Long id, String code, String name, String managementType,
-                                            String triggerAction, String reportCardType,
+    public record ManagementProgramResponse(Long id, String code, String name,
+                                            @DictionaryBinding("BD_DISEASE_MANAGEMENT_TYPE") String managementType,
+                                            @DictionaryBinding("BD_DISEASE_TRIGGER_ACTION") String triggerAction,
+                                            String reportCardType,
                                             Integer reportDeadlineHours) {}
 }

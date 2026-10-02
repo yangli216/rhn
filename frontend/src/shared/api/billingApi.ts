@@ -6,6 +6,7 @@ export interface BillingWorkItem {
   residentName: string
   healthRecordNo: string
   gender: string
+  genderText?: string
   birthDate: string
   encounterNo: string
   departmentName?: string
@@ -150,6 +151,7 @@ export interface SettlementRecord {
   residentName: string
   healthRecordNo: string
   gender: string
+  genderText?: string
   birthDate: string
   encounterNo?: string
   departmentName?: string

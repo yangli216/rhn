@@ -83,9 +83,9 @@ export function ItemAttributeConfigurationPanel({ api }: { api: RhnApi }) {
     {(operationError || configuration.error || dictionaries.error) && <Alert>
       {operationError || errorMessage(configuration.error || dictionaries.error)}</Alert>}
     <div className="attribute-config-filters">
-      <Select value={subjectType} onChange={(value) => setSubjectType(value as SubjectType)} showValue
+      <Select value={subjectType} onChange={(value) => setSubjectType(value as SubjectType)}
         options={[{ value: 'MEDICATION', label: '药品知识' }, { value: 'CATALOG_ITEM', label: '诊疗与目录项目' }]} />
-      <Select value={itemTypeId} onChange={setItemTypeId} placeholder="全部项目类型" showValue
+      <Select value={itemTypeId} onChange={setItemTypeId} placeholder="全部项目类型"
         options={(values?.itemTypes ?? []).map((value) => ({ value: value.id, label: value.name,
           secondaryText: value.code }))} />
       <SearchField className="attribute-config-filters__search" label="搜索属性" value={query}
@@ -208,7 +208,7 @@ function DefinitionDialog({ api, configuration, dictionaries, value, onClose, on
       <section><header><h3>数据约束</h3><p>使用结构化选项生成受控 Schema，不需要直接编辑 JSON。</p></header>
         <div className="attribute-config-form__grid attribute-config-form__grid--4">
           <FormField label="数据类型" required><Select value={dataType} onChange={(item) => setDataType(item as ItemAttributeDataType)}
-            options={dataTypeOptions} showValue /></FormField>
+            options={dataTypeOptions} /></FormField>
           <FormField label="基数" required><Select value={cardinality} onChange={(item) => setCardinality(item as 'SINGLE' | 'MULTIPLE')}
             options={[{ value: 'SINGLE', label: '单值' }, { value: 'MULTIPLE', label: '多值' }]} /></FormField>
           <FormField label="单位编码"><input name="unitCode" defaultValue={value?.unitCode} placeholder="如 mg、mL" /></FormField>
@@ -216,7 +216,7 @@ function DefinitionDialog({ api, configuration, dictionaries, value, onClose, on
             options={[{ value: 'NORMAL', label: '普通' }, { value: 'SENSITIVE', label: '敏感' },
               { value: 'MEDICAL_SAFETY', label: '医疗安全' }, { value: 'PRIVACY', label: '隐私' }]} /></FormField>
           {dataType === 'DICT_REF' && <FormField label="引用字典" required className="span-2"><Select value={dictionaryId}
-            onChange={setDictionaryId} showValue options={dictionaries.map((item) => ({ value: item.id, label: item.name,
+            onChange={setDictionaryId} options={dictionaries.map((item) => ({ value: item.id, label: item.name,
               secondaryText: item.code }))} /></FormField>}
           {dataType === 'ENUM' && <FormField label="枚举选项" required className="span-2"
             hint="使用顿号、逗号或换行分隔"><textarea value={enumValues} onChange={(event) => setEnumValues(event.target.value)} rows={2} /></FormField>}
@@ -286,10 +286,10 @@ function AssignmentDialog({ api, configuration, definition, value, onClose, onSa
     <form className="attribute-config-form" onSubmit={submit}>
       <div className="attribute-config-form__grid">
         <FormField label="项目类型" required className="span-2"><Select value={itemTypeId} onChange={setItemTypeId}
-          disabled={Boolean(value)} showValue options={eligibleTypes.map((item) => ({ value: item.id, label: item.name,
+          disabled={Boolean(value)} options={eligibleTypes.map((item) => ({ value: item.id, label: item.name,
             secondaryText: item.code }))} /></FormField>
         <FormField label="维护控件" required><Select value={widgetType} onChange={setWidgetType}
-          options={widgetOptions(definition)} showValue /></FormField>
+          options={widgetOptions(definition)} /></FormField>
         <FormField label="字段分组"><input name="groupName" defaultValue={value?.groupName ?? '扩展属性'} /></FormField>
         <FormField label="分组顺序" required><input name="groupSortOrder" type="number" min="0"
           defaultValue={value?.groupSortOrder ?? 50} required /></FormField>

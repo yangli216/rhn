@@ -36,6 +36,7 @@ export interface InpatientEpisode {
   residentName: string
   healthRecordNo: string
   gender: 'MALE' | 'FEMALE' | 'UNKNOWN'
+  genderText?: string
   birthDate?: string
   organizationId: string
   departmentId: string

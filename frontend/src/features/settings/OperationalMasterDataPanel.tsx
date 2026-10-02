@@ -24,6 +24,9 @@ const dimensions = [
   ['COUNT', '计数'], ['MASS', '质量'], ['VOLUME', '体积'], ['TIME', '时间'], ['LENGTH', '长度'],
   ['AREA', '面积'], ['ACTIVITY', '活度'], ['TEMPERATURE', '温度'], ['OTHER', '其它'],
 ].map(([value, label]) => ({ value, label }))
+const groupTypeLabels: Record<ItemGroup['groupType'], string> = {
+  LIS: '检验组套', PACS: '检查组套', ORDER_SET: '常用组合项目', PACKAGE: '项目包',
+}
 
 export function OperationalMasterDataPanel({ api, organization, manufacturers }: {
   api: RhnApi; organization: Organization; manufacturers: Manufacturer[]
@@ -67,7 +70,7 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
       {groups.isPending ? <LoadingState label="正在加载项目组套…" /> : !groups.data?.length
         ? <EmptyState icon="clinical" title="暂无项目组套" copy="可建立检验组套、检查组套或常用组合项目。" />
         : <DataTable headers={['组套', '类型', '适用范围', '成员', '状态', '操作']} rows={groups.data.map((value) => [
-          <b>{value.name}<code>{value.code}</code></b>, value.groupType,
+          <b title={`组套编码：${value.code}`}>{value.name}</b>, groupTypeLabels[value.groupType],
           value.organizationId ? organization.name : '租户通用', `${value.members.length} 项`, <State value={value.status} />,
           <Button size="sm" variant="text" onClick={() => setDialog(<GroupDialog api={api} value={value} services={services.data ?? []} organization={organization} units={units.data ?? []}
             onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组套已更新', api.masterData.updateItemGroup(value, input))} />)}>编辑</Button>,
@@ -79,7 +82,7 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
       {supplies.isPending ? <LoadingState label="正在加载耗材与器械…" /> : !supplies.data?.length
         ? <EmptyState icon="pharmacy" title="暂无耗材/器械资料" copy="可先维护单位，再建立耗材或器械主档。" />
         : <DataTable headers={['名称/编码', '类型/型号', 'UDI/注册证', '经营属性', '状态', '操作']} rows={supplies.data.map((value) => [
-          <b>{value.name}<code>{value.code}</code></b>, `${value.supplyType === 'DEVICE' ? '医疗器械' : '医用耗材'}${value.modelName ? ` · ${value.modelName}` : ''}`,
+          <b title={`耗材编码：${value.code}`}>{value.name}</b>, `${value.supplyType === 'DEVICE' ? '医疗器械' : '医用耗材'}${value.modelName ? ` · ${value.modelName}` : ''}`,
           <span>{value.udiDi || '—'}<small>{value.registrationCode || '未维护注册证'}</small></span>,
           [value.stocked && '库存', value.chargeable && '收费', value.highValue && '高值', value.implant && '植入'].filter(Boolean).join(' · ') || '—',
           <State value={value.status} />, <Button size="sm" variant="text" onClick={() => setDialog(<SupplyDialog value={value} units={units.data ?? []} manufacturers={manufacturers}
@@ -276,7 +279,7 @@ function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEd
   const [editingProfile, setEditingProfile] = useState(false)
   const profile = value.laboratory ?? value.examination
   const dictionaryName = (dictionaryCode: string, code?: string) =>
-    code ? dictionaries[dictionaryCode]?.find((item) => item.code === code)?.name ?? code : '未设置'
+    code ? dictionaries[dictionaryCode]?.find((item) => item.code === code)?.name ?? '未匹配字典项' : '未设置'
 
   const tabs = laboratory
     ? ([['options', '标本容器与分管加收'], ['requirements', '报告与执行要求']] as const)
@@ -457,8 +460,7 @@ function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEd
                   colWidths={['30%', '20%', '24%', '10%', '8%', '8%']}
                   rows={value.examination.variants.map((row) => [
                     <div>
-                      <strong style={{ display: 'block', fontSize: '0.875rem' }}>{row.name}</strong>
-                      <code style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{row.code}</code>
+                      <strong style={{ display: 'block', fontSize: '0.875rem' }} title={`配置编码：${row.code}`}>{row.name}</strong>
                     </div>,
                     <span className="clinical-tag-pill clinical-tag-pill--primary">
                       {dictionaryName('BD_SERVICE_VARIANT_METHOD', row.methodType)}
@@ -1068,7 +1070,6 @@ function LaboratoryProfileInlineEditor({ value, dictionaries, units, onClose, on
             <Select
               value={form.laboratoryMethod}
               onChange={(v) => setForm({ ...form, laboratoryMethod: v })}
-              showValue
               placeholder="选择检验方法"
               options={(dictionaries.BD_LAB_METHOD ?? []).map((v) => ({
                 value: v.code,
@@ -1093,7 +1094,6 @@ function LaboratoryProfileInlineEditor({ value, dictionaries, units, onClose, on
               <Select
                 value={form.reportDurationUnit}
                 onChange={(v) => setForm({ ...form, reportDurationUnit: v })}
-                showValue
                 placeholder="选择单位"
                 options={units.filter((v) => v.dimension === 'TIME' && v.status === 'ACTIVE').map(unitOption)}
               />
@@ -1255,7 +1255,6 @@ function ExaminationProfileInlineEditor({
             <Select
               value={form.examinationType}
               onChange={(v) => setForm({ ...form, examinationType: v })}
-              showValue
               placeholder="选择检查类型"
               options={(dictionaries.BD_EXAM_TYPE ?? []).map((v) => ({
                 value: v.code,
@@ -1366,7 +1365,6 @@ function ExaminationProfileInlineEditor({
                     <Select
                       value={form.additionalSiteItemId}
                       onChange={(v) => setForm({ ...form, additionalSiteItemId: v })}
-                      showValue
                       placeholder="选择加收收费项"
                       options={itemOptions}
                     />
@@ -1412,9 +1410,9 @@ function ExaminationProfileInlineEditor({
 function LaboratoryProfileDialog({ value, dictionaries, units, onClose, onSave }: { value: LaboratoryProfile; dictionaries: Record<string, DictionaryValue[]>; units: UnitDefinition[]; onClose: () => void; onSave: (input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) => void }) {
   const [form, setForm] = useState({ laboratoryMethod: value.laboratoryMethod ?? '', reportDuration: value.reportDuration?.toString() ?? '', reportDurationUnit: value.reportDurationUnit ?? '', fastingRequired: value.fastingRequired, pointOfCare: value.pointOfCare, collectionDescription: value.collectionDescription ?? '' })
   return <FormDialog title="编辑检验项目配置" description="维护检验方法、报告时长与采集要求。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ ...form, laboratoryMethod: form.laboratoryMethod || undefined, reportDuration: form.reportDuration ? Number(form.reportDuration) : undefined, reportDurationUnit: form.reportDurationUnit || undefined, collectionDescription: form.collectionDescription || undefined }) }}>
-    <FormField label="检验方法"><Select value={form.laboratoryMethod} onChange={(v) => setForm({ ...form, laboratoryMethod: v })} showValue placeholder="选择检验方法" options={(dictionaries.BD_LAB_METHOD ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} /></FormField>
+    <FormField label="检验方法"><Select value={form.laboratoryMethod} onChange={(v) => setForm({ ...form, laboratoryMethod: v })} placeholder="选择检验方法" options={(dictionaries.BD_LAB_METHOD ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} /></FormField>
     <FormField label="报告时长"><input type="number" min="0.001" step="0.001" value={form.reportDuration} onChange={(e) => setForm({ ...form, reportDuration: e.target.value })} /></FormField>
-    <FormField label="时长单位"><Select value={form.reportDurationUnit} onChange={(v) => setForm({ ...form, reportDurationUnit: v })} showValue options={units.filter((v) => v.dimension === 'TIME' && v.status === 'ACTIVE').map(unitOption)} /></FormField>
+    <FormField label="时长单位"><Select value={form.reportDurationUnit} onChange={(v) => setForm({ ...form, reportDurationUnit: v })} options={units.filter((v) => v.dimension === 'TIME' && v.status === 'ACTIVE').map(unitOption)} /></FormField>
     <FormField label="采集说明" className="span-2"><textarea value={form.collectionDescription} onChange={(e) => setForm({ ...form, collectionDescription: e.target.value })} /></FormField>
     <Check label="要求空腹" checked={form.fastingRequired} onChange={(v) => setForm({ ...form, fastingRequired: v })} /><Check label="院内快速检测（POCT）" checked={form.pointOfCare} onChange={(v) => setForm({ ...form, pointOfCare: v })} />
   </FormDialog>
@@ -1435,7 +1433,7 @@ function ExaminationProfileDialog({ value, dictionaries, services, currentServic
     .map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
   const pricingMode = form.multiBodySite ? form.sitePricingMode : 'SINGLE'
   return <FormDialog title="编辑检查项目配置" description="维护检查类型、部位约束和多部位计价规则。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ examinationType: form.examinationType || undefined, bodySiteRequired: form.bodySiteRequired, multiBodySite: form.bodySiteRequired && form.multiBodySite, maxBodySiteCount: form.bodySiteRequired ? Number(form.maxBodySiteCount || 1) : undefined, preparationDescription: form.preparationDescription || undefined, sitePricingMode: pricingMode, includedSiteCount: Number(form.includedSiteCount || 1), additionalSitePrice: pricingMode === 'BASE_PLUS_FIXED' ? Number(form.additionalSitePrice) : undefined, additionalSiteItemId: pricingMode === 'BASE_PLUS_ITEM' ? form.additionalSiteItemId : undefined, additionalSiteQuantity: Number(form.additionalSiteQuantity || 1), maxChargeableSiteCount: form.multiBodySite ? Number(form.maxChargeableSiteCount || form.maxBodySiteCount) : 1 }) }}>
-    <FormField label="检查类型"><Select value={form.examinationType} onChange={(v) => setForm({ ...form, examinationType: v })} showValue options={(dictionaries.BD_EXAM_TYPE ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} /></FormField>
+    <FormField label="检查类型"><Select value={form.examinationType} onChange={(v) => setForm({ ...form, examinationType: v })} options={(dictionaries.BD_EXAM_TYPE ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} /></FormField>
     <FormField label="最多部位数"><input type="number" min="1" disabled={!form.bodySiteRequired} value={form.maxBodySiteCount} onChange={(e) => setForm({ ...form, maxBodySiteCount: e.target.value })} /></FormField>
     <FormField label="多部位计价"><Select disabled={!form.multiBodySite} value={pricingMode} onChange={(v) => setForm({ ...form, sitePricingMode: v as typeof form.sitePricingMode })} options={[
       { value: 'SINGLE', label: '主项目只计一次' }, { value: 'PER_SITE', label: '主项目按部位数量计费' },
@@ -1443,7 +1441,7 @@ function ExaminationProfileDialog({ value, dictionaries, services, currentServic
     ]} /></FormField>
     <FormField label="价格包含部位数"><input type="number" min="1" disabled={!form.multiBodySite} value={form.includedSiteCount} onChange={(e) => setForm({ ...form, includedSiteCount: e.target.value })} /></FormField>
     {pricingMode === 'BASE_PLUS_FIXED' && <FormField label="每超出部位加收金额" required><input type="number" min="0" step="0.01" value={form.additionalSitePrice} onChange={(e) => setForm({ ...form, additionalSitePrice: e.target.value })} /></FormField>}
-    {pricingMode === 'BASE_PLUS_ITEM' && <FormField label="多部位加收项目" required><Select value={form.additionalSiteItemId} onChange={(v) => setForm({ ...form, additionalSiteItemId: v })} showValue options={itemOptions} /></FormField>}
+    {pricingMode === 'BASE_PLUS_ITEM' && <FormField label="多部位加收项目" required><Select value={form.additionalSiteItemId} onChange={(v) => setForm({ ...form, additionalSiteItemId: v })} options={itemOptions} /></FormField>}
     {pricingMode === 'BASE_PLUS_ITEM' && <FormField label="每超出部位加收数量"><input type="number" min="0.0001" step="any" value={form.additionalSiteQuantity} onChange={(e) => setForm({ ...form, additionalSiteQuantity: e.target.value })} /></FormField>}
     {form.multiBodySite && <FormField label="最大计费部位数"><input type="number" min={form.includedSiteCount || 1} max={form.maxBodySiteCount} value={form.maxChargeableSiteCount} onChange={(e) => setForm({ ...form, maxChargeableSiteCount: e.target.value })} /></FormField>}
     <FormField label="检查前准备" className="span-2"><textarea value={form.preparationDescription} onChange={(e) => setForm({ ...form, preparationDescription: e.target.value })} /></FormField>
@@ -1713,7 +1711,6 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
                     onChange={(v) => {
                       setForm({ ...form, specimenItemId: v })
                     }}
-                    showValue
                     placeholder="选择标本类型"
                     options={configuration.specimenOptions.map((v) => ({
                       value: v.id,
@@ -1728,7 +1725,6 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
                     onChange={(v) => {
                       setForm({ ...form, containerItemId: v })
                     }}
-                    showValue
                     placeholder="不限定容器（常规无菌器）"
                     options={configuration.containerOptions.map((v) => ({
                       value: v.id,
@@ -1753,7 +1749,6 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
                     <Select
                       value={form.minimumQuantityUnit}
                       onChange={(v) => setForm({ ...form, minimumQuantityUnit: v })}
-                      showValue
                       placeholder="单位"
                       options={units.filter((v) => v.status === 'ACTIVE').map(unitOption)}
                     />
@@ -1866,7 +1861,6 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
                     disabled={form.tubeChargeMode === 'NONE'}
                     value={form.tubeChargeMode === 'NONE' ? '' : form.tubeChargeItemId}
                     onChange={(v) => setForm({ ...form, tubeChargeItemId: v })}
-                    showValue
                     options={chargeOptions}
                     placeholder={form.tubeChargeMode === 'NONE' ? '当前模式无需关联试管耗材' : '选择真空采血管收费项目'}
                   />
@@ -1989,7 +1983,7 @@ function VariantDialog({ value, dictionaries, onClose, onSave }: {
       <input value={form.name} placeholder="如 胸部、全腹部" onChange={(e) => setForm({ ...form, name: e.target.value })} />
     </FormField>
     <FormField label="检查技术方式">
-      <Select value={form.methodType} onChange={(v) => setForm({ ...form, methodType: v })} showValue
+      <Select value={form.methodType} onChange={(v) => setForm({ ...form, methodType: v })}
         placeholder="未限定方式（平扫/增强通用）"
         options={(dictionaries.BD_SERVICE_VARIANT_METHOD ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} />
     </FormField>
@@ -2100,7 +2094,7 @@ function AttachmentDialog({ value, services, currentServiceId, onClose, onSave }
 
     <FormField label="连带收费项目" required className="span-2">
       <Select disabled={Boolean(value)} value={form.attachmentCatalogItemId}
-        onChange={(v) => setForm({ ...form, attachmentCatalogItemId: v })} showValue options={options}
+        onChange={(v) => setForm({ ...form, attachmentCatalogItemId: v })} options={options}
         placeholder="选择胶片、造影剂、穿刺包或特殊技术服务项目" />
     </FormField>
     <FormField label="触发条件">
@@ -2191,7 +2185,7 @@ function SupplyDialog({ value, units, manufacturers, onClose, onSave }: {
             <input value={form.code} disabled={Boolean(value)} placeholder="如 MAT_EDTA_2ML" onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
           </FormField>
           <FormField label="基础单位" required>
-            <Select value={form.unitCode} onChange={(v) => setForm({ ...form, unitCode: v })} showValue options={units.filter((v) => v.status === 'ACTIVE' || v.code === value?.unitCode).map(unitOption)} />
+            <Select value={form.unitCode} onChange={(v) => setForm({ ...form, unitCode: v })} options={units.filter((v) => v.status === 'ACTIVE' || v.code === value?.unitCode).map(unitOption)} />
           </FormField>
           <FormField label="状态">
             <Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} />
@@ -2206,7 +2200,7 @@ function SupplyDialog({ value, units, manufacturers, onClose, onSave }: {
             <input value={form.genericCode} placeholder="如 YB_HC_001" onChange={(e) => setForm({ ...form, genericCode: e.target.value })} />
           </FormField>
           <FormField label="生产企业">
-            <Select value={form.manufacturerId} onChange={(v) => setForm({ ...form, manufacturerId: v })} placeholder="未指定" showValue options={manufacturers.map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))} />
+            <Select value={form.manufacturerId} onChange={(v) => setForm({ ...form, manufacturerId: v })} placeholder="未指定" options={manufacturers.map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))} />
           </FormField>
           <FormField label="型号">
             <input value={form.modelName} placeholder="如 EDTA-K2-2ML" onChange={(e) => setForm({ ...form, modelName: e.target.value })} />
@@ -2541,7 +2535,7 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
                         </td>
                         <td className="td-unit">
                           <Select value={config.unitCode} onChange={(unitCode) => setMember(id, { unitCode })}
-                            placeholder="沿用主档" showValue options={units.filter((v) => v.status === 'ACTIVE').map(unitOption)} />
+                            placeholder="沿用主档" options={units.filter((v) => v.status === 'ACTIVE').map(unitOption)} />
                         </td>
                         <td className="td-required">
                           <Check label="" checked={config.requiredMember} onChange={(v) => setMember(id, { requiredMember: v })} />
@@ -3119,7 +3113,7 @@ function FrequencyWorkspace({ api, organization, departments, values, loading, o
             <tbody>
               {values.map((value) => (
                 <tr key={value.id}>
-                  <td><b>{value.name}<code>{value.code}{value.shortName ? ` · ${value.shortName}` : ''}</code></b></td>
+                  <td><b title={`频次编码：${value.code}`}>{value.name}{value.shortName && <small>{value.shortName}</small>}</b></td>
                   <td><span>{frequencyRuleLabel(value)}<small>{value.scheduleCapability?.explanation ?? (value.automaticTaskGeneration ? '已开启生成意图，需预演核对能力' : '不预生成固定任务')}</small></span></td>
                   <td>{frequencyApplicabilityLabel(value)}</td>
                   <td>{value.defaultExecutionTimes.join('、') || '随医嘱/事件'}</td>
@@ -3470,7 +3464,8 @@ function UnitWorkspace({ api, units, conversions, catalogItems, loading, onDialo
   const opts = units.filter((v) => v.status === 'ACTIVE').map(unitOption)
   const catalogOptions = catalogItems.map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
   const catalogName = (id?: string) => catalogItems.find((v) => v.id === id)?.name ?? '项目专属'
-  const run = () => api.masterData.convertUnit(Number(quantity), from, to, catalogItemId || undefined, today()).then((v) => setResult(`${v.input} ${v.fromUnitCode} = ${v.result} ${v.toUnitCode} · ${v.path.join(' → ')}`)).catch(onError)
+  const unitName = (code: string) => units.find((unit) => unit.code === code)?.name ?? code
+  const run = () => api.masterData.convertUnit(Number(quantity), from, to, catalogItemId || undefined, today()).then((v) => setResult(`${v.input} ${unitName(v.fromUnitCode)} = ${v.result} ${unitName(v.toUnitCode)} · ${v.path.map(unitName).join(' → ')}`)).catch(onError)
   const saveUnit = (value?: UnitDefinition) => (input: Omit<UnitDefinition, 'id' | 'revision'>) =>
     (value ? api.masterData.updateUnit(value, input) : api.masterData.createUnit(input))
       .then(() => { onDialog(undefined); return onDone(value ? '计量单位已更新' : '计量单位已新增') }).catch(onError)
@@ -3478,9 +3473,9 @@ function UnitWorkspace({ api, units, conversions, catalogItems, loading, onDialo
     (value ? api.masterData.updateUnitConversion(value, input) : api.masterData.createUnitConversion(input))
       .then(() => { onDialog(undefined); return onDone(value ? '换算规则已更新' : '换算规则已新增') }).catch(onError)
   return <section className="operational-master-data__body"><div className="operational-master-data__toolbar"><div><h3>统一计量单位与换算</h3><p>单位按计量维度管理，项目专属规则优先于全局规则。</p></div><div className="row-actions"><Button variant="secondary" onClick={() => onDialog(<UnitDialog onClose={() => onDialog(undefined)} onSave={saveUnit()} />)}>新增单位</Button><Button onClick={() => onDialog(<ConversionDialog units={units} catalogItems={catalogItems} onClose={() => onDialog(undefined)} onSave={saveConversion()} />)}>新增换算</Button></div></div>
-    {loading ? <LoadingState label="正在加载计量体系…" /> : <div className="unit-workspace"><div><h4>单位定义</h4><DataTable headers={['单位', '维度', '精度', '状态', '操作']} rows={units.map((v) => [<b>{v.name}<code>{v.code} · {v.symbol}</code></b>, dimensions.find((d) => d.value === v.dimension)?.label, v.decimalScale, <State value={v.status} />, <Button size="sm" variant="text" onClick={() => onDialog(<UnitDialog value={v} onClose={() => onDialog(undefined)} onSave={saveUnit(v)} />)}>编辑</Button>])} /></div>
-      <div><h4>换算规则</h4><DataTable headers={['范围', '换算', '有效期', '状态', '操作']} rows={conversions.map((v) => [v.catalogItemId ? catalogName(v.catalogItemId) : '全局', `1 ${v.fromUnitCode} = ${v.factor} ${v.toUnitCode}${v.offset ? ` + ${v.offset}` : ''}`, `${v.validFrom} 至 ${v.validTo || '长期'}`, <State value={v.status} />, <Button size="sm" variant="text" onClick={() => onDialog(<ConversionDialog value={v} units={units} catalogItems={catalogItems} onClose={() => onDialog(undefined)} onSave={saveConversion(v)} />)}>编辑</Button>])} /></div></div>}
-    <div className="unit-converter"><strong>换算试算</strong><Select value={catalogItemId} onChange={setCatalogItemId} placeholder="全局规则（可选项目）" options={catalogOptions} showValue /><input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} /><Select value={from} onChange={setFrom} placeholder="来源单位" options={opts} /><span>→</span><Select value={to} onChange={setTo} placeholder="目标单位" options={opts} /><Button variant="secondary" disabled={!from || !to} onClick={run}>试算</Button>{result && <output>{result}</output>}</div>
+    {loading ? <LoadingState label="正在加载计量体系…" /> : <div className="unit-workspace"><div><h4>单位定义</h4><DataTable headers={['单位', '维度', '精度', '状态', '操作']} rows={units.map((v) => [<b title={`单位编码：${v.code}`}>{v.name}{v.symbol && <small>{v.symbol}</small>}</b>, dimensions.find((d) => d.value === v.dimension)?.label, v.decimalScale, <State value={v.status} />, <Button size="sm" variant="text" onClick={() => onDialog(<UnitDialog value={v} onClose={() => onDialog(undefined)} onSave={saveUnit(v)} />)}>编辑</Button>])} /></div>
+      <div><h4>换算规则</h4><DataTable headers={['范围', '换算', '有效期', '状态', '操作']} rows={conversions.map((v) => [v.catalogItemId ? catalogName(v.catalogItemId) : '全局', `1 ${unitName(v.fromUnitCode)} = ${v.factor} ${unitName(v.toUnitCode)}${v.offset ? ` + ${v.offset}` : ''}`, `${v.validFrom} 至 ${v.validTo || '长期'}`, <State value={v.status} />, <Button size="sm" variant="text" onClick={() => onDialog(<ConversionDialog value={v} units={units} catalogItems={catalogItems} onClose={() => onDialog(undefined)} onSave={saveConversion(v)} />)}>编辑</Button>])} /></div></div>}
+    <div className="unit-converter"><strong>换算试算</strong><Select value={catalogItemId} onChange={setCatalogItemId} placeholder="全局规则（可选项目）" options={catalogOptions} /><input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} /><Select value={from} onChange={setFrom} placeholder="来源单位" options={opts} /><span>→</span><Select value={to} onChange={setTo} placeholder="目标单位" options={opts} /><Button variant="secondary" disabled={!from || !to} onClick={run}>试算</Button>{result && <output>{result}</output>}</div>
   </section>
 }
 
@@ -3491,7 +3486,7 @@ function UnitDialog({ value, onClose, onSave }: { value?: UnitDefinition; onClos
 function ConversionDialog({ value, units, catalogItems, onClose, onSave }: { value?: UnitConversion; units: UnitDefinition[]; catalogItems: Array<ServiceCatalogItem | SupplyItem>; onClose: () => void; onSave: (v: UnitConversionInput) => void }) {
   const [form, setForm] = useState({ catalogItemId: value?.catalogItemId ?? '', fromUnitCode: value?.fromUnitCode ?? '', toUnitCode: value?.toUnitCode ?? '', factor: String(value?.factor ?? ''), offset: String(value?.offset ?? 0), validFrom: value?.validFrom ?? today(), validTo: value?.validTo ?? '', status: value?.status ?? 'ACTIVE' }); const opts = units.filter((v) => v.status === 'ACTIVE' || v.code === value?.fromUnitCode || v.code === value?.toUnitCode).map(unitOption)
   const catalogOptions = catalogItems.map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
-  return <FormDialog title={value ? '编辑单位换算' : '新增单位换算'} description="全局规则适用于通用物理换算；包装规格等应使用项目专属换算。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ catalogItemId: form.catalogItemId || undefined, fromUnitCode: form.fromUnitCode, toUnitCode: form.toUnitCode, factor: Number(form.factor), offset: Number(form.offset), validFrom: form.validFrom, validTo: form.validTo || undefined, status: form.status as 'ACTIVE' | 'INACTIVE' }) }}><FormField label="规则范围"><Select disabled={Boolean(value)} value={form.catalogItemId} onChange={(v) => setForm({ ...form, catalogItemId: v })} placeholder="全局通用" showValue options={catalogOptions} /></FormField><FormField label="来源单位" required><Select disabled={Boolean(value)} value={form.fromUnitCode} onChange={(v) => setForm({ ...form, fromUnitCode: v })} showValue options={opts} /></FormField><FormField label="目标单位" required><Select disabled={Boolean(value)} value={form.toUnitCode} onChange={(v) => setForm({ ...form, toUnitCode: v })} showValue options={opts} /></FormField><FormField label="乘数" required><input type="number" min="0.000000001" step="any" value={form.factor} onChange={(e) => setForm({ ...form, factor: e.target.value })} /></FormField><FormField label="偏移量"><input type="number" step="any" value={form.offset} onChange={(e) => setForm({ ...form, offset: e.target.value })} /></FormField><FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField><FormField label="生效日期"><input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} /></FormField><FormField label="失效日期"><input type="date" min={form.validFrom} value={form.validTo} onChange={(e) => setForm({ ...form, validTo: e.target.value })} /></FormField></FormDialog>
+  return <FormDialog title={value ? '编辑单位换算' : '新增单位换算'} description="全局规则适用于通用物理换算；包装规格等应使用项目专属换算。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ catalogItemId: form.catalogItemId || undefined, fromUnitCode: form.fromUnitCode, toUnitCode: form.toUnitCode, factor: Number(form.factor), offset: Number(form.offset), validFrom: form.validFrom, validTo: form.validTo || undefined, status: form.status as 'ACTIVE' | 'INACTIVE' }) }}><FormField label="规则范围"><Select disabled={Boolean(value)} value={form.catalogItemId} onChange={(v) => setForm({ ...form, catalogItemId: v })} placeholder="全局通用" options={catalogOptions} /></FormField><FormField label="来源单位" required><Select disabled={Boolean(value)} value={form.fromUnitCode} onChange={(v) => setForm({ ...form, fromUnitCode: v })} options={opts} /></FormField><FormField label="目标单位" required><Select disabled={Boolean(value)} value={form.toUnitCode} onChange={(v) => setForm({ ...form, toUnitCode: v })} options={opts} /></FormField><FormField label="乘数" required><input type="number" min="0.000000001" step="any" value={form.factor} onChange={(e) => setForm({ ...form, factor: e.target.value })} /></FormField><FormField label="偏移量"><input type="number" step="any" value={form.offset} onChange={(e) => setForm({ ...form, offset: e.target.value })} /></FormField><FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField><FormField label="生效日期"><input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} /></FormField><FormField label="失效日期"><input type="date" min={form.validFrom} value={form.validTo} onChange={(e) => setForm({ ...form, validTo: e.target.value })} /></FormField></FormDialog>
 }
 
-const unitOption = (v: UnitDefinition) => ({ value: v.code, label: v.name, secondaryText: `${v.code}${v.symbol ? ` · ${v.symbol}` : ''}` })
+const unitOption = (v: UnitDefinition) => ({ value: v.code, label: v.name, secondaryText: v.symbol || v.code })

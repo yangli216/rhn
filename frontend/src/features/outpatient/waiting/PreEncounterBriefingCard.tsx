@@ -29,7 +29,7 @@ export function PreEncounterBriefingCard({
               <h3 id="briefing-title">
                 {item.residentName}
                 <small className="briefing-meta">
-                  {item.gender === 'MALE' ? '男' : item.gender === 'FEMALE' ? '女' : '未知'} ·{' '}
+                  {item.genderText ?? '未知'} ·{' '}
                   {item.birthDate ? `${new Date().getFullYear() - parseInt(item.birthDate.slice(0, 4), 10)} 岁` : ''} ·{' '}
                   {item.healthRecordNo}
                 </small>

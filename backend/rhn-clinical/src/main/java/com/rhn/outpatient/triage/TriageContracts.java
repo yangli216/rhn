@@ -1,5 +1,6 @@
 package com.rhn.outpatient.triage;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -23,7 +24,7 @@ public class TriageContracts {
             String triageNurseId,
             String triageNurseName,
             String patientName,
-            String gender,
+            @DictionaryBinding("RESIDENT_GENDER") String gender,
             Integer age,
             LocalDate birthDate,
             String phone,
@@ -222,7 +223,7 @@ public class TriageContracts {
             Long residentId,
             String healthRecordNo,
             String residentName,
-            String gender,
+            @DictionaryBinding("RESIDENT_GENDER") String gender,
             LocalDate birthDate,
             Integer age,
             String phone,

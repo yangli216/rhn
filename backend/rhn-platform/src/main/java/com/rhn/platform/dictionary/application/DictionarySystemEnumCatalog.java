@@ -59,6 +59,8 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
     public static final String SC_APPOINTMENT_SOURCE = "SC_APPOINTMENT_SOURCE";
     public static final String MASTER_DATA_SEARCH_INPUT_MODE = "MASTER_DATA_SEARCH_INPUT_MODE";
     public static final String MASTER_DATA_SEARCH_MATCH_MODE = "MASTER_DATA_SEARCH_MATCH_MODE";
+    public static final String RESIDENT_GENDER = "RESIDENT_GENDER";
+    public static final String BED_DISPLAY_STATUS = "BED_DISPLAY_STATUS";
     public static final Set<String> PERSISTED_SYSTEM_ENUM_CODES = Set.of(
             PARAM_SCOPE_TYPE, PARAM_VALUE_TYPE, PARAM_CONTROL_TYPE, PARAM_CONFIG_TYPE,
             PARAM_SENSITIVITY, PARAM_DISPLAY_POLICY, PARAM_STATUS, PARAM_VALUE_MODE,
@@ -269,7 +271,17 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                     "基础数据名称和简码的匹配策略", SearchMatchMode.class, List.of(
                             item("PREFIX", "左匹配", "从名称或简码开头匹配", 10),
                             item("CONTAINS", "模糊匹配", "在名称或简码任意位置匹配", 20),
-                            item("SIMILARITY", "相似度", "按编辑距离计算相似结果", 30)))
+                            item("SIMILARITY", "相似度", "按编辑距离计算相似结果", 30))),
+            definition(RESIDENT_GENDER, "居民性别", "居民主档中的性别代码", List.of(
+                            item("MALE", "男", "男性", 10),
+                            item("FEMALE", "女", "女性", 20),
+                            item("UNKNOWN", "未知", "未登记或未知", 30))),
+            definition(BED_DISPLAY_STATUS, "床位显示状态", "住院床位在床位图上的展示状态", List.of(
+                            item("AVAILABLE", "空床", "当前可收治患者", 10),
+                            item("OCCUPIED", "占用", "已有患者占用", 20),
+                            item("CLEANING", "待清洁", "出院后等待清洁消毒", 30),
+                            item("BLOCKED", "封床", "暂不可用，等待处理", 40),
+                            item("MAINTENANCE", "维护", "设备或设施维护中", 50)))
     );
     private final Map<String, SystemEnumDefinition> definitionsByCode = definitions.stream()
             .collect(Collectors.toUnmodifiableMap(SystemEnumDefinition::code, Function.identity()));

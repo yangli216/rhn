@@ -49,7 +49,7 @@ import type { PrintPurpose, PrintReceipt, PrintRecord } from '../../shared/api/p
 import type { AllergenTerm, AllergyIntolerance } from '../../shared/api/residentsApi'
 import type { ReceptionQueueItem, ReceptionQueueScope } from '../../shared/api/schedulingApi'
 import type { Encounter, Resident } from '../../shared/model'
-import { age, formatTime, genderLabel } from '../../shared/format'
+import { age, formatTime } from '../../shared/format'
 import { requiresBloodPressure } from './bloodPressurePolicy'
 import { encounterStatusPresentation } from '../../shared/presentation'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
@@ -469,7 +469,7 @@ export function QueueRow({ item, busy, canEdit, onEnter, onView }: {
   const entryLabel = queueEntryLabel(item.status)
   return <article className="doctor-queue-row">
     <span className="doctor-queue-ticket">{item.ticketNo}</span>
-    <span className="doctor-queue-patient"><strong>{item.residentName}</strong><small>{genderLabel(item.gender)} · {age(item.birthDate)} 岁 · {item.healthRecordNo}</small></span>
+    <span className="doctor-queue-patient"><strong>{item.residentName}</strong><small>{item.genderText ?? '未知'} · {age(item.birthDate)} 岁 · {item.healthRecordNo}</small></span>
     <span className="doctor-queue-service"><strong>{item.serviceName || '普通门诊'}</strong><small>{item.practitionerName || '现场接诊'}{item.locationName ? ` · ${item.locationName}` : ''}</small></span>
     <span className="doctor-queue-time"><strong>{formatTime(item.registeredAt)}</strong><small>挂号时间</small></span>
     <StatusBadge tone={item.status === 'SERVING' ? 'success' : 'warning'}>
@@ -750,7 +750,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   }
   return <section className="doctor-patient-workspace">
     <ObjectContextBar avatar={resident.fullName.slice(-1)} title={resident.fullName}
-      description={`${genderLabel(resident.gender)} · ${age(resident.birthDate)} 岁 · ${resident.maskedNationalId || '无证件标识'}`}
+      description={`${resident.genderText ?? '未知'} · ${age(resident.birthDate)} 岁 · ${resident.maskedNationalId || '无证件标识'}`}
       facts={[{ label: '健康档案号', value: resident.healthRecordNo },
         { label: '联系电话', value: resident.phone || '未登记' },
         { label: '就诊号', value: encounter?.encounterNo || '无当前就诊' },

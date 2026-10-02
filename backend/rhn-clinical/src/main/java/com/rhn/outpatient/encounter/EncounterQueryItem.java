@@ -1,5 +1,7 @@
 package com.rhn.outpatient.encounter;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.time.Instant;
 import java.time.LocalDate;
 
@@ -9,7 +11,7 @@ public record EncounterQueryItem(
         Long residentId,
         String healthRecordNo,
         String residentName,
-        String gender,
+        @DictionaryBinding("RESIDENT_GENDER") String gender,
         LocalDate birthDate,
         String phone,
         Long organizationId,

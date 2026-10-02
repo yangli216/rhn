@@ -1,5 +1,7 @@
 package com.rhn.platform.masterdata.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -8,7 +10,8 @@ public final class MedicalOperationsViews {
     private MedicalOperationsViews() {}
 
     public record DictionaryOption(Long id, String code, String name, int sortOrder) {}
-    public record LaboratoryProfile(Long serviceId, long revision, String laboratoryMethod,
+    public record LaboratoryProfile(Long serviceId, long revision,
+            @DictionaryBinding(MasterDataDictionaryCodes.LAB_METHOD) String laboratoryMethod,
             BigDecimal reportDuration, String reportDurationUnit, boolean fastingRequired,
             boolean pointOfCare, String collectionDescription, List<SpecimenConfiguration> specimens) {}
     public record SpecimenConfiguration(Long id, long revision, Long specimenItemId, String specimenCode,
@@ -18,7 +21,8 @@ public final class MedicalOperationsViews {
             String tubeGroupCode, String tubeSharingMode, int baseTubeCount, Integer maxTestsPerTube,
             String tubeChargeMode, Long tubeChargeItemId, String tubeChargeItemCode,
             String tubeChargeItemName, int includedTubeCount, BigDecimal tubeChargeQuantity) {}
-    public record ExaminationProfile(Long serviceId, long revision, String examinationType,
+    public record ExaminationProfile(Long serviceId, long revision,
+            @DictionaryBinding(MasterDataDictionaryCodes.EXAM_TYPE) String examinationType,
             boolean bodySiteRequired, boolean multiBodySite, Integer maxBodySiteCount,
             String preparationDescription, String sitePricingMode, int includedSiteCount,
             BigDecimal additionalSitePrice, Long additionalSiteItemId,
@@ -26,14 +30,17 @@ public final class MedicalOperationsViews {
             BigDecimal additionalSiteQuantity, Integer maxChargeableSiteCount,
             List<ExaminationVariant> variants, List<ExaminationAttachment> attachments) {}
     public record ExaminationVariant(Long id, long revision, Long bodySiteConceptId, String code,
-            String name, String methodType, boolean bodySiteRequired, String mutualRecognitionCode,
+            String name,
+            @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_VARIANT_METHOD) String methodType,
+            boolean bodySiteRequired, String mutualRecognitionCode,
             int sortOrder, String status) {}
     public record ExaminationAttachment(Long id, long revision, Long attachmentCatalogItemId,
             String attachmentItemCode, String attachmentItemName, String triggerType,
             String quantityBasis, BigDecimal quantity, boolean requiredAttachment,
             boolean separatelyChargeable, int sortOrder, String description, String status) {}
     public record ClinicalConfiguration(Long serviceId, String serviceCode, String serviceName,
-            String serviceType, LaboratoryProfile laboratory, ExaminationProfile examination,
+            @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_TYPE) String serviceType,
+            LaboratoryProfile laboratory, ExaminationProfile examination,
             List<DictionaryOption> specimenOptions, List<DictionaryOption> containerOptions) {}
 
     public record SupplyView(Long id, long revision, Long itemTypeId, String supplyType, String code,
@@ -47,10 +54,13 @@ public final class MedicalOperationsViews {
             String scopeDescription, String instruction) {}
 
     public record GroupMemberView(Long id, Long catalogItemId, String itemCode, String itemName,
-            String serviceType, int sortOrder, BigDecimal quantity, String unitCode,
+            @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_TYPE) String serviceType,
+            int sortOrder, BigDecimal quantity, String unitCode,
             boolean requiredMember, String memberDescription) {}
     public record ItemGroupView(Long id, long revision, Long organizationId, Long executionDepartmentId,
-            String code, String name, String groupType, String usageType, boolean pointOfCare,
+            String code, String name, String groupType,
+            @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_USE) String usageType,
+            boolean pointOfCare,
             String status, LocalDate validFrom, LocalDate validTo, List<GroupMemberView> members) {}
 
     public record UnitView(Long id, long revision, String code, String name, String symbol,

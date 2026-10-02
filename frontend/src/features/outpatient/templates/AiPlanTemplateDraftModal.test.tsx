@@ -108,6 +108,32 @@ describe('AiPlanTemplateDraftModal', () => {
     expect(screen.getByText(usage)).toBeInTheDocument()
   })
 
+  it('shows an applicability condition separately from a diagnosis', async () => {
+    const api = {
+      clinicalAi: { capabilities: vi.fn().mockResolvedValue({
+        mode: 'MODEL', available: true, model: 'qwen-test', features: ['PLAN_COMPILATION'],
+      }) },
+      outpatientPlanTemplates: { compileDraftStream: vi.fn().mockResolvedValue({
+        scopeType: 'PERSONAL', name: '急性扁桃体炎方案', narrative: '诊断与评估：急性扁桃体炎。', sourceType: 'AI_INPUT',
+        reviewItems: [
+          { kind: 'DIAGNOSIS', text: '急性扁桃体炎，未特指 [J03.9]', origin: 'SUGGESTED' },
+          { kind: 'CONDITION', text: '门诊轻症患者', origin: 'SUGGESTED' },
+        ],
+      }) },
+    } as unknown as RhnApi
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}>
+      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+    </QueryClientProvider>)
+
+    const user = userEvent.setup()
+    await user.type(screen.getByPlaceholderText(/请输入您的问题或描述症状/), '急性扁桃体炎')
+    await user.click(await screen.findByRole('button', { name: '发送' }))
+    const checklist = await screen.findByRole('region', { name: '临床方案审核清单' })
+    expect(within(checklist).getByText('门诊轻症患者').closest('section')).toHaveTextContent('适用条件')
+    expect(within(checklist).queryByText('待对齐诊断')).not.toBeInTheDocument()
+  })
+
   it('removes review items before catalog matching and keeps only the doctor-selected plan', async () => {
     const reviewItems: PlanTextDraft['reviewItems'] = [
       { kind: 'DIAGNOSIS', text: '急性上呼吸道感染，未特指 [J06.9]', origin: 'EXPLICIT', sourceQuote: '成人上感' },
@@ -546,9 +572,12 @@ describe('AiPlanTemplateDraftModal', () => {
 
     const user = userEvent.setup()
 
-    // 1. 验证核对界面使用了统一的分组标题与图标
+    // 1. 验证核对界面使用了统一的分组标题与图标以及纯规格值徽标
     expect(screen.getByRole('region', { name: '诊断与评估' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: '用药建议' })).toBeInTheDocument()
+    expect(screen.getByText('0.25g')).toBeInTheDocument()
+    expect(screen.queryByText(/主档规格/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/实际规格/)).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: '检验检查' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: '配套病历书写模板' })).toBeInTheDocument()
 

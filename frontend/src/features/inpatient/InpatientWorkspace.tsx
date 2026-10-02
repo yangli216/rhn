@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../app/AppShell'
-import { age, formatTime, genderLabel } from '../../shared/format'
+import { age, formatTime } from '../../shared/format'
 import type { InpatientBed, InpatientDischargeDiagnosis, InpatientEpisode } from '../../shared/api/inpatientApi'
 import type { Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
@@ -146,7 +146,7 @@ export function BedBoard({ beds, selectedId, onSelectEpisode, onRelease, onBlock
 export function PatientRow({ value, active, onClick }: { value: InpatientEpisode; active: boolean; onClick: () => void }) {
   return <button type="button" className={active ? 'is-active' : ''} onClick={onClick}>
     <span><strong>{value.bedNo ?? '已离院'}</strong><b>{value.residentName}</b></span>
-    <span>{value.gender === 'UNKNOWN' ? '未知' : genderLabel(value.gender)} · {value.birthDate ? `${age(value.birthDate)}岁` : '年龄未知'} · {value.healthRecordNo}</span>
+    <span>{value.genderText ?? '未知'} · {value.birthDate ? `${age(value.birthDate)}岁` : '年龄未知'} · {value.healthRecordNo}</span>
     <small>{value.episodeNo} · {formatTime(value.admittedAt)}</small>
     <StatusBadge tone={value.status === 'ADMITTED' ? 'info' : 'neutral'}>{value.status === 'ADMITTED' ? '在院' : '已出院'}</StatusBadge>
   </button>
@@ -159,7 +159,7 @@ export function EpisodeDetail({ value, onTransfer, onDischarge }: {
 }) {
   return <div className="inpatient-episode-detail">
     <header><div><span>{value.departmentName} · {value.bedNo ?? '已离院'}</span><h2>{value.residentName}</h2>
-      <p>{genderLabel(value.gender)} · {value.birthDate ? `${age(value.birthDate)}岁` : '年龄未知'} · 健康档案 {value.healthRecordNo}</p></div>
+      <p>{value.genderText ?? '未知'} · {value.birthDate ? `${age(value.birthDate)}岁` : '年龄未知'} · 健康档案 {value.healthRecordNo}</p></div>
       <StatusBadge tone={value.status === 'ADMITTED' ? 'info' : 'neutral'}>{value.status === 'ADMITTED' ? '在院' : '已出院'}</StatusBadge></header>
     <dl><div><dt>住院号</dt><dd>{value.episodeNo}</dd></div><div><dt>入院时间</dt><dd>{formatTime(value.admittedAt)}</dd></div>
       <div><dt>病区 / 病房</dt><dd>{[value.wardName, value.roomName].filter(Boolean).join(' · ') || value.departmentName}</dd></div>

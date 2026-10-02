@@ -1,5 +1,8 @@
 package com.rhn.billing.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -12,7 +15,8 @@ public final class BillingViews {
             Long id, Long patientAccountId, Long residentId, Long encounterId, Long requestId,
             Long catalogItemId, String sourceType, Long sourceId, String requestCode, String status,
             BigDecimal quantity, String unitCode, BigDecimal unitPrice, BigDecimal totalAmount,
-            String currencyCode, Long priceId, Long priceRevision, String priceType,
+            String currencyCode, Long priceId, Long priceRevision,
+            @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
             String itemCode, String itemName, Instant occurredAt, Long enteredBy,
             Long reversesChargeItemId, String packageSpec, String manufacturerName, String unitName) {}
 
@@ -50,7 +54,9 @@ public final class BillingViews {
 
     public record SettlementRecordView(
             Long id, Long patientAccountId, Long residentId, Long encounterId, Long departmentId,
-            String residentName, String healthRecordNo, String gender, LocalDate birthDate,
+            String residentName, String healthRecordNo,
+            @DictionaryBinding("RESIDENT_GENDER") String gender,
+            LocalDate birthDate,
             String encounterNo, String departmentName,
             String settlementNo, String settlementType, String settlementScene, String terminalScene,
             String status, BigDecimal grossAmount, BigDecimal discountAmount, BigDecimal insuranceAmount,
@@ -82,7 +88,8 @@ public final class BillingViews {
 
     public record BillingWorkItemView(
             Long encounterId, Long residentId, String residentName, String healthRecordNo,
-            String gender, LocalDate birthDate, String encounterNo,
+            @DictionaryBinding("RESIDENT_GENDER") String gender,
+            LocalDate birthDate, String encounterNo,
             Long accountId, String currencyCode, String status,
             int sourceEventCount, int chargedEventCount, String latestSourceNo, Instant latestOccurredAt,
             BigDecimal chargeAmount, BigDecimal accountBalance,

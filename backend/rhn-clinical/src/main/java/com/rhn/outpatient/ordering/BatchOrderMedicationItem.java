@@ -1,5 +1,7 @@
 package com.rhn.outpatient.ordering;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -23,7 +25,7 @@ public record BatchOrderMedicationItem(
         @Size(max = 1000) String medicationInstruction,
         Boolean allergyReviewConfirmed,
         @Size(max = 1000) String allergyOverrideReason,
-        @Size(max = 32) String priceType,
+        @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) @Size(max = 32) String priceType,
         Boolean pricingRequired,
         Long stockSiteId,
         @Size(max = 128) String stockSiteName,

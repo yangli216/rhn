@@ -1,12 +1,15 @@
 package com.rhn.platform.masterdata.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.util.List;
 import tools.jackson.databind.JsonNode;
 
 /** Reference identity is separate from local codes, product identity and clinical evidence approval. */
 public record MedicationStandardReference(String status, String catalogId, String catalogVersion,
         String contentHash, String entryId, String specificationId, Integer semanticVersion,
-        String name, String doseForm, String preparationSpec, String presentationUnit,
+        String name, @DictionaryBinding(MasterDataDictionaryCodes.DOSE_FORM) String doseForm,
+        String preparationSpec, String presentationUnit,
         JsonNode strength, String sourceVerificationStatus, List<String> issues, String sourceVerificationId) {
     public MedicationStandardReference { issues = List.copyOf(issues); }
     public MedicationStandardReference(String status, String catalogId, String catalogVersion,

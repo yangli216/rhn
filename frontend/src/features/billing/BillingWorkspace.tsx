@@ -13,7 +13,7 @@ import { AggregatedPaymentModal } from '../../shared/billing/AggregatedPaymentMo
 import { FiscalReceiptModal } from '../../shared/billing/FiscalReceiptModal'
 import { Alert, Button, DataTable, SearchField, tableCellClass, PanelHead, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
 import { Icon } from '../../shared/ui/Icon'
-import { age, genderLabel } from '../../shared/format'
+import { age } from '../../shared/format'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 import '../../styles/features/billing-settlement.css'
 
@@ -700,7 +700,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                 <div className="billing-patient-identity__header">
                   <strong className="billing-patient-identity__name">{selected.residentName || '姓名未提供'}</strong>
                   <span className="billing-patient-identity__tag">
-                    {genderLabel(selected.gender)}
+                    {selected.genderText ?? '未知'}
                     {selected.birthDate ? ` · ${age(selected.birthDate)} 岁` : ''}
                   </span>
                   <span className={`billing-patient-identity__mode-badge ${settlementMode === 'MEDICAL_INSURANCE' ? 'is-insurance' : 'is-selfpay'}`}>

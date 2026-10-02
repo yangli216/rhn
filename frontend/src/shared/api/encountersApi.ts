@@ -457,6 +457,7 @@ export interface EncounterQueryItem {
   healthRecordNo?: string | null
   residentName?: string | null
   gender?: string | null
+  genderText?: string | null
   birthDate?: string | null
   phone?: string | null
   organizationId: string

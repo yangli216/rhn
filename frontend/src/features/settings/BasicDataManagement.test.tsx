@@ -328,7 +328,7 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     )
 
     // 表头验证
-    expect(screen.getByText('药品通用名 / 编码')).toBeInTheDocument()
+    expect(screen.getByText('药品通用名')).toBeInTheDocument()
     expect(screen.getByText('分类与剂型')).toBeInTheDocument()
     expect(screen.getByText('规格与含量')).toBeInTheDocument()
     expect(screen.getByText('默认用法')).toBeInTheDocument()
@@ -337,7 +337,8 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
 
     // 内容验证
     expect(screen.getByText('阿莫西林胶囊')).toBeInTheDocument()
-    expect(screen.getByText('MED-2026-W001')).toBeInTheDocument()
+    expect(screen.queryByText('MED-2026-W001')).not.toBeInTheDocument()
+    expect(screen.getByTitle('药品编码: MED-2026-W001')).toBeInTheDocument()
     expect(screen.getByText('西药')).toBeInTheDocument()
     expect(screen.getByText('胶囊剂')).toBeInTheDocument()
     expect(screen.getByText('0.25g · 常温')).toBeInTheDocument()

@@ -25,7 +25,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
     void dictionary_self_enums_are_read_only_complete_and_reserved_from_ordinary_dictionaries() throws Exception {
         mockMvc.perform(get("/api/platform/dictionaries/system-enums").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(38))
+                .andExpect(jsonPath("$.length()").value(40))
                 .andExpect(jsonPath("$[0].code").value("DICT_SCOPE_TYPE"))
                 .andExpect(jsonPath("$[0].items[0].code").value("PLATFORM"))
                 .andExpect(jsonPath("$[0].items[1].code").value("TENANT"))
@@ -47,7 +47,9 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[34].code").value("SC_APPOINTMENT_STATUS"))
                 .andExpect(jsonPath("$[35].code").value("SC_APPOINTMENT_SOURCE"))
                 .andExpect(jsonPath("$[36].code").value("MASTER_DATA_SEARCH_INPUT_MODE"))
-                .andExpect(jsonPath("$[37].code").value("MASTER_DATA_SEARCH_MATCH_MODE"));
+                .andExpect(jsonPath("$[37].code").value("MASTER_DATA_SEARCH_MATCH_MODE"))
+                .andExpect(jsonPath("$[38].code").value("RESIDENT_GENDER"))
+                .andExpect(jsonPath("$[39].code").value("BED_DISPLAY_STATUS"));
 
         mockMvc.perform(get("/api/platform/dictionaries/system-enums/DICT_CHANGE_TYPE").with(rhn()))
                 .andExpect(status().isOk())

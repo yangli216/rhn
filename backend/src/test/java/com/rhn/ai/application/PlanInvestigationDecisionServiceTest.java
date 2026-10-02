@@ -102,4 +102,21 @@ class PlanInvestigationDecisionServiceTest {
         assertEquals(2, result.size()); assertSame(candidate, result.get(intent.key()).item()); assertSame(ecg, result.get(exam.key()).item());
         verify(gateway, times(1)).decide(argThat(request -> request.questions().size() == 2), any());
     }
+
+    @Test void cReactiveProteinMatchesAssayDirectly() {
+        var crp = item(301L, "C反应蛋白测定", "LABORATORY");
+        var crpIntent = new PlanInvestigationDecisionService.Intent("LABORATORY", "C反应蛋白");
+        when(catalog.searchOrderableServices("C反应蛋白", "LABORATORY", 3L, today)).thenReturn(List.of(crp));
+        assertSame(crp, service.resolve(List.of(crpIntent), context, today).get(crpIntent.key()).item());
+        verifyNoInteractions(gateway);
+    }
+
+    @Test void cReactiveProteinRecallsAssayWhenInitialSearchFails() {
+        var crp = item(301L, "C反应蛋白测定", "LABORATORY");
+        var crpIntent = new PlanInvestigationDecisionService.Intent("LABORATORY", "C反应蛋白");
+        when(catalog.searchOrderableServices("C反应蛋白", "LABORATORY", 3L, today)).thenReturn(List.of());
+        when(catalog.searchOrderableServices("C反应蛋白测定", "LABORATORY", 3L, today)).thenReturn(List.of(crp));
+        assertSame(crp, service.resolve(List.of(crpIntent), context, today).get(crpIntent.key()).item());
+        verifyNoInteractions(gateway);
+    }
 }

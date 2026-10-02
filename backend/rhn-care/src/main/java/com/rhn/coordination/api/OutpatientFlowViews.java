@@ -1,5 +1,7 @@
 package com.rhn.coordination.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -16,7 +18,8 @@ public final class OutpatientFlowViews {
 
     public record VisitView(
             Long encounterId, String encounterNo, Long residentId, String residentName, String healthRecordNo,
-            String gender, String clinicalStatus, String flowStatus, String flowStatusText,
+            @DictionaryBinding("RESIDENT_GENDER") String gender,
+            String clinicalStatus, String flowStatus, String flowStatusText,
             String nextDestination, String nextRoute, String nextActionText, String attentionReason,
             Instant pendingSince, long pendingMinutes, BigDecimal outstandingAmount,
             Instant registeredAt, Instant startedAt, Instant clinicalCompletedAt,

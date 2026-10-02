@@ -46,4 +46,15 @@ class MedicationIntentParserTest {
         assertEquals(null, result.frequencyCode());
         assertTrue(!result.hasExecutableDirections());
     }
+
+    @Test
+    void parses_colon_duration_and_typical_usage() {
+        var parsed = parser.parse("对乙酰氨基酚片", "常规用法：每次 0.5g 口服 PRN 疗程：3天；适用条件：体温≥38.5℃");
+        assertEquals(new BigDecimal("0.5"), parsed.doseValue());
+        assertEquals("g", parsed.doseUnit());
+        assertEquals("ORAL", parsed.routeCode());
+        assertEquals("PRN", parsed.frequencyCode());
+        assertEquals(new BigDecimal("3"), parsed.durationValue());
+        assertEquals("天", parsed.durationUnit());
+    }
 }

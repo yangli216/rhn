@@ -185,6 +185,7 @@ export interface ReceptionQueueItem {
   residentName: string
   phone?: string
   gender: 'MALE' | 'FEMALE' | 'UNKNOWN'
+  genderText?: string
   birthDate: string
   registrationNo: string
   ticketNo: string

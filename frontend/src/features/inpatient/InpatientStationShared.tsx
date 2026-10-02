@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { InpatientEpisode } from '../../shared/api/inpatientApi'
-import { age, formatTime, genderLabel } from '../../shared/format'
+import { age, formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { Button, EmptyState, Icon, IconButton, LoadingState, Panel, SearchField, Select, StatusBadge } from '../../shared/ui'
 import './inpatient-station.css'
@@ -95,7 +95,7 @@ export function InpatientPatientContextBar({ title, episodes, selected, selected
     {loading ? <LoadingState label="正在加载在院患者…" /> : episodes.length === 0
       ? <EmptyState icon="clinical" title="当前没有在院患者" copy="完成入院登记后，患者会进入对应业务工作台。" />
       : selected && <div className="inpatient-station-context__summary">
-        <span><strong>{selected.residentName}</strong><small>{genderLabel(selected.gender)} · {
+        <span><strong>{selected.residentName}</strong><small>{selected.genderText ?? '未知'} · {
           selected.birthDate ? `${age(selected.birthDate)}岁` : '年龄未知'}</small></span>
         <span><b>{selected.bedNo ?? '未分床'}</b><small>{selected.wardName ?? selected.departmentName}</small></span>
         <span><b>{selected.episodeNo}</b><small>{formatTime(selected.admittedAt)} 入院</small></span>
@@ -201,7 +201,7 @@ function PatientPoolCard({ episode, onSelect }: { episode: InpatientEpisode; onS
     onClick={onSelect} aria-label={`进入${bedLabel(episode.bedNo)}${episode.residentName}的住院工作区`}>
     <span className="inpatient-patient-card__identity">
       <span className="inpatient-patient-card__avatar"><Icon name="user" /></span>
-      <span><strong>{episode.residentName}</strong><small>{genderLabel(episode.gender)} · {
+      <span><strong>{episode.residentName}</strong><small>{episode.genderText ?? '未知'} · {
         episode.birthDate ? `${age(episode.birthDate)}岁` : '年龄未知'}</small></span>
       <b>{bedLabel(episode.bedNo)}</b>
     </span>
@@ -232,7 +232,7 @@ function PatientContextHeader({ episode, actions, onBack }: {
     </button>
     <span className="inpatient-patient-context__avatar"><Icon name="user" /></span>
     <div className="inpatient-patient-context__identity">
-      <span><h2>{episode.residentName}</h2><small>{genderLabel(episode.gender)} · {
+      <span><h2>{episode.residentName}</h2><small>{episode.genderText ?? '未知'} · {
         episode.birthDate ? `${age(episode.birthDate)}岁` : '年龄未知'}</small></span>
       <div className="inpatient-patient-context__badges">
         <StatusBadge tone="info">{paymentLabel(episode.paymentMethodCode)}</StatusBadge>

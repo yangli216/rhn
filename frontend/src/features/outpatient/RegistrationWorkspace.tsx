@@ -7,7 +7,7 @@ import { systemEnumItemName, systemEnumItems, type SystemEnumDefinition } from '
 import type { Appointment } from '../../shared/api/appointmentsApi'
 import type { ResidentCoverageInput } from '../../shared/api/residentsApi'
 import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem, type ServiceSchedule } from '../../shared/api/schedulingApi'
-import { age, genderLabel } from '../../shared/format'
+import { age } from '../../shared/format'
 import type { Encounter, Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
@@ -1056,7 +1056,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 <div className="registration-patient-identity__header">
                   <strong className="registration-patient-identity__name">{selected.fullName}</strong>
                   <span className="registration-patient-identity__tag">
-                    {genderLabel(selected.gender)} · {age(selected.birthDate)} 岁
+                    {selected.genderText ?? '未知'} · {age(selected.birthDate)} 岁
                   </span>
                   {age(selected.birthDate) >= 65 && (
                     <span className="registration-patient-identity__senior-badge">

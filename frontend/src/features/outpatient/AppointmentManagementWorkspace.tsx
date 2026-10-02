@@ -9,7 +9,7 @@ import {
 } from '../../shared/api/appointmentsApi'
 import type { ServiceSchedule } from '../../shared/api/schedulingApi'
 import { systemEnumItems } from '../../shared/api/dictionaryApi'
-import { age, genderLabel } from '../../shared/format'
+import { age } from '../../shared/format'
 import type { Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
@@ -202,7 +202,7 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
               <span>服务与医生</span><span>来源</span><span>状态</span><span>操作</span></div>
             {values.map((value) => <article key={value.id}>
               <div><strong>{value.appointmentNo}</strong><small>{dateTime(value.confirmedAt)} 创建</small></div>
-              <div><strong>{value.residentName}</strong><small>{genderLabel(value.gender)} · {age(value.birthDate)} 岁 · {value.healthRecordNo}</small></div>
+              <div><strong>{value.residentName}</strong><small>{value.genderText ?? '未知'} · {age(value.birthDate)} 岁 · {value.healthRecordNo}</small></div>
               <div><strong>{dateTime(value.startAt)}</strong><small>{value.sdDayPartText}{value.locationName ? ` · ${value.locationName}` : ''}</small></div>
               <div><strong>{value.practitionerName}</strong><small>{value.serviceName}</small></div>
               <span>{value.sdBookingSourceText}</span>
@@ -591,7 +591,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
           <div className="appointment-intake-identity">
             <strong className="appointment-patient-name">{resident.fullName}</strong>
             <span className="appointment-patient-meta">
-              {genderLabel(resident.gender)} · {age(resident.birthDate)} 岁
+              {resident.genderText ?? '未知'} · {age(resident.birthDate)} 岁
             </span>
           </div>
           <div className="appointment-intake-meta-pills">
@@ -963,7 +963,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
               <div className="appointment-ticket-preview">
                 <div className="appointment-ticket-row">
                   <span>就诊患者</span>
-                  <strong>{resident ? `${resident.fullName} (${genderLabel(resident.gender)} · ${age(resident.birthDate)}岁)` : <span className="appointment-patient-placeholder">待选择就诊人</span>}</strong>
+                  <strong>{resident ? `${resident.fullName} (${resident.genderText ?? '未知'} · ${age(resident.birthDate)}岁)` : <span className="appointment-patient-placeholder">待选择就诊人</span>}</strong>
                 </div>
                 <div className="appointment-ticket-row">
                   <span>就诊科室</span>

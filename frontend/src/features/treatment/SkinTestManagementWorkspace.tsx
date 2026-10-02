@@ -5,7 +5,7 @@ import type { ClinicalContext } from '../../app/AppShell'
 import type {
   SkinTestResult, SkinTestStatus, SkinTestWorkItem, StartSkinTestInput,
 } from '../../shared/api/treatmentApi'
-import { age, formatTime, genderLabel } from '../../shared/format'
+import { age, formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, BodySiteSelect, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge, UnitNumberInput } from '../../shared/ui'
@@ -244,7 +244,7 @@ export function SkinTestManagementWorkspace({ api, clinicalContext }: {
                     {(Boolean(item.gender) || Boolean(item.birthDate)) && (
                       <span className="skin-test-queue-item__demographics">
                         {[
-                          item.gender ? genderLabel(item.gender) : '',
+                          item.genderText ?? '',
                           item.birthDate ? `${age(item.birthDate)}岁` : '',
                         ].filter(Boolean).join(' · ')}
                       </span>
@@ -481,7 +481,7 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
               {(Boolean(item.gender) || Boolean(item.birthDate)) && (
                 <span className="skin-test-patient-demographics">
                   {[
-                    item.gender ? genderLabel(item.gender) : '',
+                    item.genderText ?? '',
                     item.birthDate ? `${age(item.birthDate)}岁` : '',
                   ].filter(Boolean).join(' · ')}
                 </span>

@@ -683,6 +683,33 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     expect(screen.getByPlaceholderText('06900000000000')).toBeInTheDocument()
   })
 
+  it('shows group types and unit conversions with Chinese names', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi()
+    api.masterData.itemGroups = vi.fn().mockResolvedValue([{
+      id: 'group-1', code: 'LAB_SET', name: '常规检验组套', groupType: 'LIS',
+      members: [], status: 'ACTIVE',
+    }])
+    api.masterData.units = vi.fn().mockResolvedValue([
+      { id: 'u-1', code: 'ML', name: '毫升', symbol: 'ml', dimension: 'VOLUME', status: 'ACTIVE' },
+      { id: 'u-2', code: 'L', name: '升', symbol: 'L', dimension: 'VOLUME', status: 'ACTIVE' },
+    ])
+    api.masterData.unitConversions = vi.fn().mockResolvedValue([{
+      id: 'conversion-1', fromUnitCode: 'ML', toUnitCode: 'L', factor: 0.001,
+      validFrom: '2026-01-01', status: 'ACTIVE',
+    }])
+    render(<QueryClientProvider client={new QueryClient()}>
+      <OperationalMasterDataPanel api={api} organization={mockOrganization as any} manufacturers={[]} />
+    </QueryClientProvider>)
+
+    expect(await screen.findByText('检验组套')).toBeInTheDocument()
+    expect(screen.queryByText('LIS')).not.toBeInTheDocument()
+    expect(screen.getByTitle('组套编码：LAB_SET')).toHaveTextContent('常规检验组套')
+    await user.click(screen.getByText('计量与换算'))
+    expect(await screen.findByText('1 毫升 = 0.001 升')).toBeInTheDocument()
+    expect(screen.getByTitle('单位编码：ML')).toHaveTextContent('毫升')
+  })
+
   it('renders FrequencyDialog with PC widescreen dual-pane split workbench and clinical rule linkage guide', async () => {
     const user = userEvent.setup()
     const api = createMockApi()

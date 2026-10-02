@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { EncounterQueryItem } from '../../shared/api/encountersApi'
 import { REGISTRATION_SOURCE_LABELS } from '../../shared/api/schedulingApi'
-import { age, genderLabel } from '../../shared/format'
+import { age } from '../../shared/format'
 import { encounterStatusPresentation } from '../../shared/presentation'
 import type { Encounter } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
@@ -237,7 +237,7 @@ export function EncounterQueryWorkspace({ api, clinicalContext, onNavigate }: {
                     <div>
                       <strong>{item.residentName || '匿名居民'}</strong>
                       <small>
-                        {item.gender ? genderLabel(item.gender as 'MALE' | 'FEMALE' | 'UNKNOWN') : '--'}
+                        {item.genderText ?? '--'}
                         {item.birthDate ? ` · ${age(item.birthDate)} 岁` : ''}
                         {item.healthRecordNo ? ` · ${item.healthRecordNo}` : ''}
                       </small>

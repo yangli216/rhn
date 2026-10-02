@@ -1,5 +1,7 @@
 package com.rhn.outpatient.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
@@ -56,7 +58,8 @@ public interface OutpatientRegistrationDirectory {
 
     record ReceptionQueueItem(Long registrationId, Long appointmentId, Long scheduleId, Long encounterId,
                               Long ticketId, Long serviceQueueId,
-                              Long residentId, String healthRecordNo, String residentName, String gender,
+                              Long residentId, String healthRecordNo, String residentName,
+                              @DictionaryBinding("RESIDENT_GENDER") String gender,
                               LocalDate birthDate, String registrationNo, String ticketNo, int sequenceNo,
                               int priority, String registrationSource, String visitType,
                               String registrationStatus, String status,

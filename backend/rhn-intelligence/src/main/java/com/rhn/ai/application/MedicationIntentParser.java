@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 public class MedicationIntentParser {
     private static final String NUMBER = "([0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)";
     private static final Pattern DOSE = Pattern.compile(NUMBER + "\\s*(kg|g|mg|ug|μg|µg|ng|L|mL|ml|uL|μL|µL|千克|克|毫克|微克|纳克|升|毫升|微升)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern DURATION = Pattern.compile("(?:疗程|连用|用药|共)?\\s*" + NUMBER + "\\s*(天|日|周|月)");
+    private static final Pattern DURATION = Pattern.compile("(?:疗程|连用|用药|共)?[：:]?\\s*" + NUMBER + "\\s*(天|日|周|月)");
     private static final Pattern QUANTITY = Pattern.compile("(?:共|开|数量)\\s*" + NUMBER + "\\s*(盒|瓶|支|袋|片|粒|包|贴|吸|枚|套)");
     private static final Map<String, String> FREQUENCIES = ordered(Map.entry("每日四次", "QID"), Map.entry("一日四次", "QID"),
             Map.entry("每日三次", "TID"), Map.entry("一日三次", "TID"), Map.entry("每日两次", "BID"),

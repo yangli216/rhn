@@ -198,7 +198,7 @@ export function QueueCapsuleBar({
                   <span className="candidate-ticket">{candidate.ticketNo}</span>
                   <strong className="candidate-name">{candidate.residentName}</strong>
                   <span className="candidate-demographics">
-                    {candidate.gender === 'MALE' ? '男' : candidate.gender === 'FEMALE' ? '女' : ''} ·{' '}
+                    {candidate.genderText ?? ''} ·{' '}
                     {candidate.birthDate ? `${new Date().getFullYear() - parseInt(candidate.birthDate.slice(0, 4), 10)}岁` : ''}
                   </span>
                   {candidate.triageLevel === 'LEVEL_1_CRITICAL' && (
