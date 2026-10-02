@@ -39,6 +39,31 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
     SearchEntryProjectionService searchEntryProjections;
 
     @Test
+    void groupConversionPreservesMemberQuantityAndUnitWithoutWaivingPricing() throws Exception {
+        mockMvc.perform(post("/api/platform/master-data/operations/item-groups")
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                    {"code":"AI-GROUP-QUANTITY","name":"数量单位回归组套","groupType":"LIS",
+                     "usageType":"OUTPATIENT","pointOfCare":false,"status":"ACTIVE","validFrom":"2026-01-01",
+                     "members":[{"catalogItemId":"362387869795101","sortOrder":10,"quantity":2.5,
+                     "unitCode":"EA","requiredMember":false}]}
+                    """))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                    {"naturalInput":"完善检验","confirmedNarrative":"数量单位回归组套","scopeType":"PERSONAL",
+                     "reviewItems":[{"kind":"LABORATORY","text":"数量单位回归组套","origin":"EXPLICIT"}]}
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.services.length()").value(1))
+                .andExpect(jsonPath("$.services[0].catalogItemId").value(362387869795101L))
+                .andExpect(jsonPath("$.services[0].quantity").value(2.5))
+                .andExpect(jsonPath("$.services[0].unitCode").value("EA"))
+                .andExpect(jsonPath("$.services[0].pricingRequired").value(true))
+                .andExpect(jsonPath("$.tasks[0].status").value("MATCHED"));
+        verifyNoInteractions(modelGateway, decisionGateway);
+    }
+
+    @Test
     void plan_preview_builds_revision_context_from_items_without_waiting_for_duplicate_narrative() throws Exception {
         when(modelGateway.compilePlan(any(), any())).thenReturn(new ClinicalAiModelGateway.PlanIntent(
                 "血压升高初诊评估", "待核对", List.of(
@@ -349,7 +374,8 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.medications[0].doseValue").value(0.5))
                 .andExpect(jsonPath("$.medications[0].routeCode").value("ORAL"))
                 .andExpect(jsonPath("$.medications[0].frequencyCode").value("PRN"))
-                .andExpect(jsonPath("$.medications[0].durationValue").doesNotExist())
+                .andExpect(jsonPath("$.medications[0].durationValue").value(3))
+                .andExpect(jsonPath("$.medications[0].durationUnit").value("天"))
                 .andExpect(jsonPath("$.services.length()").value(1))
                 .andExpect(jsonPath("$.services[0].catalogItemId").value(362387869795101L))
                 .andExpect(jsonPath("$.services[0].itemName").value("血细胞分析"))

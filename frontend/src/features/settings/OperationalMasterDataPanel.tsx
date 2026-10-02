@@ -64,12 +64,12 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
       { value: 'unit', label: '计量与换算', meta: '统一单位、全局/项目换算' },
       { value: 'frequency', label: '医嘱频次', meta: '规则语义、适用场景与执行时点' },
     ]} />
-    {area === 'group' && <ListSection title="项目组套" copy="LIS 只能选检验项目，PACS 只能选检查项目；服务端会再次校验。"
+    {area === 'group' && <ListSection title="项目组套与组合" copy="组套用于一次展开多个检验/检查项目；组合用于常用医嘱或套餐复用，服务端按类型校验成员。"
       action={<Button onClick={() => setDialog(<GroupDialog api={api} services={services.data ?? []} organization={organization} units={units.data ?? []}
         onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组套已新增', api.masterData.createItemGroup(input))} />)}><Icon name="add" />新增组套</Button>}>
       {groups.isPending ? <LoadingState label="正在加载项目组套…" /> : !groups.data?.length
         ? <EmptyState icon="clinical" title="暂无项目组套" copy="可建立检验组套、检查组套或常用组合项目。" />
-        : <DataTable headers={['组套', '类型', '适用范围', '成员', '状态', '操作']} rows={groups.data.map((value) => [
+        : <DataTable headers={['组套/组合', '类型', '适用范围', '成员', '状态', '操作']} rows={groups.data.map((value) => [
           <b title={`组套编码：${value.code}`}>{value.name}</b>, groupTypeLabels[value.groupType],
           value.organizationId ? organization.name : '租户通用', `${value.members.length} 项`, <State value={value.status} />,
           <Button size="sm" variant="text" onClick={() => setDialog(<GroupDialog api={api} value={value} services={services.data ?? []} organization={organization} units={units.data ?? []}
@@ -108,10 +108,20 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
   const [dialog, setDialog] = useState<ReactNode>()
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
+  const [aliasNames, setAliasNames] = useState<string[]>([])
+  const [aliasInput, setAliasInput] = useState('')
+  const [savingAliases, setSavingAliases] = useState(false)
   const configuration = useQuery({
     queryKey: ['master-data-clinical-configuration', service.id],
     queryFn: () => api.masterData.clinicalConfiguration(service.id),
   })
+  const aliases = useQuery({
+    queryKey: ['master-data-service-aliases', service.id],
+    queryFn: () => api.masterData.serviceAliases(service.id),
+  })
+  useEffect(() => {
+    setAliasNames((aliases.data ?? []).map((value) => value.aliasName))
+  }, [aliases.data])
   const services = useQuery({
     queryKey: ['master-data-services-project-configuration', organizationId],
     queryFn: () => api.masterData.services('', '', '', organizationId),
@@ -120,6 +130,7 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
   const invalidate = async (message: string) => {
     setDialog(undefined); setFeedback(message); setOperationError('')
     await client.invalidateQueries({ queryKey: ['master-data-clinical-configuration', service.id] })
+    await client.invalidateQueries({ queryKey: ['master-data-service-aliases', service.id] })
     await client.invalidateQueries({ queryKey: ['master-data-services'] })
   }
   const execute = (message: string, task: Promise<unknown>) => task.then(() => invalidate(message))
@@ -187,8 +198,8 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
     footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
     {feedback && <Alert tone="success">{feedback}</Alert>}
     {operationError && <Alert>{operationError}</Alert>}
-    {(configuration.error || services.error || units.error) && <Alert>
-      {errorMessage(configuration.error || services.error || units.error)}
+    {(configuration.error || aliases.error || services.error || units.error) && <Alert>
+      {errorMessage(configuration.error || aliases.error || services.error || units.error)}
     </Alert>}
     {configuration.isPending || services.isPending || units.isPending
       ? <LoadingState label="正在加载项目执行与收费配置…" />
@@ -222,6 +233,35 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
           onSave={(input) => execute(row ? '附加收费规则已更新' : '附加收费规则已新增', row
             ? api.masterData.updateExaminationAttachment(service.id, row, input)
             : api.masterData.createExaminationAttachment(service.id, input))} />)} />}
+    <section className="clinical-project-aliases" aria-label="项目别名维护">
+      <div className="operational-master-data__toolbar">
+        <div><h3>项目别名</h3><p>别名只作为检索入口，匹配后仍归一到当前标准项目，不改变收费和执行配置。</p></div>
+        <Button disabled={aliases.isPending || aliases.isError || savingAliases} busy={savingAliases} busyLabel="保存中" onClick={async () => {
+          setSavingAliases(true)
+          try {
+            await execute('项目别名已更新', api.masterData.replaceServiceAliases(service.id, aliasNames.map((aliasName, index) => ({
+              aliasType: 'SYNONYM', aliasName, primaryAlias: index === 0, status: 'ACTIVE',
+            }))))
+          } finally { setSavingAliases(false) }
+        }}>保存别名</Button>
+      </div>
+      <div className="master-data-form-grid master-data-form-grid--2">
+        <FormField label="新增别名"><input value={aliasInput} disabled={aliases.isPending || aliases.isError || savingAliases} aria-label="新增项目别名" placeholder="支持逗号分隔多个别名"
+          onChange={(event) => setAliasInput(event.target.value)} /></FormField>
+        <div className="row-actions" style={{ alignItems: 'end' }}><Button variant="secondary" disabled={aliases.isPending || aliases.isError || savingAliases} onClick={() => {
+          const additions = aliasInput.split(/[,，、]/).map((value) => value.trim()).filter(Boolean)
+          setAliasNames((current) => [...new Set([...current, ...additions])])
+          setAliasInput('')
+        }}>加入列表</Button></div>
+      </div>
+      <div className="clinical-project-aliases__list">
+        {aliases.isPending ? <LoadingState label="正在加载项目别名…" /> : aliasNames.length === 0
+          ? <span className="muted">暂未配置别名</span>
+          : aliasNames.map((aliasName) => <span className="clinical-project-aliases__item" key={aliasName}>
+            {aliasName}<Button size="sm" variant="text" aria-label={`移除别名${aliasName}`} disabled={savingAliases} onClick={() => setAliasNames((current) => current.filter((value) => value !== aliasName))}>×</Button>
+          </span>)}
+      </div>
+    </section>
   </Dialog>
 }
 

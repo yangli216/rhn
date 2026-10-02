@@ -411,12 +411,13 @@ public class ClinicalPlanTemplateAiApplicationService {
                                             List<ServiceInput> services, Set<Long> serviceIds) {
         String details = value.details();
         if (resolution != null && !resolution.detail().isBlank()) details = appendDetails(details, resolution.detail());
-        if (resolution != null && resolution.item() != null) {
-            var matched = resolution.item();
-            if (serviceIds.add(matched.id())) {
-                services.add(new ServiceInput(matched.id(), matched.code(), matched.name(),
-                        matched.sdServiceType(), BigDecimal.ONE,
-                        matched.unitCode(), "SALE", true, value.name(), value.details()));
+        if (resolution != null && !resolution.items().isEmpty()) {
+            for (var matched : resolution.items()) {
+                if (serviceIds.add(matched.id())) {
+                    services.add(new ServiceInput(matched.id(), matched.code(), matched.name(),
+                            matched.serviceType(), matched.quantity(),
+                            matched.unitCode(), "SALE", true, value.name(), value.details()));
+                }
             }
             return new ItemOutcome("MATCHED", details);
         }

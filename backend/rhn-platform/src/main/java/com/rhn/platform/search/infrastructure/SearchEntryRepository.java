@@ -121,4 +121,15 @@ public interface SearchEntryRepository extends JpaRepository<SearchEntry, Long> 
               )
             """, nativeQuery = true)
     int deleteOrphanedOrganizationEntries();
+
+    @Modifying
+    @Query(value = """
+            delete from RHN_BD_SEARCH_ENTRY
+            where SD_TARGET_TYPE = 'ITEM_GROUP'
+              and not exists (
+                select 1 from RHN_BD_ITEM_GRP source
+                where source.ID_ITEM_GRP = RHN_BD_SEARCH_ENTRY.ID_TARGET
+              )
+            """, nativeQuery = true)
+    int deleteOrphanedItemGroupEntries();
 }

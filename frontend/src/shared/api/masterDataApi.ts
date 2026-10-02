@@ -291,6 +291,16 @@ export interface ServiceCatalogItem {
   prices: CatalogPrice[]
 }
 
+export interface ServiceAlias {
+  id: string
+  catalogItemId: string
+  aliasType: string
+  aliasTypeText?: string
+  aliasName: string
+  primaryAlias: boolean
+  status: MasterDataStatus
+}
+
 export interface LaboratoryServiceDetail {
   sdLaboratoryMethod?: string
   sdLaboratoryMethodText?: string
@@ -1408,6 +1418,14 @@ export function createMasterDataApi(client: ApiClient) {
           method: 'POST', body: JSON.stringify({ expectedRevision: revision, sdStatus }),
         },
       ),
+    serviceAliases: (serviceId: string) => client.request<ServiceAlias[]>(
+      `/api/platform/master-data/services/${serviceId}/aliases`,
+    ),
+    replaceServiceAliases: (serviceId: string,
+      aliases: Array<Pick<ServiceAlias, 'aliasType' | 'aliasName' | 'primaryAlias' | 'status'>>) =>
+      client.request<ServiceAlias[]>(`/api/platform/master-data/services/${serviceId}/aliases`, {
+        method: 'PUT', body: JSON.stringify({ aliases }),
+      }),
     medications: (query = '', medicationType = '', status = '', organizationId = '') =>
       client.request<MedicationKnowledge[]>(`/api/platform/master-data/medications${queryString({
         query, medicationType, status, organizationId,

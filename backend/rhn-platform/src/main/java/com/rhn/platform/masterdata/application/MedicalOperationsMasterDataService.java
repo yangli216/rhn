@@ -9,6 +9,7 @@ import com.rhn.platform.masterdata.api.MedicalOperationsViews.*;
 import com.rhn.platform.masterdata.domain.*;
 import com.rhn.platform.masterdata.infrastructure.*;
 import com.rhn.platform.organization.api.OrganizationDirectory;
+import com.rhn.platform.search.application.SearchEntryProjectionService;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
@@ -45,6 +46,7 @@ public class MedicalOperationsMasterDataService {
     private final OrganizationDirectory organizationDirectory;
     private final ExecutionContextProvider contextProvider;
     private final EntityManager entityManager;
+    private final SearchEntryProjectionService searchProjections;
 
     public MedicalOperationsMasterDataService(ServiceCatalogItemRepository serviceRepository,
             LaboratoryServiceRepository laboratoryRepository,
@@ -58,7 +60,8 @@ public class MedicalOperationsMasterDataService {
             ItemGroupRepository groupRepository, ItemGroupMemberRepository memberRepository,
             UnitDefinitionRepository unitRepository, UnitConversionRepository conversionRepository,
             DictionaryDirectory dictionaryDirectory, OrganizationDirectory organizationDirectory,
-            ExecutionContextProvider contextProvider, EntityManager entityManager) {
+            ExecutionContextProvider contextProvider, EntityManager entityManager,
+            SearchEntryProjectionService searchProjections) {
         this.serviceRepository = serviceRepository;
         this.laboratoryRepository = laboratoryRepository;
         this.specimenRepository = specimenRepository;
@@ -76,6 +79,7 @@ public class MedicalOperationsMasterDataService {
         this.organizationDirectory = organizationDirectory;
         this.contextProvider = contextProvider;
         this.entityManager = entityManager;
+        this.searchProjections = searchProjections;
     }
 
     private LaboratoryService ensureLaboratory(Long tenantId, Long serviceId) {
@@ -471,6 +475,7 @@ public class MedicalOperationsMasterDataService {
                 command.groupType(), command.usageType(), command.pointOfCare(), requireStatus(command.status()),
                 command.validFrom(), command.validTo()));
         saveMembers(context.tenantId(), group, command.members());
+        searchProjections.synchronizeItemGroup(group, context.subjectId());
         return groupView(context.tenantId(), group);
     }
 
@@ -487,6 +492,7 @@ public class MedicalOperationsMasterDataService {
         memberRepository.deleteByTenantIdAndItemGroupId(context.tenantId(), id);
         memberRepository.flush();
         saveMembers(context.tenantId(), group, command.members());
+        searchProjections.synchronizeItemGroup(group, context.subjectId());
         return groupView(context.tenantId(), group);
     }
 

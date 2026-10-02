@@ -1,6 +1,8 @@
 package com.rhn.ai.application;
 
 import com.rhn.platform.masterdata.api.MasterDataViews.ServiceView;
+import com.rhn.platform.masterdata.api.ItemAliasDirectory;
+import com.rhn.platform.masterdata.api.ItemGroupDirectory;
 import com.rhn.platform.masterdata.api.ServiceCatalogDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.json.JsonCodec;
@@ -118,5 +120,39 @@ class PlanInvestigationDecisionServiceTest {
         when(catalog.searchOrderableServices("C反应蛋白测定", "LABORATORY", 3L, today)).thenReturn(List.of(crp));
         assertSame(crp, service.resolve(List.of(crpIntent), context, today).get(crpIntent.key()).item());
         verifyNoInteractions(gateway);
+    }
+
+    @Test void exactAliasMatchIsDeterministicAndDoesNotCallJev() {
+        ItemAliasDirectory aliases = mock(ItemAliasDirectory.class);
+        ItemGroupDirectory groups = mock(ItemGroupDirectory.class);
+        when(catalog.searchOrderableServices("空腹血糖", "LABORATORY", 3L, today)).thenReturn(List.of(candidate));
+        when(aliases.findActiveServiceIdsByAlias(1L, "空腹血糖")).thenReturn(Set.of(101L));
+        var value = new PlanInvestigationDecisionService(catalog, decisions, aliases, groups)
+                .resolve(List.of(new PlanInvestigationDecisionService.Intent("LABORATORY", "空腹血糖")), context, today)
+                .get("LABORATORY|空腹血糖");
+        assertSame(candidate, value.item());
+        assertEquals("ALIAS", value.matchType());
+        assertTrue(value.detail().contains("别名"));
+        verifyNoInteractions(gateway);
+    }
+
+    @Test void groupMatchExpandsMembersWhenCompositeNameIncludesHints() {
+        ItemAliasDirectory aliases = mock(ItemAliasDirectory.class);
+        ItemGroupDirectory groups = mock(ItemGroupDirectory.class);
+        when(catalog.searchOrderableServices("肾功能（含肌酐、尿素氮、血尿酸）", "LABORATORY", 3L, today))
+                .thenReturn(List.of());
+        var group = new ItemGroupDirectory.ItemGroupSnapshot(901L, 0L, "RENAL", "肾功能", "LIS", List.of(
+                new ItemGroupDirectory.MemberSnapshot(11L, "CRE", "肌酐测定", "LABORATORY", java.math.BigDecimal.ONE, "项", null, true),
+                new ItemGroupDirectory.MemberSnapshot(12L, "BUN", "尿素氮测定", "LABORATORY", java.math.BigDecimal.ONE, "项", null, true),
+                new ItemGroupDirectory.MemberSnapshot(13L, "UA", "血清尿酸测定", "LABORATORY", java.math.BigDecimal.ONE, "项", null, true)));
+        when(groups.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today)).thenReturn(List.of(group));
+        var value = new PlanInvestigationDecisionService(catalog, decisions, aliases, groups)
+                .resolve(List.of(new PlanInvestigationDecisionService.Intent(
+                        "LABORATORY", "肾功能（含肌酐、尿素氮、血尿酸）")), context, today)
+                .get("LABORATORY|肾功能（含肌酐、尿素氮、血尿酸）");
+        assertTrue(value.groupMatch());
+        assertNull(value.item());
+        assertEquals(3, value.items().size());
+        assertTrue(value.detail().contains("组套"));
     }
 }

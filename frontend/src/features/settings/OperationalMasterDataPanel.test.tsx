@@ -196,6 +196,8 @@ function createMockApi(): RhnApi {
     masterData: {
       services: vi.fn().mockResolvedValue(mockServices),
       supplies: vi.fn().mockResolvedValue([]),
+      serviceAliases: vi.fn().mockResolvedValue([]),
+      replaceServiceAliases: vi.fn().mockResolvedValue([]),
       itemGroups: vi.fn().mockResolvedValue([]),
       units: vi.fn().mockResolvedValue([{ id: 'u-1', code: 'ML', name: '毫升', symbol: 'ml', dimension: 'VOLUME', status: 'ACTIVE' }]),
       unitConversions: vi.fn().mockResolvedValue([]),
@@ -254,6 +256,32 @@ function createMockApi(): RhnApi {
 }
 
 describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () => {
+  it('prevents saving before aliases load and retains input when saving fails', async () => {
+    const api = createMockApi()
+    let resolveAliases!: (value: []) => void
+    vi.mocked(api.masterData.serviceAliases).mockImplementationOnce(() => new Promise((resolve) => { resolveAliases = resolve }))
+    vi.mocked(api.masterData.replaceServiceAliases).mockRejectedValueOnce(new Error('保存失败，请重试')).mockResolvedValue([])
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <ClinicalServiceConfigurationDialog api={api} service={mockServices[0]} organizationId={mockOrganization.id}
+        dictionaries={{}} onClose={vi.fn()} />
+    </QueryClientProvider>)
+    const save = screen.getByRole('button', { name: '保存别名' })
+    expect(save).toBeDisabled()
+    resolveAliases([])
+    await waitFor(() => expect(save).toBeEnabled())
+    fireEvent.change(screen.getByLabelText('新增项目别名'), { target: { value: '血常规，血常规' } })
+    fireEvent.click(screen.getByRole('button', { name: '加入列表' }))
+    fireEvent.click(save)
+    expect(await screen.findByText('保存失败，请重试')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '移除别名血常规' })).toBeInTheDocument()
+    expect(api.masterData.replaceServiceAliases).toHaveBeenCalledWith('srv-lab-1', [
+      { aliasType: 'SYNONYM', aliasName: '血常规', primaryAlias: true, status: 'ACTIVE' },
+    ])
+    await waitFor(() => expect(save).toBeEnabled())
+    fireEvent.click(save)
+    expect(await screen.findByText('项目别名已更新')).toBeInTheDocument()
+  })
+
   it('renders laboratory clinical configuration with tube presets and live sidecar sandbox', async () => {
     const api = createMockApi()
     const queryClient = new QueryClient()

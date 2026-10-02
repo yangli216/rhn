@@ -2936,3 +2936,36 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
   font-size: var(--font-size-small);
   margin: var(--space-2) 0;
 }
+
+.clinical-project-aliases {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.clinical-project-aliases__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-height: 2rem;
+  align-items: center;
+}
+
+.clinical-project-aliases__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+}
+
+.clinical-project-aliases__item button {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  line-height: var(--line-height-small);
+}

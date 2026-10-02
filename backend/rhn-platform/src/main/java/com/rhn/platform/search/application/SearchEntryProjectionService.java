@@ -2,12 +2,16 @@ package com.rhn.platform.search.application;
 
 import com.rhn.platform.masterdata.domain.Medication;
 import com.rhn.platform.masterdata.domain.MedicationProduct;
+import com.rhn.platform.masterdata.domain.ItemAlias;
+import com.rhn.platform.masterdata.domain.ItemGroup;
 import com.rhn.platform.masterdata.domain.OrganizationCatalogItem;
 import com.rhn.platform.masterdata.domain.ServiceCatalogItem;
 import com.rhn.platform.masterdata.infrastructure.MedicationProductRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationRepository;
 import com.rhn.platform.masterdata.infrastructure.OrganizationCatalogItemKey;
 import com.rhn.platform.masterdata.infrastructure.OrganizationCatalogItemRepository;
+import com.rhn.platform.masterdata.infrastructure.ItemAliasRepository;
+import com.rhn.platform.masterdata.infrastructure.ItemGroupRepository;
 import com.rhn.platform.masterdata.infrastructure.ServiceCatalogItemRepository;
 import com.rhn.platform.search.domain.SearchEntry;
 import com.rhn.platform.search.infrastructure.SearchEntryRepository;
@@ -48,6 +52,8 @@ public class SearchEntryProjectionService {
     private final MedicationProductRepository products;
     private final ServiceCatalogItemRepository services;
     private final OrganizationCatalogItemRepository adoptions;
+    private final ItemAliasRepository itemAliases;
+    private final ItemGroupRepository itemGroups;
     private final EntityManager entityManager;
     private final int rebuildBatchSize;
     private final ZoneId effectiveZone;
@@ -56,7 +62,8 @@ public class SearchEntryProjectionService {
                                         CodeSystemRepository codeSystems, ConceptRepository concepts,
                                         ConceptAliasRepository conceptAliases, MedicationRepository medications,
                                         MedicationProductRepository products, ServiceCatalogItemRepository services,
-                                        OrganizationCatalogItemRepository adoptions, EntityManager entityManager,
+                                        OrganizationCatalogItemRepository adoptions, ItemAliasRepository itemAliases,
+                                        ItemGroupRepository itemGroups, EntityManager entityManager,
                                         @Value("${rhn.search.projection.rebuild-batch-size:500}") int rebuildBatchSize,
                                         @Value("${rhn.search.projection.effective-refresh-zone:Asia/Shanghai}")
                                         String effectiveZone) {
@@ -69,6 +76,8 @@ public class SearchEntryProjectionService {
         this.products = products;
         this.services = services;
         this.adoptions = adoptions;
+        this.itemAliases = itemAliases;
+        this.itemGroups = itemGroups;
         this.entityManager = entityManager;
         this.rebuildBatchSize = Math.max(50, Math.min(rebuildBatchSize, 2000));
         this.effectiveZone = ZoneId.of(effectiveZone);
@@ -124,6 +133,11 @@ public class SearchEntryProjectionService {
             if (batch.size() < rebuildBatchSize) break;
         }
 
+        for (ItemGroup group : itemGroups.findAll()) {
+            result.add(synchronizeTarget(groupSpecs(group, at), "TENANT", group.tenantId(),
+                    "ITEM_GROUP", group.id(), null));
+        }
+
         for (int page = 0; ; page++) {
             List<OrganizationCatalogItemKey> batch = adoptions.findDistinctSearchProjectionKeys(
                     PageRequest.of(page, rebuildBatchSize));
@@ -144,6 +158,7 @@ public class SearchEntryProjectionService {
         result.deleted += entries.deleteOrphanedMedicationEntries();
         result.deleted += entries.deleteOrphanedCatalogItemEntries();
         result.deleted += entries.deleteOrphanedOrganizationEntries();
+        result.deleted += entries.deleteOrphanedItemGroupEntries();
         return result.toResult();
     }
 
@@ -230,6 +245,12 @@ public class SearchEntryProjectionService {
     public void synchronizeService(ServiceCatalogItem service, Long actorId) {
         synchronizeTarget(serviceSpecs(service, currentDate()), "TENANT", service.tenantId(),
                 "CATALOG_ITEM", service.id(), actorId);
+    }
+
+    @Transactional
+    public void synchronizeItemGroup(ItemGroup group, Long actorId) {
+        synchronizeTarget(groupSpecs(group, currentDate()), "TENANT", group.tenantId(),
+                "ITEM_GROUP", group.id(), actorId);
     }
 
     @Transactional
@@ -327,9 +348,18 @@ public class SearchEntryProjectionService {
 
     private List<EntrySpec> serviceSpecs(ServiceCatalogItem value, LocalDate at) {
         List<EntrySpec> result = new ArrayList<>();
+        String status = activeAt(value.status(), value.validFrom(), value.validTo(), at);
         add(result, "TENANT", value.tenantId(), value.tenantId(), "CATALOG_ITEM", value.id(), "CANONICAL",
                 "CATALOG_ITEM:NAME", value.name(), null, true,
-                activeAt(value.status(), value.validFrom(), value.validTo(), at));
+                status);
+        if ("ACTIVE".equals(status)) {
+            for (ItemAlias alias : itemAliases.findByTenantIdAndCatalogItemIdAndStatusOrderByAliasName(
+                    value.tenantId(), value.id(), "ACTIVE")) {
+                add(result, "TENANT", value.tenantId(), value.tenantId(), "CATALOG_ITEM", value.id(), "ALIAS",
+                        "ITEM_ALIAS:" + alias.id(), alias.aliasName(), alias.mnemonicCode(),
+                        alias.primaryAlias(), "ACTIVE");
+            }
+        }
         return result;
     }
 
@@ -343,6 +373,14 @@ public class SearchEntryProjectionService {
         add(result, "ORGANIZATION", value.organizationId(), value.tenantId(), "CATALOG_ITEM",
                 value.catalogItemId(), "LOCAL_NAME", "ORG_CATALOG_ITEM:CURRENT", value.localName(), null,
                 false, "ACTIVE");
+        return result;
+    }
+
+    private List<EntrySpec> groupSpecs(ItemGroup group, LocalDate at) {
+        List<EntrySpec> result = new ArrayList<>();
+        add(result, "TENANT", group.tenantId(), group.tenantId(), "ITEM_GROUP", group.id(), "CANONICAL",
+                "ITEM_GROUP:NAME", group.name(), null, true,
+                activeAt(group.status(), group.validFrom(), group.validTo(), at));
         return result;
     }
 
