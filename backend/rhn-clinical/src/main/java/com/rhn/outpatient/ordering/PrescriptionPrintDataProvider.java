@@ -61,29 +61,75 @@ class PrescriptionPrintDataProvider implements PrintDataProvider {
         OrganizationView organization = organizations.requireOrganization(encounter.tenantId(), prescription.performerOrganizationId());
         DepartmentView department = organizations.requireDepartment(encounter.tenantId(),
                 prescription.performerOrganizationId(), prescription.performerDepartmentId());
+        String categoryCode = prescription.categoryCode();
+        String title = "HERBAL".equalsIgnoreCase(categoryCode) ? "中药饮片处方笺"
+                : "CHINESE_PATENT".equalsIgnoreCase(categoryCode) ? "中成药处方笺"
+                : "门诊处方笺";
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("title", "门诊处方"); payload.put("organizationName", organization.name());
-        payload.put("departmentName", department.name()); payload.put("encounterNo", encounter.encounterNo());
-        payload.put("resident", residentMap(resident)); payload.put("prescriptionNo", prescription.groupNo());
-        payload.put("authoredAt", prescription.authoredAt()); payload.put("authoredBy", prescription.authoredBy());
-        payload.put("submittedAt", prescription.submittedAt()); payload.put("submittedBy", prescription.submittedBy());
-        payload.put("documentInfo", documentInfoSupport.read(prescription.documentInfoJson()));
-        payload.put("note", documentInfoSupport.appendSummary(prescription.note(), prescription.documentInfoJson())); payload.put("medications", medicationMaps(items));
+        payload.put("title", title);
+        payload.put("categoryCode", categoryCode);
+        payload.put("organizationName", organization.name());
+        payload.put("departmentName", department.name());
+        payload.put("encounterNo", encounter.encounterNo());
+        payload.put("resident", residentMap(resident));
+        payload.put("prescriptionNo", prescription.groupNo());
+        payload.put("authoredAt", prescription.authoredAt());
+        payload.put("authoredBy", prescription.authoredBy());
+        payload.put("submittedAt", prescription.submittedAt());
+        payload.put("submittedBy", prescription.submittedBy());
+        OrderDocumentInfo docInfo = documentInfoSupport.read(prescription.documentInfoJson());
+        payload.put("documentInfo", docInfo);
+        payload.put("note", documentInfoSupport.appendSummary(prescription.note(), prescription.documentInfoJson()));
+
+        List<Map<String, Object>> diagnosesList = new ArrayList<>();
+        if (docInfo.diagnoses() != null && !docInfo.diagnoses().isEmpty()) {
+            for (OrderDocumentInfo.DiagnosisLink link : docInfo.diagnoses()) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("code", link.code());
+                item.put("display", link.display());
+                item.put("primary", link.primary());
+                diagnosesList.add(item);
+            }
+        } else {
+            var pharmacySnapshot = encounters.requireForPharmacy(encounter.tenantId(), encounter.id());
+            if (pharmacySnapshot.diagnoses() != null) {
+                for (EncounterDirectory.DiagnosisSnapshot item : pharmacySnapshot.diagnoses()) {
+                    Map<String, Object> d = new LinkedHashMap<>();
+                    d.put("code", item.code());
+                    d.put("display", item.display());
+                    d.put("primary", "PRIMARY".equalsIgnoreCase(item.type()));
+                    diagnosesList.add(d);
+                }
+            }
+        }
+        payload.put("diagnoses", diagnosesList);
+        payload.put("medications", medicationMaps(items));
+
+        String fileName = ("HERBAL".equalsIgnoreCase(categoryCode) ? "中药饮片处方-" : "门诊处方-")
+                + prescription.groupNo() + ".pdf";
         return new PrintDataSnapshot("Prescription", prescription.id(), prescription.revision(),
                 prescription.residentId(), prescription.encounterId(), prescription.performerOrganizationId(),
-                prescription.performerDepartmentId(), "门诊处方-" + prescription.groupNo() + ".pdf", payload);
+                prescription.performerDepartmentId(), fileName, payload);
     }
 
     private List<Map<String, Object>> medicationMaps(List<MedicationRequest> medications) {
         List<Map<String, Object>> result = new ArrayList<>();
         medications.forEach(item -> {
-            Map<String, Object> value = new LinkedHashMap<>(); value.put("medicationName", item.medicationNameSnapshot());
-            value.put("medicationCode", item.medicationCodeSnapshot()); value.put("productName", item.localNameSnapshot());
+            Map<String, Object> value = new LinkedHashMap<>();
+            value.put("medicationName", item.medicationNameSnapshot());
+            value.put("medicationCode", item.medicationCodeSnapshot());
+            value.put("productName", item.localNameSnapshot());
             value.put("specification", item.packageSpecSnapshot() == null ? item.preparationSpecSnapshot() : item.packageSpecSnapshot());
-            value.put("quantity", item.quantity()); value.put("quantityUnit", item.quantityUnit());
-            value.put("doseValue", item.doseValue()); value.put("doseUnit", item.doseUnit());
-            value.put("routeCode", item.routeCode()); value.put("frequencyCode", item.frequencyCode());
-            value.put("instruction", item.medicationInstruction()); result.add(value);
+            value.put("quantity", item.quantity());
+            value.put("quantityUnit", item.quantityUnit());
+            value.put("doseValue", item.doseValue());
+            value.put("doseUnit", item.doseUnit());
+            value.put("durationValue", item.durationValue());
+            value.put("durationUnit", item.durationUnit());
+            value.put("routeCode", item.routeCode());
+            value.put("frequencyCode", item.frequencyCode());
+            value.put("instruction", item.medicationInstruction());
+            result.add(value);
         });
         return List.copyOf(result);
     }

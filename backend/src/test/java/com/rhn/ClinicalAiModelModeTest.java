@@ -39,7 +39,7 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
     @MockitoBean ClinicalAiModelGateway modelGateway;
 
     @Test
-    void matchesExistingWholePlansBeforeAnyModelGeneration() throws Exception {
+    void checksApplicabilityEvenWhenAnExistingWholePlanMatchesExactly() throws Exception {
         String encounterId = createStartedEncounter();
         String name = "整体方案" + java.util.UUID.randomUUID().toString().substring(0, 8);
         mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
@@ -48,14 +48,77 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                                 """.formatted(name)))
                 .andExpect(status().isCreated());
         org.mockito.Mockito.clearInvocations(modelGateway);
+        when(modelGateway.analyze(any(), any())).thenAnswer(invocation -> {
+            ClinicalAiModelGateway.ModelRequest request = invocation.getArgument(0);
+            org.junit.jupiter.api.Assertions.assertEquals("PLAN_MATCH", request.generationStage());
+            var candidate = request.availablePlans().stream().filter(plan -> name.equals(plan.name())).findFirst().orElseThrow();
+            return new SuggestionContent(null, null, List.of(), List.of(), List.of(), List.of(),
+                    List.of(new RecommendedPlan(candidate.id(), "不能采用的模型名称", null, "与本次病情及方案适用条件相符")), null);
+        });
         mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/plan-recommendations", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"clientContextFingerprint":"PLAN-FIRST","question":"%s","draft":{"diagnoses":[]}}
                                 """.formatted(name)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].name").value(name));
-        org.mockito.Mockito.verifyNoInteractions(modelGateway);
+        org.mockito.Mockito.verify(modelGateway).analyze(any(), any());
+        // Same lexical match may be rejected by the applicability comparison; do not fall back to the exact match.
+        org.mockito.Mockito.doReturn(new SuggestionContent(null, null, List.of(),
+                List.of(), List.of(), List.of(), List.of(), null)).when(modelGateway).analyze(any(), any());
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/plan-recommendations", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"PLAN-REJECTED","question":"%s","draft":{"diagnoses":[]}}
+                                """.formatted(name)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
         mockMvc.perform(get("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void expandsRecallWithoutPromotingExpansionTermsToPatientFacts() throws Exception {
+        String encounterId = createStartedEncounter();
+        String name = "已核对模板" + UUID.randomUUID().toString().substring(0, 8);
+        mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"scopeType":"PERSONAL","name":"%s","diagnoses":[{"code":"I10","display":"原发性高血压","type":"PRIMARY"}],"medications":[],"services":[]}
+                                """.formatted(name))).andExpect(status().isCreated());
+        when(modelGateway.expandPlanQuery(any(), any())).thenReturn(new ClinicalAiModelGateway.PlanSearchTerms(List.of("原发性高血压")));
+        when(modelGateway.analyze(any(), any())).thenAnswer(invocation -> {
+            ClinicalAiModelGateway.ModelRequest request = invocation.getArgument(0);
+            org.junit.jupiter.api.Assertions.assertTrue(request.availablePlans().stream().anyMatch(plan -> name.equals(plan.name())));
+            org.junit.jupiter.api.Assertions.assertEquals("头晕复诊", request.voiceTranscript());
+            org.junit.jupiter.api.Assertions.assertTrue(request.draft().diagnoses().isEmpty());
+            return new SuggestionContent(null, null, List.of(), List.of(), List.of(), List.of(), List.of(), null);
+        });
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/plan-recommendations", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"QUERY-EXPANSION","voiceTranscript":"头晕复诊","draft":{"diagnoses":[]}}
+                                """)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        verify(modelGateway).expandPlanQuery(argThat(text -> text.contains("头晕复诊") && !text.contains("高血压")), any());
+        verify(modelGateway).analyze(any(), any());
+    }
+
+    @Test
+    void usageAndListOrderingDoNotInvalidateAnOtherwiseUnchangedSuggestion() throws Exception {
+        String encounterId = createStartedEncounter();
+        String firstId = null;
+        for (int i = 0; i < 2; i++) {
+            var value = json(mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"scopeType":"PERSONAL","name":"使用排序%s","diagnoses":[{"code":"I10","display":"原发性高血压","type":"PRIMARY"}],"medications":[],"services":[]}
+                        """.formatted(UUID.randomUUID()))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+            if (i == 0) firstId = value.get("id").asString();
+        }
+        when(modelGateway.analyze(any(), any())).thenReturn(new SuggestionContent("合成建议", new RecordDraft("复诊", null, null, null, null),
+                List.of(), List.of(), List.of(), List.of(), List.of(), null));
+        var suggestion = json(mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"clientContextFingerprint\":\"USAGE-ORDER\",\"draft\":{\"diagnoses\":[]}}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        mockMvc.perform(post("/api/outpatient/plan-templates/{id}/use", firstId).with(rhnWorkContext())).andExpect(status().isOk());
+        mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{id}/events", suggestion.get("id").asString())
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"commandCode":"USE-WITHOUT-CLINICAL-CHANGE","eventType":"ADOPTED","sectionCode":"RECORD","contextHash":"%s"}
+                        """.formatted(suggestion.get("contextHash").asString()))).andExpect(status().isNoContent());
     }
 
     @Test

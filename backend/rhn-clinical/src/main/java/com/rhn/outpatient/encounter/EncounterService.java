@@ -395,6 +395,8 @@ public class EncounterService implements EncounterDirectory {
         noteContent.put("healthEducation", clinicalText(request.healthEducation()));
         noteContent.put("followUp", clinicalText(request.followUp()));
 
+        noteContent.put("annotations", com.rhn.outpatient.api.RecordAnnotation.anchored(request.annotations(), noteContent, true));
+
         Map<String, Object> vitalSigns = new LinkedHashMap<>();
         vitalSigns.put("systolic", request.systolic());
         vitalSigns.put("diastolic", request.diastolic());

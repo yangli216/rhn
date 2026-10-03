@@ -1,5 +1,5 @@
 {
-  "fingerprint": "8294d1c05b90c1ad9af0963c7b3037586921ee2b6c62d10e7e3c300e55144823",
+  "fingerprint": "cf6b790881c7cf89a94898e2de0d7d9f33de0ebee3ca9d002f9ab8cca929a48e",
   "tables": [
     {
       "logical": "bd.catalog_change_batch_row",
@@ -701,7 +701,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/CatalogChangeBatch.java",
-          "line": 14
+          "line": 17
         }
       ]
     },
@@ -1160,7 +1160,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MasterDataApplicationService.java",
-          "line": 668
+          "line": 690
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/MedicationProduct.java",
@@ -1172,7 +1172,7 @@
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/SupplyItem.java",
-          "line": 17
+          "line": 18
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
@@ -3231,7 +3231,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/dictionary/domain/DictionaryAttributeDefinition.java",
-          "line": 17
+          "line": 18
         }
       ]
     },
@@ -3568,7 +3568,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/dictionary/domain/DictionaryCategory.java",
-          "line": 16
+          "line": 17
         }
       ]
     },
@@ -4297,7 +4297,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/dictionary/domain/DictionaryDefinition.java",
-          "line": 16
+          "line": 17
         }
       ]
     },
@@ -4879,7 +4879,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/dictionary/domain/DictionaryItemAttributeValue.java",
-          "line": 16
+          "line": 17
         }
       ]
     },
@@ -6111,7 +6111,12 @@
         "relations": [],
         "fieldNotes": []
       },
-      "codeReferences": []
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/ItemAlias.java",
+          "line": 10
+        }
+      ]
     },
     {
       "logical": "bd.item_attribute_change",
@@ -6523,7 +6528,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/ItemAttributeChange.java",
-          "line": 13
+          "line": 14
         }
       ]
     },
@@ -7022,7 +7027,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/ItemAttributeDefinition.java",
-          "line": 14
+          "line": 15
         }
       ]
     },
@@ -7478,7 +7483,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/ItemAttributeOverride.java",
-          "line": 15
+          "line": 16
         }
       ]
     },
@@ -8165,7 +8170,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/ItemAttributeValue.java",
-          "line": 15
+          "line": 16
         }
       ]
     },
@@ -8834,7 +8839,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/ItemGroup.java",
-          "line": 14
+          "line": 15
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
+          "line": 130
         }
       ]
     },
@@ -10360,7 +10369,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/ItemTypeAttribute.java",
-          "line": 14
+          "line": 15
         }
       ]
     },
@@ -11658,7 +11667,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/MasterDataImportBatch.java",
-          "line": 13
+          "line": 16
         }
       ]
     },
@@ -11981,7 +11990,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/MasterDataImportRow.java",
-          "line": 14
+          "line": 17
         }
       ]
     },
@@ -14413,7 +14422,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/OrderFrequency.java",
-          "line": 12
+          "line": 13
         }
       ]
     },
@@ -14865,7 +14874,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/OrderFrequencyConfiguration.java",
-          "line": 11
+          "line": 12
         }
       ]
     },
@@ -16992,11 +17001,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/SupplyItem.java",
-          "line": 18
-        },
-        {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/SupplyItem.java",
-          "line": 41
+          "line": 19
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/SupplyItem.java",
@@ -17081,6 +17086,10 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/SupplyItem.java",
           "line": 62
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/SupplyItem.java",
+          "line": 63
         }
       ]
     },
@@ -17802,7 +17811,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/UnitDefinition.java",
-          "line": 13
+          "line": 14
         }
       ]
     },
@@ -18432,11 +18441,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MedicationTerminologyService.java",
-          "line": 76
+          "line": 77
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MedicationTerminologyService.java",
-          "line": 93
+          "line": 94
         }
       ]
     },
@@ -18672,7 +18681,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MedicationTerminologyService.java",
-          "line": 32
+          "line": 33
         }
       ]
     },
@@ -18841,7 +18850,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MedicationTerminologyService.java",
-          "line": 33
+          "line": 34
         }
       ]
     },
@@ -19043,11 +19052,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MedicationTerminologyService.java",
-          "line": 55
+          "line": 56
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MedicationTerminologyService.java",
-          "line": 103
+          "line": 104
         }
       ]
     },
@@ -19261,7 +19270,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MedicationTerminologyService.java",
-          "line": 31
+          "line": 32
         }
       ]
     },
@@ -20280,7 +20289,7 @@
         },
         {
           "name": "CK_BD_SEARCH_ENTRY_TARGET",
-          "expression": "\"sd_target_type\" IN('CONCEPT', 'MEDICATION', 'CATALOG_ITEM')"
+          "expression": "\"sd_target_type\" IN('CONCEPT', 'MEDICATION', 'CATALOG_ITEM', 'ITEM_GROUP')"
         }
       ],
       "catalogComment": "基础数据检索条目；一行代表一个标准名称、别名、商品名或机构本地名称的检索投影。",
@@ -20304,7 +20313,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/domain/SearchEntry.java",
-          "line": 14
+          "line": 15
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
@@ -20345,6 +20354,14 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
           "line": 120
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
+          "line": 127
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
+          "line": 131
         }
       ]
     },
@@ -20883,23 +20900,23 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/infrastructure/StandardCatalogEditionStore.java",
-          "line": 25
+          "line": 35
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/infrastructure/StandardCatalogEditionStore.java",
-          "line": 26
+          "line": 36
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/infrastructure/StandardCatalogEditionStore.java",
-          "line": 28
+          "line": 38
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/infrastructure/StandardCatalogEditionStore.java",
-          "line": 29
+          "line": 39
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/infrastructure/StandardCatalogEditionStore.java",
-          "line": 31
+          "line": 42
         }
       ]
     },

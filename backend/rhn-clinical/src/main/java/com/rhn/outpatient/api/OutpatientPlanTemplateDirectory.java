@@ -9,13 +9,23 @@ import java.util.List;
 /** Read-only projection of currently visible outpatient plan templates for decision-support consumers. */
 public interface OutpatientPlanTemplateDirectory {
     List<PlanTemplateSnapshot> visibleForCurrentContext();
+    List<PlanTemplateSnapshot> searchIndexForCurrentContext();
+    List<PlanTemplateSnapshot> visibleByIds(List<Long> ids);
 
     record PlanTemplateSnapshot(Long id, long revision, String scopeType, String sourceType,
                                 String guidelineReference, String name, String description, long useCount,
                                 List<DiagnosisSnapshot> diagnoses,
                                 List<MedicationSnapshot> medications,
                                 List<ServiceSnapshot> services,
-                                List<OutpatientPlanTemplateContracts.PlanTaskInput> tasks) {
+                                List<OutpatientPlanTemplateContracts.PlanTaskInput> tasks,
+                                PlanSearchProfile searchProfile) {
+        public PlanTemplateSnapshot(Long id, long revision, String scopeType, String sourceType,
+                                    String guidelineReference, String name, String description, long useCount,
+                                    List<DiagnosisSnapshot> diagnoses, List<MedicationSnapshot> medications,
+                                    List<ServiceSnapshot> services, List<OutpatientPlanTemplateContracts.PlanTaskInput> tasks) {
+            this(id, revision, scopeType, sourceType, guidelineReference, name, description, useCount,
+                    diagnoses, medications, services, tasks, null);
+        }
         public PlanTemplateSnapshot {
             diagnoses = diagnoses == null ? List.of() : List.copyOf(diagnoses);
             medications = medications == null ? List.of() : List.copyOf(medications);
@@ -40,6 +50,7 @@ public interface OutpatientPlanTemplateDirectory {
         }
     }
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "PlanSearchDiagnosis")
     record DiagnosisSnapshot(String codeSystem,
                              @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") String diagnosisDomain,
                              String code, String display, String type) {

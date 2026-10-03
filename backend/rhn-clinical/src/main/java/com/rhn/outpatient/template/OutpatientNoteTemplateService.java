@@ -140,7 +140,22 @@ class OutpatientNoteTemplateService {
         if (input == null) return new OutpatientNoteTemplateContracts.NoteContent(null, null, null, null, null);
         return new OutpatientNoteTemplateContracts.NoteContent(Strings.trimToNull(input.chiefComplaint()),
                 Strings.trimToNull(input.presentIllness()), Strings.trimToNull(input.medicalHistory()), Strings.trimToNull(input.physicalExam()),
-                null, Strings.trimToNull(input.allergyHistory()), Strings.trimToNull(input.medicationHistory()), Strings.trimToNull(input.auxiliaryExaminations()), Strings.trimToNull(input.healthEducation()), Strings.trimToNull(input.followUp()));
+                null, Strings.trimToNull(input.allergyHistory()), Strings.trimToNull(input.medicationHistory()), Strings.trimToNull(input.auxiliaryExaminations()), Strings.trimToNull(input.healthEducation()), Strings.trimToNull(input.followUp()),
+                com.rhn.outpatient.api.RecordAnnotation.anchored(input.annotations(), noteFields(input), false));
+    }
+
+    private java.util.Map<String, String> noteFields(OutpatientNoteTemplateContracts.NoteContent value) {
+        var content = new java.util.LinkedHashMap<String, String>();
+        content.put("chiefComplaint", Strings.trimToNull(value.chiefComplaint()));
+        content.put("presentIllness", Strings.trimToNull(value.presentIllness()));
+        content.put("medicalHistory", Strings.trimToNull(value.medicalHistory()));
+        content.put("physicalExam", Strings.trimToNull(value.physicalExam()));
+        content.put("allergyHistory", Strings.trimToNull(value.allergyHistory()));
+        content.put("medicationHistory", Strings.trimToNull(value.medicationHistory()));
+        content.put("auxiliaryExaminations", Strings.trimToNull(value.auxiliaryExaminations()));
+        content.put("healthEducation", Strings.trimToNull(value.healthEducation()));
+        content.put("followUp", Strings.trimToNull(value.followUp()));
+        return content;
     }
 
     private boolean empty(OutpatientNoteTemplateContracts.NoteContent content) {

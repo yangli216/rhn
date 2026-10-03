@@ -1860,6 +1860,40 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '医嘱开立核查' })).not.toBeInTheDocument())
   })
 
+  it('edits template marks inline and confirms their remaining sources through the existing save action', async () => {
+    const api = aiApi()
+    api.residents.get = vi.fn().mockResolvedValue({ ...mockResident, birthDate: '2020-01-01' })
+    api.encounters.byResident = vi.fn().mockResolvedValue([{ ...mockInProgressEncounter,
+      diagnoses: [{ code: 'R05', display: '咳嗽', type: 'PRIMARY' }] }])
+    const [base] = await api.outpatientNoteTemplates.list()
+    const template = { ...base, content: { chiefComplaint: '咳嗽3天', presentIllness: '咳嗽3天，用药3天；无胸痛',
+      annotations: [
+        { field: 'presentIllness' as const, text: '3天', start: 2, source: 'TEMPLATE' as const,
+          kind: 'VARIABLE' as const, binding: 'symptom.cough.duration', label: '咳嗽病程' },
+        { field: 'presentIllness' as const, text: '无胸痛', source: 'TEMPLATE' as const,
+          kind: 'IMPORTANT' as const, label: '重点阴性' },
+      ] } }
+    vi.mocked(api.outpatientNoteTemplates.list).mockResolvedValue([template])
+    vi.mocked(api.outpatientNoteTemplates.use).mockResolvedValue(template)
+    const user = await enter(api)
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    const drawer = await screen.findByRole('complementary', { name: '临床模板' })
+    await user.click(within(drawer).getByRole('tab', { name: /病历模板/ }))
+    await user.click(await within(drawer).findByRole('button', { name: '带入病历草稿 (2)' }))
+    await user.click(await screen.findByRole('button', { name: '3天：模板预设 · 咳嗽病程' }))
+    await user.clear(screen.getByLabelText('调整此处文字'))
+    await user.type(screen.getByLabelText('调整此处文字'), '5天')
+    await user.click(screen.getByRole('button', { name: '应用修改' }))
+    expect(screen.getByRole('textbox', { name: '现病史' })).toHaveTextContent('咳嗽5天，用药3天；无胸痛')
+    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
+      presentIllness: '咳嗽5天，用药3天；无胸痛',
+      annotations: expect.arrayContaining([expect.objectContaining({ source: 'DOCTOR', binding: 'symptom.cough.duration' }),
+        expect.objectContaining({ text: '无胸痛', kind: 'IMPORTANT' })]),
+    })))
+    expect(await screen.findByRole('button', { name: '无胸痛：模板预设 · 重点阴性 · 已保存确认' })).toBeInTheDocument()
+  })
+
   it('saves a six-year-old patient record without blood pressure', async () => {
     const api = aiApi()
     api.residents.get = vi.fn().mockResolvedValue({ ...mockResident, birthDate: '2020-01-01' })
@@ -2388,4 +2422,3 @@ describe('DoctorWorkstation controlled printing workflow', () => {
     expect(batchModal).toBeInTheDocument()
   })
 })
-

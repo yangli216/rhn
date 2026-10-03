@@ -32,4 +32,5 @@ interface OutpatientNoteTemplateRepository extends JpaRepository<OutpatientNoteT
                                                           @Param("tenantId") Long tenantId);
 
     Optional<OutpatientNoteTemplate> findByIdAndTenantId(Long id, Long tenantId);
+    List<OutpatientNoteTemplate> findByTenantIdAndIdIn(Long tenantId, List<Long> ids);
 }

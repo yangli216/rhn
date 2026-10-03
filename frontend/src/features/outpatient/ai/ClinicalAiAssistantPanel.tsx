@@ -74,7 +74,10 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const [preview, setPreview] = useState<ClinicalAiPreview>({ recordDraft: {} })
   const [resultViewedId, setResultViewedId] = useState<string | null>(null)
   const generationController = useRef<AbortController | null>(null)
+  const planController = useRef<AbortController | null>(null)
+  const planCache = useRef(new Map<string, { expires: number; plans: ClinicalAiRecommendedPlan[] }>())
   const inputKey = stableClinicalAiFingerprint('ai-input', {
+    scope: [encounter.organizationId, encounter.departmentId, encounter.clinicianId],
     context: clinicalAiContextFingerprint({ ...currentContext, busy: false }), scene: sceneAssessment.scene,
     conditions: sceneAssessment.matchedConditions, selectedReportIds: sceneAssessment.selectedReportIds, reports: diagnosticReports, question: question.trim(), voiceTranscript: voiceTranscript.trim(),
   })
@@ -163,23 +166,31 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
 
     try {
       const recognition = new SpeechRecognition()
+      const speechEncounterId = encounter.id
+      const finalIndexes = new Set<number>()
+      const ownsSpeech = () => speechRecognitionRef.current === recognition
+        && latestContext.current.encounterId === speechEncounterId
       recognition.continuous = true
       recognition.interimResults = true
       recognition.lang = 'zh-CN'
       recognition.maxAlternatives = 1
 
       recognition.onstart = () => {
+        if (!ownsSpeech()) return
         setRealtimeListening(true)
         setInterimTranscript('')
         setLocalError('')
       }
 
       recognition.onresult = (event: any) => {
+        if (!ownsSpeech()) return
         let finalChunk = ''
         let interimChunk = ''
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const res = event.results[i]
           if (res.isFinal) {
+            if (finalIndexes.has(i)) continue
+            finalIndexes.add(i)
             finalChunk += res[0]?.transcript || ''
           } else {
             interimChunk += res[0]?.transcript || ''
@@ -187,8 +198,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         }
         if (finalChunk) {
           const text = finalChunk.trim()
-          setVoiceTranscript((prev) => (prev ? prev + ' ' : '') + text)
-          setQuestion((prev) => (prev ? prev + ' ' : '') + text)
+          setVoiceTranscript((prev) => ((prev ? prev + ' ' : '') + text).slice(-10000))
+          setQuestion((prev) => ((prev ? prev + ' ' : '') + text).slice(-500))
           setInterimTranscript('')
         } else {
           setInterimTranscript(interimChunk)
@@ -196,12 +207,14 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       }
 
       recognition.onerror = (event: any) => {
+        if (!ownsSpeech()) return
         if (event.error !== 'no-speech') {
           setLocalError(`实时语音提示：${event.error === 'not-allowed' ? '请在浏览器地址栏允许麦克风权限' : event.error}`)
         }
       }
 
       recognition.onend = () => {
+        if (!ownsSpeech()) return
         setRealtimeListening(false)
         setInterimTranscript('')
       }
@@ -216,9 +229,9 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
 
   useEffect(() => {
     return () => {
-      if (speechRecognitionRef.current) {
-        try { speechRecognitionRef.current.stop() } catch {}
-      }
+      const recognition = speechRecognitionRef.current
+      speechRecognitionRef.current = null
+      try { recognition?.stop() } catch { /* Already stopped. */ }
     }
   }, [])
   const generate = useMutation({
@@ -232,7 +245,6 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       streamContext.current = clinicalAiContextFingerprint(context)
       adoptedContinuation.current = null
       treatmentContinuation.current = null
-      setAcceptedTreatmentKeys([])
       generationController.current?.abort()
       const controller = new AbortController()
       generationController.current = controller
@@ -253,7 +265,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
             text += delta
             if (text.length > 262144) { controller.abort(); return }
             if (Date.now() - lastPaint >= 60) { setPreview(clinicalAiPreview(text)); lastPaint = Date.now() }
-          }) : await api.clinicalAi.generate(encounter.id, input)
+          }) : await api.clinicalAi.generate(encounter.id, input, controller.signal)
         if (controller.signal.aborted || latestInputKey.current !== key) throw new DOMException('已取消过期分析', 'AbortError')
         return { value, transcript, key }
       } catch (error) {
@@ -272,11 +284,11 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   })
   useEffect(() => {
     setPreview({ recordDraft: {} })
-    return () => generationController.current?.abort()
+    return () => { generationController.current?.abort(); planController.current?.abort() }
   }, [inputKey])
   useEffect(() => {
-    if (disabled || currentContext.busy || realtimeListening) generationController.current?.abort()
-  }, [disabled, currentContext.busy, realtimeListening])
+    if (disabled || currentContext.busy) { generationController.current?.abort(); planController.current?.abort() }
+  }, [disabled, currentContext.busy])
   const knowledgeSearch = useMutation({
     mutationFn: () => api.clinicalAi.searchKnowledge(encounter.id, knowledgeQuery.trim()),
     onSuccess: () => setLocalError(''),
@@ -367,14 +379,14 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       void queryClient.invalidateQueries({ queryKey: historyQueryKey })
     },
   })
-  const actionPending = realtimeListening || generate.isPending
+  const actionPending = generate.isPending
     || adoptDraft.isPending || ignoreSuggestion.isPending
   useEffect(() => {
     onFieldStream?.(generate.isPending && !disabled && !currentContext.busy
       ? { encounterId: encounter.id, contextFingerprint: streamContext.current, recordDraft: preview.recordDraft } : null)
   }, [generate.isPending, disabled, currentContext.busy, encounter.id, preview, onFieldStream])
   useEffect(() => () => onFieldStream?.(null), [onFieldStream])
-  const inputBusy = realtimeListening || adoptDraft.isPending || ignoreSuggestion.isPending
+  const inputBusy = adoptDraft.isPending || ignoreSuggestion.isPending
   useEffect(() => {
     onAdoptionBusyChange(adoptDraft.isPending)
     return () => onAdoptionBusyChange(false)
@@ -400,9 +412,17 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     setViewMode('current')
     setSelectedPlan(null)
     setSuggestionVoiceTranscript('')
+    setQuestion(''); setVoiceTranscript(''); setInterimTranscript(''); setRealtimeListening(false)
+    const recognition = speechRecognitionRef.current
+    speechRecognitionRef.current = null
+    try { recognition?.stop() } catch { /* Already stopped. */ }
+    generationController.current?.abort(); planController.current?.abort(); planCache.current.clear()
   }, [encounter.id])
+  useEffect(() => queryClient.getQueryCache().subscribe((event) => {
+    if (event.query.queryKey[0] === 'outpatient-plan-templates') planCache.current.clear()
+  }), [queryClient])
 
-  useEffect(() => { setAcceptedTreatmentKeys([]); treatmentContinuation.current = null }, [storedSuggestion?.id])
+  useEffect(() => { setAcceptedTreatmentKeys([]); treatmentContinuation.current = null }, [encounter.id])
 
   const ignore = () => {
     if (!suggestion || actionPending) return
@@ -626,11 +646,11 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       commandCode: adoptionCommand(adoptionCommands.current, value.id, commandKey),
       eventDetail: JSON.stringify({ selectedRecordFields: Object.keys(selection.recordDraft ?? {}),
         diagnosisCodes: selection.diagnoses?.map((item) => item.code) ?? [],
-        selectionFingerprint, overwriteSelectedParagraphs: true }),
+        selectionFingerprint, overwriteSelectedParagraphs: !selection.incrementalRecord }),
       request: { requestId: globalThis.crypto.randomUUID(), sourceSuggestionId: value.id,
         encounterId: context.encounterId, residentId: context.residentId,
         contextFingerprint: value.clientContextFingerprint, sourceLabel: 'AI 共写所选内容',
-        ...selection, overwriteRecord: true },
+        ...selection, overwriteRecord: !selection.incrementalRecord },
     })
   }
   const reviewTreatments = (items: ClinicalAiTreatmentRecommendation[]) => {
@@ -655,15 +675,24 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       canAdopt={auditFeature} error={localError || (error ? errorMessage(error) : '')}
       voiceInput={voiceInput} interimTranscript={interimTranscript} question={question} onQuestionChange={setQuestion}
       onClearVoice={() => { setVoiceTranscript(''); setInterimTranscript('') }}
-      planInputKey={inputKey}
+      planInputKey={inputKey} stableVoiceTranscript={voiceTranscript}
       onFindPlans={onReviewRecommendedPlan ? async () => {
         const context = latestContext.current
-        const fingerprint = clinicalAiContextFingerprint(context)
+        const fingerprint = clinicalAiContextFingerprint(context), key = latestInputKey.current
+        if (disabled || context.busy || context.encounterId !== encounter.id) throw new Error('当前就诊上下文正在变化，请稍后再分析。')
+        const cached = planCache.current.get(key)
+        if (cached && cached.expires > Date.now()) return cached.plans
+        planController.current?.abort()
+        const controller = new AbortController()
+        planController.current = controller
         const plans = await api.clinicalAi.recommendPlans(encounter.id, {
-          clientContextFingerprint: fingerprint, question: question.trim() || undefined,
+          clientContextFingerprint: fingerprint, question: question.trim().slice(0, 500) || undefined,
           voiceTranscript: voiceTranscript.trim() || undefined, draft: clinicalAiDraftInput(context),
-        })
-        if (clinicalAiContextFingerprint(latestContext.current) !== fingerprint) throw new Error('问诊资料已变化，请重新匹配诊疗方案。')
+        }, controller.signal)
+        if (controller.signal.aborted || key !== latestInputKey.current
+          || clinicalAiContextFingerprint(latestContext.current) !== fingerprint) throw new DOMException('问诊资料已变化', 'AbortError')
+        if (planCache.current.size >= 20) planCache.current.delete(planCache.current.keys().next().value!)
+        planCache.current.set(key, { expires: Date.now() + 15000, plans })
         return plans
       } : undefined}
       onReviewRecommendedPlan={onReviewRecommendedPlan}

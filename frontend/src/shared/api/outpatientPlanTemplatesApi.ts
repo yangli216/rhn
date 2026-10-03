@@ -1,3 +1,4 @@
+import type { RecordAnnotation } from './recordAnnotations'
 import type { OutpatientNoteTemplateContent } from './outpatientNoteTemplatesApi'
 import type { CreateMedicationRequestInput, CreateServiceRequestInput, DiagnosisInput } from './encountersApi'
 import type { ApiClient } from './httpClient'
@@ -35,6 +36,15 @@ export interface OutpatientPlanTemplateService extends CreateServiceRequestInput
 }
 
 export interface OutpatientPlanTemplate {
+  searchProfile?: {
+    schemaVersion: number
+    contentHash: string
+    summary: string
+    keywords: string[]
+    conditions: string[]
+    noteTemplateId?: string
+    noteContentHash?: string
+  }
   id: string
   revision: number
   scopeType: OutpatientPlanTemplateScope
@@ -88,6 +98,7 @@ export interface PlanTextDraft {
   sourceType?: OutpatientPlanTemplateSourceType
   guidelineReference?: string
   reviewItems: PlanTextReviewItem[]
+  recordAnnotations?: RecordAnnotation[]
   noteTemplateContent?: OutpatientNoteTemplateContent
 }
 
@@ -139,6 +150,7 @@ export async function consumePlanTextDraftStream(response: Response,
 }
 
 export interface PlanStreamPreviewResult {
+  recordAnnotations?: RecordAnnotation[]
   noteTemplateContent?: OutpatientNoteTemplateContent
   noteTemplateComplete?: boolean
   name: string

@@ -15,6 +15,7 @@ import java.util.List;
 public final class OutpatientPlanTemplateContracts {
     private OutpatientPlanTemplateContracts() {}
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateSaveRequest")
     public record SaveRequest(
             @NotBlank @Size(max = 16) String scopeType,
             @NotBlank @Size(max = 100) String name,
@@ -47,6 +48,7 @@ public final class OutpatientPlanTemplateContracts {
         }
     }
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplatePlanTaskInput")
     public record PlanTaskInput(@NotBlank @Size(max = 24) String kind,
                                 @NotBlank @Size(max = 300) String text,
                                 @Size(max = 500) String sourceQuote,
@@ -54,6 +56,7 @@ public final class OutpatientPlanTemplateContracts {
                                 @NotBlank @Size(max = 24) String status,
                                 @Size(max = 500) String details) {}
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateDiagnosisInput")
     public record DiagnosisInput(
             @Size(max = 64) String codeSystem,
             @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") @Size(max = 32) String diagnosisDomain,
@@ -65,6 +68,7 @@ public final class OutpatientPlanTemplateContracts {
         }
     }
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateMedicationInput")
     public record MedicationInput(
             @NotNull Long medicationId, Long catalogItemId, Long packageId,
             String medicationName, String preparationSpec,
@@ -90,6 +94,7 @@ public final class OutpatientPlanTemplateContracts {
         }
     }
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateServiceInput")
     public record ServiceInput(
             @NotNull Long catalogItemId,
             String itemCode, String itemName,
@@ -106,8 +111,10 @@ public final class OutpatientPlanTemplateContracts {
         }
     }
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateRevisionRequest")
     public record RevisionRequest(@NotNull Long expectedRevision) {}
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateUpdateRequest")
     public record UpdateRequest(
             @NotNull Long expectedRevision,
             @NotBlank @Size(max = 16) String scopeType,
@@ -121,17 +128,20 @@ public final class OutpatientPlanTemplateContracts {
             @Size(max = 50) List<@Valid ServiceInput> services,
             @Size(max = 30) List<@Valid PlanTaskInput> tasks) {}
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateView")
     public record View(Long id, long revision, String scopeType, String name, String description,
                        String status, String sourceType, String guidelineReference,
                        Long noteTemplateId,
                        int sortOrder, long useCount, Instant lastUsedAt,
                        List<DiagnosisView> diagnoses, List<MedicationView> medications,
                        List<ServiceView> services, List<PlanTaskInput> tasks,
-                       Instant createdAt, Instant updatedAt) {}
+                       Instant createdAt, Instant updatedAt, PlanSearchProfile searchProfile) {}
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateDiagnosisView")
     public record DiagnosisView(String codeSystem,
                                 @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") String diagnosisDomain,
                                 String code, String display, String type) {}
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateMedicationView")
     public record MedicationView(Long lineId, Long medicationId, Long catalogItemId, Long packageId, String editorMode,
                                  String categoryCode, String medicationCode, String medicationName,
                                  String preparationSpec, String productName, BigDecimal doseValue,
@@ -143,6 +153,7 @@ public final class OutpatientPlanTemplateContracts {
                                  @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
                                  boolean pricingRequired,
                                  String reason) {}
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateServiceView")
     public record ServiceView(Long catalogItemId, String itemCode, String itemName,
                               @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_TYPE) String serviceType,
                               BigDecimal quantity, String unitCode,

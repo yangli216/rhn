@@ -1,3 +1,6 @@
+import { AnnotatedRecordField } from './record/AnnotatedRecordField'
+import { rebaseAnnotations } from './record/recordAnnotations'
+import type { RecordTextField } from '../../shared/api/recordAnnotations'
 import { useClinicalAiDraft, type AiRecordUndo } from './record/useClinicalAiDraft'
 import { DiagnosisPanel } from './record/DiagnosisPanel'
 import { ClinicalVitalsFields } from './record/ClinicalVitalsFields'
@@ -1563,6 +1566,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const [serviceDrafts, setServiceDrafts] = useState<ServicePlanDraft[]>([])
   const [orderBusy, setOrderBusy] = useState(false)
   const [copyNotice, setCopyNotice] = useState('')
+  const [showRecordAnnotations, setShowRecordAnnotations] = useState(true)
   const [aiRecordUndo, setAiRecordUndo] = useState<AiRecordUndo | null>(null)
   const [notePrintOpen, setNotePrintOpen] = useState(false)
   const [unsignedPrintModalOpen, setUnsignedPrintModalOpen] = useState(false)
@@ -1585,7 +1589,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       systolic: undefined, diastolic: undefined, temperature: undefined, pulseRate: undefined,
       respiratoryRate: undefined, heightCm: undefined, weightKg: undefined, oxygenSaturation: undefined },
   })
-  const { register, handleSubmit, reset, getValues, watch, formState } = form
+  const { handleSubmit, reset, getValues, watch, formState } = form
   const documents = useQuery({ queryKey: ['doctor-document', encounter.id], queryFn: () => api.clinicalDocuments.byEncounter(encounter.id) })
   const noteForms = useQuery({ queryKey: ['outpatient-note-forms', 'GENERAL_PRACTICE'],
     queryFn: () => api.outpatientNoteForms.list('GENERAL_PRACTICE') })
@@ -1624,6 +1628,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       setServiceDrafts([])
 
       reset({
+        annotations: form.annotations?.map((item) => ({ ...item, confirmed: true })),
         chiefComplaint: form.chiefComplaint,
         presentIllness: form.presentIllness,
         medicalHistory: form.medicalHistory,
@@ -1696,7 +1701,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
     if (serverStateInitialized.current && hasLocalWork) return
     if (!serverStateInitialized.current && documents.isPending) return
 
-    reset({ chiefComplaint: encounter.chiefComplaint ?? '', presentIllness: document?.content.presentIllness ?? '',
+    reset({ annotations: document?.content.annotations ?? [], chiefComplaint: encounter.chiefComplaint ?? '', presentIllness: document?.content.presentIllness ?? '',
       medicalHistory: document?.content.medicalHistory ?? '', physicalExam: document?.content.physicalExam ?? '',
       treatmentPlan: '', allergyHistory: document?.content.allergyHistory ?? '', medicationHistory: document?.content.medicationHistory ?? '', auxiliaryExaminations: document?.content.auxiliaryExaminations ?? '', healthEducation: document?.content.healthEducation ?? '', followUp: document?.content.followUp ?? '',  systolic: encounter.systolic, diastolic: encounter.diastolic,
       temperature: document?.content.vitalSigns?.temperature, pulseRate: document?.content.vitalSigns?.pulseRate,
@@ -1840,9 +1845,17 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
 
   const currentNoteContent = (): OutpatientNoteTemplateContent => {
     const value = getValues()
-    return { chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
+    return { annotations: value.annotations, chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
       medicalHistory: value.medicalHistory, physicalExam: value.physicalExam, allergyHistory: value.allergyHistory, medicationHistory: value.medicationHistory, auxiliaryExaminations: value.auxiliaryExaminations, healthEducation: value.healthEducation, followUp: value.followUp,  }
   }
+  const annotatedField = (field: RecordTextField, label: string) => ({
+    field, 'aria-label': label, value: watch(field) ?? '', annotations: getValues('annotations') ?? [],
+    showAnnotations: showRecordAnnotations,
+    onValueChange: (value: string) => {
+      form.setValue('annotations', rebaseAnnotations(field, getValues(field) ?? '', value, getValues('annotations') ?? []), { shouldDirty: true })
+      form.setValue(field, value, { shouldDirty: true, shouldTouch: true })
+    },
+  })
   const openAmendment = () => {
     setAmendmentReason('')
     setAmendmentDraft({
@@ -1885,7 +1898,9 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
     <div className="doctor-record-column"><Panel className="doctor-record-panel">
       <PanelHead className="doctor-record-heading" title="门诊病历"
         meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
-        actions={<>{editing && <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
+        actions={<>{editing && <Button size="sm" variant="text" aria-pressed={showRecordAnnotations}
+          onClick={() => setShowRecordAnnotations((value) => !value)}>{showRecordAnnotations ? '隐藏标记' : '显示标记'}</Button>}
+          {editing && <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
           onApply={applyNoteTemplate} showApply={false} />}
           {editing && !signed && <div ref={aiSurfaceRefs.note} className="doctor-record-ai-slot" />}
           {document && signed && canEdit && (
@@ -1947,23 +1962,23 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
           </div>
         )}
         <FormField appearance="document" className="doctor-record-narrative doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
-          <textarea {...register('chiefComplaint')} {...streamingField('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" rows={2} />
+          <AnnotatedRecordField {...annotatedField('chiefComplaint', '主诉')} {...streamingField('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" rows={2} />
         </FormField>
         <FormField appearance="document" className="doctor-record-narrative doctor-record-field--present" label="现病史" error={formState.errors.presentIllness?.message}>
-          <textarea {...register('presentIllness')} {...streamingField('presentIllness')} disabled={signed} placeholder="起病、演变、伴随症状及诊治经过" rows={3} />
+          <AnnotatedRecordField {...annotatedField('presentIllness', '现病史')} {...streamingField('presentIllness')} disabled={signed} placeholder="起病、演变、伴随症状及诊治经过" rows={3} />
         </FormField>
         <FormField appearance="document" className="doctor-record-narrative doctor-record-field--history" label="既往史" error={formState.errors.medicalHistory?.message}>
-          <textarea {...register('medicalHistory')} {...streamingField('medicalHistory')} disabled={signed} placeholder="既往疾病、手术、过敏及长期用药" rows={2} />
+          <AnnotatedRecordField {...annotatedField('medicalHistory', '既往史')} {...streamingField('medicalHistory')} disabled={signed} placeholder="既往疾病、手术、过敏及长期用药" rows={2} />
         </FormField>
         <ClinicalVitalsFields api={api} encounterId={encounter.id} historyEncounters={historyEncounters}
           triageVitals={triageVitals} form={form} recordValues={recordValues} bmi={bmi}
           signed={signed} bloodPressureRequired={bloodPressureRequired} />
         <FormField appearance="document" className="doctor-record-narrative doctor-record-field--exam" label="查体所见" error={formState.errors.physicalExam?.message}>
-          <textarea {...register('physicalExam')} {...streamingField('physicalExam')} disabled={signed} placeholder="阳性体征及必要的阴性体征" rows={3} />
+          <AnnotatedRecordField {...annotatedField('physicalExam', '查体所见')} {...streamingField('physicalExam')} disabled={signed} placeholder="阳性体征及必要的阴性体征" rows={3} />
         </FormField>
         {clinicalRecordAdditionalFields
           .map(({ key, label }) => <FormField appearance="document" key={key} className="doctor-record-narrative doctor-record-writing-field" label={label} error={formState.errors[key]?.message}>
-            <textarea {...register(key)} {...streamingField(key)} disabled={signed} rows={2}
+            <AnnotatedRecordField {...annotatedField(key as RecordTextField, label)} {...streamingField(key)} disabled={signed} rows={2}
               placeholder={`记录本次${label}，缺失资料请留空或注明待询问`} />
           </FormField>)}
         {selectedNoteForm && <StructuredNoteForm form={selectedNoteForm} values={structuredValues}

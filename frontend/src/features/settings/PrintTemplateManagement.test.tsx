@@ -145,4 +145,27 @@ describe('PrintTemplateManagement', () => {
       expectedRevision: 2, deviceName: '门诊治疗室标签机', channel: 'LOCAL_BRIDGE', outputLanguage: 'PDF',
     })))
   })
+
+  it('previews published prescription template with western and herbal sample data', async () => {
+    const user = userEvent.setup()
+    const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:rx-preview')
+    const rxTemplate: PublishedPrintTemplate = {
+      id: 'template-rx', templateCode: 'OUTPATIENT_PRESCRIPTION_A5', templateName: '门诊处方 A5 标准模板',
+      documentType: 'OUTPATIENT_PRESCRIPTION', scope: 'PLATFORM', currentVersion: 1,
+      layoutSchema: 'RHN_PRINT_LAYOUT_V1',
+    }
+    const { previewPublishedTemplate } = renderManagement(draft(), [rxTemplate])
+
+    await user.click(await screen.findByRole('button', { name: '预览已发布模板 门诊处方 A5 标准模板' }))
+    await waitFor(() => expect(previewPublishedTemplate).toHaveBeenCalledWith('template-rx', expect.objectContaining({
+      medicationName: '阿莫西林胶囊',
+    })))
+
+    await user.click(await screen.findByRole('button', { name: '中药饮片处方预览（草药方）' }))
+    await waitFor(() => expect(previewPublishedTemplate).toHaveBeenCalledWith('template-rx', expect.objectContaining({
+      title: '中药饮片处方笺',
+      categoryCode: 'HERBAL',
+    })))
+    createObjectUrl.mockRestore()
+  })
 })

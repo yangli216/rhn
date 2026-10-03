@@ -1,8 +1,10 @@
+import type { RecordAnnotation } from './recordAnnotations'
 import type { ApiClient } from './httpClient'
 
 export type OutpatientNoteTemplateScope = 'PERSONAL' | 'DEPARTMENT'
 
 export interface OutpatientNoteTemplateContent {
+  annotations?: RecordAnnotation[]
   chiefComplaint?: string
   presentIllness?: string
   medicalHistory?: string

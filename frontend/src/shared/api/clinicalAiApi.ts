@@ -1,3 +1,4 @@
+import type { RecordAnnotation } from './recordAnnotations'
 import type { DiagnosisInput } from './encountersApi'
 import type { ApiClient } from './httpClient'
 import { consumeClinicalAiStream } from './clinicalAiStream'
@@ -98,7 +99,7 @@ export interface ClinicalAiVitalSigns {
   weightKg?: number
 }
 
-export interface ClinicalAiRecordDraft extends ClinicalAiRecordText, ClinicalAiVitalSigns {}
+export interface ClinicalAiRecordDraft extends ClinicalAiRecordText, ClinicalAiVitalSigns { annotations?: RecordAnnotation[] }
 
 export interface ClinicalAiDraftInput extends ClinicalAiRecordDraft {
   diagnoses: DiagnosisInput[]
@@ -291,14 +292,14 @@ export function createClinicalAiApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify(input),
       }),
     capabilities: () => client.request<ClinicalAiCapabilities>('/api/ai/clinical-assistant/capabilities'),
-    recommendPlans: (encounterId: string, input: GenerateClinicalAiSuggestionInput) =>
+    recommendPlans: (encounterId: string, input: GenerateClinicalAiSuggestionInput, signal?: AbortSignal) =>
       client.request<ClinicalAiRecommendedPlan[]>(`/api/ai/clinical-assistant/encounters/${encounterId}/plan-recommendations`, {
-        method: 'POST', body: JSON.stringify(input),
+        method: 'POST', body: JSON.stringify(input), signal,
       }),
-    generate: (encounterId: string, input: GenerateClinicalAiSuggestionInput) =>
+    generate: (encounterId: string, input: GenerateClinicalAiSuggestionInput, signal?: AbortSignal) =>
       client.request<ClinicalAiSuggestion>(
         `/api/ai/clinical-assistant/encounters/${encounterId}/suggestions`,
-        { method: 'POST', body: JSON.stringify(input) },
+        { method: 'POST', body: JSON.stringify(input), signal },
       ),
     generateStream: async (encounterId: string, input: GenerateClinicalAiSuggestionInput,
       signal: AbortSignal, onDelta: (text: string) => void) => consumeClinicalAiStream(

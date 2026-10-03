@@ -38,6 +38,7 @@ export function aiContextFromDraft(value: RecordForm, diagnoses: DiagnosisInput[
       .sort((left, right) => left.id.localeCompare(right.id))),
     allergyState: state.allergyState,
     busy: state.busy,
+    annotations: value.annotations,
     chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
     medicalHistory: value.medicalHistory, physicalExam: value.physicalExam,
     allergyHistory: value.allergyHistory, medicationHistory: value.medicationHistory, auxiliaryExaminations: value.auxiliaryExaminations, healthEducation: value.healthEducation, followUp: value.followUp,  systolic: value.systolic, diastolic: value.diastolic,

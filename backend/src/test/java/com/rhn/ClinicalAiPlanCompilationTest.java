@@ -99,7 +99,9 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 new ClinicalAiModelGateway.PlanIntentItem("EXAMINATION", "心电图", "心电图", "EXPLICIT", null),
                 new ClinicalAiModelGateway.PlanIntentItem("MEDICATION", "硝苯地平控释片", "硝苯地平控释片", "EXPLICIT", "30mg qd"),
                 new ClinicalAiModelGateway.PlanIntentItem("FOLLOW_UP", "复诊", "复诊", "EXPLICIT", "一周后")), null,
-                java.util.Map.of("chiefComplaint", "主要症状：[填写]；持续时间：[填写]", "healthEducation", "监测记录待核对", "treatmentPlan", "不能进入病历模板的文字计划")));
+                java.util.Map.of("chiefComplaint", "主要症状：[填写]；持续时间：[填写]", "healthEducation", "监测记录待核对", "treatmentPlan", "不能进入病历模板的文字计划"),
+                List.of(new com.rhn.outpatient.api.RecordAnnotation("healthEducation", "监测记录待核对", null,
+                        "TEMPLATE", "IMPORTANT", null, "重点核对", null, null, false))));
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String name = "AI高血压指南方-" + suffix;
 
@@ -116,6 +118,7 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.noteTemplateContent.chiefComplaint").value("主要症状：[填写]；持续时间：[填写]"))
                 .andExpect(jsonPath("$.noteTemplateContent.treatmentPlan").doesNotExist())
+                .andExpect(jsonPath("$.recordAnnotations[0].kind").value("IMPORTANT"))
                 .andExpect(jsonPath("$.scopeType").value("HOSPITAL"))
                 .andExpect(jsonPath("$.sourceType").value("AI_INPUT"))
                 .andExpect(jsonPath("$.reviewItems.length()").value(4))

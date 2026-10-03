@@ -1,3 +1,4 @@
+import { anchorAnnotations, applyBoundFacts } from '../record/recordAnnotations'
 import type {
   ClinicalAiDraftContext, ClinicalAiDraftInput, ClinicalAiRecordDraft, ClinicalAiSuggestion, ClinicalAiVitalSigns,
 } from '../../../shared/api/clinicalAiApi'
@@ -59,6 +60,7 @@ function stableValue(value: unknown): unknown {
 
 export function clinicalAiDraftInput(value: ClinicalAiDraftContext): ClinicalAiDraftInput {
   return {
+    annotations: anchorAnnotations(value, value.annotations),
     chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
     medicalHistory: value.medicalHistory, physicalExam: value.physicalExam,
     allergyHistory: value.allergyHistory, medicationHistory: value.medicationHistory, auxiliaryExaminations: value.auxiliaryExaminations, healthEducation: value.healthEducation, followUp: value.followUp,  systolic: value.systolic, diastolic: value.diastolic,
@@ -71,17 +73,24 @@ export function clinicalAiDraftInput(value: ClinicalAiDraftContext): ClinicalAiD
 
 export function mergeAiRecordDraft<T extends ClinicalAiRecordDraft>(current: T,
   patch: ClinicalAiRecordDraft, overwrite = false): T {
-  const next = { ...current }
+  const bound = applyBoundFacts(current, current.annotations ?? [], patch.annotations ?? [])
+  const next = { ...current, ...bound.content }
+  const changed = new Set<string>()
   for (const field of recordDraftFields) {
     const suggestion = patch[field]?.trim()
     if (!suggestion || (!overwrite && current[field]?.trim())) continue
     Object.assign(next, { [field]: suggestion })
+    changed.add(field)
   }
   for (const field of vitalDraftFields) {
     const suggestion = patch[field]
     if (!validAiVital(field, suggestion) || (!overwrite && current[field] != null)) continue
     Object.assign(next, { [field]: suggestion })
   }
+  if (current.annotations?.length || patch.annotations?.length) next.annotations = anchorAnnotations(next, [
+    ...bound.annotations.filter((item) => !changed.has(item.field)),
+    ...(patch.annotations ?? []).filter((item) => changed.has(item.field)).map((item) => ({ ...item, confirmed: false })),
+  ])
   return next
 }
 

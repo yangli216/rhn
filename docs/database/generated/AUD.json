@@ -1,5 +1,5 @@
 {
-  "fingerprint": "8294d1c05b90c1ad9af0963c7b3037586921ee2b6c62d10e7e3c300e55144823",
+  "fingerprint": "cf6b790881c7cf89a94898e2de0d7d9f33de0ebee3ca9d002f9ab8cca929a48e",
   "tables": [
     {
       "logical": "aud.audit_log",
@@ -4294,15 +4294,7 @@
         },
         {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
-          "line": 40
-        },
-        {
-          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
           "line": 44
-        },
-        {
-          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
-          "line": 45
         },
         {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
@@ -4314,11 +4306,19 @@
         },
         {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
-          "line": 55
+          "line": 60
         },
         {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
-          "line": 56
+          "line": 61
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 69
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
+          "line": 70
         }
       ]
     },
@@ -4613,7 +4613,7 @@
         },
         {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationRuleIntakeStore.java",
-          "line": 49
+          "line": 59
         }
       ]
     },

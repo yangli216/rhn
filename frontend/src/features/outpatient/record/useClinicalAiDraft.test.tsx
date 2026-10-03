@@ -94,6 +94,27 @@ describe('clinical AI adoption boundary', () => {
     expect(h.result.current.form.getValues()).toEqual(before)
   })
 
+  it('updates the bound template duration while preserving a separate duration and later manual corrections', () => {
+    const h = setup()
+    act(() => h.result.current.form.reset({ ...original, chiefComplaint: '咳嗽3天，服药3天', annotations: [
+      { field: 'chiefComplaint', text: '3天', start: 2, source: 'TEMPLATE', kind: 'VARIABLE', binding: 'symptom.cough.duration' },
+      { field: 'chiefComplaint', text: '3天', start: 7, source: 'TEMPLATE', kind: 'VARIABLE', binding: 'medication.duration' },
+    ] }))
+    const oral = { field: 'chiefComplaint' as const, text: '5天', start: 2, source: 'VOICE' as const, kind: 'FACT' as const,
+      binding: 'symptom.cough.duration', sourceQuote: '咳嗽五天' }
+    h.rerender({ ...h.props, aiDraft: h.request({ overwriteRecord: false,
+      recordDraft: { chiefComplaint: '咳嗽5天', annotations: [oral] } }) })
+    expect(h.result.current.form.getValues('chiefComplaint')).toBe('咳嗽5天，服药3天')
+    expect(h.onPlan).not.toHaveBeenCalled()
+    act(() => h.result.current.form.reset({ ...h.result.current.form.getValues(), chiefComplaint: '咳嗽4天，服药3天', annotations: [
+      { ...oral, text: '4天', source: 'DOCTOR' },
+    ] }))
+    h.rerender({ ...h.props, aiDraft: h.request({ requestId: 'second-dictation', overwriteRecord: false,
+      recordDraft: { chiefComplaint: '咳嗽6天', annotations: [{ ...oral, text: '6天', sourceQuote: '咳嗽六天' }] } }) })
+    expect(h.result.current.form.getValues('chiefComplaint')).toBe('咳嗽4天，服药3天')
+    expect(h.result.current.form.getValues('annotations')).toContainEqual(expect.objectContaining({ kind: 'CONFLICT', text: '4天' }))
+  })
+
   it('publishes form changes and clears the AI context on unmount', () => {
     const h = setup()
     act(() => h.result.current.form.setValue('chiefComplaint', '新的主诉'))

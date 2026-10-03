@@ -1,5 +1,5 @@
 {
-  "fingerprint": "8294d1c05b90c1ad9af0963c7b3037586921ee2b6c62d10e7e3c300e55144823",
+  "fingerprint": "cf6b790881c7cf89a94898e2de0d7d9f33de0ebee3ca9d002f9ab8cca929a48e",
   "tables": [
     {
       "logical": "bil.cashier_close_event",
@@ -1209,7 +1209,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/CashierClose.java",
-          "line": 14
+          "line": 16
         }
       ]
     },
@@ -1847,8 +1847,8 @@
           "defaultValue": null,
           "ordinal": 28,
           "comment": "费用核算归并大类(SD_ACCTG_CAT)",
-          "logical": "",
-          "catalogComment": ""
+          "logical": "accounting_category",
+          "catalogComment": "费用核算归并大类(SD_ACCTG_CAT)"
         }
       ],
       "kind": "BASE TABLE",
@@ -2185,7 +2185,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/semantic/plan/QueryPlanner.java",
-          "line": 379
+          "line": 436
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/JpaSettlementAuthorizationDirectory.java",
@@ -3851,7 +3851,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/PatientAccount.java",
-          "line": 13
+          "line": 15
         }
       ]
     },
@@ -8522,7 +8522,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/RegistrationBillingIntent.java",
-          "line": 14
+          "line": 16
         }
       ]
     },
@@ -10333,7 +10333,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/Settlement.java",
-          "line": 14
+          "line": 16
         }
       ]
     }

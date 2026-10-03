@@ -1,3 +1,4 @@
+import { planNoteContent } from './planNoteContent'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import './outpatient-plan-templates.css'
 import '../../../styles/features/outpatient-doctor.css'
@@ -22,49 +23,13 @@ import {
   tableCellClass,
   TableShell,
   Tabs,
+  Tooltip,
 } from '../../../shared/ui'
 import { MasterDetailPage } from '../../../shared/ui/templates/PageTemplates'
 import { errorMessage } from '../../../shared/api/httpClient'
 import { AiPlanTemplateDraftModal } from './AiPlanTemplateDraftModal'
 import { ManualClinicalTemplateDialog } from './ManualClinicalTemplateDialog'
-import { planSourceReferenceLabel, planTaskKindLabel } from './planTaskPresentation'
-
-function cleanClinicalInstruction(text: string | null | undefined, medName?: string): string {
-  if (!text || !text.trim()) return '—'
-  let cleaned = text.trim()
-  if (medName && cleaned.startsWith(medName)) {
-    cleaned = cleaned.slice(medName.length).trim()
-  }
-  const condMatch = cleaned.match(/(?:适用条件|使用指征)[：:]\s*([^；;。]+)/)
-  if (condMatch && condMatch[1]) {
-    const cond = condMatch[1].trim()
-    if (cond.startsWith('发热') || cond.startsWith('体温') || cond.startsWith('头痛') || cond.startsWith('咽痛') || cond.startsWith('咳嗽') || cond.startsWith('鼻塞')) {
-      return `必要时（${cond}）使用`
-    }
-    return cond
-  }
-  cleaned = cleaned.replace(/^常规用法[：:]\s*每次\s*[^；;]+[；;]\s*/, '')
-  cleaned = cleaned.replace(/[；;。]\s*不建议常规使用[：:].*$/, '')
-  cleaned = cleaned.replace(/[；;。]\s*目的[：:].*$/, '')
-  cleaned = cleaned.replace(/^适用条件[：:]\s*/, '')
-  return cleaned.trim() || '—'
-}
-
-function cleanServiceClinicalDescription(text: string | null | undefined): string {
-  if (!text || !text.trim()) return '—'
-  let cleaned = text.trim()
-  const condMatch = cleaned.match(/(?:适用条件|使用指征)[：:]\s*([^；;。]+)/)
-  const purposeMatch = cleaned.match(/(?:目的|治疗目的)[：:]\s*([^；;。]+)/)
-  if (condMatch && condMatch[1]) {
-    return condMatch[1].trim()
-  }
-  if (purposeMatch && purposeMatch[1]) {
-    return purposeMatch[1].trim()
-  }
-  cleaned = cleaned.replace(/[；;。]\s*不建议常规使用[：:].*$/, '')
-  cleaned = cleaned.replace(/^适用条件[：:]\s*/, '')
-  return cleaned.trim() || '—'
-}
+import { planSourceReferenceLabel } from './planTaskPresentation'
 
 export interface OutpatientPlanTemplatesWorkspaceProps {
   api: RhnApi
@@ -108,7 +73,8 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
       if (searchKeyword.trim()) {
         const kw = searchKeyword.toLowerCase()
         const matchName = value.name.toLowerCase().includes(kw)
-        const matchDesc = value.description?.toLowerCase().includes(kw)
+        const matchDesc = (value.searchProfile?.summary || value.description)?.toLowerCase().includes(kw)
+          || value.searchProfile?.keywords.some((word) => word.toLowerCase().includes(kw))
         const matchGuideline = value.guidelineReference?.toLowerCase().includes(kw)
         const matchDiag = value.diagnoses.some((d) => d.display.toLowerCase().includes(kw) || d.code.toLowerCase().includes(kw))
         const matchMed = value.medications.some((m) => m.medicationName.toLowerCase().includes(kw))
@@ -137,10 +103,9 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
   const selectedLinkedNoteTemplate = useMemo(() => selectedTemplate?.noteTemplateId
     ? noteTemplatesQuery.data?.find((value) => value.id === selectedTemplate.noteTemplateId) || null
     : null, [noteTemplatesQuery.data, selectedTemplate?.noteTemplateId])
-  const visibleSupportingTasks = (selectedTemplate?.tasks ?? []).filter((task) =>
-    task.kind === 'CONDITION'
-    || (task.kind === 'EDUCATION' && !selectedLinkedNoteTemplate?.content.healthEducation?.trim())
-    || (task.kind === 'FOLLOW_UP' && !selectedLinkedNoteTemplate?.content.followUp?.trim()))
+  const selectedWritingContent = planNoteContent(selectedLinkedNoteTemplate?.content, selectedTemplate?.tasks)
+  const hasWritingContent = noteTemplateFields.some(({ key }) => selectedWritingContent[key]?.trim())
+
 
 
   useEffect(() => {
@@ -439,7 +404,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                     📖 {item.guidelineReference}
                   </div>
                 )}
-                <div className="doctor-plan-item-card__desc">{item.description || item.name}</div>
+                <div className="doctor-plan-item-card__desc">{item.searchProfile?.summary || item.description || item.name}</div>
                 <div className="doctor-plan-item-card__meta">
                   {item.noteTemplateId && <><span>病历 1</span><span>·</span></>}
                   <span>诊断 {item.diagnoses.length}</span>
@@ -567,6 +532,13 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
           )
         ) : selectedTemplate ? (
           <>
+            {selectedTemplate.searchProfile?.summary && <div className="doctor-plan-detail-hero">
+              <p className="doctor-plan-detail-desc">{selectedTemplate.searchProfile.summary}
+                {selectedTemplate.searchProfile.conditions.length > 0 && <Tooltip content={selectedTemplate.searchProfile.conditions.join('；')}>
+                  <Button variant="text" size="sm" aria-label="查看方案适用条件"><Icon name="info" /></Button>
+                </Tooltip>}
+              </p>
+            </div>}
             {selectedTemplate.guidelineReference && (
               <div className="doctor-plan-detail-hero">
                 {selectedTemplate.guidelineReference && (
@@ -577,15 +549,15 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
               </div>
             )}
 
-            {selectedTemplate.noteTemplateId && (
+            {(selectedTemplate.noteTemplateId || hasWritingContent) && (
               <div className="doctor-plan-detail-card">
                 <div className="doctor-plan-detail-card__header">
                   <div className="doctor-plan-detail-card__title">
                     <Icon name="clinical" className="ui-icon-inline" />
                     <span>配套病历范文</span>
-                    <StatusBadge tone={selectedLinkedNoteTemplate ? 'info' : 'warning'}>
+                    {selectedTemplate.noteTemplateId && <StatusBadge tone={selectedLinkedNoteTemplate ? 'info' : 'warning'}>
                       {selectedLinkedNoteTemplate ? '已关联模板' : '模板不可用'}
-                    </StatusBadge>
+                    </StatusBadge>}
                   </div>
                   {selectedLinkedNoteTemplate && (
                     <span className="doctor-plan-detail-card__sub">
@@ -594,13 +566,13 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                   )}
                 </div>
                 <div className="doctor-plan-detail-card__body">
-                  {selectedLinkedNoteTemplate ? (
+                  {hasWritingContent ? (
                     <div className="doctor-note-sheet-grid">
-                      {noteTemplateFields.filter(({ key }) => selectedLinkedNoteTemplate.content[key]?.trim()).map(({ key, label }) => (
+                      {noteTemplateFields.filter(({ key }) => selectedWritingContent[key]?.trim()).map(({ key, label }) => (
                         <div key={key} className="doctor-note-sheet-row">
                           <span className="doctor-note-sheet-badge">{label}</span>
                           <div className="doctor-note-sheet-content">
-                            {selectedLinkedNoteTemplate.content[key]}
+                            {selectedWritingContent[key]}
                           </div>
                         </div>
                       ))}
@@ -679,7 +651,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                           </td>
                           <td className={`${tableCellClass('text')} doctor-col--instruction`}>
                             <div className="doctor-plan-instruction-cell" title={m.medicationInstruction || undefined}>
-                              {cleanClinicalInstruction(m.medicationInstruction, m.medicationName)}
+                              {m.medicationInstruction || '—'}
                             </div>
                           </td>
                         </tr>
@@ -727,7 +699,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                           <td className={`${tableCellClass('numeric')} doctor-col--service-qty`}>{s.quantity} {s.unitCode}</td>
                           <td className={`${tableCellClass('text')} doctor-col--service-desc`}>
                             <div className="doctor-plan-instruction-cell" title={s.clinicalDescription || undefined}>
-                              {cleanServiceClinicalDescription(s.clinicalDescription)}
+                              {s.clinicalDescription || '—'}
                             </div>
                           </td>
                         </tr>
@@ -742,35 +714,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
               </div>
             </div>
 
-            {visibleSupportingTasks.length > 0 && (
-              <div className="doctor-plan-detail-card">
-                <div className="doctor-plan-detail-card__header">
-                  <div className="doctor-plan-detail-card__title">
-                    <Icon name="sparkles" className="ui-icon-inline" />
-                    <span>宣教、随访与补充说明</span>
-                    <span className="doctor-plan-card-count">{visibleSupportingTasks.length} 项</span>
-                  </div>
-                </div>
-                <div className="doctor-plan-detail-card__table-wrapper">
-                  <DataTable compact className="doctor-plan-items-table">
-                    <thead><tr>
-                      <th className={tableCellClass('text')} style={{ width: '120px' }}>类别</th>
-                      <th className={tableCellClass('text')}>内容</th>
-                    </tr></thead>
-                    <tbody>
-                      {visibleSupportingTasks
-                        .map((task, index) => <tr key={`${task.kind}-${index}`}>
-                          <td className={tableCellClass('text')}><StatusBadge tone="neutral">{planTaskKindLabel[task.kind]}</StatusBadge></td>
-                          <td className={tableCellClass('text')}>
-                            <strong>{task.text}</strong>
-                            {task.details && <p className="doctor-plan-task-details">{task.details}</p>}
-                          </td>
-                        </tr>)}
-                    </tbody>
-                  </DataTable>
-                </div>
-              </div>
-            )}
+
           </>
         ) : (
           <EmptyState icon="clinical" title="请选择方案" copy="从左侧列表中选择诊疗方案查看明细，或点击上方进行 AI 建方。" />

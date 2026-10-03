@@ -26,12 +26,13 @@ export type ClinicalAiSurfaceRefs = Pick<Record<keyof ClinicalAiSurfaces,
 export interface InlineAiSelection {
   recordDraft?: ClinicalAiRecordDraft
   diagnoses?: DiagnosisInput[]
+  incrementalRecord?: boolean
 }
 
 /** One analysis session, rendered beside the clinical objects it can help edit. */
 export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, capability, suggestion, current, busy,
   generating, inputBusy, preview, onView, disabled, canAdopt, error, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
-  onFindPlans, planInputKey, onReviewRecommendedPlan, onReviewTreatment, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults,  sceneAssessment, sceneLoading }: {
+  onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults,  sceneAssessment, sceneLoading }: {
   api: RhnApi
   encounter: Encounter
   surfaces: ClinicalAiSurfaces
@@ -56,6 +57,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   onApply: (selection: InlineAiSelection) => void
   onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[]) => void
   existingTreatmentKeys?: string[]
+  stableVoiceTranscript?: string
   planInputKey?: string
   onFindPlans?: () => Promise<ClinicalAiRecommendedPlan[]>
   onReviewRecommendedPlan?: (plan: ClinicalAiRecommendedPlan) => void
@@ -65,7 +67,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   sceneAssessment?: ReceptionSceneAssessment
   sceneLoading?: boolean
 }) {
-  const session = `${context.encounterId}:${suggestion?.id}`
+  const session = context.encounterId
   const [diagnosisSelection, setDiagnosisSelection] = useState<{ session: string; excluded: string[] }>({ session: '', excluded: [] })
   const excludedDiagnoses = diagnosisSelection.session === session ? diagnosisSelection.excluded : []
   const diagnoses = (suggestion?.diagnosisCandidates ?? []).filter((item) =>
@@ -75,7 +77,6 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   const planFeature = capability.features.includes('PLAN_RECOMMENDATIONS')
   const availableTreatmentItems = planFeature
     ? (suggestion?.treatmentRecommendations ?? []).filter((item) => !existingTreatmentKeys.includes(treatmentKey(item))) : []
-  const treatmentItems = current ? availableTreatmentItems : []
   const portal = (node: ReactNode, target: HTMLDivElement | null, key: string) => target ? createPortal(node, target, key) : null
 
   return <>
@@ -100,6 +101,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
         onClearVoice={onClearVoice}
         onGenerate={onGenerate}
         planInputKey={planInputKey}
+        stableVoiceTranscript={stableVoiceTranscript}
         onFindPlans={onFindPlans}
         onReviewRecommendedPlan={onReviewRecommendedPlan}
         onApply={onApply}
@@ -143,10 +145,10 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
             <Icon name="check" />确认所选诊断（{selectedDiagnoses.length}）</Button></div>
       </div>, surfaces.diagnoses, 'diagnoses')}
 
-    {current && planFeature && treatmentItems.length > 0 && portal(
-      <ClinicalAiTreatmentRows key={`${context.encounterId}:${suggestion?.id}`} items={treatmentItems}
+    {suggestion && planFeature && portal(
+      <div hidden={!current || !availableTreatmentItems.length}><ClinicalAiTreatmentRows key={context.encounterId} items={availableTreatmentItems}
         api={api} encounter={encounter} disabled={disabled || busy || !canAdopt || !onReviewTreatment}
-        onReview={(items) => onReviewTreatment?.(items)} />, surfaces.plans, 'treatments')}
+        onReview={(items) => onReviewTreatment?.(items)} /></div>, surfaces.plans, 'treatments')}
 
   </>
 }

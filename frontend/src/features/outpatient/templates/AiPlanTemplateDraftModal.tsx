@@ -1,3 +1,5 @@
+import { planNoteContent } from './planNoteContent'
+import { anchorAnnotations } from '../record/recordAnnotations'
 import { WorkspacePane } from '../../../shared/ui/templates/PageTemplates'
 import { NoteWritingTemplateEditor } from './NoteWritingTemplateEditor'
 import { noteTemplateFields } from '../record/NoteTemplateBar'
@@ -34,12 +36,6 @@ const reviewGroups: Array<{ key: string; label: string; icon: IconName; kinds: P
 const hasIcd10Code = (text: string) => /\[[A-Z]\d{2}(?:\.\d+)?\]/.test(text)
 const catalogTaskKinds = new Set(['DIAGNOSIS', 'MEDICATION', 'LABORATORY', 'EXAMINATION'])
 
-function planNoteContent(content: OutpatientNoteTemplateContent = {}, items: Array<{ kind: string; text: string; details?: string }> = []) {
-  return { ...content,
-    healthEducation: content.healthEducation ?? items.filter((item) => item.kind === 'EDUCATION').map((item) => item.details || item.text).join('\n'),
-    followUp: content.followUp ?? items.filter((item) => item.kind === 'FOLLOW_UP').map((item) => item.details || item.text).join('\n'),
-  }
-}
 
 function parseMedicationSpecification(text?: string, details?: string): string | null {
   const source = `${text || ''} ${details || ''}`
@@ -530,7 +526,7 @@ export function AiPlanTemplateDraftModal({
           (delta) => { if (!controller.signal.aborted) setStreamSource((current) => current + delta) },
         )
         setTextDraft(result)
-        setNoteContent(planNoteContent(result.noteTemplateContent, result.reviewItems))
+        setNoteContent({ ...planNoteContent(result.noteTemplateContent, result.reviewItems), annotations: result.recordAnnotations })
         setCompiledDraft(null)
         setStage('TEXT_REVIEW')
         setMessages((prev) => [
@@ -590,7 +586,7 @@ export function AiPlanTemplateDraftModal({
           (delta) => { if (!controller.signal.aborted) setStreamSource((current) => current + delta) },
         )
         setTextDraft(result)
-        setNoteContent(planNoteContent(result.noteTemplateContent, result.reviewItems))
+        setNoteContent({ ...planNoteContent(result.noteTemplateContent, result.reviewItems), annotations: result.recordAnnotations })
         setCompiledDraft(null)
         setStage('TEXT_REVIEW')
         setMessages((prev) => [
@@ -661,6 +657,7 @@ export function AiPlanTemplateDraftModal({
       // 文书模板只保存书写字段；结构化诊断和医嘱继续保存到方案。
       const content: OutpatientNoteTemplateContent = Object.fromEntries(noteTemplateFields
         .map(({ key }) => [key, noteContent[key]?.trim() || undefined]).filter(([, value]) => value))
+      content.annotations = anchorAnnotations(content, noteContent.annotations)
       let noteTemplateId = scope === 'HOSPITAL' ? undefined : compiledDraft.noteTemplateId
       if (scope !== 'HOSPITAL' && Object.values(content).some(Boolean)) {
         const fingerprint = JSON.stringify({ content, name: compiledDraft.name, scope })

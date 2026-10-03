@@ -1,6 +1,7 @@
 package com.rhn.outpatient.template;
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,11 +24,13 @@ class OutpatientPlanTemplateController {
     private final OutpatientPlanTemplateService service;
     OutpatientPlanTemplateController(OutpatientPlanTemplateService service) { this.service = service; }
 
+    @Operation(operationId = "listOutpatientPlanTemplates")
     @GetMapping
     List<OutpatientPlanTemplateContracts.View> list(@RequestParam(required = false) String keyword) {
         return service.visible(keyword);
     }
 
+    @Operation(operationId = "createOutpatientPlanTemplate")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     OutpatientPlanTemplateContracts.View create(
@@ -35,9 +38,11 @@ class OutpatientPlanTemplateController {
         return service.create(input);
     }
 
+    @Operation(operationId = "useOutpatientPlanTemplate")
     @PostMapping("/{id}/use")
     OutpatientPlanTemplateContracts.View use(@PathVariable Long id) { return service.markUsed(id); }
 
+    @Operation(operationId = "updateOutpatientPlanTemplate")
     @PutMapping("/{id}")
     OutpatientPlanTemplateContracts.View update(
             @PathVariable Long id,
@@ -45,6 +50,7 @@ class OutpatientPlanTemplateController {
         return service.update(id, input);
     }
 
+    @Operation(operationId = "disableOutpatientPlanTemplate")
     @PostMapping("/{id}/disable")
     OutpatientPlanTemplateContracts.View disable(@PathVariable Long id,
             @Valid @RequestBody OutpatientPlanTemplateContracts.RevisionRequest input) {

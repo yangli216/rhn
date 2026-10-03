@@ -1,5 +1,5 @@
 {
-  "fingerprint": "8294d1c05b90c1ad9af0963c7b3037586921ee2b6c62d10e7e3c300e55144823",
+  "fingerprint": "cf6b790881c7cf89a94898e2de0d7d9f33de0ebee3ca9d002f9ab8cca929a48e",
   "tables": [
     {
       "logical": "vis.allergy_intolerance",
@@ -1066,7 +1066,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/domain/CareEpisode.java",
-          "line": 13
+          "line": 15
         }
       ]
     },
@@ -2839,7 +2839,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/domain/CriticalValueAlert.java",
-          "line": 13
+          "line": 15
         }
       ]
     },
@@ -3137,7 +3137,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
-          "line": 182
+          "line": 184
         }
       ]
     },
@@ -3323,7 +3323,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
-          "line": 213
+          "line": 215
         }
       ]
     },
@@ -3964,7 +3964,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/semantic/plan/QueryPlanner.java",
-          "line": 382
+          "line": 439
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/EncounterDiagnosis.java",
@@ -4443,7 +4443,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
-          "line": 125
+          "line": 127
         }
       ]
     },
@@ -4774,7 +4774,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
-          "line": 14
+          "line": 16
         }
       ]
     },
@@ -5057,7 +5057,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/domain/EncounterLocationHistory.java",
-          "line": 12
+          "line": 14
         }
       ]
     },
@@ -5413,7 +5413,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
-          "line": 49
+          "line": 51
         }
       ]
     },
@@ -5703,7 +5703,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
-          "line": 86
+          "line": 88
         }
       ]
     },
@@ -6383,7 +6383,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/semantic/plan/QueryPlanner.java",
-          "line": 381
+          "line": 438
         },
         {
           "path": "backend/rhn-app/src/main/java/com/rhn/portal/dashboard/PortalSummaryService.java",
@@ -6419,7 +6419,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/domain/InpatientEncounter.java",
-          "line": 13
+          "line": 15
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/Encounter.java",
@@ -6471,11 +6471,11 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
-          "line": 244
+          "line": 245
         },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/allergy/AllergyService.java",
-          "line": 198
+          "line": 199
         }
       ]
     },
@@ -11073,7 +11073,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/domain/InpatientShiftHandoff.java",
-          "line": 15
+          "line": 17
         }
       ]
     },
@@ -12036,7 +12036,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
-          "line": 245
+          "line": 246
         }
       ]
     }

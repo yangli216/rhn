@@ -2482,7 +2482,7 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 }
 .ui-field--document .ui-field__label::after { content: '：'; }
 
-.ui-field--document textarea.ui-field__control {
+.ui-field--document :is(textarea, .ui-annotated-preview).ui-field__control {
   min-height: 1lh;
   height: auto;
   field-sizing: content;

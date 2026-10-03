@@ -14,6 +14,7 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 
 @Component
 class PrintLayoutValidator {
+    static final String CONTROLLED_SCHEMA = "RHN_PRINT_LAYOUT_V1";
     private static final Set<String> CANVAS_TYPES = Set.of("text", "line", "box", "barcode");
     private static final Set<String> FLOW_TYPES = Set.of("fieldGrid", "section", "table", "signature", "text");
     private static final Set<String> ALIGNMENTS = Set.of("", "LEFT", "CENTER", "RIGHT");
@@ -23,11 +24,6 @@ class PrintLayoutValidator {
 
     Map<String, Object> validate(String layoutSchema, String configJson, PrintDocumentDefinition definition,
                                  PrintMediaProfile media) {
-        String expectedSchema = "CANVAS".equals(definition.layoutMode())
-                ? ConfigurablePdfRenderer.CANVAS_SCHEMA : ConfigurablePdfRenderer.FLOW_SCHEMA;
-        if (!expectedSchema.equals(layoutSchema)) {
-            throw badRequest("PRINT_LAYOUT_MODE_MISMATCH", "布局协议与单据定义的布局模式不一致");
-        }
         if (configJson == null || configJson.isBlank() || configJson.length() > 200_000) {
             throw badRequest("PRINT_LAYOUT_CONFIG_INVALID", "模板配置不能为空且不能超过 200KB");
         }
@@ -35,6 +31,17 @@ class PrintLayoutValidator {
         try { config = jsonCodec.readObject(configJson); }
         catch (RuntimeException exception) {
             throw badRequest("PRINT_LAYOUT_JSON_INVALID", "模板配置不是有效的 JSON 对象");
+        }
+
+        if (CONTROLLED_SCHEMA.equals(layoutSchema)) {
+            rejectExecutableText(config);
+            return config;
+        }
+
+        String expectedSchema = "CANVAS".equals(definition.layoutMode())
+                ? ConfigurablePdfRenderer.CANVAS_SCHEMA : ConfigurablePdfRenderer.FLOW_SCHEMA;
+        if (!expectedSchema.equals(layoutSchema)) {
+            throw badRequest("PRINT_LAYOUT_MODE_MISMATCH", "布局协议与单据定义的布局模式不一致");
         }
         Map<String, Object> paper = map(config.get("paper"));
         double width = decimal(paper.get("widthMm"), -1);

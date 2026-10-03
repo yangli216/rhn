@@ -19,6 +19,12 @@ import java.time.ZoneId;
 /** Provider-neutral model boundary. Implementations may call a remote model but never clinical write services. */
 public interface ClinicalAiModelGateway {
     SuggestionContent analyze(ModelRequest request, ClinicalAssistantSettings runtimeSettings);
+    PlanSearchTerms expandPlanQuery(String clinicalText, ClinicalAssistantSettings runtimeSettings);
+
+    record PlanSearchTerms(List<String> terms) {
+        public PlanSearchTerms { terms = terms == null ? List.of() : terms.stream().filter(java.util.Objects::nonNull)
+                .map(String::trim).filter(term -> !term.isEmpty() && term.length() <= 80).distinct().limit(8).toList(); }
+    }
 
     /** Extracts plan intent only. Catalog identifiers and executable orders are resolved by the application. */
     PlanIntent compilePlan(PlanInput request, ClinicalAssistantSettings runtimeSettings);
@@ -53,7 +59,12 @@ public interface ClinicalAiModelGateway {
     }
 
     record PlanIntent(String name, String description, String narrative,
-                      List<PlanIntentItem> items, Long referenceTemplateId, java.util.Map<String, String> noteTemplateContent) {
+                      List<PlanIntentItem> items, Long referenceTemplateId, java.util.Map<String, String> noteTemplateContent,
+                      List<com.rhn.outpatient.api.RecordAnnotation> recordAnnotations) {
+        public PlanIntent(String name, String description, String narrative, List<PlanIntentItem> items,
+                          Long referenceTemplateId, java.util.Map<String, String> noteTemplateContent) {
+            this(name, description, narrative, items, referenceTemplateId, noteTemplateContent, List.of());
+        }
         public PlanIntent(String name, String description, String narrative,
                           List<PlanIntentItem> items, Long referenceTemplateId) {
             this(name, description, narrative, items, referenceTemplateId, java.util.Map.of());

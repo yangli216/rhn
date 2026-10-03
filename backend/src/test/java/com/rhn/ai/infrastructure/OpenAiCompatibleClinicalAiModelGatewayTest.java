@@ -56,6 +56,25 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
     }
 
     @Test
+    void queryExpansionUsesShortStructuredTransportAndKeepsTermsSeparateFromFacts() throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        startServer(exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] bytes = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", "{\"terms\":[\"咽痛\",\"咽痛\",\"  \"]}"))))).getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        var answer = new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec)
+                .expandPlanQuery("喉咙疼，没有发热", settings(null));
+        assertEquals(List.of("咽痛"), answer.terms());
+        var sent = jsonCodec.readTree(requestBody.get());
+        assertEquals("test-model", sent.get("model").asString());
+        assertTrue(sent.get("messages").get(1).get("content").asString().contains("没有发热"));
+    }
+
+    @Test
     void wholePlanMatchingUsesASeparatePromptWithoutDraftGeneration() throws Exception {
         AtomicReference<String> requestBody = new AtomicReference<>();
         startServer(exchange -> {
@@ -67,13 +86,21 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
             exchange.close();
         });
         ModelRequest base = request();
+        var writingDraft = new Draft("咳嗽3天", "", "", "双肺未闻及啰音", "", null, null,
+                null, null, null, null, null, null, List.of(), null, null, null, null, null,
+                List.of(new com.rhn.outpatient.api.RecordAnnotation("physicalExam", "双肺未闻及啰音", 0,
+                        "TEMPLATE", "PRESET", null, null, null, null, false)));
         ModelRequest match = new ModelRequest("CLINICAL_PLAN_MATCH_V1", base.question(), base.voiceTranscript(),
-                base.draft(), base.resident(), base.allergies(), base.availablePlans(), List.of(), List.of(), null,
+                writingDraft, base.resident(), base.allergies(), base.availablePlans(), List.of(), List.of(), null,
                 null, null, "PLAN_MATCH", List.of(), base.temporalContext());
         var answer = new OpenAiCompatibleClinicalAiModelGateway(settings("secret-key"), jsonCodec).analyze(match, settings("secret-key"));
         assertTrue(answer.recommendedPlans().isEmpty());
         assertTrue(jsonCodec.readTree(requestBody.get()).get("messages").get(0).get("content").asString()
                 .contains("不生成病历、诊断、药品或医嘱"));
+        var context = jsonCodec.readTree(jsonCodec.readTree(requestBody.get()).get("messages").get(1).get("content").asString());
+        assertEquals("", context.get("draft").get("physicalExam").asString());
+        assertEquals("双肺未闻及啰音", context.get("writingDraft").get("physicalExam").asString());
+        assertEquals("TEMPLATE", context.get("writingAnnotations").get(0).get("source").asString());
     }
 
     @Test
@@ -243,7 +270,8 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertEquals("38岁", context.get("patient").get("ageText").asText());
         assertEquals(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString(),
                 context.get("temporalContext").get("currentDate").asText());
-        assertTrue(sent.get("messages").get(0).get("content").asString().contains("不得默认既往体健"));
+        assertTrue(sent.get("messages").get(0).get("content").asString().contains("不得将默认既往体健或否认过敏、慢病作为已确认事实"));
+        assertTrue(sent.get("messages").get(0).get("content").asString().contains("已有预设不改为缺失提示"));
         assertTrue(requestBody.get().contains("FEMALE"));
         assertTrue(requestBody.get().contains("血常规"));
         assertTrue(requestBody.get().contains("白细胞计数"));

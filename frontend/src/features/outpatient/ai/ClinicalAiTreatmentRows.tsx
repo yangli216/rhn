@@ -86,6 +86,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
   })
   const selected = rows.filter((row) => !excluded.includes(row.key))
   const selectedReady = selected.length > 0 && selected.every((row) => row.valid)
+  if (!items.length) return null
   return <div className="doctor-ai-order-suggestions" aria-label="AI 医嘱待确认">
     {rows.map(({ item, key, result, resolved, details, valid, medication, change }) => {
       const route = routes.data?.find((value) => value.code === details.routeCode)?.name || details.routeCode

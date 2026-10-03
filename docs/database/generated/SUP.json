@@ -1,5 +1,5 @@
 {
-  "fingerprint": "8294d1c05b90c1ad9af0963c7b3037586921ee2b6c62d10e7e3c300e55144823",
+  "fingerprint": "cf6b790881c7cf89a94898e2de0d7d9f33de0ebee3ca9d002f9ab8cca929a48e",
   "tables": [
     {
       "logical": "sup.dispense_route",
@@ -997,11 +997,11 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
-          "line": 251
+          "line": 252
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/DispenseTaskLine.java",
-          "line": 14
+          "line": 16
         }
       ]
     },
@@ -1464,7 +1464,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/DispenseTask.java",
-          "line": 15
+          "line": 17
         }
       ]
     },
@@ -2462,7 +2462,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/GoodsReceipt.java",
-          "line": 13
+          "line": 15
         }
       ]
     },
@@ -3671,7 +3671,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InpatientMedicationSupplyBatch.java",
-          "line": 16
+          "line": 18
         }
       ]
     },
@@ -4299,7 +4299,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InpatientMedicationSupplyGenerationRun.java",
-          "line": 16
+          "line": 18
         }
       ]
     },
@@ -4924,7 +4924,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InpatientMedicationSupplyLine.java",
-          "line": 17
+          "line": 19
         }
       ]
     },
@@ -5395,7 +5395,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InpatientMedicationSupplyTask.java",
-          "line": 15
+          "line": 17
         }
       ]
     },
@@ -5807,15 +5807,15 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 342
+          "line": 374
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 411
+          "line": 443
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 125
+          "line": 131
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InventoryBalance.java",
@@ -6652,11 +6652,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 110
+          "line": 116
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InventoryOpenPackage.java",
-          "line": 14
+          "line": 16
         }
       ]
     },
@@ -7244,19 +7244,19 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 149
+          "line": 200
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 292
+          "line": 324
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 343
+          "line": 375
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 390
+          "line": 422
         }
       ]
     },
@@ -7628,15 +7628,15 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 163
+          "line": 214
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 293
+          "line": 325
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 347
+          "line": 379
         }
       ]
     },
@@ -8233,31 +8233,31 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 100
+          "line": 124
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 130
+          "line": 172
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 214
+          "line": 183
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 251
+          "line": 283
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 271
+          "line": 303
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 480
+          "line": 512
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 515
+          "line": 547
         }
       ]
     },
@@ -8581,11 +8581,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 199
+          "line": 244
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 501
+          "line": 533
         }
       ]
     },
@@ -9070,7 +9070,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InventoryPeriod.java",
-          "line": 14
+          "line": 16
         }
       ]
     },
@@ -9507,23 +9507,23 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 145
+          "line": 146
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 251
+          "line": 252
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 325
+          "line": 326
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 393
+          "line": 394
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 437
+          "line": 438
         }
       ]
     },
@@ -10082,31 +10082,31 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 116
+          "line": 117
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 146
+          "line": 147
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 154
+          "line": 155
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 256
+          "line": 257
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 374
+          "line": 375
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 423
+          "line": 424
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 437
+          "line": 438
         }
       ]
     },
@@ -10837,43 +10837,43 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 91
+          "line": 92
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 102
+          "line": 103
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 131
+          "line": 132
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 166
+          "line": 167
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 182
+          "line": 183
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 209
+          "line": 210
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 263
+          "line": 264
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 281
+          "line": 282
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 349
+          "line": 350
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 407
+          "line": 408
         }
       ]
     },
@@ -11227,19 +11227,19 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 426
+          "line": 458
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 440
+          "line": 472
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 175
+          "line": 181
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 207
+          "line": 213
         }
       ]
     },
@@ -11567,27 +11567,27 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 123
+          "line": 117
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 209
+          "line": 167
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 59
+          "line": 62
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 84
+          "line": 90
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 161
+          "line": 167
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 190
+          "line": 196
         }
       ]
     },
@@ -12195,11 +12195,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 104
+          "line": 110
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InventoryReservation.java",
-          "line": 16
+          "line": 18
         }
       ]
     },
@@ -13131,11 +13131,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 116
+          "line": 122
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InventoryTraceCode.java",
-          "line": 15
+          "line": 16
         }
       ]
     },
@@ -14104,15 +14104,15 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 319
+          "line": 351
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 394
+          "line": 426
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 98
+          "line": 104
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InventoryTransactionLine.java",
@@ -14484,11 +14484,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 320
+          "line": 352
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 395
+          "line": 427
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/InventoryTransaction.java",
@@ -15160,11 +15160,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 327
+          "line": 359
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 235
+          "line": 236
         }
       ]
     },
@@ -15626,7 +15626,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
-          "line": 249
+          "line": 250
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/MedicationDispenseLine.java",
@@ -16198,7 +16198,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
-          "line": 243
+          "line": 244
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/MedicationDispense.java",
@@ -16680,7 +16680,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/PharmacyFulfillmentAuthorization.java",
-          "line": 13
+          "line": 15
         }
       ]
     },
@@ -17851,7 +17851,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/PurchaseOrder.java",
-          "line": 14
+          "line": 16
         }
       ]
     },
@@ -18676,7 +18676,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/StockCountLine.java",
-          "line": 6
+          "line": 14
         }
       ]
     },
@@ -19274,7 +19274,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/StockCount.java",
-          "line": 5
+          "line": 15
         }
       ]
     },
@@ -19745,7 +19745,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 126
+          "line": 132
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/StockItem.java",
@@ -20139,11 +20139,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPeriodCloseApplicationService.java",
-          "line": 295
+          "line": 327
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryPriceAdjustmentApplicationService.java",
-          "line": 393
+          "line": 394
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/StockLot.java",
@@ -20465,7 +20465,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/StockRequisitionAllocation.java",
-          "line": 13
+          "line": 15
         }
       ]
     },
@@ -21334,7 +21334,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/StockRequisition.java",
-          "line": 13
+          "line": 15
         }
       ]
     },
@@ -22945,7 +22945,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/StockTransferAllocation.java",
-          "line": 13
+          "line": 15
         }
       ]
     },
@@ -24037,7 +24037,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/StockTransfer.java",
-          "line": 13
+          "line": 15
         }
       ]
     },
@@ -25322,7 +25322,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/WardDelivery.java",
-          "line": 15
+          "line": 17
         }
       ]
     },
@@ -25950,7 +25950,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/WardDeliveryLine.java",
-          "line": 14
+          "line": 17
         }
       ]
     },
@@ -27214,7 +27214,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/WardMedicationReturnRequest.java",
-          "line": 15
+          "line": 17
         }
       ]
     },
@@ -27479,7 +27479,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/domain/PrescriptionInventoryFreeze.java",
-          "line": 13
+          "line": 15
         }
       ]
     }

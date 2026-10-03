@@ -796,7 +796,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["update_7"];
+        put: operations["updateOutpatientPlanTemplate"];
         post?: never;
         delete?: never;
         options?: never;
@@ -812,7 +812,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["update_8"];
+        put: operations["updateOutpatientNoteTemplate"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5211,9 +5211,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_15"];
+        get: operations["listOutpatientPlanTemplates"];
         put?: never;
-        post: operations["create_19"];
+        post: operations["createOutpatientPlanTemplate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5229,7 +5229,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["use"];
+        post: operations["useOutpatientPlanTemplate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5245,7 +5245,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["disable_1"];
+        post: operations["disableOutpatientPlanTemplate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5259,9 +5259,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_16"];
+        get: operations["listOutpatientNoteTemplates"];
         put?: never;
-        post: operations["create_20"];
+        post: operations["createOutpatientNoteTemplate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5277,7 +5277,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["use_1"];
+        post: operations["useOutpatientNoteTemplate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5293,7 +5293,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["disable_2"];
+        post: operations["disableOutpatientNoteTemplate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -12100,6 +12100,7 @@ export interface components {
             float?: boolean;
             /** @enum {string} */
             nodeType?: "ARRAY" | "BINARY" | "BOOLEAN" | "MISSING" | "NULL" | "NUMBER" | "OBJECT" | "POJO" | "STRING";
+            string?: boolean;
             integralNumber?: boolean;
             missingNode?: boolean;
             valueNode?: boolean;
@@ -12117,7 +12118,6 @@ export interface components {
             textual?: boolean;
             boolean?: boolean;
             binary?: boolean;
-            string?: boolean;
             container?: boolean;
             embeddedValue?: boolean;
         };
@@ -12185,14 +12185,14 @@ export interface components {
             packages?: components["schemas"]["PackageView"][];
             organizationAdoption?: components["schemas"]["OrganizationAdoptionView"];
             prices?: components["schemas"]["PriceView"][];
-            /** @description 字典 BD_SHELF_LIFE_UNIT 的显示文本 */
-            readonly sdShelfLifeUnitText?: string;
             /** @description 字典 BD_PRODUCT_MARKET_STATUS 的显示文本 */
             readonly sdMarketStatusText?: string;
             /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
             readonly sdProductionPlaceText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
+            /** @description 字典 BD_SHELF_LIFE_UNIT 的显示文本 */
+            readonly sdShelfLifeUnitText?: string;
         };
         MedicationStandardReference: {
             status?: string;
@@ -13775,6 +13775,7 @@ export interface components {
             auxiliaryExaminations?: string;
             healthEducation?: string;
             followUp?: string;
+            annotations?: components["schemas"]["RecordAnnotation"][];
         };
         DiagnosisResponse: {
             /** @example 824633720832983041 */
@@ -21537,6 +21538,7 @@ export interface components {
             noteTemplateContent?: {
                 [key: string]: string;
             };
+            recordAnnotations?: components["schemas"]["RecordAnnotation"][];
         };
         CompilePlanDraftRequest: {
             naturalInput: string;
@@ -21590,6 +21592,7 @@ export interface components {
             auxiliaryExaminations?: string;
             healthEducation?: string;
             followUp?: string;
+            annotations?: components["schemas"]["RecordAnnotation"][];
         };
         SafetyAlert: {
             level?: string;
@@ -24216,6 +24219,309 @@ export interface components {
             message?: string;
             features?: string[];
         };
+        RecordAnnotation: {
+            field?: string;
+            text?: string;
+            /** Format: int32 */
+            start?: number;
+            source?: string;
+            kind?: string;
+            binding?: string;
+            label?: string;
+            sourceQuote?: string;
+            reason?: string;
+            confirmed?: boolean;
+        };
+        OutpatientNoteTemplateContent: {
+            chiefComplaint?: string;
+            presentIllness?: string;
+            medicalHistory?: string;
+            physicalExam?: string;
+            treatmentPlan?: string;
+            allergyHistory?: string;
+            medicationHistory?: string;
+            auxiliaryExaminations?: string;
+            healthEducation?: string;
+            followUp?: string;
+            annotations?: components["schemas"]["RecordAnnotation"][];
+        };
+        OutpatientNoteTemplateUpdateRequest: {
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+            scopeType: string;
+            name: string;
+            description?: string;
+            specialtyCode?: string;
+            /** Format: int32 */
+            sortOrder?: number;
+            content: components["schemas"]["OutpatientNoteTemplateContent"];
+        };
+        OutpatientNoteTemplateView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            scopeType?: string;
+            name?: string;
+            description?: string;
+            specialtyCode?: string;
+            documentType?: string;
+            contentSchema?: string;
+            content?: components["schemas"]["OutpatientNoteTemplateContent"];
+            status?: string;
+            /** Format: int32 */
+            sortOrder?: number;
+            /** Format: int64 */
+            useCount?: number;
+            /** Format: date-time */
+            lastUsedAt?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        OutpatientNoteTemplateSaveRequest: {
+            scopeType: string;
+            name: string;
+            description?: string;
+            specialtyCode?: string;
+            /** Format: int32 */
+            sortOrder?: number;
+            content: components["schemas"]["OutpatientNoteTemplateContent"];
+        };
+        OutpatientNoteTemplateRevisionRequest: {
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+        };
+        ClinicalAssistantDraft: {
+            chiefComplaint?: string;
+            presentIllness?: string;
+            medicalHistory?: string;
+            physicalExam?: string;
+            treatmentPlan?: string;
+            /** Format: int32 */
+            systolic?: number;
+            /** Format: int32 */
+            diastolic?: number;
+            temperature?: number;
+            /** Format: int32 */
+            pulseRate?: number;
+            /** Format: int32 */
+            respiratoryRate?: number;
+            /** Format: int32 */
+            oxygenSaturation?: number;
+            heightCm?: number;
+            weightKg?: number;
+            diagnoses?: components["schemas"]["DiagnosisInput"][];
+            allergyHistory?: string;
+            medicationHistory?: string;
+            auxiliaryExaminations?: string;
+            healthEducation?: string;
+            followUp?: string;
+            annotations?: components["schemas"]["RecordAnnotation"][];
+        };
+        ClinicalAssistantGenerateRequest: {
+            clientContextFingerprint: string;
+            question?: string;
+            voiceTranscript?: string;
+            draft: components["schemas"]["ClinicalAssistantDraft"];
+            /** @example 824633720832983041 */
+            parentSuggestionId?: string;
+            /** @enum {string} */
+            receptionScene?: "FIRST_VISIT" | "CHRONIC_REFILL" | "REPORT_FOLLOW_UP";
+            receptionSceneContext?: components["schemas"]["ReceptionSceneContext"];
+        };
+        ReceptionSceneContext: {
+            selectedConditions?: string[];
+            selectedReportIds?: string[];
+        };
+        OutpatientPlanTemplateView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            scopeType?: string;
+            name?: string;
+            description?: string;
+            status?: string;
+            sourceType?: string;
+            guidelineReference?: string;
+            /** @example 824633720832983041 */
+            noteTemplateId?: string;
+            /** Format: int32 */
+            sortOrder?: number;
+            /** Format: int64 */
+            useCount?: number;
+            /** Format: date-time */
+            lastUsedAt?: string;
+            diagnoses?: components["schemas"]["OutpatientPlanTemplateDiagnosisView"][];
+            medications?: components["schemas"]["OutpatientPlanTemplateMedicationView"][];
+            services?: components["schemas"]["OutpatientPlanTemplateServiceView"][];
+            tasks?: components["schemas"]["OutpatientPlanTemplatePlanTaskInput"][];
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            searchProfile?: components["schemas"]["PlanSearchProfile"];
+        };
+        PlanSearchProfile: {
+            /** Format: int32 */
+            schemaVersion?: number;
+            contentHash?: string;
+            summary?: string;
+            keywords?: string[];
+            conditions?: string[];
+            diagnoses?: components["schemas"]["PlanSearchDiagnosis"][];
+            /** @example 824633720832983041 */
+            noteTemplateId?: string;
+            noteContentHash?: string;
+        };
+        OutpatientPlanTemplateSaveRequest: {
+            scopeType: string;
+            name: string;
+            description?: string;
+            /** Format: int32 */
+            sortOrder?: number;
+            sourceType?: string;
+            guidelineReference?: string;
+            /** @example 824633720832983041 */
+            noteTemplateId?: string;
+            diagnoses?: components["schemas"]["OutpatientPlanTemplateDiagnosisInput"][];
+            medications?: components["schemas"]["OutpatientPlanTemplateMedicationInput"][];
+            services?: components["schemas"]["OutpatientPlanTemplateServiceInput"][];
+            tasks?: components["schemas"]["OutpatientPlanTemplatePlanTaskInput"][];
+        };
+        OutpatientPlanTemplateRevisionRequest: {
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+        };
+        OutpatientPlanTemplateMedicationInput: {
+            /** @example 824633720832983041 */
+            medicationId: string;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            /** @example 824633720832983041 */
+            packageId?: string;
+            medicationName?: string;
+            preparationSpec?: string;
+            doseValue?: number;
+            doseUnit?: string;
+            routeCode?: string;
+            frequencyCode?: string;
+            durationValue?: number;
+            durationUnit?: string;
+            quantity: number;
+            quantityUnit?: string;
+            substitutionAllowed?: boolean;
+            selfProvided?: boolean;
+            medicationInstruction?: string;
+            priceType?: string;
+            pricingRequired?: boolean;
+            reason?: string;
+        };
+        OutpatientPlanTemplateUpdateRequest: {
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+            scopeType: string;
+            name: string;
+            description?: string;
+            /** Format: int32 */
+            sortOrder?: number;
+            guidelineReference?: string;
+            /** @example 824633720832983041 */
+            noteTemplateId?: string;
+            diagnoses?: components["schemas"]["OutpatientPlanTemplateDiagnosisInput"][];
+            medications?: components["schemas"]["OutpatientPlanTemplateMedicationInput"][];
+            services?: components["schemas"]["OutpatientPlanTemplateServiceInput"][];
+            tasks?: components["schemas"]["OutpatientPlanTemplatePlanTaskInput"][];
+        };
+        OutpatientPlanTemplateDiagnosisView: {
+            codeSystem?: string;
+            diagnosisDomain?: string;
+            code?: string;
+            display?: string;
+            type?: string;
+        };
+        OutpatientPlanTemplateMedicationView: {
+            /** @example 824633720832983041 */
+            lineId?: string;
+            /** @example 824633720832983041 */
+            medicationId?: string;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            /** @example 824633720832983041 */
+            packageId?: string;
+            editorMode?: string;
+            categoryCode?: string;
+            medicationCode?: string;
+            medicationName?: string;
+            preparationSpec?: string;
+            productName?: string;
+            doseValue?: number;
+            doseUnit?: string;
+            routeCode?: string;
+            routeName?: string;
+            routeExecutionType?: string;
+            frequencyCode?: string;
+            durationValue?: number;
+            durationUnit?: string;
+            quantity?: number;
+            quantityUnit?: string;
+            substitutionAllowed?: boolean;
+            selfProvided?: boolean;
+            medicationInstruction?: string;
+            priceType?: string;
+            pricingRequired?: boolean;
+            reason?: string;
+        };
+        OutpatientPlanTemplateServiceView: {
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            itemCode?: string;
+            itemName?: string;
+            serviceType?: string;
+            quantity?: number;
+            unitCode?: string;
+            priceType?: string;
+            pricingRequired?: boolean;
+            reason?: string;
+            clinicalDescription?: string;
+        };
+        OutpatientPlanTemplateDiagnosisInput: {
+            codeSystem?: string;
+            diagnosisDomain?: string;
+            code: string;
+            display: string;
+            type: string;
+        };
+        OutpatientPlanTemplateServiceInput: {
+            /** @example 824633720832983041 */
+            catalogItemId: string;
+            itemCode?: string;
+            itemName?: string;
+            serviceType?: string;
+            quantity: number;
+            unitCode?: string;
+            priceType?: string;
+            pricingRequired?: boolean;
+            reason?: string;
+            clinicalDescription?: string;
+        };
+        PlanSearchDiagnosis: {
+            codeSystem?: string;
+            diagnosisDomain?: string;
+            code?: string;
+            display?: string;
+            type?: string;
+        };
+        OutpatientPlanTemplatePlanTaskInput: {
+            kind: string;
+            text: string;
+            sourceQuote?: string;
+            origin: string;
+            status: string;
+            details?: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -26224,7 +26530,7 @@ export interface operations {
             };
         };
     };
-    update_7: {
+    updateOutpatientPlanTemplate: {
         parameters: {
             query?: never;
             header: {
@@ -26244,7 +26550,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateRequest"];
+                "application/json": components["schemas"]["OutpatientPlanTemplateUpdateRequest"];
             };
         };
         responses: {
@@ -26254,12 +26560,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["View"];
+                    "*/*": components["schemas"]["OutpatientPlanTemplateView"];
                 };
             };
         };
     };
-    update_8: {
+    updateOutpatientNoteTemplate: {
         parameters: {
             query?: never;
             header: {
@@ -26279,7 +26585,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateRequest"];
+                "application/json": components["schemas"]["OutpatientNoteTemplateUpdateRequest"];
             };
         };
         responses: {
@@ -26289,7 +26595,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["View"];
+                    "*/*": components["schemas"]["OutpatientNoteTemplateView"];
                 };
             };
         };
@@ -37900,7 +38206,7 @@ export interface operations {
             };
         };
     };
-    list_15: {
+    listOutpatientPlanTemplates: {
         parameters: {
             query?: {
                 keyword?: string;
@@ -37926,12 +38232,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["View"][];
+                    "*/*": components["schemas"]["OutpatientPlanTemplateView"][];
                 };
             };
         };
     };
-    create_19: {
+    createOutpatientPlanTemplate: {
         parameters: {
             query?: never;
             header: {
@@ -37949,7 +38255,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SaveRequest"];
+                "application/json": components["schemas"]["OutpatientPlanTemplateSaveRequest"];
             };
         };
         responses: {
@@ -37959,12 +38265,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["View"];
+                    "*/*": components["schemas"]["OutpatientPlanTemplateView"];
                 };
             };
         };
     };
-    use: {
+    useOutpatientPlanTemplate: {
         parameters: {
             query?: never;
             header: {
@@ -37990,12 +38296,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["View"];
+                    "*/*": components["schemas"]["OutpatientPlanTemplateView"];
                 };
             };
         };
     };
-    disable_1: {
+    disableOutpatientPlanTemplate: {
         parameters: {
             query?: never;
             header: {
@@ -38015,7 +38321,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RevisionRequest"];
+                "application/json": components["schemas"]["OutpatientPlanTemplateRevisionRequest"];
             };
         };
         responses: {
@@ -38025,12 +38331,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["View"];
+                    "*/*": components["schemas"]["OutpatientPlanTemplateView"];
                 };
             };
         };
     };
-    list_16: {
+    listOutpatientNoteTemplates: {
         parameters: {
             query?: {
                 keyword?: string;
@@ -38057,12 +38363,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["View"][];
+                    "*/*": components["schemas"]["OutpatientNoteTemplateView"][];
                 };
             };
         };
     };
-    create_20: {
+    createOutpatientNoteTemplate: {
         parameters: {
             query?: never;
             header: {
@@ -38080,7 +38386,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SaveRequest"];
+                "application/json": components["schemas"]["OutpatientNoteTemplateSaveRequest"];
             };
         };
         responses: {
@@ -38090,12 +38396,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["View"];
+                    "*/*": components["schemas"]["OutpatientNoteTemplateView"];
                 };
             };
         };
     };
-    use_1: {
+    useOutpatientNoteTemplate: {
         parameters: {
             query?: never;
             header: {
@@ -38121,12 +38427,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["View"];
+                    "*/*": components["schemas"]["OutpatientNoteTemplateView"];
                 };
             };
         };
     };
-    disable_2: {
+    disableOutpatientNoteTemplate: {
         parameters: {
             query?: never;
             header: {
@@ -38146,7 +38452,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RevisionRequest"];
+                "application/json": components["schemas"]["OutpatientNoteTemplateRevisionRequest"];
             };
         };
         responses: {
@@ -38156,7 +38462,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["View"];
+                    "*/*": components["schemas"]["OutpatientNoteTemplateView"];
                 };
             };
         };
@@ -42912,7 +43218,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GenerateRequest"];
+                "application/json": components["schemas"]["ClinicalAssistantGenerateRequest"];
             };
         };
         responses: {
@@ -42947,7 +43253,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GenerateRequest"];
+                "application/json": components["schemas"]["ClinicalAssistantGenerateRequest"];
             };
         };
         responses: {
@@ -43016,7 +43322,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GenerateRequest"];
+                "application/json": components["schemas"]["ClinicalAssistantGenerateRequest"];
             };
         };
         responses: {

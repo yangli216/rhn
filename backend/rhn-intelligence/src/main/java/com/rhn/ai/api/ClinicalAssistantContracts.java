@@ -1,5 +1,7 @@
 package com.rhn.ai.api;
 
+import com.rhn.outpatient.api.RecordAnnotation;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -14,6 +16,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import com.rhn.outpatient.api.RecordAnnotation;
 
 public final class ClinicalAssistantContracts {
     private ClinicalAssistantContracts() {}
@@ -32,6 +35,7 @@ public final class ClinicalAssistantContracts {
             @Size(max = 12) List<@NotBlank @Size(max = 100) String> selectedConditions,
             @Size(max = 50) List<@NotNull @Positive Long> selectedReportIds) {}
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "ClinicalAssistantGenerateRequest")
     public record GenerateRequest(
             @NotBlank @Size(max = 128) String clientContextFingerprint,
             @Size(max = 500) String question,
@@ -95,6 +99,7 @@ public final class ClinicalAssistantContracts {
 
     public record EvaluationBoundary(String status, String message) {}
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "ClinicalAssistantDraft")
     public record Draft(
             @Size(max = 1000) String chiefComplaint,
             @Size(max = 4000) String presentIllness,
@@ -111,7 +116,35 @@ public final class ClinicalAssistantContracts {
             @DecimalMin("0.1") @DecimalMax("500") BigDecimal weightKg,
             @Size(max = 20) List<@NotNull @Valid DiagnosisInput> diagnoses,
             @Size(max = 4000) String allergyHistory, @Size(max = 4000) String medicationHistory,
-            @Size(max = 4000) String auxiliaryExaminations, @Size(max = 4000) String healthEducation, @Size(max = 4000) String followUp) {
+            @Size(max = 4000) String auxiliaryExaminations, @Size(max = 4000) String healthEducation, @Size(max = 4000) String followUp,
+            @Size(max = 200) List<RecordAnnotation> annotations) {
+        public Draft(String chiefComplaint, String presentIllness, String medicalHistory, String physicalExam,
+                     String treatmentPlan, Integer systolic, Integer diastolic, BigDecimal temperature,
+                     Integer pulseRate, Integer respiratoryRate, Integer oxygenSaturation,
+                     BigDecimal heightCm, BigDecimal weightKg, List<DiagnosisInput> diagnoses,
+                     String allergyHistory, String medicationHistory, String auxiliaryExaminations,
+                     String healthEducation, String followUp) {
+            this(chiefComplaint, presentIllness, medicalHistory, physicalExam, treatmentPlan, systolic, diastolic,
+                    temperature, pulseRate, respiratoryRate, oxygenSaturation, heightCm, weightKg, diagnoses,
+                    allergyHistory, medicationHistory, auxiliaryExaminations, healthEducation, followUp, List.of());
+        }
+        public java.util.Map<String, String> writingFields() {
+            var fields = new java.util.LinkedHashMap<String, String>();
+            fields.put("chiefComplaint", chiefComplaint); fields.put("presentIllness", presentIllness);
+            fields.put("medicalHistory", medicalHistory); fields.put("physicalExam", physicalExam);
+            fields.put("allergyHistory", allergyHistory); fields.put("medicationHistory", medicationHistory);
+            fields.put("auxiliaryExaminations", auxiliaryExaminations); fields.put("healthEducation", healthEducation);
+            fields.put("followUp", followUp);
+            return fields;
+        }
+        public Draft evidence() {
+            var fields = RecordAnnotation.evidence(writingFields(), annotations);
+            return new Draft(fields.get("chiefComplaint"), fields.get("presentIllness"), fields.get("medicalHistory"),
+                    fields.get("physicalExam"), treatmentPlan, systolic, diastolic, temperature, pulseRate,
+                    respiratoryRate, oxygenSaturation, heightCm, weightKg, diagnoses, fields.get("allergyHistory"),
+                    fields.get("medicationHistory"), fields.get("auxiliaryExaminations"), fields.get("healthEducation"),
+                    fields.get("followUp"), List.of());
+        }
         public Draft(String chiefComplaint, String presentIllness, String medicalHistory, String physicalExam,
                      String treatmentPlan, Integer systolic, Integer diastolic, BigDecimal temperature,
                      Integer pulseRate, Integer respiratoryRate, Integer oxygenSaturation,
@@ -127,6 +160,7 @@ public final class ClinicalAssistantContracts {
                     temperature, pulseRate, respiratoryRate, oxygenSaturation, null, null, diagnoses);
         }
         public Draft {
+            annotations = annotations == null ? List.of() : List.copyOf(annotations);
             diagnoses = diagnoses == null ? List.of() : List.copyOf(diagnoses);
         }
     }
@@ -160,7 +194,17 @@ public final class ClinicalAssistantContracts {
                               BigDecimal temperature, BigDecimal pulseRate, BigDecimal respiratoryRate,
                               BigDecimal systolic, BigDecimal diastolic, BigDecimal oxygenSaturation,
                               BigDecimal heightCm, BigDecimal weightKg,
-                              String allergyHistory, String medicationHistory, String auxiliaryExaminations, String healthEducation, String followUp) {
+                              String allergyHistory, String medicationHistory, String auxiliaryExaminations, String healthEducation, String followUp,
+                              List<com.rhn.outpatient.api.RecordAnnotation> annotations) {
+        public RecordDraft(String chiefComplaint, String presentIllness, String medicalHistory, String physicalExam,
+                           String treatmentPlan, BigDecimal temperature, BigDecimal pulseRate, BigDecimal respiratoryRate,
+                           BigDecimal systolic, BigDecimal diastolic, BigDecimal oxygenSaturation, BigDecimal heightCm,
+                           BigDecimal weightKg, String allergyHistory, String medicationHistory, String auxiliaryExaminations,
+                           String healthEducation, String followUp) {
+            this(chiefComplaint, presentIllness, medicalHistory, physicalExam, treatmentPlan, temperature, pulseRate,
+                    respiratoryRate, systolic, diastolic, oxygenSaturation, heightCm, weightKg, allergyHistory,
+                    medicationHistory, auxiliaryExaminations, healthEducation, followUp, List.of());
+        }
         public RecordDraft(String chiefComplaint, String presentIllness, String medicalHistory,
                            String physicalExam, String treatmentPlan, BigDecimal temperature, BigDecimal pulseRate,
                            BigDecimal respiratoryRate, BigDecimal systolic, BigDecimal diastolic,
@@ -254,7 +298,12 @@ public final class ClinicalAssistantContracts {
 
     public record PlanTextDraft(String scopeType, String name, String narrative,
                                 String sourceType, String guidelineReference,
-                                List<PlanReviewItem> reviewItems, java.util.Map<String, String> noteTemplateContent) {
+                                List<PlanReviewItem> reviewItems, java.util.Map<String, String> noteTemplateContent,
+                                List<com.rhn.outpatient.api.RecordAnnotation> recordAnnotations) {
+        public PlanTextDraft(String scopeType, String name, String narrative, String sourceType,
+                             String guidelineReference, List<PlanReviewItem> reviewItems, java.util.Map<String, String> noteTemplateContent) {
+            this(scopeType, name, narrative, sourceType, guidelineReference, reviewItems, noteTemplateContent, List.of());
+        }
         public PlanTextDraft(String scopeType, String name, String narrative, String sourceType,
                              String guidelineReference, List<PlanReviewItem> reviewItems) {
             this(scopeType, name, narrative, sourceType, guidelineReference, reviewItems, java.util.Map.of());

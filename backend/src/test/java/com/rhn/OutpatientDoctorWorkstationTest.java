@@ -72,6 +72,9 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].content.presentIllness").value("晨起头晕明显，无意识障碍"))
                 .andExpect(jsonPath("$[0].content.medicalHistory").value("既往血压偏高"))
                 .andExpect(jsonPath("$[0].content.physicalExam").value("神志清，心肺查体未见明显异常"))
+                .andExpect(jsonPath("$[0].content.annotations.length()").value(1))
+                .andExpect(jsonPath("$[0].content.annotations[0].source").value("TEMPLATE"))
+                .andExpect(jsonPath("$[0].content.annotations[0].confirmed").value(true))
                 .andExpect(jsonPath("$[0].content.treatmentPlan").value("诊疗计划引用本次就诊的结构化医嘱。"))
                 .andExpect(jsonPath("$[0].content.healthEducation").value("已核对的宣教"))
                 .andExpect(jsonPath("$[0].content.followUp").value("已核对的复诊安排"))
@@ -221,6 +224,8 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"chiefComplaint":"%s","presentIllness":"晨起头晕明显，无意识障碍",
                                  "medicalHistory":"既往血压偏高","physicalExam":"神志清，心肺查体未见明显异常",
+                                 "annotations":[{"field":"physicalExam","text":"心肺查体未见明显异常","start":4,"source":"TEMPLATE","kind":"IMPORTANT","confirmed":false},
+                                                {"field":"physicalExam","text":"已经被编辑删除的标记","source":"AI","kind":"IMPORTANT"}],
                                  "treatmentPlan":"完善评估并监测血压","healthEducation":"已核对的宣教", "followUp":"已核对的复诊安排", "auxiliaryExaminations":"既有检查结果", "systolic":148,"diastolic":92,
                                  "diagnoses":[{"conceptId":"362387869795011","diagnosisDomain":"WESTERN_MEDICINE",
                                   "code":"I10","display":"%s","type":"PRIMARY"}%s]}

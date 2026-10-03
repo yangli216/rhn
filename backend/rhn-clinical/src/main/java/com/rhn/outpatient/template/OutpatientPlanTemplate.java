@@ -29,6 +29,9 @@ class OutpatientPlanTemplate {
     @Column(name = "JSON_GDLN_REF") private String guidelineReference;
     @Column(name = "ID_OP_NOTE_TMPL") private Long noteTemplateId;
     @Column(name = "JSON_PLAN_TASKS") private String planTasks;
+    @org.hibernate.annotations.OptimisticLock(excluded = true)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.LONG32VARCHAR)
+    @Column(name = "JSON_SEARCH_PROFILE") private String searchProfile;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
@@ -94,6 +97,8 @@ class OutpatientPlanTemplate {
     Long noteTemplateId() { return noteTemplateId; }
     String planTasks() { return planTasks; }
     void setPlanTasks(String value) { this.planTasks = value; }
+    String searchProfile() { return searchProfile; }
+    void setSearchProfile(String value) { this.searchProfile = value; }
     int sortOrder() { return sortOrder; }
     long useCount() { return useCount; }
     Instant lastUsedAt() { return lastUsedAt; }

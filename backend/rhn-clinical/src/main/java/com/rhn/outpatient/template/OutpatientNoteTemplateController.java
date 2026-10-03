@@ -23,12 +23,14 @@ class OutpatientNoteTemplateController {
     OutpatientNoteTemplateController(OutpatientNoteTemplateService service) { this.service = service; }
 
     @GetMapping
+    @io.swagger.v3.oas.annotations.Operation(operationId = "listOutpatientNoteTemplates")
     List<OutpatientNoteTemplateContracts.View> list(@RequestParam(required = false) String keyword,
                                                      @RequestParam(required = false) String specialtyCode) {
         return service.visible(keyword, specialtyCode);
     }
 
     @PostMapping
+    @io.swagger.v3.oas.annotations.Operation(operationId = "createOutpatientNoteTemplate")
     @ResponseStatus(HttpStatus.CREATED)
     OutpatientNoteTemplateContracts.View create(
             @Valid @RequestBody OutpatientNoteTemplateContracts.SaveRequest input) {
@@ -36,15 +38,18 @@ class OutpatientNoteTemplateController {
     }
 
     @PutMapping("/{id}")
+    @io.swagger.v3.oas.annotations.Operation(operationId = "updateOutpatientNoteTemplate")
     OutpatientNoteTemplateContracts.View update(@PathVariable Long id,
             @Valid @RequestBody OutpatientNoteTemplateContracts.UpdateRequest input) {
         return service.update(id, input);
     }
 
     @PostMapping("/{id}/use")
+    @io.swagger.v3.oas.annotations.Operation(operationId = "useOutpatientNoteTemplate")
     OutpatientNoteTemplateContracts.View use(@PathVariable Long id) { return service.markUsed(id); }
 
     @PostMapping("/{id}/disable")
+    @io.swagger.v3.oas.annotations.Operation(operationId = "disableOutpatientNoteTemplate")
     OutpatientNoteTemplateContracts.View disable(@PathVariable Long id,
             @Valid @RequestBody OutpatientNoteTemplateContracts.RevisionRequest input) {
         return service.disable(id, input.expectedRevision());

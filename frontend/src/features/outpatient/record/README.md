@@ -49,3 +49,15 @@ AI 建方的病历内容按 noteTemplateContent 字段顺序流式预览。预�
 流式阶段也遵守书写归属：EDUCATION/FOLLOW_UP 只投影到左侧宣教与随访，不进入右侧清单。右侧结构化条目在九个病历字符串字段闭合后显示；提前到达的诊疗条目只缓存，避免由模型 JSON 字段顺序决定界面显示顺序。
 
 病历正文标签与生命体征标签共用 `--doctor-record-label-width`，标签右对齐、内容区起点一致，随字号档位缩放。
+
+## 行内来源与变量标记
+
+病历正文是唯一可编辑、可保存、可打印的文本；`annotations` 独立保存字段、精确片段/UTF-16 锚点、来源、语义绑定和提示。模板默认查体与阴性描述完整保留。`PRESET` 仅记录段落来源，不高亮整段；医生手工修改只保留保护元数据，界面突出模板变量、重要预设、口述事实及冲突。
+
+`AnnotatedRecordField` 将领域标记交给共享 `AnnotatedTextarea`；阅读态可悬浮查看、点击调整/移除，输入期间保持 textarea 和焦点，避免标记更新打断输入。保存沿用原有按钮，成功后确认当前版本的标记，不逐项确认，不把自动暂存当成主动确认。复制和打印只使用正文。
+
+`recordAnnotations.ts` 负责锚点验证、编辑重定位和语义变量更新。相同数字不能全局替换；后续口述可更新同一绑定的既有口述片段，遇到手工修改保留原文并生成冲突提示。未确认模板/AI 预设单独投影，不用作本次推理事实。服务端 `Draft.evidence()` 同步执行这一投影，模型分别收到 `draft`、`writingDraft` 和 `writingAnnotations`。模型声明的口述/上下文来源必须包含输入中存在的原文引用，失效标记丢弃，不按具体临床句式过滤正文。
+
+相关验证：`recordAnnotations.test.ts`、`AnnotatedTextarea.test.tsx`、`DoctorWorkstation.test.tsx` 中模板带入—行内调整—保存确认用例；后端 `RecordAnnotationTest`、`ClinicalRecordAnnotationContractTest`、`OutpatientNoteTemplateTest`、`ClinicalAiPlanCompilationTest`、`OpenAiCompatibleClinicalAiModelGatewayTest`。推荐索引与连续口述调度的剩余范围见 `docs/ai/template-copilot/README.md`。
+
+连续口述由 `ai/useStableVoiceCopilot.ts` 仅对已稳定识别片段触发；900 ms 合并停顿，普通键盘输入不自动分析。模板优先推荐，无匹配走现有流式生成。自动采纳使用 `overwriteRecord=false`，只填空白字段或按语义绑定更新；非空且无法可靠定位的新信息保留在对照建议，手工修改冲突继续显示行内标记。模板内容、患者/输入版本及取消信号共同防止迟到结果覆盖当前工作。相关工作流测试在 `ClinicalAiQuietWorkflow.test.tsx` 与 `useClinicalAiDraft.test.tsx`。

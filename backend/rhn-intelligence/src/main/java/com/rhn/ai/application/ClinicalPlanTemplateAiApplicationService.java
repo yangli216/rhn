@@ -194,7 +194,8 @@ public class ClinicalPlanTemplateAiApplicationService {
                 .map(item -> reviewItem(item, context.tenantId(), today))
                 .toList();
         return new PlanTextDraft(scope, name, clipped(narrative, 4000),
-                "GUIDELINE".equals(mode) ? "AI_GUIDELINE" : "AI_INPUT", guidelineReference, reviewItems, noteTemplateContent(intent));
+                "GUIDELINE".equals(mode) ? "AI_GUIDELINE" : "AI_INPUT", guidelineReference, reviewItems, noteTemplateContent(intent),
+                com.rhn.outpatient.api.RecordAnnotation.anchored(intent.recordAnnotations(), noteTemplateContent(intent), false));
     }
 
     private String revisionContext(List<ClinicalAiModelGateway.PlanIntentItem> items) {
@@ -230,7 +231,7 @@ public class ClinicalPlanTemplateAiApplicationService {
                 .filter(item -> !isBedsidePhysicalExam(item))
                 .toList();
         return new ClinicalAiModelGateway.PlanIntent(intent.name(), intent.description(), intent.narrative(),
-                sanitizedItems, intent.referenceTemplateId(), intent.noteTemplateContent());
+                sanitizedItems, intent.referenceTemplateId(), intent.noteTemplateContent(), intent.recordAnnotations());
     }
 
     private static final java.util.regex.Pattern FABRICATED_VITALS_PREFIX = java.util.regex.Pattern.compile(

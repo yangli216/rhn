@@ -1,3 +1,4 @@
+import type { RecordAnnotation } from './recordAnnotations'
 import type { Encounter } from '../model'
 import type { components } from './generated'
 import type { ApiClient } from './httpClient'
@@ -34,6 +35,7 @@ export type DiagnosisInput = DiagnosisInputContract & {
 }
 
 export type ClinicalRecordInput = Omit<ClinicalRecordContract, 'diagnoses'> & {
+  annotations?: RecordAnnotation[]
   commandCode: string
   presentIllness?: string
   medicalHistory?: string

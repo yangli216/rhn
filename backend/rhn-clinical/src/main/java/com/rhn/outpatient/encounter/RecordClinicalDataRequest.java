@@ -33,7 +33,8 @@ public record RecordClinicalDataRequest(
         @Size(max = 4000) String medicationHistory,
         @Size(max = 4000) String auxiliaryExaminations,
         @Size(max = 4000) String healthEducation,
-        @Size(max = 4000) String followUp
+        @Size(max = 4000) String followUp,
+        @Size(max = 200) List<com.rhn.outpatient.api.RecordAnnotation> annotations
 ) {
     public record DiagnosisInput(
             Long conceptId,

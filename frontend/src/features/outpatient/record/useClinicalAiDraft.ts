@@ -11,6 +11,8 @@ export interface AiRecordUndo {
   before: ClinicalAiRecordDraft
   after: ClinicalAiRecordDraft
   documentVersion: number
+  beforeAnnotations?: ClinicalAiRecordDraft['annotations']
+  afterAnnotations?: ClinicalAiRecordDraft['annotations']
 }
 
 // Shared draft/undo data belongs to the editor; this hook owns AI subscriptions and adoption guards.
@@ -79,6 +81,7 @@ export function useClinicalAiDraft({ encounter, form, diagnoses, setDiagnoses, a
         before: Object.fromEntries(changedFields.map((field) => [field, previous[field]])),
         after: Object.fromEntries(changedFields.map((field) => [field, next[field]])),
         documentVersion: document?.currentVersion ?? 0,
+        beforeAnnotations: previous.annotations, afterAnnotations: next.annotations,
       })
       reset(next, { keepDefaultValues: true })
     }
@@ -99,7 +102,7 @@ export function useClinicalAiDraft({ encounter, form, diagnoses, setDiagnoses, a
       getValues(field as keyof ClinicalAiRecordDraft) === value))
   const undoAiRecord = () => {
     if (!canUndoAiRecord || !aiRecordUndo) return
-    reset({ ...getValues(), ...aiRecordUndo.before }, { keepDefaultValues: true })
+    reset({ ...getValues(), ...aiRecordUndo.before, annotations: aiRecordUndo.beforeAnnotations }, { keepDefaultValues: true })
     setAiRecordUndo(null)
     onNotice('已撤销本次 AI 病历采纳；诊断及医嘱草稿保留。')
   }

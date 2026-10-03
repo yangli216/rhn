@@ -1,11 +1,12 @@
+import { anchorAnnotations, templateAnnotations } from './recordAnnotations'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { OutpatientNoteTemplate, OutpatientNoteTemplateContent, OutpatientNoteTemplateScope } from '../../../shared/api/outpatientNoteTemplatesApi'
 import { errorMessage, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, Dialog, FormField, Icon, Select, type SelectOption } from '../../../shared/ui'
 
-export type NoteTemplateField = keyof OutpatientNoteTemplateContent
-export const noteTemplateFields: Array<{ key: NoteTemplateField; label: string }> = [
+export type NoteTemplateField = Exclude<keyof OutpatientNoteTemplateContent, 'annotations'>
+export const noteTemplateFields: Array<{ key: Extract<NoteTemplateField, 'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'healthEducation' | 'followUp'>; label: string }> = [
   { key: 'chiefComplaint', label: '主诉' },
   { key: 'presentIllness', label: '现病史' },
   { key: 'medicalHistory', label: '既往史' },
@@ -23,11 +24,16 @@ export const clinicalRecordAdditionalFields: Array<{ key: NoteTemplateField; lab
 export function mergeNoteTemplateContent(current: OutpatientNoteTemplateContent,
   template: OutpatientNoteTemplateContent, fields: Set<NoteTemplateField>, overwrite: boolean) {
   const next = { ...current }
+  const applied = new Set<NoteTemplateField>()
   fields.forEach((key) => {
     if (key === 'treatmentPlan') return
     const incoming = template[key]?.trim()
-    if (incoming && (overwrite || !current[key]?.trim())) next[key] = incoming
+    if (incoming && (overwrite || !current[key]?.trim())) { next[key] = incoming; applied.add(key) }
   })
+  if (applied.size) next.annotations = anchorAnnotations(next, [
+    ...(current.annotations ?? []).filter((item) => !applied.has(item.field as NoteTemplateField)),
+    ...templateAnnotations(template, template.annotations).filter((item) => applied.has(item.field as NoteTemplateField)),
+  ])
   return next
 }
 

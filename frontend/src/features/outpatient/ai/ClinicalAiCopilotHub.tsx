@@ -8,6 +8,7 @@ import { aiRecordDraftFields, aiRecordDraftValue, aiVitalDefinitions, formatAiRe
   isAiVitalField, recordDraftFieldLabels, type AiRecordDraftField } from './aiDraftAdapter'
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
 import { ClinicalAiPipelineStepper } from './ClinicalAiPipelineStepper'
+import { useStableVoiceCopilot } from './useStableVoiceCopilot'
 import { clinicalAiContextFingerprint } from './aiDraftAdapter'
 import type { ClinicalAiSurfaces, InlineAiSelection } from './ClinicalAiInlineWorkspace'
 
@@ -30,6 +31,7 @@ export interface ClinicalAiCopilotHubProps {
   onQuestionChange: (value: string) => void
   onClearVoice?: () => void
   onGenerate: (focus?: string) => Promise<string>
+  stableVoiceTranscript?: string
   planInputKey?: string
   onFindPlans?: () => Promise<ClinicalAiRecommendedPlan[]>
   onReviewRecommendedPlan?: (plan: ClinicalAiRecommendedPlan) => void
@@ -45,7 +47,7 @@ export interface ClinicalAiCopilotHubProps {
 export function ClinicalAiCopilotHub({
   context, capability, suggestion, current, busy, generating, inputBusy, preview,
   onView, disabled, canAdopt, error, voiceInput, interimTranscript, question,
-  onQuestionChange, onClearVoice, onGenerate, planInputKey, onFindPlans, onReviewRecommendedPlan, onApply, onOpenDetail, onOpenHistory,
+  onQuestionChange, onClearVoice, onGenerate, planInputKey, stableVoiceTranscript, onFindPlans, onReviewRecommendedPlan, onApply, onOpenDetail, onOpenHistory,
   onOpenResults, sceneAssessment, sceneLoading, surfaces,
 }: ClinicalAiCopilotHubProps) {
   const [findingPlans, setFindingPlans] = useState(false)
@@ -66,8 +68,11 @@ export function ClinicalAiCopilotHub({
   const [fields, setFields] = useState<string[]>([])
   const [edited, setEdited] = useState<Record<string, string>>({})
   const appliedSuggestionId = useRef<string | null>(null)
+  const incrementalAdoption = useRef(false)
+  const awaitingTemplate = useRef<string | null>(null)
   const hubRef = useRef<HTMLDivElement>(null)
   const composerInputId = useId()
+  useEffect(() => { awaitingTemplate.current = null; appliedSuggestionId.current = null }, [context.encounterId])
 
   useEffect(() => {
     setFields([])
@@ -104,8 +109,9 @@ export function ClinicalAiCopilotHub({
     ? values.filter((value) => value !== key) : [...values, key]
 
   const applySelection = () => onApply({
-    recordDraft: selectedFields.length ? Object.fromEntries(selectedFields
-      .map((field) => [field, editedValue(field)])) : undefined,
+    recordDraft: selectedFields.length ? { ...Object.fromEntries(selectedFields
+      .map((field) => [field, editedValue(field)])), annotations: suggestion?.recordDraft.annotations
+        ?.filter((mark) => selectedFields.includes(mark.field) && edited[mark.field] === undefined) } : undefined,
   })
 
   const generate = async (focus?: string, skipPlans = false) => {
@@ -123,6 +129,7 @@ export function ClinicalAiCopilotHub({
       onQuestionChange(presetPrompt)
     }
     appliedSuggestionId.current = null
+    incrementalAdoption.current = false
     try {
       const id = await onGenerate('RECORD')
       appliedSuggestionId.current = id || null
@@ -141,12 +148,35 @@ export function ClinicalAiCopilotHub({
       if (plans.length) { setPlanChoice({ plans, auto, focus, key }); return true }
       return false
     } catch (error) {
+      if ((error as Error)?.name === 'AbortError') return true
       if (request === requestSequence.current) setPlanError(error instanceof Error ? error.message : '方案匹配失败，请重试。')
       return true
     } finally {
       if (request === requestSequence.current) setFindingPlans(false)
     }
   }
+
+  const generateFromSpeech = async (skipPlans = false) => {
+    setHubOpen(true)
+    if (!skipPlans && await offerPlans(true, 'VOICE')) return
+    appliedSuggestionId.current = null
+    incrementalAdoption.current = true
+    const id = await onGenerate(skipPlans ? 'RECORD' : undefined)
+    appliedSuggestionId.current = id || null
+  }
+  useStableVoiceCopilot({ scope: context.encounterId, transcript: stableVoiceTranscript ?? '',
+    inputKey: inputIdentity, enabled: !disabled && canAdopt && recordFeature,
+    busy: busy || generating || findingPlans || Boolean(sceneLoading),
+    run: () => generateFromSpeech(Boolean(context.annotations?.some((mark) => mark.source === 'TEMPLATE'))),
+  })
+  // After a recommended template is actually brought into the editor, adapt its variables to the same dictation.
+  const templateMarks = JSON.stringify(context.annotations?.filter((mark) => mark.source === 'TEMPLATE') ?? [])
+  useEffect(() => {
+    if (!awaitingTemplate.current || awaitingTemplate.current === templateMarks || templateMarks === '[]'
+      || disabled || busy || generating || !stableVoiceTranscript) return
+    awaitingTemplate.current = null
+    void generateFromSpeech(true).catch(() => undefined)
+  }, [templateMarks, disabled, busy, generating, stableVoiceTranscript])
 
   useEffect(() => {
     if (!appliedSuggestionId.current || !current || !suggestion || appliedSuggestionId.current !== suggestion.id) return
@@ -155,7 +185,9 @@ export function ClinicalAiCopilotHub({
       aiRecordDraftValue(field, suggestion.recordDraft[field]) !== undefined)
     if (validEntries.length === 0) return
     onApply({
-      recordDraft: Object.fromEntries(validEntries.map((field) => [field, suggestion.recordDraft[field]])),
+      recordDraft: { ...Object.fromEntries(validEntries.map((field) => [field, suggestion.recordDraft[field]])),
+        annotations: suggestion.recordDraft.annotations },
+      incrementalRecord: incrementalAdoption.current,
     })
   }, [current, onApply, suggestion])
 
@@ -472,13 +504,14 @@ export function ClinicalAiCopilotHub({
               {planChoice.plans.map((plan) => <article key={plan.templateId}>
                 <div><strong>{plan.name}</strong><p>{plan.description || plan.rationale}</p></div>
                 <Button size="sm" variant="secondary" disabled={disabled || busy}
-                  onClick={() => { setHubOpen(false); onReviewRecommendedPlan?.(plan) }}>核对整体方案</Button>
+                  onClick={() => { awaitingTemplate.current = templateMarks; setHubOpen(false); onReviewRecommendedPlan?.(plan) }}>核对整体方案</Button>
               </article>)}
               <Button size="sm" disabled={disabled || busy} onClick={() => {
                 const choice = planChoice
                 setPlanChoice(undefined)
                 if (choice.key !== latestPlanInput.current) return
-                if (choice.auto) void generateAndApply(undefined, true)
+                if (choice.focus === 'VOICE') void generateFromSpeech(true).catch(() => undefined)
+                else if (choice.auto) void generateAndApply(undefined, true)
                 else void generate(choice.focus, true)
               }}>不采用方案，继续 AI 共写</Button>
             </section>}

@@ -100,7 +100,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.taskCode").value("OP.MEDICAL_RECORD.PRINT"))
                 .andExpect(jsonPath("$.implementationScope").value("PLATFORM"))
                 .andExpect(jsonPath("$.payloadSchema").value("RHN.PRINT.OUTPATIENT_NOTE.V1"))
-                .andExpect(jsonPath("$.templateCode").value("OUTPATIENT_NOTE_A4"))
+                .andExpect(jsonPath("$.templateCode").value("OUTPATIENT_NOTE_A5"))
                 .andExpect(jsonPath("$.delivery.channel").value("BROWSER_PDF"))
                 .andExpect(jsonPath("$.delivery.status").value("SENT"))
                 .andExpect(jsonPath("$.contentDigest").value(org.hamcrest.Matchers.matchesPattern("[0-9A-F]{64}")))
@@ -153,7 +153,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"purpose\":\"PATIENT_COPY\",\"copies\":1}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.templateCode").value("OUTPATIENT_PRESCRIPTION_A4"))
+                .andExpect(jsonPath("$.templateCode").value("OUTPATIENT_PRESCRIPTION_A5"))
                 .andExpect(jsonPath("$.taskCode").value("OP.PRESCRIPTION.WESTERN.PRINT"))
                 .andExpect(jsonPath("$.delivery.deviceName").value("全科门诊浏览器 PDF"))
                 .andReturn().getResponse().getContentAsString());
@@ -237,7 +237,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/printing/templates").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].templateCode", org.hamcrest.Matchers.hasItems(
-                        "OUTPATIENT_NOTE_A4", "OUTPATIENT_PRESCRIPTION_A4", "ORAL_MEDICATION_CARD_80",
+                        "OUTPATIENT_NOTE_A5", "OUTPATIENT_PRESCRIPTION_A5", "ORAL_MEDICATION_CARD_80",
                         "INFUSION_LABEL_70X50", "INFUSION_PATROL_A5", "LABORATORY_APPLICATION_A4",
                         "EXAMINATION_APPLICATION_A4", "TREATMENT_APPLICATION_A4")));
         assertEquals(4, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_JOB where ID_TNT = ?", Integer.class,

@@ -1,5 +1,5 @@
 {
-  "fingerprint": "8294d1c05b90c1ad9af0963c7b3037586921ee2b6c62d10e7e3c300e55144823",
+  "fingerprint": "cf6b790881c7cf89a94898e2de0d7d9f33de0ebee3ca9d002f9ab8cca929a48e",
   "tables": [
     {
       "logical": "meta.outpatient_note_form_version",
@@ -408,7 +408,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientNoteFormVersion.java",
-          "line": 14
+          "line": 16
         }
       ]
     },
@@ -1033,8 +1033,8 @@
           "defaultValue": "'WHO.BD.CS.ICD10'",
           "ordinal": 8,
           "comment": "诊断编码体系快照",
-          "logical": "",
-          "catalogComment": ""
+          "logical": "code_system",
+          "catalogComment": "诊断编码体系快照"
         },
         {
           "physical": "SD_DIAG_DOMAIN",
@@ -1045,8 +1045,8 @@
           "defaultValue": "'WESTERN_MEDICINE'",
           "ordinal": 9,
           "comment": "诊断领域：西医、中医病名或中医证候",
-          "logical": "",
-          "catalogComment": ""
+          "logical": "diagnosis_domain",
+          "catalogComment": "诊断领域：西医、中医病名或中医证候"
         }
       ],
       "kind": "BASE TABLE",
@@ -2045,8 +2045,8 @@
           "defaultValue": "'MANUAL'",
           "ordinal": 18,
           "comment": "方案来源类型: MANUAL(手工录入), AI_INPUT(AI口述速记), AI_MINED(历史开方聚类), AI_GUIDELINE(指南提取)",
-          "logical": "",
-          "catalogComment": ""
+          "logical": "source_type",
+          "catalogComment": "方案来源类型: MANUAL(手工录入), AI_INPUT(AI口述速记), AI_MINED(历史开方聚类), AI_GUIDELINE(指南提取)"
         },
         {
           "physical": "JSON_GDLN_REF",
@@ -2057,8 +2057,8 @@
           "defaultValue": null,
           "ordinal": 19,
           "comment": "指南与专家共识出处元数据JSON",
-          "logical": "",
-          "catalogComment": ""
+          "logical": "guideline_reference",
+          "catalogComment": "指南与专家共识出处元数据JSON"
         },
         {
           "physical": "JSON_PLAN_TASKS",
@@ -2069,8 +2069,32 @@
           "defaultValue": null,
           "ordinal": 20,
           "comment": "待核对的结构化方案任务及输入依据JSON",
-          "logical": "",
-          "catalogComment": ""
+          "logical": "plan_tasks",
+          "catalogComment": "待核对的结构化方案任务及输入依据JSON"
+        },
+        {
+          "physical": "ID_OP_NOTE_TMPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "诊疗方案可选关联的门诊病历模板主键",
+          "logical": "outpatient_note_template_id",
+          "catalogComment": "诊疗方案可选关联的门诊病历模板主键"
+        },
+        {
+          "physical": "JSON_SEARCH_PROFILE",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "当前诊疗方案内容派生的检索摘要、条件、关键词及内容指纹",
+          "logical": "search_profile",
+          "catalogComment": "当前诊疗方案内容派生的检索摘要、条件、关键词及内容指纹"
         }
       ],
       "kind": "BASE TABLE",
@@ -2097,6 +2121,22 @@
         }
       ],
       "indexes": [
+        {
+          "name": "FK_META_OP_PLAN_NOTE_TMPL_INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_OP_NOTE_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
         {
           "name": "FK_META_OP_PLAN_T_SYS_DEPT_OPT_INDEX_E",
           "columns": [
@@ -4575,7 +4615,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintTemplateDraft.java",
-          "line": 15
+          "line": 17
         }
       ]
     },
@@ -5794,6 +5834,25 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_META_OP_PLAN_TMPL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_META_OP_PLAN_NOTE_TMPL",
+      "sourceTable": "RHN_META_OP_PLAN_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_OP_NOTE_TMPL"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_OP_NOTE_TMPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_META_OP_NOTE_TMPL",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

@@ -1,0 +1,13 @@
+.ui-annotated-field { min-width: 0; width: 100%; }
+.ui-annotated-field > textarea { width: 100%; }
+.ui-annotated-preview { white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; min-height: calc(var(--line-height-body) * 2em); }
+.ui-text-annotation { display: inline; padding: 0; border: 0; background: none; font: inherit; color: inherit; line-height: inherit; text-align: inherit; white-space: inherit; cursor: pointer; text-decoration: underline dashed; text-underline-offset: .2em; }
+.ui-text-annotation.is-variable { color: var(--color-brand-primary); }
+.ui-text-annotation.is-source { text-decoration-color: var(--color-text-secondary); }
+.ui-text-annotation.is-important { color: var(--color-warning); }
+.ui-text-annotation.is-conflict { color: var(--color-danger); }
+.ui-text-annotation:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
+.ui-annotation-popover { position: fixed; width: 360px; max-height: 250px; overflow: auto; z-index: var(--z-popover); padding: var(--space-3); background: var(--color-surface); color: var(--color-text-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+.ui-annotation-popover__heading { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+.ui-annotation-popover p { margin: var(--space-2) 0; font-size: var(--font-size-small); white-space: pre-wrap; }
+.ui-annotation-popover__actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }

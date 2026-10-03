@@ -24,12 +24,15 @@ public class ClinicalPlanRetrievalService {
         String preferredScope = query == null ? null : normalizedCode(query.preferredScope());
 
         List<Match> scored = visiblePlans.stream().map(plan -> score(plan, text, diagnoses, preferredScope)).toList();
-        boolean hasClinicalMatch = scored.stream().anyMatch(match -> match.clinicalScore() > 0);
+        Set<String> seenContent = new LinkedHashSet<>();
         return scored.stream()
-                .filter(match -> !hasClinicalMatch || match.clinicalScore() > 0)
-                .sorted(Comparator.comparingInt(Match::score).reversed()
+                .filter(match -> match.clinicalScore() > 0)
+                .sorted(Comparator.comparingInt(Match::clinicalScore).reversed()
+                        .thenComparing(match -> !(preferredScope == null ? "PERSONAL" : preferredScope).equals(match.plan().scopeType()))
                         .thenComparing(match -> match.plan().useCount(), Comparator.reverseOrder())
                         .thenComparing(match -> match.plan().id()))
+                .filter(match -> match.plan().searchProfile() == null
+                        || seenContent.add(match.plan().searchProfile().contentHash()))
                 .limit(Math.min(limit, MODEL_CANDIDATE_LIMIT)).toList();
     }
 
@@ -62,8 +65,25 @@ public class ClinicalPlanRetrievalService {
                 evidence.add("TASK:" + task.kind());
             }
         }
+        if (plan.searchProfile() != null && !text.isEmpty()) {
+            Set<String> matched = new LinkedHashSet<>();
+            for (String word : plan.searchProfile().keywords()) {
+                String term = normalized(word);
+                if (term.length() < 2) continue;
+                if (text.contains(term)) matched.add(term);
+                else for (int i = 0; i + 2 <= term.length(); i++) {
+                    String token = term.substring(i, i + 2);
+                    if (token.codePoints().allMatch(c -> Character.UnicodeScript.of(c) == Character.UnicodeScript.HAN)
+                            && text.contains(token)) matched.add(token);
+                }
+            }
+            if (!matched.isEmpty()) {
+                clinicalScore += Math.min(18, matched.size() * 3);
+                evidence.add("INDEX_TERMS:" + String.join("、", matched.stream().limit(6).toList()));
+            }
+        }
         int score = clinicalScore;
-        if (preferredScope != null && preferredScope.equals(plan.scopeType())) {
+        if ((preferredScope == null ? "PERSONAL" : preferredScope).equals(plan.scopeType())) {
             score += 4;
             evidence.add("SCOPE:" + preferredScope);
         }
@@ -71,7 +91,6 @@ public class ClinicalPlanRetrievalService {
             score += Math.min(8, Long.toString(plan.useCount()).length());
             evidence.add("USAGE:" + plan.useCount());
         }
-        if (clinicalScore == 0) evidence.add("FALLBACK_VISIBLE_PLAN");
         return new Match(plan, score, clinicalScore, List.copyOf(new LinkedHashSet<>(evidence)));
     }
 

@@ -16143,6 +16143,11 @@
         "logical": "outpatient_note_template_id",
         "physical": "ID_OP_NOTE_TMPL",
         "comment": "诊疗方案可选关联的门诊病历模板主键"
+      },
+      {
+        "logical": "search_profile",
+        "physical": "JSON_SEARCH_PROFILE",
+        "comment": "当前诊疗方案内容派生的检索摘要、条件、关键词及内容指纹"
       }
     ]
   },

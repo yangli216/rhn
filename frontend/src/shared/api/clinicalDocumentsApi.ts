@@ -1,3 +1,4 @@
+import type { RecordAnnotation } from './recordAnnotations'
 import type { ApiClient } from './httpClient'
 import type { OutpatientNoteFormSection } from './outpatientNoteFormsApi'
 
@@ -17,6 +18,7 @@ export interface ClinicalDocumentVersion {
 }
 
 export interface OutpatientNoteContent {
+  annotations?: RecordAnnotation[]
   chiefComplaint?: string
   presentIllness?: string
   medicalHistory?: string

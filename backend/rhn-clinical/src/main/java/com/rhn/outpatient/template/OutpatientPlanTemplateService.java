@@ -3,6 +3,7 @@ package com.rhn.outpatient.template;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
 import com.rhn.outpatient.api.OutpatientPlanTemplateDirectory;
+import com.rhn.outpatient.api.PlanSearchProfile;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
@@ -86,6 +87,43 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         ExecutionContext context = requireContext();
         List<OutpatientPlanTemplate> values = templates.findVisible(context.tenantId(), context.organizationId(),
                 context.departmentId(), context.practitionerId());
+        return snapshots(values, context);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlanTemplateSnapshot> visibleByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        if (ids.size() > 20) throw badRequest("PLAN_CANDIDATE_LIMIT", "每次最多读取20个方案候选");
+        var context = requireContext();
+        var selected = Set.copyOf(ids);
+        return snapshots(templates.findVisible(context.tenantId(), context.organizationId(), context.departmentId(),
+                context.practitionerId()).stream().filter(value -> selected.contains(value.id())).toList(), context);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlanTemplateSnapshot> searchIndexForCurrentContext() {
+        var context = requireContext();
+        var values = templates.findVisible(context.tenantId(), context.organizationId(), context.departmentId(), context.practitionerId());
+        var noteIds = values.stream().map(OutpatientPlanTemplate::noteTemplateId).filter(java.util.Objects::nonNull).distinct().toList();
+        var notes = noteIds.isEmpty() ? Map.<Long, OutpatientNoteTemplate>of() : noteTemplates.findByTenantIdAndIdIn(context.tenantId(), noteIds)
+                .stream().collect(java.util.stream.Collectors.toMap(OutpatientNoteTemplate::id, value -> value));
+        var result = new ArrayList<PlanTemplateSnapshot>();
+        var missing = new ArrayList<OutpatientPlanTemplate>();
+        for (var value : values) {
+            var profile = readProfile(value, value.noteTemplateId() == null ? null : notes.get(value.noteTemplateId()));
+            if (profile == null) { missing.add(value); continue; }
+            result.add(new PlanTemplateSnapshot(value.id(), value.revision(), value.scopeType(), value.sourceType(),
+                    value.guidelineReference(), value.name(), value.description(), value.useCount(), profile.diagnoses(),
+                    List.of(), List.of(), readTasks(value.planTasks()), profile));
+        }
+        // Missing/stale derived data can never stand in for current content. Hydrate only those rows.
+        result.addAll(snapshots(missing, context));
+        return List.copyOf(result);
+    }
+
+    private List<PlanTemplateSnapshot> snapshots(List<OutpatientPlanTemplate> values, ExecutionContext context) {
         if (values.isEmpty()) return List.of();
         List<Long> templateIds = values.stream().map(OutpatientPlanTemplate::id).toList();
         Map<Long, List<OutpatientPlanDiagnosis>> diagnosisMap = groupDiagnoses(
@@ -114,7 +152,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                         line.catalogItemId(), line.itemCode(), line.itemName(), line.serviceType(),
                         line.quantity(), line.unitCode(), line.priceType(), line.pricingRequired(), line.reason(),
                         line.clinicalDescription())).toList(),
-                readTasks(value.planTasks())
+                readTasks(value.planTasks()), profileFor(value)
         )).toList();
     }
 
@@ -147,6 +185,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
             saveDiagnoses(value, diagnosisInputs);
             saveMedications(value, medicationInputs, context);
             saveServices(value, serviceInputs, context);
+            rebuildSearchProfile(value);
         } catch (DataIntegrityViolationException error) {
             throw conflict("PLAN_TEMPLATE_NAME_DUPLICATED", "当前范围已经存在同名常用方案");
         }
@@ -220,6 +259,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
             saveDiagnoses(value, diagnosisInputs);
             saveMedications(value, medicationInputs, context);
             saveServices(value, serviceInputs, context);
+            rebuildSearchProfile(value);
         } catch (DataIntegrityViolationException error) {
             throw conflict("PLAN_TEMPLATE_NAME_DUPLICATED", "当前范围已经存在同名常用方案");
         }
@@ -442,6 +482,35 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                 medicationMap.getOrDefault(value.id(), List.of()), serviceMap.getOrDefault(value.id(), List.of()))).toList();
     }
 
+    private OutpatientNoteTemplate profileNote(OutpatientPlanTemplate value) {
+        if (value.noteTemplateId() == null) return null;
+        return noteTemplates.findByIdAndTenantId(value.noteTemplateId(), value.tenantId())
+                .filter(note -> "ACTIVE".equals(note.status())).orElse(null);
+    }
+
+    private PlanSearchProfile profileFor(OutpatientPlanTemplate value) {
+        return readProfile(value, profileNote(value));
+    }
+
+    private PlanSearchProfile readProfile(OutpatientPlanTemplate value, OutpatientNoteTemplate note) {
+        if (value.searchProfile() == null) return null;
+        var profile = jsonCodec.read(value.searchProfile(), PlanSearchProfile.class);
+        String noteHash = note == null || !"ACTIVE".equals(note.status()) ? null : PlanSearchProfiles.hash(note.contentJson());
+        return profile.schemaVersion() == 1 && java.util.Objects.equals(profile.noteTemplateId(), value.noteTemplateId())
+                && java.util.Objects.equals(profile.noteContentHash(), noteHash) ? profile : null;
+    }
+
+    private void rebuildSearchProfile(OutpatientPlanTemplate value) {
+        var profile = PlanSearchProfiles.build(value,
+                diagnoses.findByTenantIdAndTemplateIdOrderByLineNo(value.tenantId(), value.id()),
+                medications.findByTenantIdAndTemplateIdOrderByLineNo(value.tenantId(), value.id()),
+                services.findByTenantIdAndTemplateIdOrderByLineNo(value.tenantId(), value.id()),
+                readTasks(value.planTasks()), profileNote(value), jsonCodec);
+        value.setSearchProfile(jsonCodec.write(profile));
+        // New templates have application-assigned IDs and save() may return a merged managed instance.
+        templates.saveAndFlush(value);
+    }
+
     private View loadedView(OutpatientPlanTemplate value) {
         return view(value, diagnoses.findByTenantIdAndTemplateIdOrderByLineNo(value.tenantId(), value.id()),
                 medications.findByTenantIdAndTemplateIdOrderByLineNo(value.tenantId(), value.id()),
@@ -461,7 +530,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                         line.itemName(), line.serviceType(), line.quantity(), line.unitCode(), line.priceType(),
                         line.pricingRequired(), line.reason(), line.clinicalDescription())).toList(),
                 readTasks(value.planTasks()),
-                value.createdAt(), value.updatedAt());
+                value.createdAt(), value.updatedAt(), profileFor(value));
     }
 
     private MedicationView medicationView(Long tenantId, OutpatientPlanMedication line) {

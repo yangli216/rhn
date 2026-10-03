@@ -1,3 +1,5 @@
+import type { RecordAnnotation } from '../../../shared/api/recordAnnotations'
+import { anchorAnnotations } from './recordAnnotations'
 import { z } from 'zod'
 import type { DiagnosisInput, ClinicalRecordInput } from '../../../shared/api/encountersApi'
 import type { OutpatientNoteForm } from '../../../shared/api/outpatientNoteFormsApi'
@@ -11,6 +13,7 @@ function vitalNumber(label: string, limits: { minimum: number; maximum: number }
 }
 
 export const createRecordSchema = (bloodPressureRequired: boolean) => z.object({
+  annotations: z.array(z.custom<RecordAnnotation>()).optional(),
   chiefComplaint: z.string().trim().min(1, '请输入主诉').max(1000),
   presentIllness: z.string().trim().max(4000),
   medicalHistory: z.string().trim().max(4000),
@@ -96,6 +99,7 @@ export function moveDiagnosis(values: DiagnosisInput[], sourceKey: string, targe
 export function clinicalRecordContent(form: RecordForm, diagnoses: DiagnosisInput[], noteFormId: string,
   structuredValues: Record<string, unknown>): Omit<ClinicalRecordInput, 'commandCode'> {
   return {
+    annotations: anchorAnnotations(form, form.annotations),
     chiefComplaint: form.chiefComplaint, presentIllness: form.presentIllness, medicalHistory: form.medicalHistory,
     physicalExam: form.physicalExam,
     allergyHistory: form.allergyHistory,

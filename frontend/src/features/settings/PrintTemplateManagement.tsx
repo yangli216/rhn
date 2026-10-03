@@ -44,10 +44,35 @@ const SAMPLE_DATA = {
   serviceTypeText: '治疗', clinicalDescription: '发热伴咽痛三天', reason: '明确感染情况', businessDate: '2026-09-12',
   authoredBy: '陈医生', authoredAt: '2026-09-12 10:12', signedBy: '陈医生', signedAt: '2026-09-12 10:20',
   content: { chiefComplaint: '发热、咽痛三天', presentIllness: '三天前无明显诱因出现发热。', pastHistory: '否认重大疾病史。', allergyHistory: '青霉素过敏', physicalExam: 'T 38.2℃，咽部充血。', diagnosis: '急性上呼吸道感染', treatmentPlan: '对症治疗，复诊随访。' },
+  diagnosis: '急性上呼吸道感染',
   medications: [{ medicationName: '阿莫西林胶囊', specification: '0.25g×24粒', quantity: '2', quantityUnit: '盒', doseValue: '0.5', doseUnit: 'g', routeCode: 'PO', frequencyCode: 'TID', instruction: '饭后服用' }],
   ticketNo: 'A001', registrationNo: 'GH20260912001', residentName: '张晓宁', locationName: '全科门诊1诊室',
   practitionerName: '陈医生', serviceName: '普通门诊', sdDayPartText: '当日出诊', payableAmount: '10.00',
   paymentMethodName: '自费/医保', registeredAtText: '2026-09-12 10:30', validUntilText: '当日当班有效',
+}
+
+const HERBAL_SAMPLE_DATA = {
+  ...SAMPLE_DATA,
+  title: '中药饮片处方笺',
+  categoryCode: 'HERBAL',
+  durationValue: 7,
+  durationUnit: '剂',
+  frequencyName: '每日一次',
+  instruction: '水煎服，每日一剂，分早晚两次温服',
+  note: '门诊草药专方：疏风宣肺，清热解表',
+  diagnoses: [{ code: 'BNP010', display: '风热犯肺证', type: 'PRIMARY' }],
+  diagnosis: '感冒（风热犯肺证）',
+  medications: [
+    { medicationName: '金银花', specification: '饮片', quantity: '10', quantityUnit: 'g', instruction: '后下' },
+    { medicationName: '连翘', specification: '饮片', quantity: '10', quantityUnit: 'g', instruction: '' },
+    { medicationName: '薄荷', specification: '饮片', quantity: '6', quantityUnit: 'g', instruction: '后下' },
+    { medicationName: '荆芥', specification: '饮片', quantity: '10', quantityUnit: 'g', instruction: '' },
+    { medicationName: '淡豆豉', specification: '饮片', quantity: '10', quantityUnit: 'g', instruction: '' },
+    { medicationName: '牛蒡子', specification: '饮片', quantity: '10', quantityUnit: 'g', instruction: '先煎' },
+    { medicationName: '芦根', specification: '饮片', quantity: '15', quantityUnit: 'g', instruction: '' },
+    { medicationName: '桔梗', specification: '饮片', quantity: '6', quantityUnit: 'g', instruction: '' },
+    { medicationName: '甘草', specification: '饮片', quantity: '6', quantityUnit: 'g', instruction: '' },
+  ],
 }
 
 const PATIENT_FIELDS: PrintFieldPreset[] = [
@@ -162,6 +187,7 @@ export function PrintTemplateManagement({ api }: { api: RhnApi }) {
   const [operationError, setOperationError] = useState('')
   const [previewUrl, setPreviewUrl] = useState('')
   const [workspace, setWorkspace] = useState<'BUSINESS' | 'TEMPLATES' | 'DEVICES'>('TEMPLATES')
+  const [rxPreviewSample, setRxPreviewSample] = useState<'WESTERN' | 'HERBAL'>('WESTERN')
 
   const selected = selection?.kind === 'DRAFT' ? drafts.data?.find((item) => item.id === selection.id) ?? null : null
   const selectedPublished = selection?.kind === 'PUBLISHED'
@@ -170,6 +196,13 @@ export function PrintTemplateManagement({ api }: { api: RhnApi }) {
   const definition = catalog.data?.documentDefinitions.find((item) => item.id === definitionId)
   const media = catalog.data?.mediaProfiles.find((item) => item.id === mediaId)
   const availableFields = FIELD_PRESETS[definition?.documentType ?? selectedPublished?.documentType ?? ''] ?? []
+
+  const getSampleData = (docType?: string, sampleKind: 'WESTERN' | 'HERBAL' = rxPreviewSample) => {
+    if (docType === 'OUTPATIENT_PRESCRIPTION' && sampleKind === 'HERBAL') {
+      return HERBAL_SAMPLE_DATA
+    }
+    return SAMPLE_DATA
+  }
 
   useEffect(() => {
     if (selection) return
@@ -254,23 +287,26 @@ export function PrintTemplateManagement({ api }: { api: RhnApi }) {
   }
 
   const handleSave = async () => { try { await save() } catch (error) { setOperationError(errorMessage(error)) } }
-  const handlePreview = async () => {
+  const handlePreview = async (sampleKind: 'WESTERN' | 'HERBAL' = rxPreviewSample) => {
     try {
       let blob: Blob
-      if (selectedPublished) blob = await api.printing.previewPublishedTemplate(selectedPublished.id, SAMPLE_DATA)
+      const docType = selectedPublished?.documentType ?? definition?.documentType
+      const sample = getSampleData(docType, sampleKind)
+      if (selectedPublished) blob = await api.printing.previewPublishedTemplate(selectedPublished.id, sample)
       else {
         const draft = dirty && editable ? await save() : selected
         if (!draft) return
-        blob = await api.printing.previewTemplateDraft(draft.id, SAMPLE_DATA)
+        blob = await api.printing.previewTemplateDraft(draft.id, sample)
       }
       if (previewUrl) URL.revokeObjectURL(previewUrl)
       setPreviewUrl(URL.createObjectURL(blob)); setOperationError(''); setFeedback('PDF 预览已按正式渲染链生成')
     } catch (error) { setOperationError(errorMessage(error)) }
   }
-  const previewPublished = async (item: PublishedPrintTemplate) => {
+  const previewPublished = async (item: PublishedPrintTemplate, sampleKind: 'WESTERN' | 'HERBAL' = rxPreviewSample) => {
     setSelection({ kind: 'PUBLISHED', id: item.id })
     try {
-      const blob = await api.printing.previewPublishedTemplate(item.id, SAMPLE_DATA)
+      const sample = getSampleData(item.documentType, sampleKind)
+      const blob = await api.printing.previewPublishedTemplate(item.id, sample)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
       setPreviewUrl(URL.createObjectURL(blob)); setOperationError(''); setFeedback('正在预览已发布的正式版本')
     } catch (error) { setOperationError(errorMessage(error)) }
@@ -428,10 +464,31 @@ export function PrintTemplateManagement({ api }: { api: RhnApi }) {
           </div>
           {previewUrl && <button className="print-return-designer" type="button" onClick={() => setPreviewUrl('')}><Icon name="arrow-left" /> 返回设计画布</button>}
         </> : selectedPublished ? <div className="print-published-preview-empty">
-          {previewUrl ? <iframe className="print-pdf-preview" src={previewUrl} title="已发布打印模板 PDF 预览" /> : <>
+          {previewUrl ? <>
+            {selectedPublished.documentType === 'OUTPATIENT_PRESCRIPTION' && <div className="print-rx-preview-switch">
+              <Button size="sm" variant={rxPreviewSample === 'WESTERN' ? 'primary' : 'secondary'}
+                onClick={() => { setRxPreviewSample('WESTERN'); void handlePreview('WESTERN') }}>
+                西成药处方预览
+              </Button>
+              <Button size="sm" variant={rxPreviewSample === 'HERBAL' ? 'primary' : 'secondary'}
+                onClick={() => { setRxPreviewSample('HERBAL'); void handlePreview('HERBAL') }}>
+                中药饮片处方预览（草药方）
+              </Button>
+            </div>}
+            <iframe className="print-pdf-preview" src={previewUrl} title="已发布打印模板 PDF 预览" />
+          </> : <>
             <Icon name="eye" /><strong>预览发布版本 V{selectedPublished.currentVersion}</strong>
             <span>预览使用代表性业务数据，并通过正式 PDF 渲染链生成。</span>
-            <Button size="sm" onClick={() => void handlePreview()}><Icon name="eye" /> 打开预览</Button>
+            {selectedPublished.documentType === 'OUTPATIENT_PRESCRIPTION' ? <div className="print-rx-preview-switch">
+              <Button size="sm" variant={rxPreviewSample === 'WESTERN' ? 'primary' : 'secondary'}
+                onClick={() => { setRxPreviewSample('WESTERN'); void handlePreview('WESTERN') }}>
+                <Icon name="eye" /> 打开西成药处方预览
+              </Button>
+              <Button size="sm" variant={rxPreviewSample === 'HERBAL' ? 'primary' : 'secondary'}
+                onClick={() => { setRxPreviewSample('HERBAL'); void handlePreview('HERBAL') }}>
+                <Icon name="eye" /> 打开草药饮片处方预览
+              </Button>
+            </div> : <Button size="sm" onClick={() => void handlePreview()}><Icon name="eye" /> 打开预览</Button>}
           </>}
         </div> : <EmptyState icon="print" title="选择一份模板" copy="模板内容与纸张预览将在此处显示" />}
       </section>
@@ -699,7 +756,9 @@ function paperConfig(media: PrintMediaProfile, canvas: boolean) {
     marginRightMm: media.marginRightMm, marginBottomMm: media.marginBottomMm, marginLeftMm: media.marginLeftMm }
 }
 function preferredMedia(definition: PrintDocumentDefinition, media: PrintMediaProfile[]) {
-  const code = definition.layoutMode === 'FLOW' ? 'A4_PORTRAIT'
+  const code = (definition.documentType === 'OUTPATIENT_NOTE' || definition.documentType === 'OUTPATIENT_PRESCRIPTION')
+    ? 'A5_LANDSCAPE'
+    : definition.layoutMode === 'FLOW' ? 'A4_PORTRAIT'
     : definition.documentType === 'INFUSION_LABEL' ? 'LABEL_70X50' : 'THERMAL_80_CONTINUOUS'
   return media.find((item) => item.mediaCode === code) ?? media[0]
 }

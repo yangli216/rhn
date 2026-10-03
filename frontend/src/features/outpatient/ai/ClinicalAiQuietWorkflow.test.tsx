@@ -22,7 +22,7 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
   const recommendPlans = vi.fn().mockResolvedValue(plans ?? [])
   const recordEvent = vi.fn().mockResolvedValue(undefined), apply = vi.fn(), onFieldStream = vi.fn()
   const api = { clinicalAi: { capabilities: vi.fn().mockResolvedValue({ available: true, mode: 'MODEL', provider: 'test',
-    features: ['BACKGROUND_DRAFT', 'STREAMING_DRAFT', 'RECORD_COMPLETENESS', 'PLAN_RECOMMENDATIONS', 'TERMINOLOGY_VALIDATION', 'AUDIT_TRAIL'] }),
+    features: ['BACKGROUND_DRAFT', 'STREAMING_DRAFT', 'RECORD_COMPLETENESS', 'PLAN_RECOMMENDATIONS', 'TERMINOLOGY_VALIDATION', 'AUDIT_TRAIL', 'VOICE_TRANSCRIPTION'] }),
     generateStream, recommendPlans, history: vi.fn().mockResolvedValue([]), recordEvent },
     masterData: { diseases: vi.fn().mockResolvedValue([
       { code: 'J06.9', display: '测试诊断甲', sdStatus: 'ACTIVE', systemCode: 'WHO.BD.CS.ICD10' },
@@ -37,10 +37,14 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
   const surfaces = { summary: nodes.getByTestId('summary') as HTMLDivElement, note: nodes.getByTestId('note') as HTMLDivElement,
     diagnoses: nodes.getByTestId('diagnoses') as HTMLDivElement, plans: nodes.getByTestId('plans') as HTMLDivElement, detail: null }
   function Harness() {
+    const [activeEncounter, setActiveEncounter] = useState(encounter)
     const [text, setText] = useState('')
+    const [templateApplied, setTemplateApplied] = useState(false)
     const [treatmentKeys, setTreatmentKeys] = useState<string[]>([])
-    return <><textarea aria-label="主病历输入" value={text} onChange={(event) => setText(event.target.value)} />
-      <ClinicalAiAssistantPanel encounter={encounter} currentContext={{ ...base, presentIllness: text,
+    return <><button onClick={() => setActiveEncounter({ ...encounter, id: 'next-enc', residentId: 'next-resident' })}>切换测试患者</button><button onClick={() => setTemplateApplied(true)}>带入测试模板</button><textarea aria-label="主病历输入" value={text} onChange={(event) => setText(event.target.value)} />
+      <ClinicalAiAssistantPanel encounter={activeEncounter} currentContext={{ ...base, encounterId: activeEncounter.id, residentId: activeEncounter.residentId, presentIllness: text,
+          chiefComplaint: templateApplied ? '咳嗽3天' : undefined,
+          annotations: templateApplied ? [{ field: 'chiefComplaint', text: '3天', start: 2, source: 'TEMPLATE', kind: 'VARIABLE', binding: 'symptom.cough.duration' }] : [],
           serviceDraftFingerprint: treatmentKeys.join('|') || 's' }}
         api={api} allergies={[]} allergyState="READY" disabled={false} surfaces={surfaces}
         onReviewRecommendedPlan={plans ? reviewRecommendedPlan : undefined}
@@ -64,7 +68,21 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
 async function advance(ms: number) { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
 beforeEach(() => { vi.useFakeTimers(); localStorage.clear() })
-afterEach(() => { cleanup(); vi.useRealTimers() })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals() })
+
+class FakeSpeech {
+  static current: FakeSpeech
+  onstart?: () => void
+  onend?: () => void
+  onresult?: (event: unknown) => void
+  constructor() { FakeSpeech.current = this }
+  start() { this.onstart?.() }
+  stop() { this.onend?.() }
+  emit(text: string, final: boolean, index = 0) {
+    const results = Array.from({ length: index + 1 }, () => ({ isFinal: final, 0: { transcript: text } }))
+    this.onresult?.({ resultIndex: index, results })
+  }
+}
 
 describe('quiet clinical AI workflow', () => {
   it('keeps the default co-writing toolbar compact without removing accessible actions', async () => {
@@ -318,4 +336,102 @@ describe('quiet clinical AI workflow', () => {
     await advance(100)
     expect(generateStream).toHaveBeenCalledTimes(2)
   })
+  it('coalesces finalized speech, ignores interim text, and offers a whole template before generation', async () => {
+    vi.stubGlobal('SpeechRecognition', FakeSpeech)
+    const plan = { templateId: 'saved-plan', name: '已保存方案', rationale: '符合当前病情' } as ClinicalAiRecommendedPlan
+    const { openHub, recommendPlans, generateStream, apply } = setup(undefined, false, [plan])
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '语音输入' }))
+    act(() => FakeSpeech.current.emit('临时识别内容', false))
+    await advance(1200)
+    expect(recommendPlans).not.toHaveBeenCalled()
+    act(() => FakeSpeech.current.emit('患者咳嗽三天', true))
+    await advance(500)
+    act(() => FakeSpeech.current.emit('没有发热', true, 1))
+    await advance(500)
+    expect(recommendPlans).not.toHaveBeenCalled()
+    await advance(450)
+    expect(recommendPlans).toHaveBeenCalledTimes(1)
+    expect(recommendPlans.mock.calls[0][1].voiceTranscript).toBe('患者咳嗽三天 没有发热')
+    expect(screen.getByRole('region', { name: '整体诊疗方案推荐' })).toHaveTextContent('已保存方案')
+    expect(generateStream).not.toHaveBeenCalled()
+    expect(apply).not.toHaveBeenCalled()
+  })
+
+  it('falls back from no matching plan to generation and preserves oral provenance in an incremental adoption', async () => {
+    vi.stubGlobal('SpeechRecognition', FakeSpeech)
+    const { openHub, recommendPlans, generateStream, apply } = setup(vi.fn().mockImplementation(async (_id, input) => ({
+      ...result(input), recordDraft: { chiefComplaint: '咳嗽5天', annotations: [{ field: 'chiefComplaint', text: '5天', start: 2,
+        source: 'VOICE', kind: 'FACT', binding: 'symptom.cough.duration', sourceQuote: '咳嗽五天' }] },
+    })), false, [])
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '语音输入' }))
+    act(() => FakeSpeech.current.emit('咳嗽五天', true))
+    await advance(1000)
+    expect(recommendPlans).toHaveBeenCalledTimes(1)
+    expect(generateStream).toHaveBeenCalledTimes(1)
+    expect(apply).toHaveBeenCalledWith(expect.objectContaining({ overwriteRecord: false,
+      recordDraft: expect.objectContaining({ annotations: [expect.objectContaining({ source: 'VOICE', binding: 'symptom.cough.duration' })] }) }))
+    // Duplicate final events and the resulting record change cannot create a second automatic analysis.
+    act(() => FakeSpeech.current.emit('咳嗽五天', true))
+    fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '医生核对后的病历' } })
+    await advance(5000)
+    expect(generateStream).toHaveBeenCalledTimes(1)
+  })
+
+  it('aborts a pending match and drops late speech when the patient changes', async () => {
+    vi.stubGlobal('SpeechRecognition', FakeSpeech)
+    const { openHub, recommendPlans, generateStream, apply } = setup(undefined, false, [])
+    let finish!: (plans: ClinicalAiRecommendedPlan[]) => void
+    recommendPlans.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '语音输入' }))
+    const speech = FakeSpeech.current
+    act(() => speech.emit('第一位患者的口述', true))
+    await advance(1000)
+    const signal = recommendPlans.mock.calls[0][2] as AbortSignal
+    fireEvent.click(screen.getByRole('button', { name: '切换测试患者' }))
+    expect(signal.aborted).toBe(true)
+    act(() => speech.emit('迟到的识别结果', true, 1))
+    await act(async () => finish([]))
+    await advance(1200)
+    expect(generateStream).not.toHaveBeenCalled()
+    expect(apply).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('问诊要点或辅助要求')).toHaveValue('')
+  })
+
+  it('adapts a chosen template using the same finalized dictation without repeating plan matching', async () => {
+    vi.stubGlobal('SpeechRecognition', FakeSpeech)
+    const { openHub, generateStream, recommendPlans, apply } = setup(undefined, false,
+      [{ templateId: 'chosen', name: '咳嗽方案', rationale: '资料符合' }])
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '语音输入' }))
+    act(() => FakeSpeech.current.emit('咳嗽五天', true))
+    await advance(1000)
+    fireEvent.click(screen.getByRole('button', { name: '核对整体方案' }))
+    fireEvent.click(screen.getByRole('button', { name: '带入测试模板' }))
+    await advance(100)
+    expect(generateStream).toHaveBeenCalledTimes(1)
+    expect(generateStream.mock.calls[0][1]).toMatchObject({ voiceTranscript: '咳嗽五天',
+      draft: { chiefComplaint: '咳嗽3天', annotations: [expect.objectContaining({ binding: 'symptom.cough.duration' })] } })
+    expect(apply).toHaveBeenCalledWith(expect.objectContaining({ overwriteRecord: false }))
+    expect(recommendPlans).toHaveBeenCalledTimes(1)
+    await advance(3000)
+    expect(generateStream).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a declined treatment selection across a new analysis and temporary stale results', async () => {
+    let sequence = 0
+    const { openHub } = setup(vi.fn().mockImplementation(async (_id, input) => ({ ...result(input), id: `analysis-${++sequence}`,
+      treatmentRecommendations: [{ type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规', rationale: '评估感染' }] })), true)
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await advance(100)
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 血常规' }))
+    fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '补充本次事实' } })
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await advance(100)
+    expect(screen.getByRole('checkbox', { name: '选择 血常规' })).not.toBeChecked()
+  })
+
 })

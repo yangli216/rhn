@@ -223,14 +223,28 @@ public class ClinicalAssistantApplicationService {
     /** Match visible, existing whole plans before generating any clinical draft. */
     public List<RecommendedPlan> recommendPlans(Long encounterId, GenerateRequest input) {
         Access access = requireAccess(encounterId, true);
-        var matches = retrievePlans(input, planDirectory.visibleForCurrentContext());
-        var exact = recommendedPlans(matches, List.of());
-        if (!exact.isEmpty() || matches.isEmpty()) return exact;
+        var index = planDirectory.searchIndexForCurrentContext();
+        if (index.isEmpty()) return List.of();
         ClinicalAssistantSettings runtime = runtimePolicy.current(access.context());
-        if (runtime.mode() != ClinicalAssistantSettings.Mode.MODEL) return List.of();
+        List<String> expansion = List.of();
+        if (runtime.mode() == ClinicalAssistantSettings.Mode.MODEL && !planSearchText(input).isBlank()) {
+            requireAvailable(runtime, access.context());
+            try {
+                var query = modelGateway.expandPlanQuery(planSearchText(input), runtime);
+                if (query != null) expansion = query.terms();
+            } catch (ClinicalAiModelException unavailable) {
+                log.info("Plan query expansion unavailable; retaining lexical recall, reason={}", unavailable.reason());
+            }
+        }
+        var matches = retrievePlans(input, index, expansion);
+        if (matches.isEmpty()) return List.of();
+        if (runtime.mode() != ClinicalAssistantSettings.Mode.MODEL) return recommendedPlans(matches, List.of());
         requireAvailable(runtime, access.context());
-        var context = loadServerContext(access);
-        var candidates = matches.stream().map(ClinicalPlanRetrievalService.Match::plan).toList();
+        var context = loadServerContext(access, false);
+        var ids = matches.stream().map(match -> match.plan().id()).toList();
+        var candidates = planDirectory.visibleByIds(ids).stream()
+                .sorted(Comparator.comparingInt(plan -> ids.indexOf(plan.id()))).toList();
+        if (candidates.isEmpty()) return List.of();
         var request = new ClinicalAiModelGateway.ModelRequest("CLINICAL_PLAN_MATCH_V1", input.question(),
                 input.voiceTranscript(), input.draft(), context.resident(), context.allergies(), candidates,
                 List.of(), List.of(), null, input.receptionScene(), input.receptionSceneContext(),
@@ -259,7 +273,13 @@ public class ClinicalAssistantApplicationService {
         Instant now = Instant.now();
         var temporalContext = new ClinicalAiModelGateway.TemporalContext(now, access.encounter().registeredAt());
         ServerContext serverContext = loadServerContext(access);
-        List<ClinicalPlanRetrievalService.Match> planMatches = retrievePlans(input, serverContext.plans());
+        List<ClinicalPlanRetrievalService.Match> recalled = retrievePlans(input, serverContext.plans());
+        var candidates = planDirectory.visibleByIds(recalled.stream().map(match -> match.plan().id()).toList())
+                .stream().collect(java.util.stream.Collectors.toMap(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot::id, plan -> plan));
+        List<ClinicalPlanRetrievalService.Match> planMatches = recalled.stream()
+                .filter(match -> candidates.containsKey(match.plan().id()))
+                .map(match -> new ClinicalPlanRetrievalService.Match(candidates.get(match.plan().id()),
+                        match.score(), match.clinicalScore(), match.evidence())).toList();
         if (input.receptionSceneContext() != null && input.receptionSceneContext().selectedReportIds() != null
                 && !serverContext.reports().stream().map(DiagnosticReportResponse::id).toList()
                 .containsAll(input.receptionSceneContext().selectedReportIds())) {
@@ -694,7 +714,7 @@ public class ClinicalAssistantApplicationService {
                 validatedVital(value.diastolic(), 10, 200, true),
                 validatedVital(value.oxygenSaturation(), 0, 100, true),
                 validatedVital(value.heightCm(), 20, 250, false),
-                validatedVital(value.weightKg(), 0.1, 500, false), clipped(value.allergyHistory(), 4000), clipped(value.medicationHistory(), 4000), clipped(value.auxiliaryExaminations(), 4000), clipped(value.healthEducation(), 4000), clipped(value.followUp(), 4000));
+                validatedVital(value.weightKg(), 0.1, 500, false), clipped(value.allergyHistory(), 4000), clipped(value.medicationHistory(), 4000), clipped(value.auxiliaryExaminations(), 4000), clipped(value.healthEducation(), 4000), clipped(value.followUp(), 4000), value.annotations());
     }
 
     private RecordDraft enrichRecordDraftFromInput(RecordDraft value, GenerateRequest input) {
@@ -720,7 +740,33 @@ public class ClinicalAssistantApplicationService {
         java.math.BigDecimal height = input.draft().heightCm() == null ? draft.heightCm() : input.draft().heightCm();
         return new RecordDraft(draft.chiefComplaint(), draft.presentIllness(), draft.medicalHistory(), draft.physicalExam(),
                 draft.treatmentPlan(), temperature, pulse, respiratoryRate, systolic, diastolic, oxygenSaturation,
-                height, weight, draft.allergyHistory(), draft.medicationHistory(), draft.auxiliaryExaminations(), draft.healthEducation(), draft.followUp());
+                height, weight, draft.allergyHistory(), draft.medicationHistory(), draft.auxiliaryExaminations(), draft.healthEducation(), draft.followUp(), groundedAnnotations(draft, input));
+    }
+
+    private List<com.rhn.outpatient.api.RecordAnnotation> groundedAnnotations(RecordDraft draft, GenerateRequest input) {
+        var fields = new LinkedHashMap<String, String>();
+        fields.put("chiefComplaint", draft.chiefComplaint()); fields.put("presentIllness", draft.presentIllness());
+        fields.put("medicalHistory", draft.medicalHistory()); fields.put("physicalExam", draft.physicalExam());
+        fields.put("allergyHistory", draft.allergyHistory()); fields.put("medicationHistory", draft.medicationHistory());
+        fields.put("auxiliaryExaminations", draft.auxiliaryExaminations()); fields.put("healthEducation", draft.healthEducation());
+        fields.put("followUp", draft.followUp());
+        var result = new ArrayList<com.rhn.outpatient.api.RecordAnnotation>();
+        fields.forEach((field, text) -> {
+            if (text != null && !text.isBlank()) result.add(new com.rhn.outpatient.api.RecordAnnotation(
+                    field, text, 0, "AI", "PRESET", null, null, null, null, false));
+        });
+        String voice = safe(input.question()) + "\n" + safe(input.voiceTranscript());
+        var source = input.draft().evidence();
+        String context = String.join("\n", safe(source.chiefComplaint()), safe(source.presentIllness()),
+                safe(source.medicalHistory()), safe(source.physicalExam()), safe(source.allergyHistory()),
+                safe(source.medicationHistory()), safe(source.auxiliaryExaminations()));
+        for (var item : com.rhn.outpatient.api.RecordAnnotation.anchored(draft.annotations(), fields, false)) {
+            if ("DOCTOR".equals(item.source()) || "TEMPLATE".equals(item.source())) continue;
+            if ("VOICE".equals(item.source()) && (blank(item.sourceQuote()) || !voice.contains(item.sourceQuote()))) continue;
+            if ("CONTEXT".equals(item.source()) && (blank(item.sourceQuote()) || !context.contains(item.sourceQuote()))) continue;
+            result.add(item);
+        }
+        return List.copyOf(result);
     }
 
     private java.math.BigDecimal extractCurrentTemperature(String source) {
@@ -775,11 +821,21 @@ public class ClinicalAssistantApplicationService {
         return List.copyOf(result);
     }
 
+    private String planSearchText(GenerateRequest input) {
+        var evidence = input.draft().evidence();
+        return String.join(" ", safe(input.question()), safe(input.voiceTranscript()), safe(evidence.chiefComplaint()),
+                safe(evidence.presentIllness()), safe(evidence.medicalHistory()),
+                evidence.diagnoses().stream().map(DiagnosisInput::display).collect(java.util.stream.Collectors.joining(" "))).trim();
+    }
+
     private List<ClinicalPlanRetrievalService.Match> retrievePlans(GenerateRequest input,
             List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> visiblePlans) {
-        String text = String.join(" ", safe(input.question()), safe(input.voiceTranscript()),
-                safe(input.draft().chiefComplaint()), safe(input.draft().presentIllness()),
-                safe(input.draft().medicalHistory()), safe(input.draft().treatmentPlan()));
+        return retrievePlans(input, visiblePlans, List.of());
+    }
+
+    private List<ClinicalPlanRetrievalService.Match> retrievePlans(GenerateRequest input,
+            List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> visiblePlans, List<String> expansion) {
+        String text = planSearchText(input) + " " + String.join(" ", expansion);
         List<ClinicalPlanRetrievalService.DiagnosisIdentity> diagnoses = input.draft().diagnoses().stream()
                 .map(value -> new ClinicalPlanRetrievalService.DiagnosisIdentity(
                         ICD10_SYSTEM, "WESTERN_MEDICINE", value.code())).toList();
@@ -861,6 +917,10 @@ public class ClinicalAssistantApplicationService {
     }
 
     private ServerContext loadServerContext(Access access) {
+        return loadServerContext(access, true);
+    }
+
+    private ServerContext loadServerContext(Access access, boolean includePlans) {
         ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(access.encounter().residentId());
         List<AllergyDirectory.AllergySnapshot> allergies = allergyDirectory
                 .activeForResident(access.encounter().residentId()).stream()
@@ -870,7 +930,7 @@ public class ClinicalAssistantApplicationService {
                 .toList();
         ClinicalDocumentDirectory.EncounterDocumentAnchor document = clinicalDocumentDirectory
                 .findEncounterDocumentAnchor(access.encounter().id(), OUTPATIENT_NOTE).orElse(null);
-        List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> plans = planDirectory.visibleForCurrentContext();
+        List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> plans = includePlans ? planDirectory.searchIndexForCurrentContext() : List.of();
         Instant historySince = Instant.now().minus(java.time.Duration.ofDays(90));
         List<OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot> clinicalHistory = historyDirectory
                 .recentForResident(access.encounter().residentId(), access.encounter().id(), historySince, 10);
@@ -898,10 +958,11 @@ public class ClinicalAssistantApplicationService {
                 "birthDate", resident.birthDate() == null ? "" : resident.birthDate().toString(),
                 "deceased", resident.deceased()));
         canonical.put("allergies", allergies.stream().map(this::allergyFact).toList());
-        canonical.put("availablePlans", plans.stream().map(value -> Map.of(
+        canonical.put("availablePlans", plans.stream().sorted(Comparator.comparing(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot::id)).map(value -> Map.of(
                 "id", value.id(), "name", safe(value.name()), "description", safe(value.description()),
                 "diagnoses", value.diagnoses(), "medications", value.medications(),
-                "services", value.services())).toList());
+                "services", value.services(), "tasks", value.tasks(),
+                "contentHash", value.searchProfile() == null ? "" : value.searchProfile().contentHash())).toList());
         canonical.put("diagnosticReports", reports.stream().map(value -> Map.of(
                 "id", value.id(), "version", value.reportVersion(), "status", safe(value.status()),
                 "digest", safe(value.contentDigest()), "issuedAt", value.issuedAt() == null ? "" : value.issuedAt().toString()))
