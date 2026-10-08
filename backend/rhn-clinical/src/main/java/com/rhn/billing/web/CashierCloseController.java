@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -46,6 +47,11 @@ public class CashierCloseController {
     @ResponseStatus(HttpStatus.CREATED)
     CashierCloseView reverse(@PathVariable Long closeId, @Valid @RequestBody ReverseRequest input) {
         return service.reverse(closeId, new ReverseCommand(input.commandCode(), input.reason()));
+    }
+    @GetMapping("/preview")
+    CashierCloseApplicationService.CashierClosePreview previewCashierClose(@RequestParam String terminalCode,
+            @RequestParam Instant rangeFrom, @RequestParam Instant rangeTo) {
+        return service.preview(terminalCode, rangeFrom, rangeTo);
     }
     @GetMapping("/{closeId}") CashierCloseView get(@PathVariable Long closeId) { return service.get(closeId); }
     @GetMapping List<CashierCloseView> listMine() { return service.listMine(); }

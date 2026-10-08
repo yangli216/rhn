@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
+import { Button, EmptyState, LoadingState } from '../ui'
+import '../../styles/cashier-controls.css'
 
 export interface PaymentMethodOption {
   code: string
@@ -17,15 +19,10 @@ export interface PaymentMethodSelectorProps {
   showShortcuts?: boolean
   disabled?: boolean
   className?: string
+  status?: 'ready' | 'loading' | 'error'
+  onRetry?: () => void
   otherLabel?: string
 }
-
-export const DEFAULT_FALLBACK_PAYMENT_METHODS: PaymentMethodOption[] = [
-  { code: 'WECHAT', name: '微信支付', sortOrder: 10, precision: '0.01', roundingMode: 'HALF_UP' },
-  { code: 'ALIPAY', name: '支付宝', sortOrder: 20, precision: '0.01', roundingMode: 'HALF_UP' },
-  { code: 'CASH', name: '现金收款', sortOrder: 30, precision: '0.1', roundingMode: 'FLOOR' },
-  { code: 'BANK_CARD', name: '银行卡', sortOrder: 40, precision: '0.01', roundingMode: 'HALF_UP' },
-]
 
 export function PaymentMethodSelector({
   id,
@@ -37,14 +34,15 @@ export function PaymentMethodSelector({
   disabled = false,
   className = '',
   otherLabel = '其它方式',
+  status = 'ready',
+  onRetry,
 }: PaymentMethodSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // 1. 过滤掉非货币通道（如医保统筹扣缴，医保由医保结算模式处理）
   const monetaryMethods = useMemo(() => {
-    const list = methods && methods.length > 0 ? methods : DEFAULT_FALLBACK_PAYMENT_METHODS
-    return list.filter((m) => m.code !== 'MEDICAL_INSURANCE')
+    return methods.filter((m) => m.code !== 'MEDICAL_INSURANCE')
   }, [methods])
 
   // 2. 严格按字典排序字段 sortOrder 升序排列
@@ -89,6 +87,12 @@ export function PaymentMethodSelector({
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [isOpen])
+
+  if (status === 'loading') return <LoadingState label="正在加载支付方式…" />
+  if (status === 'error' || monetaryMethods.length === 0) return <EmptyState icon="billing"
+    title={status === 'error' ? '支付方式加载失败' : '未配置可用支付方式'}
+    copy="请重新加载或联系管理员维护收银支付方式后再收款。"
+    action={onRetry && <Button onClick={onRetry}>重新加载支付方式</Button>} />
 
   return (
     <div className={`payment-method-selector ${className}`}>
@@ -150,6 +154,7 @@ export function PaymentMethodSelector({
                   <button
                     key={method.code}
                     type="button"
+                    disabled={disabled}
                     role="option"
                     aria-selected={isSelected}
                     className={`payment-method-dropdown-item ${isSelected ? 'is-selected' : ''}`}

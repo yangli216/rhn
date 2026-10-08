@@ -4,22 +4,16 @@ import type { CompiledPlanMedicationItem } from '../../../shared/api/outpatientP
 const medication = (preparationSpec: string, doseValue = 0.5, doseUnit = 'g') => ({ medicationName: '阿莫西林胶囊', preparationSpec, doseValue, doseUnit }) as CompiledPlanMedicationItem
 
 describe('matched medication dose preview', () => {
-  it('recalculates capsule count from actual strength including mg conversion', () => {
-    expect(medicationSingleDoseLabel(medication('0.125g'))).toBe('每次 0.5g（4粒）')
-    expect(medicationSingleDoseLabel(medication('0.25g/粒'))).toBe('每次 0.5g（2粒）')
-    expect(medicationSingleDoseLabel(medication('125mg'))).toBe('每次 0.5g（4粒）')
+  it.each(['0.125g', '0.25g/粒', '125mg', '0.125g+0.1g', '0.3g'])('does not infer administration counts from name or free-text strength: %s', spec => {
+    expect(medicationSingleDoseLabel(medication(spec))).toBe('每次 0.5g')
   })
-  it('does not convert compound strength or incompatible units, or round partial capsules', () => {
-    expect(medicationSingleDoseLabel(medication('0.125g+0.1g'))).toBe('每次 0.5g')
-    expect(medicationSingleDoseLabel(medication('0.3g'))).toBe('每次 0.5g（制剂数量需核对）')
-    expect(medicationSingleDoseLabel(medication('0.125g', 5, 'mL'))).toBe('每次 5mL')
+  it.each([0, -1, Infinity, NaN])('does not display invalid doses as confirmed: %s', value => {
+    expect(medicationSingleDoseLabel(medication('0.25g', value))).toBe('单次剂量待确认')
   })
-  it('formats standard route codes to readable Chinese names', () => {
-    expect(formatRouteName('ORAL')).toBe('口服')
-    expect(formatRouteName('PO')).toBe('口服')
-    expect(formatRouteName('IVGTT')).toBe('静脉滴注')
-    expect(formatRouteName('CUSTOM_ROUTE')).toBe('CUSTOM_ROUTE')
-    expect(formatRouteName(null)).toBe('')
+  it('uses current directory names and marks unknown codes', () => {
+    expect(formatRouteName('LOCAL', [{ code: 'LOCAL', name: '目录途径' }])).toBe('目录途径')
+    expect(formatRouteName('ORAL', [])).toBe('ORAL（待字典核对）')
+    expect(formatRouteName('PO')).toBe('PO（待字典核对）')
+    expect(formatRouteName(null)).toBe('途径待确认')
   })
 })
-

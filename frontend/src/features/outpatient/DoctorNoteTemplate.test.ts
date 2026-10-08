@@ -1,4 +1,4 @@
-import { clinicalRecordContent, createRecordSchema, diagnosisDraftSignature, moveDiagnosis, normalizeDiagnosisOrder, structuredFormSignature, validateStructuredForm } from './record/clinicalRecordDraft'
+import { clinicalRecordContent, createRecordSchema, diagnosisDraftSignature, diagnosisKey, moveDiagnosis, normalizeDiagnosisOrder, structuredFormSignature, validateStructuredForm } from './record/clinicalRecordDraft'
 import { describe, expect, it } from 'vitest'
 import { draftStateLabels, mergeNoteTemplateContent, prescriptionCategoryLabel, printPurposeLabel,
   type NoteTemplateField } from './DoctorWorkstation'
@@ -65,6 +65,16 @@ describe('患者切换草稿保护', () => {
     expect(diagnosisDraftSignature([{ ...baseline[0], type: 'SECONDARY' }]))
       .not.toBe(diagnosisDraftSignature([baseline[0]]))
   })
+  it('诊断签名和提交内容保留显式编码体系与分组，不把身份变更当作未修改', () => {
+    const diagnosis = { code: 'SAME', display: '名称', type: 'PRIMARY' as const, codeSystem: 'SYS_A',
+      diagnosisDomain: 'WESTERN_MEDICINE' as const, diagnosisGroupId: 'group-a' }
+    for (const change of [{ codeSystem: 'SYS_B' }, { diagnosisGroupId: 'group-b' }]) {
+      expect(diagnosisDraftSignature([{ ...diagnosis, ...change }])).not.toBe(diagnosisDraftSignature([diagnosis]))
+    }
+    const form = createRecordSchema(false).parse({ chiefComplaint: '核查', presentIllness: '', medicalHistory: '', physicalExam: '', treatmentPlan: '' })
+    expect(clinicalRecordContent(form, [diagnosis], '', {}).diagnoses[0]).toMatchObject(diagnosis)
+    expect(diagnosisKey(diagnosis)).not.toBe(diagnosisKey({ ...diagnosis, codeSystem: 'SYS_B' }))
+  })
 
   it('首项始终归一化为主要诊断，拖动后同步更新诊断类型', () => {
     const baseline = normalizeDiagnosisOrder([
@@ -72,7 +82,7 @@ describe('患者切换草稿保护', () => {
       { code: 'R42', display: '头晕', type: 'PRIMARY' as const },
     ])
     expect(baseline.map((item) => item.type)).toEqual(['PRIMARY', 'SECONDARY'])
-    const moved = moveDiagnosis(baseline, 'undefined|R42', 'undefined|I10')
+    const moved = moveDiagnosis(baseline, diagnosisKey(baseline[1]), diagnosisKey(baseline[0]))
     expect(moved.map((item) => [item.code, item.type])).toEqual([
       ['R42', 'PRIMARY'], ['I10', 'SECONDARY'],
     ])

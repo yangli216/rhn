@@ -36,10 +36,13 @@ public class PlanInvestigationDecisionService {
     public record Intent(String type, String name) {
         public String key() { return type + "|" + name; }
     }
-    public record ResolvedItem(Long id, String code, String name, String serviceType, BigDecimal quantity, String unitCode) {}
+    public record ResolvedItem(Long id, String code, String name, String serviceType, BigDecimal quantity,
+                               String unitCode, String catalogUnitCode, boolean requiredMember,
+                               String memberDescription, Boolean chargeable) {}
     public record Resolution(ServiceView item, List<ResolvedItem> items, String detail, int exactCount,
                              String matchType) {
         public boolean groupMatch() { return "GROUP".equals(matchType); }
+        public boolean requiresReview() { return "GROUP_REVIEW".equals(matchType) || "REVIEW".equals(matchType); }
     }
 
     public Map<String, Resolution> resolve(List<Intent> intents, ExecutionContext context, LocalDate today) {
@@ -54,21 +57,27 @@ public class PlanInvestigationDecisionService {
             var exact = found.stream().filter(item -> exact(intent.name(), item)).toList();
             if (exact.size() == 1) {
                 ServiceView item = exact.getFirst();
-                resolved.put(intent.key(), new Resolution(item, List.of(toResolved(item)), "", 1, "EXACT"));
+                resolved.put(intent.key(), new Resolution(item, List.of(toResolved(item, context)), "", 1, "EXACT"));
                 continue;
             }
             resolved.put(intent.key(), new Resolution(null, List.of(), "", exact.size(), ""));
             if (exact.size() > 1) continue;
             if (aliases != null) {
                 var aliasIds = aliases.findActiveServiceIdsByAlias(context.tenantId(), intent.name());
-                var aliasMatches = found.stream().filter(item -> aliasIds.contains(item.id())).toList();
-                if (aliasMatches.isEmpty() && !aliasIds.isEmpty()) {
-                    aliasMatches = catalog.findOrderableServicesByIds(aliasIds, context.organizationId(), today);
-                }
+                // Search preferences may return only some alias targets; resolve every configured target.
+                var aliasMatches = aliasIds.isEmpty() ? List.<ServiceView>of()
+                        : catalog.findOrderableServicesByIds(aliasIds, context.organizationId(), today).stream()
+                                .filter(item -> intent.type().equals(item.sdServiceType())).toList();
                 if (aliasMatches.size() == 1) {
                     ServiceView item = aliasMatches.getFirst();
-                    resolved.put(intent.key(), new Resolution(item, List.of(toResolved(item)),
+                    resolved.put(intent.key(), new Resolution(item, List.of(toResolved(item, context)),
                             "已通过项目别名匹配院内目录", 0, "ALIAS"));
+                    continue;
+                }
+                if (!aliasIds.isEmpty()) {
+                    resolved.put(intent.key(), new Resolution(null, List.of(), aliasMatches.isEmpty()
+                            ? "已配置的别名目标在当前机构或项目类型下不可用，请核对"
+                            : "同一别名对应多个可开立项目，请明确具体项目", aliasMatches.size(), "REVIEW"));
                     continue;
                 }
             }
@@ -77,13 +86,27 @@ public class PlanInvestigationDecisionService {
                 var candidates = itemGroups.searchOrderableGroups(context.tenantId(), context.organizationId(),
                         intent.type(), baseName, today).stream()
                         .filter(group -> hintsCovered(group, intent.name())).toList();
+                var exactGroups = candidates.stream().filter(group -> baseName.equalsIgnoreCase(group.name())
+                        || baseName.equalsIgnoreCase(group.code())).toList();
+                if (!exactGroups.isEmpty()) candidates = exactGroups;
+                if (candidates.size() > 1 || (!candidates.isEmpty() && exactGroups.isEmpty())) {
+                    resolved.put(intent.key(), new Resolution(null, List.of(),
+                            "组套名称未唯一精确匹配，请明确组套编码及成员，未自动改选单项", 0, "REVIEW"));
+                    continue;
+                }
                 if (candidates.size() == 1) {
                     var group = candidates.getFirst();
+                    if (!group.unavailableOptionalMemberIds().isEmpty()) {
+                        resolved.put(intent.key(), new Resolution(null, List.of(),
+                                "组套包含当前机构不可用的可选成员，未自动省略，请核对实际开立成员", 0, "GROUP_REVIEW"));
+                        continue;
+                    }
                     var items = group.members().stream()
                             .map(member -> new ResolvedItem(member.catalogItemId(), member.code(), member.name(),
-                                    member.serviceType(), member.quantity(), member.unitCode())).toList();
+                                    member.serviceType(), member.quantity(), member.unitCode(), member.catalogUnitCode(),
+                                    member.requiredMember(), member.memberDescription(), member.chargeable())).toList();
                     resolved.put(intent.key(), new Resolution(null, items,
-                            "已匹配项目组套“" + group.name() + "”，将按组套成员展开", 0, "GROUP"));
+                            "已找到项目组套“" + group.name() + "”，继续核对成员要求", 0, "GROUP"));
                     continue;
                 }
             }
@@ -102,7 +125,12 @@ public class PlanInvestigationDecisionService {
                 }
                 exact = found.stream().filter(item -> exact(intent.name(), item)).toList();
                 if (exact.size() == 1) {
-                    resolved.put(intent.key(), new Resolution(exact.getFirst(), List.of(toResolved(exact.getFirst())), "", 1, "EXACT"));
+                    resolved.put(intent.key(), new Resolution(exact.getFirst(), List.of(toResolved(exact.getFirst(), context)), "", 1, "EXACT"));
+                    continue;
+                }
+                if (exact.size() > 1) {
+                    resolved.put(intent.key(), new Resolution(null, List.of(),
+                            "扩展检索后存在多个同名项目，请明确具体项目", exact.size(), "REVIEW"));
                     continue;
                 }
             }
@@ -111,7 +139,7 @@ public class PlanInvestigationDecisionService {
                     .forEach(item -> unique.putIfAbsent(item.id(), item));
             if (unique.isEmpty()) continue;
             if (unique.size() > 64) {
-                resolved.put(intent.key(), new Resolution(null, List.of(), "候选范围过大，保留人工核对", exact.size(), ""));
+                resolved.put(intent.key(), new Resolution(null, List.of(), "候选范围过大，保留人工核对", exact.size(), "REVIEW"));
                 continue;
             }
             var candidates = List.copyOf(unique.values());
@@ -134,14 +162,19 @@ public class PlanInvestigationDecisionService {
                         .filter(item -> (intent.type() + "|" + item.id()).equals(answer.choice())).findFirst().orElse(null);
             }
             resolved.put(intent.key(), new Resolution(selected,
-                    selected == null ? List.of() : List.of(toResolved(selected)), detail,
+                    selected == null ? List.of() : List.of(toResolved(selected, context)), detail,
                     resolved.get(intent.key()).exactCount(), selected == null ? "" : "DECISION"));
         }
         return resolved;
     }
 
-    private ResolvedItem toResolved(ServiceView item) {
-        return new ResolvedItem(item.id(), item.code(), item.name(), item.sdServiceType(), BigDecimal.ONE, item.unitCode());
+    private ResolvedItem toResolved(ServiceView item, ExecutionContext context) {
+        // A catalog match establishes identity and unit, never the requested quantity.
+        var adoption = item.organizationAdoption();
+        Boolean chargeable = adoption != null && Objects.equals(adoption.organizationId(), context.organizationId())
+                && Objects.equals(adoption.catalogItemId(), item.id()) ? item.chargeable() && adoption.chargeable() : null;
+        return new ResolvedItem(item.id(), item.code(), item.name(), item.sdServiceType(), null,
+                item.unitCode(), item.unitCode(), false, null, chargeable);
     }
 
     private String baseName(String value) {

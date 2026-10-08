@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "cf6b790881c7cf89a94898e2de0d7d9f33de0ebee3ca9d002f9ab8cca929a48e",
+  "fingerprint": "29033795aa43ffea288b26ca6e7fbda613f90ac95920280da8122dd5a636c9d6",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -767,7 +767,7 @@
       "logical": "ins.insurance_claim_response",
       "domain": "INS",
       "comment": "医保理赔响应；一行代表一条医保理赔响应记录",
-      "columns": 16
+      "columns": 17
     },
     {
       "physical": "RHN_INS_CLAIM",

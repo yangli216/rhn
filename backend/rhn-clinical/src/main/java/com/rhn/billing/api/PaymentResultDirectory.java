@@ -11,7 +11,7 @@ public interface PaymentResultDirectory {
     record VerifiedPaymentResult(
             String paymentMethodCode, String externalMessageBusinessId, String commandCode,
             String paymentOrderNo, String externalOrderNo, String externalTransactionNo,
-            ResultStatus status, BigDecimal capturedAmount, String errorCode, String errorMessage,
+            ResultStatus status, BigDecimal capturedAmount, String currencyCode, String errorCode, String errorMessage,
             Object sanitizedPayload) {
         public enum ResultStatus { SUCCEEDED, PENDING, FAILED }
     }

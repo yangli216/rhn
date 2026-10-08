@@ -347,7 +347,7 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(screen.getByLabelText('处方药')).toHaveTextContent('处')
     expect(screen.getByLabelText('基本药物')).toHaveTextContent('基')
     expect(screen.getByLabelText('抗菌药物 · 非限制级')).toHaveTextContent('非')
-    const skinTestMarker = screen.getByLabelText('需皮试 · 皮内试验 · 配制皮试液 · 观察 20 分钟')
+    const skinTestMarker = screen.getByLabelText('需皮试 · 皮试方式未维护 · 试液方式未维护 · 观察 20 分钟')
     expect(skinTestMarker).toHaveTextContent('皮')
     expect(skinTestMarker).not.toHaveAttribute('title')
     expect(screen.queryByText('20分钟')).not.toBeInTheDocument()
@@ -512,6 +512,8 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(screen.getByRole('combobox', { name: '抗菌药物管理级别' })).toHaveClass('ui-select__trigger')
     expect(screen.getByRole('combobox', { name: '皮试给药方式' })).toHaveClass('ui-select__trigger')
     expect(screen.getByRole('combobox', { name: '皮试液制备方式' })).toHaveClass('ui-select__trigger')
+    expect(screen.getByRole('spinbutton', { name: '皮试观察等待时长 (分钟)' })).toHaveValue(null)
+    expect(screen.getByRole('spinbutton', { name: '阴性结果有效期 (小时)' })).toHaveValue(null)
     expect(screen.getByRole('button', { name: '根据当前含量重新生成制剂规格' })).toHaveClass('ui-button')
   })
 
@@ -836,7 +838,7 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
       masterData: {
         itemAttributeMaintenance: vi.fn().mockResolvedValue(mockMaintenance),
         saveItemAttributeValue: vi.fn().mockResolvedValue({}),
-        saveItemAttributeOverride: vi.fn().mockResolvedValue({}),
+        saveItemAttributeOverride: vi.fn().mockResolvedValue({ ...mockMaintenance, overrides: [{ ...mockMaintenance.overrides[0], revision: 2, status: 'ACTIVE', value: 'VIP病房特需' }] }),
       },
       dictionaries: {
         get: vi.fn().mockResolvedValue({ items: [] }),

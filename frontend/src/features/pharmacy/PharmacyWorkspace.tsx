@@ -1,4 +1,4 @@
-import { displayUnitName, formatDoseWithMinimumUnit, formatFrequencyName } from './medicationDisplay'
+import { displayUnitName, formatDoseWithMinimumUnit, formatFrequencyName, recordedMedicationAmount, sumRecordedAmounts, displayRecordedAmount, formatRecordedDuration } from './medicationDisplay'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -544,20 +544,16 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     for (const [pKey, items] of map.entries()) {
       const first = items[0]
       const title = `处方${CHINESE_NUMBER_WORDS[index - 1] || index}`
-      const totalAmount = items.reduce((sum, it) => {
-        const itemAmount = it.request.totalAmount
-          ?? (it.request.unitPrice ? it.request.unitPrice * it.request.quantity : 21.5)
-        return sum + itemAmount
-      }, 0)
+      const totalAmount = sumRecordedAmounts(items.map((it) => recordedMedicationAmount(it.request)))
       const isDispensed = items.every((it) => it.taskStatus === 'COMPLETED')
       const isReady = items.some((it) => it.taskStatus === 'READY_TO_DISPENSE' || it.taskStatus === 'PARTIALLY_DISPENSED')
       const statusLabel = isDispensed ? '已发药' : isReady ? '已配药' : '未配药'
       const isChinese = items.some((it) => it.request.medicationType === 'CHINESE_PATENT' || it.request.medicationType === 'HERBAL')
 
       const snap = (first.request.medicationSnapshot as Record<string, unknown> | undefined) ?? {}
-      const orgName = (snap.organizationName as string) || clinicalContext.organization.name || '三江镇中心卫生院'
-      const deptName = (snap.departmentName as string) || clinicalContext.department.name || '全科医疗科'
-      const doctorName = (snap.doctorName as string) || (snap.clinicianName as string) || first.clinicalContext?.clinicianId || '范贺欣'
+      const orgName = (snap.organizationName as string) || '开立机构未记录'
+      const deptName = (snap.departmentName as string) || '开立科室未记录'
+      const doctorName = (snap.doctorName as string) || (snap.clinicianName as string) || (first.clinicalContext?.clinicianId ? `医生标识 ${first.clinicalContext.clinicianId}` : '开立医生未记录')
 
       cards.push({
         key: pKey,
@@ -565,7 +561,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
         orgName,
         deptName,
         doctorName,
-        authoredAt: first.request.authoredAt || new Date().toISOString(),
+        authoredAt: first.request.authoredAt,
         statusLabel,
         isDispensed,
         isChinese,
@@ -692,13 +688,18 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     onSuccess: (value) => refresh(value.taskId),
   })
   const dispense = useMutation({
-    mutationFn: () => api.pharmacy.dispense(selected!.taskId!, {
+    mutationFn: () => {
+      const quantity = dispenseQuantity.trim() ? Number(dispenseQuantity)
+        : selectedLine ? selectedLine.plannedQuantity - selectedLine.dispensedQuantity : NaN
+      if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('缺少有效的待发药数量，请核实发药任务')
+      return api.pharmacy.dispense(selected!.taskId!, {
       requestCode: `DSP-${task.data!.taskNo}-${Date.now()}`,
-      operationQuantity: Number(dispenseQuantity || selectedLine?.plannedQuantity || 1),
+      operationQuantity: quantity,
       dispenserPractitionerId: practitionerId,
       dispenserAssignmentId: assignmentId,
       description: '已完成患者身份、处方内容与药品实物核对后发药',
-    }),
+      })
+    },
     onSuccess: async (value) => {
       setDispenseQuantity(''); await refresh(value.taskId)
     },
@@ -717,6 +718,11 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
       .filter((item) => item.taskStatus !== 'COMPLETED')
     if (!pendingItems.length) {
       showActionNotice('info', '所选处方均已完成发药，无需重复处理')
+      return
+    }
+    const invalidQuantity = pendingItems.find((item) => !Number.isFinite(item.request.quantity) || item.request.quantity <= 0)
+    if (invalidQuantity) {
+      showActionNotice('warning', `药品“${invalidQuantity.request.medicationName}”缺少有效的发药数量，请核实处方`)
       return
     }
     if (!practitionerId || !assignmentId) {
@@ -774,7 +780,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
           }
           await api.pharmacy.dispense(currentTaskId, {
             requestCode: `DSP-BATCH-${item.request.id}-${Date.now()}`,
-            operationQuantity: item.request.quantity || 1,
+            operationQuantity: item.request.quantity,
             dispenserPractitionerId: practitionerId,
             dispenserAssignmentId: assignmentId,
             description: '已核对处方与患者身份一键发药',
@@ -799,10 +805,10 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
       return
     }
 
-    const totalDispensedAmount = checkedCards.reduce((sum, card) => sum + card.totalAmount, 0)
+    const totalDispensedAmount = sumRecordedAmounts(checkedCards.map((card) => card.totalAmount))
     showActionNotice(
       'success',
-      `已成功完成发药：${activePatient.residentName}，发药处方 ${checkedCards.length} 张，金额 ¥${totalDispensedAmount.toFixed(2)}`,
+      `已成功完成发药：${activePatient.residentName}，发药处方 ${checkedCards.length} 张，${displayRecordedAmount(totalDispensedAmount)}`,
     )
     try {
       await refresh()
@@ -1168,14 +1174,10 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
 
   // Calculations for bottom summary in dispensing mode
   const checkedPrescriptions = prescriptionCards.filter((c) => checkedPrescriptionKeys.has(c.key))
-  const westernAmount = checkedPrescriptions
-    .filter((c) => !c.isChinese)
-    .reduce((sum, c) => sum + c.totalAmount, 0)
-  const chineseAmount = checkedPrescriptions
-    .filter((c) => c.isChinese)
-    .reduce((sum, c) => sum + c.totalAmount, 0)
-  const selectedTotalAmount = checkedPrescriptions.reduce((sum, c) => sum + c.totalAmount, 0)
-  const patientTotalAmount = prescriptionCards.reduce((sum, c) => sum + c.totalAmount, 0)
+  const westernAmount = sumRecordedAmounts(checkedPrescriptions.filter((c) => !c.isChinese).map((c) => c.totalAmount))
+  const chineseAmount = sumRecordedAmounts(checkedPrescriptions.filter((c) => c.isChinese).map((c) => c.totalAmount))
+  const selectedTotalAmount = sumRecordedAmounts(checkedPrescriptions.map((c) => c.totalAmount))
+  const patientTotalAmount = sumRecordedAmounts(prescriptionCards.map((c) => c.totalAmount))
 
   // Patient profile fields
   const pProfile = residentProfile.data
@@ -1183,11 +1185,11 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   const pFullName = pResident?.fullName || activePatient?.residentName || '患者'
   const pGender = genderText(pResident?.gender || activePatient?.gender)
   const pAge = ageText(pResident?.birthDate || activePatient?.birthDate)
-  const pEthnicity = pProfile?.demographicProfile?.ethnicityCodeText || '汉族'
-  const pCoverage = pProfile?.coverages?.[0]?.sdCoverageTypeText || pProfile?.coverages?.[0]?.sdCoverageType || '自费'
-  const pNationalId = pResident?.maskedNationalId || activePatient?.nationalId || '230208194505119377'
-  const pPhone = pResident?.phone || activePatient?.phone || '13367581545'
-  const pAddress = pProfile?.addresses?.[0]?.addressText || '浙江省杭州市滨江区浦沿街道浦沿社区浦沿苑'
+  const pEthnicity = pProfile?.demographicProfile?.ethnicityCodeText || '民族未维护'
+  const pCoverage = pProfile?.coverages?.[0]?.sdCoverageTypeText || pProfile?.coverages?.[0]?.sdCoverageType || '费用类别未知'
+  const pNationalId = pResident?.maskedNationalId || activePatient?.nationalId || '未维护'
+  const pPhone = pResident?.phone || activePatient?.phone || '未维护'
+  const pAddress = pProfile?.addresses?.[0]?.addressText || '未维护'
 
   if (mode === 'query') {
     const practitionerNames = new Map((practitioners.data ?? []).map((value) => [value.id, value.fullName]))
@@ -1793,29 +1795,27 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                           {card.orgName} / {card.deptName} / {card.doctorName}
                         </span>
                         <span className="pharmacy-prescription-card__time">
-                          开单时间: {formatTime(card.authoredAt)}
+                          开单时间: {formatTime(card.authoredAt) || '未记录'}
                         </span>
                       </span>
                       <span className={`pharmacy-prescription-card__status ${card.isDispensed ? 'is-dispensed' : ''}`}>
                         {card.statusLabel}
                       </span>
-                      <button
-                        type="button"
-                        className="pharmacy-prescription-card__history-link"
+                      <Button variant="text" size="sm"
                         onClick={() => setActiveHistorySummary({
                           title: card.title,
                           encounterNo: card.clinicalContext?.encounterNo,
-                          clinicianId: card.doctorName,
+                          clinicianId: card.clinicalContext?.clinicianId,
                           chiefComplaint: card.clinicalContext?.chiefComplaint,
                           diagnoses: card.clinicalContext?.diagnoses || [],
                         })}
                       >
                         病史摘要
-                      </button>
+                      </Button>
                     </div>
                     <div className="pharmacy-prescription-card__header-right">
                       <span>处方金额:</span>
-                      <strong className="pharmacy-prescription-card__amount">{card.totalAmount.toFixed(2)} 元</strong>
+                      <strong className="pharmacy-prescription-card__amount">{displayRecordedAmount(card.totalAmount)}</strong>
                     </div>
                   </header>
 
@@ -1833,7 +1833,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                           <th style={{ minWidth: '4.5rem' }}>总量</th>
                           <th style={{ minWidth: '4.5rem' }}>单价</th>
                           <th style={{ minWidth: '4.5rem' }}>金额</th>
-                          <th style={{ minWidth: '4rem' }}>天数</th>
+                          <th style={{ minWidth: '4rem' }}>疗程</th>
                           <th style={{ minWidth: '6.5rem' }}>已扫数量</th>
                           <th style={{ width: '4.5rem', textAlign: 'center' }}>操作</th>
                         </tr>
@@ -1845,14 +1845,14 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                           const scannedQty = requiresTrace ? getItemScannedCount(req) : req.quantity
                           const isComplete = !requiresTrace || (scannedQty >= req.quantity && req.quantity > 0)
                           const snap = (req.medicationSnapshot as Record<string, unknown> | undefined) ?? {}
-                          const manufacturer = (snap.manufacturerName as string) || (snap.manufacturer as string) || '云南制药有限公司'
-                          const spec = req.packageSpec || req.preparationSpec || '200片/盒'
+                          const manufacturer = req.manufacturerName || (snap.manufacturerName as string) || (snap.manufacturer as string) || '厂家未记录'
+                          const spec = req.packageSpec || req.preparationSpec || '规格未记录'
                           const dosage = formatDoseWithMinimumUnit(req)
                           const frequency = formatFrequencyName(req.frequencyCode, req.frequencyName)
                           const route = req.routeName ?? req.routeCode ?? '未填写'
-                          const unitPrice = req.unitPrice ?? 21.5
-                          const amount = req.totalAmount ?? (unitPrice * req.quantity)
-                          const days = `${req.durationValue ?? 1} 天`
+                          const unitPrice = req.unitPrice
+                          const amount = recordedMedicationAmount(req)
+                          const days = formatRecordedDuration(req)
                           const packageUnit = requestPackageUnit(req.quantityUnit, req.packageUnitName)
 
                           return (
@@ -1877,8 +1877,8 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                               <td>{frequency}</td>
                               <td>{route}</td>
                               <td>{req.quantity} {packageUnit}</td>
-                              <td>{unitPrice.toFixed(2)}</td>
-                              <td>{amount.toFixed(2)}</td>
+                              <td>{unitPrice == null ? '单价未提供' : unitPrice.toFixed(2)}</td>
+                              <td>{amount == null ? '金额未提供' : amount.toFixed(2)}</td>
                               <td>{days}</td>
                               <td>
                                 <span
@@ -1924,20 +1924,20 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
               <div className="pharmacy-dispense-footer__breakdown">
                 <div>
                   <span>已选西药处方总金额:</span>
-                  <strong>{westernAmount > 0 ? `${westernAmount.toFixed(2)} 元` : '-- 元'}</strong>
+                  <strong>{displayRecordedAmount(westernAmount)}</strong>
                 </div>
                 <div>
                   <span>已选中药处方总金额:</span>
-                  <strong>{chineseAmount > 0 ? `${chineseAmount.toFixed(2)} 元` : '-- 元'}</strong>
+                  <strong>{displayRecordedAmount(chineseAmount)}</strong>
                 </div>
                 <div>
                   <span>已选处方总金额:</span>
-                  <strong>{selectedTotalAmount.toFixed(2)} 元</strong>
+                  <strong>{displayRecordedAmount(selectedTotalAmount)}</strong>
                 </div>
               </div>
               <div className="pharmacy-dispense-footer__total">
                 <span>总金额:</span>
-                <strong>{patientTotalAmount.toFixed(2)} 元</strong>
+                <strong>{displayRecordedAmount(patientTotalAmount)}</strong>
               </div>
             </footer>
           </>

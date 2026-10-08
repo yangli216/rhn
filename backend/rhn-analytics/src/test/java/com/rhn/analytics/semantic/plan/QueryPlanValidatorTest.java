@@ -44,7 +44,7 @@ class QueryPlanValidatorTest {
         Resolution res = resolver.resolve(query);
         assertEquals(ResolutionStatus.READY, res.status());
 
-        LogicalQueryPlan plan = planner.plan(res.query(), PlannedScope.defaultDevScope(), LocalDate.of(2026, 9, 17));
+        LogicalQueryPlan plan = planner.plan(res.query(), TestScopes.authorized(), LocalDate.of(2026, 9, 17));
         ValidationResult result = validator.validate(plan);
 
         assertTrue(result.isValid(), "计划应该通过校验，错误信息: " + result.errors());
@@ -66,7 +66,7 @@ class QueryPlanValidatorTest {
         );
 
         Resolution res = resolver.resolve(query);
-        LogicalQueryPlan plan = planner.plan(res.query(), PlannedScope.defaultDevScope(), LocalDate.of(2026, 9, 17));
+        LogicalQueryPlan plan = planner.plan(res.query(), TestScopes.authorized(), LocalDate.of(2026, 9, 17));
 
         // 故意剥离租户过滤
         List<PlannedFilter> tamperedFilters = plan.filters().stream()
@@ -109,7 +109,7 @@ class QueryPlanValidatorTest {
         );
 
         Resolution res = resolver.resolve(query);
-        LogicalQueryPlan plan = planner.plan(res.query(), PlannedScope.defaultDevScope(), LocalDate.of(2026, 9, 17));
+        LogicalQueryPlan plan = planner.plan(res.query(), TestScopes.authorized(), LocalDate.of(2026, 9, 17));
 
         PlannedTimeRange invalidTimeRange = new PlannedTimeRange(
             plan.primaryEntity(),
@@ -156,7 +156,7 @@ class QueryPlanValidatorTest {
         );
 
         Resolution res = resolver.resolve(query);
-        LogicalQueryPlan plan = planner.plan(res.query(), PlannedScope.defaultDevScope(), LocalDate.of(2026, 9, 17));
+        LogicalQueryPlan plan = planner.plan(res.query(), TestScopes.authorized(), LocalDate.of(2026, 9, 17));
 
         LogicalQueryPlan tamperedPlan = new LogicalQueryPlan(
             plan.planId(),
@@ -194,7 +194,7 @@ class QueryPlanValidatorTest {
         );
 
         Resolution res = resolver.resolve(query);
-        LogicalQueryPlan plan = planner.plan(res.query(), PlannedScope.defaultDevScope(), LocalDate.of(2026, 9, 17));
+        LogicalQueryPlan plan = planner.plan(res.query(), TestScopes.authorized(), LocalDate.of(2026, 9, 17));
 
         // 试图从 ENCOUNTER (1) 扇出 Join 到 CHARGE (N)
         PlannedJoin fanoutJoin = new PlannedJoin(

@@ -1,3 +1,4 @@
+import { resolveServicePricing } from './servicePricing'
 import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 import type { MedicationRequest, ServiceRequest } from '../../../shared/api/encountersApi'
 import type { AllergyIntolerance } from '../../../shared/api/residentsApi'
@@ -103,7 +104,7 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
           const hasSafetyAlert = drugAllergies.length > 0 || Boolean(raw.skinTestRequired || raw.antimicrobial)
           const quantity = item.orderDraft?.quantity ?? calculatePackageQuantity({ medication: raw, doseValue, doseUnit, frequencyCode,
             durationValue, selectedPackage: product, frequencies: activeFrequencies })?.quantity
-          if (quantity == null) return { item, error: '当前频次无法自动推算总量，请手动填写开药总量' }
+          if (quantity == null) return { item, error: '剂量、疗程或包装信息无法可靠推算总量，请手动填写开药总量' }
           if (!Number.isFinite(quantity) || quantity <= 0) return { item, error: '请填写有效的开药总量' }
           if (quantity > Number(raw.availablePackageQuantity)) return { item, error: '当前可用库存不足' }
           const draft: MedicationPlanDraft = {
@@ -142,10 +143,9 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
           && value.organizationAdoption.sdStatus === 'ACTIVE' && value.organizationAdoption.orderable
           && value.organizationAdoption.executable && valid(value.organizationAdoption.validFrom, value.organizationAdoption.validTo))
         if (!raw) return { item, error: '已不在本次可用诊疗目录中' }
-        const activePrice = raw.prices?.filter((price) => price.sdStatus === 'ACTIVE' && price.sdPriceType === 'SALE'
-          && (!price.organizationId || price.organizationId === encounter.organizationId)
-          && valid(price.validFrom, price.validTo)).sort((left, right) =>
-            Number(Boolean(right.organizationId)) - Number(Boolean(left.organizationId)))[0]
+        const pricing = resolveServicePricing(raw, encounter.organizationId)
+        if (pricing.error) return { item, error: pricing.error }
+        const activePrice = pricing.price
         const quantity = item.orderDraft?.quantity ?? 1
         if (!Number.isFinite(quantity) || quantity <= 0) return { item, error: '请填写有效的项目总量' }
         const serviceDraft: ServicePlanDraft = {

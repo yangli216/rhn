@@ -361,6 +361,12 @@ export interface CashierCloseLine {
   currencyCode: string
 }
 
+export interface CashierClosePreview {
+  currencyCode: string
+  transactionCount: number
+  lines: Array<Pick<CashierCloseLine, 'paymentMethodCode' | 'paymentType' | 'transactionCount' | 'expectedAmount'>>
+}
+
 export interface CashierClose {
   id: string
   revision: number
@@ -491,6 +497,8 @@ export function createBillingApi(client: ApiClient) {
       `/api/billing/reconciliation/daily?businessDate=${encodeURIComponent(businessDate)}`,
     ),
     cashierCloses: () => client.request<CashierClose[]>('/api/billing/cashier-closes'),
+    cashierClosePreview: (terminalCode: string, rangeFrom: string, rangeTo: string) =>
+      client.request<CashierClosePreview>(`/api/billing/cashier-closes/preview?${new URLSearchParams({ terminalCode, rangeFrom, rangeTo })}`),
     calculateCashierClose: (input: {
       commandCode: string
       terminalCode: string
@@ -513,14 +521,14 @@ export function createBillingApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify(input),
       },
     ),
-    quickPreSettleInsurance: (settlementId: string, input?: {
+    quickPreSettleInsurance: (settlementId: string, input: {
       insuranceTypeCode?: string
       regionCode?: string
       coverageId?: string
-      idempotencyKey?: string
+      idempotencyKey: string
     }) => client.request<InsuranceSettlementView>(
       `/api/billing/settlements/${settlementId}/insurance/quick-pre-settle`, {
-        method: 'POST', body: JSON.stringify(input ?? {}),
+        method: 'POST', body: JSON.stringify(input),
       },
     ),
     settleInsurance: (claimId: string, commandCode: string) => client.request<InsuranceSettlementView>(
@@ -614,7 +622,7 @@ export interface InsuranceSettlementView {
   coverageId?: string
   claimNo: string
   settlementNo: string
-  status: 'PRE_SETTLED' | 'SETTLED' | 'REVERSED' | 'FAILED'
+  status: 'PRE_SETTLEMENT_PENDING' | 'PRE_SETTLED' | 'SETTLEMENT_PENDING' | 'SETTLED' | 'REVERSAL_PENDING' | 'REVERSED' | 'FAILED'
   currentOperation?: string
   regionCode: string
   insuranceTypeCode: string
@@ -658,13 +666,14 @@ export interface InsuranceClaimResponseView {
   operation: string
   status: string
   externalSettlementNo?: string
-  insuranceFundAmount: number
-  personalAccountAmount: number
-  patientCashAmount: number
-  otherFundAmount: number
+  insuranceFundAmount: number | null
+  personalAccountAmount: number | null
+  patientCashAmount: number | null
+  otherFundAmount: number | null
   errorCode?: string
   errorMessage?: string
   respondedAt?: string
+  amountSource: 'REPORTED' | 'LEGACY_UNVERIFIED'
 }
 
 export interface ReceiptView {

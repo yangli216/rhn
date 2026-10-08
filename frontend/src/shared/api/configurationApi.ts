@@ -200,37 +200,37 @@ export function createConfigurationApi(client: ApiClient) {
     changes: (id: string) => client.request<ParameterChange[]>(
       `/api/platform/configuration/definitions/${id}/changes`,
     ),
-    create: (input: ParameterDefinitionInput) => client.request<ParameterDefinition>(
+    create: (input: ParameterDefinitionInput, requestCode: string = crypto.randomUUID()) => client.request<ParameterDefinition>(
       '/api/platform/configuration/definitions', {
-        method: 'POST', body: JSON.stringify({ ...input, requestCode: crypto.randomUUID() }),
+        method: 'POST', body: JSON.stringify({ ...input, requestCode }),
       },
     ),
-    update: (id: string, revision: number, input: ParameterDefinitionInput) => client.request<ParameterDefinition>(
+    update: (id: string, revision: number, input: ParameterDefinitionInput, requestCode: string = crypto.randomUUID()) => client.request<ParameterDefinition>(
       `/api/platform/configuration/definitions/${id}`, {
-        method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision, requestCode: crypto.randomUUID() }),
+        method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision, requestCode }),
       },
     ),
-    changeStatus: (id: string, revision: number, enabled: boolean) => client.request<ParameterDefinition>(
+    changeStatus: (id: string, revision: number, enabled: boolean, requestCode: string = crypto.randomUUID()) => client.request<ParameterDefinition>(
       `/api/platform/configuration/definitions/${id}/${enabled ? 'enable' : 'disable'}`, {
         method: 'POST', body: JSON.stringify({ expectedRevision: revision,
-          reason: enabled ? '重新启用参数定义' : '停止参数解析', requestCode: crypto.randomUUID() }),
+          reason: enabled ? '重新启用参数定义' : '停止参数解析', requestCode }),
       },
     ),
-    saveValue: (id: string, input: ParameterValueInput) => client.request<ParameterDefinition>(
+    saveValue: (id: string, input: ParameterValueInput, requestCode: string = crypto.randomUUID()) => client.request<ParameterDefinition>(
       `/api/platform/configuration/definitions/${id}/values`, {
-        method: 'PUT', body: JSON.stringify({ ...input, requestCode: crypto.randomUUID() }),
+        method: 'PUT', body: JSON.stringify({ ...input, requestCode }),
       },
     ),
-    changeValueStatus: (id: string, value: ParameterValue, enabled: boolean) => client.request<ParameterDefinition>(
+    changeValueStatus: (id: string, value: ParameterValue, enabled: boolean, requestCode: string = crypto.randomUUID()) => client.request<ParameterDefinition>(
       `/api/platform/configuration/definitions/${id}/values/${value.id}/${enabled ? 'enable' : 'disable'}`, {
         method: 'POST', body: JSON.stringify({ expectedRevision: value.revision,
-          reason: enabled ? '重新启用当前值' : '停止使用当前值', requestCode: crypto.randomUUID() }),
+          reason: enabled ? '重新启用当前值' : '停止使用当前值', requestCode }),
       },
     ),
-    rollback: (id: string, changeId: string, expectedRevision: number, reason: string) =>
+    rollback: (id: string, changeId: string, expectedRevision: number, reason: string, requestCode: string = crypto.randomUUID()) =>
       client.request<ParameterDefinition>(
         `/api/platform/configuration/definitions/${id}/changes/${changeId}/rollback`, {
-          method: 'POST', body: JSON.stringify({ expectedRevision, reason, requestCode: crypto.randomUUID() }),
+          method: 'POST', body: JSON.stringify({ expectedRevision, reason, requestCode }),
         },
       ),
   }

@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   InventoryBalance, InventoryPriceAdjustment, InventoryPriceAdjustmentLine, StockBin, StockItem,
 } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, Select, StatusBadge } from '../../shared/ui'
+import { inventoryPriceAdjustmentPresentation } from '../../shared/presentation'
+import { inventoryAverageCost, knownInventoryNumber } from './inventoryLedgerTruth'
+import { hasAdjustmentSnapshot, hasAdjustmentTotals, requirePriceAdjustment, requirePriceAdjustments, validAdjustmentTargets } from './priceAdjustmentTruth'
 
-const statusText: Record<string, string> = {
-  DRAFT: '草稿', SUBMITTED: '待审核', APPROVED: '已审核', POSTING: '记账中', POSTED: '已记账', CANCELLED: '已取消',
-}
 const typeText: Record<string, string> = { COST_REVALUE: '成本重估', SALE_PRICE: '销售调价' }
 
 export function InventoryPriceAdjustmentManagement({ api, siteId, items, bins, balances }: {
@@ -21,7 +21,7 @@ export function InventoryPriceAdjustmentManagement({ api, siteId, items, bins, b
   const [postTarget, setPostTarget] = useState<InventoryPriceAdjustment>()
   const adjustments = useQuery({
     queryKey: ['warehouse-price-adjustments', siteId],
-    queryFn: () => api.pharmacy.priceAdjustments(siteId), enabled: Boolean(siteId),
+    queryFn: async () => requirePriceAdjustments(await api.pharmacy.priceAdjustments(siteId), siteId), enabled: Boolean(siteId),
   })
   const selected = adjustments.data?.find(value => value.id === selectedId) ?? adjustments.data?.[0]
 
@@ -39,39 +39,46 @@ export function InventoryPriceAdjustmentManagement({ api, siteId, items, bins, b
     if (value) setSelectedId(value.id)
   }
   const create = useMutation({
-    mutationFn: (input: Parameters<RhnApi['pharmacy']['createPriceAdjustment']>[0]) => api.pharmacy.createPriceAdjustment(input),
+    mutationFn: async (input: Parameters<RhnApi['pharmacy']['createPriceAdjustment']>[0]) =>
+      requirePriceAdjustment(await api.pharmacy.createPriceAdjustment(input), siteId, { status: 'DRAFT', requestCode: input.requestCode }),
     onSuccess: async value => { setCreateOpen(false); await refresh(value) },
   })
-  const submit = useMutation({ mutationFn: api.pharmacy.submitPriceAdjustment, onSuccess: refresh })
-  const approve = useMutation({ mutationFn: api.pharmacy.approvePriceAdjustment, onSuccess: refresh })
+  const submit = useMutation({ mutationFn: async (id: string) => requirePriceAdjustment(await api.pharmacy.submitPriceAdjustment(id), siteId, { id, status: 'SUBMITTED' }), onSuccess: refresh })
+  const approve = useMutation({ mutationFn: async (id: string) => requirePriceAdjustment(await api.pharmacy.approvePriceAdjustment(id), siteId, { id, status: 'APPROVED' }), onSuccess: refresh })
   const post = useMutation({
-    mutationFn: api.pharmacy.postPriceAdjustment,
+    mutationFn: async (id: string) => requirePriceAdjustment(await api.pharmacy.postPriceAdjustment(id), siteId, { id, status: 'POSTED' }),
     onSuccess: async value => { setPostTarget(undefined); await refresh(value) },
   })
-  const cancel = useMutation({ mutationFn: api.pharmacy.cancelPriceAdjustment, onSuccess: refresh })
-  const error = adjustments.error || create.error || submit.error || approve.error || post.error || cancel.error
+  const cancel = useMutation({ mutationFn: async (id: string) => requirePriceAdjustment(await api.pharmacy.cancelPriceAdjustment(id), siteId, { id, status: 'CANCELLED' }), onSuccess: refresh })
+  const actionError = submit.error || approve.error || post.error || cancel.error
+  const unavailable = adjustments.isError || Boolean(actionError)
+  const busy = adjustments.isFetching || submit.isPending || approve.isPending || post.isPending || cancel.isPending
+  const canPost = !unavailable && !busy && Boolean(postTarget && selected?.id === postTarget.id
+    && selected.revision === postTarget.revision && selected.stockSiteId === siteId && selected.status === 'APPROVED')
+  const reload = () => { submit.reset(); approve.reset(); post.reset(); cancel.reset(); void adjustments.refetch() }
 
   return <section className="warehouse-section warehouse-price">
     <header className="warehouse-section__toolbar"><div><strong>库存调价</strong>
       <span>销售调价与成本重估分单管理；预检锁定库存快照，正式记账不改库存数量</span></div>
       <Button size="sm" onClick={() => { create.reset(); setCreateOpen(true) }}>新建调价单</Button></header>
-    {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
-    {adjustments.isPending ? <LoadingState label="正在读取库存调价单…" /> : !adjustments.data?.length
+    {unavailable ? <EmptyState icon="pharmacy" title="调价结果不可用" copy={errorMessage(adjustments.error || actionError)}
+      action={<Button size="sm" onClick={reload}>重新读取调价单</Button>} /> : adjustments.isPending ? <LoadingState label="正在读取库存调价单…" /> : !adjustments.data?.length
       ? <EmptyState icon="pharmacy" title="尚无库存调价单" copy="可批量选择经营项目发起成本重估或销售调价，系统将完整保留调前、调后和差额。"
         action={<Button size="sm" onClick={() => setCreateOpen(true)}>新建调价单</Button>} />
       : <div className="warehouse-price__workspace">
         <AdjustmentList rows={adjustments.data} selectedId={selected?.id} onSelect={setSelectedId} />
         {selected && <AdjustmentDetail value={selected} items={items} bins={bins}
-          busy={submit.isPending || approve.isPending || post.isPending || cancel.isPending}
+          busy={busy}
           onSubmit={() => submit.mutate(selected.id)} onApprove={() => approve.mutate(selected.id)}
           onPost={() => setPostTarget(selected)} onCancel={() => cancel.mutate(selected.id)} />}
       </div>}
-    {createOpen && <CreateAdjustmentDialog items={items} balances={balances} siteId={siteId}
+    {createOpen && <CreateAdjustmentDialog key={siteId} items={items} balances={balances} siteId={siteId}
       busy={create.isPending} error={create.error} onClose={() => setCreateOpen(false)} onSubmit={input => create.mutate(input)} />}
     {postTarget && <Dialog eyebrow="库存调价" title={`确认记账 ${postTarget.adjustmentNo}？`} size="wide"
       description="系统将再次核对预检时的库存版本；库存发生变化时会拒绝记账并要求重新建单。"
       onClose={() => setPostTarget(undefined)} footer={<><Button variant="secondary" onClick={() => setPostTarget(undefined)}>取消</Button>
-        <Button busy={post.isPending} onClick={() => post.mutate(postTarget.id)}>确认正式记账</Button></>}>
+        <Button busy={post.isPending} disabled={!canPost} onClick={() => { if (canPost) post.mutate(postTarget.id) }}>确认正式记账</Button></>}>
+      {!canPost && <p role="status">当前调价结果不可用或正在更新，请重新读取确认后再记账。</p>}
       <div className="warehouse-period__confirm"><strong>记账影响</strong><ul>
         <li>{postTarget.adjustmentType === 'COST_REVALUE' ? '更新现存批次的单位成本，并写入独立价值调整流水。' : '生成新的目录销售价格版本，并写入零售价价值流水。'}</li>
         <li>库存数量、业务收发流水和历史价格记录均不会被改写。</li>
@@ -87,10 +94,10 @@ function AdjustmentList({ rows, selectedId, onSelect }: {
   return <aside className="warehouse-price__list"><header><strong>调价单据</strong><span>{rows.length} 单</span></header>
     <div>{rows.map(row => <button type="button" key={row.id} className={row.id === selectedId ? 'is-selected' : ''}
       onClick={() => onSelect(row.id)}><span className="warehouse-price__list-main"><span><strong title={row.adjustmentNo}>{row.adjustmentNo}</strong>
-        <StatusBadge tone={statusTone(row.status)}>{statusText[row.status] ?? row.status}</StatusBadge></span>
+        <StatusBadge tone={inventoryPriceAdjustmentPresentation(row.status).tone}>{inventoryPriceAdjustmentPresentation(row.status).label}</StatusBadge></span>
         <small>{typeText[row.adjustmentType]} · {row.businessDate}</small></span>
       <span className="warehouse-price__list-summary"><small>{row.lineCount} 个经营项目</small>
-        <strong className={row.totalAdjustmentAmount < 0 ? 'is-negative' : ''}>{signedMoney(row.totalAdjustmentAmount)}</strong></span>
+        <strong className={row.totalAdjustmentAmount < 0 ? 'is-negative' : ''}>{hasAdjustmentTotals(row) ? signedMoney(row.totalAdjustmentAmount, row.currencyCode) : '尚未预检'}</strong></span>
     </button>)}</div></aside>
 }
 
@@ -101,46 +108,48 @@ function AdjustmentDetail({ value, items, bins, busy, onSubmit, onApprove, onPos
   return <div className="warehouse-price__detail"><header className="warehouse-price__heading"><div>
     <span className="ui-eyebrow">{typeText[value.adjustmentType]}</span><h3>{value.adjustmentNo}</h3>
     <p>{value.businessDate} · {value.reason}{value.priceDocumentCode ? ` · 依据 ${value.priceDocumentCode}` : ''}</p></div>
-    <div><StatusBadge tone={statusTone(value.status)}>{statusText[value.status] ?? value.status}</StatusBadge>
+    <div><StatusBadge tone={inventoryPriceAdjustmentPresentation(value.status).tone}>{inventoryPriceAdjustmentPresentation(value.status).label}</StatusBadge>
       {value.status === 'DRAFT' && <><Button size="sm" variant="secondary" disabled={busy} onClick={onCancel}>取消</Button>
         <Button size="sm" busy={busy} onClick={onSubmit}>提交预检</Button></>}
       {value.status === 'SUBMITTED' && <><Button size="sm" variant="secondary" disabled={busy} onClick={onCancel}>取消</Button>
         <Button size="sm" busy={busy} onClick={onApprove}>审核通过</Button></>}
       {value.status === 'APPROVED' && <Button size="sm" busy={busy} onClick={onPost}>正式记账</Button>}
     </div></header>
-    <div className="warehouse-price__metrics"><Metric label="调前库存价值" value={money(value.totalValueBefore)} />
-      <Metric label="调后库存价值" value={money(value.totalValueAfter)} />
-      <Metric label="价值调整" value={signedMoney(value.totalAdjustmentAmount)} emphatic />
+    <div className="warehouse-price__metrics"><Metric label="调前库存价值" value={hasAdjustmentTotals(value) ? money(value.totalValueBefore, value.currencyCode) : '预检后确认'} />
+      <Metric label="调后库存价值" value={hasAdjustmentTotals(value) ? money(value.totalValueAfter, value.currencyCode) : '预检后确认'} />
+      <Metric label="价值调整" value={hasAdjustmentTotals(value) ? signedMoney(value.totalAdjustmentAmount, value.currencyCode) : '预检后确认'} emphatic />
       <Metric label="影响范围" value={`${value.lineCount} 个经营项目`} />
     </div>
     <section className="warehouse-price__lines"><header><strong>调价明细</strong><span>数量统一按基本单位展示</span></header>
       <div className="warehouse-table-wrap"><table className="warehouse-table"><thead><tr><th>经营项目</th><th>现存数量</th>
         <th>调前价格</th><th>调后价格</th><th>调前价值</th><th>调后价值</th><th>调整金额</th><th>批次 / 库位</th></tr></thead>
-        <tbody>{value.lines.map(line => <LineRow key={line.id} line={line} type={value.adjustmentType} items={items} bins={bins} />)}</tbody>
+        <tbody>{value.lines.map(line => <LineRow key={line.id} line={line} type={value.adjustmentType} currency={value.currencyCode} items={items} bins={bins} />)}</tbody>
       </table></div></section>
   </div>
 }
 
-function LineRow({ line, type, items, bins }: {
-  line: InventoryPriceAdjustmentLine; type: InventoryPriceAdjustment['adjustmentType']; items: StockItem[]; bins: StockBin[]
+function LineRow({ line, type, currency, items, bins }: {
+  line: InventoryPriceAdjustmentLine; type: InventoryPriceAdjustment['adjustmentType']; currency: string; items: StockItem[]; bins: StockBin[]
 }) {
   const item = items.find(value => value.id === line.stockItemId)
   const before = type === 'COST_REVALUE' ? line.oldUnitCost : line.oldSalePrice
   const after = type === 'COST_REVALUE' ? line.newUnitCost : line.newSalePrice
-  const details = line.details ?? []
+  const previewed = hasAdjustmentSnapshot(line)
+  const details = line.details
   const binCount = new Set(details.map(value => value.stockBinId)).size
   return <tr><td><strong>{item?.productName ?? `经营项目 …${line.stockItemId.slice(-6)}`}</strong>
     <small>{item?.productCode ?? line.stockItemId} · {item?.packageSpec ?? item?.packageUnitName}</small></td>
-    <td><strong>{quantity(line.quantitySnapshot)} {item?.baseUnitCode ?? ''}</strong><small>{details.length} 个库存维度</small></td>
-    <td>{before === undefined || before === null ? '预检后确认' : money(before)}</td><td><strong>{money(after)}</strong></td>
-    <td>{money(line.valueBefore)}</td><td>{money(line.valueAfter)}</td><td><strong>{signedMoney(line.adjustmentAmount)}</strong></td>
-    <td><strong>{details.length} 批次维度</strong><small>{binCount} 个库位{details[0] ? ` · ${binName(bins, details[0].stockBinId)}` : ''}</small></td></tr>
+    <td><strong>{previewed ? `${quantity(line.quantitySnapshot)} ${item?.baseUnitCode ?? ''}` : '预检后确认'}</strong><small>{previewed ? `${details.length} 个库存维度` : '尚未预检'}</small></td>
+    <td>{previewed ? money(before, currency) : '预检后确认'}</td><td><strong>{money(after, currency)}</strong></td>
+    <td>{previewed ? money(line.valueBefore, currency) : '预检后确认'}</td><td>{previewed ? money(line.valueAfter, currency) : '预检后确认'}</td><td><strong>{previewed ? signedMoney(line.adjustmentAmount, currency) : '预检后确认'}</strong></td>
+    <td><strong>{previewed ? `${details.length} 批次维度` : '预检后确认'}</strong><small>{previewed ? `${binCount} 个库位${details[0] ? ` · ${binName(bins, details[0].stockBinId)}` : ''}` : '尚未预检'}</small></td></tr>
 }
 
 function CreateAdjustmentDialog({ items, balances, siteId, busy, error, onClose, onSubmit }: {
   items: StockItem[]; balances: InventoryBalance[]; siteId: string; busy: boolean; error: unknown; onClose: () => void
   onSubmit: (input: Parameters<RhnApi['pharmacy']['createPriceAdjustment']>[0]) => void
 }) {
+  const request = useRef<{ signature: string; code: string } | undefined>(undefined)
   const [type, setType] = useState<'COST_REVALUE' | 'SALE_PRICE'>('COST_REVALUE')
   const [businessDate, setBusinessDate] = useState(today())
   const [documentCode, setDocumentCode] = useState('')
@@ -149,20 +158,25 @@ function CreateAdjustmentDialog({ items, balances, siteId, busy, error, onClose,
   const [targets, setTargets] = useState<Record<string, string>>({})
   const stockedItems = useMemo(() => items.filter(item => balances.some(row => row.stockItemId === item.id && row.quantityOnHand > 0)), [items, balances])
   const visible = stockedItems.filter(item => `${item.productName} ${item.productCode}`.toLowerCase().includes(query.trim().toLowerCase()))
-  const selectedCount = Object.values(targets).filter(value => value !== '').length
-  const invalid = !reason.trim() || selectedCount === 0 || Object.values(targets).some(value => value !== '' && Number(value) < 0)
-  const submit = () => onSubmit({ stockSiteId: siteId, requestCode: `PA-${Date.now()}`, adjustmentType: type,
+  const selectedCount = Object.keys(targets).length
+  const invalid = !reason.trim() || !businessDate || !validAdjustmentTargets(targets)
+  const submit = () => {
+    if (invalid || busy) return
+    const signature = JSON.stringify([siteId, type, businessDate, documentCode.trim(), reason.trim(), targets])
+    if (request.current?.signature !== signature) request.current = { signature, code: `PA-${crypto.randomUUID()}` }
+    onSubmit({ stockSiteId: siteId, requestCode: request.current.code, adjustmentType: type,
     priceType: type === 'SALE_PRICE' ? 'SALE' : undefined, businessDate, currencyCode: 'CNY',
     priceDocumentCode: documentCode.trim() || undefined, reason: reason.trim(), lines: Object.entries(targets)
-      .filter(([, value]) => value !== '').map(([stockItemId, value]) => type === 'COST_REVALUE'
+      .map(([stockItemId, value]) => type === 'COST_REVALUE'
         ? { stockItemId, newUnitCost: Number(value) } : { stockItemId, newSalePrice: Number(value) }),
-  })
+    })
+  }
 
   return <Dialog eyebrow="库存调价" title="新建调价单" size="xwide"
-    description="一次可选择多个经营项目。创建草稿后需经过预检、审核和正式记账。" onClose={onClose}
+    description="金额币种：CNY。一次可选择多个经营项目，创建草稿后需经过预检、审核和正式记账。" onClose={onClose}
     footer={<><Button variant="secondary" onClick={onClose}>取消</Button><Button busy={busy} disabled={invalid} onClick={submit}>创建调价单</Button></>}>
     <div className="warehouse-price-form">
-      {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
+      {Boolean(error) && <Alert duration={null} dismissible={false}>{errorMessage(error)}</Alert>}
       <div className="warehouse-price-form__meta">
         <FormField label="调价类型" required><Select value={type} clearable={false} searchable={false}
           options={[{ value: 'COST_REVALUE', label: '成本重估' }, { value: 'SALE_PRICE', label: '销售调价' }]}
@@ -180,8 +194,8 @@ function CreateAdjustmentDialog({ items, balances, siteId, busy, error, onClose,
             return <tr key={item.id}><td><input type="checkbox" aria-label={`选择${item.productName}`} checked={selected}
               onChange={event => setTargets(current => { const next = { ...current }; if (event.target.checked) next[item.id] = ''; else delete next[item.id]; return next })} /></td>
               <td><strong>{item.productName}</strong><small>{item.productCode} · {item.packageSpec ?? item.packageUnitName}</small></td>
-              <td><strong>{quantity(summary.quantity)} {item.baseUnitCode}</strong><small>约 {quantity(summary.quantity / item.packageFactor)} {item.packageUnitName}</small></td>
-              <td>{summary.cost === undefined ? '—' : money(summary.cost)}</td><td><input className="warehouse-price-form__price" type="number" min="0" step="0.000001"
+              <td><strong>{quantity(summary.quantity)} {item.baseUnitCode}</strong><small>{knownInventoryNumber(item.packageFactor) !== undefined && item.packageFactor > 0 ? `约 ${quantity(summary.quantity / item.packageFactor)} ${item.packageUnitName ?? ''}` : '包装换算未取得'}</small></td>
+              <td>{summary.cost === undefined ? '成本未取得' : quantity(summary.cost)}</td><td><input className="warehouse-price-form__price" aria-label={`${item.productName}新价格`} type="number" min="0" step="0.000001"
                 disabled={!selected} value={targets[item.id] ?? ''} placeholder="0.000000"
                 onChange={event => setTargets(current => ({ ...current, [item.id]: event.target.value }))} /></td></tr> })}</tbody></table></div>
       </div>
@@ -198,15 +212,18 @@ function Metric({ label, value, emphatic = false }: { label: string; value: stri
 function itemBalance(itemId: string, balances: InventoryBalance[]) {
   const rows = balances.filter(value => value.stockItemId === itemId && value.quantityOnHand > 0)
   const quantityValue = rows.reduce((sum, value) => sum + value.quantityOnHand, 0)
-  const value = rows.reduce((sum, row) => sum + row.quantityOnHand * (row.averageUnitCost ?? 0), 0)
-  return { quantity: quantityValue, cost: rows.some(row => row.averageUnitCost === undefined) || !quantityValue ? undefined : value / quantityValue }
+  return { quantity: quantityValue, cost: inventoryAverageCost(rows) }
 }
-function statusTone(value: string): 'neutral' | 'info' | 'warning' | 'success' {
-  if (value === 'POSTED') return 'success'; if (value === 'SUBMITTED' || value === 'APPROVED') return 'warning'
-  if (value === 'DRAFT') return 'info'; return 'neutral'
+function money(value: number | undefined, currency: string) {
+  return knownInventoryNumber(value) === undefined ? '金额未取得'
+    : `${currency} ${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(value!)}`
 }
-function money(value?: number) { return `¥ ${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(value ?? 0)}` }
-function signedMoney(value?: number) { const amount = value ?? 0; return `${amount > 0 ? '+' : amount < 0 ? '-' : ''}${money(Math.abs(amount))}` }
-function quantity(value?: number) { return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value ?? 0) }
+function signedMoney(value: number | undefined, currency: string) {
+  if (knownInventoryNumber(value) === undefined) return '金额未取得'
+  return `${value! > 0 ? '+' : value! < 0 ? '-' : ''}${money(Math.abs(value!), currency)}`
+}
+function quantity(value?: number) {
+  return knownInventoryNumber(value) === undefined ? '数量未取得' : new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value!)
+}
 function today() { return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' }) }
 function binName(bins: StockBin[], id: string) { return bins.find(value => value.id === id)?.name ?? `库位 …${id.slice(-6)}` }

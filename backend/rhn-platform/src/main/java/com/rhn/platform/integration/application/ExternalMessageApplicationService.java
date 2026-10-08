@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -39,8 +40,17 @@ public class ExternalMessageApplicationService implements ExternalMessageService
         Long tenantId = TenantContext.requireTenantId();
         String payload = jsonCodec.write(command.payload()); String digest = sha256(payload);
         var existing = repository.findByTenantIdAndEndpointCodeAndDirectionAndBusinessMessageId(
-                tenantId, command.endpointCode(), "OUTBOUND", command.businessMessageId());
-        if (existing.isPresent()) return sameOrConflict(existing.get(), digest);
+                tenantId, Strings.trimToNull(command.endpointCode()), "OUTBOUND", Strings.trimToNull(command.businessMessageId()));
+        if (existing.isPresent()) {
+            ExternalMessage value = existing.get();
+            var replay = sameOrConflict(value, digest, command.messageType(), command.organizationId(), command.departmentId());
+            if (!Objects.equals(value.relatedResourceType(), command.relatedResourceType())
+                    || !Objects.equals(value.relatedResourceId(), command.relatedResourceId())
+                    || !Objects.equals(value.relatedResourceVersion(), command.relatedResourceVersion())) {
+                throw conflict("EXTERNAL_MESSAGE_IDEMPOTENCY_CONFLICT", "相同业务消息号对应了不同业务对象或版本");
+            }
+            return replay;
+        }
         ExternalMessage value = repository.save(new ExternalMessageFactory().outbound(tenantId, command, payload, digest));
         return receipt(value, false);
     }
@@ -53,8 +63,8 @@ public class ExternalMessageApplicationService implements ExternalMessageService
         Long tenantId = TenantContext.requireTenantId();
         String payload = jsonCodec.write(command.payload()); String digest = sha256(payload);
         var existing = repository.findByTenantIdAndEndpointCodeAndDirectionAndBusinessMessageId(
-                tenantId, command.endpointCode(), "INBOUND", command.businessMessageId());
-        if (existing.isPresent()) return sameOrConflict(existing.get(), digest);
+                tenantId, Strings.trimToNull(command.endpointCode()), "INBOUND", Strings.trimToNull(command.businessMessageId()));
+        if (existing.isPresent()) return sameOrConflict(existing.get(), digest, command.messageType(), command.organizationId(), command.departmentId());
         ExternalMessage value = repository.save(ExternalMessage.inbound(tenantId, Strings.trimToNull(command.endpointCode()),
                 Strings.trimToNull(command.messageType()), Strings.trimToNull(command.businessMessageId()), Strings.trimToNull(command.correlationId()),
                 command.organizationId(), command.departmentId(), payload, digest));
@@ -114,9 +124,12 @@ public class ExternalMessageApplicationService implements ExternalMessageService
                 .orElseThrow(() -> notFound("EXTERNAL_MESSAGE_NOT_FOUND", "未找到外部交换消息"));
     }
 
-    private ExternalMessageReceipt sameOrConflict(ExternalMessage value, String digest) {
-        if (!value.payloadDigest().equals(digest)) {
-            throw conflict("EXTERNAL_MESSAGE_IDEMPOTENCY_CONFLICT", "相同业务消息号对应了不同报文内容");
+    private ExternalMessageReceipt sameOrConflict(ExternalMessage value, String digest, String messageType,
+                                                  Long organizationId, Long departmentId) {
+        requireScope(value.organizationId(), value.departmentId());
+        if (!value.payloadDigest().equals(digest) || !value.messageType().equals(Strings.trimToNull(messageType))
+                || !Objects.equals(value.organizationId(), organizationId) || !Objects.equals(value.departmentId(), departmentId)) {
+            throw conflict("EXTERNAL_MESSAGE_IDEMPOTENCY_CONFLICT", "相同业务消息号对应了不同报文、消息类型或机构科室");
         }
         return receipt(value, true);
     }

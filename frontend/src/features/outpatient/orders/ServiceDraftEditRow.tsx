@@ -48,6 +48,8 @@ export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, current
         <span className="doctor-direction-chip is-dept">
           {resolveExecutingDepartment({
             kind: 'service',
+            performerDepartmentId: value.performerDepartmentId,
+            performerDepartmentName: value.performerDepartmentName,
             type: value.serviceType,
             itemName: value.itemName,
           }, currentDept)}

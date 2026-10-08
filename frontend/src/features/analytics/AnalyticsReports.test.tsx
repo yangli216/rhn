@@ -16,6 +16,22 @@ function createMockApi(): RhnApi {
     },
     analytics: {
       queryPage: vi.fn().mockImplementation(async (spec: PageSpec) => {
+        if (spec.measures?.some((m) => m.source === 'REGISTRATION')) {
+          const points = spec.dimension === 'DAY'
+            ? [{ key: '2026-09-18', label: '2026-09-18', value: 100 }]
+            : [{ key: 'dept-1', label: '心血管内科门诊', value: 60 }, { key: 'dept-2', label: '呼吸与危重症门诊', value: 40 }]
+          return { series: [
+            { code: 'M1', total: 100, points },
+            { code: 'M2', total: 5, points: [{ ...points[0], value: 5 }] },
+            { code: 'M3', total: 65, points: points.map((p, i) => ({ ...p, value: i === 0 ? 45 : 30 })) },
+          ] }
+        }
+        if (spec.measures?.some((m) => m.source === 'ENCOUNTER')) {
+          return { series: ['M1', 'M2', 'M3', 'M4'].map((code, i) => ({
+            code, total: [100, 65, 120, 20][i],
+            points: [{ key: 'dept-1', label: '内科门诊', value: [100, 65, 120, 20][i] }],
+          })) }
+        }
         if (spec.dimension === 'DAY') {
           return {
             title: spec.title,
@@ -92,9 +108,9 @@ describe('OutpatientRegistrationReport', () => {
     await waitFor(() => {
       expect(screen.queryByText('正在汇总各科室挂号业务数据...')).not.toBeInTheDocument()
       expect(screen.getByText('挂号总人次')).toBeInTheDocument()
-      expect(screen.getByText('实际接诊就诊量')).toBeInTheDocument()
+      expect(screen.getByText('有效挂号人次')).toBeInTheDocument()
       expect(screen.getByText('退号总量与退号率')).toBeInTheDocument()
-      expect(screen.getByText('线上与自助渠道占比')).toBeInTheDocument()
+      expect(screen.getByText('去重挂号患者数')).toBeInTheDocument()
     })
 
     // 切换至科室全景对比视图
@@ -123,9 +139,9 @@ describe('OutpatientWorkloadReport', () => {
 
     // 检查工作量指标卡与左右分栏内容
     await waitFor(() => {
-      expect(screen.getByText('门诊接诊总人次')).toBeInTheDocument()
-      expect(screen.getByText('医嘱与处方开立总量')).toBeInTheDocument()
-      expect(screen.getByText('人均医嘱开立强度')).toBeInTheDocument()
+      expect(screen.getByText('门诊登记就诊总人次')).toBeInTheDocument()
+      expect(screen.getByText('有效医嘱总量')).toBeInTheDocument()
+      expect(screen.getAllByText('每就诊人次医嘱数').length).toBeGreaterThan(0)
       expect(screen.getByText('各科室就诊与医嘱明细全景表')).toBeInTheDocument()
     })
   })

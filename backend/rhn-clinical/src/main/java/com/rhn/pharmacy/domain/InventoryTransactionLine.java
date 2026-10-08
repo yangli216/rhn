@@ -35,13 +35,25 @@ public class InventoryTransactionLine {
                                     Long packageId, String stockStatus, BigDecimal operationQuantity,
                                     String operationUnitCode, BigDecimal baseQuantityFactor,
                                     BigDecimal quantityDelta, BigDecimal unitCost) {
+        this(tenantId, inventoryTransactionId, sortOrder, stockSiteId, stockBinId, stockItemId, stockLotId,
+                packageId, stockStatus, operationQuantity, operationUnitCode, baseQuantityFactor, quantityDelta,
+                unitCost, unitCost == null ? null : unitCost.multiply(quantityDelta));
+    }
+
+    /** The source document amount remains exact when its unit-cost conversion requires rounding. */
+    public InventoryTransactionLine(Long tenantId, Long inventoryTransactionId, int sortOrder,
+                                    Long stockSiteId, Long stockBinId, Long stockItemId, Long stockLotId,
+                                    Long packageId, String stockStatus, BigDecimal operationQuantity,
+                                    String operationUnitCode, BigDecimal baseQuantityFactor,
+                                    BigDecimal quantityDelta, BigDecimal unitCost, BigDecimal amountDelta) {
+        if ((unitCost == null) != (amountDelta == null)) throw new IllegalArgumentException("成本单价与金额必须同时已知或未知");
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.inventoryTransactionId = inventoryTransactionId;
         this.sortOrder = sortOrder; this.stockSiteId = stockSiteId; this.stockBinId = stockBinId;
         this.stockItemId = stockItemId; this.stockLotId = stockLotId; this.packageId = packageId;
         this.stockStatus = stockStatus; this.operationQuantity = operationQuantity;
         this.operationUnitCode = operationUnitCode; this.baseQuantityFactor = baseQuantityFactor;
         this.quantityDelta = quantityDelta; this.unitCost = unitCost;
-        this.amountDelta = unitCost == null ? null : unitCost.multiply(quantityDelta);
+        this.amountDelta = amountDelta;
     }
 
     public Long id() { return id; }

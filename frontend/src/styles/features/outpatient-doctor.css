@@ -175,7 +175,7 @@
 
 .doctor-record-form > .doctor-record-narrative { grid-template-columns: var(--doctor-record-label-width) minmax(0, 1fr); }
 
-.doctor-record-field--chief textarea.ui-field__control { min-height: 2.75rem; }
+.doctor-record-field--chief textarea.ui-field__control { min-height: 1lh; }
 .doctor-record-field--present textarea.ui-field__control { min-height: 4.25rem; }
 .doctor-record-field--history textarea.ui-field__control { min-height: 2.75rem; }
 .doctor-record-field--exam textarea.ui-field__control { min-height: 4.25rem; }

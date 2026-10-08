@@ -42,10 +42,26 @@ public record EncounterResponse(
     }
 
     public record DiagnosisResponse(Long conceptId, String systemCode, String systemVersion,
-                                    @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") String diagnosisDomain,
+                                    @DictionaryBinding("BD_DIAGNOSIS_DOMAIN")
+                                    @io.swagger.v3.oas.annotations.media.Schema(nullable = true) String diagnosisDomain,
                                     String diagnosisGroupId,
                                     String code, String display, String type, int sortOrder,
-                                    List<ManagementProgramResponse> managementPrograms) {}
+                                    @jakarta.validation.constraints.NotNull
+                                    @io.swagger.v3.oas.annotations.media.Schema(allowableValues = {"CONFIRMED", "UNCONFIRMED"})
+                                    String managementResolutionStatus,
+                                    @io.swagger.v3.oas.annotations.media.Schema(nullable = true)
+                                    List<ManagementProgramResponse> managementPrograms) {
+        public DiagnosisResponse {
+            // Old idempotency receipts have no confirmation evidence; never promote their empty list.
+            if (!"CONFIRMED".equals(managementResolutionStatus) || managementPrograms == null
+                    || managementPrograms.stream().anyMatch(java.util.Objects::isNull)) {
+                managementResolutionStatus = "UNCONFIRMED";
+                managementPrograms = null;
+            } else {
+                managementPrograms = List.copyOf(managementPrograms);
+            }
+        }
+    }
 
     public record ManagementProgramResponse(Long id, String code, String name,
                                             @DictionaryBinding("BD_DISEASE_MANAGEMENT_TYPE") String managementType,

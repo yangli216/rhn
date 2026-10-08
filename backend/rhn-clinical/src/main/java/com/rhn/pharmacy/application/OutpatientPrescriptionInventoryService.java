@@ -13,6 +13,7 @@ import com.rhn.pharmacy.infrastructure.PrescriptionInventoryFreezeRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
 import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
+import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.PackageSnapshot;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationProductView;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationView;
 import com.rhn.platform.masterdata.api.MasterDataViews.PackageView;
@@ -37,6 +38,7 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 public class OutpatientPrescriptionInventoryService implements OutpatientPrescriptionInventoryDirectory {
 
     private final DispenseRouteRepository dispenseRouteRepository;
+    private final DispenseRouteApplicationService routing;
     private final StockSiteRepository stockSiteRepository;
     private final StockItemRepository stockItemRepository;
     private final InventoryAvailabilityService availabilityService;
@@ -50,8 +52,10 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                                                    InventoryAvailabilityService availabilityService,
                                                    PrescriptionInventoryFreezeRepository freezeRepository,
                                                    CatalogLifecycleDirectory catalogLifecycleDirectory,
-                                                   MasterDataSearchDirectory searchDirectory) {
+                                                   MasterDataSearchDirectory searchDirectory,
+                                                   DispenseRouteApplicationService routing) {
         this.dispenseRouteRepository = dispenseRouteRepository;
+        this.routing = routing;
         this.stockSiteRepository = stockSiteRepository;
         this.stockItemRepository = stockItemRepository;
         this.availabilityService = availabilityService;
@@ -64,18 +68,35 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
     @Transactional(readOnly = true)
     public List<OrderableMedicationView> findOrderableMedications(Long tenantId, Long organizationId,
                                                                  Long departmentId, String query) {
+        var candidates = collectOrderableMedications(tenantId, organizationId, departmentId, query, true);
+        int resultLimit = searchDirectory.resolvePreference(tenantId, organizationId, departmentId).resultLimit();
+        return candidates.stream().limit(resultLimit).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderableMedicationView> findOrderableMedicationCandidates(Long tenantId, Long organizationId,
+                                                                          Long departmentId, String query) {
+        return collectOrderableMedications(tenantId, organizationId, departmentId, query, false);
+    }
+
+    private List<OrderableMedicationView> collectOrderableMedications(Long tenantId, Long organizationId,
+                                                                    Long departmentId, String query, boolean requireWholeStockPackage) {
         LocalDate today = LocalDate.now();
         boolean searching = query != null && !query.isBlank();
-        String normalizedQuery = searching ? query.trim().toLowerCase() : "";
-        int resultLimit = searchDirectory.resolvePreference(tenantId, organizationId, departmentId).resultLimit();
+        String normalizedQuery = searching ? query.trim().toLowerCase(java.util.Locale.ROOT) : "";
 
-        // 1. 获取该门诊科室适用的目标药房站点（优先精确科室路由，其次全院默认通配路由）
+        // 1. 获取已配置的门诊路由候选站点，随后按每个药品类型核实唯一有效目标。
         Set<Long> targetSiteIds = resolveOutpatientTargetSiteIds(tenantId, organizationId, departmentId, today);
         if (targetSiteIds.isEmpty()) {
-            return List.of();
+            throw conflict("DISPENSE_ROUTE_NOT_CONFIGURED", "未配置当前门诊科室的发药路由，请先维护配置");
         }
 
-        Map<Long, StockSite> siteMap = loadEffectiveSites(tenantId, targetSiteIds, today);
+        Map<Long, StockSite> siteMap = loadEffectiveSites(tenantId, organizationId, targetSiteIds, today);
+        if (siteMap.size() != targetSiteIds.size()) {
+            throw conflict("ROUTE_TARGET_UNAVAILABLE", "门诊发药路由包含不可用或不支持门诊的目标药房，请核实配置");
+        }
+        Map<String, java.util.Optional<StockSite>> selectedSites = new HashMap<>();
         List<OrderableMedicationView> results = new ArrayList<>();
 
         for (StockSite site : siteMap.values()) {
@@ -85,7 +106,12 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
             if (candidates == null) continue;
 
             for (StockItem si : candidates.stockItems()) {
-                OrderableMedicationView view = buildOrderableView(si, site, candidates, searching, normalizedQuery);
+                MedicationView medication = candidates.medViewByCatalogItemId().get(si.catalogItemId());
+                if (medication == null) continue;
+                StockSite selected = selectedSites.computeIfAbsent(medication.sdMedicationType(), type -> java.util.Optional.ofNullable(
+                        routedPharmacy(tenantId, organizationId, departmentId, type, today))).orElse(null);
+                if (selected == null || !selected.id().equals(site.id())) continue;
+                OrderableMedicationView view = buildOrderableView(si, site, candidates, searching, normalizedQuery, today, requireWholeStockPackage);
                 if (view != null) {
                     results.add(view);
                 }
@@ -93,42 +119,45 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
         }
 
         results.sort(Comparator.comparing(OrderableMedicationView::name));
-        return results.stream().limit(resultLimit).toList();
+        return List.copyOf(results);
     }
 
     private OrderableMedicationView buildOrderableView(StockItem si, StockSite site, SiteStockCandidates candidates,
-                                                       boolean searching, String normalizedQuery) {
+                                                       boolean searching, String normalizedQuery, LocalDate today,
+                                                       boolean requireWholeStockPackage) {
         BigDecimal availableBaseQty = candidates.availableByStockItemId().getOrDefault(si.id(), BigDecimal.ZERO);
         if (availableBaseQty.signum() <= 0) return null;
 
         MedicationView medView = candidates.medViewByCatalogItemId().get(si.catalogItemId());
         if (medView == null) return null;
 
-        // 找到对应的产品和包装
-        MedicationProductView matchedProduct = medView.products().stream()
-                .filter(p -> p.id().equals(si.catalogItemId()))
-                .findFirst().orElse(null);
+        List<MedicationProductView> products = medView.products().stream()
+                .filter(p -> p.id().equals(si.catalogItemId())).toList();
+        if (products.size() != 1) throw conflict("INVENTORY_PRODUCT_UNCONFIRMED", "未确认唯一的库存产品目录信息");
+        MedicationProductView matchedProduct = products.getFirst();
+        if (searching && !matchesSearch(medView, matchedProduct, si.catalogItemId(),
+                candidates.matchingMedicationIds(), candidates.matchingProductIds(), normalizedQuery)) return null;
 
         PackageView defaultPkg = null;
-        if (matchedProduct != null && matchedProduct.packages() != null) {
-            defaultPkg = matchedProduct.packages().stream()
-                    .filter(p -> p.id().equals(si.basePackageId()) || p.defaultDispense() || p.defaultSale())
-                    .findFirst()
-                    .orElse(matchedProduct.packages().isEmpty() ? null : matchedProduct.packages().getFirst());
+        if (si.basePackageId() != null) {
+            List<PackageView> packages = matchedProduct.packages() == null ? List.of() : matchedProduct.packages().stream()
+                    .filter(value -> si.basePackageId().equals(value.id())).toList();
+            if (packages.size() != 1) throw conflict("INVENTORY_PACKAGE_UNCONFIRMED", "库存项目配置的包装未确认，请维护目录后重试");
+            defaultPkg = packages.getFirst();
         }
+        PackageSnapshot packageFacts = defaultPkg == null ? null : new PackageSnapshot(defaultPkg.id(), defaultPkg.unitCode(), defaultPkg.unitName(),
+                defaultPkg.packageSpec(), defaultPkg.quantityFactor(), defaultPkg.sdUsageType(), defaultPkg.sdStatus(),
+                defaultPkg.validFrom(), defaultPkg.validTo());
+        BigDecimal factor = InventoryPackageFacts.factor(si.baseUnitCode(), matchedProduct.unitCode(), si.basePackageId(), packageFacts, today);
+        String pkgUnitName = defaultPkg == null ? si.baseUnitCode()
+                : defaultPkg.unitName() != null && !defaultPkg.unitName().isBlank() ? defaultPkg.unitName() : defaultPkg.unitCode();
 
-        BigDecimal factor = defaultPkg != null && defaultPkg.quantityFactor() != null && defaultPkg.quantityFactor().signum() > 0
-                ? defaultPkg.quantityFactor() : BigDecimal.ONE;
-        String pkgUnitName = defaultPkg != null && defaultPkg.unitName() != null
-                ? defaultPkg.unitName() : si.baseUnitCode();
-
-        BigDecimal availablePkgQty = availableBaseQty.divide(factor, 0, RoundingMode.FLOOR);
-        if (availablePkgQty.signum() <= 0) return null; // 关键：可用包装量必须 > 0
-
-        if (searching && !matchesSearch(medView, matchedProduct, si.catalogItemId(),
-                candidates.matchingMedicationIds(), candidates.matchingProductIds(), normalizedQuery)) {
-            return null;
-        }
+        // The display query offers whole stock packages. Business matching must also retain
+        // positive base-unit stock so callers can verify the actual requested package.
+        BigDecimal availablePkgQty = requireWholeStockPackage
+                ? availableBaseQty.divide(factor, 0, RoundingMode.FLOOR)
+                : availableBaseQty.divide(factor, 8, RoundingMode.DOWN).stripTrailingZeros();
+        if (requireWholeStockPackage && availablePkgQty.signum() <= 0) return null;
 
         return new OrderableMedicationView(
                 medView.id(),
@@ -178,26 +207,13 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                         && (r.sourceDepartmentId() == null || r.sourceDepartmentId().equals(departmentId)))
                 .toList();
 
-        List<DispenseRoute> deptSpecificRoutes = activeRoutes.stream()
-                .filter(r -> r.sourceDepartmentId() != null && r.sourceDepartmentId().equals(departmentId))
-                .toList();
-        List<DispenseRoute> effectiveRoutes = deptSpecificRoutes.isEmpty() ? activeRoutes : deptSpecificRoutes;
-
-        Set<Long> targetSiteIds = effectiveRoutes.stream().map(DispenseRoute::targetStockSiteId).collect(Collectors.toSet());
-
-        // 兜底：若未显式配置门诊路由，自动选用当前机构的门诊药房或综合药房
-        if (targetSiteIds.isEmpty()) {
-            stockSiteRepository.findByTenantIdAndOrganizationIdOrderByCode(tenantId, organizationId).stream()
-                    .filter(s -> s.effective(today) && "PHARMACY".equals(s.siteType()))
-                    .map(StockSite::id)
-                    .forEach(targetSiteIds::add);
-        }
-        return targetSiteIds;
+        return activeRoutes.stream().map(DispenseRoute::targetStockSiteId).collect(Collectors.toSet());
     }
 
-    private Map<Long, StockSite> loadEffectiveSites(Long tenantId, Set<Long> targetSiteIds, LocalDate today) {
+    private Map<Long, StockSite> loadEffectiveSites(Long tenantId, Long organizationId, Set<Long> targetSiteIds, LocalDate today) {
         return stockSiteRepository.findAllById(targetSiteIds).stream()
-                .filter(s -> s.tenantId().equals(tenantId) && s.effective(today))
+                .filter(s -> s.tenantId().equals(tenantId) && s.organizationId().equals(organizationId) && s.effective(today)
+                        && "PHARMACY".equals(s.siteType()) && Set.of("OUTPATIENT", "MIXED").contains(s.serviceScope()))
                 .collect(Collectors.toMap(StockSite::id, s -> s));
     }
 
@@ -306,8 +322,21 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
     public MedicationAvailabilityView inspectMedicationAvailability(Long tenantId, Long organizationId,
                                                                      Long departmentId, Long catalogItemId,
                                                                      Long packageId) {
+        return inspectAvailability(tenantId, organizationId, departmentId, catalogItemId, packageId, true);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MedicationAvailabilityView inspectMedicationAvailabilityForExactPackage(Long tenantId, Long organizationId,
+                                                                                  Long departmentId, Long catalogItemId, Long packageId) {
+        return inspectAvailability(tenantId, organizationId, departmentId, catalogItemId, packageId, false);
+    }
+
+    private MedicationAvailabilityView inspectAvailability(Long tenantId, Long organizationId, Long departmentId,
+                                                           Long catalogItemId, Long packageId, boolean useStockDefault) {
         LocalDate today = LocalDate.now();
-        StockSite site = routedPharmacy(tenantId, organizationId, departmentId, today);
+        var requestedCatalog = catalogLifecycleDirectory.resolve(tenantId, catalogItemId, organizationId, packageId, "SALE", today);
+        StockSite site = routedPharmacy(tenantId, organizationId, departmentId, medicationType(requestedCatalog), today);
         if (site == null) {
             return new MedicationAvailabilityView(false, null, null, false, null, packageId, null,
                     null, BigDecimal.ZERO, BigDecimal.ZERO);
@@ -319,12 +348,11 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                     null, BigDecimal.ZERO, BigDecimal.ZERO);
         }
 
-        Long effectivePackageId = packageId == null ? stockItem.basePackageId() : packageId;
+        Long effectivePackageId = packageId == null && useStockDefault ? stockItem.basePackageId() : packageId;
         var catalog = catalogLifecycleDirectory.resolve(tenantId, catalogItemId, organizationId,
                 effectivePackageId, "SALE", today);
-        BigDecimal factor = catalog.itemPackage() == null || catalog.itemPackage().quantityFactor() == null
-                || catalog.itemPackage().quantityFactor().signum() <= 0
-                ? BigDecimal.ONE : catalog.itemPackage().quantityFactor();
+        BigDecimal factor = InventoryPackageFacts.factor(stockItem.baseUnitCode(), catalog.item().unitCode(),
+                effectivePackageId, catalog.itemPackage(), today);
         String unit = catalog.itemPackage() == null ? catalog.item().unitCode() : catalog.itemPackage().unitCode();
         BigDecimal availableBase = availabilityService.findByItem(tenantId, site.id(), stockItem.id()).stream()
                 .filter(value -> "AVAILABLE".equals(value.stockStatus()) && value.quantityAvailable().signum() > 0)
@@ -334,22 +362,32 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                 effectivePackageId, unit, factor, availableBase, availablePackages);
     }
 
-    private StockSite routedPharmacy(Long tenantId, Long organizationId, Long departmentId, LocalDate date) {
-        List<DispenseRoute> activeRoutes = dispenseRouteRepository
-                .findByTenantIdAndOrganizationIdOrderByCode(tenantId, organizationId).stream()
-                .filter(route -> route.effective(date) && "OUTPATIENT".equals(route.careSetting())
-                        && (route.sourceDepartmentId() == null || route.sourceDepartmentId().equals(departmentId)))
-                .toList();
-        List<DispenseRoute> departmentRoutes = activeRoutes.stream()
-                .filter(route -> departmentId.equals(route.sourceDepartmentId())).toList();
-        List<DispenseRoute> effectiveRoutes = departmentRoutes.isEmpty() ? activeRoutes : departmentRoutes;
-        if (!effectiveRoutes.isEmpty()) {
-            Long siteId = effectiveRoutes.getFirst().targetStockSiteId();
-            return stockSiteRepository.findById(siteId)
-                    .filter(site -> site.tenantId().equals(tenantId) && site.effective(date)).orElse(null);
+    @Override
+    @Transactional(readOnly = true)
+    public DispensingPharmacy requireDispensingPharmacy(Long tenantId, Long organizationId, Long departmentId,
+                                                       String medicationType, LocalDate businessDate) {
+        StockSite site = routedPharmacy(tenantId, organizationId, departmentId, medicationType, businessDate);
+        if (site == null) throw conflict("DISPENSE_PHARMACY_NOT_FOUND", "未配置当前科室及药品类型的发药路由");
+        if (site.name() == null || site.name().isBlank()) throw conflict("DISPENSE_PHARMACY_UNCONFIRMED", "发药药房名称尚未确认");
+        return new DispensingPharmacy(site.id(), site.name());
+    }
+
+    private StockSite routedPharmacy(Long tenantId, Long organizationId, Long departmentId, String medicationType, LocalDate date) {
+        if (medicationType == null || medicationType.isBlank()) {
+            throw conflict("MEDICATION_TYPE_UNCONFIRMED", "药品类型尚未确认，无法确定发药药房");
         }
-        return stockSiteRepository.findByTenantIdAndOrganizationIdOrderByCode(tenantId, organizationId).stream()
-                .filter(site -> site.effective(date) && "PHARMACY".equals(site.siteType())).findFirst().orElse(null);
+        var resolution = routing.resolveDetailed(tenantId, organizationId, departmentId, medicationType, "OUTPATIENT", date);
+        if ("NOT_CONFIGURED".equals(resolution.status())) return null;
+        if (!resolution.matched()) throw conflict(resolution.errorCode(), resolution.errorMessage());
+        return stockSiteRepository.findByIdAndTenantId(resolution.route().stockSiteId(), tenantId)
+                .orElseThrow(() -> conflict("ROUTE_TARGET_UNAVAILABLE", "已配置的发药药房不可用"));
+    }
+
+    private String medicationType(CatalogLifecycleDirectory.CatalogOperationalSnapshot catalog) {
+        if (catalog == null || catalog.medication() == null) {
+            throw conflict("MEDICATION_CATALOG_REQUIRED", "当前目录未确认药品产品，无法确定发药药房");
+        }
+        return catalog.medication().medicationType();
     }
 
     @Override
@@ -358,16 +396,17 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
         LocalDate today = LocalDate.now();
         String reservationGroup = "RX-" + command.prescriptionId();
 
-        // 查找目标药房（优先精确科室路由，其次全院默认通配路由）
-        Long targetSiteId = resolveFreezeTargetSiteId(command, today);
-        if (targetSiteId == null) {
-            throw conflict("DISPENSE_PHARMACY_NOT_FOUND", "未找到当前门诊科室的发药药房配置");
-        }
-
         int frozenCount = 0;
         for (PrescriptionItemFreezeRequest item : command.items()) {
-            StockItem stockItem = resolveTargetStockItem(command.tenantId(), command.organizationId(),
-                    targetSiteId, item);
+            var catalog = catalogLifecycleDirectory.resolve(command.tenantId(), item.catalogItemId(),
+                    command.organizationId(), item.packageId(), "SALE", today);
+            StockSite site = routedPharmacy(command.tenantId(), command.organizationId(), command.departmentId(),
+                    medicationType(catalog), today);
+            if (site == null) throw conflict("DISPENSE_PHARMACY_NOT_FOUND", "未配置当前门诊科室及药品类型的发药路由");
+            Long targetSiteId = site.id();
+            StockItem stockItem = stockItemRepository.findByTenantIdAndStockSiteIdAndCatalogItemId(
+                    command.tenantId(), targetSiteId, item.catalogItemId())
+                    .filter(value -> "ACTIVE".equals(value.status())).orElse(null);
 
             if (stockItem == null) {
                 throw conflict("STOCK_ITEM_NOT_FOUND", "目标发药药房未纳入该药品经营项目，无法开立");
@@ -385,86 +424,33 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
         return new PrescriptionFreezeResult(command.prescriptionId(), reservationGroup, frozenCount, true);
     }
 
-    private Long resolveFreezeTargetSiteId(PrescriptionFreezeCommand command, LocalDate today) {
-        Long targetSiteId = null;
-        List<DispenseRoute> activeRoutes = dispenseRouteRepository.findByTenantIdAndOrganizationIdOrderByCode(
-                command.tenantId(), command.organizationId()).stream()
-                .filter(r -> r.effective(today) && "OUTPATIENT".equals(r.careSetting())
-                        && (r.sourceDepartmentId() == null || r.sourceDepartmentId().equals(command.departmentId())))
-                .toList();
-        List<DispenseRoute> deptSpecificRoutes = activeRoutes.stream()
-                .filter(r -> r.sourceDepartmentId() != null && r.sourceDepartmentId().equals(command.departmentId()))
-                .toList();
-        List<DispenseRoute> effectiveRoutes = deptSpecificRoutes.isEmpty() ? activeRoutes : deptSpecificRoutes;
-
-        if (!effectiveRoutes.isEmpty()) {
-            targetSiteId = effectiveRoutes.getFirst().targetStockSiteId();
-        } else {
-            targetSiteId = stockSiteRepository.findByTenantIdAndOrganizationIdOrderByCode(
-                    command.tenantId(), command.organizationId()).stream()
-                    .filter(s -> s.effective(today) && "PHARMACY".equals(s.siteType()))
-                    .map(StockSite::id)
-                    .findFirst().orElse(null);
-        }
-        return targetSiteId;
-    }
-
-    private StockItem resolveTargetStockItem(Long tenantId, Long organizationId, Long targetSiteId,
-                                             PrescriptionItemFreezeRequest item) {
-        StockItem stockItem = stockItemRepository.findByTenantIdAndStockSiteIdAndCatalogItemId(
-                tenantId, targetSiteId, item.catalogItemId())
-                .orElse(null);
-
-        if (stockItem == null) {
-            // 如果按 catalogItemId 未直接命中，查找属于该药房的全部 stockItem
-            List<StockItem> siteItems = stockItemRepository.findByTenantIdAndStockSiteIdOrderById(tenantId, targetSiteId);
-            var medViews = catalogLifecycleDirectory.findMedicationsByProductCatalogItemIds(
-                    tenantId, organizationId,
-                    siteItems.stream().map(StockItem::catalogItemId).toList());
-            for (StockItem candidate : siteItems) {
-                for (MedicationView mv : medViews) {
-                    if (mv.id().equals(item.catalogItemId())) {
-                        stockItem = candidate;
-                        break;
-                    }
-                }
-                if (stockItem != null) break;
-            }
-        }
-        return stockItem;
-    }
-
     private FreezeLineStock prepareFreezeLineStock(PrescriptionFreezeCommand command, PrescriptionItemFreezeRequest item,
                                                    Long targetSiteId, StockItem stockItem, LocalDate today) {
-        var snapshot = catalogLifecycleDirectory.resolve(
-                command.tenantId(), stockItem.catalogItemId(), command.organizationId(),
-                item.packageId() != null ? item.packageId() : stockItem.basePackageId(),
-                "SALE", today);
-
-        BigDecimal factor = snapshot.itemPackage() != null && snapshot.itemPackage().quantityFactor() != null
-                ? snapshot.itemPackage().quantityFactor() : BigDecimal.ONE;
-
-        BigDecimal requiredBaseQuantity = item.packageQuantity().multiply(factor);
+        BigDecimal requiredBaseQuantity = item.baseQuantity();
+        if (requiredBaseQuantity == null || requiredBaseQuantity.signum() <= 0
+                || requiredBaseQuantity.stripTrailingZeros().scale() > 8
+                || requiredBaseQuantity.precision() - requiredBaseQuantity.scale() > 20
+                || item.baseUnitCode() == null || item.baseUnitCode().isBlank()
+                || !item.baseUnitCode().equals(stockItem.baseUnitCode())) {
+            throw conflict("PRESCRIPTION_FREEZE_QUANTITY_UNCONFIRMED", "医嘱基础数量或单位快照与库存项目不一致，无法冻结");
+        }
 
         List<InventoryBalance> balances = availabilityService.lockIssuable(
                 command.tenantId(), targetSiteId, stockItem.id(), today, stockItem.issuePolicy());
 
+        if (balances.stream().anyMatch(balance -> !item.baseUnitCode().equals(balance.baseUnitCode())
+                || !stockItem.id().equals(balance.stockItemId()) || !targetSiteId.equals(balance.stockSiteId()))) {
+            throw conflict("PRESCRIPTION_FREEZE_BALANCE_MISMATCH", "库存余额的项目、药房或单位与医嘱快照不一致");
+        }
         BigDecimal totalAvailable = balances.stream()
                 .map(InventoryBalance::quantityAvailable)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         if (totalAvailable.compareTo(requiredBaseQuantity) < 0) {
-            BigDecimal availablePackages = totalAvailable.divide(factor, 0, RoundingMode.FLOOR);
-            String medName = snapshot.medication() != null ? snapshot.medication().name()
-                    : (snapshot.item() != null ? snapshot.item().name() : "药品");
             throw conflict("INVENTORY_INSUFFICIENT",
-                    "药品【%s】药房可用库存不足（需要 %s %s，当前仅剩 %s %s），请调减数量或更换药品".formatted(
-                            medName,
-                            item.packageQuantity().stripTrailingZeros().toPlainString(),
-                            item.unitName() == null ? "包装" : item.unitName(),
-                            availablePackages.stripTrailingZeros().toPlainString(),
-                            item.unitName() == null ? "包装" : item.unitName()
-                    ));
+                    "药品产品【%s】药房可用库存不足（需要 %s %s，当前仅剩 %s %s），请调减数量或更换药品".formatted(
+                            item.catalogItemId(), requiredBaseQuantity.stripTrailingZeros().toPlainString(), item.baseUnitCode(),
+                            totalAvailable.stripTrailingZeros().toPlainString(), item.baseUnitCode()));
         }
 
         return new FreezeLineStock(requiredBaseQuantity, balances);
@@ -504,15 +490,28 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
         List<PrescriptionInventoryFreeze> freezes = freezeRepository.lockActiveByPrescriptionId(
                 command.tenantId(), command.prescriptionId());
 
+        Map<InventoryBalance, BigDecimal> releases = new java.util.LinkedHashMap<>();
         for (PrescriptionInventoryFreeze freeze : freezes) {
             InventoryBalance balance = availabilityService.lockDimension(
                     command.tenantId(), freeze.stockBinId(), freeze.stockItemId(), freeze.stockLotId(), "AVAILABLE")
-                    .orElse(null);
-            if (balance != null) {
-                balance.unfreeze(freeze.quantityFrozen());
+                    .orElseThrow(() -> conflict("PRESCRIPTION_FREEZE_BALANCE_MISSING", "冻结对应的库存余额缺失，不能标记为已释放"));
+            if (freeze.quantityFrozen() == null || freeze.quantityFrozen().signum() <= 0
+                    || freeze.baseUnitCode() == null || !freeze.baseUnitCode().equals(balance.baseUnitCode())
+                    || !freeze.stockSiteId().equals(balance.stockSiteId())
+                    || !freeze.stockItemId().equals(balance.stockItemId())
+                    || !freeze.stockBinId().equals(balance.stockBinId())
+                    || !freeze.stockLotId().equals(balance.stockLotId())) {
+                throw conflict("PRESCRIPTION_FREEZE_BALANCE_MISMATCH", "冻结记录与库存余额的维度、数量或单位不一致，不能释放");
             }
-            freeze.release(command.actorId(), command.reason() == null ? "处方撤销释放" : command.reason());
+            releases.merge(balance, freeze.quantityFrozen(), BigDecimal::add);
         }
+        releases.forEach((balance, quantity) -> {
+            if (balance.quantityFrozen().compareTo(quantity) < 0) {
+                throw conflict("PRESCRIPTION_FREEZE_BALANCE_INSUFFICIENT", "库存冻结量不足以释放全部对应记录，请核实库存账");
+            }
+        });
+        releases.forEach(InventoryBalance::unfreeze);
+        freezes.forEach(freeze -> freeze.release(command.actorId(), command.reason() == null ? "处方撤销释放" : command.reason()));
         freezeRepository.flush();
         availabilityService.flush();
     }

@@ -4,6 +4,7 @@ import com.rhn.treatment.api.TreatmentExecutionTaskView;
 import com.rhn.treatment.application.TreatmentExecutionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,15 +42,15 @@ public class TreatmentExecutionController {
     @PostMapping("/tasks/{taskId}/complete")
     TreatmentExecutionTaskView complete(@PathVariable Long taskId, @Valid @RequestBody CompleteRequest input) {
         return service.complete(taskId, input.expectedRevision(), input.resultCode(), input.note(),
-                Boolean.TRUE.equals(input.adverseReaction()), input.adverseReactionDetail());
+                input.adverseReaction(), input.adverseReactionDetail());
     }
 
     record StartRequest(@NotNull Long expectedRevision, @NotNull Boolean identityVerified,
-                        @Pattern(regexp = "NAME_AND_IDENTIFIER|CARD|MANUAL") String verificationMethod,
+                        @NotBlank @Pattern(regexp = "NAME_AND_IDENTIFIER|CARD|MANUAL") String verificationMethod,
                         @Size(max = 128) String executionSite, @Size(max = 1000) String note) {}
 
     record CompleteRequest(@NotNull Long expectedRevision,
-                           @Pattern(regexp = "COMPLETED|INTERRUPTED|NOT_COMPLETED") String resultCode,
-                           @Size(max = 2000) String note, Boolean adverseReaction,
+                           @NotBlank @Pattern(regexp = "COMPLETED|INTERRUPTED|NOT_COMPLETED") String resultCode,
+                           @Size(max = 2000) String note, @NotNull Boolean adverseReaction,
                            @Size(max = 2000) String adverseReactionDetail) {}
 }

@@ -24,6 +24,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.rhn.shared.api.BusinessErrors.badRequest;
+import static com.rhn.shared.api.BusinessErrors.forbidden;
+
 /**
  * 门诊退费防损与协同审批前置检查服务。
  * 跨临床、药房、医技、处置状态校验通过各业务模块公开 API 完成，
@@ -61,6 +64,9 @@ public class RefundPreCheckService {
 
     public RefundPreCheckSummaryView preCheck(Long encounterId) {
         ExecutionContext context = contextProvider.requireCurrent();
+        if (!context.hasWorkContext()) {
+            throw badRequest("BILLING_WORK_CONTEXT_REQUIRED", "收费操作必须选择工作机构");
+        }
         List<PatientAccount> matchingAccounts = accounts.findByTenantIdAndEncounterIdIn(
                 context.tenantId(), List.of(encounterId));
         if (matchingAccounts.isEmpty()) {
@@ -71,6 +77,9 @@ public class RefundPreCheckService {
         }
 
         PatientAccount account = matchingAccounts.get(0);
+        if (!context.canAccessOrganization(account.organizationId())) {
+            throw forbidden("BILLING_ACCOUNT_SCOPE_INVALID", "当前工作上下文不能访问该费用账户");
+        }
         List<ChargeItem> allCharges = charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(
                 context.tenantId(), account.id());
 

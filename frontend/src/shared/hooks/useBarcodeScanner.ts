@@ -26,6 +26,12 @@ export function useBarcodeScanner({
     if (!enabled) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // 快捷键及现金录入不能被解释成患者扫码。
+      if (event.ctrlKey || event.metaKey || event.altKey
+        || (event.target instanceof Element && event.target.closest('[data-barcode-scan="ignore"]'))) {
+        bufferRef.current = []
+        return
+      }
       // 忽略功能键与修饰键（Shift、Control、Alt、Meta 等）
       if (event.key.length > 1 && event.key !== 'Enter') {
         return

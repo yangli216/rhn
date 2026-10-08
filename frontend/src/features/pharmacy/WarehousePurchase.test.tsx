@@ -1,12 +1,12 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { expect, it, vi } from 'vitest'
 import type { GoodsReceipt, PurchaseOrder, StockBin, StockItem, StockSite } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
-import { GoodsReceiptDialog, MultiItemDialog, purchaseReceivable } from './WarehouseOperations'
+import { GoodsReceiptDialog, MultiItemDialog, PurchaseDialog, purchaseReceivable } from './WarehouseOperations'
 
-const item = { id: 'item', productName: '阿莫西林', packageSpec: '0.25g×24粒', packageUnitName: '盒',
+const item = { id: 'item', catalogItemId: 'catalog-item', packageId: 'package', productName: '阿莫西林', packageSpec: '0.25g×24粒', packageUnitName: '盒',
   packageFactor: 24, baseUnitCode: 'CAPSULE', manufacturerName: '示例厂家', lotRequired: true } as StockItem
 const order = { id: 'order', orderNo: 'PO-1', lines: [
   { id: 'line', stockItemId: 'item', remainingQuantity: 10, unitPrice: 2 },
@@ -81,9 +81,10 @@ it('saves and submits once, preserving the saved order when submission fails', a
   const createPurchaseOrder = vi.fn().mockResolvedValue({ id: 'saved', orderNo: 'PO-SAVED' })
   const submitPurchaseOrder = vi.fn().mockRejectedValue(new Error('审批服务不可用'))
   const onDone = vi.fn()
-  render(<PurchaseDialog api={{ pharmacy: { addSupplierItem: vi.fn().mockResolvedValue({}), createPurchaseOrder, submitPurchaseOrder } } as unknown as RhnApi}
+  render(<PurchaseDialog api={{ pharmacy: { supplyItems: vi.fn().mockResolvedValue([]), addSupplierItem: vi.fn().mockResolvedValue({}), createPurchaseOrder, submitPurchaseOrder } } as unknown as RhnApi}
     site={{ id: 'site' } as never} suppliers={[{ id: 'supplier', name: '供应商' }] as never}
     items={[item]} onNavigate={vi.fn()} onClose={vi.fn()} onDone={onDone} />)
+  await waitFor(() => expect(screen.getByRole('combobox', { name: '第1行药品' })).toBeEnabled())
   fireEvent.click(screen.getAllByRole('combobox')[1])
   fireEvent.click(await screen.findByRole('option', { name: /阿莫西林/ }))
   fireEvent.change(screen.getByLabelText('第1行采购单价'), { target: { value: '20' } })
@@ -120,15 +121,15 @@ it('supports direct purchase receipt with immediate inspection and inventory pos
     lines: [{ id: 'hist-line', stockItemId: 'item', unitPrice: 12.8 }],
   } as unknown as PurchaseOrder
   const testProduct = {
-    id: 'item',
+    id: 'catalog-item',
     prices: [
-      { sdStatus: 'ACTIVE', sdPriceType: 'PURCHASE', price: 12.8, validFrom: '2020-01-01' },
-      { sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 18.6, validFrom: '2020-01-01' },
+      { packageId: 'package', sdStatus: 'ACTIVE', sdPriceType: 'PURCHASE', price: 12.8, validFrom: '2020-01-01' },
+      { packageId: 'package', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 18.6, validFrom: '2020-01-01' },
     ],
   } as unknown as import('../../shared/api').MedicationProduct
 
   render(<PurchaseDialog
-    api={{ pharmacy: { directGoodsReceipt } } as unknown as RhnApi}
+    api={{ pharmacy: { supplyItems: vi.fn().mockResolvedValue([]), directGoodsReceipt } } as unknown as RhnApi}
     site={{ id: 'site' } as never}
     suppliers={[{ id: 'supplier', name: '优质供应商' }] as never}
     items={[item]}
@@ -144,10 +145,11 @@ it('supports direct purchase receipt with immediate inspection and inventory pos
   // 验证模式 Tab、零售单价列与已移除快捷提示
   expect(screen.getByText('直接采购入库')).toBeInTheDocument()
   expect(screen.getByPlaceholderText('随货凭单号（选填）')).toBeInTheDocument()
-  expect(screen.getByText('零售单价')).toBeInTheDocument()
+  expect(screen.getByText('参考零售单价')).toBeInTheDocument()
   expect(screen.queryByText(/快捷提示/)).not.toBeInTheDocument()
 
   // 选择药品
+  await waitFor(() => expect(screen.getByRole('combobox', { name: '第1行药品' })).toBeEnabled())
   fireEvent.click(screen.getByRole('combobox', { name: '第1行药品' }))
   fireEvent.click(await screen.findByRole('option', { name: /阿莫西林/ }))
 
@@ -184,13 +186,14 @@ it('supports direct purchase receipt with immediate inspection and inventory pos
 it('keeps direct receipt rows readable until focused and advances through every field before adding a row', async () => {
   const user = userEvent.setup()
   const { PurchaseDialog } = await import('./WarehouseOperations')
-  render(<PurchaseDialog api={{ pharmacy: {} } as RhnApi}
+  render(<PurchaseDialog api={{ pharmacy: { supplyItems: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi}
     site={{ id: 'site' } as StockSite} suppliers={[{ id: 'supplier', name: '供应商' }] as never}
     items={[item]} bins={[bin]} initialMode="direct"
     onNavigate={vi.fn()} onClose={vi.fn()} onDone={vi.fn()} />)
   const table = screen.getByRole('table', { name: '直接入库药品连续录入' })
   const row = within(table).getAllByRole('row')[1]
   expect(row).toHaveAttribute('data-mode', 'read')
+  await waitFor(() => expect(screen.getByRole('combobox', { name: '第1行药品' })).toBeEnabled())
   await user.click(screen.getByRole('combobox', { name: '第1行药品' }))
   expect(row).toHaveAttribute('data-mode', 'edit')
   await user.click(await screen.findByRole('option', { name: /阿莫西林/ }))
@@ -199,8 +202,7 @@ it('keeps direct receipt rows readable until focused and advances through every 
   expect(screen.getByLabelText('第1行采购单价')).toHaveFocus()
   await user.type(screen.getByLabelText('第1行采购单价'), '12')
   await user.keyboard('{Enter}')
-  expect(screen.getByLabelText('第1行零售单价')).toHaveFocus()
-  await user.keyboard('{Enter}')
+  expect(screen.getByLabelText('第1行零售单价')).toHaveAttribute('readonly')
   expect(screen.getByLabelText('第1行批号')).toHaveFocus()
   await user.type(screen.getByLabelText('第1行批号'), 'LOT-1{Enter}')
   expect(screen.getByLabelText('第1行有效期至')).toHaveFocus()
@@ -301,4 +303,73 @@ it('renders modern split procurement workbench with KPI cards, document queue an
   expect(screen.getByText('LOT-202609')).toBeInTheDocument()
   expect(screen.getByText('效期至：2028-12-31')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /打印入库单/ })).toBeInTheDocument()
+})
+
+
+it.each(['plan', 'direct'] as const)('isolates supplier prices and exposes failed supplier queries in %s mode', async (mode) => {
+  const supplyItems = vi.fn().mockResolvedValueOnce([{ catalogItemId: 'catalog-item', packageId: 'package', agreementPrice: 7 }])
+    .mockRejectedValueOnce(new Error('供应商 B 查询失败'))
+    .mockResolvedValueOnce([{ catalogItemId: 'catalog-item', packageId: 'package', agreementPrice: 11 }])
+  render(<PurchaseDialog api={{ pharmacy: { supplyItems } } as unknown as RhnApi}
+    site={{ id: 'site' } as StockSite} suppliers={[{ id: 'a', name: '供应商 A' }, { id: 'b', name: '供应商 B' }] as never}
+    items={[item]} bins={[bin]} initialMode={mode} onNavigate={vi.fn()} onClose={vi.fn()} onDone={vi.fn()} />)
+  await waitFor(() => expect(screen.getByRole('combobox', { name: '第1行药品' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('combobox', { name: '第1行药品' }))
+  fireEvent.click(await screen.findByRole('option', { name: /阿莫西林/ }))
+  expect(screen.getByLabelText('第1行采购单价')).toHaveValue(7)
+  await waitFor(() => expect(screen.getByLabelText('第1行数量')).toHaveFocus())
+  fireEvent.click(screen.getByRole('combobox', { name: '供应商' }))
+  fireEvent.click(await screen.findByRole('option', { name: /供应商 B/ }))
+  expect(await screen.findByText(/供应商供货目录查询失败/)).toBeInTheDocument()
+  expect(screen.getByLabelText('第1行采购单价')).toHaveValue(null)
+  expect(screen.getByRole('combobox', { name: '第1行药品' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: mode === 'plan' ? '保存并提交审核' : '直接验收入库并记账' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: '重试供应商查询' }))
+  await waitFor(() => expect(screen.getByRole('combobox', { name: '第1行药品' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('combobox', { name: '第1行药品' }))
+  fireEvent.click(await screen.findByRole('option', { name: /阿莫西林/ }))
+  expect(screen.getByLabelText('第1行采购单价')).toHaveValue(11)
+  expect(supplyItems.mock.calls.map(call => call[0])).toEqual(['a', 'b', 'b'])
+})
+
+it.each(['plan', 'direct'] as const)('clears the previous medication price when the next medication has no price in %s mode', async (mode) => {
+  render(<PurchaseDialog api={{ pharmacy: { supplyItems: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi}
+    site={{ id: 'site' } as StockSite} suppliers={[{ id: 'supplier', name: '供应商' }] as never}
+    items={[item, { ...item, id: 'other', catalogItemId: 'other-catalog', productName: '另一药品' }]}
+    bins={[bin]} initialMode={mode} onNavigate={vi.fn()} onClose={vi.fn()} onDone={vi.fn()} />)
+  await waitFor(() => expect(screen.getByRole('combobox', { name: '第1行药品' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('combobox', { name: '第1行药品' }))
+  fireEvent.click(await screen.findByRole('option', { name: /阿莫西林/ }))
+  fireEvent.change(screen.getByLabelText('第1行采购单价'), { target: { value: '19' } })
+  fireEvent.click(screen.getByRole('combobox', { name: '第1行药品' }))
+  fireEvent.click(await screen.findByRole('option', { name: /另一药品/ }))
+  expect(screen.getByLabelText('第1行采购单价')).toHaveValue(null)
+  expect(screen.getByRole('button', { name: mode === 'plan' ? '保存并提交审核' : '直接验收入库并记账' })).toBeDisabled()
+})
+
+
+it('ignores a late response from the previous supplier', async () => {
+  let finishFirst = () => {}
+  const supplyItems = vi.fn((id: string) => id === 'a'
+    ? new Promise(resolve => { finishFirst = () => resolve([{ catalogItemId: 'catalog-item', packageId: 'package', agreementPrice: 7 }]) })
+    : Promise.resolve([{ catalogItemId: 'catalog-item', packageId: 'package', agreementPrice: 11 }]))
+  render(<PurchaseDialog api={{ pharmacy: { supplyItems } } as unknown as RhnApi}
+    site={{ id: 'site' } as StockSite} suppliers={[{ id: 'a', name: '供应商 A' }, { id: 'b', name: '供应商 B' }] as never}
+    items={[item]} onNavigate={vi.fn()} onClose={vi.fn()} onDone={vi.fn()} />)
+  await waitFor(() => expect(supplyItems).toHaveBeenCalledWith('a'))
+  fireEvent.click(screen.getByRole('combobox', { name: '供应商' }))
+  fireEvent.click(await screen.findByRole('option', { name: /供应商 B/ }))
+  await waitFor(() => expect(screen.getByRole('combobox', { name: '第1行药品' })).toBeEnabled())
+  await act(async () => { finishFirst() })
+  fireEvent.click(screen.getByRole('combobox', { name: '第1行药品' }))
+  fireEvent.click(await screen.findByRole('option', { name: /阿莫西林/ }))
+  expect(screen.getByLabelText('第1行采购单价')).toHaveValue(11)
+})
+
+it('reports a malformed supplier response instead of treating it as an empty agreement list', async () => {
+  render(<PurchaseDialog api={{ pharmacy: { supplyItems: vi.fn().mockResolvedValue(null) } } as unknown as RhnApi}
+    site={{ id: 'site' } as StockSite} suppliers={[{ id: 'supplier', name: '供应商' }] as never}
+    items={[item]} onNavigate={vi.fn()} onClose={vi.fn()} onDone={vi.fn()} />)
+  expect(await screen.findByText(/供应商供货目录返回无效结果/)).toBeInTheDocument()
+  expect(screen.getByRole('combobox', { name: '第1行药品' })).toBeDisabled()
 })

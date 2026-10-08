@@ -72,6 +72,34 @@ const visitTypes = {
 } as SystemEnumDefinition
 
 describe('OutpatientRegistrationWorkspace', () => {
+  it.each(['empty', 'failed', 'malformed'] as const)('blocks paid registration and F8 when payment configuration is %s', async (state) => {
+    const applicable = state === 'failed' ? vi.fn().mockRejectedValue(new Error('字典服务不可用'))
+      : vi.fn().mockResolvedValue(state === 'empty' ? [] : null)
+    const createRegistrationIntent = vi.fn()
+    const api = {
+      residents: { get: vi.fn().mockResolvedValue(resident), profile: vi.fn().mockResolvedValue({ coverages: [] }) },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable },
+      billing: { createRegistrationIntent },
+      encounters: { byResident: vi.fn().mockResolvedValue([]) },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = { organization: { id: 'org-1', name: '机构' },
+      department: { id: 'dept-1', name: '全科' } } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration?residentId=resident-1']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+    await screen.findByText(/健康档案号/)
+    await screen.findByText(state === 'empty' ? '未配置可用支付方式' : '支付方式加载失败')
+    expect(screen.queryByRole('button', { name: /现金收款/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /确认挂号/ })).toBeDisabled()
+    await userEvent.keyboard('1{F8}')
+    expect(createRegistrationIntent).not.toHaveBeenCalled()
+  })
+
   it('registers the deep-linked resident against an available schedule and shows the queue receipt', async () => {
     const registrationIntent = {
       id: 'intent-1', revision: 1, residentId: resident.id, organizationId: 'org-1', departmentId: 'dept-1',
@@ -88,7 +116,7 @@ describe('OutpatientRegistrationWorkspace', () => {
         profile: vi.fn().mockResolvedValue({ resident, demographicProfile: {}, addresses: [],
           relatedPersons: [], coverages: [], employments: [] }) },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: {
         createRegistrationIntent,
         registrationIntent: vi.fn().mockResolvedValue(registrationIntent),
@@ -113,6 +141,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     await screen.findByText(/健康档案号/)
+    await userEvent.type(await screen.findByPlaceholderText('10'), '10')
     const confirmBtn = await screen.findByRole('button', { name: /确认挂号/ })
     await userEvent.click(confirmBtn)
 
@@ -124,7 +153,6 @@ describe('OutpatientRegistrationWorkspace', () => {
       registrationSource: 'WINDOW',
       visitType: 'GENERAL',
       settlementMode: 'SELF_PAY',
-      coverageId: undefined,
       idempotencyCode: 'REG-INTENT-request-1',
     })))
     expect(await screen.findByText('挂号成功：挂号单 REG001，候诊号 A001')).toBeInTheDocument()
@@ -146,7 +174,7 @@ describe('OutpatientRegistrationWorkspace', () => {
         profile: vi.fn().mockResolvedValue({ resident: createdResident, demographicProfile: {}, addresses: [], relatedPersons: [], coverages: [], employments: [] }),
       },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
       encounters: { byResident: vi.fn().mockResolvedValue([]) },
       organization: { departments: vi.fn().mockResolvedValue([]) },
@@ -199,7 +227,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     const api = {
       residents: { get: vi.fn(), search: vi.fn(), profile: vi.fn() },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule, internalSchedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
       encounters: { byResident: vi.fn().mockResolvedValue([]) },
       organization: { departments: vi.fn().mockResolvedValue([]) },
@@ -256,7 +284,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     const api = {
       residents: { get: vi.fn(), search: vi.fn(), profile: vi.fn() },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule, internalSchedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
       encounters: { byResident: vi.fn().mockResolvedValue([]) },
       organization: { departments: vi.fn().mockResolvedValue([]) },
@@ -328,7 +356,7 @@ describe('OutpatientRegistrationWorkspace', () => {
         profile: vi.fn().mockResolvedValue({ resident, demographicProfile: {}, addresses: [],
           relatedPersons: [], coverages: [], employments: [] }) },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([receipt]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: {
         createRegistrationIntent: vi.fn().mockResolvedValue(registrationIntent),
         registrationIntent: vi.fn().mockResolvedValue(registrationIntent),
@@ -355,6 +383,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     await screen.findByText(/健康档案号/)
+    await userEvent.type(await screen.findByPlaceholderText('10'), '10')
     await userEvent.click(await screen.findByRole('button', { name: /确认挂号/ }))
 
     // Thermal receipt modal should open automatically
@@ -389,7 +418,7 @@ describe('OutpatientRegistrationWorkspace', () => {
         profile: vi.fn().mockResolvedValue({ resident, demographicProfile: {}, addresses: [],
           relatedPersons: [], coverages: [], employments: [] }) },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([receipt]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: {
         createRegistrationIntent: vi.fn().mockResolvedValue(registrationIntent),
         registrationIntent: vi.fn().mockResolvedValue(registrationIntent),
@@ -415,6 +444,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     await screen.findByText(/健康档案号/)
+    await userEvent.type(await screen.findByPlaceholderText('10'), '10')
     await userEvent.click(await screen.findByRole('button', { name: /确认挂号/ }))
     expect(await screen.findByRole('heading', { name: '门诊挂号热敏凭条' })).toBeInTheDocument()
 
@@ -431,7 +461,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     const api = {
       residents: { get: vi.fn(), search: vi.fn(), profile: vi.fn() },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([receipt]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
       encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: cancelEncounter },
       organization: { departments: vi.fn().mockResolvedValue([]) },
@@ -475,7 +505,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     const api = {
       residents: { get: vi.fn(), search: vi.fn().mockResolvedValue([resident]), profile: vi.fn().mockResolvedValue({ coverages: [] }) },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }, { code: 'ALIPAY', name: '支付宝', sortOrder: 20, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent, registrationIntent: vi.fn().mockResolvedValue({ status: 'COMPLETED' }) },
       encounters: { byResident: vi.fn().mockResolvedValue([encounter]), cancel: vi.fn() },
       organization: { departments: vi.fn().mockResolvedValue([]) },
@@ -516,7 +546,15 @@ describe('OutpatientRegistrationWorkspace', () => {
     const alipayChip = screen.getByRole('button', { name: /支付宝/ })
     expect(alipayChip).toHaveClass('is-active')
 
-    // 5. Test F8 shortcut to confirm and create registration intent
+    // F8 obeys the same unsupported-channel guard as the button.
+    await userEvent.keyboard('{F8}')
+    expect(createRegistrationIntent).not.toHaveBeenCalled()
+    await userEvent.keyboard('1')
+    await userEvent.keyboard('{F8}')
+    expect(createRegistrationIntent).not.toHaveBeenCalled()
+
+    // 5. Explicitly confirm actual cash before F8 submission
+    await userEvent.type(await screen.findByPlaceholderText('10'), '10')
     await userEvent.keyboard('{F8}')
     await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -530,7 +568,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     const api = {
       residents: { get: vi.fn(), search: vi.fn().mockResolvedValue([resident]), profile: vi.fn().mockResolvedValue({ coverages: [] }) },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn().mockResolvedValue({ status: 'COMPLETED' }) },
       encounters: { byResident: vi.fn().mockResolvedValue([encounter]), cancel: vi.fn() },
       organization: { departments: vi.fn().mockResolvedValue([]) },
@@ -616,7 +654,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     const api = {
       residents: { get: vi.fn(), search: vi.fn(), profile: vi.fn() },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([inServiceReceipt]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
       encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
       organization: { departments: vi.fn().mockResolvedValue([]) },
@@ -679,7 +717,7 @@ describe('OutpatientRegistrationWorkspace', () => {
         get: vi.fn().mockResolvedValue(todayAppointment),
       },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent, registrationIntent: vi.fn() },
       encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
       organization: { departments: vi.fn().mockResolvedValue([]) },
@@ -712,6 +750,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(await screen.findByText(/正在办理预约/)).toBeInTheDocument()
 
     // Confirm registration
+    await userEvent.type(await screen.findByPlaceholderText('10'), '10')
     const confirmBtn = await screen.findByRole('button', { name: /确认挂号/ })
     await userEvent.click(confirmBtn)
 
@@ -723,7 +762,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     })))
   })
 
-  it('smartly defaults to self-pay when insured patient is looked up manually, offers one-click switch, and auto-fills cash tendered default', async () => {
+  it('smartly defaults to self-pay when insured patient is looked up manually, offers one-click switch, and requires explicit cash tendered input', async () => {
     const insuredResident: Resident = { ...resident, id: 'insured-res-1', fullName: '王医保' }
     const insuredProfile = {
       resident: insuredResident,
@@ -755,7 +794,7 @@ describe('OutpatientRegistrationWorkspace', () => {
         profile: vi.fn().mockResolvedValue(insuredProfile),
       },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent, registrationIntent: vi.fn() },
       encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
       organization: { departments: vi.fn().mockResolvedValue([]) },
@@ -793,9 +832,9 @@ describe('OutpatientRegistrationWorkspace', () => {
     // No blocking warning for self pay
     expect(screen.queryByText(/【医保接口未对接】/)).not.toBeInTheDocument()
 
-    // 4. Cash tendered default value is automatically filled with schedule fee (10.00)
+    // 4. Cash tendered remains unknown until explicitly entered
     const cashInput = screen.getByPlaceholderText('10') as HTMLInputElement
-    expect(cashInput.value).toBe('10')
+    expect(cashInput.value).toBe('')
     expect(screen.getByText('¥0.00')).toBeInTheDocument()
 
     // 5. Test one-click switch to insurance
@@ -832,7 +871,7 @@ describe('OutpatientRegistrationWorkspace', () => {
         profile: vi.fn().mockResolvedValue(insuredProfile),
       },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
-      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
       encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
       organization: { departments: vi.fn().mockResolvedValue([]) },

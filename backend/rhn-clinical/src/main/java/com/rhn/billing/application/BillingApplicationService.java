@@ -85,25 +85,8 @@ public class BillingApplicationService {
     private final ExecutionContextProvider contextProvider;
     private final SettlementApplicationService settlements;
     private final ChargeCategoryResolver categoryResolver;
-
-    public BillingApplicationService(
-            PatientAccountRepository accountRepository, ChargeItemRepository chargeRepository,
-            ChargeItemComponentRepository componentRepository, InvoiceRepository invoiceRepository,
-            InvoiceLineRepository invoiceLineRepository, InvoiceCategorySummaryRepository categoryRepository,
-            PaymentRepository paymentRepository, LedgerEntryRepository ledgerRepository,
-            DispenseBillingDirectory dispenseDirectory,
-            EncounterDirectory encounterDirectory, ResidentDirectory residentDirectory,
-            MedicationRequestDirectory medicationRequestDirectory,
-            CatalogLifecycleDirectory catalogDirectory, DomainEventPublisher eventPublisher,
-            DictionaryAttributeDirectory dictionaryAttributeDirectory,
-            ExecutionContextProvider contextProvider,
-            SettlementApplicationService settlements) {
-        this(accountRepository, chargeRepository, componentRepository, invoiceRepository,
-                invoiceLineRepository, categoryRepository, paymentRepository, ledgerRepository,
-                dispenseDirectory, encounterDirectory, residentDirectory, medicationRequestDirectory,
-                catalogDirectory, eventPublisher, dictionaryAttributeDirectory, contextProvider,
-                settlements, new ChargeCategoryResolver(null));
-    }
+    private final PaymentRoundingPolicy roundingPolicy;
+    private final MedicationReturnChargeService medicationReturns;
 
     @Autowired
     public BillingApplicationService(
@@ -118,7 +101,8 @@ public class BillingApplicationService {
             DictionaryAttributeDirectory dictionaryAttributeDirectory,
             ExecutionContextProvider contextProvider,
             SettlementApplicationService settlements,
-            ChargeCategoryResolver categoryResolver) {
+            ChargeCategoryResolver categoryResolver, PaymentRoundingPolicy roundingPolicy,
+            MedicationReturnChargeService medicationReturns) {
         this.accountRepository = accountRepository; this.chargeRepository = chargeRepository;
         this.componentRepository = componentRepository; this.invoiceRepository = invoiceRepository;
         this.invoiceLineRepository = invoiceLineRepository; this.categoryRepository = categoryRepository;
@@ -131,6 +115,8 @@ public class BillingApplicationService {
         this.contextProvider = contextProvider;
         this.settlements = settlements;
         this.categoryResolver = categoryResolver != null ? categoryResolver : new ChargeCategoryResolver(null);
+        this.roundingPolicy = roundingPolicy;
+        this.medicationReturns = medicationReturns;
     }
 
     @Transactional
@@ -144,6 +130,15 @@ public class BillingApplicationService {
         PatientAccount account = null; String currency = null; int created = 0; int existing = 0;
         for (DispenseBillingFact event : events) {
             String sourceType = sourceType(event);
+            if ("MEDICATION_RETURN".equals(sourceType)) {
+                var posting = medicationReturns.post(context.tenantId(), event.id());
+                if (posting.charge() != null) {
+                    account = requireAccount(context, posting.charge().patientAccountId());
+                    currency = requireSameCurrency(currency, posting.charge().currencyCode());
+                    if (posting.created()) created++; else existing++;
+                }
+                continue;
+            }
             ChargeItem current = chargeRepository.findByTenantIdAndSourceTypeAndSourceId(
                     context.tenantId(), sourceType, event.id()).orElse(null);
             if (current == null && "MEDICATION_DISPENSE".equals(sourceType) && event.requestId() != null) {
@@ -154,39 +149,30 @@ public class BillingApplicationService {
                 existing++; account = requireAccount(context, current.patientAccountId());
                 currency = requireSameCurrency(currency, current.currencyCode()); continue;
             }
-            boolean reversal = "MEDICATION_RETURN".equals(sourceType);
-            ChargeItem original = reversal ? requireOriginalCharge(context, event) : null;
-            ChargePricing pricing = reversal ? reversalPricing(context, event, original) : pricing(context, event);
+            ChargePricing pricing = pricing(context, event);
             currency = requireSameCurrency(currency, pricing.currencyCode());
             if (account == null) account = findOrCreateAccount(context, encounter, currency);
             if (!account.currencyCode().equals(currency)) throw conflict(
                     "BILLING_ENCOUNTER_MULTI_CURRENCY_UNSUPPORTED", "本轮门诊结算不允许同一就诊混用多个币种");
 
-            BigDecimal quantity = reversal ? event.operationQuantity().negate() : event.operationQuantity();
-            BigDecimal amount = reversal ? pricing.amount().negate() : pricing.amount();
+            BigDecimal quantity = event.operationQuantity();
+            BigDecimal amount = pricing.amount();
             BigDecimal unitPrice = pricing.unitPrice();
-            String accountingCategory = reversal
-                    ? (original != null && original.accountingCategory() != null ? original.accountingCategory() : "WESTERN_MED")
-                    : resolveMedicationCategory(pricing.requestId());
+            String accountingCategory = resolveMedicationCategory(pricing.requestId());
             ChargeItem charge = chargeRepository.save(new ChargeItem(context.tenantId(),
                     encounter.organizationId(), encounter.departmentId(), account.id(),
                     encounter.residentId(), encounter.id(), pricing.requestId(), pricing.catalogItemId(),
                     sourceType, event.id(), requestCode, quantity, event.operationUnitCode(), unitPrice, amount,
                     currency, pricing.priceId(), pricing.priceRevision(), pricing.priceType(),
                     pricing.itemCode(), pricing.itemName(),
-                    event.occurredAt(), context.subjectId(), original == null ? null : original.id(),
+                    event.occurredAt(), context.subjectId(), null,
                     accountingCategory));
             componentRepository.save(new ChargeItemComponent(context.tenantId(), charge.id(), charge.catalogItemId(),
                     charge.itemCodeSnapshot(), charge.itemNameSnapshot(), quantity, charge.unitCode(),
                     pricing.unitFactor(), unitPrice, amount));
             if (amount.signum() != 0) {
-                Long reversesLedger = original == null ? null : ledgerRepository
-                        .findByTenantIdAndChargeItemId(context.tenantId(), original.id())
-                        .map(LedgerEntry::id).orElse(null);
-                ledgerRepository.save(new LedgerEntry(context.tenantId(), account.id(),
-                        reversal ? "CHARGE_REVERSAL" : "CHARGE", reversal ? "CREDIT" : "DEBIT",
-                        amount.abs(), currency, charge.id(), null, null, reversesLedger,
-                        event.occurredAt(), context.subjectId()));
+                ledgerRepository.save(new LedgerEntry(context.tenantId(), account.id(), "CHARGE", "DEBIT",
+                        amount, currency, charge.id(), null, null, null, event.occurredAt(), context.subjectId()));
             }
             created++;
         }
@@ -379,12 +365,15 @@ public class BillingApplicationService {
             throw badRequest("PAYMENT_METHOD_NOT_APPLICABLE", "当前支付方式不适用于所选结算场景");
         }
         if (invoice.netAmount().signum() <= 0) throw conflict("PAYMENT_CREDIT_INVOICE_INVALID", "贷项结算凭证不能执行收款");
+        BigDecimal paid = money(paymentRepository.netPaidForInvoice(context.tenantId(), invoice.id()));
         if (input.roundingAdjustment() != null && input.roundingAdjustment().signum() != 0) {
             Settlement formalSettlement = settlements.requireForPayment(context, invoice.id());
-            formalSettlement.applyRoundingAdjustment(input.roundingAdjustment());
-            invoice.adjustRounding(input.roundingAdjustment());
+            BigDecimal adjustment = roundingPolicy.totalAdjustment(context, invoice.id(), method, paymentScene,
+                    invoice.netAmount().subtract(paid).subtract(settlements.nonPaymentTendered(context, formalSettlement.id())),
+                    input.amount(), input.roundingAdjustment(), formalSettlement.roundingAmount());
+            formalSettlement.applyRoundingAdjustment(adjustment);
+            invoice.adjustRounding(adjustment);
         }
-        BigDecimal paid = money(paymentRepository.netPaidForInvoice(context.tenantId(), invoice.id()));
         BigDecimal outstanding = money(invoice.netAmount().subtract(paid));
         if (amount.compareTo(outstanding) > 0) throw conflict("PAYMENT_EXCEEDS_OUTSTANDING", "支付金额超过结算凭证未付金额");
         Instant paidAt = input.paidAt() == null ? Instant.now() : input.paidAt();
@@ -461,9 +450,10 @@ public class BillingApplicationService {
             String type = sourceType(event);
             ChargeItem charge = chargeForDispenseFact(context, event);
             if (charge != null) matchedChargeIds.add(charge.id());
-            BigDecimal expectedQuantity = "MEDICATION_RETURN".equals(type)
-                    ? event.operationQuantity().negate() : event.operationQuantity();
-            BigDecimal expectedAmount = expectedAmount(context, event, charge);
+            var returnPreview = "MEDICATION_RETURN".equals(type)
+                    ? medicationReturns.preview(context.tenantId(), event.id()) : null;
+            BigDecimal expectedQuantity = returnPreview == null ? event.operationQuantity() : returnPreview.quantity().negate();
+            BigDecimal expectedAmount = returnPreview == null ? pricing(context, event).amount() : returnPreview.amount().negate();
             String status; String description;
             if (charge == null) { status = "UNCHARGED"; description = "发退药事实尚未形成收费事项"; }
             else if (expectedQuantity.compareTo(charge.quantity()) != 0
@@ -497,15 +487,6 @@ public class BillingApplicationService {
                 money(debit.subtract(credit)), lines);
     }
 
-    private BigDecimal expectedAmount(ExecutionContext context, DispenseBillingFact event, ChargeItem current) {
-        if ("RETURN".equals(event.dispenseType())) {
-            ChargeItem original = requireOriginalCharge(context, event);
-            return returnAmount(context, original, event.operationQuantity(), current == null ? null : current.id())
-                    .negate();
-        }
-        return pricing(context, event).amount();
-    }
-
     private ChargeItem chargeForDispenseFact(ExecutionContext context, DispenseBillingFact event) {
         String type = sourceType(event);
         return chargeRepository.findByTenantIdAndSourceTypeAndSourceId(context.tenantId(), type, event.id())
@@ -523,13 +504,6 @@ public class BillingApplicationService {
 
     private ChargeCategory chargeCategory(ChargeItem charge) {
         return categoryResolver.resolve(null, charge);
-    }
-
-    private ChargePricing reversalPricing(ExecutionContext context, DispenseBillingFact event, ChargeItem original) {
-        return new ChargePricing(event.requestId(), original.catalogItemId(), original.priceId(),
-                original.priceRevision(), original.priceType(), original.unitPrice(),
-                returnAmount(context, original, event.operationQuantity(), null), original.currencyCode(),
-                event.baseQuantityFactor(), original.itemCodeSnapshot(), original.itemNameSnapshot());
     }
 
     private ChargePricing pricing(ExecutionContext context, DispenseBillingFact event) {
@@ -560,25 +534,6 @@ public class BillingApplicationService {
                 catalog.price().revision(), catalog.price().sdPriceType(), rate, amount,
                 requiredCurrency(catalog.price().currencyCode()), event.baseQuantityFactor(),
                 event.productCodeSnapshot(), event.productNameSnapshot());
-    }
-
-    private BigDecimal returnAmount(ExecutionContext context, ChargeItem original, BigDecimal quantity,
-                                    Long currentChargeId) {
-        List<ChargeItem> previous = chargeRepository.findByTenantIdAndReversesChargeItemIdOrderByOccurredAtAscIdAsc(
-                context.tenantId(), original.id());
-        BigDecimal returnedQuantity = BigDecimal.ZERO;
-        BigDecimal returnedAmount = BigDecimal.ZERO;
-        for (ChargeItem value : previous) {
-            if (currentChargeId != null && currentChargeId.equals(value.id())) break;
-            returnedQuantity = returnedQuantity.add(value.quantity().abs());
-            returnedAmount = returnedAmount.add(value.totalAmount().abs());
-        }
-        BigDecimal remainingQuantity = original.quantity().subtract(returnedQuantity);
-        if (quantity.compareTo(remainingQuantity) > 0) throw conflict(
-                "CHARGE_REVERSAL_EXCEEDS_ORIGINAL", "累计反向收费数量超过原收费事项");
-        if (quantity.compareTo(remainingQuantity) == 0) return money(original.totalAmount().subtract(returnedAmount));
-        return money(original.totalAmount().multiply(quantity)
-                .divide(original.quantity(), 12, RoundingMode.HALF_UP));
     }
 
     private AccountStatementView statement(ExecutionContext context, PatientAccount account) {
@@ -720,19 +675,6 @@ public class BillingApplicationService {
         requireAccount(context, payment.patientAccountId()); return payment;
     }
 
-    private ChargeItem requireOriginalCharge(ExecutionContext context, DispenseBillingFact event) {
-        if (event.originalDispenseId() == null) throw conflict("RETURN_CHARGE_ORIGINAL_MISSING", "退药事件缺少原发药关联");
-        ChargeItem original = chargeRepository.findByTenantIdAndSourceTypeAndSourceId(
-                        context.tenantId(), "MEDICATION_DISPENSE", event.originalDispenseId())
-                .or(() -> event.requestId() == null ? java.util.Optional.empty()
-                        : chargeRepository.findByTenantIdAndSourceTypeAndSourceId(
-                                context.tenantId(), "MEDICATION_REQUEST", event.requestId()))
-                .orElseThrow(() -> conflict("RETURN_CHARGE_ORIGINAL_NOT_POSTED", "原发药尚未计费，不能生成反向收费"));
-        if (!original.encounterId().equals(event.encounterId())) throw conflict(
-                "RETURN_CHARGE_ENCOUNTER_MISMATCH", "退药事实与原收费事项不属于同一就诊");
-        return original;
-    }
-
     private EncounterSnapshot requireEncounter(ExecutionContext context, Long encounterId) {
         EncounterSnapshot encounter = encounterDirectory.requireOrganizationAccessible(encounterId);
         if (!context.tenantId().equals(encounter.tenantId()) || !context.canAccessOrganization(encounter.organizationId())) {
@@ -778,21 +720,10 @@ public class BillingApplicationService {
     private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(); }
 
     private String resolveMedicationCategory(Long requestId) {
-        if (requestId == null) return "WESTERN_MED";
-        try {
-            var req = medicationRequestDirectory.requireForPharmacy(requestId);
-            if (req != null && req.medicationType() != null) {
-                return switch (req.medicationType().trim().toUpperCase()) {
-                    case "CHINESE_PATENT", "CHINESE_PATENT_MED" -> "CHINESE_PATENT_MED";
-                    case "HERBAL", "HERBAL_MED" -> "HERBAL_MED";
-                    case "WESTERN", "WESTERN_MED" -> "WESTERN_MED";
-                    default -> "MEDICATION";
-                };
-            }
-        } catch (Exception ignored) {
-            // 处方不存在时按西药默认分类，避免阻塞药房工作台。
-        }
-        return "WESTERN_MED";
+        if (requestId == null) throw conflict("BILLING_MEDICATION_REQUEST_REQUIRED", "药品分类缺少原医嘱来源");
+        var request = medicationRequestDirectory.requireForPharmacy(requestId);
+        if (request == null) throw conflict("BILLING_MEDICATION_REQUEST_REQUIRED", "未找到原药品医嘱");
+        return com.rhn.platform.masterdata.api.MedicationAccountingCategories.fromMedicationType(request.medicationType());
     }
 
     private record ChargePricing(Long requestId, Long catalogItemId, Long priceId, Long priceRevision,

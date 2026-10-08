@@ -44,11 +44,11 @@ function WardPatientRow({ value, active, onClick }: {
 }) {
   const labels: Record<InpatientWardPatient['attentionLevel'], string> = {
     EXCEPTION: '交接异常', OVERDUE: '执行逾期', AWAITING_RECEIPT: '待签收', HIGH_CARE: '重点护理',
-    PENDING: '有待办', STABLE: '平稳',
+    PENDING: '有待办', STABLE: '暂无待办预警',
   }
   const tones: Record<InpatientWardPatient['attentionLevel'], 'danger' | 'warning' | 'info' | 'neutral' | 'success'> = {
     EXCEPTION: 'danger', OVERDUE: 'warning', AWAITING_RECEIPT: 'info', HIGH_CARE: 'warning',
-    PENDING: 'neutral', STABLE: 'success',
+    PENDING: 'neutral', STABLE: 'neutral',
   }
   return <button type="button" className={active ? 'is-active' : ''} onClick={onClick}>
     <span className="inpatient-handover__identity"><strong>{value.bedNo ?? '—'}</strong>

@@ -308,7 +308,7 @@ class RegistrationBillingIntentTransactionService {
                     original.quantity().abs().negate(), original.unitCode(), original.unitPrice(), amount.negate(),
                     original.currencyCode(), original.priceId(), original.priceRevision(), original.priceType(),
                     original.itemCodeSnapshot(), original.itemNameSnapshot(), now, context.subjectId(), original.id(),
-                    original.accountingCategory() != null ? original.accountingCategory() : "REGISTRATION"));
+                    original.accountingCategory()));
             components.save(new ChargeItemComponent(context.tenantId(), reversal.id(), original.catalogItemId(),
                     original.itemCodeSnapshot(), original.itemNameSnapshot(), original.quantity().abs().negate(),
                     original.unitCode(), BigDecimal.ONE, original.unitPrice(), amount.negate()));

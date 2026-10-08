@@ -8,6 +8,7 @@ import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Objects;
 
 @Entity
 @Table(name = "RHN_BIL_PAY_EVT")
@@ -37,6 +38,13 @@ public class PaymentEvent {
         this.statusTo = statusTo; this.commandCode = commandCode; this.externalTransactionNo = externalTransactionNo;
         this.eventAmount = eventAmount; this.errorCode = errorCode; this.errorMessage = errorMessage;
         this.actorId = actorId; this.occurredAt = Instant.now();
+    }
+
+    public boolean matches(String type, String next, String transactionNo, BigDecimal amount, String code, String message) {
+        return Objects.equals(eventType, type) && Objects.equals(statusTo, next)
+                && Objects.equals(externalTransactionNo, transactionNo)
+                && (eventAmount == null || amount == null ? eventAmount == amount : eventAmount.compareTo(amount) == 0)
+                && Objects.equals(errorCode, code) && Objects.equals(errorMessage, message);
     }
 
     public Long id() { return id; }

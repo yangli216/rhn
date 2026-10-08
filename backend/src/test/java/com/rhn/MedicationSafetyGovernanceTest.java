@@ -12,6 +12,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class MedicationSafetyGovernanceTest extends RhnIntegrationTestSupport {
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "skinTestMethod", "skinTestSolutionMode", "skinTestObservationMinutes", "skinTestResultValidityHours"})
+    void required_skin_test_rejects_incomplete_master_data(String missingField) throws Exception {
+        String body = """
+                {"code":"SKIN-MISSING-%s","name":"缺失皮试配置测试药品",
+                 "sdMedicationType":"WESTERN","sdDoseForm":"INJECTION",
+                 "preparationSpec":"1g","preparationUnit":"瓶","skinTestRequired":true,
+                 "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
+                 "chronicDiseaseDrug":false,"singleOrder":true,
+                 "skinTestMethod":"PRICK","skinTestSolutionMode":"ORIGINAL_SOLUTION",
+                 "skinTestObservationMinutes":30,"skinTestResultValidityHours":48,
+                 "sdStatus":"ACTIVE"}
+                """.formatted(UUID.randomUUID().toString().substring(0, 8));
+        var input = (tools.jackson.databind.node.ObjectNode) json(body);
+        input.remove(missingField);
+        mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput(input.toString())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MEDICATION_SKIN_TEST_CONFIGURATION_REQUIRED"));
+    }
+
     @Test
     void representative_skin_test_and_special_antimicrobial_drugs_are_available() throws Exception {
         mockMvc.perform(get("/api/platform/master-data/medications")

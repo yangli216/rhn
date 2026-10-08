@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { DiseaseConcept } from '../../shared/api/masterDataApi'
 import type { InpatientAdmissionDiagnosis, InpatientEpisode } from '../../shared/api/inpatientApi'
-import { inpatientDiagnosisVerificationPresentation } from '../../shared/presentation'
+import { diagnosisDomainLabel, inpatientDiagnosisVerificationPresentation } from '../../shared/presentation'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, ClinicalResourceSearch, EmptyState, LoadingState, Panel, Select, StatusBadge,
   type ClinicalResourceOption } from '../../shared/ui'
@@ -32,8 +32,8 @@ export function InpatientAdmissionDiagnosisPanel({ api, episode, variant = 'edit
   const save = useMutation({
     mutationFn: () => api.inpatient.saveAdmissionDiagnoses(episode.id, {
       expectedEpisodeRevision: episode.revision,
-      diagnoses: diagnoses.map(({ code, display, diagnosisType, verificationStatus }) => ({
-        code, display, diagnosisType, verificationStatus,
+      diagnoses: diagnoses.map(({ code, display, diagnosisType, verificationStatus, conceptId, diagnosisDomain }) => ({
+        code, display, diagnosisType, verificationStatus, conceptId, diagnosisDomain,
       })),
       commandCode: `ADMISSION-DIAGNOSIS-${crypto.randomUUID()}`,
     }),
@@ -51,6 +51,7 @@ export function InpatientAdmissionDiagnosisPanel({ api, episode, variant = 'edit
     if (!disease || diagnoses.some((value) => value.code.toLowerCase() === disease.code.toLowerCase())) return
     setDiagnoses((current) => [...current, {
       diagnosisStage: 'ADMISSION', code: disease.code, display: disease.display,
+      conceptId: disease.id, diagnosisDomain: disease.sdDiagnosisDomain,
       diagnosisType: current.some((value) => value.diagnosisType === 'PRIMARY') ? 'SECONDARY' : 'PRIMARY',
       verificationStatus: 'PROVISIONAL',
     }])
@@ -76,7 +77,7 @@ export function InpatientAdmissionDiagnosisPanel({ api, episode, variant = 'edit
         : <div className="inpatient-admission-diagnoses__list">{diagnoses.map((diagnosis) => <article key={diagnosis.code}>
           <span><StatusBadge tone={diagnosis.diagnosisType === 'PRIMARY' ? 'info' : 'neutral'}>
             {diagnosis.diagnosisType === 'PRIMARY' ? '主要' : '次要'}</StatusBadge>
-            <strong>{diagnosis.display}</strong><small>{diagnosis.code}</small></span>
+            <strong>{diagnosis.display}</strong><small>{diagnosis.code} · {diagnosisDomainLabel(diagnosis.diagnosisDomain)}</small></span>
           <div>{!canEdit ? <StatusBadge tone={inpatientDiagnosisVerificationPresentation(diagnosis.verificationStatus).tone}>
             {inpatientDiagnosisVerificationPresentation(diagnosis.verificationStatus).label}</StatusBadge> : <>
             <Select aria-label={`诊断确认状态 ${diagnosis.display}`} value={diagnosis.verificationStatus}

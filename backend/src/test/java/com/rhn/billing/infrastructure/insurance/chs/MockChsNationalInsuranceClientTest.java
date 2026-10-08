@@ -85,4 +85,11 @@ class MockChsNationalInsuranceClientTest {
         assertEquals(settleResponse.setlId(), reverseResponse.originalSetlId());
         assertTrue(reverseResponse.success());
     }
+    @Test
+    void missingSimulatedTransactionsCannotProduceSuccessfulSettlementOrReversal() {
+        assertThrows(com.rhn.shared.api.BusinessException.class, () -> client.settle(
+                new ChsModels.SettleRequest("UNKNOWN", "PSN", "SET", "OP")));
+        assertFalse(client.reverse(new ChsModels.ReversalRequest("UNKNOWN", "PSN", "OP", "取消")).success());
+    }
+
 }

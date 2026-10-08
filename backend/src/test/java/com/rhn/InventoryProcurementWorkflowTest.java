@@ -3,6 +3,8 @@ package com.rhn;
 import com.rhn.pharmacy.domain.InventorySplitEvent;
 import com.rhn.pharmacy.infrastructure.InventorySplitEventRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -72,6 +74,9 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.lines[1].inventoryTransactionId").isNotEmpty())
                 .andReturn().getResponse().getContentAsString());
         String transaction1 = posted.at("/lines/0/inventoryTransactionId").asString();
+        assertCost(fixture.item1Id(), transaction1, "0.533333", "12.80");
+        assertCost(fixture.item2Id(), transaction1, "0.325000", "13.00");
+        assertCloseValues(fixture.siteId(), "25.80", "-0.000008", "25.799992");
 
         mockMvc.perform(post("/api/pharmacy/goods-receipts/{id}/post", receiptId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.lines[0].inventoryTransactionId").value(transaction1));
@@ -268,6 +273,10 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
 
         String receiptId = receipt.get("id").asString();
         String purchaseOrderId = receipt.get("purchaseOrderId").asString();
+        String transactionId = receipt.at("/lines/0/inventoryTransactionId").asString();
+        assertCost(fixture.item1Id(), transactionId, "0.533333", "25.60");
+        assertCost(fixture.item2Id(), transactionId, "0.325000", "19.50");
+        assertCloseValues(fixture.siteId(), "45.10", "-0.000016", "45.099984");
 
         // 验证生成的采购单状态为 COMPLETED
         mockMvc.perform(get("/api/pharmacy/purchase-orders").param("stockSiteId", fixture.siteId()).with(rhnWorkContext()))
@@ -286,6 +295,96 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].eventType").value("RECEIVED"))
                 .andExpect(jsonPath("$[1].eventType").value("INSPECTED"))
                 .andExpect(jsonPath("$[2].eventType").value("POSTED"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"24,0,0", "24,24,1", "1,12.8,12.8"})
+    void direct_receipt_preserves_zero_and_exact_package_conversions(String factor, String price, String cost) throws Exception {
+        jdbcTemplate.update("update RHN_BD_ITEM_PKG set QTY_FACTOR = ? where ID_ITEM_PKG = ?",
+                new BigDecimal(factor), Long.valueOf(PACKAGE_1));
+        Fixture fixture = createFixture("EXACT", false);
+        JsonNode supplier = createSupplier(fixture.suffix());
+        JsonNode receipt = directReceipt(fixture, supplier, "EXACT-" + fixture.suffix(), price);
+        String transactionId = receipt.at("/lines/0/inventoryTransactionId").asString();
+        assertCost(fixture.item1Id(), transactionId, cost, price);
+        assertEquals(0, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_VALUAT_ENTRY where ID_SRC = ? and SD_ENTRY_TYPE = 'ROUNDING'",
+                Integer.class, Long.valueOf(transactionId)));
+        assertCloseValues(fixture.siteId(), price, "0", price);
+    }
+
+    @Test
+    void weighted_cost_uses_document_amounts_and_records_rounding_once_per_receipt_line() throws Exception {
+        Fixture fixture = createFixture("WEIGHT", false);
+        JsonNode supplier = createSupplier(fixture.suffix());
+        directReceipt(fixture, supplier, "WEIGHT-A-" + fixture.suffix(), "12.8");
+        String requestCode = "WEIGHT-B-" + fixture.suffix();
+        JsonNode second = directReceipt(fixture, supplier, requestCode, "12.800008");
+        String transactionId = second.at("/lines/0/inventoryTransactionId").asString();
+        assertEquals(0, jdbcTemplate.queryForObject("select PRICE_AVERAGE_UNIT_COST from RHN_SUP_INV_BAL where ID_STOCK_ITEM = ?",
+                BigDecimal.class, Long.valueOf(fixture.item1Id())).compareTo(new BigDecimal("0.533333")));
+        assertEquals(0, jdbcTemplate.queryForObject("select AMT_DELTA from RHN_SUP_INV_TXN_LINE where ID_INV_TXN = ?",
+                BigDecimal.class, Long.valueOf(transactionId)).compareTo(new BigDecimal("12.800008")));
+        JsonNode repeated = directReceipt(fixture, supplier, requestCode, "12.800008");
+        assertEquals(second.get("id").asString(), repeated.get("id").asString());
+        assertEquals(2, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_VALUAT_ENTRY where ID_STOCK_ITEM = ? and SD_ENTRY_TYPE = 'ROUNDING'",
+                Integer.class, Long.valueOf(fixture.item1Id())));
+        assertCloseValues(fixture.siteId(), "25.600008", "-0.000024", "25.599984");
+    }
+
+    @Test
+    void receipt_rejects_price_precision_loss_without_committing_partial_documents() throws Exception {
+        Fixture fixture = createFixture("PRECISION", false);
+        JsonNode supplier = createSupplier(fixture.suffix());
+        mockMvc.perform(post("/api/pharmacy/direct-goods-receipts").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"stockSiteId":"%s","supplierId":"%s","requestCode":"PRECISION-%s",
+                                 "receivedAt":"2026-08-28T10:00:00Z","lines":[
+                                   {"stockItemId":"%s","packageId":"%s","destinationBinId":"%s","lotNo":"PRECISION-LOT",
+                                    "productionDate":"2026-06-01","expiryDate":"2028-06-01","quantity":1,"unitPrice":12.8000001,"taxRate":0}]}
+                                """.formatted(fixture.siteId(), supplier.get("id").asString(), fixture.suffix(),
+                                fixture.item1Id(), PACKAGE_1, fixture.bin1Id())))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.violations[0].field").value("lines[0].unitPrice"));
+        assertEquals(0, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_GOOD_RCPT where ID_STOCK_SITE = ?",
+                Integer.class, Long.valueOf(fixture.siteId())));
+        assertEquals(0, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_BAL where ID_STOCK_ITEM = ?",
+                Integer.class, Long.valueOf(fixture.item1Id())));
+    }
+
+    private JsonNode directReceipt(Fixture fixture, JsonNode supplier, String requestCode, String price) throws Exception {
+        return json(mockMvc.perform(post("/api/pharmacy/direct-goods-receipts").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"stockSiteId":"%s","supplierId":"%s","requestCode":"%s",
+                                 "receivedAt":"2026-08-28T10:00:00Z","lines":[
+                                   {"stockItemId":"%s","packageId":"%s","destinationBinId":"%s","lotNo":"VALUE-LOT",
+                                    "productionDate":"2026-06-01","expiryDate":"2028-06-01","quantity":1,"unitPrice":%s,"taxRate":0}]}
+                                """.formatted(fixture.siteId(), supplier.get("id").asString(), requestCode,
+                                fixture.item1Id(), PACKAGE_1, fixture.bin1Id(), price)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("POSTED"))
+                .andReturn().getResponse().getContentAsString());
+    }
+
+    private void assertCost(String itemId, String transactionId, String cost, String amount) {
+        assertEquals(0, jdbcTemplate.queryForObject("select PRICE_UNIT_COST from RHN_SUP_INV_TXN_LINE where ID_INV_TXN = ? and ID_STOCK_ITEM = ?",
+                BigDecimal.class, Long.valueOf(transactionId), Long.valueOf(itemId)).compareTo(new BigDecimal(cost)));
+        assertEquals(0, jdbcTemplate.queryForObject("select AMT_DELTA from RHN_SUP_INV_TXN_LINE where ID_INV_TXN = ? and ID_STOCK_ITEM = ?",
+                BigDecimal.class, Long.valueOf(transactionId), Long.valueOf(itemId)).compareTo(new BigDecimal(amount)));
+        assertEquals(0, jdbcTemplate.queryForObject("select PRICE_AVERAGE_UNIT_COST from RHN_SUP_INV_BAL where ID_STOCK_ITEM = ?",
+                BigDecimal.class, Long.valueOf(itemId)).compareTo(new BigDecimal(cost)));
+    }
+
+    private void assertCloseValues(String siteId, String movement, String rounding, String closing) throws Exception {
+        String periodId = json(mockMvc.perform(get("/api/pharmacy/inventory-periods").with(rhnWorkContext())
+                        .queryParam("stockSiteId", siteId)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString()).get(0).get("id").asString();
+        JsonNode result = json(mockMvc.perform(post("/api/pharmacy/inventory-periods/{id}/close-runs", periodId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"requestCode\":\"COST-CHECK-%s\",\"currencyCode\":\"CNY\"}".formatted(UUID.randomUUID())))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        assertEquals(0, result.get("differenceCount").asInt());
+        assertEquals(0, result.at("/totals/0/movementAmount").decimalValue().compareTo(new BigDecimal(movement)));
+        assertEquals(0, result.at("/totals/0/roundingAdjustmentAmount").decimalValue().compareTo(new BigDecimal(rounding)));
+        assertEquals(0, result.at("/totals/0/closingValue").decimalValue().compareTo(new BigDecimal(closing)));
     }
 
     private Fixture createFixture(String prefix) throws Exception {

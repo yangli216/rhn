@@ -92,7 +92,7 @@ public class TreatmentExecutionService {
         values.forEach(this::reconcile);
         String typeFilter = upper(taskType); String statusFilter = upper(status); String term = upper(keyword);
         return values.stream().filter(value -> typeFilter == null || typeFilter.equals(value.taskType()))
-                .filter(value -> statusFilter == null || statusFilter.equals(value.status().name()))
+                .filter(value -> statusFilter == null || statusFilter.equals(value.verifiedStatus().name()))
                 .map(this::view)
                 .filter(value -> term == null || searchable(value).contains(term))
                 .toList();
@@ -112,7 +112,7 @@ public class TreatmentExecutionService {
 
     @Transactional
     public TreatmentExecutionTaskView complete(Long taskId, long expectedRevision, String resultCode,
-                                               String note, boolean adverseReaction,
+                                               String note, Boolean adverseReaction,
                                                String adverseReactionDetail) {
         ExecutionContext context = requireWorkContext();
         TreatmentExecutionTask task = requireAccessible(taskId, context); reconcile(task);
@@ -142,8 +142,7 @@ public class TreatmentExecutionService {
             case "MEDICATION_REQUEST_CANCELLED" -> cancel(event, "MEDICATION_REQUEST");
             case "BILLING_SETTLEMENT_FINALIZED" -> settlementChanged(event, true);
             case "BILLING_SETTLEMENT_REVERSED" -> settlementChanged(event, false);
-            case "MEDICATION_DISPENSE_POSTED" -> fulfillmentChanged(event, true);
-            case "MEDICATION_RETURN_POSTED" -> fulfillmentChanged(event, false);
+            case "MEDICATION_DISPENSE_POSTED", "MEDICATION_RETURN_POSTED" -> fulfillmentChanged(event);
             case "SKIN_TEST_STARTED", "SKIN_TEST_COMPLETED", "SKIN_TEST_CANCELLED" -> skinTestChanged(event);
             default -> { }
         }
@@ -232,13 +231,10 @@ public class TreatmentExecutionService {
         }
     }
 
-    private void fulfillmentChanged(DomainEventEnvelope event, boolean dispensed) {
+    private void fulfillmentChanged(DomainEventEnvelope event) {
         Long requestId = longValue(event.payload().get("requestId"));
         if (requestId == null) return;
         items.lockBySource(event.tenantId(), "MEDICATION_REQUEST", requestId).ifPresent(item -> {
-            if (dispensed && !bool(event.payload().get("partial"))) {
-                item.fulfill(longValue(event.payload().get("dispenseId")), "COMPLETED");
-            } else if (!dispensed) item.reverseFulfillment("RETURNED_OR_PARTIAL");
             tasks.findById(item.taskId()).ifPresent(this::reconcile);
         });
     }
@@ -345,12 +341,13 @@ public class TreatmentExecutionService {
                         value.ready() && (!value.skinTestRequired() || skinTest != null && skinTest.passed()),
                         value.createdAt());
                 }).toList();
-        return new TreatmentExecutionTaskView(task.id(), task.revision(), task.taskNo(), task.taskType(), task.status().name(),
+        return new TreatmentExecutionTaskView(task.id(), task.revision(), task.taskNo(), task.taskType(), task.verifiedStatus().name(),
                 task.residentId(), resident.fullName(), resident.healthRecordNo(), task.encounterId(),
                 task.organizationId(), task.departmentId(), task.sourceGroupId(), task.createdAt(), task.startedAt(),
                 task.startedBy(), task.verificationMethod(), task.executionSite(), task.startNote(), task.completedAt(),
                 task.completedBy(), task.resultCode(), task.completionNote(), task.adverseReaction(),
-                task.adverseReactionDetail(), task.exceptionNote(), itemViews);
+                task.adverseReactionDetail(), task.verifiedStatus() != task.status()
+                        ? "治疗完成标记缺少有效执行或评估记录，请核对原始记录" : task.exceptionNote(), itemViews);
     }
 
     private void publish(ExecutionContext context, TreatmentExecutionTask task, String eventType, String summary) {

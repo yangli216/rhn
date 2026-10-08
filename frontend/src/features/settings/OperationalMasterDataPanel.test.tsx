@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalConfiguration, OrderFrequency, RhnApi, ServiceCatalogItem } from '../../shared/rhnApi'
@@ -256,6 +256,340 @@ function createMockApi(): RhnApi {
 }
 
 describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () => {
+  it('keeps examination preview tied to current inputs across late responses, failures and clearing', async () => {
+    const api = createMockApi()
+    const plan = (name: string) => ({ serviceId: 'srv-exam-1', siteCount: 2, sitePricingMode: 'SINGLE' as const,
+      includedSiteCount: 1, extraSiteCount: 1, lines: [{ catalogItemId: 'srv-exam-1', itemCode: 'EXAM001',
+        itemName: name, quantity: 1, sourceType: 'BASE_SERVICE', separatelyChargeable: true }] })
+    let finishOld!: (value: ReturnType<typeof plan>) => void
+    vi.mocked(api.masterData.examinationChargePlan)
+      .mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve }))
+      .mockResolvedValue(plan('当前输入的收费项目'))
+    renderClinical(api, mockServices[3])
+    const region = await screen.findByRole('region', { name: '检查收费规则试算' })
+    fireEvent.click(within(region).getByRole('checkbox', { name: '双肺 (LUNG)' }))
+    expect(await within(region).findByText('当前输入的收费项目')).toBeInTheDocument()
+    await act(async () => { finishOld(plan('旧输入的收费项目')) })
+    expect(within(region).queryByText('旧输入的收费项目')).not.toBeInTheDocument()
+    expect(within(region).getByText('部分项目尚未计价，当前无法确认费用合计。')).toBeInTheDocument()
+    vi.mocked(api.masterData.examinationChargePlan).mockRejectedValueOnce(new Error('收费试算失败'))
+    fireEvent.click(within(region).getByRole('button', { name: '刷新试算' }))
+    expect(await screen.findByText('收费试算失败')).toBeInTheDocument()
+    expect(within(region).queryByText('当前输入的收费项目')).not.toBeInTheDocument()
+    fireEvent.click(within(region).getByRole('button', { name: '刷新试算' }))
+    expect(await within(region).findByText('当前输入的收费项目')).toBeInTheDocument()
+    fireEvent.click(within(region).getByRole('button', { name: '清空' }))
+    expect(within(region).queryByText('当前输入的收费项目')).not.toBeInTheDocument()
+    expect(within(region).getByRole('button', { name: '刷新试算' })).toBeDisabled()
+  })
+
+  it('does not use late tube results or replace a blank quantity with one', async () => {
+    const api = createMockApi()
+    const plan = (name: string) => ({ groups: [], chargeLines: [{ catalogItemId: 'tube', itemCode: 'TUBE',
+      itemName: name, quantity: 1, sourceType: 'TUBE_SURCHARGE', separatelyChargeable: true }] })
+    let finishOld!: (value: ReturnType<typeof plan>) => void
+    vi.mocked(api.masterData.laboratoryTubePlan)
+      .mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve }))
+      .mockResolvedValue(plan('当前数量的分管加收'))
+    renderClinical(api)
+    const quantity = await screen.findByLabelText('全血细胞分析+CRP数量')
+    fireEvent.change(quantity, { target: { value: '2' } })
+    expect(await screen.findByText('当前数量的分管加收')).toBeInTheDocument()
+    await act(async () => { finishOld(plan('旧数量的分管加收')) })
+    expect(screen.queryByText('旧数量的分管加收')).not.toBeInTheDocument()
+    fireEvent.change(quantity, { target: { value: '' } })
+    expect(await screen.findByText('试算数量必须填写大于零的有效数字。')).toBeInTheDocument()
+    expect(api.masterData.laboratoryTubePlan).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText('当前数量的分管加收')).not.toBeInTheDocument()
+  })
+
+  it('does not report unpriced group tube charges as zero and clears a failed refresh', async () => {
+    const api = createMockApi()
+    vi.mocked(api.masterData.laboratoryTubePlan).mockResolvedValue({
+      groups: [{ groupCode: 'TEST', specimenItemId: 'spec', specimenCode: 'WHOLE_BLOOD', specimenName: '全血',
+        sharingMode: 'SEPARATE', tubeCount: 1, serviceIds: ['srv-lab-1'], chargeLines: [] }],
+      chargeLines: [{ catalogItemId: 'tube', itemCode: 'TUBE', itemName: '实际试管加收', quantity: 1,
+        sourceType: 'TUBE_SURCHARGE', separatelyChargeable: true }],
+    })
+    renderOperational(api)
+    fireEvent.click(await screen.findByRole('button', { name: '新增组套' }))
+    fireEvent.click(screen.getAllByRole('button', { name: '加入' })[0])
+    expect(await screen.findByText('金额待计价')).toBeInTheDocument()
+    expect(screen.queryByText('¥ 0.00')).not.toBeInTheDocument()
+    vi.mocked(api.masterData.laboratoryTubePlan).mockRejectedValueOnce(new Error('组套分管试算失败'))
+    fireEvent.click(screen.getByRole('button', { name: '重新试算分管' }))
+    expect(await screen.findByText('组套分管试算失败')).toBeInTheDocument()
+    expect(screen.queryByText('金额待计价')).not.toBeInTheDocument()
+    expect(screen.queryByText('预计生成采血管')).not.toBeInTheDocument()
+  })
+
+  it('invalidates unit conversion results on input changes and refresh failure, while accepting actual zero', async () => {
+    const api = createMockApi()
+    api.masterData.units = vi.fn().mockResolvedValue([
+      { id: 'ml', code: 'ML', name: '毫升', dimension: 'VOLUME', status: 'ACTIVE' },
+      { id: 'l', code: 'L', name: '升', dimension: 'VOLUME', status: 'ACTIVE' },
+    ])
+    let finishOld!: (value: unknown) => void
+    api.masterData.convertUnit = vi.fn().mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve }))
+      .mockImplementation((input, from, to, catalogItemId, effectiveDate) => Promise.resolve({
+        input, fromUnitCode: from, result: input / 1000, toUnitCode: to, catalogItemId, effectiveDate, path: [from, to],
+      }))
+    renderOperational(api)
+    fireEvent.click(screen.getByText('计量与换算'))
+    await screen.findByText('换算试算')
+    const user = userEvent.setup()
+    const region = document.querySelector('.unit-converter') as HTMLElement
+    await user.click(within(region).getByRole('combobox', { name: '来源单位' }))
+    await user.click(screen.getByRole('option', { name: /毫升/ }))
+    await user.click(within(region).getByRole('combobox', { name: '目标单位' }))
+    await user.click(screen.getByRole('option', { name: /^升/ }))
+    fireEvent.click(within(region).getByRole('button', { name: '试算' }))
+    fireEvent.change(screen.getByLabelText('换算数量'), { target: { value: '2' } })
+    fireEvent.click(within(region).getByRole('button', { name: '试算' }))
+    expect(await within(region).findByText('2 毫升 = 0.002 升 · 毫升 → 升')).toBeInTheDocument()
+    await act(async () => { finishOld({ input: 1, fromUnitCode: 'ML', result: 0.001, toUnitCode: 'L', effectiveDate: new Date().toISOString().slice(0, 10), path: ['ML', 'L'] }) })
+    expect(within(region).queryByText('1 毫升 = 0.001 升 · 毫升 → 升')).not.toBeInTheDocument()
+    vi.mocked(api.masterData.convertUnit).mockRejectedValueOnce(new Error('单位换算失败'))
+    fireEvent.click(within(region).getByRole('button', { name: '试算' }))
+    expect(await screen.findByText('单位换算失败')).toBeInTheDocument()
+    expect(within(region).queryByRole('status')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('换算数量'), { target: { value: '' } })
+    expect(within(region).getByRole('button', { name: '试算' })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('换算数量'), { target: { value: '0' } })
+    fireEvent.click(within(region).getByRole('button', { name: '试算' }))
+    expect(await within(region).findByText('0 毫升 = 0 升 · 毫升 → 升')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['itemGroups', '项目组套'], ['services', '项目组套'], ['units', '项目组套'],
+    ['supplies', '耗材与器械'], ['unitConversions', '计量与换算'],
+    ['orderFrequencies', '医嘱频次'], ['departments', '医嘱频次'],
+  ] as const)('shows %s query failure instead of an empty operational list', async (source, tab) => {
+    const api = createMockApi()
+    const query = source === 'departments' ? api.organization.departments : api.masterData[source]
+    vi.mocked(query).mockRejectedValue(new Error('业务数据读取失败'))
+    renderOperational(api)
+    fireEvent.click(screen.getByText(tab))
+    expect(await screen.findByText('运营主数据加载失败')).toBeInTheDocument()
+    expect(screen.getByText('业务数据读取失败')).toBeInTheDocument()
+    expect(screen.queryByText(/暂无项目组套|暂无耗材\/器械资料|暂无医嘱频次/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /新增组套|新增耗材|新增频次|新增单位|新增换算/ })).not.toBeInTheDocument()
+    vi.mocked(query).mockResolvedValue([])
+    fireEvent.click(screen.getByRole('button', { name: '重新加载' }))
+    await waitFor(() => expect(screen.queryByText('运营主数据加载失败')).not.toBeInTheDocument())
+    expect(await screen.findByRole('button', { name: /新增组套|新增耗材|新增频次|新增单位/ })).toBeEnabled()
+  })
+
+  it('does not display stale groups when reloading them fails', async () => {
+    const api = createMockApi()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    client.setQueryData(['master-data-operational-groups'], [{ id: 'old', name: '缓存组套', groupType: 'LIS', members: [], status: 'ACTIVE' }])
+    vi.mocked(api.masterData.itemGroups).mockRejectedValue(new Error('刷新失败'))
+    renderOperational(api, client)
+    expect(await screen.findByText('运营主数据加载失败')).toBeInTheDocument()
+    expect(screen.queryByText('缓存组套')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑' })).not.toBeInTheDocument()
+  })
+
+  it('rejects malformed list responses instead of treating them as empty lists', async () => {
+    const api = createMockApi()
+    vi.mocked(api.masterData.itemGroups).mockResolvedValue({} as never)
+    renderOperational(api)
+    expect(await screen.findByText('项目组套返回的数据格式不正确，请重新加载。')).toBeInTheDocument()
+    expect(screen.queryByText('暂无项目组套')).not.toBeInTheDocument()
+  })
+
+  it('loads required units before offering group maintenance and preserves real empty results', async () => {
+    const api = createMockApi()
+    let finish!: (value: []) => void
+    vi.mocked(api.masterData.units).mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    renderOperational(api)
+    expect(screen.getByText('正在加载运营主数据…')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '新增组套' })).not.toBeInTheDocument()
+    finish([])
+    expect(await screen.findByText('暂无项目组套')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '新增组套' })).toBeEnabled()
+  })
+
+  it('keeps unit form input on failure and prevents duplicate submit or dismissal while saving', async () => {
+    const api = createMockApi()
+    let rejectSave!: (error: Error) => void
+    api.masterData.createUnit = vi.fn().mockImplementationOnce(() => new Promise((_, reject) => { rejectSave = reject }))
+      .mockResolvedValue({ id: 'unit-new', revision: 0, code: 'TEST', name: '实际单位', dimension: 'COUNT', decimalScale: 0, status: 'ACTIVE' })
+    renderOperational(api)
+    fireEvent.click(screen.getByText('计量与换算'))
+    fireEvent.click(await screen.findByRole('button', { name: '新增单位' }))
+    const code = screen.getByLabelText(/单位编码/)
+    fireEvent.change(code, { target: { value: 'TEST' } })
+    fireEvent.change(screen.getByLabelText(/单位名称/), { target: { value: '实际单位' } })
+    const form = code.closest('form')!
+    fireEvent.submit(form)
+    fireEvent.submit(form)
+    expect(api.masterData.createUnit).toHaveBeenCalledTimes(1)
+    expect(code).toBeDisabled()
+    expect(screen.getByRole('button', { name: '取消' })).toBeDisabled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    rejectSave(new Error('单位保存失败'))
+    expect(await screen.findByText('单位保存失败')).toBeInTheDocument()
+    expect(code).toHaveValue('TEST')
+    expect(code).toBeEnabled()
+    expect(screen.queryByText('计量单位已新增')).not.toBeInTheDocument()
+    fireEvent.submit(form)
+    expect(await screen.findByText('计量单位已新增')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('propagates group save failures into the open form', async () => {
+    const api = createMockApi()
+    api.masterData.createItemGroup = vi.fn().mockRejectedValue(new Error('组套保存失败'))
+    renderOperational(api)
+    fireEvent.click(await screen.findByRole('button', { name: '新增组套' }))
+    const code = screen.getByLabelText(/组套编码/)
+    fireEvent.change(code, { target: { value: 'TEST_GROUP' } })
+    fireEvent.change(screen.getByLabelText(/组套名称/), { target: { value: '实际组套' } })
+    fireEvent.submit(code.closest('form')!)
+    expect(await screen.findByText('组套保存失败')).toBeInTheDocument()
+    expect(code).toHaveValue('TEST_GROUP')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.queryByText('项目组套已新增')).not.toBeInTheDocument()
+  })
+
+  function renderOperational(api: RhnApi, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
+    return render(<QueryClientProvider client={client}>
+      <OperationalMasterDataPanel api={api} organization={mockOrganization as any} manufacturers={[]} />
+    </QueryClientProvider>)
+  }
+
+  it.each([
+    { service: mockServices[0], configuration: { ...mockLabConfiguration, laboratory: undefined }, label: '检验' },
+    { service: mockServices[3], configuration: { ...mockExamConfiguration, examination: undefined }, label: '检查' },
+  ])('shows missing $label configuration without fabricating defaults or a simulator', async ({ service, configuration, label }) => {
+    const api = createMockApi()
+    vi.mocked(api.masterData.clinicalConfiguration).mockResolvedValue(configuration)
+    renderClinical(api, service)
+    expect(await screen.findByText(`${label}执行与收费配置缺失，请先维护项目主档；当前无法编辑或试算。`)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑项目基本配置' })).not.toBeInTheDocument()
+    expect(screen.queryByText('常规')).not.toBeInTheDocument()
+    expect(api.masterData.examinationChargePlan).not.toHaveBeenCalled()
+    expect(api.masterData.laboratoryTubePlan).not.toHaveBeenCalled()
+    vi.mocked(api.masterData.clinicalConfiguration).mockResolvedValue(service === mockServices[0] ? mockLabConfiguration : mockExamConfiguration)
+    fireEvent.click(screen.getByRole('button', { name: '重新加载配置' }))
+    expect(await screen.findByRole('button', { name: '编辑项目基本配置' })).toBeInTheDocument()
+  })
+
+  it.each([
+    { name: 'missing revision', configuration: { ...mockLabConfiguration, laboratory: { ...mockLabConfiguration.laboratory, revision: undefined } } },
+    { name: 'unknown fasting requirement', configuration: { ...mockLabConfiguration, laboratory: { ...mockLabConfiguration.laboratory, fastingRequired: undefined } } },
+    { name: 'wrong service', configuration: { ...mockLabConfiguration, serviceId: 'another-service' } },
+    { name: 'mixed profiles', configuration: { ...mockLabConfiguration, examination: mockExamConfiguration.examination } },
+  ])('rejects malformed configuration: $name', async ({ configuration }) => {
+    const api = createMockApi()
+    vi.mocked(api.masterData.clinicalConfiguration).mockResolvedValue(configuration as ClinicalConfiguration)
+    renderClinical(api)
+    expect(await screen.findByText('执行与收费配置不可用')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑项目基本配置' })).not.toBeInTheDocument()
+    expect(api.masterData.laboratoryTubePlan).not.toHaveBeenCalled()
+  })
+
+  it.each(['clinicalConfiguration', 'services', 'units'] as const)('blocks stale editing and calculation after %s fails', async (query) => {
+    const api = createMockApi()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    client.setQueryData(['master-data-clinical-configuration', mockServices[0].id], mockLabConfiguration)
+    client.setQueryData(['master-data-services-project-configuration', mockOrganization.id], mockServices)
+    client.setQueryData(['master-data-operational-units'], [])
+    vi.mocked(api.masterData[query]).mockRejectedValue(new Error('读取配置失败'))
+    renderClinical(api, mockServices[0], client)
+    expect(await screen.findByText('执行与收费配置不可用')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑项目基本配置' })).not.toBeInTheDocument()
+    expect(screen.queryByText('⚡ 同次采血分管沙盒')).not.toBeInTheDocument()
+  })
+
+  it('uses the actual service status instead of displaying every service as active', async () => {
+    const api = createMockApi()
+    renderClinical(api, { ...mockServices[0], sdStatus: 'RETIRED', sdStatusText: '已停用' })
+    await screen.findByRole('button', { name: '编辑项目基本配置' })
+    const header = document.querySelector('.clinical-header-card') as HTMLElement
+    expect(within(header).getByText('已停用')).toBeInTheDocument()
+    expect(within(header).queryByText('启用')).not.toBeInTheDocument()
+  })
+
+  it.each(['laboratory', 'examination'] as const)('keeps %s edits until a confirmed successful save', async (type) => {
+    const api = createMockApi()
+    const lab = type === 'laboratory'
+    const method = lab ? api.masterData.updateLaboratoryProfile : api.masterData.updateExaminationProfile
+    let rejectSave!: (error: Error) => void
+    vi.mocked(method).mockImplementationOnce(() => new Promise((_, reject) => { rejectSave = reject }))
+    renderClinical(api, lab ? mockServices[0] : mockServices[3])
+    fireEvent.click(await screen.findByRole('button', { name: '编辑项目基本配置' }))
+    const note = screen.getByPlaceholderText(lab
+      ? '说明标本采集前准备、送检时限、特殊保存条件或临床禁忌…'
+      : '说明检查前是否需要禁食禁水、憋尿、摘除金属饰品或停用特殊药物…')
+    fireEvent.change(note, { target: { value: '需要保存的实际配置' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+    expect(await screen.findByText('正在保存项目配置…')).toBeInTheDocument()
+    expect(note).toBeDisabled()
+    expect(screen.getByRole('button', { name: '保存配置' })).toBeDisabled()
+    expect(screen.queryByText(/项目基本配置已更新/)).not.toBeInTheDocument()
+    rejectSave(new Error('配置保存失败'))
+    expect(await screen.findByText('配置保存失败')).toBeInTheDocument()
+    expect(note).toHaveValue('需要保存的实际配置')
+    expect(note).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+    expect(await screen.findByText(`${lab ? '检验' : '检查'}项目基本配置已更新`)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('button', { name: '保存配置' })).not.toBeInTheDocument())
+    expect(method).toHaveBeenCalledTimes(2)
+  })
+
+  function renderClinical(api: RhnApi, service = mockServices[0], client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
+    return render(<QueryClientProvider client={client}>
+      <ClinicalServiceConfigurationDialog api={api} service={service} organizationId={mockOrganization.id}
+        dictionaries={{}} onClose={vi.fn()} />
+    </QueryClientProvider>)
+  }
+
+  it('does not save a blank fixed surcharge as zero, but accepts an explicit zero', async () => {
+    const api = createMockApi()
+    renderClinical(api, mockServices[3])
+    fireEvent.click(await screen.findByRole('button', { name: '编辑项目基本配置' }))
+    const price = screen.getByLabelText(/每超出部位加收金额/)
+    fireEvent.change(price, { target: { value: '' } })
+    fireEvent.submit(price.closest('form')!)
+    expect(await screen.findByText('请填写每超出部位加收金额。')).toBeInTheDocument()
+    expect(screen.getByText(/配置尚未完整/)).toBeInTheDocument()
+    expect(api.masterData.updateExaminationProfile).not.toHaveBeenCalled()
+    fireEvent.change(price, { target: { value: '0' } })
+    fireEvent.submit(price.closest('form')!)
+    await waitFor(() => expect(api.masterData.updateExaminationProfile).toHaveBeenCalledWith(
+      'srv-exam-1', 1, expect.objectContaining({ additionalSitePrice: 0 })))
+  })
+
+  it('does not invent a one-site limit while editing an unlimited examination', async () => {
+    const api = createMockApi()
+    vi.mocked(api.masterData.clinicalConfiguration).mockResolvedValue({ ...mockExamConfiguration,
+      examination: { ...mockExamConfiguration.examination!, maxBodySiteCount: undefined, maxChargeableSiteCount: undefined } })
+    renderClinical(api, mockServices[3])
+    fireEvent.click(await screen.findByRole('button', { name: '编辑项目基本配置' }))
+    expect(screen.getByLabelText('最多可选部位数')).toHaveValue(null)
+    expect(screen.getByLabelText('最大计费部位数')).toHaveValue(null)
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+    await waitFor(() => expect(api.masterData.updateExaminationProfile).toHaveBeenCalledWith(
+      'srv-exam-1', 1, expect.objectContaining({ maxBodySiteCount: undefined, maxChargeableSiteCount: undefined })))
+  })
+
+  it.each([
+    { additionalSitePrice: undefined }, { additionalSitePrice: -1 }, { additionalSiteQuantity: undefined },
+    { includedSiteCount: undefined }, { maxBodySiteCount: 0 },
+  ])('blocks invalid persisted pricing instead of fabricating defaults: %j', async (invalid) => {
+    const api = createMockApi()
+    vi.mocked(api.masterData.clinicalConfiguration).mockResolvedValue({ ...mockExamConfiguration,
+      examination: { ...mockExamConfiguration.examination!, ...invalid } } as ClinicalConfiguration)
+    renderClinical(api, mockServices[3])
+    expect(await screen.findByText('检查收费规则缺失或数值无效，无法确认费用，请联系管理员修复配置。')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑项目基本配置' })).not.toBeInTheDocument()
+    expect(api.masterData.examinationChargePlan).not.toHaveBeenCalled()
+  })
+
   it('prevents saving before aliases load and retains input when saving fails', async () => {
     const api = createMockApi()
     let resolveAliases!: (value: []) => void
@@ -280,6 +614,20 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     await waitFor(() => expect(save).toBeEnabled())
     fireEvent.click(save)
     expect(await screen.findByText('项目别名已更新')).toBeInTheDocument()
+  })
+
+  it('does not present failed alias loading as an empty alias list', async () => {
+    const api = createMockApi()
+    vi.mocked(api.masterData.serviceAliases).mockRejectedValue(new Error('别名读取失败'))
+    renderClinical(api)
+    expect(await screen.findByText('项目别名加载失败')).toBeInTheDocument()
+    expect(screen.queryByText('暂未配置别名')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '保存别名' })).toBeDisabled()
+    expect(api.masterData.replaceServiceAliases).not.toHaveBeenCalled()
+    vi.mocked(api.masterData.serviceAliases).mockResolvedValue([])
+    fireEvent.click(screen.getByRole('button', { name: '重新加载别名' }))
+    expect(await screen.findByText('暂未配置别名')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '保存别名' })).toBeEnabled()
   })
 
   it('renders laboratory clinical configuration with tube presets and live sidecar sandbox', async () => {
@@ -456,51 +804,70 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     })
   })
 
-  it('opens specimen dialog with workbench layout and applies tube template preset', async () => {
-    const user = userEvent.setup()
+  it('requires real specimen, container, group and charge selections without template guesses', async () => {
     const api = createMockApi()
-    const queryClient = new QueryClient()
+    api.masterData.createSpecimenConfiguration = vi.fn().mockResolvedValue(mockLabConfiguration)
+    renderClinical(api)
+    fireEvent.click(await screen.findByRole('button', { name: '新增标本规则' }))
+    expect(screen.getByText('当前选择摘要')).toBeInTheDocument()
+    expect(screen.queryByText('常用采血管预设方案')).not.toBeInTheDocument()
+    expect(screen.queryByText(/黄色促凝管 · 生化共管/)).not.toBeInTheDocument()
+    await chooseSpecimen('送检标本类型', '血清')
+    await chooseSpecimen('标准采血管容器', '促凝胶分离采血管(黄色)')
+    await chooseSpecimen('分管模式', '同组共管（按确认的分组与基础管数）')
+    await chooseSpecimen('试管耗材加收模式', '按管加收（管数 × 每管加收数量）')
+    expect(screen.getByRole('textbox', { name: /合管分组编码/ })).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: '保存标本与分管规则' }))
+    expect(await screen.findByText('请填写经确认的合管分组编码。')).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: /合管分组编码/ }), { target: { value: 'LOCAL_SERUM_GROUP' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存标本与分管规则' }))
+    expect(await screen.findByText('请选择实际采血管收费项目。')).toBeInTheDocument()
+    expect(api.masterData.createSpecimenConfiguration).not.toHaveBeenCalled()
+    await chooseSpecimen('关联采血管收费项目', '一次性真空采血管')
+    const count = screen.getByLabelText(/基础试管数/)
+    fireEvent.change(count, { target: { value: '' } })
+    fireEvent.submit(count.closest('form')!)
+    expect(await screen.findByText('请填写基础试管数。')).toBeInTheDocument()
+    expect(api.masterData.createSpecimenConfiguration).not.toHaveBeenCalled()
+    fireEvent.change(count, { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存标本与分管规则' }))
+    await waitFor(() => expect(api.masterData.createSpecimenConfiguration).toHaveBeenCalledWith('srv-lab-1', expect.objectContaining({
+      specimenItemId: 'spec-2', containerItemId: 'cont-2', tubeGroupCode: 'LOCAL_SERUM_GROUP',
+      tubeChargeItemId: 'srv-tube-1', baseTubeCount: 2, tubeSharingMode: 'SHARE', tubeChargeMode: 'PER_TUBE',
+    })))
+  })
 
-    render(
-      <QueryClientProvider client={queryClient}>
-        <ClinicalServiceConfigurationDialog
-          api={api}
-          service={mockServices[0]}
-          organizationId={mockOrganization.id}
-          dictionaries={{ BD_LAB_METHOD: [{ code: 'IMPEDANCE', name: '电阻抗法', sortOrder: 1 }] }}
-          onClose={vi.fn()}
-        />
-      </QueryClientProvider>,
-    )
+  async function chooseSpecimen(label: string, option: string) {
+    await userEvent.click(screen.getByLabelText(new RegExp(label)))
+    await userEvent.click(screen.getByRole('option', { name: option }))
+  }
 
-    await waitFor(() => {
-      expect(screen.getByText('可用标本、采血管与同次分管规则')).toBeInTheDocument()
-    })
-
-    // 点击“新增标本规则”按钮
-    const addRuleBtn = screen.getByRole('button', { name: '新增标本规则' })
-    await user.click(addRuleBtn)
-
-    // 验证弹窗以工作台双栏排版打开
-    await waitFor(() => {
-      expect(screen.getByText('新增标本与分管规则')).toBeInTheDocument()
-      expect(screen.getByText('常用采血管预设方案')).toBeInTheDocument()
-      expect(screen.getByText(/黄色促凝管 · 生化共管/)).toBeInTheDocument()
-      expect(screen.getByText('01 标本类型与标准采血管容器')).toBeInTheDocument()
-      expect(screen.getByText('02 同次开立分管与合管策略')).toBeInTheDocument()
-      expect(screen.getByText('03 采血管耗材加收与送检指引')).toBeInTheDocument()
-    })
-
-    // 点击“黄色促凝管 · 生化共管”卡片一键套用
-    const yellowTplCard = screen.getByText(/黄色促凝管 · 生化共管/).closest('button')
-    expect(yellowTplCard).toBeTruthy()
-    await user.click(yellowTplCard!)
-
-    // 验证分管编码输入框已对用户隐式移除，且规则解读条呈现业务化中文解读
-    await waitFor(() => {
-      expect(screen.queryByPlaceholderText('如 BIOCHEM_SERUM、EDTA_HEMATOLOGY')).not.toBeInTheDocument()
-      expect(screen.getByText(/同组共管：同一采血医嘱下/)).toBeInTheDocument()
-    })
+  it('keeps specimen inputs and reports failure while preventing duplicate saves and closure during saving', async () => {
+    const api = createMockApi()
+    let rejectSave!: (error: Error) => void
+    api.masterData.createSpecimenConfiguration = vi.fn().mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectSave = reject }))
+      .mockResolvedValue(mockLabConfiguration)
+    renderClinical(api)
+    fireEvent.click(await screen.findByRole('button', { name: '新增标本规则' }))
+    await chooseSpecimen('送检标本类型', '血清')
+    await chooseSpecimen('分管模式', '独立专管（按基础管数单独计算）')
+    await chooseSpecimen('试管耗材加收模式', '不加收')
+    const dialog = screen.getByRole('dialog', { name: '新增标本与分管规则' })
+    const save = within(dialog).getByRole('button', { name: '保存标本与分管规则' })
+    const form = save.closest('form')!
+    fireEvent.submit(form); fireEvent.submit(form)
+    expect(api.masterData.createSpecimenConfiguration).toHaveBeenCalledTimes(1)
+    expect(save).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: '取消' })).toBeDisabled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(dialog).toBeInTheDocument()
+    await act(async () => { rejectSave(new Error('标本规则保存失败')) })
+    expect(await screen.findByText('标本规则保存失败')).toBeInTheDocument()
+    expect(screen.getByLabelText(/送检标本类型/)).toHaveTextContent('血清')
+    expect(save).toBeEnabled()
+    fireEvent.click(save)
+    await waitFor(() => expect(dialog).not.toBeInTheDocument())
+    expect(api.masterData.createSpecimenConfiguration).toHaveBeenCalledTimes(2)
   })
 
   it('supports tube sandbox search filtering, quick scenario buttons, and chip removal', async () => {

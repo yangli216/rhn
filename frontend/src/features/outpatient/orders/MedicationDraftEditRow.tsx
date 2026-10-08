@@ -1,13 +1,13 @@
+import { useSkinTestHistory, SkinTestHistoryStatus, SkinTestExemptionReasonSelect, SkinTestWorklistStatus, type SkinTestWorklistState } from './skinTestHistory'
 import { useDraftRowInteractions } from './useDraftRowInteractions'
 import { resolveFrequencyTimesPerDay } from './medicationQuantity'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useRef, useState } from 'react'
 import type { ActiveOrderFrequency } from '../../../shared/api/masterDataApi'
 import type { AllergyIntolerance } from '../../../shared/api/residentsApi'
-import type { SkinTestWorkItem } from '../../../shared/api/treatmentApi'
 import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
-import { Button, Icon, Popconfirm, Select, StatusBadge } from '../../../shared/ui'
+import { Alert, Button, Icon, Popconfirm, Select, StatusBadge } from '../../../shared/ui'
 import type { MedicationPlanDraft } from './medicationDraft'
 import { formatPackageUnit, resolveExecutingDepartment, formatUnitPrice } from './orderPresentation'
 import { newAdministrationGroupKey } from './administrationGroups'
@@ -31,7 +31,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
   encounter?: Encounter
   api?: RhnApi
   allergies?: AllergyIntolerance[]
-  skinTests?: { data?: SkinTestWorkItem[] }
+  skinTests?: SkinTestWorklistState
 }) {
   const [doseValue, setDoseValue] = useState<number | ''>(value.request.doseValue ?? '')
   const [routeCode, setRouteCode] = useState(value.request.routeCode)
@@ -45,6 +45,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
   const [skinTestExempt, setSkinTestExempt] = useState(Boolean(value.request.skinTestExempt))
   const [skinTestExemptReason, setSkinTestExemptReason] = useState(value.request.skinTestExemptReason ?? '')
   const [exemptEvidenceEventId, setExemptEvidenceEventId] = useState(value.request.exemptEvidenceEventId)
+  const [validationError, setValidationError] = useState('')
   const [allergyOverrideReason, setAllergyOverrideReason] = useState(value.request.allergyOverrideReason ?? '')
 
   const executionType = routeExecutionTypes.get(routeCode || '') || value.routeExecutionType
@@ -55,13 +56,16 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
 
   // 药品知识库查询（若当前草稿上未缓存皮试相关字段，异步补充查询）
   const medQuery = useQuery({
-    queryKey: ['medicationKnowledge', value.request.medicationId],
+    queryKey: ['medicationKnowledge', encounter?.organizationId, value.request.medicationId],
     queryFn: async () => {
       if (!api || !encounter || !value.request.medicationId) return null
       const res = await api.masterData.medications(value.medicationName || value.medicationCode, '', 'ACTIVE', encounter.organizationId)
-      return res.find((m) => m.id === value.request.medicationId) || res[0] || null
+      const medication = res.find((m) => m.id === value.request.medicationId)
+      if (!medication) throw new Error('未查到当前药品安全资料')
+      return medication
     },
-    enabled: Boolean(api && encounter && value.request.medicationId && value.skinTestRequired === undefined),
+    enabled: Boolean(api && encounter && value.request.medicationId && (value.skinTestRequired === undefined || (value.skinTestRequired && value.skinTestResultValidityHours == null))),
+    retry: false,
   })
 
   const isSkinTest = Boolean(
@@ -71,18 +75,9 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
     value.request.skinTestExemptReason
   )
 
-  const recentNegativeSkinTests = useQuery({
-    queryKey: ['recentNegativeSkinTests', encounter?.residentId, value.request.medicationId],
-    queryFn: () => (isSkinTest && value.request.medicationId && encounter?.residentId && api)
-      ? api.treatments.validNegativeSkinTests(
-          encounter.residentId,
-          value.request.medicationId,
-          value.skinTestResultValidityHours ?? medQuery.data?.skinTestResultValidityHours
-        )
-      : Promise.resolve([]),
-    enabled: Boolean(isSkinTest && value.request.medicationId && encounter?.residentId && api),
-  })
-  const recentNegativeItem = (recentNegativeSkinTests.data ?? [])[0]
+  const skinTestHistory = useSkinTestHistory(api, encounter?.organizationId, encounter?.residentId,
+    value.request.medicationId, value.skinTestResultValidityHours ?? medQuery.data?.skinTestResultValidityHours, isSkinTest)
+  const recentNegativeItem = skinTestHistory.item
 
   const hasPositiveSkinTest = Boolean(
     (skinTests?.data ?? []).some((item) => item.medicationId === value.request.medicationId && item.status === 'POSITIVE')
@@ -134,8 +129,9 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
     administrationGroupKey,
     routeName: routesDataName(routeCode),
     routeExecutionType: executionType,
-    skinTestRequired: isSkinTest,
-    antimicrobial: isAntimicrobial,
+    skinTestRequired: value.skinTestRequired ?? medQuery.data?.skinTestRequired,
+    skinTestResultValidityHours: value.skinTestResultValidityHours ?? medQuery.data?.skinTestResultValidityHours,
+    antimicrobial: value.antimicrobial ?? medQuery.data?.antimicrobial,
     sdAntimicrobialLevelText: antimicrobialLevelText,
     allergenConceptIds,
     request: {
@@ -148,15 +144,24 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
       medicationInstruction: instruction.trim(),
       skinTestExempt,
       skinTestExemptReason: skinTestExempt
-        ? (skinTestExemptReason.trim() || '周期内已有阴性结果（有效时间内）')
+        ? skinTestExemptReason.trim()
         : undefined,
       exemptEvidenceEventId: skinTestExempt ? exemptEvidenceEventId : undefined,
       allergyOverrideReason: allergyOverrideReason.trim() || undefined,
     },
   })
 
+  const validateExemption = () => {
+    if (skinTestExempt && !skinTestExemptReason.trim()) {
+      setValidationError('已勾选免做皮试，必须选择或填写免试原因')
+      return false
+    }
+    return true
+  }
+
   const save = () => {
     if (hasSavedRef.current || isRemovingRef.current || isAppendingRef.current) return
+    if (!validateExemption()) return
     hasSavedRef.current = true
     if (valid) {
       onSave(getUpdatedDraft())
@@ -167,6 +172,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
 
   const handleAppendToGroup = () => {
     if (hasSavedRef.current || isRemovingRef.current) return
+    if (!validateExemption()) { isAppendingRef.current = false; return }
     hasSavedRef.current = true
     const updated = getUpdatedDraft()
     onSave(updated)
@@ -354,7 +360,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
           />
         </div>
         <div className="doctor-inline-order-static doctor-inline-order-price">
-          {formatUnitPrice(value.unitPrice, value.currencyCode)}
+          {value.request.pricingRequired === false ? '不计价' : formatUnitPrice(value.unitPrice, value.currencyCode)}
         </div>
         <div className="doctor-inline-order-status">
           <StatusBadge tone="warning">编辑中</StatusBadge>
@@ -392,6 +398,11 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
         </div>
       </div>
 
+      {validationError && <Alert tone="warning">{validationError}</Alert>}
+      {medQuery.isError && <Alert tone="warning">当前药品安全资料查询失败，尚未核验
+        <Button size="sm" variant="secondary" onClick={() => void medQuery.refetch()}>重试药品安全资料</Button>
+      </Alert>}
+      {medQuery.isFetching && <span role="status">正在核验药品安全资料…</span>}
       {hasSafetyAlert && (
         <div className="doctor-unified-order-subrow doctor-unified-order-safety is-warning is-compact" role="row">
           <div className="doctor-safety-content is-compact">
@@ -414,12 +425,14 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
                 {hasPositiveSkinTest
                   ? '严正警示：患者当前药品皮试结果为【阳性】，禁止开立！'
                   : skinTestExempt
-                  ? `已免做皮试：${skinTestExemptReason || '符合免试规则'}`
+                  ? (skinTestExemptReason ? `已选择免试：${skinTestExemptReason}` : '免试原因待填写')
                   : '需皮试药品（默认派发皮试任务）'}
               </span>
             )}
+            {isSkinTest && <SkinTestWorklistStatus query={skinTests} />}
             {isSkinTest && !hasPositiveSkinTest && (
               <div className="doctor-skintest-exempt-inline">
+                <SkinTestHistoryStatus history={skinTestHistory} />
                 {recentNegativeItem && !skinTestExempt && (
                   <span className="doctor-skintest-evidence-inline">
                     <span className="doctor-evidence-badge">历史阴性</span>
@@ -428,6 +441,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
                       variant="secondary"
                       onClick={() => {
                         setSkinTestExempt(true)
+                        setValidationError('')
                         setSkinTestExemptReason(`周期内皮试阴性有效（引用记录 #${recentNegativeItem.eventId}）`)
                         setExemptEvidenceEventId(recentNegativeItem.eventId)
                       }}
@@ -443,9 +457,8 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
                     onChange={(e) => {
                       const checked = e.target.checked
                       setSkinTestExempt(checked)
-                      if (checked) {
-                        setSkinTestExemptReason((curr) => curr || '周期内已有阴性结果（有效时间内）')
-                      } else {
+                      setValidationError('')
+                      if (!checked) {
                         setSkinTestExemptReason('')
                         setExemptEvidenceEventId(undefined)
                       }
@@ -455,19 +468,11 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
                 </label>
                 {skinTestExempt && (
                   <div className="doctor-exempt-reason-select">
-                    <Select
-                      value={skinTestExemptReason || '周期内已有阴性结果（有效时间内）'}
-                      options={[
-                        { value: '周期内已有阴性结果（有效时间内）', label: '周期内已有阴性结果（有效时间内）' },
-                        { value: '同批号连续用药', label: '同批号连续用药' },
-                        { value: '外院有效皮试结果证明', label: '外院有效皮试结果证明' },
-                        { value: '患者既往近期规则耐受使用', label: '患者既往近期规则耐受使用' },
-                        { value: '其他临床裁量免试', label: '其他临床裁量免试' },
-                      ]}
-                      searchable={false}
-                      clearable={false}
-                      onChange={(val) => setSkinTestExemptReason(val)}
-                    />
+                    <SkinTestExemptionReasonSelect value={skinTestExemptReason} onChange={(reason) => {
+                      setSkinTestExemptReason(reason)
+                      setExemptEvidenceEventId(undefined)
+                      setValidationError('')
+                    }} />
                   </div>
                 )}
               </div>

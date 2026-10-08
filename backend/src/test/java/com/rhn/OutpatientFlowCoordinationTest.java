@@ -2,6 +2,8 @@ package com.rhn;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.TestPropertySource;
@@ -23,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @Tag("outpatient-main-flow")
 class OutpatientFlowCoordinationTest extends RhnIntegrationTestSupport {
+    @Autowired JdbcTemplate jdbc;
     private static final String TREATMENT_SERVICE_ID = "362387869795105";
     private static final String LABORATORY_SERVICE_ID = "362387869795101";
     private static final String IMAGING_SERVICE_ID = "362387869795103";
@@ -100,6 +103,21 @@ class OutpatientFlowCoordinationTest extends RhnIntegrationTestSupport {
         assertEquals("可以离院", visit.get("nextDestination").asString());
         assertEquals("接诊及诊后环节均已完成", visit.get("attentionReason").asString());
         assertEquals(0, visit.get("pendingMinutes").asLong());
+
+        // Historical completion flags without an assessment must not authorize departure.
+        jdbc.update("update RHN_EX_TREAT_EXEC_TASK set FG_ADVERSE_REACT = null where ID_TREAT_EXEC_TASK = ?",
+                task.get("id").asLong());
+        visit = flowVisit(encounterId);
+        assertEquals("EXCEPTION", visit.get("flowStatus").asString());
+        assertEquals("治疗执行", visit.get("nextDestination").asString());
+        mockMvc.perform(get("/api/treatments/worklist").with(rhnWorkContext()).param("status", "EXCEPTION"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '%s')].exceptionNote".formatted(task.get("id").asString()))
+                        .value("治疗完成标记缺少有效执行或评估记录，请核对原始记录"));
+        mockMvc.perform(get("/api/treatments/worklist").with(rhnWorkContext()).param("status", "COMPLETED"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.id == '%s')]".formatted(task.get("id").asString())).isEmpty());
+        assertEquals("COMPLETED", jdbc.queryForObject("select SD_STATUS from RHN_EX_TREAT_EXEC_TASK where ID_TREAT_EXEC_TASK = ?",
+                String.class, task.get("id").asLong()));
     }
 
     @Test

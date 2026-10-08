@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { InventoryOpenPackage, StockBin, StockItem } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
+import { inventoryReconciliationPresentation } from '../../shared/presentation'
+import { requireOpenPackages, requireReconciliation } from './inventoryAccuracyTruth'
 import {
   Alert, Button, Dialog, EmptyState, FormField, LoadingState, Pagination, Select, StatusBadge,
 } from '../../shared/ui'
@@ -23,29 +25,35 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
 
   const latest = useQuery({
     queryKey: ['warehouse-reconciliation-latest', siteId],
-    queryFn: async () => (await api.pharmacy.latestInventoryReconciliation(siteId)) ?? null,
+    queryFn: async () => {
+      const value = await api.pharmacy.latestInventoryReconciliation(siteId)
+      return value == null ? null : requireReconciliation(value, siteId)
+    },
     enabled: Boolean(siteId),
   })
   const packages = useQuery({
     queryKey: ['warehouse-open-packages', siteId],
-    queryFn: () => api.pharmacy.openPackages(siteId), enabled: Boolean(siteId),
+    queryFn: async () => requireOpenPackages(await api.pharmacy.openPackages(siteId), siteId), enabled: Boolean(siteId),
   })
-  const packageItemIds = [...new Set((packages.data ?? []).map(value => value.stockItemId))]
+  const packageItemIds = [...new Set((packages.isSuccess ? packages.data : []).map(value => value.stockItemId))]
   const lots = useQuery({
     queryKey: ['warehouse-open-package-lots', siteId, packageItemIds.join(',')],
     queryFn: async () => (await Promise.all(packageItemIds.map(itemId => api.pharmacy.lots(itemId)))).flat(),
     enabled: Boolean(packageItemIds.length),
   })
   const reconcile = useMutation({
-    mutationFn: () => api.pharmacy.reconcileInventory(siteId),
-    onSuccess: (value) => queryClient.setQueryData(['warehouse-reconciliation-latest', siteId], value),
+    mutationFn: async () => requireReconciliation(await api.pharmacy.reconcileInventory(siteId), siteId),
+    onMutate: () => queryClient.cancelQueries({ queryKey: ['warehouse-reconciliation-latest', siteId] }),
+    onSuccess: (value) => queryClient.setQueryData(['warehouse-reconciliation-latest', value.stockSiteId], value),
   })
-  const activePackages = packages.data?.filter(value => value.status === 'OPEN') ?? []
+  const pkgList = packages.isSuccess ? packages.data : []
+  const activePackages = pkgList.filter(value => value.status === 'OPEN')
   const remaining = activePackages.reduce((sum, value) => sum + value.remainingBaseQuantity, 0)
-  const last = latest.data
-  const error = latest.error || packages.error || lots.error || reconcile.error
-
-  const pkgList = packages.data ?? []
+  const resultAvailable = latest.isSuccess && !latest.isFetching && !reconcile.isPending && !reconcile.isError
+  const last = resultAvailable ? latest.data : null
+  const resultError = reconcile.error || latest.error
+  const readingResult = latest.isPending || latest.isFetching || reconcile.isPending
+  const retryResult = () => { reconcile.reset(); void latest.refetch() }
   const total = pkgList.length
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const safePage = Math.min(page, totalPages)
@@ -58,40 +66,48 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
     <div className="warehouse-inventory-filters">
       <div className="warehouse-metrics-inline">
         <span className="warehouse-metric-chip">
-          最近校验 <strong>{last ? statusLabel(last.status) : '尚未执行'}</strong>
+          最近校验 <strong>{readingResult ? '读取中' : resultError ? '读取失败' : last ? inventoryReconciliationPresentation(last.status).label : '尚未执行'}</strong>
           {last && <small>（{formatTime(last.completedAt ?? last.startedAt)}）</small>}
         </span>
-        <span className="warehouse-metric-chip">校验维度 <strong>{last?.dimensionCount ?? 0}</strong></span>
+        <span className="warehouse-metric-chip">校验维度 <strong>{last?.dimensionCount ?? '—'}</strong></span>
         <span className="warehouse-metric-chip">
-          差异项 <strong>{last?.issueCount ?? 0}</strong>
+          差异项 <strong>{last?.issueCount ?? '—'}</strong>
           {Boolean(last?.issueCount) && <small className="warehouse-metric-chip__warn">（需核查）</small>}
         </span>
-        <span className="warehouse-metric-chip">在用拆零 <strong>{activePackages.length}</strong>（余 {formatQuantity(remaining)}）</span>
+        <span className="warehouse-metric-chip">在用拆零 <strong>{packages.isSuccess ? activePackages.length : '—'}</strong>（余 {packages.isSuccess ? formatQuantity(remaining) : '—'}）</span>
       </div>
       <div className="warehouse-accuracy__actions">
         <Button size="sm" variant="secondary" onClick={() => setOpenDialog(true)}>登记拆零</Button>
         <Button size="sm" busy={reconcile.isPending} onClick={() => reconcile.mutate()}>立即校验</Button>
       </div>
     </div>
-    {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
-    {latest.isPending || packages.isPending ? <LoadingState label="正在读取账目校验结果…" /> : <>
+    {lots.isError && <Alert duration={null}>批次资料读取失败：{errorMessage(lots.error)}</Alert>}
       <div className="warehouse-accuracy__grid">
         <article className="warehouse-accuracy__card">
           <header>
             <div><strong>账目校验结果</strong>{last && <span>单号 {last.runNo}</span>}</div>
-            {last && <StatusBadge tone={last.status === 'PASSED' ? 'success' : last.status === 'ISSUES' ? 'warning' : 'danger'}>
-              {statusLabel(last.status)}</StatusBadge>}
+            {last && <StatusBadge tone={inventoryReconciliationPresentation(last.status).tone}>
+              {inventoryReconciliationPresentation(last.status).label}</StatusBadge>}
           </header>
           {last && <dl className="warehouse-reconciliation-facts">
-            <div><dt>运行方式</dt><dd>{last.runType === 'MANUAL' ? '人工执行' : '定时任务'}</dd></div>
+            <div><dt>运行方式</dt><dd>{last.runType === 'MANUAL' ? '人工执行' : last.runType === 'SCHEDULED' ? '定时任务' : '运行方式未知'}</dd></div>
             <div><dt>业务日期</dt><dd>{last.businessDate}</dd></div>
-            <div><dt>执行人</dt><dd>{last.runBy ?? '系统任务'}</dd></div>
-            <div><dt>耗时</dt><dd>{last.completedAt ? formatDuration(last.startedAt, last.completedAt) : '执行中'}</dd></div>
+            <div><dt>执行人</dt><dd>{last.runBy ?? (last.runType === 'SCHEDULED' ? '系统任务' : '未记录')}</dd></div>
+            <div><dt>耗时</dt><dd>{last.completedAt ? formatDuration(last.startedAt, last.completedAt) : last.status === 'RUNNING' ? '执行中' : '完成时间未记录'}</dd></div>
           </dl>}
-          {!last ? <EmptyState icon="pharmacy" title="尚未执行库存校验" copy="点击“立即校验”，系统将自动比对四类库存账目。" />
-            : !last.lines.length ? <div className="warehouse-accuracy__passed"><span aria-hidden="true">✓</span>
-              <div><strong>账实关系一致</strong><p>流水、余额、预留、拆零与追溯账目未发现差异。</p></div></div>
-              : <div className="warehouse-table-wrap"><table className="warehouse-table warehouse-accuracy__table"><thead><tr>
+          {readingResult ? <LoadingState label={reconcile.isPending ? '正在执行库存校验…' : '正在读取账目校验结果…'} />
+            : resultError ? <EmptyState icon="pharmacy" title="库存校验结果读取失败" copy={errorMessage(resultError)}
+                action={<Button variant="secondary" onClick={retryResult}>重新读取校验结果</Button>} />
+            : !last ? <EmptyState icon="pharmacy" title="尚未执行库存校验" copy="点击“立即校验”，系统将比对库存账目。" />
+            : last.status === 'PASSED' ? last.dimensionCount === 0
+              ? <EmptyState icon="pharmacy" title="本次没有可校验的库存维度" copy="本次校验已结束，未返回可比对的库存维度。" />
+              : <div className="warehouse-accuracy__passed"><span aria-hidden="true">✓</span>
+                  <div><strong>本次账目校验通过</strong><p>本次已校验维度内未发现账目差异，不替代实物盘点。</p></div></div>
+            : last.status === 'RUNNING' ? <LoadingState label="库存校验尚在执行，暂不能确认结论。" />
+            : last.status === 'FAILED' ? <EmptyState icon="pharmacy" title="库存校验未成功完成" copy="不能据此确认账目一致，请重新执行校验。" />
+            : last.status !== 'ISSUES' ? <EmptyState icon="pharmacy" title="无法确认库存校验结论" copy={`返回状态：${last.status}`} />
+            : null}
+          {last && last.lines.length > 0 && <div className="warehouse-table-wrap"><table className="warehouse-table warehouse-accuracy__table"><thead><tr>
                 <th>校验项</th><th>经营项目 / 库位</th><th>期望</th><th>实际</th><th>差异</th><th>级别</th>
               </tr></thead><tbody>{last.lines.map(line => <tr key={line.id}>
                 <td><strong>{issueText[line.issueType] ?? line.issueType}</strong><small>{line.description}</small></td>
@@ -105,14 +121,17 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
         <article className="warehouse-accuracy__card">
           <header>
             <strong>拆零包装台账</strong>
-            <StatusBadge tone="info">{total} 条</StatusBadge>
+            <StatusBadge tone="info">{packages.isSuccess ? `${total} 条` : '数量未取得'}</StatusBadge>
           </header>
-          {!total ? <EmptyState icon="pharmacy" title="暂无拆零包装" copy="发生拆零发药时系统会自动建账，也可人工登记已开包装。" />
+          {packages.isPending ? <LoadingState label="正在读取拆零包装台账…" />
+            : packages.isError ? <EmptyState icon="pharmacy" title="拆零包装台账读取失败" copy={errorMessage(packages.error)}
+                action={<Button variant="secondary" onClick={() => void packages.refetch()}>重新读取拆零台账</Button>} />
+            : !total ? <EmptyState icon="pharmacy" title="暂无拆零包装" copy="发生拆零发药时系统会自动建账，也可人工登记已开包装。" />
             : <>
               <div className="warehouse-table-wrap"><table className="warehouse-table warehouse-accuracy__table"><thead><tr>
                 <th>药品 / 开包时间</th><th>批号 / 追溯</th><th>库位</th><th>开包数量</th><th>当前余量</th><th>状态</th>
               </tr></thead><tbody>{paginatedPackages.map(value => <PackageRow key={value.id} value={value} items={items} bins={bins}
-                lot={lots.data?.find(lot => lot.id === value.stockLotId)} />)}</tbody></table></div>
+                lot={lots.isSuccess ? lots.data.find(lot => lot.id === value.stockLotId) : undefined} />)}</tbody></table></div>
               {totalPages > 1 && <Pagination
                 page={safePage}
                 totalPages={totalPages}
@@ -125,7 +144,6 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
             </>}
         </article>
       </div>
-    </>}
     {openDialog && <OpenPackageDialog api={api} siteId={siteId} items={items} bins={bins}
       onClose={() => setOpenDialog(false)} onDone={async () => {
         await queryClient.invalidateQueries({ queryKey: ['warehouse-open-packages', siteId] })
@@ -136,7 +154,7 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
 
 function PackageRow({ value, items, bins, lot }: { value: InventoryOpenPackage; items: StockItem[]; bins: StockBin[]; lot?: Awaited<ReturnType<RhnApi['pharmacy']['lots']>>[number] }) {
   return <tr><td><strong>{itemName(items, value.stockItemId)}</strong><small>{formatTime(value.openedAt)}{value.traceCodeId ? ' · 已绑定追溯码' : ''}</small></td>
-    <td><strong>{lot?.lotNo ?? '批次资料缺失'}</strong><small>{lot?.expiryDate ?? '无效期'} · {value.traceCodeId ? `追溯 …${value.traceCodeId.slice(-6)}` : '无追溯码'}</small></td>
+    <td><strong>{lot?.lotNo ?? '批次资料未取得'}</strong><small>{lot?.expiryDate ?? '效期未记录'} · {value.traceCodeId ? `追溯 …${value.traceCodeId.slice(-6)}` : '无追溯码'}</small></td>
     <td>{binName(bins, value.stockBinId)}</td><td>{formatQuantity(value.openedBaseQuantity)} {value.baseUnitCode}</td>
     <td><strong>{formatQuantity(value.remainingBaseQuantity)} {value.baseUnitCode}</strong></td>
     <td><StatusBadge tone={value.status === 'OPEN' ? 'info' : value.status === 'CONSUMED' ? 'success' : 'neutral'}>
@@ -151,8 +169,13 @@ function OpenPackageDialog({ api, siteId, items, bins, onClose, onDone }: {
   const [dimension, setDimension] = useState('')
   const [description, setDescription] = useState('')
   const balances = useQuery({ queryKey: ['warehouse-open-package-balances', siteId, itemId],
-    queryFn: () => api.pharmacy.balances(siteId, itemId), enabled: Boolean(itemId) })
-  const available = balances.data?.filter(value => value.stockStatus === 'AVAILABLE' && value.quantityOnHand > 0) ?? []
+    queryFn: async () => {
+      const values = await api.pharmacy.balances(siteId, itemId)
+      if (!Array.isArray(values)) throw new Error('可开包库存返回格式无效，请重新读取。')
+      return values
+    }, enabled: Boolean(itemId) })
+  const available = balances.isSuccess && !balances.isFetching
+    ? balances.data.filter(value => value.stockStatus === 'AVAILABLE' && value.quantityOnHand > 0) : []
   useEffect(() => { setDimension(available[0] ? `${available[0].stockBinId}:${available[0].stockLotId}` : '') }, [itemId, balances.data])
   const mutation = useMutation({ mutationFn: () => {
     const [stockBinId, stockLotId] = dimension.split(':')
@@ -163,8 +186,10 @@ function OpenPackageDialog({ api, siteId, items, bins, onClose, onDone }: {
   return <Dialog title="登记拆零包装" eyebrow="拆零余量台账" size="wide"
     description="登记后将从整包装可用量中锁定一包装，并按基本单位持续记录消耗与退回；追溯药品会同步绑定完整追溯码。"
     onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
-      <Button busy={mutation.isPending} disabled={!itemId || !dimension} onClick={() => mutation.mutate()}>确认开包</Button></>}>
+      <Button busy={mutation.isPending} disabled={!itemId || !dimension || !balances.isSuccess || balances.isFetching} onClick={() => mutation.mutate()}>确认开包</Button></>}>
     {Boolean(mutation.error) && <Alert>{errorMessage(mutation.error)}</Alert>}
+    {balances.isError && <EmptyState icon="pharmacy" title="可开包库存读取失败" copy={errorMessage(balances.error)}
+      action={<Button variant="secondary" onClick={() => void balances.refetch()}>重新读取库存</Button>} />}
     {!eligibleItems.length ? <Alert>当前没有已启用拆零管理的经营项目。</Alert>
       : <div className="warehouse-form-grid"><FormField label="经营项目" required><Select searchable showValue
         value={itemId} onChange={setItemId} options={eligibleItems.map(value => ({ value: value.id,
@@ -186,4 +211,3 @@ function formatDuration(startedAt: string, completedAt: string) {
   const seconds = Math.max(0, Math.round((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000))
   return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`
 }
-function statusLabel(status: string) { return ({ PASSED: '校验通过', ISSUES: '发现差异', RUNNING: '校验中', FAILED: '校验失败' }[status] ?? status) }

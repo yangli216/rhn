@@ -7,11 +7,20 @@ import { describe, expect, it, vi } from 'vitest'
 import type { GenerateClinicalAiSuggestionInput, ClinicalAiSuggestion } from '../../shared/api/clinicalAiApi'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { Encounter, Resident } from '../../shared/model'
+import type { ClinicalDocument } from '../../shared/api/clinicalDocumentsApi'
+import type { ClinicalRecordInput } from '../../shared/api/encountersApi'
+import { billingWriteFixture } from './record/completionBillingWrites.testFixtures'
+import { completionStatementFixture, completionSettlementFixture } from './record/completionFacts.testFixtures'
+import { clinicalRecordSaveFixture } from './record/clinicalRecordSave.testFixtures'
+import { changedFixture, signedFixture, versionFixture } from './record/clinicalDocumentWorkflow.testFixtures'
 import type { ReceptionQueueItem, RhnApi } from '../../shared/rhnApi'
-import type { OutpatientPlanTemplate } from '../../shared/api/outpatientPlanTemplatesApi'
+import type { HistoricalStablePlan, OutpatientPlanTemplate } from '../../shared/api/outpatientPlanTemplatesApi'
 import type { PrintRecord } from '../../shared/api/printingApi'
 import { DoctorWorkstation } from './DoctorWorkstation'
+import { orderDraftReceipt } from './orders/orderDraftSave.testFixtures'
 import { persistOrderDrafts } from './orders/persistOrderDrafts'
+import { historicalImportFixture } from './ai/historicalPrescriptionImport.testFixtures'
+import { installTemplateCatalog } from './templates/resolveTemplateOrders.testFixtures'
 
 const mockResident: Resident = {
   id: 'resident-1',
@@ -71,7 +80,9 @@ const outpatientNote = (status: 'DRAFT' | 'SIGNED' | 'AMENDMENT_IN_PROGRESS' = '
   status, currentVersion: version, contentSchema: 'RHN.OUTPATIENT_NOTE.V1',
   content: { chiefComplaint: '头痛复诊', presentIllness: '头痛较前缓解', vitalSigns: { systolic: 120, diastolic: 80 },
     diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }] },
-  createdBy: 'doctor', createdAt: '2026-09-10T08:00:00Z', updatedAt: '2026-09-10T08:00:00Z', history: [],
+  createdBy: 'doctor', createdAt: '2026-09-10T08:00:00Z', updatedAt: '2026-09-10T08:00:00Z',
+  history: Array.from({ length: version }, (_, index) => versionFixture(index + 1, index + 1 < version || status === 'SIGNED',
+    index === 0 ? 'CREATE' : 'AMENDMENT')),
 })
 
 const mockQueueItem: ReceptionQueueItem = {
@@ -111,6 +122,7 @@ function createMockApi({
   resumeFn?: ReturnType<typeof vi.fn>
 } = {}) {
   let encounterStatus = initialEncounterStatus
+  let savedDocuments: ClinicalDocument[] = []
 
   const startMock = startFn.mockImplementation(() => {
     encounterStatus = 'IN_PROGRESS'
@@ -156,28 +168,18 @@ function createMockApi({
           : encounterStatus === 'SUSPENDED' ? mockSuspendedEncounter
             : encounterStatus === 'COMPLETED' ? mockCompletedEncounter : mockInProgressEncounter])
       ),
-      recordClinicalData: vi.fn().mockImplementation((id: string, input: any) => Promise.resolve({
-        ...mockInProgressEncounter,
-        id,
-        chiefComplaint: input.chiefComplaint,
-        systolic: input.systolic,
-        diastolic: input.diastolic,
-        diagnoses: (input.diagnoses ?? []).map((d: any, idx: number) => ({
-          id: `diag-${idx}`,
-          conceptId: d.conceptId,
-          diagnosisDomain: d.diagnosisDomain,
-          diagnosisGroupId: d.diagnosisGroupId,
-          code: d.code,
-          display: d.display,
-          type: d.type,
-          managementPrograms: [],
-        })),
-      })),
+      recordClinicalData: vi.fn().mockImplementation((id: string, input: ClinicalRecordInput) => {
+        const saved = clinicalRecordSaveFixture({ ...mockInProgressEncounter, id }, input,
+          (savedDocuments[0]?.currentVersion ?? 0) + 1)
+        savedDocuments = [saved.document]
+        return Promise.resolve(saved.encounter)
+      }),
       start: startMock,
       complete: vi.fn(),
       suspend: vi.fn(),
       resume: resumeMock,
       prescriptions: vi.fn().mockResolvedValue([]),
+      saveOrderDrafts: vi.fn().mockImplementation(async (id, input) => orderDraftReceipt(id, input)),
       evaluatePrescriptionSafety: vi.fn().mockResolvedValue({
         evaluationId: 'evaluation-pass', prescriptionId: 'rx-pass', prescriptionRevision: 0,
         inputHash: 'hash-pass', ruleSetVersion: 'qmed-foundation-shadow-v1', engineVersion: 'test',
@@ -193,7 +195,7 @@ function createMockApi({
       orderableMedications: vi.fn().mockResolvedValue([]),
     },
     clinicalDocuments: {
-      byEncounter: vi.fn().mockResolvedValue([]),
+      byEncounter: vi.fn().mockImplementation(async () => savedDocuments),
       activeTemplates: vi.fn().mockResolvedValue([]),
     },
     outpatientNoteForms: {
@@ -243,21 +245,16 @@ function createMockApi({
     followUp: {
       byEncounter: vi.fn().mockResolvedValue([]),
     },
+    configuration: { resolve: vi.fn().mockResolvedValue({
+      key: 'outpatient.doctor-workstation.completion-mode', value: 'COMBINED_CONFIRMATION',
+      requestedScope: 'DEPARTMENT', resolvedScope: 'DEPARTMENT', inherited: false, suppressedByDependency: false,
+    }) },
     dictionaries: {
       systemEnum: vi.fn().mockResolvedValue({ code: 'TEST', name: '测试', items: [] }),
       applicable: vi.fn().mockResolvedValue([]),
     },
     billing: {
-      statement: vi.fn().mockResolvedValue({
-        accountId: 'acc-1',
-        encounterId: 'encounter-101',
-        chargeAmount: 10.0,
-        paymentAmount: 10.0,
-        uninvoicedAmount: 0.0,
-        currencyCode: 'CNY',
-        settlements: [],
-        charges: [],
-      }),
+      statement: vi.fn().mockResolvedValue(completionStatementFixture(mockInProgressEncounter)),
       paymentOrders: vi.fn().mockResolvedValue([]),
       createPaymentOrder: vi.fn(),
       issueInvoice: vi.fn(),
@@ -380,6 +377,145 @@ function renderStation(api: RhnApi) {
     <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
   </MemoryRouter></QueryClientProvider>)
 }
+
+function receiptTestPlan(): OutpatientPlanTemplate {
+  return { id: 'receipt-plan', revision: 1, scopeType: 'PERSONAL', name: '回执核对方案', status: 'ACTIVE',
+    diagnoses: [{ code: 'TEST-RECEIPT', display: '回执测试诊断', type: 'PRIMARY' }], medications: [], services: [], tasks: [],
+    sortOrder: 0, useCount: 0, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z' }
+}
+
+it.each(['empty', 'wrong-id', 'changed-diagnosis', 'missing-line', 'inactive'])(
+  'does not stage cached template content when the use receipt is %s', async failure => {
+    const user = userEvent.setup(), api = createMockApi(), plan = receiptTestPlan(), receipt = structuredClone(plan)
+    if (failure === 'wrong-id') receipt.id = 'unrelated'
+    if (failure === 'changed-diagnosis') receipt.diagnoses[0].display = '另一诊断'
+    if (failure === 'missing-line') receipt.diagnoses = []
+    if (failure === 'inactive') receipt.status = 'INACTIVE'
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([plan])
+    vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(failure === 'empty' ? undefined as unknown as OutpatientPlanTemplate : receipt)
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    await user.click(await screen.findByRole('button', { name: '带入当前草稿 (1)' }))
+    const drawer = screen.getByRole('complementary', { name: '临床模板' })
+    expect(await within(drawer).findByRole('alert')).toHaveTextContent('模板未带入')
+    expect(within(drawer).getByRole('checkbox', { name: '选择诊断 回执测试诊断' })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
+    expect(screen.queryByText('回执测试诊断')).not.toBeInTheDocument()
+    expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
+  })
+
+it('does not stage any plan lines when its selected linked note receipt fails validation', async () => {
+  const user = userEvent.setup(), api = createMockApi(), plan = { ...receiptTestPlan(), noteTemplateId: 'note-template-1' }
+  vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([plan])
+  vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(plan)
+  vi.mocked(api.outpatientNoteTemplates.use).mockResolvedValue(undefined as unknown as Awaited<ReturnType<RhnApi['outpatientNoteTemplates']['use']>>)
+  renderStation(api)
+  await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+  await user.click(screen.getByRole('button', { name: '临床模板' }))
+  await user.click(await screen.findByRole('button', { name: '带入当前草稿 (2)' }))
+  expect(await within(screen.getByRole('complementary', { name: '临床模板' })).findByRole('alert')).toHaveTextContent('病历模板')
+  await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
+  expect(screen.queryByText('回执测试诊断')).not.toBeInTheDocument()
+  expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('')
+})
+
+it.each(['selection', 'record'])(
+  'does not apply a late template response after the %s changes', async change => {
+    const user = userEvent.setup(), api = createMockApi(), plan = receiptTestPlan()
+    let resolve!: (value: OutpatientPlanTemplate) => void
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([plan])
+    vi.mocked(api.outpatientPlanTemplates.use).mockImplementation(() => new Promise(done => { resolve = done }))
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    await user.click(await screen.findByRole('button', { name: '带入当前草稿 (1)' }))
+    await waitFor(() => expect(api.outpatientPlanTemplates.use).toHaveBeenCalledTimes(1))
+    if (change === 'selection') await user.click(screen.getByRole('checkbox', { name: '选择诊断 回执测试诊断' }))
+    else await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '用户正在修改')
+    await act(async () => { resolve(plan) })
+    const drawer = screen.getByRole('complementary', { name: '临床模板' })
+    expect(await within(drawer).findByRole('alert')).toHaveTextContent('本次未带入')
+    await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
+    expect(screen.queryByText('回执测试诊断')).not.toBeInTheDocument()
+    if (change === 'record') expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('用户正在修改')
+  })
+
+it.each(['catalog-error', 'record-changed'])('keeps the whole template unapplied after %s during catalog verification', async failure => {
+  const user = userEvent.setup(), api = createMockApi(), plan: OutpatientPlanTemplate = { ...receiptTestPlan(), noteTemplateId: 'note-template-1',
+    services: [{ catalogItemId: 'lab', itemCode: 'LAB', itemName: '血常规', serviceType: 'LABORATORY', quantity: 1, unitCode: '次' }] }
+  installTemplateCatalog(api, plan)
+  const catalogPage = await api.masterData.searchServices('LAB')
+  vi.mocked(api.masterData.searchServices).mockClear()
+  let complete!: (value: Awaited<ReturnType<RhnApi['masterData']['searchServices']>>) => void
+  let reject!: (reason: Error) => void
+  vi.mocked(api.masterData.searchServices).mockImplementation(() => new Promise((done, fail) => { complete = done; reject = fail }) as ReturnType<RhnApi['masterData']['searchServices']>)
+  vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([plan])
+  vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(plan)
+  renderStation(api)
+  await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+  await user.click(screen.getByRole('button', { name: '临床模板' }))
+  await user.click(await screen.findByRole('button', { name: '带入当前草稿 (3)' }))
+  await waitFor(() => expect(api.masterData.searchServices).toHaveBeenCalledTimes(1))
+  if (failure === 'record-changed') await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '核对中的手工输入')
+  await act(async () => {
+    if (failure === 'catalog-error') reject(new Error('目录不可访问'))
+    else complete(catalogPage)
+  })
+  const drawer = screen.getByRole('complementary', { name: '临床模板' })
+  expect(await within(drawer).findByRole('alert')).toHaveTextContent(failure === 'catalog-error' ? '目录不可访问' : '本次未带入')
+  expect(within(drawer).getByRole('checkbox', { name: '选择诊断 回执测试诊断' })).toBeChecked()
+  await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
+  expect(screen.queryByText('回执测试诊断')).not.toBeInTheDocument()
+  expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue(failure === 'record-changed' ? '核对中的手工输入' : '')
+  expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
+})
+
+it('reports no change when selected note sections are retained instead of claiming they were imported', async () => {
+  const user = userEvent.setup(), api = createMockApi()
+  renderStation(api)
+  await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+  await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '已有主诉')
+  await user.type(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过'), '已有现病史')
+  await user.click(screen.getByRole('button', { name: '临床模板' }))
+  const drawer = screen.getByRole('complementary', { name: '临床模板' })
+  await user.click(within(drawer).getByRole('tab', { name: /病历模板/ }))
+  await user.click(await within(drawer).findByRole('button', { name: '带入病历草稿 (2)' }))
+  expect(await within(drawer).findByText('所选病历段落未改变当前内容；如需替换已有段落，请选择覆盖后重新核对。')).toBeInTheDocument()
+  expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('已有主诉')
+  expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('已有现病史')
+})
+
+it('rechecks historical renewal against the current encounter and rejects a duplicate batch explicitly', async () => {
+  const user = userEvent.setup(), api = createMockApi(), f = historicalImportFixture()
+  const historical = { ...f.source, residentId: mockResident.id }
+  f.rx.residentId = mockResident.id
+  f.rx.medicationRequests[0].residentId = mockResident.id
+  f.medication.products[0].organizationAdoption!.organizationId = 'org-1'
+  f.medication.products[0].prices[0].organizationId = 'org-1'
+  api.encounters.byResident = vi.fn().mockResolvedValue([mockInProgressEncounter, historical])
+  api.encounters.prescriptions = vi.fn().mockImplementation(async id => id === historical.id ? [f.rx] : [])
+  api.encounters.orderableMedications = f.orderableMedications
+  api.masterData.activeMedicationRoutes = f.activeMedicationRoutes
+  api.masterData.activeOrderFrequencies = f.activeOrderFrequencies
+  renderStation(api)
+  await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+  await screen.findByRole('heading', { name: '门诊病历' })
+  const bring = async () => {
+    await user.click(screen.getByRole('button', { name: '就诊历史' }))
+    await user.click(await screen.findByRole('checkbox', { name: /历史测试药/ }))
+    await user.click(screen.getByRole('checkbox', { name: /已核对当前病情/ }))
+    await user.click(screen.getByRole('button', { name: /加入续方草稿/ }))
+  }
+  await bring()
+  await waitFor(() => expect(screen.queryByRole('complementary', { name: '就诊历史' })).not.toBeInTheDocument())
+  expect(f.orderableMedications).toHaveBeenCalledWith('encounter-101', 'TEST')
+  expect(await screen.findByText('当前产品')).toBeInTheDocument()
+  expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
+  await bring()
+  expect(await screen.findByText('所选历史用药与当前待确认医嘱重复，本次未带入，请先核对已有草稿。')).toBeInTheDocument()
+  expect(screen.getAllByText('当前产品')).toHaveLength(1)
+})
 
 it('shows direct reception only when enabled and opens the patient identity workflow', async () => {
   const api = createMockApi()
@@ -526,6 +662,69 @@ describe('DoctorWorkstation reception flow', () => {
     expect(screen.queryByLabelText('病历书写模式')).not.toBeInTheDocument()
   })
 
+  it('blocks opening when split preview fails and restores verified counts only after retry', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const template: OutpatientPlanTemplate = { id: 'split-test', revision: 1, scopeType: 'PERSONAL',
+      name: '药品方案', status: 'ACTIVE', sortOrder: 0, useCount: 0, diagnoses: [], services: [], tasks: [],
+      medications: [{ lineId: 'm', editorMode: 'regular', medicationId: 'MED-001', medicationCode: 'MED-001',
+        medicationName: '阿莫西林胶囊', catalogItemId: 'med-product', packageId: 'med-box', categoryCode: 'WESTERN', doseValue: 0.5, doseUnit: 'g', routeCode: 'PO',
+        frequencyCode: 'TID', durationValue: 3, durationUnit: 'DAY', quantity: 1, quantityUnit: '盒',
+        substitutionAllowed: true, selfProvided: false }], createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z' }
+    installTemplateCatalog(api, template)
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([template])
+    vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(template)
+    const successfulPreview = vi.mocked(api.encounters.autoSplitPreview).getMockImplementation()!
+    vi.mocked(api.encounters.autoSplitPreview).mockImplementationOnce(successfulPreview)
+      .mockRejectedValueOnce(new Error('未配置发药路由'))
+    api.encounters.batchOrderPrescriptions = vi.fn()
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    await user.click(await screen.findByRole('button', { name: '带入当前草稿 (1)' }))
+    await user.click(screen.getByRole('button', { name: '审核开立' }))
+    const review = await screen.findByRole('dialog', { name: '医嘱开立核查' })
+    expect(await within(review).findByText(/分方预览失败：未配置发药路由/)).toBeInTheDocument()
+    expect(within(review).getByText('单据数量待确认')).toBeInTheDocument()
+    const submit = within(review).getByRole('button', { name: '确认分单并开立' })
+    expect(submit).toBeDisabled()
+    await user.click(submit)
+    expect(api.encounters.batchOrderPrescriptions).not.toHaveBeenCalled()
+    expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
+    await user.click(within(review).getByRole('button', { name: '重新核对分方' }))
+    await waitFor(() => expect(submit).toBeEnabled())
+    expect(within(review).getByText('1 张单据')).toBeInTheDocument()
+    expect(within(review).getByText('核实药房')).toBeInTheDocument()
+    expect(within(review).queryByText('单据数量待确认')).not.toBeInTheDocument()
+  })
+
+  it('saves an order-only change even when the clinical record has no edits', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    vi.mocked(api.encounters.byResident).mockResolvedValue([{ ...mockInProgressEncounter,
+      chiefComplaint: '复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
+    }] as Encounter[])
+    const template: OutpatientPlanTemplate = { id: 'order-only', revision: 1, scopeType: 'PERSONAL', name: '检查方案',
+      status: 'ACTIVE', sortOrder: 0, useCount: 0, diagnoses: [], medications: [], tasks: [],
+      services: [{ catalogItemId: 'lab', itemCode: 'LAB', itemName: '血常规', serviceType: 'LABORATORY', quantity: 1, unitCode: '次' }],
+      createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z' }
+    installTemplateCatalog(api, template)
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([template])
+    vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(template)
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    await user.click(await screen.findByRole('button', { name: '带入当前草稿 (1)' }))
+    await user.click(screen.getByRole('button', { name: '审核开立' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '医嘱开立核查' })).getByRole('button', { name: '确认分单并开立' }))
+    await waitFor(() => expect(api.encounters.saveOrderDrafts).toHaveBeenCalledTimes(1))
+    expect(api.encounters.saveOrderDrafts).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
+      medicationItems: [], serviceItems: [expect.objectContaining({ catalogItemId: 'lab', quantity: 1 })],
+    }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '医嘱开立核查' })).not.toBeInTheDocument())
+  })
+
   it('allows selective checking and applying of plan items to outpatient drafts', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
@@ -550,6 +749,8 @@ describe('DoctorWorkstation reception flow', () => {
           medicationId: 'MED-001',
           medicationCode: 'MED-001',
           medicationName: '阿莫西林胶囊',
+          catalogItemId: 'med-product',
+          packageId: 'med-box',
           categoryCode: 'WESTERN',
           doseValue: 0.5,
           doseUnit: 'g',
@@ -578,6 +779,7 @@ describe('DoctorWorkstation reception flow', () => {
       createdAt: '2026-09-01T00:00:00Z',
       updatedAt: '2026-09-01T00:00:00Z',
     }
+    installTemplateCatalog(api, mockPlan)
     vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([mockPlan])
     vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(mockPlan)
 
@@ -659,10 +861,10 @@ describe('DoctorWorkstation reception flow', () => {
     expect(screen.getByText('原发性高血压')).toBeInTheDocument()
   })
 
-  it('merges selected historical and standard plan differences into one reviewed draft', async () => {
+  it.each(['MISSING_IN_HISTORY', 'NEEDS_REVIEW', 'LOAD_ERROR', 'UNRESOLVED_HISTORY', 'MISSING_METADATA'] as const)('merges only confirmed historical and standard differences: %s', async (serviceStatus) => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
-    const historicalPlan = {
+    const historicalPlan: HistoricalStablePlan = {
       encounterId: 'encounter-101', sourceEncounterId: 'encounter-88',
       conditionTitle: '高血压复诊稳定方案', summary: '近三次方案稳定',
       diagnoses: [{ codeSystem: 'WHO.BD.CS.ICD10', diagnosisDomain: 'WESTERN_MEDICINE' as const,
@@ -671,8 +873,13 @@ describe('DoctorWorkstation reception flow', () => {
         packageId: 'package-h', doseValue: 5, doseUnit: 'mg', routeCode: 'ORAL', frequencyCode: 'QD',
         durationValue: 30, durationUnit: '天', quantity: 1, quantityUnit: '盒',
         substitutionAllowed: true, selfProvided: false }],
-      services: [], guidanceNotes: [],
+      services: [], guidanceNotes: [], reviewItems: [], assessedCategories: ['DIAGNOSIS' as const, 'MEDICATION' as const, 'SERVICE' as const],
     }
+    if (serviceStatus === 'UNRESOLVED_HISTORY') historicalPlan.reviewItems.push({
+      category: 'MEDICATION', sourceId: 'original-unverified', medicationId: 'med-unverified',
+      display: '原始待核对药品', reason: '原始用法快照未确认，未带入草稿',
+    })
+    if (serviceStatus === 'MISSING_METADATA') Object.assign(historicalPlan, { reviewItems: undefined })
     const standardPlan: OutpatientPlanTemplate = {
       id: 'plan-standard-1', revision: 3, scopeType: 'HOSPITAL', name: '高血压院内标准方案',
       description: '院内标准方案', status: 'ACTIVE', sourceType: 'MANUAL', sortOrder: 0, useCount: 10,
@@ -687,6 +894,7 @@ describe('DoctorWorkstation reception flow', () => {
         serviceType: 'LABORATORY', quantity: 1, unitCode: '次' }],
       tasks: [], createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z',
     }
+    installTemplateCatalog(api, standardPlan)
     vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([standardPlan])
     vi.mocked(api.outpatientPlanTemplates.getHistoricalStablePlan).mockResolvedValue(historicalPlan)
     vi.mocked(api.outpatientPlanTemplates.compareHistoricalPlan).mockResolvedValue({
@@ -698,18 +906,24 @@ describe('DoctorWorkstation reception flow', () => {
         services: standardPlan.services,
       },
       differences: [
+        ...(serviceStatus === 'UNRESOLVED_HISTORY' ? [{ key: 'REVIEW:MEDICATION:0', category: 'MEDICATION' as const,
+          status: 'NEEDS_REVIEW' as const, historicalIndex: null, standardIndex: null,
+          historicalDisplay: '原始待核对药品', reason: '原始用法快照未确认，未带入草稿' }] : []),
         { key: 'DX:I10', category: 'DIAGNOSIS', status: 'CONSISTENT', historicalIndex: 0,
           standardIndex: 0, historicalDisplay: '原发性高血压', standardDisplay: '原发性高血压',
           reason: '历史方案与标准方案一致' },
         { key: 'MED:med-1:med-1', category: 'MEDICATION', status: 'CONFLICT', historicalIndex: 0,
           standardIndex: 0, historicalDisplay: '氨氯地平片 5mg', standardDisplay: '氨氯地平片 10mg',
           reason: '药品剂量不同' },
-        { key: 'SERVICE:service-1', category: 'SERVICE', status: 'MISSING_IN_HISTORY', standardIndex: 0,
+        { key: 'SERVICE:service-1', category: 'SERVICE', status: serviceStatus === 'NEEDS_REVIEW' ? 'NEEDS_REVIEW' : 'MISSING_IN_HISTORY', historicalIndex: null, standardIndex: 0,
           standardDisplay: '肾功能', reason: '标准方案存在，历史稳定方案未包含' },
       ],
     })
+    if (serviceStatus === 'LOAD_ERROR') vi.mocked(api.outpatientPlanTemplates.compareHistoricalPlan)
+      .mockRejectedValue(new Error('成分目录不可用'))
     vi.mocked(api.outpatientPlanTemplates.create).mockImplementation(async (input) => ({
       ...standardPlan, id: 'merged-plan-1', name: input.name, description: input.description,
+      scopeType: input.scopeType, sourceType: input.sourceType,
       diagnoses: input.diagnoses, medications: input.medications as OutpatientPlanTemplate['medications'],
       services: input.services as OutpatientPlanTemplate['services'],
     }))
@@ -723,10 +937,32 @@ describe('DoctorWorkstation reception flow', () => {
 
     await waitFor(() => expect(api.outpatientPlanTemplates.compareHistoricalPlan)
       .toHaveBeenCalledWith('encounter-101', 'plan-standard-1'))
+    if (serviceStatus === 'MISSING_METADATA') {
+      expect(await within(drawer).findByText('历史核对状态未返回，请重新加载历史方案后再带入。')).toBeInTheDocument()
+      expect(within(drawer).getByRole('button', { name: /合并带入草稿/ })).toBeDisabled()
+      expect(api.outpatientPlanTemplates.create).not.toHaveBeenCalled()
+      return
+    }
+    if (serviceStatus === 'UNRESOLVED_HISTORY') {
+      expect(await within(drawer).findByText('待核对的历史记录 (1)')).toBeInTheDocument()
+      expect(within(drawer).getByRole('checkbox', { name: '选择差异项 原始待核对药品' })).toBeDisabled()
+      expect(within(drawer).queryByRole('combobox', { name: '选择 REVIEW:MEDICATION:0 的采用来源' })).not.toBeInTheDocument()
+    }
+    if (serviceStatus === 'LOAD_ERROR') {
+      expect(await within(drawer).findByText('成分目录不可用')).toBeInTheDocument()
+      expect(within(drawer).getByRole('button', { name: /合并带入草稿/ })).toBeDisabled()
+      expect(api.outpatientPlanTemplates.create).not.toHaveBeenCalled()
+      return
+    }
     expect(await within(drawer).findByText('氨氯地平片 10mg')).toBeInTheDocument()
     await user.click(within(drawer).getByRole('combobox', { name: '选择 MED:med-1:med-1 的采用来源' }))
     await user.click(await screen.findByRole('option', { name: '标准方案' }))
-    await user.click(within(drawer).getByRole('checkbox', { name: '选择差异项 肾功能' }))
+    const serviceChoice = within(drawer).getByRole('checkbox', { name: '选择差异项 肾功能' })
+    if (serviceStatus === 'NEEDS_REVIEW') {
+      expect(serviceChoice).toBeDisabled()
+      expect(serviceChoice).not.toBeChecked()
+      expect(within(drawer).getByText('待核对')).toBeInTheDocument()
+    } else await user.click(serviceChoice)
     await user.click(within(drawer).getByRole('button', { name: '合并带入草稿 (2)' }))
 
     await waitFor(() => expect(api.outpatientPlanTemplates.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -1077,27 +1313,7 @@ describe('DoctorWorkstation reception flow', () => {
   it('preserves chief complaint, diagnoses, and physical exam data without clearing after saving draft', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
-    const recordSpy = vi.fn().mockImplementation((id: string, input: any) => Promise.resolve({
-      ...mockInProgressEncounter,
-      id,
-      chiefComplaint: input.chiefComplaint,
-      systolic: input.systolic,
-      diastolic: input.diastolic,
-      diagnoses: (input.diagnoses ?? []).map((d: any, idx: number) => ({
-        id: `diag-${idx}`,
-        conceptId: d.conceptId,
-        diagnosisDomain: d.diagnosisDomain,
-        diagnosisGroupId: d.diagnosisGroupId,
-        code: d.code,
-        display: d.display,
-        type: d.type,
-        managementPrograms: [],
-      })),
-    }))
-    api.encounters.recordClinicalData = recordSpy
-
-    let currentDocs: any[] = []
-    api.clinicalDocuments.byEncounter = vi.fn().mockImplementation(() => Promise.resolve(currentDocs))
+    const recordSpy = api.encounters.recordClinicalData
 
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
 
@@ -1145,26 +1361,6 @@ describe('DoctorWorkstation reception flow', () => {
 
     expect(await screen.findByText('原发性高血压')).toBeInTheDocument()
 
-    // 模拟服务端保存后返回的 document 草稿
-    currentDocs = [{
-      id: 'doc-note-1',
-      documentType: 'OUTPATIENT_NOTE',
-      title: '门诊病历',
-      currentVersion: 1,
-      status: 'DRAFT',
-      content: {
-        chiefComplaint: '持续性头痛3天，伴恶心',
-        presentIllness: '患者3天前无明显诱因下出现头痛',
-        physicalExam: '心肺听诊未见异常，双下肢无水肿',
-        vitalSigns: {
-          systolic: 140,
-          diastolic: 90,
-          temperature: 36.8,
-        },
-        diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
-      },
-    }]
-
     await user.clear(screen.getByLabelText('体温'))
     await user.type(screen.getByLabelText('体温'), '36.8')
     await user.clear(screen.getByLabelText('体温'))
@@ -1198,55 +1394,15 @@ describe('DoctorWorkstation reception flow', () => {
     expect(await screen.findByText(/草稿 V1/)).toBeInTheDocument()
   })
 
-  it('persists medication and service drafts to backend DRAFT prescriptions and requests', async () => {
+  it('sends medication and service drafts in one atomic save command', async () => {
     const api = createMockApi()
-    const mockPrescription = {
-      id: 'rx-draft-1',
-      categoryCode: 'WESTERN',
-      status: 'DRAFT',
-      medicationRequests: [],
-    }
-    const createPrescriptionSpy = vi.fn().mockResolvedValue(mockPrescription)
-    const createMedReqSpy = vi.fn().mockResolvedValue({ id: 'med-req-1', status: 'DRAFT' })
-    const createSvcReqSpy = vi.fn().mockResolvedValue({ id: 'svc-req-1', status: 'DRAFT' })
-    api.encounters.createPrescription = createPrescriptionSpy
-    api.encounters.createMedicationRequest = createMedReqSpy
-    api.encounters.createServiceRequest = createSvcReqSpy
-
-    const mockDraft: any = {
-      id: 'draft-1',
-      categoryCode: 'WESTERN',
-      request: {
-        medicationId: 'm-1',
-        doseValue: 10,
-        doseUnit: 'mg',
-        routeCode: 'ORAL',
-        frequencyCode: 'QD',
-        durationValue: 7,
-        quantity: 1,
-      },
-    }
-
-    const mockSvcDraft: any = {
-      id: 'svc-1',
-      catalogItemId: 'cat-1',
-      quantity: 2,
-      unitCode: '次',
-      clinicalDescription: '抽血检验',
-    }
-
-    await persistOrderDrafts('enc-1' as any, [mockDraft], [mockSvcDraft], api, [])
-
-    expect(createPrescriptionSpy).toHaveBeenCalledWith('enc-1', 'WESTERN', '门诊西药/中成药处方')
-    expect(createMedReqSpy).toHaveBeenCalledWith('enc-1', expect.objectContaining({
-      prescriptionId: 'rx-draft-1',
-      medicationId: 'm-1',
-      quantity: 1,
-    }))
-    expect(createSvcReqSpy).toHaveBeenCalledWith('enc-1', expect.objectContaining({
-      catalogItemId: 'cat-1',
-      quantity: 2,
-    }))
+    const medication = { id: 'm', categoryCode: 'WESTERN', request: { medicationId: 'med', quantity: 1 } } as any
+    const service = { id: 's', catalogItemId: 'catalog', quantity: 2, unitCode: '次', clinicalDescription: '核对' } as any
+    await persistOrderDrafts('enc-1', [medication], [service], api, 'orders-command')
+    expect(api.encounters.saveOrderDrafts).toHaveBeenCalledWith('enc-1', {
+      commandCode: 'orders-command', medicationItems: [expect.objectContaining({ medicationId: 'med', quantity: 1 })],
+      serviceItems: [expect.objectContaining({ catalogItemId: 'catalog', quantity: 2, clinicalDescription: '核对' })],
+    })
   })
 
   it('shows an active laboratory document while reviewing a pending prescription', async () => {
@@ -1268,7 +1424,7 @@ describe('DoctorWorkstation reception flow', () => {
     } as any
     const laboratoryRequest = {
       id: 'service-lab-1', revision: 0, residentId: 'resident-1', encounterId: 'encounter-101',
-      requestNo: 'LAB-001', status: 'ACTIVE', catalogItemId: 'catalog-lab-1', businessDate: '2026-09-28',
+      requestNo: 'LAB-001', performerDepartmentId: 'actual-lab-dept', status: 'ACTIVE', catalogItemId: 'catalog-lab-1', businessDate: '2026-09-28',
       itemCode: 'LAB-CBC', itemName: '血常规', unitCode: '次', adoptionId: 'adoption-1', adoptionRevision: 1,
       quantity: 1, itemAttributeSnapshot: {}, itemAttributeHash: 'hash-lab',
       itemAttributeResolvedAt: '2026-09-28T08:10:00Z', standardMappings: [], serviceType: 'LABORATORY',
@@ -1290,11 +1446,18 @@ describe('DoctorWorkstation reception flow', () => {
     expect(within(review).getByText('检1')).toBeInTheDocument()
     expect(within(review).getByText('血常规')).toBeInTheDocument()
     expect(within(review).getByText('明确感染类型')).toBeInTheDocument()
+    expect(within(review).getByText('科室编号：actual-lab-dept（名称待确认）')).toBeInTheDocument()
+    expect(within(review).getByText('发药药房待确认')).toBeInTheDocument()
+    for (const guessed of ['检验科', '中成药房', '默认药房']) expect(within(review).queryByText(guessed)).not.toBeInTheDocument()
   })
 
   it('shows shadow medication safety findings before submitting a draft prescription', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    vi.mocked(api.encounters.byResident).mockResolvedValue([{ ...mockInProgressEncounter,
+      chiefComplaint: '复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
+    }] as Encounter[])
     const medicationRequest = {
       id: 'med-levofloxacin', revision: 0, prescriptionId: 'rx-child', status: 'DRAFT',
       medicationId: '362387880000128', medicationSnapshot: { name: '左氧氟沙星片' },
@@ -1344,6 +1507,10 @@ describe('DoctorWorkstation reception flow', () => {
 
   function prepareFormalSafetyReview(status: 'BLOCK' | 'UNAVAILABLE' | 'REQUIRE_OVERRIDE' | 'WARN' = 'REQUIRE_OVERRIDE') {
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    vi.mocked(api.encounters.byResident).mockResolvedValue([{ ...mockInProgressEncounter,
+      chiefComplaint: '复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
+    }] as Encounter[])
     const medicationRequests = ['a', 'b'].map((suffix) => ({
       id: `med-${suffix}`, revision: 0, prescriptionId: 'rx-pair', status: 'DRAFT',
       medicationId: `drug-${suffix}`, medicationSnapshot: { name: `测试药品${suffix}` },
@@ -1381,6 +1548,27 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(await screen.findByRole('button', { name: '审核开立' }))
     return screen.findByRole('region', { name: '合理用药审查' })
   }
+
+  it.each(['prescriptions', 'serviceRequests'] as const)(
+    'keeps the review open and stops submission when the latest %s query fails', async (method) => {
+      const user = userEvent.setup()
+      const { api, evaluation } = prepareFormalSafetyReview()
+      vi.mocked(api.encounters.evaluatePrescriptionSafety).mockResolvedValue({ ...evaluation, decision: 'PASS', findings: [] })
+      renderStation(api)
+      await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+      await user.click(await screen.findByRole('button', { name: '审核开立' }))
+      const dialog = await screen.findByRole('dialog', { name: '医嘱开立核查' })
+      const submit = within(dialog).getByRole('button', { name: '确认分单并开立' })
+      await waitFor(() => expect(submit).toBeEnabled())
+      vi.mocked(api.encounters[method]).mockRejectedValueOnce(new Error('最新单据查询失败'))
+      await user.click(submit)
+      expect(await screen.findByText('最新单据查询失败')).toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: '医嘱开立核查' })).toBeInTheDocument()
+      expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
+      await user.click(submit)
+      await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledTimes(1))
+    },
+  )
 
   it.each(['BLOCK', 'UNAVAILABLE'] as const)('prevents acknowledgement from bypassing formal %s and rechecks after returning to edit', async (status) => {
     const user = userEvent.setup()
@@ -1455,120 +1643,6 @@ describe('DoctorWorkstation reception flow', () => {
     expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
   })
 
-  it('does not automatically append new medication to a prescription with confirmed document metadata', async () => {
-    const api = createMockApi()
-    api.encounters.createPrescription = vi.fn().mockResolvedValue({ id: 'rx-new', categoryCode: 'WESTERN', status: 'DRAFT', medicationRequests: [] })
-    api.encounters.createMedicationRequest = vi.fn().mockResolvedValue({ id: 'mr-new', status: 'DRAFT' })
-    const drafts = [{ id: 'new', categoryCode: 'WESTERN', routeExecutionType: 'NONE',
-      request: { medicationId: 'm-new', routeCode: 'ORAL', frequencyCode: 'QD', quantity: 1 } }] as any
-    const existing = [{ id: 'rx-existing', categoryCode: 'WESTERN', status: 'DRAFT', medicationRequests: [],
-      documentInfo: { diagnoses: [], externalPrescription: true } }] as any
-    await persistOrderDrafts('enc-1', drafts, [], api, existing)
-    expect(api.encounters.createPrescription).toHaveBeenCalledTimes(1)
-    expect(api.encounters.createMedicationRequest).toHaveBeenCalledWith('enc-1', expect.objectContaining({ prescriptionId: 'rx-new' }))
-  })
-
-  it('automatically splits the sixth regular medication into a second prescription', async () => {
-    const api = createMockApi()
-    let prescriptionSequence = 0
-    const createPrescription = vi.fn().mockImplementation(async (_encounterId, categoryCode) => ({
-      id: `rx-${++prescriptionSequence}`, categoryCode, status: 'DRAFT', medicationRequests: [],
-    }))
-    const createMedicationRequest = vi.fn().mockImplementation(async (_encounterId, input) => ({
-      ...input, id: `mr-${createMedicationRequest.mock.calls.length}`, status: 'DRAFT',
-    }))
-    api.encounters.createPrescription = createPrescription
-    api.encounters.createMedicationRequest = createMedicationRequest
-    const drafts = Array.from({ length: 6 }, (_, index) => ({
-      id: `draft-${index}`, categoryCode: 'WESTERN', routeExecutionType: 'NONE',
-      request: { medicationId: `m-${index}`, routeCode: 'ORAL', frequencyCode: 'QD', durationValue: 3,
-        quantity: 1, substitutionAllowed: true, selfProvided: false },
-    })) as any
-
-    await persistOrderDrafts('enc-1', drafts, [], api, [])
-
-    expect(createPrescription).toHaveBeenCalledTimes(2)
-    expect(createMedicationRequest.mock.calls.slice(0, 5).every(([, input]) => input.prescriptionId === 'rx-1')).toBe(true)
-    expect(createMedicationRequest.mock.calls[5][1].prescriptionId).toBe('rx-2')
-  })
-
-  it('keeps more than five herbal ingredients in one separate herbal prescription', async () => {
-    const api = createMockApi()
-    let prescriptionSequence = 0
-    const createPrescription = vi.fn().mockImplementation(async (_encounterId, categoryCode) => ({
-      id: `rx-${++prescriptionSequence}`, categoryCode, status: 'DRAFT', medicationRequests: [],
-    }))
-    api.encounters.createPrescription = createPrescription
-    api.encounters.createMedicationRequest = vi.fn().mockImplementation(async (_encounterId, input) => ({
-      ...input, id: globalThis.crypto.randomUUID(), status: 'DRAFT',
-    }))
-    const drafts = [
-      ...Array.from({ length: 2 }, (_, index) => ({ id: `western-${index}`, categoryCode: 'WESTERN' })),
-      ...Array.from({ length: 6 }, (_, index) => ({ id: `herbal-${index}`, categoryCode: 'HERBAL' })),
-    ].map((draft) => ({ ...draft, routeExecutionType: 'NONE', request: {
-      medicationId: draft.id, routeCode: 'ORAL', frequencyCode: 'BID', durationValue: 7,
-      quantity: 1, substitutionAllowed: true, selfProvided: false,
-    } })) as any
-
-    await persistOrderDrafts('enc-1', drafts, [], api, [])
-
-    expect(createPrescription.mock.calls.map((call) => call[1])).toEqual(['WESTERN', 'HERBAL'])
-  })
-
-  it('persists explicit infusion group roots and rejects incompatible same-group usage', async () => {
-    const api = createMockApi()
-    api.encounters.createPrescription = vi.fn().mockResolvedValue({
-      id: 'rx-iv', categoryCode: 'WESTERN', status: 'DRAFT', medicationRequests: [],
-    })
-    const createMedicationRequest = vi.fn().mockImplementation(async (_encounterId, input) => ({
-      ...input, id: `mr-${createMedicationRequest.mock.calls.length}`, status: 'DRAFT',
-    }))
-    api.encounters.createMedicationRequest = createMedicationRequest
-    const infusion = (id: string, group: string, frequencyCode = 'QD') => ({
-      id, categoryCode: 'WESTERN', routeExecutionType: 'INFUSION', administrationGroupKey: group,
-      request: { medicationId: id, routeCode: 'IV', frequencyCode, durationValue: 1,
-        quantity: 1, substitutionAllowed: true, selfProvided: false },
-    }) as any
-
-    await persistOrderDrafts('enc-1', [infusion('m-1', 'draft:one'), infusion('m-2', 'draft:one'),
-      infusion('m-3', 'draft:two')], [], api, [])
-
-    expect(createMedicationRequest.mock.calls[0][1].parentRequestId).toBeUndefined()
-    expect(createMedicationRequest.mock.calls[1][1].parentRequestId).toBe('mr-1')
-    expect(createMedicationRequest.mock.calls[2][1].parentRequestId).toBeUndefined()
-
-    await expect(persistOrderDrafts('enc-2', [infusion('m-4', 'draft:conflict'),
-      infusion('m-5', 'draft:conflict', 'BID')], [], api, [])).rejects
-      .toThrow('同一输液组的给药途径、频次和疗程必须一致')
-  })
-
-  it('delegates to batchOrderPrescriptions when available on api.encounters', async () => {
-    const api = createMockApi()
-    const batchSpy = vi.fn().mockResolvedValue([{ id: 'rx-split-1' }])
-    ;(api.encounters as any).batchOrderPrescriptions = batchSpy
-
-    const drafts = [
-      {
-        id: 'draft-1',
-        categoryCode: 'WESTERN',
-        request: { medicationId: 'm-1', routeCode: 'ORAL', frequencyCode: 'QD', durationValue: 3, quantity: 1 },
-      },
-    ] as any
-
-    await persistOrderDrafts('enc-1', drafts, [], api, [], true)
-
-    expect(batchSpy).toHaveBeenCalledWith('enc-1', {
-      items: [
-        expect.objectContaining({
-          medicationId: 'm-1',
-          routeCode: 'ORAL',
-          frequencyCode: 'QD',
-        }),
-      ],
-      autoSubmit: true,
-    })
-  })
-
   it('renders friendly completion dialog with 4-metric fee card, quick phrase chips, and standardized checklist icons', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
@@ -1628,8 +1702,17 @@ describe('DoctorWorkstation reception flow', () => {
         code: 'I10', display: '原发性高血压', type: 'PRIMARY', managementPrograms: [] }] } as Encounter
     api.encounters.byResident = vi.fn().mockResolvedValue([readyEncounter])
     api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
-    api.clinicalDocuments.sign = vi.fn().mockResolvedValue(outpatientNote('SIGNED'))
-    api.encounters.complete = vi.fn().mockResolvedValue({ ...readyEncounter, status: 'COMPLETED' })
+    api.clinicalDocuments.sign = vi.fn().mockImplementation(async () => {
+      const signed = outpatientNote('SIGNED')
+      api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([signed])
+      return signed
+    })
+    api.encounters.complete = vi.fn().mockImplementation(async () => {
+      const completed = { ...readyEncounter, status: 'COMPLETED' as const, completedAt: '2026-10-04T00:00:00Z' }
+      api.encounters.get = vi.fn().mockResolvedValue(completed)
+      api.encounters.byResident = vi.fn().mockResolvedValue([completed])
+      return completed
+    })
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
       <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
@@ -1646,6 +1729,132 @@ describe('DoctorWorkstation reception flow', () => {
       .toBeLessThan(vi.mocked(api.encounters.complete).mock.invocationCallOrder[0])
   })
 
+  it.each(['wrong-document', 'unsigned', 'missing-evidence', 'not-persisted'] as const)(
+    'does not complete the encounter after an unconfirmed signature: %s', async failure => {
+      const user = userEvent.setup()
+      const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+      api.encounters.byResident = vi.fn().mockResolvedValue([{ ...mockInProgressEncounter,
+        chiefComplaint: '头痛复诊', systolic: 120, diastolic: 80,
+        diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }] }])
+      api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+      const receipt = outpatientNote(failure === 'unsigned' ? 'DRAFT' : 'SIGNED')
+      if (failure === 'wrong-document') receipt.id = 'another-note'
+      if (failure === 'missing-evidence') delete receipt.history[0].signatureEvidenceId
+      api.clinicalDocuments.sign = vi.fn().mockResolvedValue(receipt)
+      renderStation(api)
+      await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+      await user.click(screen.getByRole('button', { name: '诊毕' }))
+      await user.click(await screen.findByRole('button', { name: '签署并诊毕' }))
+      expect((await screen.findAllByText(/文书操作未确认/)).length).toBeGreaterThan(0)
+      expect(api.encounters.complete).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog', { name: /诊毕确认/ })).toBeInTheDocument()
+    })
+
+  it('does not complete after the signing response arrives in a different API session', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    api.encounters.byResident = vi.fn().mockResolvedValue([{ ...mockInProgressEncounter,
+      chiefComplaint: '头痛复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }] }])
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+    let finishSign!: (value: ClinicalDocument) => void
+    api.clinicalDocuments.sign = vi.fn().mockImplementation(() => new Promise<ClinicalDocument>(resolve => { finishSign = resolve }))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const view = (currentApi: RhnApi) => <QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
+      <DoctorWorkstation api={currentApi} clinicalContext={clinicalContext} canEdit />
+    </MemoryRouter></QueryClientProvider>
+    const rendered = render(view(api))
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '诊毕' }))
+    await user.click(await screen.findByRole('button', { name: '签署并诊毕' }))
+    await waitFor(() => expect(api.clinicalDocuments.sign).toHaveBeenCalledTimes(1))
+    const nextApi = { ...api, encounters: { ...api.encounters, complete: vi.fn() } }
+    rendered.rerender(view(nextApi))
+    await act(async () => finishSign(outpatientNote('SIGNED')))
+    expect((await screen.findAllByText(/文书操作未确认.*工作上下文/)).length).toBeGreaterThan(0)
+    expect(api.encounters.complete).not.toHaveBeenCalled()
+    expect(nextApi.encounters.complete).not.toHaveBeenCalled()
+  })
+
+  it.each(['text', 'diagnoses', 'api'] as const)('preserves current drafts when %s changes during an ordinary save', async change => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const ready = { ...mockInProgressEncounter, chiefComplaint: '头痛复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }, { code: 'R05', display: '咳嗽', type: 'SECONDARY' }] } as Encounter
+    api.encounters.byResident = vi.fn().mockResolvedValue([ready])
+    let stored: ClinicalDocument[] = []
+    api.clinicalDocuments.byEncounter = vi.fn().mockImplementation(async () => stored)
+    let finishSave!: () => void
+    api.encounters.recordClinicalData = vi.fn().mockImplementation((_id, input: ClinicalRecordInput) => new Promise<Encounter>(resolve => {
+      finishSave = () => { const saved = clinicalRecordSaveFixture(ready, input); stored = [saved.document]; resolve(saved.encounter) }
+    }))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const view = (currentApi: RhnApi) => <QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
+      <DoctorWorkstation api={currentApi} clinicalContext={clinicalContext} canEdit />
+    </MemoryRouter></QueryClientProvider>
+    const rendered = render(view(api))
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const complaint = await screen.findByPlaceholderText('症状、持续时间及本次就诊原因')
+    fireEvent.change(complaint, { target: { value: '已提交的主诉' } })
+    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledTimes(1))
+    const readCount = vi.mocked(api.clinicalDocuments.byEncounter).mock.calls.length
+    if (change === 'text') fireEvent.change(complaint, { target: { value: '等待期间的新主诉' } })
+    else if (change === 'diagnoses') await user.click(screen.getByRole('button', { name: '下移诊断 原发性高血压' }))
+    else rendered.rerender(view({ ...api }))
+    await act(async () => finishSave())
+    if (change !== 'api') expect((await screen.findAllByText(/草稿保存未确认.*保存期间内容已变化/)).length).toBeGreaterThan(0)
+    expect(api.clinicalDocuments.byEncounter).toHaveBeenCalledTimes(readCount)
+    expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
+    expect(screen.queryByText('门诊病历、诊断与医嘱草稿已保存')).not.toBeInTheDocument()
+    expect(complaint).toHaveValue(change === 'text' ? '等待期间的新主诉' : '已提交的主诉')
+    if (change === 'diagnoses') {
+      const rows = document.querySelectorAll('.doctor-diagnosis-row:not(.is-launcher):not(.is-active-composer)')
+      expect(rows[0]).toHaveTextContent('咳嗽')
+    }
+  })
+
+  it.each([
+    ['COMBINED_CONFIRMATION', 'empty'], ['COMBINED_CONFIRMATION', 'wrong-patient'],
+    ['COMBINED_CONFIRMATION', 'in-progress'], ['COMBINED_CONFIRMATION', 'not-persisted'],
+    ['COMBINED_CONFIRMATION', 'read-error'], ['SEPARATE_CONFIRMATIONS', 'empty'],
+  ] as const)('keeps the completion dialog and retry command in %s mode after %s', async (mode, failure) => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const ready = { ...mockInProgressEncounter, chiefComplaint: '头痛复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }] } as Encounter
+    const completed = { ...ready, status: 'COMPLETED' as const, completedAt: '2026-10-04T00:00:00Z' }
+    let stored = ready
+    api.encounters.byResident = vi.fn().mockImplementation(async () => [stored])
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('SIGNED')])
+    api.configuration = { resolve: vi.fn().mockResolvedValue({ key: 'outpatient.doctor-workstation.completion-mode', value: mode,
+      requestedScope: 'DEPARTMENT', resolvedScope: 'DEPARTMENT', inherited: false, suppressedByDependency: false }) } as never
+    api.encounters.get = vi.fn().mockImplementation(async () => stored)
+    if (failure === 'read-error') vi.mocked(api.encounters.get).mockRejectedValueOnce(new Error('诊毕回读中断'))
+    api.encounters.complete = vi.fn().mockImplementation(async () => { stored = completed; return completed })
+      .mockImplementationOnce(async () => {
+        stored = failure === 'not-persisted' ? ready : completed
+        return failure === 'empty' ? undefined : failure === 'wrong-patient' ? { ...completed, residentId: 'other' }
+          : failure === 'in-progress' ? ready : completed
+      })
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '诊毕' }))
+    const dialog = await screen.findByRole('dialog', { name: '诊毕确认' })
+    await user.click(within(dialog).getByLabelText(/诊毕后立即打开批量打印/))
+    await user.click(within(dialog).getByRole('button', { name: '确认诊毕' }))
+    await waitFor(() => expect(api.encounters.complete).toHaveBeenCalledTimes(1))
+    // Shared Alert renders into the notification viewport outside the dialog portal.
+    expect(await screen.findByText(/诊毕结果未确认/)).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '诊毕确认' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: '批量受控打印' })).not.toBeInTheDocument()
+    await user.click(within(screen.getByRole('dialog', { name: '诊毕确认' })).getByRole('button', { name: '确认诊毕' }))
+    expect(await screen.findByRole('dialog', { name: '批量受控打印' })).toBeInTheDocument()
+    const calls = vi.mocked(api.encounters.complete).mock.calls
+    expect(calls).toHaveLength(2)
+    expect(calls[0][1]!.commandCode).toBe(calls[1][1]!.commandCode)
+  })
+
   it('saves unsaved work before opening the completion confirmation', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
@@ -1655,8 +1864,12 @@ describe('DoctorWorkstation reception flow', () => {
     let finishSave: ((value: Encounter) => void) | undefined
     api.encounters.byResident = vi.fn().mockResolvedValue([readyEncounter])
     api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
-    api.encounters.recordClinicalData = vi.fn().mockImplementation(() => new Promise<Encounter>((resolve) => {
-      finishSave = resolve
+    api.encounters.recordClinicalData = vi.fn().mockImplementation((_id, input: ClinicalRecordInput) => new Promise<Encounter>((resolve) => {
+      finishSave = value => {
+        const saved = clinicalRecordSaveFixture(value, input, 2)
+        api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([saved.document])
+        resolve(saved.encounter)
+      }
     }))
     renderStation(api)
 
@@ -1678,6 +1891,255 @@ describe('DoctorWorkstation reception flow', () => {
     expect(await screen.findByRole('dialog', { name: /诊毕确认/ })).toBeInTheDocument()
   })
 
+  function completionFactsApi() {
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const ready = { ...mockInProgressEncounter, chiefComplaint: '复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }] } as Encounter
+    api.encounters.byResident = vi.fn().mockResolvedValue([ready])
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('SIGNED')])
+    api.clinicalDocuments.sign = vi.fn()
+    api.encounters.complete = vi.fn().mockImplementation(async () => {
+      const completed = { ...ready, status: 'COMPLETED' as const, completedAt: '2026-10-04T00:00:00Z' }
+      api.encounters.get = vi.fn().mockResolvedValue(completed)
+      api.encounters.byResident = vi.fn().mockResolvedValue([completed])
+      return completed
+    })
+    return api
+  }
+  async function openCompletionFacts(api: RhnApi) {
+    const user = userEvent.setup()
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '诊毕' }))
+    await screen.findByRole('dialog', { name: '诊毕确认' })
+    return user
+  }
+  it.each(['configuration', 'statement', 'services', 'medications', 'payments'] as const)(
+    'blocks completion while %s loads or fails, then allows explicit recovery', async source => {
+      const api = completionFactsApi()
+      const object = source === 'configuration' ? api.configuration : ['statement', 'payments'].includes(source) ? api.billing : api.encounters
+      const key = source === 'configuration' ? 'resolve' : source === 'statement' ? 'statement'
+        : source === 'payments' ? 'paymentOrders' : source === 'services' ? 'serviceRequests' : 'medicationRequests'
+      const target = object as unknown as Record<string, (...args: unknown[]) => unknown>
+      const original = target[key]
+      let reject!: (error: Error) => void
+      target[key] = vi.fn(() => new Promise((_resolve, fail) => { reject = fail }))
+      const user = await openCompletionFacts(api)
+      const button = () => within(screen.getByRole('dialog', { name: '诊毕确认' })).getByRole('button', { name: '确认诊毕' })
+      expect(button()).toBeDisabled()
+      expect(screen.queryByText('已全部通过')).not.toBeInTheDocument()
+      if (source === 'statement') {
+        expect(screen.getByText('费用待核对')).toBeInTheDocument()
+        expect(screen.queryByText('暂无费用')).not.toBeInTheDocument()
+        expect(screen.queryByText(/已结清/)).not.toBeInTheDocument()
+      }
+      if (source === 'services' || source === 'medications') expect(screen.getByText('医嘱待核对')).toBeInTheDocument()
+      await act(async () => reject(new Error('读取中断')))
+      expect(await screen.findByText(/诊毕资料加载失败/)).toBeInTheDocument()
+      await user.click(button())
+      expect(api.encounters.complete).not.toHaveBeenCalled()
+      expect(api.clinicalDocuments.sign).not.toHaveBeenCalled()
+      target[key] = original
+      await user.click(screen.getByRole('button', { name: '重新加载诊毕资料' }))
+      await waitFor(() => expect(button()).toBeEnabled())
+      await user.click(button())
+      await waitFor(() => expect(api.encounters.complete).toHaveBeenCalledTimes(1))
+      expect(vi.mocked(api.encounters.complete).mock.calls[0][1]?.dispositionNote).toBeUndefined()
+    })
+
+  it.each(['mode-missing', 'mode-unknown', 'mode-suppressed', 'statement-missing', 'statement-owner',
+    'statement-negative', 'statement-settlements', 'services-missing', 'medications-owner', 'payments-missing'] as const)(
+    'does not present malformed %s data as completed facts', async failure => {
+      const api = completionFactsApi()
+      if (failure.startsWith('mode')) api.configuration.resolve = vi.fn().mockResolvedValue(failure === 'mode-missing' ? null : {
+        key: 'outpatient.doctor-workstation.completion-mode', value: failure === 'mode-unknown' ? 'UNKNOWN' : 'COMBINED_CONFIRMATION',
+        requestedScope: 'DEPARTMENT', resolvedScope: 'DEPARTMENT', inherited: false, suppressedByDependency: failure === 'mode-suppressed',
+      })
+      else if (failure.startsWith('statement')) api.billing.statement = vi.fn().mockResolvedValue(failure === 'statement-missing' ? null : {
+        ...completionStatementFixture(mockInProgressEncounter),
+        ...(failure === 'statement-owner' ? { residentId: 'other' } : failure === 'statement-negative' ? { paymentAmount: -1 } : { settlements: null }),
+      })
+      else if (failure === 'services-missing') api.encounters.serviceRequests = vi.fn().mockResolvedValue(null)
+      else if (failure === 'medications-owner') api.encounters.medicationRequests = vi.fn().mockResolvedValue([
+        { id: 'med-1', residentId: 'other', encounterId: 'encounter-101', status: 'ACTIVE' },
+      ])
+      else api.billing.paymentOrders = vi.fn().mockResolvedValue(null)
+      const user = await openCompletionFacts(api)
+      expect(await screen.findByText(/诊毕资料加载失败/)).toBeInTheDocument()
+      const button = within(screen.getByRole('dialog', { name: '诊毕确认' })).getByRole('button', { name: '确认诊毕' })
+      expect(button).toBeDisabled()
+      await user.click(button)
+      expect(api.encounters.complete).not.toHaveBeenCalled()
+      expect(api.clinicalDocuments.sign).not.toHaveBeenCalled()
+      expect(screen.queryByText('已全部通过')).not.toBeInTheDocument()
+    })
+
+  it.each(['uninvoiced', 'failed-settlement', 'pending-payment'] as const)(
+    'does not treat %s with zero payable balance as settled', async failure => {
+      const api = completionFactsApi()
+      const settlement = completionSettlementFixture({ status: failure === 'failed-settlement' ? 'FAILED' : 'SETTLED', outstandingAmount: 0 })
+      api.billing.statement = vi.fn().mockResolvedValue({ ...completionStatementFixture(mockInProgressEncounter),
+        ...(failure === 'uninvoiced' ? { chargeAmount: 10, uninvoicedAmount: 10 } : { settlements: [settlement] }),
+      })
+      if (failure === 'pending-payment') api.billing.paymentOrders = vi.fn().mockResolvedValue([
+        { id: 'pay-1', patientAccountId: 'acc-1', settlementId: settlement.id, status: 'PENDING', currencyCode: 'CNY',
+          requestedAmount: 10, capturedAmount: 0, refundedAmount: 0 },
+      ])
+      await openCompletionFacts(api)
+      expect(await screen.findByText(failure === 'uninvoiced' ? '尚有未开票费用' : failure === 'pending-payment' ? '支付处理中' : '结算尚未完成')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '确认诊毕' })).toBeDisabled()
+      expect(screen.queryByText(/已结清/)).not.toBeInTheDocument()
+      expect(screen.queryByText('已全部通过')).not.toBeInTheDocument()
+    })
+
+  it('invalidates previously confirmed amounts after a failed refresh', async () => {
+    const api = completionFactsApi()
+    const user = await openCompletionFacts(api)
+    await waitFor(() => expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled())
+    api.billing.statement = vi.fn().mockRejectedValue(new Error('费用刷新失败'))
+    await user.click(screen.getByRole('button', { name: '重新加载诊毕资料' }))
+    expect(await screen.findByText(/诊毕资料加载失败/)).toBeInTheDocument()
+    expect(screen.getByText('费用待核对')).toBeInTheDocument()
+    expect(screen.queryByText(/已结清/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认诊毕' })).toBeDisabled()
+  })
+
+  it.each(['configuration', 'mode-changed', 'new-charge', 'services', 'medications', 'payments'] as const)(
+    'rechecks %s before signing even after the displayed facts were ready', async source => {
+      const api = completionFactsApi()
+      api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+      const user = await openCompletionFacts(api)
+      const button = await screen.findByRole('button', { name: '签署并诊毕' })
+      await waitFor(() => expect(button).toBeEnabled())
+      if (source === 'configuration') api.configuration.resolve = vi.fn().mockRejectedValue(new Error('配置读取中断'))
+      else if (source === 'mode-changed') api.configuration.resolve = vi.fn().mockResolvedValue({
+        key: 'outpatient.doctor-workstation.completion-mode', value: 'SEPARATE_CONFIRMATIONS',
+        requestedScope: 'DEPARTMENT', resolvedScope: 'DEPARTMENT', inherited: false, suppressedByDependency: false,
+      })
+      else if (source === 'new-charge') api.billing.statement = vi.fn().mockResolvedValue({
+        ...completionStatementFixture(mockInProgressEncounter), chargeAmount: 12, uninvoicedAmount: 12,
+      })
+      else if (source === 'services') api.encounters.serviceRequests = vi.fn().mockResolvedValue(null)
+      else if (source === 'medications') api.encounters.medicationRequests = vi.fn().mockResolvedValue(null)
+      else api.billing.paymentOrders = vi.fn().mockResolvedValue(null)
+      await user.click(button)
+      expect(await screen.findByText(source === 'configuration' ? '配置读取中断' : /诊毕资料未确认/)).toBeInTheDocument()
+      expect(api.clinicalDocuments.sign).not.toHaveBeenCalled()
+      expect(api.encounters.complete).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog', { name: '诊毕确认' })).toBeInTheDocument()
+    })
+
+  it('rejects a late pre-completion read when the API session changes', async () => {
+    const api = completionFactsApi()
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const view = (currentApi: RhnApi) => <QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
+      <DoctorWorkstation api={currentApi} clinicalContext={clinicalContext} canEdit />
+    </MemoryRouter></QueryClientProvider>
+    const user = userEvent.setup(), rendered = render(view(api))
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '诊毕' }))
+    const button = await screen.findByRole('button', { name: '签署并诊毕' })
+    await waitFor(() => expect(button).toBeEnabled())
+    let finish!: (value: ReturnType<typeof completionStatementFixture>) => void
+    api.billing.statement = vi.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+      .mockResolvedValue(completionStatementFixture(mockInProgressEncounter))
+    await user.click(button)
+    await waitFor(() => expect(api.billing.statement).toHaveBeenCalledTimes(1))
+    rendered.rerender(view({ ...api }))
+    await act(async () => finish(completionStatementFixture(mockInProgressEncounter)))
+    expect(await screen.findByText(/文书操作未确认.*工作上下文/)).toBeInTheDocument()
+    expect(api.clinicalDocuments.sign).not.toHaveBeenCalled()
+    expect(api.encounters.complete).not.toHaveBeenCalled()
+  })
+
+  it('preserves clinician notes across disposition changes and uses the actual currency', async () => {
+    const api = completionFactsApi()
+    api.billing.statement = vi.fn().mockResolvedValue({ ...completionStatementFixture(mockInProgressEncounter), currencyCode: 'USD' })
+    const user = await openCompletionFacts(api)
+    await waitFor(() => expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled())
+    expect(screen.getByText(/已结清/)).not.toHaveTextContent('¥')
+    const note = screen.getByLabelText('转归及随访说明')
+    expect(note).toHaveValue('')
+    await user.click(screen.getByRole('combobox', { name: /就诊转归/ }))
+    await user.click(screen.getByRole('option', { name: '收治住院' }))
+    expect(note).toHaveValue('')
+    await user.type(note, '已联系住院部，等待床位确认')
+    await user.click(screen.getByRole('combobox', { name: /就诊转归/ }))
+    await user.click(screen.getByRole('option', { name: '转诊 / 转科' }))
+    expect(note).toHaveValue('已联系住院部，等待床位确认')
+    await user.click(screen.getByRole('button', { name: '确认诊毕' }))
+    await waitFor(() => expect(api.encounters.complete).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
+      dispositionCode: 'REFERRAL', dispositionNote: '已联系住院部，等待床位确认',
+    })))
+  })
+
+  it.each([
+    ['invoice', 'empty'], ['invoice', 'read-error'], ['invoice', 'not-persisted'], ['invoice', 'wrong-lines'],
+    ['payment', 'empty'], ['payment', 'read-error'], ['payment', 'not-persisted'], ['payment', 'wrong-amount'],
+  ] as const)('keeps the original %s request after %s and reconciles it on explicit retry', async (kind, failure) => {
+    const api = completionFactsApi()
+    const fixture = billingWriteFixture(mockInProgressEncounter, kind)
+    api.billing = { ...api.billing, ...fixture.api }
+    api.dictionaries.applicable = vi.fn().mockResolvedValue([{ code: 'BANK_CARD', name: '银行卡', sortOrder: 1,
+      attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
+    const user = await openCompletionFacts(api)
+    const action = await screen.findByRole('button', { name: kind === 'invoice' ? '生成结算单' : '发起诊间收款' })
+    await waitFor(() => expect(action).toBeEnabled())
+    if (failure === 'read-error') fixture.api.statement.mockRejectedValueOnce(new Error('结算回读失败'))
+    else if (failure === 'not-persisted') {
+      if (kind === 'invoice') fixture.api.statement.mockResolvedValueOnce(fixture.before)
+      else fixture.api.paymentOrders.mockResolvedValueOnce([])
+    } else if (kind === 'invoice') {
+      const actual = fixture.api.issueInvoice.getMockImplementation()!
+      fixture.api.issueInvoice.mockImplementationOnce(async (...args) => {
+        const saved = await actual(...args)
+        return failure === 'empty' ? undefined as never : { ...saved, lines: [] }
+      })
+    } else {
+      const actual = fixture.api.createPaymentOrder.getMockImplementation()!
+      fixture.api.createPaymentOrder.mockImplementationOnce(async (...args) => {
+        const saved = await actual(...args)
+        return failure === 'empty' ? undefined as never : { ...saved, requestedAmount: 999 }
+      })
+    }
+    await user.click(action)
+    expect(await screen.findByText(/诊间结算操作未确认/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认诊毕' })).toBeDisabled()
+    if (failure === 'empty') {
+      await user.click(screen.getByRole('button', { name: '继续诊疗' }))
+      expect(screen.queryByRole('dialog', { name: '诊毕确认' })).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: '诊毕' }))
+      await screen.findByRole('dialog', { name: '诊毕确认' })
+    }
+    const retry = await screen.findByRole('button', { name: '核实上次结算操作' })
+    await user.click(retry)
+    await waitFor(() => expect(screen.queryByRole('button', { name: '核实上次结算操作' })).not.toBeInTheDocument())
+    const calls = kind === 'invoice' ? fixture.api.issueInvoice.mock.calls : fixture.api.createPaymentOrder.mock.calls
+    expect(calls).toHaveLength(2)
+    expect(calls[1]).toEqual(calls[0])
+    if (kind === 'payment') await waitFor(() => expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled())
+    else expect(screen.getByRole('button', { name: '确认诊毕' })).toBeDisabled()
+  })
+
+  it('keeps the completion dialog open while a collection request is unresolved', async () => {
+    const api = completionFactsApi(), fixture = billingWriteFixture(mockInProgressEncounter, 'payment')
+    api.billing = { ...api.billing, ...fixture.api }
+    api.dictionaries.applicable = vi.fn().mockResolvedValue([{ code: 'BANK_CARD', name: '银行卡', sortOrder: 1,
+      attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
+    const actual = fixture.api.createPaymentOrder.getMockImplementation()!
+    let finish!: () => void
+    fixture.api.createPaymentOrder.mockImplementationOnce((...args) => new Promise(resolve => { finish = async () => resolve(await actual(...args)) }))
+    const user = await openCompletionFacts(api)
+    await user.click(await screen.findByRole('button', { name: '发起诊间收款' }))
+    await waitFor(() => expect(fixture.api.createPaymentOrder).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('button', { name: '继续诊疗' })).toBeDisabled()
+    await user.click(within(screen.getByRole('dialog', { name: '诊毕确认' })).getByRole('button', { name: '关闭弹窗' }))
+    expect(screen.getByRole('dialog', { name: '诊毕确认' })).toBeInTheDocument()
+    await act(async () => finish())
+    await waitFor(() => expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled())
+  })
+
   it('keeps separate signing available when the completion mode parameter requests it', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
@@ -1697,9 +2159,16 @@ describe('DoctorWorkstation reception flow', () => {
   it('starts an auditable amendment instead of withdrawing a signed note', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
-    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('SIGNED')])
-    api.clinicalDocuments.amend = vi.fn().mockResolvedValue(outpatientNote('AMENDMENT_IN_PROGRESS', 2))
-    api.clinicalDocuments.sign = vi.fn().mockResolvedValue(outpatientNote('SIGNED', 2))
+    let storedNote: ClinicalDocument = outpatientNote('SIGNED')
+    api.clinicalDocuments.byEncounter = vi.fn().mockImplementation(async () => [storedNote])
+    api.clinicalDocuments.amend = vi.fn().mockImplementation(async (_id, input) => {
+      storedNote = changedFixture(storedNote, input.content, input.changeReason)
+      return storedNote
+    })
+    api.clinicalDocuments.sign = vi.fn().mockImplementation(async () => {
+      storedNote = signedFixture(storedNote)
+      return storedNote
+    }).mockRejectedValueOnce(new Error('签署服务暂不可用'))
     renderStation(api)
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
     await user.click(await screen.findByRole('button', { name: '发起更正' }))
@@ -1709,7 +2178,13 @@ describe('DoctorWorkstation reception flow', () => {
     await waitFor(() => expect(api.clinicalDocuments.amend).toHaveBeenCalledWith('note-1', expect.objectContaining({
       expectedCurrentVersion: 1, changeReason: '更正现病史中的症状持续时间',
     })))
-    expect(api.clinicalDocuments.sign).toHaveBeenCalledWith('note-1', 2)
+    expect((await screen.findAllByText(/文书操作未确认.*签署服务暂不可用/)).length).toBeGreaterThan(0)
+    const dialog = screen.getByRole('dialog', { name: '发起病历更正' })
+    expect(within(dialog).getByPlaceholderText('说明需要更正的内容和原因')).toHaveValue('更正现病史中的症状持续时间')
+    await user.click(within(dialog).getByRole('button', { name: '更正并重新签署' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '发起病历更正' })).not.toBeInTheDocument())
+    expect(api.clinicalDocuments.amend).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(api.clinicalDocuments.sign).mock.calls).toEqual([['note-1', 2], ['note-1', 2]])
   })
 
   it('offers an auditable correction action after the encounter is completed', async () => {
@@ -1804,7 +2279,8 @@ describe('DoctorWorkstation inline AI collaboration', () => {
         disclaimer: '仅供参考' } satisfies ClinicalAiSuggestion))
     api.clinicalAi.recordEvent = vi.fn().mockResolvedValue(undefined)
     api.masterData.diseases = vi.fn().mockResolvedValue([{ code: 'I10', display: '原发性高血压',
-      sdStatus: 'ACTIVE', systemCode: 'WHO.BD.CS.ICD10' }])
+      id: 'concept-hyp-1', sdStatus: 'ACTIVE', systemCode: 'WHO.BD.CS.ICD10', sdDiagnosisDomain: 'WESTERN_MEDICINE',
+      effectiveFrom: '2020-01-01', managementPrograms: [] }])
     return api
   }
 
@@ -1832,7 +2308,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
       description: plan.description, rationale: '符合问诊要点' }])
     vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([plan])
     vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(plan)
-    api.encounters.createServiceRequest = vi.fn().mockResolvedValue({ id: 'created-lab' })
+    installTemplateCatalog(api, plan)
     const user = await enter(api)
     await user.click(screen.getByRole('button', { name: '匹配方案并继续' }))
     await user.click(await screen.findByRole('button', { name: '核对整体方案' }))
@@ -1850,13 +2326,25 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(within(review).queryByText('病历未录入诊断')).not.toBeInTheDocument()
     expect(within(review).getByRole('button', { name: '全部关联主诊断' })).toBeInTheDocument()
     expect(within(review).getByText('原发性高血压')).toBeInTheDocument()
+    vi.mocked(api.encounters.recordClinicalData).mockRejectedValueOnce(new Error('病历保存失败'))
     await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
-    await waitFor(() => expect(api.encounters.createServiceRequest).toHaveBeenCalledTimes(1))
+    expect((await screen.findAllByText('病历保存失败')).length).toBeGreaterThan(0)
+    expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
+    vi.mocked(api.clinicalDocuments.byEncounter).mockRejectedValueOnce(new Error('文书查询中断'))
+    await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
+    expect((await screen.findAllByText(/病历保存回执未确认.*读取保存后的文书失败/)).length).toBeGreaterThan(0)
+    expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
+    expect(screen.queryByText('门诊病历、诊断与医嘱草稿已保存')).not.toBeInTheDocument()
+    expect(within(review).getByText('原发性高血压')).toBeInTheDocument()
+    await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
+    await waitFor(() => expect(api.encounters.saveOrderDrafts).toHaveBeenCalledTimes(1))
+    const recordCalls = vi.mocked(api.encounters.recordClinicalData).mock.calls
+    expect(recordCalls[1][1].commandCode).toBe(recordCalls[2][1].commandCode)
     expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
       diagnoses: expect.arrayContaining([expect.objectContaining({ code: 'I10', type: 'PRIMARY' })]),
     }))
     expect(vi.mocked(api.encounters.recordClinicalData).mock.invocationCallOrder[0])
-      .toBeLessThan(vi.mocked(api.encounters.createServiceRequest).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(api.encounters.saveOrderDrafts).mock.invocationCallOrder[0])
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '医嘱开立核查' })).not.toBeInTheDocument())
   })
 
@@ -1884,6 +2372,11 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.clear(screen.getByLabelText('调整此处文字'))
     await user.type(screen.getByLabelText('调整此处文字'), '5天')
     await user.click(screen.getByRole('button', { name: '应用修改' }))
+    expect(screen.getByRole('textbox', { name: '现病史' })).toHaveTextContent('咳嗽5天，用药3天；无胸痛')
+    vi.mocked(api.clinicalDocuments.byEncounter).mockResolvedValueOnce([])
+    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    expect((await screen.findAllByText(/病历保存回执未确认.*未找到唯一的本次门诊病历/)).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: '无胸痛：模板预设 · 重点阴性 · 已保存确认' })).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '现病史' })).toHaveTextContent('咳嗽5天，用药3天；无胸痛')
     await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
     await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
@@ -1914,8 +2407,8 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     const api = aiApi()
     api.masterData.searchServices = vi.fn().mockResolvedValue({ content: [{
       id: 'lab-1', code: 'LAB001', name: '血常规', sdServiceType: 'LABORATORY', sdUsageType: 'COMMON',
-      sdStatus: 'ACTIVE', orderable: true, unitCode: '次', validFrom: '2020-01-01', prices: [],
-      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true },
+      sdStatus: 'ACTIVE', orderable: true, chargeable: true, unitCode: '次', validFrom: '2020-01-01', prices: [{ id: 'service-price', organizationId: 'org-1', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 12.5, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true, chargeable: true, validFrom: '2020-01-01' },
     }] } as never)
     const generate = api.clinicalAi.generate
     api.clinicalAi.generate = vi.fn().mockImplementation(async (id, input) => ({ ...await generate(id, input),
@@ -1955,8 +2448,8 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     const api = aiApi()
     api.masterData.searchServices = vi.fn().mockResolvedValue({ content: [{
       id: 'lab-1', code: 'LAB001', name: '血常规', sdServiceType: 'LABORATORY', sdUsageType: 'COMMON',
-      sdStatus: 'ACTIVE', orderable: true, unitCode: '次', validFrom: '2020-01-01', prices: [],
-      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true },
+      sdStatus: 'ACTIVE', orderable: true, chargeable: true, unitCode: '次', validFrom: '2020-01-01', prices: [{ id: 'service-price', organizationId: 'org-1', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 12.5, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true, chargeable: true, validFrom: '2020-01-01' },
     }] } as never)
     const generate = api.clinicalAi.generate
     api.clinicalAi.generate = vi.fn().mockImplementation(async (id, input) => ({
@@ -2168,7 +2661,11 @@ describe('DoctorWorkstation controlled printing workflow', () => {
     } as Encounter
     api.encounters.byResident = vi.fn().mockResolvedValue([readyEncounter])
     api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
-    api.clinicalDocuments.sign = vi.fn().mockResolvedValue(outpatientNote('SIGNED'))
+    api.clinicalDocuments.sign = vi.fn().mockImplementation(async () => {
+      const signed = outpatientNote('SIGNED')
+      api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([signed])
+      return signed
+    })
 
     renderStation(api)
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
@@ -2194,6 +2691,24 @@ describe('DoctorWorkstation controlled printing workflow', () => {
 
     expect(within(printModal).getByRole('button', { name: '调起打印机' })).toBeInTheDocument()
     expect(within(printModal).getByRole('button', { name: '下载 PDF' })).toBeInTheDocument()
+  })
+
+  it('keeps the printing confirmation open when the signature receipt is unconfirmed', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    api.encounters.byResident = vi.fn().mockResolvedValue([{ ...mockInProgressEncounter,
+      chiefComplaint: '头痛复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }] }])
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+    api.clinicalDocuments.sign = vi.fn().mockResolvedValue(outpatientNote('DRAFT'))
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: '打印病历' }))
+    await user.click(await screen.findByRole('button', { name: '签署并打印' }))
+    expect((await screen.findAllByText(/文书操作未确认/)).length).toBeGreaterThan(0)
+    expect(screen.getByRole('dialog', { name: '门诊病历打印受控规范' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: '打印门诊病历' })).not.toBeInTheDocument()
+    expect(api.printing.clinicalDocument).not.toHaveBeenCalled()
   })
 
   it('directly opens controlled print dialog for signed note', async () => {
@@ -2406,6 +2921,13 @@ describe('DoctorWorkstation controlled printing workflow', () => {
     await user.click(await screen.findByRole('button', { name: '诊毕' }))
     const completionModal = await screen.findByRole('dialog', { name: '诊毕确认' })
     expect(completionModal).toBeInTheDocument()
+
+    api.encounters.complete = vi.fn().mockImplementation(async () => {
+      const completed = { ...readyEncounter, status: 'COMPLETED' as const, completedAt: '2026-10-04T00:00:00Z' }
+      api.encounters.get = vi.fn().mockResolvedValue(completed)
+      api.encounters.byResident = vi.fn().mockResolvedValue([completed])
+      return completed
+    })
 
     const printOptionCheckbox = screen.getByLabelText(/诊毕后立即打开批量打印/)
     expect(printOptionCheckbox).toBeInTheDocument()

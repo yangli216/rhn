@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Set;
 
 @Component
 class JpaOutpatientClinicalHistoryDirectory implements OutpatientClinicalHistoryDirectory {
@@ -37,31 +36,32 @@ class JpaOutpatientClinicalHistoryDirectory implements OutpatientClinicalHistory
     public List<EncounterHistorySnapshot> recentForResident(Long residentId, Long currentEncounterId,
                                                             Instant since, int limit) {
         var context = contextProvider.requireCurrent();
-        int cappedLimit = Math.max(0, Math.min(limit, 10));
-        if (cappedLimit == 0) return List.of();
-        return encounters.recentForResident(residentId, 20).stream()
-                .filter(value -> !value.id().equals(currentEncounterId))
-                .filter(value -> "COMPLETED".equals(value.status()))
-                .filter(value -> since == null || value.registeredAt() != null && !value.registeredAt().isBefore(since))
-                .limit(cappedLimit)
+        return encounters.recentCompletedForResident(residentId, currentEncounterId, since, limit).stream()
                 .map(value -> snapshot(context.tenantId(), value))
                 .toList();
     }
 
     private EncounterHistorySnapshot snapshot(Long tenantId, EncounterDirectory.EncounterSnapshot encounter) {
         List<DiagnosisFact> diagnosisFacts = diagnoses.findActiveDiagnoses(tenantId, encounter.id(), "ENCOUNTER")
-                .stream().limit(20).map(value -> new DiagnosisFact(value.id(), value.code(), value.display(),
+                .stream().map(value -> new DiagnosisFact(value.id(), value.code(), value.display(),
                         value.diagnosisType())).toList();
         List<MedicationFact> medicationFacts = medications
                 .findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(tenantId, encounter.id()).stream()
-                .filter(value -> value.status() == MedicationRequestStatus.ACTIVE).limit(50)
+                .filter(value -> value.status() == MedicationRequestStatus.ACTIVE)
                 .map(value -> new MedicationFact(value.id(), value.revision(), value.status().name(),
                         value.medicationCodeSnapshot(), value.medicationNameSnapshot(), value.doseValue(),
                         value.doseUnit(), value.routeCode(), value.frequencyCode(), value.durationValue(),
-                        value.durationUnit(), value.quantity(), value.quantityUnit(), value.authoredAt())).toList();
+                        value.durationUnit(), value.quantity(), value.quantityUnit(), value.authoredAt(),
+                        new MedicationCatalogFact(value.medicationId(), value.catalogItemId(), value.packageId(),
+                                value.preparationSpecSnapshot(), value.preparationUnitSnapshot(), value.baseQuantity(),
+                                value.baseUnit(), value.packageFactorSnapshot(), value.packageUnitNameSnapshot(),
+                                value.packageSpecSnapshot(), value.substitutionAllowed(), value.selfProvided(),
+                                value.priceType(), value.medicationInstruction()),
+                        new MedicationUsageFact(value.routeId(), value.routeExecutionTypeSnapshot(), value.routeResolutionStatus(),
+                                value.frequencyId(), value.frequencyRuleSnapshot()))).toList();
         List<ServiceFact> serviceFacts = services
                 .findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(tenantId, encounter.id()).stream()
-                .filter(value -> value.status() == ServiceRequestStatus.ACTIVE).limit(50)
+                .filter(value -> value.status() == ServiceRequestStatus.ACTIVE)
                 .map(value -> new ServiceFact(value.id(), value.revision(), value.status().name(),
                         value.serviceTypeSnapshot(), value.itemCodeSnapshot(), value.itemNameSnapshot(),
                         value.quantity(), value.unitCodeSnapshot(), value.reasonText(),

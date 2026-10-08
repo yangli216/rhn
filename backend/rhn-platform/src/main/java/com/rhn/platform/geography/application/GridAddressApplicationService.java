@@ -45,7 +45,7 @@ public class GridAddressApplicationService {
     @Transactional
     public GridAddressNodeView create(Long parentId, GridAddressLevel level, String code, String name,
                                       String shortName, String pinyinCode, int sortOrder) {
-        GridAddressNode parent = validateParent(null, parentId, level);
+        GridAddressNode parent = validateParent(null, parentId, level, true);
         String normalizedCode = normalizeCode(code, level, parent);
         String normalizedName = requireText(name, "网格名称不能为空");
         if (repository.findByCode(normalizedCode).isPresent()) {
@@ -63,7 +63,8 @@ public class GridAddressApplicationService {
     public GridAddressNodeView update(Long id, long expectedRevision, Long parentId, String name,
                                       String shortName, String pinyinCode, int sortOrder) {
         GridAddressNode node = require(id);
-        GridAddressNode parent = validateParent(id, parentId, node.level());
+        GridAddressNode parent = validateParent(id, parentId, node.level(), node.status() == GridAddressStatus.ACTIVE);
+        normalizeCode(node.code(), node.level(), parent);
         String normalizedName = requireText(name, "网格名称不能为空");
         return RevisionGuard.supply("GRID_ADDRESS_REVISION_CONFLICT",
                 "网格地址已被其他用户修改，请刷新后重试", () -> {
@@ -78,6 +79,10 @@ public class GridAddressApplicationService {
     @Transactional
     public GridAddressNodeView changeStatus(Long id, long expectedRevision, GridAddressStatus status) {
         GridAddressNode node = require(id);
+        if (status == GridAddressStatus.ACTIVE) {
+            GridAddressNode parent = validateParent(id, node.parentId(), node.level(), true);
+            normalizeCode(node.code(), node.level(), parent);
+        }
         if (status == GridAddressStatus.INACTIVE
                 && repository.existsByParentIdAndStatus(id, GridAddressStatus.ACTIVE)) {
             throw conflict("GRID_ADDRESS_CHILD_ACTIVE", "请先停用当前节点下的有效子级");
@@ -89,7 +94,7 @@ public class GridAddressApplicationService {
         });
     }
 
-    private GridAddressNode validateParent(Long nodeId, Long parentId, GridAddressLevel level) {
+    private GridAddressNode validateParent(Long nodeId, Long parentId, GridAddressLevel level, boolean requireActiveAncestors) {
         if (level == GridAddressLevel.PROVINCE) {
             if (parentId != null) throw badRequest("GRID_ADDRESS_PARENT_INVALID", "省级节点不能设置上级");
             return null;
@@ -103,6 +108,9 @@ public class GridAddressApplicationService {
         for (GridAddressNode current = parent; current != null; ) {
             if (!visited.add(current.id()) || current.id().equals(nodeId)) {
                 throw badRequest("GRID_ADDRESS_CYCLE", "上级网格不能选择当前节点或其下级");
+            }
+            if (requireActiveAncestors && current.status() != GridAddressStatus.ACTIVE) {
+                throw conflict("GRID_ADDRESS_PARENT_INACTIVE", "请先启用上级网格后再创建、修改或启用有效子级");
             }
             current = current.parentId() == null ? null : require(current.parentId());
         }
@@ -170,7 +178,9 @@ public class GridAddressApplicationService {
     }
     private static String normalizePinyin(String value) {
         String result = requireText(value, "拼音码不能为空").replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
-        if (result.length() > 64) throw badRequest("GRID_ADDRESS_PINYIN_INVALID", "拼音码不能超过 64 位");
+        if (result.isEmpty() || result.length() > 64) {
+            throw badRequest("GRID_ADDRESS_PINYIN_INVALID", "拼音码须包含英文字母或数字且不能超过64位");
+        }
         return result;
     }
     private static String normalizeQuery(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(Locale.ROOT); }

@@ -31,19 +31,19 @@ public class QueryPlanner {
         this.catalog = catalog;
     }
 
-    public LogicalQueryPlan plan(ResolvedSemanticQuery query) {
-        return plan(query, PlannedScope.defaultDevScope(), LocalDate.now());
-    }
-
     public LogicalQueryPlan plan(ResolvedSemanticQuery query, PlannedScope scope, LocalDate today) {
         Objects.requireNonNull(query, "ResolvedSemanticQuery cannot be null");
         if (query.metrics().isEmpty()) {
             throw new IllegalArgumentException("Cannot plan a query without metrics");
         }
 
+        if (scope == null) {
+            throw new IllegalArgumentException("An explicit authorized scope is required to plan a query");
+        }
+
         PlanContext ctx = new PlanContext(
             query,
-            scope != null ? scope : PlannedScope.defaultDevScope(),
+            scope,
             today != null ? today : LocalDate.now(),
             "plan-" + Long.toHexString(java.util.concurrent.ThreadLocalRandom.current().nextLong() & 0xFFFFFFFFL)
         );

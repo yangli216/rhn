@@ -48,7 +48,7 @@ const receiptStatusText: Record<string, string> = {
   REQUESTED: '开具中', ISSUED: '已开具', FAILED: '开具失败', VOIDED: '已作废', RED_FLUSHED: '已冲红',
 }
 
-export function BillingQueryWorkspace({ api, clinicalContext: _clinicalContext }: {
+export function BillingQueryWorkspace({ api, clinicalContext }: {
   api: RhnApi
   clinicalContext: ClinicalContext
 }) {
@@ -65,8 +65,15 @@ export function BillingQueryWorkspace({ api, clinicalContext: _clinicalContext }
   const [pageSize, setPageSize] = useState(20)
 
   const records = useQuery({
-    queryKey: ['billing-settlement-records'],
-    queryFn: () => api.billing.settlementRecords(500),
+    queryKey: ['billing-settlement-records', clinicalContext.organization.id, clinicalContext.department.id],
+    queryFn: async () => {
+      const data = await api.billing.settlementRecords(500)
+      if (!Array.isArray(data) || data.some((record) => !record || !record.id || !record.createdAt
+        || ![record.netAmount, record.patientAmount, record.insuranceAmount].every(Number.isFinite))) {
+        throw new Error('收费记录返回不完整，无法确认查询结果')
+      }
+      return data
+    },
   })
 
   const filteredRecords = useMemo(() => {
@@ -150,18 +157,33 @@ export function BillingQueryWorkspace({ api, clinicalContext: _clinicalContext }
   const selected = filteredRecords.find((record) => record.id === selectedId)
 
   const settlement = useQuery({
-    queryKey: ['billing-settlement', selected?.id],
-    queryFn: () => api.billing.settlement(selected!.id),
+    queryKey: ['billing-settlement', selected?.id, clinicalContext.organization.id, clinicalContext.department.id],
+    queryFn: async () => {
+      const data = await api.billing.settlement(selected!.id)
+      if (!data || data.id !== selected!.id || !Array.isArray(data.lines) || !Array.isArray(data.tenders)) {
+        throw new Error('结算明细返回不完整或与当前结算单不一致')
+      }
+      return data
+    },
     enabled: Boolean(selected?.id && isDrawerOpen),
   })
   const statement = useQuery({
-    queryKey: ['billing-statement', selected?.encounterId],
-    queryFn: () => api.billing.statement(selected!.encounterId!),
+    queryKey: ['billing-statement', selected?.encounterId, clinicalContext.organization.id, clinicalContext.department.id],
+    queryFn: async () => {
+      const data = await api.billing.statement(selected!.encounterId!)
+      if (!data || data.encounterId !== selected!.encounterId || data.accountId !== selected!.patientAccountId
+        || !Array.isArray(data.charges)) throw new Error('费用账单返回不完整或与当前就诊不一致')
+      return data
+    },
     enabled: Boolean(selected?.encounterId && isDrawerOpen),
   })
   const receipts = useQuery({
-    queryKey: ['billing-settlement-receipts', selected?.id],
-    queryFn: () => api.billing.settlementReceipts(selected!.id),
+    queryKey: ['billing-settlement-receipts', selected?.id, clinicalContext.organization.id, clinicalContext.department.id],
+    queryFn: async () => {
+      const data = await api.billing.settlementReceipts(selected!.id)
+      if (!Array.isArray(data)) throw new Error('电子票据查询返回无效，无法确认是否存在票据')
+      return data
+    },
     enabled: Boolean(selected?.id && isDrawerOpen),
   })
   const chargeById = useMemo(() => new Map((statement.data?.charges ?? [])
@@ -258,6 +280,9 @@ export function BillingQueryWorkspace({ api, clinicalContext: _clinicalContext }
     <Panel className="billing-query-main-panel" aria-label="已结算收费记录">
       {records.isPending ? (
         <LoadingState label="正在加载已结算收费记录…" />
+      ) : records.isError ? (
+        <EmptyState icon="billing" title="收费记录加载失败" copy="本次查询未成功，不能据此判断没有收费记录。"
+          action={<Button onClick={() => void records.refetch()}>重新加载收费记录</Button>} />
       ) : !filteredRecords.length ? (
         <EmptyState
           icon="billing"
@@ -323,7 +348,7 @@ export function BillingQueryWorkspace({ api, clinicalContext: _clinicalContext }
                           {formatDateTime(record.finalizedAt ?? record.createdAt)}
                         </span>
                         <small className="billing-grid-terminal">
-                          {record.terminalCode ?? '窗口终端'}
+                          {record.terminalCode ?? '未记录终端'}
                         </small>
                       </td>
                       <td>
@@ -454,6 +479,9 @@ export function BillingQueryWorkspace({ api, clinicalContext: _clinicalContext }
           <div className="billing-drawer-body">
             {settlement.isPending || (Boolean(selected.encounterId) && statement.isPending) || receipts.isPending ? (
               <LoadingState label="正在加载收费记录详情…" />
+            ) : settlement.isError || statement.isError || receipts.isError ? (
+              <EmptyState icon="billing" title="收费详情加载失败" copy="结算、项目或票据资料未能完整加载，请重试后核对。"
+                action={<Button onClick={() => void refresh()}>重新加载收费详情</Button>} />
             ) : (
               <SettlementRecordDetail
                 record={selected}
@@ -503,7 +531,7 @@ function SettlementRecordDetail({ record, settlement, chargeById, receipts }: {
             {charge?.packageSpec && <small>{charge.packageSpec}</small>}</td>
             <td><code>{charge?.itemCode ?? '--'}</code></td>
             <td className={tableCellClass('numeric')}>{line.settledQuantity} {charge?.unitName ?? charge?.unitCode ?? ''}</td>
-            <td className={tableCellClass('numeric')}>{money(charge?.unitPrice, record.currencyCode)}</td>
+            <td className={tableCellClass('numeric')}>{charge?.unitPrice == null ? '未记录' : money(charge.unitPrice, record.currencyCode)}</td>
             <td className={tableCellClass('numeric')}><strong>{money(line.netAmount, record.currencyCode)}</strong></td>
           </tr>
         })}</tbody></table></div>}
@@ -513,7 +541,7 @@ function SettlementRecordDetail({ record, settlement, chargeById, receipts }: {
         <header><h3>支付分摊</h3><span>{settlement?.tenders.length ?? 0} 笔</span></header>
         <div className="billing-query-compact-list">{settlement?.tenders.map((tender) => <div key={tender.id}>
           <span><strong>{tenderText[tender.tenderType] ?? tender.tenderType}</strong>
-            <small>{tender.payerName ?? '收费窗口'}</small></span>
+            <small>{tender.payerName ?? '未记录付款方'}</small></span>
           <b>{money(tender.amount, tender.currencyCode)}</b>
         </div>)}{!settlement?.tenders.length && <p>未记录支付分摊。</p>}</div>
       </section>

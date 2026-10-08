@@ -153,8 +153,8 @@ export function OutpatientTriageWorkspace({
   const [diastolic, setDiastolic] = useState<number | ''>('')
   const [oxygenSaturation, setOxygenSaturation] = useState<number | ''>('')
   const [bloodGlucose, setBloodGlucose] = useState<number | ''>('')
-  const [painScore, setPainScore] = useState('0')
-  const [consciousness, setConsciousness] = useState<TriageConsciousness>('ALERT')
+  const [painScore, setPainScore] = useState('')
+  const [consciousness, setConsciousness] = useState<TriageConsciousness | ''>('')
 
   // 发热与流行病排查
   const [fever, setFever] = useState(false)
@@ -212,8 +212,8 @@ export function OutpatientTriageWorkspace({
     oxygenSaturation: typeof oxygenSaturation === 'number' ? oxygenSaturation : undefined,
     pulseRate: typeof pulseRate === 'number' ? pulseRate : undefined,
     bloodGlucose: typeof bloodGlucose === 'number' ? bloodGlucose : undefined,
-    painScore: Number(painScore) || 0,
-    consciousness,
+    painScore: painScore === '' ? undefined : Number(painScore),
+    consciousness: consciousness || undefined,
     age: typeof age === 'number' ? age : undefined,
     gender,
   }), [chiefComplaint, selectedSymptomTags, temperature, respiratoryRate, systolic, diastolic,
@@ -225,6 +225,12 @@ export function OutpatientTriageWorkspace({
     || debouncedAssessmentInput.temperature != null
     || debouncedAssessmentInput.systolic != null
     || debouncedAssessmentInput.oxygenSaturation != null
+    || debouncedAssessmentInput.pulseRate != null
+    || debouncedAssessmentInput.diastolic != null
+    || debouncedAssessmentInput.respiratoryRate != null
+    || debouncedAssessmentInput.bloodGlucose != null
+    || debouncedAssessmentInput.painScore != null
+    || debouncedAssessmentInput.consciousness
   )
 
   // 先返回确定性规则结果；仅在 MODEL 模式下静默启动较慢的模型增强。
@@ -260,11 +266,15 @@ export function OutpatientTriageWorkspace({
       diastolic: typeof diastolic === 'number' ? diastolic : undefined,
       oxygenSaturation: typeof oxygenSaturation === 'number' ? oxygenSaturation : undefined,
       bloodGlucose: typeof bloodGlucose === 'number' ? bloodGlucose : undefined,
-      painScore: Number(painScore) || 0,
-      consciousness,
+      painScore: painScore === '' ? undefined : Number(painScore),
+      consciousness: consciousness || undefined,
     })
   }, [temperature, pulseRate, respiratoryRate, systolic, diastolic, oxygenSaturation, bloodGlucose, painScore, consciousness])
   const suggestedLevel = triageAssessment?.suggestedLevel ?? vitalsAssessment.suggestedLevel
+  const hasRiskAssessment = Boolean(triageAssessment) || vitalsAssessment.hasData
+  const suggestedLevelText = hasRiskAssessment
+    ? `${TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].codeName} ${TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].label}`
+    : '待评估'
   const topDepartmentRecommendation = departmentRecommendations[0]
   const hasDepartmentMismatch = Boolean(
     activeRegistrationId
@@ -290,7 +300,8 @@ export function OutpatientTriageWorkspace({
   ])).slice(0, 4)
   const assistRiskConclusion = triageAssessment
     ? `建议${TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].codeName}；${triageAssessment.ruleReasons[0] || '请结合现场评估确认最终分级'}`
-    : '正在形成风险判断…'
+    : baseAssessmentQuery.isError ? '风险评估失败，请重新评估'
+      : hasAssessmentInput ? '正在形成风险判断…' : '尚未采集评估资料'
 
   // 当体征产生危象时自动提示或自动联动等级
   useEffect(() => {
@@ -340,8 +351,8 @@ export function OutpatientTriageWorkspace({
     setDiastolic('')
     setOxygenSaturation('')
     setBloodGlucose('')
-    setPainScore('0')
-    setConsciousness('ALERT')
+    setPainScore('')
+    setConsciousness('')
     setFever(false)
     setHasRespiratorySymptom(false)
     setHasDiarrheaSymptom(false)
@@ -411,8 +422,8 @@ export function OutpatientTriageWorkspace({
     setDiastolic(record.diastolic != null ? record.diastolic : '')
     setOxygenSaturation(record.oxygenSaturation != null ? record.oxygenSaturation : '')
     setBloodGlucose(record.bloodGlucose != null ? record.bloodGlucose : '')
-    setPainScore(record.painScore != null ? String(record.painScore) : '0')
-    setConsciousness(record.consciousness)
+    setPainScore(record.painScore != null ? String(record.painScore) : '')
+    setConsciousness(record.consciousness ?? '')
     setFever(record.fever)
     setEpidemicHistory(record.epidemicHistory || '')
     setChiefComplaint(record.chiefComplaint || '')
@@ -536,8 +547,8 @@ export function OutpatientTriageWorkspace({
         diastolic: typeof diastolic === 'number' ? diastolic : undefined,
         oxygenSaturation: typeof oxygenSaturation === 'number' ? oxygenSaturation : undefined,
         bloodGlucose: typeof bloodGlucose === 'number' ? bloodGlucose : undefined,
-        painScore: Number(painScore) || 0,
-        consciousness,
+        painScore: painScore === '' ? undefined : Number(painScore),
+        consciousness: consciousness || undefined,
         fever,
         epidemicHistory: epidemicHistory.trim() || undefined,
         riskTags: riskList.join(','),
@@ -898,7 +909,7 @@ export function OutpatientTriageWorkspace({
                         <StatusBadge tone={levelDef.badgeTone}>{levelDef.codeName} {levelDef.label}</StatusBadge>
                       </div>
                       <div className="triage-queue-card__body">
-                        <span>{item.targetDepartmentName || '全科医疗科'}</span>
+                        <span>{item.targetDepartmentName || '未记录科室'}</span>
                         <span>{item.temperature != null ? `${item.temperature}℃` : '--'}</span>
                       </div>
                       <div className="triage-queue-card__footer">
@@ -979,7 +990,7 @@ export function OutpatientTriageWorkspace({
           <Panel>
             <PanelHead
               title="生命体征采集与早期越界预警"
-              meta={vitalsAssessment.hasCritical ? '存在危象体征' : (vitalsAssessment.hasWarning ? '存在预警体征' : '未发现危急值')}
+              meta={!vitalsAssessment.hasData ? '尚未采集，待评估' : vitalsAssessment.hasCritical ? '存在危象体征' : (vitalsAssessment.hasWarning ? '存在预警体征' : '已采集项目未触发预警')}
             />
 
             <div className="triage-vitals-container">
@@ -993,7 +1004,7 @@ export function OutpatientTriageWorkspace({
 
               <div className="triage-vitals-grid">
                 {/* 体温 */}
-                <div className={`triage-vital-input-card ${((temperature || 0) >= 40 || ((temperature || 36) < 35 && temperature !== '')) ? 'triage-vital-input-card--critical' : ((temperature || 0) >= 37.3 ? 'triage-vital-input-card--warning' : '')}`}>
+                <div className={`triage-vital-input-card ${((temperature || 0) >= 40 || (temperature !== '' && temperature < 35)) ? 'triage-vital-input-card--critical' : ((temperature || 0) >= 37.3 ? 'triage-vital-input-card--warning' : '')}`}>
                   <div className="triage-vital-header">
                     <span>体温</span>
                     <span className="triage-vital-unit">℃</span>
@@ -1010,9 +1021,9 @@ export function OutpatientTriageWorkspace({
                     />
                   </div>
                   <div className="triage-vital-hint">
-                    {(temperature || 0) >= 40 || ((temperature || 36) < 35 && temperature !== '')
+                    {(temperature || 0) >= 40 || (temperature !== '' && temperature < 35)
                       ? '体温危象'
-                      : ((temperature || 0) >= 38.5 ? '高热预警' : ((temperature || 0) >= 37.3 ? '发热警戒' : '正常: 36.0~37.2'))}
+                      : ((temperature || 0) >= 38.5 ? '高热预警' : ((temperature || 0) >= 37.3 ? '发热警戒' : '参考范围: 36.0~37.2'))}
                   </div>
                 </div>
 
@@ -1042,7 +1053,7 @@ export function OutpatientTriageWorkspace({
                     />
                   </div>
                   <div className="triage-vital-hint">
-                    {(systolic || 0) >= 180 ? '高血压危象' : '正常: 90~139/60~89'}
+                    {(systolic || 0) >= 180 ? '高血压危象' : '参考范围: 90~139/60~89'}
                   </div>
                 </div>
 
@@ -1063,7 +1074,7 @@ export function OutpatientTriageWorkspace({
                     />
                   </div>
                   <div className="triage-vital-hint">
-                    {(pulseRate || 0) > 130 ? '极速过速' : '正常: 60~100'}
+                    {(pulseRate || 0) > 130 ? '极速过速' : '参考范围: 60~100'}
                   </div>
                 </div>
 
@@ -1084,12 +1095,12 @@ export function OutpatientTriageWorkspace({
                     />
                   </div>
                   <div className="triage-vital-hint">
-                    {(respiratoryRate || 0) > 24 ? '气促困难' : '正常: 12~20'}
+                    {(respiratoryRate || 0) > 24 ? '气促困难' : '参考范围: 12~20'}
                   </div>
                 </div>
 
                 {/* 血氧饱和度 */}
-                <div className={`triage-vital-input-card ${(oxygenSaturation || 100) < 93 && oxygenSaturation !== '' ? 'triage-vital-input-card--critical' : ((oxygenSaturation || 100) < 95 && oxygenSaturation !== '' ? 'triage-vital-input-card--warning' : '')}`}>
+                <div className={`triage-vital-input-card ${oxygenSaturation !== '' && oxygenSaturation < 93 ? 'triage-vital-input-card--critical' : (oxygenSaturation !== '' && oxygenSaturation < 95 ? 'triage-vital-input-card--warning' : '')}`}>
                   <div className="triage-vital-header">
                     <span>血氧</span>
                     <span className="triage-vital-unit">%</span>
@@ -1106,7 +1117,7 @@ export function OutpatientTriageWorkspace({
                     />
                   </div>
                   <div className="triage-vital-hint">
-                    {(oxygenSaturation || 100) < 93 && oxygenSaturation !== '' ? '低氧危象(<93%)' : '正常: ≥95%'}
+                    {oxygenSaturation !== '' && oxygenSaturation < 93 ? '低氧危象(<93%)' : '参考范围: ≥95%'}
                   </div>
                 </div>
 
@@ -1128,7 +1139,7 @@ export function OutpatientTriageWorkspace({
                     />
                   </div>
                   <div className="triage-vital-hint">
-                    {(bloodGlucose || 0) >= 16.7 ? '血糖危象' : '正常: 3.9~6.1'}
+                    {(bloodGlucose || 0) >= 16.7 ? '血糖危象' : '参考范围: 3.9~6.1'}
                   </div>
                 </div>
 
@@ -1138,12 +1149,14 @@ export function OutpatientTriageWorkspace({
                     <span>意识</span>
                   </div>
                   <Select
+                    aria-label="意识状态"
+                    placeholder="未评估"
                     options={CONSCIOUSNESS_OPTIONS}
                     value={consciousness}
                     onChange={(v) => setConsciousness(v as TriageConsciousness)}
                   />
                   <div className="triage-vital-hint">
-                    {consciousness !== 'ALERT' ? '意识异常需优先' : '清醒'}
+                    {!consciousness ? '未评估' : consciousness !== 'ALERT' ? '意识异常需优先' : '清醒'}
                   </div>
                 </div>
 
@@ -1153,6 +1166,8 @@ export function OutpatientTriageWorkspace({
                     <span>疼痛</span>
                   </div>
                   <Select
+                    aria-label="疼痛评分"
+                    placeholder="未评估"
                     options={PAIN_SCORE_OPTIONS}
                     value={painScore}
                     onChange={setPainScore}
@@ -1253,7 +1268,7 @@ export function OutpatientTriageWorkspace({
           <Panel>
             <PanelHead
               title="急慢分诊定级与去向判定"
-              meta={`${assessmentSourceLabel} ${TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].codeName}`}
+              meta={`${assessmentSourceLabel} ${suggestedLevelText}`}
             />
 
             {/* 四级定级单行卡片 */}
@@ -1393,11 +1408,11 @@ export function OutpatientTriageWorkspace({
                   </div>
                   <div className={reassessmentHasEscalation ? 'triage-decision-summary__suggestion' : ''}>
                     <span>本次建议</span>
-                    <strong>{TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].codeName} {TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].label}</strong>
+                    <strong>{suggestedLevelText}</strong>
                   </div>
                   <div>
                     <span>风险趋势</span>
-                    <strong>{reassessmentHasEscalation ? '风险升级，建议立即提级处置' : '暂未发现等级升级信号'}</strong>
+                    <strong>{!hasRiskAssessment ? '资料不足，暂不能判断风险趋势' : reassessmentHasEscalation ? '风险升级，建议立即提级处置' : '当前资料未触发升级规则'}</strong>
                   </div>
                 </>
               ) : queueTab === 'PENDING' ? (
@@ -1408,11 +1423,11 @@ export function OutpatientTriageWorkspace({
                   </div>
                   <div className={triageLevel !== suggestedLevel ? 'triage-decision-summary__suggestion' : ''}>
                     <span>建议分级</span>
-                    <strong>{TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].codeName} {TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].label}</strong>
+                    <strong>{suggestedLevelText}</strong>
                   </div>
                   <div>
                     <span>处置提示</span>
-                    <strong>{TRIAGE_LEVEL_URGENCY[suggestedLevel] <= 2 ? '优先接诊并复核绿色通道' : '按建议等级安排候诊'}</strong>
+                    <strong>{!hasRiskAssessment ? '请先采集资料并评估' : TRIAGE_LEVEL_URGENCY[suggestedLevel] <= 2 ? '优先接诊并复核绿色通道' : '按建议等级安排候诊'}</strong>
                   </div>
                 </>
               ) : (
@@ -1423,7 +1438,7 @@ export function OutpatientTriageWorkspace({
                   </div>
                   <div className={triageLevel !== suggestedLevel ? 'triage-decision-summary__suggestion' : ''}>
                     <span>{assessmentSourceLabel}</span>
-                    <strong>{TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].codeName} {TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].label}</strong>
+                    <strong>{suggestedLevelText}</strong>
                   </div>
                   <div>
                     <span>{queueTab === 'ARRIVAL' ? '推荐去向' : '接诊去向'}</span>
@@ -1575,7 +1590,7 @@ export function OutpatientTriageWorkspace({
                   <span>分诊单号<strong>{savedTicketRecord.triageNo}</strong></span>
                   <span>患者<strong>{savedTicketRecord.patientName}</strong></span>
                   <span>分级<strong>{TRIAGE_LEVEL_DEFINITIONS[savedTicketRecord.triageLevel].codeName}</strong></span>
-                  <span>科室<strong>{savedTicketRecord.targetDepartmentName || '全科医疗科'}</strong></span>
+                  <span>科室<strong>{savedTicketRecord.targetDepartmentName || '未记录科室'}</strong></span>
                 </div>
               ) : (
                 <div className="triage-compact-empty">
@@ -1593,7 +1608,7 @@ export function OutpatientTriageWorkspace({
         <TriageTicketModal
           open={ticketModalOpen}
           record={savedTicketRecord}
-          hospitalName="区域健康医疗协同平台中心医院"
+          hospitalName={savedTicketRecord?.organizationId === clinicalContext.organization.id ? clinicalContext.organization.name : undefined}
           onClose={() => setTicketModalOpen(false)}
         />
       )}

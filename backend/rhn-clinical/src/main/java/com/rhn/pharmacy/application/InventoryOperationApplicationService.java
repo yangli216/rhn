@@ -419,9 +419,10 @@ public class InventoryOperationApplicationService {
                     line.acceptedQuantity(), line.unitCost()));
         }
         if (postingLines.isEmpty()) throw conflict("GOODS_RECEIPT_NOT_POSTABLE", "到货单没有可入库的合格数量");
+        // The current procurement contract and UI are denominated in CNY.
         var transaction = inventoryService.receiveDocument("GOODS_RECEIPT", new ReceiveDocumentCommand(
                 receipt.requestCode() + ":POST", receipt.receiptNo(), receipt.stockSiteId(), receipt.receivedAt(),
-                "采购到货验收批量入库", postingLines));
+                "采购到货验收批量入库", "CNY", postingLines));
         traceService.activateReceiptCodes(context, receipt, lines, lotIds);
         for (GoodsReceiptLine line : lines) {
             if (line.acceptedQuantity().signum() == 0) continue;
@@ -753,6 +754,9 @@ public class InventoryOperationApplicationService {
     }
     private void validateMoney(BigDecimal value, String code, String message) {
         if (value == null || value.signum() < 0) throw badRequest(code, message);
+        if (value.stripTrailingZeros().scale() > 6) {
+            throw badRequest("PROCUREMENT_PRICE_PRECISION_INVALID", "采购或到货单价最多保留六位小数");
+        }
     }
     private void validateTax(BigDecimal value) {
         if (value != null && (value.signum() < 0 || value.compareTo(BigDecimal.ONE) > 0)) {

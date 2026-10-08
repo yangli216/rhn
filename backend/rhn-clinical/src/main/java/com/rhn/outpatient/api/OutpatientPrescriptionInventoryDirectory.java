@@ -15,12 +15,31 @@ public interface OutpatientPrescriptionInventoryDirectory {
 
     /**
      * 根据当前门诊就诊科室路由的发药药房，检索有效且有可用库存（quantityAvailable > 0）的开方药品。
+     * 返回条数受界面搜索偏好限制，不可用于判断唯一候选。
      */
     List<OrderableMedicationView> findOrderableMedications(Long tenantId, Long organizationId, Long departmentId, String query);
+
+    /**
+     * 用于业务匹配的候选全集：直接名称、编码及业务字段匹配不受界面条数上限截断。
+     * 路由、目录、包装校验与界面查询一致；保留不足一个库存包装的正数基本单位库存，
+     * 调用方须按实际请求包装和数量核对可用量。额外拼音/模糊命中仍遵循搜索偏好。
+     */
+    List<OrderableMedicationView> findOrderableMedicationCandidates(Long tenantId, Long organizationId,
+                                                                   Long departmentId, String query);
 
     /** Exact, read-only availability at the pharmacy selected by the current outpatient routing rules. */
     MedicationAvailabilityView inspectMedicationAvailability(Long tenantId, Long organizationId, Long departmentId,
                                                               Long catalogItemId, Long packageId);
+
+    /** Checks exactly the requested package; null explicitly means product base units, never a stock default package. */
+    MedicationAvailabilityView inspectMedicationAvailabilityForExactPackage(Long tenantId, Long organizationId,
+                                                                           Long departmentId, Long catalogItemId, Long packageId);
+
+    /** Authoritative destination for split preview and ordering; never supplies an invented default pharmacy. */
+    DispensingPharmacy requireDispensingPharmacy(Long tenantId, Long organizationId, Long departmentId,
+                                                String medicationType, java.time.LocalDate businessDate);
+
+    record DispensingPharmacy(Long id, String name) {}
 
     /**
      * 门诊处方提交时，针对路由药房执行库存预留冻结。
@@ -99,7 +118,9 @@ public interface OutpatientPrescriptionInventoryDirectory {
             Long catalogItemId,
             Long packageId,
             BigDecimal packageQuantity,
-            String unitName
+            String unitName,
+            BigDecimal baseQuantity,
+            String baseUnitCode
     ) {}
 
     record PrescriptionFreezeResult(

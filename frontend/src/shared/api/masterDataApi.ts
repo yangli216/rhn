@@ -105,11 +105,12 @@ export interface DiseaseManagementProgram extends DiseaseManagementTag {
   members: Array<{
     conceptId: string
     inclusionMode: DiseaseInclusionMode
-    code: string
+    code: string | null
     display: string
     systemName: string
-    sdDiagnosisDomain: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME'
-    sdDiagnosisDomainText: string
+    sdDiagnosisDomain: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME' | null
+    sdDiagnosisDomainText?: string
+    note: string | null
   }>
 }
 
@@ -118,23 +119,23 @@ export type DiseaseInclusionMode = 'INCLUDE' | 'EXCLUDE'
 export interface DiseaseManagementRule {
   id?: string
   inclusionMode: DiseaseInclusionMode
-  sdDiagnosisDomain?: DiseaseConcept['sdDiagnosisDomain']
+  sdDiagnosisDomain?: DiseaseConcept['sdDiagnosisDomain'] | null
   sdDiagnosisDomainText?: string
-  codeSystemId?: string
+  codeSystemId?: string | null
   systemCode?: string
   systemName?: string
-  sdConceptType?: string
+  sdConceptType?: string | null
   sdConceptTypeText?: string
-  chapterCode?: string
-  codeFrom?: string
-  codeTo?: string
-  note?: string
+  chapterCode?: string | null
+  codeFrom?: string | null
+  codeTo?: string | null
+  note?: string | null
 }
 
 export interface DiseaseManagementExceptionInput {
   conceptId: string
   inclusionMode: DiseaseInclusionMode
-  note?: string
+  note?: string | null
 }
 
 export interface MasterDataPage<T> {

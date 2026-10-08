@@ -13,6 +13,10 @@ import java.util.Optional;
 public interface ChargeItemRepository extends JpaRepository<ChargeItem, Long> {
     Optional<ChargeItem> findByTenantIdAndSourceTypeAndSourceId(Long tenantId, String sourceType, Long sourceId);
     Optional<ChargeItem> findByIdAndTenantId(Long id, Long tenantId);
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from ChargeItem c where c.id = :id and c.tenantId = :tenantId")
+    Optional<ChargeItem> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+    List<ChargeItem> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
     List<ChargeItem> findByTenantIdAndReversesChargeItemIdOrderByOccurredAtAscIdAsc(Long tenantId,
                                                                                      Long reversesChargeItemId);
     List<ChargeItem> findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(Long tenantId, Long accountId);

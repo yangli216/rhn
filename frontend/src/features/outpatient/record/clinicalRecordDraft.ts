@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { DiagnosisInput, ClinicalRecordInput } from '../../../shared/api/encountersApi'
 import type { OutpatientNoteForm } from '../../../shared/api/outpatientNoteFormsApi'
 import { VITAL_HARD_LIMITS } from '../../../shared/validation/businessValidation'
+import { diagnosisIdentityKey } from './diagnosisIdentity'
 
 function vitalNumber(label: string, limits: { minimum: number; maximum: number }, integer: boolean) {
   const rangeMessage = `${label}请输入 ${limits.minimum}～${limits.maximum} 之间的数值`
@@ -70,12 +71,13 @@ export function validateStructuredForm(form: OutpatientNoteForm | undefined, val
 
 
 export function diagnosisDraftSignature(values: DiagnosisInput[]) {
-  return values.map((value) => `${value.conceptId ?? ''}|${value.diagnosisDomain ?? ''}|${value.code}|${value.display}|${value.type}`)
-    .join('\n')
+  return JSON.stringify(values.map(value => ({ conceptId: value.conceptId ?? null, codeSystem: value.codeSystem ?? null,
+    diagnosisDomain: value.diagnosisDomain ?? null, diagnosisGroupId: value.diagnosisGroupId ?? null,
+    code: value.code, display: value.display, type: value.type })))
 }
 
 export function diagnosisKey(value: DiagnosisInput) {
-  return String(value.conceptId || `${value.diagnosisDomain}|${value.code}`)
+  return diagnosisIdentityKey(value)
 }
 
 export function normalizeDiagnosisOrder(values: DiagnosisInput[]) {
@@ -113,8 +115,8 @@ export function clinicalRecordContent(form: RecordForm, diagnoses: DiagnosisInpu
     weightKg: form.weightKg, oxygenSaturation: form.oxygenSaturation,
     noteFormVersionId: noteFormId || undefined,
     structuredData: noteFormId ? structuredValues : undefined,
-    diagnoses: diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type }) => ({
-      conceptId, diagnosisDomain, diagnosisGroupId, code, display, type,
+    diagnoses: diagnoses.map(({ conceptId, codeSystem, diagnosisDomain, diagnosisGroupId, code, display, type }) => ({
+      conceptId, codeSystem, diagnosisDomain, diagnosisGroupId, code, display, type,
     })),
   }
 }

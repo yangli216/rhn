@@ -43,7 +43,7 @@ public class TreatmentExecutionTask {
     @Column(name = "ID_USER_CMPLD") private Long completedBy;
     @Column(name = "CD_RESULT") private String resultCode;
     @Column(name = "DES_COMP_NOTE") private String completionNote;
-    @Column(name = "FG_ADVERSE_REACT", nullable = false) private boolean adverseReaction;
+    @Column(name = "FG_ADVERSE_REACT") private Boolean adverseReaction;
     @Column(name = "DES_ADVERSE_REACT_DETAIL") private String adverseReactionDetail;
     @Column(name = "DES_EXCEPT_NOTE") private String exceptionNote;
 
@@ -56,7 +56,7 @@ public class TreatmentExecutionTask {
         this.departmentId = departmentId; this.residentId = residentId; this.encounterId = encounterId;
         this.sourceGroupId = sourceGroupId; this.taskNo = "TX" + NUMBER_TIME.format(createdAt)
                 + GlobalIds.randomSuffix(6); this.taskType = taskType; this.status = TreatmentExecutionTaskStatus.WAITING_SETTLEMENT;
-        this.createdAt = createdAt; this.adverseReaction = false;
+        this.createdAt = createdAt;
     }
 
     public void synchronize(boolean anyActive, boolean allSettled, boolean allFulfilled,
@@ -86,23 +86,32 @@ public class TreatmentExecutionTask {
         requireRevision(expectedRevision);
         if (status != TreatmentExecutionTaskStatus.READY) throw conflict("TREATMENT_START_STATE_INVALID", "只有已满足执行条件的治疗任务可以开始");
         if (!identityVerified) throw conflict("TREATMENT_IDENTITY_VERIFICATION_REQUIRED", "开始治疗前必须完成患者身份核对");
+        String method = Strings.trimToNull(verificationMethod);
+        if (method == null || !java.util.Set.of("NAME_AND_IDENTIFIER", "CARD", "MANUAL").contains(method)) {
+            throw conflict("TREATMENT_VERIFICATION_METHOD_REQUIRED", "必须明确记录患者身份核对方式");
+        }
         this.status = TreatmentExecutionTaskStatus.IN_PROGRESS; this.startedAt = occurredAt; this.startedBy = actorId;
-        this.verificationMethod = Strings.trimToNull(verificationMethod) == null ? "NAME_AND_IDENTIFIER" : Strings.trimToNull(verificationMethod);
+        this.verificationMethod = method;
         this.executionSite = Strings.trimToNull(executionSite); this.startNote = Strings.trimToNull(note);
     }
 
-    public void complete(long expectedRevision, String resultCode, String note, boolean adverseReaction,
+    public void complete(long expectedRevision, String resultCode, String note, Boolean adverseReaction,
                          String adverseReactionDetail, Long actorId, Instant occurredAt) {
         requireRevision(expectedRevision);
         if (status != TreatmentExecutionTaskStatus.IN_PROGRESS) throw conflict(
                 "TREATMENT_COMPLETE_STATE_INVALID", "只有执行中的治疗任务可以结束");
-        String result = Strings.trimToNull(resultCode) == null ? "COMPLETED" : Strings.trimToNull(resultCode).toUpperCase();
+        String result = Strings.trimToNull(resultCode);
+        if (result == null) throw conflict("TREATMENT_RESULT_REQUIRED", "必须明确记录治疗执行结果");
+        result = result.toUpperCase(java.util.Locale.ROOT);
+        if (adverseReaction == null) throw conflict("TREATMENT_ADVERSE_REACTION_REQUIRED", "必须明确评估是否发生不良反应");
         if (!java.util.Set.of("COMPLETED", "INTERRUPTED", "NOT_COMPLETED").contains(result)) {
             throw conflict("TREATMENT_RESULT_CODE_INVALID", "治疗结果编码不正确");
         }
         String reactionDetail = Strings.trimToNull(adverseReactionDetail);
         if (adverseReaction && reactionDetail == null) throw conflict(
                 "TREATMENT_ADVERSE_REACTION_DETAIL_REQUIRED", "记录不良反应时必须填写具体表现和处置");
+        if (!adverseReaction && reactionDetail != null) throw conflict(
+                "TREATMENT_ADVERSE_REACTION_INCONSISTENT", "未发生不良反应时不能填写不良反应详情");
         this.completedAt = occurredAt; this.completedBy = actorId; this.resultCode = result;
         this.completionNote = Strings.trimToNull(note); this.adverseReaction = adverseReaction;
         this.adverseReactionDetail = reactionDetail;
@@ -112,6 +121,18 @@ public class TreatmentExecutionTask {
             this.exceptionNote = adverseReaction ? "治疗过程中记录不良反应，需继续随访处置"
                     : "治疗未正常完成：" + result;
         }
+    }
+
+    /** A historical status flag alone cannot prove successful, assessed treatment. */
+    public TreatmentExecutionTaskStatus verifiedStatus() {
+        if (status != TreatmentExecutionTaskStatus.COMPLETED) return status;
+        boolean evidence = startedAt != null && startedBy != null && completedAt != null && completedBy != null
+                && !completedAt.isBefore(startedAt)
+                && java.util.Set.of("NAME_AND_IDENTIFIER", "CARD", "MANUAL").contains(
+                        verificationMethod == null ? "" : verificationMethod)
+                && "COMPLETED".equals(resultCode) && Boolean.FALSE.equals(adverseReaction)
+                && Strings.trimToNull(adverseReactionDetail) == null;
+        return evidence ? TreatmentExecutionTaskStatus.COMPLETED : TreatmentExecutionTaskStatus.EXCEPTION;
     }
 
     private void requireRevision(long expectedRevision) {
@@ -143,7 +164,7 @@ public class TreatmentExecutionTask {
     public Long completedBy() { return completedBy; }
     public String resultCode() { return resultCode; }
     public String completionNote() { return completionNote; }
-    public boolean adverseReaction() { return adverseReaction; }
+    public Boolean adverseReaction() { return adverseReaction; }
     public String adverseReactionDetail() { return adverseReactionDetail; }
     public String exceptionNote() { return exceptionNote; }
 }

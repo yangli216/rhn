@@ -97,6 +97,7 @@ public class InventoryPeriodCloseApplicationService {
         StockSite site = requireSite(context, period.stockSiteId());
         String request = required(requestCode, "INVENTORY_CLOSE_REQUEST_REQUIRED", "月结请求编码不能为空");
         String currency = upper(currencyCode == null ? "CNY" : currencyCode);
+        InventoryCostCurrency.requireSupported(currency);
         PeriodCloseRunView repeated = resolveRepeatedCloseRun(context, period, request);
         if (repeated != null) {
             return repeated;
@@ -105,6 +106,7 @@ public class InventoryPeriodCloseApplicationService {
             throw conflict("INVENTORY_PERIOD_NOT_OPEN", "仅开放期间可以执行月结预检");
         }
         Long previousCloseRunId = previousCloseRun(context, period);
+        requireCostSourceCurrencies(context.tenantId(), site.id(), period.id(), previousCloseRunId);
         List<CloseDimension> dimensions = dimensions(context.tenantId(), site.id(), period.id(),
                 previousCloseRunId);
         List<MissingDimension> missing = missingDimensions(context.tenantId(), site.id(), period.id(),
@@ -267,16 +269,26 @@ public class InventoryPeriodCloseApplicationService {
         if (period.status() != InventoryPeriodStatus.OPEN) {
             throw conflict("INVENTORY_PERIOD_NOT_OPEN", "当前库存期间已不再开放");
         }
-        String currency = closeTotals(context.tenantId(), closeRunId).stream()
-                .filter(total -> "COST".equals(total.valuationBasis())).map(PeriodCloseTotalView::currencyCode)
-                .findFirst().orElse("CNY");
+        List<PeriodCloseTotalView> totals = closeTotals(context.tenantId(), closeRunId);
+        if (totals.size() != 1 || !"COST".equals(totals.get(0).valuationBasis())) {
+            throw conflict("INVENTORY_CLOSE_TOTAL_INVALID", "月结成本汇总缺失或不唯一，请重新执行预检");
+        }
+        PeriodCloseTotalView total = totals.get(0);
+        String currency = total.currencyCode();
+        InventoryCostCurrency.requireSupported(currency);
         balances.lockSiteBalances(context.tenantId(), site.id());
         Long previousCloseRunId = previousCloseRun(context, period);
+        requireCostSourceCurrencies(context.tenantId(), site.id(), period.id(), previousCloseRunId);
         List<CloseDimension> current = dimensions(context.tenantId(), site.id(), period.id(), previousCloseRunId);
         List<MissingDimension> missing = missingDimensions(context.tenantId(), site.id(), period.id(), previousCloseRunId);
         if (!run.requestHash().equals(stateHash(period, currency, current, missing))) {
             throw conflict("INVENTORY_CLOSE_STALE", "预检后库存账已变化，请重新执行月结预检");
         }
+        if (!missing.isEmpty() || current.stream().anyMatch(d -> d.valueIssue()
+                || d.quantityDifference().signum() != 0 || d.valueDifference().signum() != 0)) {
+            throw conflict("INVENTORY_CLOSE_HAS_DIFFERENCES", "当前库存成本资料不完整或仍有差异，请重新执行预检");
+        }
+        requireMatchingTotal(total, current);
         period.beginClosing(); periods.saveAndFlush(period);
         Instant now = Instant.now();
         jdbc.update("""
@@ -286,6 +298,53 @@ public class InventoryPeriodCloseApplicationService {
         period.close(closeRunId, context.subjectId()); periods.saveAndFlush(period);
         createNextPeriodIfAbsent(context, period);
         return closeRun(context.tenantId(), closeRunId);
+    }
+
+    private void requireCostSourceCurrencies(Long tenantId, Long siteId, Long periodId, Long previousCloseRunId) {
+        Integer incompatible = jdbc.queryForObject("""
+                select count(*) from RHN_SUP_INV_VALUAT_ENTRY
+                where ID_TNT = ? and ID_STOCK_SITE = ? and ID_INV_PERIOD = ?
+                  and SD_VALUAT_BASIS = 'COST' and (CD_CCY is null or CD_CCY <> 'CNY')
+                """, Integer.class, tenantId, siteId, periodId);
+        if (incompatible != null && incompatible > 0) {
+            throw conflict("INVENTORY_COST_CURRENCY_UNSUPPORTED", "本期成本价值流水含非人民币金额，不能混合汇总");
+        }
+        if (previousCloseRunId != null) {
+            Integer incompatibleOpening = jdbc.queryForObject("""
+                    select count(*) from RHN_SUP_INV_PERIOD_BAL_VAL v
+                    join RHN_SUP_INV_PERIOD_BAL_SNAP s on s.ID_TNT = v.ID_TNT
+                     and s.ID_INV_PERIOD_BAL_SNAP = v.ID_INV_PERIOD_BAL_SNAP
+                    where s.ID_TNT = ? and s.ID_INV_PERIOD_CLOSE_RUN = ?
+                      and v.SD_VALUAT_BASIS = 'COST' and (v.CD_CCY is null or v.CD_CCY <> 'CNY')
+                    """, Integer.class, tenantId, previousCloseRunId);
+            if (incompatibleOpening != null && incompatibleOpening > 0) {
+                throw conflict("INVENTORY_COST_CURRENCY_UNSUPPORTED", "上期期末成本快照含非人民币金额，不能直接结转");
+            }
+        }
+    }
+
+    private void requireMatchingTotal(PeriodCloseTotalView total, List<CloseDimension> dimensions) {
+        BigDecimal opening = ZERO_AMOUNT, movement = ZERO_AMOUNT, valuation = ZERO_AMOUNT;
+        BigDecimal rounding = ZERO_AMOUNT, closing = ZERO_AMOUNT, balance = ZERO_AMOUNT;
+        for (CloseDimension dimension : dimensions) {
+            opening = opening.add(dimension.openingValue());
+            movement = movement.add(dimension.movementAmount());
+            valuation = valuation.add(dimension.valuationAmount());
+            rounding = rounding.add(dimension.roundingAmount());
+            closing = closing.add(dimension.closingValue());
+            balance = balance.add(dimension.balanceValue());
+        }
+        if (!sameAmount(total.openingValue(), opening) || !sameAmount(total.movementAmount(), movement)
+                || !sameAmount(total.valuationAdjustmentAmount(), valuation)
+                || !sameAmount(total.roundingAdjustmentAmount(), rounding)
+                || !sameAmount(total.closingValue(), closing) || !sameAmount(total.balanceValue(), balance)
+                || !sameAmount(total.valueDifference(), balance.subtract(closing))) {
+            throw conflict("INVENTORY_CLOSE_TOTAL_INVALID", "月结成本汇总与库存账不一致，请重新执行预检");
+        }
+    }
+
+    private static boolean sameAmount(BigDecimal actual, BigDecimal expected) {
+        return actual != null && actual.compareTo(expected) == 0;
     }
 
     @Transactional(readOnly = true)
@@ -561,7 +620,7 @@ public class InventoryPeriodCloseApplicationService {
                 .append(d.movementQuantity()).append(':').append(d.balanceQuantity()).append(':')
                 .append(d.openingValue()).append(':').append(d.movementAmount()).append(':')
                 .append(d.valuationAmount()).append(':').append(d.roundingAmount()).append(':')
-                .append(d.balanceValue()).append(';'));
+                .append(d.balanceValue()).append(':').append(d.valueIssue()).append(';'));
         missing.forEach(d -> source.append("M:").append(d.binId()).append(':').append(d.itemId()).append(':')
                 .append(d.lotId()).append(':').append(d.status()).append(':').append(d.expectedQuantity()).append(';'));
         try {

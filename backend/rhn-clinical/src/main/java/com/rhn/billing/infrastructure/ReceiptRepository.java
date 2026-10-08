@@ -32,4 +32,8 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from Receipt value where value.id = :id and value.tenantId = :tenantId")
     Optional<Receipt> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select value from Receipt value where value.receiptNo = :receiptNo and value.tenantId = :tenantId")
+    Optional<Receipt> lockByReceiptNoAndTenantId(@Param("receiptNo") String receiptNo, @Param("tenantId") Long tenantId);
 }

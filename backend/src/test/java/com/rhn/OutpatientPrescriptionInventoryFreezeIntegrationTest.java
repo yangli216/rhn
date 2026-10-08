@@ -18,6 +18,155 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ResetDatabaseBeforeEachTestMethod
 class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegrationTestSupport {
+
+    @Test
+    void orderable_catalog_reports_missing_routing_instead_of_using_any_existing_pharmacy() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        String encounterId = createAndStartEncounter(createResident(suffix));
+        createPharmacyWithStock(suffix, 2);
+        jdbcTemplate.update("delete from RHN_SUP_DISP_ROUTE where ID_TNT=? and ID_ORG=?",
+                Long.valueOf(TENANT), Long.valueOf(ORGANIZATION));
+        mockMvc.perform(get("/api/encounters/{id}/orderable-medications", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DISPENSE_ROUTE_NOT_CONFIGURED"));
+    }
+    @Test
+    void split_preview_and_batch_order_use_real_facts_and_reject_client_fallbacks() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        String residentId = createResident(suffix);
+        String encounterId = createAndStartEncounter(residentId);
+        recordNoKnownDrugAllergy(residentId, encounterId);
+        saveClinicalRecord(encounterId);
+        createPharmacyWithStock(suffix, 2);
+        String input = """
+                {"catalogItemId":"%s","packageId":"%s","quantity":1,"quantityUnit":"BOX",
+                 "doseValue":5,"doseUnit":"mg","routeCode":"PO","frequencyCode":"QD",
+                 "durationValue":7,"durationUnit":"DAY","allergyReviewConfirmed":true,
+                 "stockSiteName":"默认药房","priceType":"SALE","pricingRequired":true,
+                 "substitutionAllowed":false,"selfProvided":false}
+                """.formatted(PRODUCT_ID, PACKAGE_ID);
+        var preview = json(mockMvc.perform(post("/api/encounters/{id}/prescriptions/auto-split-preview", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("[" + input + "]"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].categoryCode").value("WESTERN"))
+                .andExpect(jsonPath("$[0].routeGroupType").value("NON_INFUSION"))
+                .andExpect(jsonPath("$[0].items[0].item.medicationId").value(MEDICATION_ID))
+                .andExpect(jsonPath("$[0].items[0].item.routeExecutionType").value("NONE"))
+                .andReturn().getResponse().getContentAsString()).get(0);
+        org.junit.jupiter.api.Assertions.assertNotEquals("默认药房", preview.get("stockSiteName").asString());
+        assertEquals(preview.get("stockSiteName").asString(), preview.get("items").get(0).get("item").get("stockSiteName").asString());
+        String forged = input.replace("\"stockSiteName\":\"默认药房\"", "\"categoryCode\":\"HERBAL\"");
+        mockMvc.perform(post("/api/encounters/{id}/prescriptions/batch-order", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[" + forged + "],\"autoSubmit\":false}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("SPLIT_CATEGORY_CHANGED"));
+        mockMvc.perform(get("/api/encounters/{id}/prescriptions", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        // The batch endpoint independently resolves facts; it never consumes the client's fallback name.
+        mockMvc.perform(post("/api/encounters/{id}/prescriptions/batch-order", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[" + input + "],\"autoSubmit\":false}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$[0].categoryCode").value("WESTERN"))
+                .andExpect(jsonPath("$[0].medicationRequests[0].medicationId").value(MEDICATION_ID));
+        // Once routing disappears, neither preview nor opening may select another existing pharmacy.
+        jdbcTemplate.update("delete from RHN_SUP_DISP_ROUTE where ID_TNT=? and ID_ORG=?", Long.valueOf(TENANT), Long.valueOf(ORGANIZATION));
+        mockMvc.perform(post("/api/encounters/{id}/prescriptions/auto-split-preview", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("[" + input + "]"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DISPENSE_PHARMACY_NOT_FOUND"));
+        mockMvc.perform(post("/api/encounters/{id}/prescriptions/batch-order", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[" + input + "],\"autoSubmit\":false}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DISPENSE_PHARMACY_NOT_FOUND"));
+        mockMvc.perform(get("/api/encounters/{id}/prescriptions", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void atomic_order_save_rolls_back_all_lines_and_replays_committed_receipt_without_duplicates() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String resident = createResident(suffix), encounter = createAndStartEncounter(resident);
+        recordNoKnownDrugAllergy(resident, encounter); saveClinicalRecord(encounter); createPharmacyWithStock(suffix, 2);
+        String medication = """
+                {"catalogItemId":"%s","packageId":"%s","quantity":1,"quantityUnit":"BOX",
+                 "doseValue":5,"doseUnit":"mg","routeCode":"PO","frequencyCode":"QD",
+                 "durationValue":7,"durationUnit":"DAY","allergyReviewConfirmed":true,
+                 "substitutionAllowed":false,"selfProvided":false,"priceType":"SALE","pricingRequired":true}
+                """.formatted(PRODUCT_ID, PACKAGE_ID);
+        for (String invalid : java.util.List.of(
+                "{\"commandCode\":\"INVALID\",\"medicationItems\":[],\"serviceItems\":[]}",
+                "{\"commandCode\":\"INVALID\",\"medicationItems\":[null],\"serviceItems\":[]}",
+                "{\"commandCode\":\"INVALID\",\"medicationItems\":[],\"serviceItems\":[null]}")) {
+            mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                    .contentType(MediaType.APPLICATION_JSON).content(invalid)).andExpect(status().isBadRequest());
+        }
+        String command = "ORDERS-" + suffix;
+        String serviceId = createOrderSaveService(suffix);
+        String service = "{\"catalogItemId\":\"%s\",\"quantity\":1,\"priceType\":\"SALE\",\"pricingRequired\":true}".formatted(serviceId);
+        int chargesBefore = jdbcTemplate.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC=?", Integer.class, Long.valueOf(encounter));
+        String eventCountSql = "select count(*) from RHN_INT_OUTBOX_EVT where ID_TNT=? and SD_EVT_TYPE in ('PRESCRIPTION_DRAFT_CREATED','MEDICATION_REQUEST_DRAFTED','SERVICE_REQUEST_AUTHORED')";
+        int eventsBefore = jdbcTemplate.queryForObject(eventCountSql, Integer.class, Long.valueOf(TENANT));
+        String broken = "{\"commandCode\":\"%s\",\"medicationItems\":[%s],\"serviceItems\":[%s,{\"catalogItemId\":1,\"quantity\":1}]}"
+                .formatted(command, medication, service);
+        mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(broken)).andExpect(status().isNotFound());
+        for (String path : java.util.List.of("prescriptions", "medication-requests", "service-requests")) {
+            mockMvc.perform(get("/api/encounters/{id}/" + path, encounter).with(rhnWorkContext()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        }
+        assertEquals(chargesBefore, jdbcTemplate.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC=?", Integer.class, Long.valueOf(encounter)));
+        assertEquals(eventsBefore, jdbcTemplate.queryForObject(eventCountSql, Integer.class, Long.valueOf(TENANT)));
+        String body = "{\"commandCode\":\"%s\",\"medicationItems\":[%s],\"serviceItems\":[%s]}".formatted(command, medication, service);
+        String first = mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.commandCode").value(command))
+                .andExpect(jsonPath("$.prescriptions.length()").value(1)).andExpect(jsonPath("$.services.length()").value(1))
+                .andExpect(jsonPath("$.prescriptions[0].status").value("DRAFT"))
+                .andExpect(jsonPath("$.services[0].status").value("ACTIVE"))
+                .andReturn().getResponse().getContentAsString();
+        String replay = mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertEquals(json(first), json(replay));
+        assertEquals(chargesBefore + 1, jdbcTemplate.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC=?", Integer.class, Long.valueOf(encounter)));
+        assertEquals(eventsBefore + 3, jdbcTemplate.queryForObject(eventCountSql, Integer.class, Long.valueOf(TENANT)));
+        mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(body.replace("\"quantity\":1", "\"quantity\":2")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("IDEMPOTENCY_KEY_REUSED"));
+        String otherEncounter = createAndStartEncounter(createResident(suffix + "9"));
+        mockMvc.perform(post("/api/encounters/{id}/order-drafts", otherEncounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isConflict());
+        mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .with(request -> { request.removeHeader("X-Tenant-Id"); request.addHeader("X-Tenant-Id", "1"); return request; }).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().is4xxClientError());
+        for (String path : java.util.List.of("prescriptions", "medication-requests", "service-requests")) {
+            mockMvc.perform(get("/api/encounters/{id}/" + path, encounter).with(rhnWorkContext()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        }
+    }
+
+    private String createOrderSaveService(String suffix) throws Exception {
+        String id = json(mockMvc.perform(post("/api/platform/master-data/services").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"code":"ORDER-SAVE-%s","name":"整批保存验证项目","unitCode":"次",
+                                 "orderable":true,"chargeable":true,"sdStatus":"ACTIVE","validFrom":"2026-01-01",
+                                 "sdServiceType":"TREATMENT","sdUsageType":"OUTPATIENT","medicalTechnology":false,
+                                 "combinationItem":false,"singleOrder":true,"pregnancyAlert":false}
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
+        mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/catalog-items/{id}/adoptions", id)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"organizationId":"%s","localCode":"ORDER-SAVE-%s","localName":"整批保存项目",
+                                 "orderable":true,"executable":true,"chargeable":true,"purchasable":false,"stocked":false,
+                                 "dispensable":false,"returnable":false,"status":"ACTIVE","validFrom":"2026-01-01"}
+                                """.formatted(ORGANIZATION, suffix))).andExpect(status().isCreated());
+        mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/catalog-items/{id}/prices", id)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"organizationId":"%s","priceType":"SALE","price":12.50,"currencyCode":"CNY",
+                                 "priceDocumentCode":"ORDER-SAVE-%s","priceReason":"验证","validFrom":"2026-01-01","status":"ACTIVE"}
+                                """.formatted(ORGANIZATION, suffix))).andExpect(status().isCreated());
+        return id;
+    }
+
     private static final String MEDICATION_ID = "362387869795203";
     private static final String PRODUCT_ID = "362387869795113";
     private static final String PACKAGE_ID = "362387869795403";
@@ -92,6 +241,21 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                 "select count(*) from RHN_SUP_RX_INV_FREEZE where ID_RX=? and SD_STATUS='ACTIVE'",
                 Integer.class, Long.valueOf(prescriptionId));
         assertEquals(1, activeFreezes);
+
+        // Missing AVAILABLE balance must roll back cancellation and retain active freeze facts.
+        jdbcTemplate.update("update RHN_SUP_INV_BAL set SD_STOCK_STATUS='QUARANTINE' where ID_STOCK_ITEM=?",
+                Long.valueOf(pharmacy.stockItemId()));
+        mockMvc.perform(post("/api/encounters/{encounterId}/prescriptions/{id}/cancel", encounterId, prescriptionId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"expectedRevision":1,"reason":"验证余额缺失不能伪装释放成功"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PRESCRIPTION_FREEZE_BALANCE_MISSING"));
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "select count(*) from RHN_SUP_RX_INV_FREEZE where ID_RX=? and SD_STATUS='ACTIVE'",
+                Integer.class, Long.valueOf(prescriptionId)));
+        jdbcTemplate.update("update RHN_SUP_INV_BAL set SD_STOCK_STATUS='AVAILABLE' where ID_STOCK_ITEM=?",
+                Long.valueOf(pharmacy.stockItemId()));
 
         // 6. Cancel prescription -> releases frozen inventory
         mockMvc.perform(post("/api/encounters/{encounterId}/prescriptions/{id}/cancel", encounterId, prescriptionId)

@@ -13,19 +13,27 @@ export function InpatientShiftHandoffWorkspace({ api, episodes }: {
   api: RhnApi
   episodes: InpatientEpisode[]
 }) {
+  return <WardShiftHandoffWorkspace key={`${episodes[0]?.organizationId}:${episodes[0]?.departmentId}`} api={api} episodes={episodes} />
+}
+
+function WardShiftHandoffWorkspace({ api, episodes }: { api: RhnApi; episodes: InpatientEpisode[] }) {
   const queryClient = useQueryClient()
   const shift = useMemo(() => currentWardShiftWindow(), [episodes[0]?.departmentId])
   const episodeKey = episodes.map((episode) => episode.id).join('|')
   const [open, setOpen] = useState(false)
-  const [wardSummary, setWardSummary] = useState('本班病区运行平稳')
+  const [wardSummary, setWardSummary] = useState('')
   const [generalItems, setGeneralItems] = useState('')
   const [patientDrafts, setPatientDrafts] = useState<Record<string, PatientDraft>>({})
   useEffect(() => setPatientDrafts((current) => Object.fromEntries(episodes.map((episode) => [episode.id,
-    current[episode.id] ?? { situation: '病情平稳，继续观察', pendingActions: '', riskFlags: '' },
+    current[episode.id] ?? { situation: '', pendingActions: '', riskFlags: '' },
   ]))), [episodeKey])
   const handoffs = useQuery({
     queryKey: ['inpatient-shift-handoffs', episodes[0]?.departmentId ?? 'empty', shift.from, shift.to],
-    queryFn: () => api.inpatient.shiftHandoffs(shift.from, shift.to),
+    queryFn: async () => {
+      const values = await api.inpatient.shiftHandoffs(shift.from, shift.to)
+      if (!Array.isArray(values)) throw new Error('交接记录返回不完整')
+      return values
+    },
     enabled: episodes.length > 0,
   })
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['inpatient-shift-handoffs'] })
@@ -37,13 +45,13 @@ export function InpatientShiftHandoffWorkspace({ api, episodes }: {
       generalItems: splitItems(generalItems),
       patients: episodes.map((episode) => ({
         episodeId: episode.id,
-        situation: patientDrafts[episode.id]?.situation.trim() || '病情平稳，继续观察',
+        situation: patientDrafts[episode.id]?.situation?.trim() || '',
         pendingActions: splitItems(patientDrafts[episode.id]?.pendingActions ?? ''),
         riskFlags: splitItems(patientDrafts[episode.id]?.riskFlags ?? ''),
       })),
       commandCode: `IP-HANDOFF-CREATE-${crypto.randomUUID()}`,
     }),
-    onSuccess: async () => { setOpen(false); await refresh() },
+    onSuccess: async () => { setOpen(false); setWardSummary(''); setGeneralItems(''); setPatientDrafts({}); await refresh() },
   })
   const submit = useMutation({
     mutationFn: (value: InpatientShiftHandoff) => api.inpatient.submitShiftHandoff(
@@ -55,7 +63,7 @@ export function InpatientShiftHandoffWorkspace({ api, episodes }: {
       value.id, `IP-TAKEOVER-${crypto.randomUUID()}`),
     onSuccess: refresh,
   })
-  const values = [...(handoffs.data ?? [])].sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+  const values = [...(handoffs.isSuccess ? handoffs.data : [])].sort((left, right) => right.createdAt.localeCompare(left.createdAt))
   const latest = values[0]
   const riskCount = latest?.patients.filter((patient) => patient.riskFlags.length > 0).length ?? 0
   const pendingCount = latest?.patients.reduce((count, patient) => count + patient.pendingActions.length, 0) ?? 0
@@ -63,11 +71,13 @@ export function InpatientShiftHandoffWorkspace({ api, episodes }: {
   const error = handoffs.error || create.error || submit.error || accept.error
   const updatePatient = (episodeId: string, field: keyof PatientDraft, value: string) => setPatientDrafts((current) => ({
     ...current,
-    [episodeId]: { ...current[episodeId], [field]: value } as PatientDraft,
+    [episodeId]: { ...(current[episodeId] ?? { situation: '', pendingActions: '', riskFlags: '' }), [field]: value },
   }))
+  const complete = episodes.length > 0 && Boolean(wardSummary.trim())
+    && episodes.every((episode) => Boolean(patientDrafts[episode.id]?.situation?.trim()))
   const save = (event: FormEvent) => {
     event.preventDefault()
-    if (episodes.length > 0 && wardSummary.trim()) create.mutate()
+    if (complete) create.mutate()
   }
 
   return <Panel className="inpatient-shift-workspace" aria-labelledby="inpatient-shift-heading">
@@ -80,14 +90,14 @@ export function InpatientShiftHandoffWorkspace({ api, episodes }: {
         </Button></div></header>
     <section className="inpatient-shift-metrics" aria-label="本班交接摘要">
       <div><span>在院患者</span><strong>{episodes.length}</strong></div>
-      <div><span>风险患者</span><strong>{riskCount}</strong></div>
-      <div><span>待办事项</span><strong>{pendingCount}</strong></div>
-      <div><span>当前状态</span><strong>{latest ? handoffText(latest.status) : '未创建'}</strong></div>
+      <div><span>已标记风险患者</span><strong>{latest ? riskCount : '—'}</strong></div>
+      <div><span>已记录待办事项</span><strong>{latest ? pendingCount : '—'}</strong></div>
+      <div><span>当前状态</span><strong>{handoffs.isError ? '查询失败' : handoffs.isFetching ? '查询中' : latest ? handoffText(latest.status) : episodes.length ? '未创建' : '尚未查询'}</strong></div>
     </section>
     {error && <Alert>{errorMessage(error)}</Alert>}
     {open && <form className="inpatient-shift-form" onSubmit={save}>
       <div className="inpatient-shift-form__summary">
-        <FormField label="病区摘要" required><textarea value={wardSummary} rows={2} maxLength={2000}
+        <FormField label="病区摘要" required><textarea aria-label="病区摘要" required value={wardSummary} rows={2} maxLength={2000}
           onChange={(event) => setWardSummary(event.target.value)} /></FormField>
         <FormField label="病区公共待办" hint="多项使用逗号分隔"><input value={generalItems} maxLength={2000}
           placeholder="如：夜班重点巡查、抢救车清点" onChange={(event) => setGeneralItems(event.target.value)} /></FormField>
@@ -97,7 +107,7 @@ export function InpatientShiftHandoffWorkspace({ api, episodes }: {
         {episodes.map((episode) => <section key={episode.id} className="inpatient-shift-patient">
           <div className="inpatient-shift-patient__identity"><strong>{bedLabel(episode.bedNo)} · {episode.residentName}</strong>
             <small>{episode.episodeNo}</small></div>
-          <FormField label="患者情况" required><input value={patientDrafts[episode.id]?.situation ?? ''}
+          <FormField label="患者情况" required><input aria-label="患者情况" required value={patientDrafts[episode.id]?.situation ?? ''}
             onChange={(event) => updatePatient(episode.id, 'situation', event.target.value)} /></FormField>
           <FormField label="待办事项"><input value={patientDrafts[episode.id]?.pendingActions ?? ''}
             placeholder="多项用逗号分隔" onChange={(event) => updatePatient(episode.id, 'pendingActions', event.target.value)} /></FormField>
@@ -105,9 +115,12 @@ export function InpatientShiftHandoffWorkspace({ api, episodes }: {
             placeholder="如：跌倒、压力损伤" onChange={(event) => updatePatient(episode.id, 'riskFlags', event.target.value)} /></FormField>
         </section>)}
       </div>
-      <footer><Button type="submit" size="sm" busy={busy} disabled={!wardSummary.trim() || episodes.length === 0}>保存交班草稿</Button></footer>
+      <footer><Button type="submit" size="sm" busy={busy} disabled={!complete}>保存交班草稿</Button></footer>
     </form>}
-    {handoffs.isPending ? <LoadingState label="正在读取本班交接记录…" /> : values.length === 0
+    {handoffs.isError ? <Alert tone="warning">交接记录查询失败，不能判断是否已创建
+      <Button size="sm" variant="secondary" onClick={() => void handoffs.refetch()}>重试交接记录</Button>
+    </Alert> : episodes.length === 0 ? <EmptyState icon="clinical" title="当前病区暂无在院患者" copy="有在院患者后可记录患者交接事项。" />
+      : handoffs.isPending ? <LoadingState label="正在读取本班交接记录…" /> : values.length === 0
       ? <EmptyState icon="clinical" title="本班尚未创建交班" copy="创建后集中记录病区摘要、患者风险与下一班待办。" />
       : <div className="inpatient-shift-list">{values.map((value) => <article key={value.id}>
         <header><div><strong>{formatTime(value.from)}–{formatTime(value.to)}</strong><small>{value.creatorName} 创建 · {value.patients.length} 位患者</small></div>
@@ -137,9 +150,9 @@ function bedLabel(value?: string) {
 }
 
 function handoffText(value: InpatientShiftHandoff['status']) {
-  return value === 'DRAFT' ? '草稿' : value === 'SUBMITTED' ? '待接班' : '已接班'
+  return value === 'DRAFT' ? '草稿' : value === 'SUBMITTED' ? '待接班' : value === 'ACCEPTED' ? '已接班' : value
 }
 
 function handoffTone(value: InpatientShiftHandoff['status']): 'neutral' | 'warning' | 'success' {
-  return value === 'DRAFT' ? 'neutral' : value === 'SUBMITTED' ? 'warning' : 'success'
+  return value === 'DRAFT' ? 'neutral' : value === 'SUBMITTED' ? 'warning' : value === 'ACCEPTED' ? 'success' : 'neutral'
 }

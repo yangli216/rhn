@@ -59,4 +59,13 @@ describe('record writing annotations', () => {
     expect(marks).toHaveLength(1)
     expect(marks[0].text).toBe(text)
   })
+  it('safely handles null or undefined annotations values without throwing', () => {
+    const content = { presentIllness: '咳嗽3天' }
+    expect(anchorAnnotations(content, null)).toEqual([])
+    expect(templateAnnotations(content, null)).toHaveLength(1)
+    expect(rebaseAnnotations('presentIllness', '咳嗽3天', '咳嗽5天', null)).toHaveLength(1)
+    expect(recordEvidence(content, null).presentIllness).toBe('咳嗽3天')
+    expect(applyBoundFacts(content, null, null).content).toEqual(content)
+  })
 })
+

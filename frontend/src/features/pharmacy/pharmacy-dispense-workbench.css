@@ -68,7 +68,7 @@
 }
 
 .pharmacy-auto-call-toggle input[type="checkbox"]:focus-visible {
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  box-shadow: var(--shadow-focus);
 }
 
 .pharmacy-auto-call-toggle input[type="checkbox"]::before {
@@ -624,10 +624,9 @@
 .pharmacy-patient-queue__refresh:focus-visible,
 .pharmacy-queue-item__call-btn:focus-visible,
 .pharmacy-scan-action-btn:focus-visible,
-.pharmacy-prescription-card__history-link:focus-visible,
 .pharmacy-patient-banner__allergy-tag:focus-visible {
   outline: 0;
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  box-shadow: var(--shadow-focus);
 }
 
 .pharmacy-patient-queue__list {
@@ -978,24 +977,6 @@
 .pharmacy-prescription-card__status.is-ready {
   background: var(--color-brand-soft);
   color: var(--color-brand-primary);
-}
-
-.pharmacy-prescription-card__history-link {
-  color: var(--color-brand-primary);
-  background: transparent;
-  border: 0;
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  white-space: nowrap;
-  border-radius: var(--radius-sm);
-}
-
-.pharmacy-prescription-card__history-link:hover {
-  color: var(--color-brand-strong);
 }
 
 .pharmacy-prescription-card__header-right {

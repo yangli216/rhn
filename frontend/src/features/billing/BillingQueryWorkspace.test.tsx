@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../app/AppShell'
@@ -18,10 +18,10 @@ const record: SettlementRecord = {
   createdAt: '2026-09-08T01:30:00Z', finalizedAt: '2026-09-08T01:31:00Z',
 }
 
-function renderWorkspace(sourceRecords: SettlementRecord[] = [record]) {
+function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides: Partial<Record<'settlementRecords' | 'settlement' | 'statement' | 'settlementReceipts', ReturnType<typeof vi.fn>>> = {}) {
   const api = { billing: {
     settlementRecords: vi.fn().mockResolvedValue(sourceRecords),
-    settlement: vi.fn().mockResolvedValue({ ...record, revision: 1, commandCode: 'SETTLE-001',
+    settlement: vi.fn().mockResolvedValue({ ...(sourceRecords[0] ?? record), revision: 1, commandCode: 'SETTLE-001',
       tenderedAmount: 86, outstandingAmount: 0, createdBy: 'user-1', finalizedBy: 'user-1',
       lines: [{ id: 'line-1', chargeItemId: 'charge-1', lineNo: 1, settledQuantity: 2,
         grossAmount: 36, discountAmount: 0, insuranceAmount: 20, patientAmount: 16,
@@ -43,6 +43,7 @@ function renderWorkspace(sourceRecords: SettlementRecord[] = [record]) {
       receiptType: 'MEDICAL_E_INVOICE', status: 'ISSUED', fiscalNumber: '360100000001', amount: 86,
       currencyCode: 'CNY', issueChannel: 'CASHIER', createdAt: '2026-09-08T01:32:00Z',
       issuedAt: '2026-09-08T01:32:00Z', updatedAt: '2026-09-08T01:32:00Z', duplicate: false }]),
+    ...overrides,
   } } as unknown as RhnApi
   const clinicalContext = {
     organization: { id: 'org-1', name: '青禾镇中心卫生院' },
@@ -56,6 +57,53 @@ function renderWorkspace(sourceRecords: SettlementRecord[] = [record]) {
 }
 
 describe('BillingQueryWorkspace', () => {
+  it.each(['failure', 'invalid'] as const)('does not present unavailable list as no records: %s', async (state) => {
+    const settlementRecords = state === 'failure' ? vi.fn().mockRejectedValue(new Error('查询失败')) : vi.fn().mockResolvedValue(null)
+    renderWorkspace([record], { settlementRecords })
+    expect(await screen.findByText('收费记录加载失败')).toBeInTheDocument()
+    expect(screen.queryByText('暂无匹配记录')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '财务核算指标' })).not.toBeInTheDocument()
+    settlementRecords.mockResolvedValue([record])
+    await userEvent.click(screen.getByRole('button', { name: '重新加载收费记录' }))
+    expect(await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })).toBeInTheDocument()
+  })
+
+  it.each(['settlement', 'statement', 'settlementReceipts'] as const)('distinguishes %s query failure from empty financial detail', async (query) => {
+    const load = vi.fn().mockRejectedValue(new Error('明细查询失败'))
+    const api = renderWorkspace([record], { [query]: load })
+    await userEvent.click(await screen.findByRole('button', { name: '结算记录 STL-20260908-001' }))
+    const detail = await screen.findByRole('region', { name: '收费记录详情' })
+    expect(await within(detail).findByText('收费详情加载失败')).toBeInTheDocument()
+    expect(within(detail).queryByText('未查询到收费项目明细。')).not.toBeInTheDocument()
+    expect(within(detail).queryByText('当前结算单暂无电子票据。')).not.toBeInTheDocument()
+    expect(within(detail).queryByText('0 项')).not.toBeInTheDocument()
+    expect(api.billing[query]).toHaveBeenCalledOnce()
+    if (query === 'settlementReceipts') {
+      load.mockResolvedValue([])
+      await userEvent.click(within(detail).getByRole('button', { name: '重新加载收费详情' }))
+      expect(await within(detail).findByText('当前结算单暂无电子票据。')).toBeInTheDocument()
+    }
+  })
+
+  it.each(['settlement', 'statement', 'settlementReceipts'] as const)('rejects an HTTP-success empty body for %s', async (query) => {
+    renderWorkspace([record], { [query]: vi.fn().mockResolvedValue(null) })
+    await userEvent.click(await screen.findByRole('button', { name: '结算记录 STL-20260908-001' }))
+    const detail = await screen.findByRole('region', { name: '收费记录详情' })
+    expect(await within(detail).findByText('收费详情加载失败')).toBeInTheDocument()
+    expect(within(detail).queryByText('当前结算单暂无电子票据。')).not.toBeInTheDocument()
+  })
+
+  it('hides cached details when a refresh fails instead of claiming they are current', async () => {
+    const api = renderWorkspace()
+    await userEvent.click(await screen.findByRole('button', { name: '结算记录 STL-20260908-001' }))
+    await screen.findByText('阿莫西林胶囊')
+    vi.mocked(api.billing.settlementReceipts).mockRejectedValue(new Error('票据查询失败'))
+    await userEvent.click(screen.getByRole('button', { name: /刷新/ }))
+    await screen.findByText('收费详情加载失败')
+    expect(screen.queryByText('360100000001')).not.toBeInTheDocument()
+    await waitFor(() => expect(api.billing.settlementReceipts).toHaveBeenCalledTimes(2))
+  })
+
   it('shows completed settlement, charge, tender and receipt details in slide-over drawer', async () => {
     const api = renderWorkspace()
 

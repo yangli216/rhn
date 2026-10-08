@@ -165,10 +165,18 @@ public final class ClinicalAssistantContracts {
         }
     }
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "ClinicalAssistantDiagnosisInput")
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     public record DiagnosisInput(
             @NotBlank @Size(max = 64) String code,
             @NotBlank @Size(max = 200) String display,
-            @NotBlank @Pattern(regexp = "PRIMARY|SECONDARY") String type) {}
+            @NotBlank @Pattern(regexp = "PRIMARY|SECONDARY") String type,
+            @jakarta.validation.constraints.Positive @io.swagger.v3.oas.annotations.media.Schema(nullable = true) Long conceptId,
+            @Size(max = 128) @io.swagger.v3.oas.annotations.media.Schema(nullable = true) String codeSystem,
+            @Pattern(regexp = "WESTERN_MEDICINE|TCM_DISEASE|TCM_SYNDROME")
+            @io.swagger.v3.oas.annotations.media.Schema(nullable = true) String diagnosisDomain) {
+        public DiagnosisInput(String code, String display, String type) { this(code, display, type, null, null, null); }
+    }
 
     public record EventRequest(
             @NotBlank @Size(max = 128) String commandCode,
@@ -331,7 +339,18 @@ public final class ClinicalAssistantContracts {
             List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.DiagnosisInput> diagnoses,
             List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.MedicationInput> medications,
             List<com.rhn.outpatient.api.OutpatientPlanTemplateContracts.ServiceInput> services,
-            List<String> guidanceNotes) {}
+            List<String> guidanceNotes,
+            @jakarta.validation.constraints.NotNull List<HistoricalPlanReviewItem> reviewItems,
+            @jakarta.validation.constraints.NotNull java.util.Set<String> assessedCategories) {
+        public HistoricalStablePlanView {
+            reviewItems = List.copyOf(reviewItems);
+            assessedCategories = java.util.Set.copyOf(assessedCategories);
+        }
+    }
+
+    /** Original historical records that have not been admitted to executable draft inputs. */
+    public record HistoricalPlanReviewItem(String category, Long sourceId, Long medicationId,
+                                           Long catalogItemId, String code, String display, String reason) {}
 
     public record HistoricalPlanComparisonView(
             HistoricalStablePlanView historicalPlan,

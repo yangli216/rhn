@@ -282,7 +282,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                                     "medicalHistory":"既往高血压","physicalExam":"","treatmentPlan":"",
                                     "systolic":186,"diastolic":122,"temperature":36.8,
                                     "pulseRate":88,"respiratoryRate":18,"oxygenSaturation":98,
-                                    "diagnoses":[{"code":"I10","display":"原发性高血压","type":"PRIMARY"}]
+                                    "diagnoses":[{"code":"I10","display":"原发性高血压","type":"PRIMARY","codeSystem":"WHO.BD.CS.ICD10","diagnosisDomain":"WESTERN_MEDICINE"}]
                                   }
                                 }
                                 """.formatted(fingerprint, planName)))
@@ -293,12 +293,13 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.provider").value("local-assist"))
                 .andExpect(jsonPath("$.model").value("local-rules-v1"))
                 .andExpect(jsonPath("$.summary").isNotEmpty())
-                .andExpect(jsonPath("$.recordDraft.presentIllness").isNotEmpty())
-                .andExpect(jsonPath("$.recordDraft.physicalExam").isNotEmpty())
+                .andExpect(jsonPath("$.recordDraft.presentIllness").value("患者因“反复头晕，血压升高”就诊。"))
+                .andExpect(jsonPath("$.recordDraft.physicalExam", org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("待"))))
+                .andExpect(jsonPath("$.recordDraft.physicalExam", org.hamcrest.Matchers.containsString("血压")))
                 .andExpect(jsonPath("$.diagnosisCandidates[0].code").value("I10"))
                 .andExpect(jsonPath("$.diagnosisCandidates[0].confidence").value(1.0))
                 .andExpect(jsonPath("$.differentialDiagnoses").isArray())
-                .andExpect(jsonPath("$.missingInformation").isArray())
+                .andExpect(jsonPath("$.missingInformation", org.hamcrest.Matchers.hasItem("补充与本次就诊相关的查体所见")))
                 .andExpect(jsonPath("$.safetyAlerts[0].level").value("CRITICAL"))
                 .andExpect(jsonPath("$.recommendedPlans[0].name").value(planName))
                 .andExpect(jsonPath("$.disclaimer").isNotEmpty())

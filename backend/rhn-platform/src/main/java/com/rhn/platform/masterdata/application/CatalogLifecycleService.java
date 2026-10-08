@@ -346,6 +346,8 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                 command.organizationId(), command.packageId(), command.priceType(), command.newPrice(),
                 command.currencyCode(), command.priceDocumentCode(), command.reason(), command.validFrom(),
                 null, "ACTIVE"), replaced, command.expectedRevision());
+        // JDBC consumers reference the new version within this same transaction.
+        priceRepository.flush();
         return priceView(created);
     }
 

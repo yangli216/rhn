@@ -170,7 +170,6 @@ public class OutpatientTriageRecord {
         this.triageTime = Instant.now();
         this.arrivalMethod = "WALK_IN";
         this.companionType = "NONE";
-        this.consciousness = "ALERT";
         this.feverFlag = 0;
         this.triageLevel = "LEVEL_4_NON_URGENT";
         this.greenChannel = "NONE";
@@ -218,7 +217,7 @@ public class OutpatientTriageRecord {
         this.oxygenSaturation = oxygenSaturation;
         this.bloodGlucose = bloodGlucose;
         this.painScore = painScore;
-        this.consciousness = consciousness != null ? consciousness : "ALERT";
+        this.consciousness = consciousness == null || consciousness.isBlank() ? null : consciousness.trim();
         this.feverFlag = feverFlag ? (short) 1 : (short) 0;
         this.epidemicHistory = epidemicHistory;
         this.riskTags = riskTags;

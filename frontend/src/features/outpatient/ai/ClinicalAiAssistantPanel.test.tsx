@@ -45,6 +45,8 @@ describe('ClinicalAiAssistantPanel plan preflight', () => {
         status: 'BLOCKED', checks: [
           { code: 'PRODUCT_PACKAGE', status: 'PASS', message: '院内药品产品与包装有效' },
           { code: 'INVENTORY', status: 'BLOCKED', message: '路由药房库存不足：需要 1 BOX，当前可用 0 BOX' },
+          ...['DOSE', 'ROUTE', 'FREQUENCY', 'DURATION', 'QUANTITY', 'ALLERGY_REVIEW']
+            .map(code => ({ code, status: 'PASS', message: '测试资料已核实' })),
         ],
       }],
       drugInteractions: { status: 'NOT_EVALUATED', message: '当前未接入经治理的药物相互作用规则源，系统未对此项作出安全判断。' },

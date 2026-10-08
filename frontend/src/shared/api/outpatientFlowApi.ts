@@ -6,6 +6,7 @@ export type OutpatientFlowStatus = 'WAITING_CONSULTATION' | 'IN_CONSULTATION' | 
   | 'EXCEPTION' | 'COMPLETED' | 'TRANSFERRED' | 'TERMINATED' | 'CANCELLED'
 
 export type OutpatientStageStatus = 'WAITING' | 'IN_PROGRESS' | 'BLOCKED' | 'EXCEPTION' | 'COMPLETED' | 'CANCELLED'
+  | 'RETURNED' | 'PARTIALLY_RETURNED'
 
 export interface OutpatientFlowStage {
   stageCode: 'CLINICAL' | 'BILLING' | 'PHARMACY' | 'DIAGNOSTICS' | 'TREATMENT' | 'COORDINATION'

@@ -29,7 +29,11 @@ export function InpatientNursingWorkspace({ api, episode }: { api: RhnApi; episo
   const range = useMemo(() => nursingQueryRange(), [episode.id])
   const records = useQuery({
     queryKey: ['inpatient-nursing-records', episode.id, range.from, range.to],
-    queryFn: () => api.inpatient.nursingRecords(episode.id, range.from, range.to),
+    queryFn: async () => {
+      const values = await api.inpatient.nursingRecords(episode.id, range.from, range.to)
+      if (!Array.isArray(values)) throw new Error('护理记录返回不完整')
+      return values
+    },
   })
   const vitalRules = useQuery({
     queryKey: ['clinical-safety-vital-rules'],
@@ -50,19 +54,21 @@ export function InpatientNursingWorkspace({ api, episode }: { api: RhnApi; episo
   return <Panel className="inpatient-nursing" aria-labelledby="inpatient-nursing-heading">
     <header className="inpatient-nursing__head"><div><span>住院护理 · 事实记录</span>
       <h2 id="inpatient-nursing-heading">护理评估与记录</h2>
-      <p>{episode.residentName} · {episode.episodeNo} · {episode.bedNo ?? '已离院'}</p></div>
+      <p>{episode.residentName} · {episode.episodeNo} · {episode.bedNo ?? (episode.status === 'ADMITTED' ? '未分床' : '已离院')}</p></div>
       <div><StatusBadge tone={episode.status === 'ADMITTED' ? 'success' : 'neutral'}>
         {episode.status === 'ADMITTED' ? '在院可记录' : '出院只读'}</StatusBadge>
         <Tabs value={tab} onChange={setTab} label="护理工作面" variant="line" items={[
-          { value: 'ASSESSMENT', label: '入院评估', meta: assessments.length, panelId: 'nursing-assessment-panel' },
-          { value: 'RECORD', label: '护理记录', meta: records.data?.length ?? 0, panelId: 'nursing-record-panel' },
+          { value: 'ASSESSMENT', label: '入院评估', meta: records.isSuccess ? assessments.length : '—', panelId: 'nursing-assessment-panel' },
+          { value: 'RECORD', label: '护理记录', meta: records.isSuccess ? records.data.length : '—', panelId: 'nursing-record-panel' },
         ]} /></div></header>
     {error && <Alert>{errorMessage(error)}</Alert>}
     {records.isPending ? <LoadingState label="正在读取护理记录…" />
-      : tab === 'ASSESSMENT'
-        ? <NursingAssessmentPane values={assessments} readOnly={episode.status !== 'ADMITTED'} busy={busy}
+      : records.isError ? <Alert tone="warning">护理记录查询失败，尚未核验
+        <Button size="sm" variant="secondary" onClick={() => void records.refetch()}>重试护理记录</Button>
+      </Alert> : tab === 'ASSESSMENT'
+        ? <NursingAssessmentPane key={episode.id} values={assessments} readOnly={episode.status !== 'ADMITTED'} busy={busy}
             onSubmit={(input) => append.mutateAsync(input)} />
-        : <NursingRecordPane records={records.data ?? []} readOnly={episode.status !== 'ADMITTED'} busy={busy}
+        : <NursingRecordPane key={episode.id} records={records.data ?? []} readOnly={episode.status !== 'ADMITTED'} busy={busy}
             profile={vitalRules.data} onSubmit={(input) => append.mutateAsync(input)} />}
   </Panel>
 }
@@ -76,20 +82,24 @@ function NursingAssessmentPane({ values, readOnly, busy, onSubmit }: {
   const [open, setOpen] = useState(false)
   const [occurredAt, setOccurredAt] = useState(toLocalDateTime(new Date()))
   const [assessmentType, setAssessmentType] = useState<InpatientNursingAssessment['assessmentType']>('ADMISSION')
-  const [admissionMethod, setAdmissionMethod] = useState<InpatientNursingAssessment['admissionMethod']>('WALKING')
-  const [communicationStatus, setCommunicationStatus] = useState<InpatientNursingAssessment['communicationStatus']>('NORMAL')
-  const [selfCareLevel, setSelfCareLevel] = useState<InpatientNursingAssessment['selfCareLevel']>('INDEPENDENT')
-  const [mobilityLevel, setMobilityLevel] = useState<InpatientNursingAssessment['mobilityLevel']>('INDEPENDENT')
-  const [skinStatus, setSkinStatus] = useState<InpatientNursingAssessment['skinStatus']>('INTACT')
-  const [nutritionStatus, setNutritionStatus] = useState<InpatientNursingAssessment['nutritionStatus']>('NORMAL')
-  const [fallRiskLevel, setFallRiskLevel] = useState<InpatientNursingAssessment['fallRiskLevel']>('LOW')
-  const [pressureInjuryRiskLevel, setPressureInjuryRiskLevel] = useState<InpatientNursingAssessment['pressureInjuryRiskLevel']>('LOW')
-  const [painScore, setPainScore] = useState('0')
+  const [admissionMethod, setAdmissionMethod] = useState<InpatientNursingAssessment['admissionMethod'] | ''>('')
+  const [communicationStatus, setCommunicationStatus] = useState<InpatientNursingAssessment['communicationStatus'] | ''>('')
+  const [selfCareLevel, setSelfCareLevel] = useState<InpatientNursingAssessment['selfCareLevel'] | ''>('')
+  const [mobilityLevel, setMobilityLevel] = useState<InpatientNursingAssessment['mobilityLevel'] | ''>('')
+  const [skinStatus, setSkinStatus] = useState<InpatientNursingAssessment['skinStatus'] | ''>('')
+  const [nutritionStatus, setNutritionStatus] = useState<InpatientNursingAssessment['nutritionStatus'] | ''>('')
+  const [fallRiskLevel, setFallRiskLevel] = useState<InpatientNursingAssessment['fallRiskLevel'] | ''>('')
+  const [pressureInjuryRiskLevel, setPressureInjuryRiskLevel] = useState<InpatientNursingAssessment['pressureInjuryRiskLevel'] | ''>('')
+  const [painScore, setPainScore] = useState('')
   const [riskFlags, setRiskFlags] = useState('')
   const [conclusion, setConclusion] = useState('')
   const [immediateActions, setImmediateActions] = useState('')
+  const assessmentComplete = Boolean(admissionMethod && communicationStatus && selfCareLevel && mobilityLevel
+    && skinStatus && nutritionStatus && fallRiskLevel && pressureInjuryRiskLevel)
   const submit = async (event: FormEvent) => {
     event.preventDefault()
+    if (!admissionMethod || !communicationStatus || !selfCareLevel || !mobilityLevel
+      || !skinStatus || !nutritionStatus || !fallRiskLevel || !pressureInjuryRiskLevel) return
     await onSubmit({
       occurredAt: new Date(occurredAt).toISOString(), recordType: 'ASSESSMENT',
       content: { focus: assessmentType === 'ADMISSION' ? '入院护理评估' : '护理再评估' },
@@ -101,6 +111,8 @@ function NursingAssessmentPane({ values, readOnly, busy, onSubmit }: {
       },
       commandCode: `IP-NURSING-ASSESSMENT-${crypto.randomUUID()}`,
     })
+    setAdmissionMethod(''); setCommunicationStatus(''); setSelfCareLevel(''); setMobilityLevel('');
+    setSkinStatus(''); setNutritionStatus(''); setFallRiskLevel(''); setPressureInjuryRiskLevel(''); setPainScore('');
     setOccurredAt(toLocalDateTime(new Date())); setRiskFlags(''); setConclusion(''); setImmediateActions(''); setOpen(false)
   }
   return <div className="inpatient-nursing__pane" role="tabpanel">
@@ -136,7 +148,7 @@ function NursingAssessmentPane({ values, readOnly, busy, onSubmit }: {
         placeholder="可补充个体化观察结论" onChange={(event) => setConclusion(event.target.value)} /></FormField>
       <FormField label="即时护理措施" className="is-wide" hint="多项使用逗号分隔"><input aria-label="护理评估即时措施" value={immediateActions}
         placeholder="记录已立即采取的措施" onChange={(event) => setImmediateActions(event.target.value)} /></FormField>
-      <div className="inpatient-nursing__form-actions"><Button type="submit" size="sm" busy={busy}>保存评估事实</Button></div>
+      <div className="inpatient-nursing__form-actions"><Button type="submit" size="sm" busy={busy} disabled={!assessmentComplete}>保存评估事实</Button></div>
     </form>}
     {values.length === 0 ? <EmptyState icon="clinical" title="尚未完成护理评估" copy="入院后记录基础状态，专业量表可按机构要求逐步启用。" />
       : <div className="inpatient-nursing__assessments">{[...values].reverse().map((value) =>
@@ -147,7 +159,7 @@ function NursingAssessmentPane({ values, readOnly, busy, onSubmit }: {
 function AssessmentSelect({ label, value, options, onChange }: {
   label: string; value: string; options: Record<string, string>; onChange: (value: string) => void
 }) {
-  return <FormField label={label}><Select aria-label={label} value={value} clearable={false} searchable={false}
+  return <FormField label={label} required><Select aria-label={label} placeholder="未评估" value={value} clearable={false} searchable={false}
     options={Object.entries(options).map(([code, text]) => ({ value: code, label: text }))} onChange={onChange} /></FormField>
 }
 

@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { emptyMedicationEntry, withSkinTestExemption } from './medicationEntry'
 
 describe('composer skin test exemption updates', () => {
+  it('does not invent a negative history reason when exemption is enabled without evidence', () => {
+    expect(withSkinTestExemption(emptyMedicationEntry(), true)).toMatchObject({
+      skinTestExempt: true, skinTestExemptReason: '', exemptEvidenceEventId: undefined,
+    })
+    expect(withSkinTestExemption(emptyMedicationEntry(), true, {}).skinTestExemptReason).toBe('')
+  })
+
   it('replaces evidence atomically while preserving the current dose and manual quantity', () => {
     const current = { ...emptyMedicationEntry(), doseValue: 0.5, quantity: 3, isManualQuantity: true,
       exemptEvidenceEventId: 'old' }

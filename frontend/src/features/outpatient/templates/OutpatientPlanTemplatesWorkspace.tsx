@@ -638,8 +638,10 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                       selectedTemplate.medications.map((m) => (
                         <tr key={m.lineId}>
                           <td className={`${tableCellClass('text')} doctor-col--med-name`}>
-                            <div><strong>{m.medicationName}</strong></div>
-                            {m.preparationSpec && <small className="doctor-plan-item-subtext">{m.preparationSpec}</small>}
+                            <div className="doctor-plan-med-name-cell">
+                              <strong>{m.medicationName}</strong>
+                              {m.preparationSpec && <span className="doctor-plan-item-spec">{m.preparationSpec}</span>}
+                            </div>
                           </td>
                           <td className={`${tableCellClass('numeric')} doctor-col--dose`}>
                             {m.doseValue ? `${m.doseValue} ${m.doseUnit || ''}` : <span className="doctor-plan-item-subtext">待确认</span>}
@@ -724,6 +726,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
       {templateType === 'PLAN' && aiCompilerOpen && (
         <AiPlanTemplateDraftModal
           api={api}
+          organizationId={clinicalContext?.organization.id}
           initialScope={scopeFilter === 'DEPARTMENT' ? 'DEPARTMENT' : scopeFilter === 'HOSPITAL' ? 'HOSPITAL' : 'PERSONAL'}
           editingTemplate={editingTemplate}
           onClose={() => {

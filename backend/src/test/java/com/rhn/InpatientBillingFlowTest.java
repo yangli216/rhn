@@ -81,6 +81,22 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         String encounterId = admission.get("encounterId").asString();
         jdbcTemplate.update("update RHN_BD_CATALOG_PRICE set SD_STATUS = 'INACTIVE' where ID_CATALOG_PRICE = 362387869898522");
         try {
+            mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/billing", episodeId).with(rhnWorkContext()))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("INPATIENT_BED_DAY_PRICE_MISSING"));
+            mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/billing/daily-statement", episodeId)
+                            .with(rhnWorkContext()).param("businessDate", LocalDate.now().toString()))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("INPATIENT_BED_DAY_PRICE_MISSING"));
+            mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/billing/deposits", episodeId)
+                            .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                    {"paymentNo":"IP-BED-NO-PRICE-DEPOSIT","amount":100,
+                                     "currencyCode":"CNY","paymentMethodCode":"CASH"}
+                                    """))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("INPATIENT_BED_DAY_PRICE_MISSING"));
+            assertEquals(0, jdbcTemplate.queryForObject(
+                    "select count(*) from RHN_BIL_PAY where CD_PAY_NO = 'IP-BED-NO-PRICE-DEPOSIT'", Integer.class));
             mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/billing/bed-days/post", episodeId)
                             .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                     {"throughDate":"%s","currencyCode":"CNY",
@@ -394,7 +410,46 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 + "and SD_EVT_TYPE = 'FINALIZE'", settlement.get("settlementId").asString()));
     }
 
+    @Test
+    void missing_order_price_cannot_complete_execution_without_charging_and_can_be_retried_after_repair() throws Exception {
+        JsonNode admission=postJson("/api/inpatient/admissions", """
+                {"residentId":"%s","bedId":"%s","admissionTypeCode":"GENERAL",
+                 "admissionSourceCode":"DIRECT","admissionReason":"执行计价事实校验",
+                 "commandCode":"IP-ORDER-PRICE-ADMIT"}
+                """.formatted(RESIDENT,BED),201);
+        String episodeId=admission.get("id").asString();
+        String taskId=planServiceOrder(episodeId);
+        Long requestId=jdbcTemplate.queryForObject("select ID_CARE_REQ from RHN_EX_INP_ORDER_TASK where ID_INP_ORDER_TASK=?",Long.class,Long.valueOf(taskId));
+        var savedPrice=jdbcTemplate.queryForMap("select ID_CATALOG_PRICE,SN_PRICE_VER,SD_PRICE_TYPE,PRICE_UNIT,AMT_TOTAL,CD_CCY from RHN_EX_CARE_REQ where ID_CARE_REQ=?",requestId);
+        jdbcTemplate.update("update RHN_EX_CARE_REQ set ID_CATALOG_PRICE=null,SN_PRICE_VER=null,SD_PRICE_TYPE=null,PRICE_UNIT=null,AMT_TOTAL=null,CD_CCY=null where ID_CARE_REQ=?",requestId);
+        mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/billing",episodeId).with(rhnWorkContext()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("INPATIENT_ORDER_PRICE_MISSING"));
+        String body="""
+                {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-ORDER-PRICE-EXECUTE"}
+                """;
+        mockMvc.perform(post("/api/inpatient/order-tasks/{id}/execute",taskId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("INPATIENT_ORDER_PRICE_MISSING"));
+        assertEquals(1,count("select count(*) from RHN_EX_INP_ORDER_TASK where ID_INP_ORDER_TASK=? and SD_STATUS='PLANNED' "
+                + "and REVISION=0 and DT_CMPLD is null and ID_USER_CMPLD is null",taskId));
+        assertEquals(0,count("select count(*) from RHN_BIL_CHARGE_ITEM where SD_SRC_TYPE='INPATIENT_ORDER_TASK' and ID_SRC=?",taskId));
+        jdbcTemplate.update("update RHN_EX_CARE_REQ set ID_CATALOG_PRICE=?,SN_PRICE_VER=?,SD_PRICE_TYPE=?,PRICE_UNIT=?,AMT_TOTAL=?,CD_CCY=? where ID_CARE_REQ=?",
+                savedPrice.get("ID_CATALOG_PRICE"),savedPrice.get("SN_PRICE_VER"),savedPrice.get("SD_PRICE_TYPE"),
+                savedPrice.get("PRICE_UNIT"),savedPrice.get("AMT_TOTAL"),savedPrice.get("CD_CCY"),requestId);
+        postJson("/api/inpatient/order-tasks/"+taskId+"/execute",body,200);
+        postJson("/api/inpatient/order-tasks/"+taskId+"/execute",body,200);
+        assertEquals(1,count("select count(*) from RHN_BIL_CHARGE_ITEM where SD_SRC_TYPE='INPATIENT_ORDER_TASK' and ID_SRC=?",taskId));
+    }
+
     private String completeServiceOrder(String episodeId) throws Exception {
+        String taskId=planServiceOrder(episodeId);
+        postJson("/api/inpatient/order-tasks/" + taskId + "/execute", """
+                {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-BILLING-ORDER-EXECUTE"}
+                """, 200);
+        return taskId;
+    }
+
+    private String planServiceOrder(String episodeId) throws Exception {
         JsonNode order = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"SERVICE","durationType":"TEMPORARY",
                  "catalogItemId":"%s","instructions":"住院血细胞分析",
@@ -408,11 +463,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         JsonNode plan = postJson("/api/inpatient/orders/" + requestId + "/plans", """
                 {"expectedRevision":2,"plannedTimes":["%s"],"commandCode":"IP-BILLING-ORDER-PLAN"}
                 """.formatted(Instant.now().minusSeconds(60)), 200);
-        String taskId = plan.at("/tasks/0/id").asString();
-        postJson("/api/inpatient/order-tasks/" + taskId + "/execute", """
-                {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-BILLING-ORDER-EXECUTE"}
-                """, 200);
-        return taskId;
+        return plan.at("/tasks/0/id").asString();
     }
 
     private void skipServiceOrder(String episodeId) throws Exception {

@@ -4,19 +4,18 @@ import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptInstruction;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptLine;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptAction;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptResult;
+import com.rhn.billing.api.FiscalReceiptResultDirectory.VerifiedReceiptResult;
+import com.rhn.platform.integration.api.ExternalMessageService;
 import com.rhn.billing.api.ReceiptViews.ReceiptEventView;
 import com.rhn.billing.api.ReceiptViews.ReceiptView;
-import com.rhn.billing.domain.ChargeItem;
 import com.rhn.billing.domain.PatientAccount;
 import com.rhn.billing.domain.Receipt;
 import com.rhn.billing.domain.ReceiptEvent;
 import com.rhn.billing.domain.Settlement;
 import com.rhn.billing.domain.SettlementStatus;
-import com.rhn.billing.infrastructure.ChargeItemRepository;
 import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.billing.infrastructure.ReceiptEventRepository;
 import com.rhn.billing.infrastructure.ReceiptRepository;
-import com.rhn.billing.infrastructure.SettlementLineRepository;
 import com.rhn.billing.infrastructure.SettlementRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -25,12 +24,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -42,18 +41,76 @@ class ReceiptTransactionService {
     private final ReceiptRepository receipts;
     private final ReceiptEventRepository events;
     private final SettlementRepository settlements;
-    private final SettlementLineRepository settlementLines;
-    private final ChargeItemRepository charges;
+    private final ReceiptLineService receiptLines;
     private final PatientAccountRepository accounts;
     private final ExecutionContextProvider contextProvider;
+    private final ExternalMessageService messages;
+    private final ReceiptFundingService funding;
 
     ReceiptTransactionService(ReceiptRepository receipts, ReceiptEventRepository events,
-                              SettlementRepository settlements, SettlementLineRepository settlementLines,
-                              ChargeItemRepository charges, PatientAccountRepository accounts,
-                              ExecutionContextProvider contextProvider) {
+                              SettlementRepository settlements, ReceiptLineService receiptLines,
+                              PatientAccountRepository accounts,
+                              ExecutionContextProvider contextProvider, ExternalMessageService messages, ReceiptFundingService funding) {
         this.receipts = receipts; this.events = events; this.settlements = settlements;
-        this.settlementLines = settlementLines; this.charges = charges; this.accounts = accounts;
+        this.receiptLines = receiptLines; this.accounts = accounts;
         this.contextProvider = contextProvider;
+        this.messages = messages;
+        this.funding = funding;
+    }
+
+    @Transactional
+    ReceiptView accept(VerifiedReceiptResult input) {
+        if (input == null || input.operation() == null || input.outcome() == null) {
+            throw badRequest("RECEIPT_RESULT_OPERATION_REQUIRED", "票据回调必须提供操作类型及结果状态");
+        }
+        String command = required(input.commandCode(), "RECEIPT_EVENT_COMMAND_REQUIRED", "票据事件命令编码不能为空");
+        String messageId = required(input.externalMessageBusinessId(), "RECEIPT_CALLBACK_MESSAGE_REQUIRED", "票据回调必须提供外部业务消息号");
+        ExecutionContext context = contextProvider.requireCurrent();
+        Receipt value = receipts.lockByReceiptNoAndTenantId(required(input.receiptRequestNo(),
+                        "RECEIPT_REQUEST_NO_REQUIRED", "票据申请号不能为空"), context.tenantId())
+                .orElseThrow(() -> notFound("RECEIPT_NOT_FOUND", "未找到票据请求"));
+        require(value.id(), context);
+        String authority = Strings.trimToNull(input.fiscalAuthorityCode());
+        if (authority == null || !value.fiscalAuthorityCode().equals(authority.toUpperCase(Locale.ROOT))) {
+            throw conflict("RECEIPT_CALLBACK_AUTHORITY_MISMATCH", "票据回调平台与原申请不一致");
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("receiptId", value.id()); payload.put("receiptRequestNo", value.receiptNo());
+        payload.put("fiscalAuthorityCode", value.fiscalAuthorityCode()); payload.put("operation", input.operation().name());
+        payload.put("outcome", input.outcome().name()); payload.put("externalReceiptNo", Strings.trimToNull(input.externalReceiptNo()));
+        payload.put("fiscalCode", Strings.trimToNull(input.fiscalCode())); payload.put("fiscalNumber", Strings.trimToNull(input.fiscalNumber()));
+        payload.put("verificationCode", Strings.trimToNull(input.verificationCode()));
+        payload.put("controlledObjectReference", Strings.trimToNull(input.controlledObjectReference()));
+        payload.put("issuedAt", input.issuedAt()); payload.put("actionReason", Strings.trimToNull(input.actionReason()));
+        payload.put("errorCode", Strings.trimToNull(input.errorCode())); payload.put("errorMessage", Strings.trimToNull(input.errorMessage()));
+        payload.put("sanitizedPayload", input.sanitizedPayload());
+        var inbound = messages.receiveInbound(new ExternalMessageService.InboundMessage(
+                "FISCAL_" + value.fiscalAuthorityCode(), "RECEIPT_RESULT", messageId, value.correlationId(),
+                context.organizationId(), context.departmentId(), payload));
+        var history = events.findByTenantIdAndReceiptIdOrderByOccurredAtAscIdAsc(context.tenantId(), value.id());
+        if ("PROCESSED".equals(inbound.status())) {
+            if (!"Receipt".equals(inbound.relatedResourceType()) || !Objects.equals(value.id(), inbound.relatedResourceId())
+                    || inbound.relatedResourceVersion() == null || inbound.relatedResourceVersion() > value.revision()
+                    || history.stream().noneMatch(event -> Objects.equals(inbound.id(), event.externalMessageId()))) {
+                throw conflict("RECEIPT_PROCESSED_RESULT_MISSING", "已处理票据消息缺少原事件或正确关联，需核实原结果");
+            }
+            return view(context, value, true);
+        }
+        if (history.stream().anyMatch(event -> command.equals(event.commandCode()) || Objects.equals(inbound.id(), event.externalMessageId()))) {
+            throw conflict("RECEIPT_CALLBACK_COMMAND_REUSED", "票据回调命令已使用或存在未完成消息处理的历史事件，需核实原结果");
+        }
+        ReceiptResult result = new ReceiptResult(input.outcome(), input.externalReceiptNo(), input.fiscalCode(),
+                input.fiscalNumber(), input.verificationCode(), input.controlledObjectReference(), input.issuedAt(),
+                input.errorCode(), input.errorMessage(), input.sanitizedPayload());
+        switch (input.operation()) {
+            case ISSUE -> applyIssueResult(value.id(), result, command, inbound.id());
+            case VOID -> applyVoidResult(value.id(), result, command, inbound.id(), input.actionReason());
+            case RED_FLUSH -> applyRedFlushResult(value.id(), result, command, inbound.id(), input.actionReason());
+        }
+        receipts.flush();
+        ReceiptView view = view(context, value, inbound.duplicate());
+        messages.markProcessed(inbound.id(), "Receipt", value.id(), view.revision());
+        return view;
     }
 
     @Transactional
@@ -66,6 +123,8 @@ class ReceiptTransactionService {
                 .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
         if (settlement.status() != SettlementStatus.SETTLED) throw conflict("RECEIPT_SETTLEMENT_NOT_FINAL", "只有已结清结算单可以申请票据");
         PatientAccount account = requireAccess(context, settlement.patientAccountId());
+        funding.resolve(settlement);
+        receiptLines.resolve(settlement);
         String type = upper(input.receiptType());
         if (!List.of("MEDICAL_E_INVOICE", "PAPER_INVOICE", "RECEIPT", "VIRTUAL").contains(type)) {
             throw badRequest("RECEIPT_TYPE_INVALID", "票据类型不正确");
@@ -125,19 +184,16 @@ class ReceiptTransactionService {
         ExecutionContext context = contextProvider.requireCurrent();
         Receipt receipt = require(receiptId, context);
         Settlement settlement = settlements.findByIdAndTenantId(receipt.settlementId(), context.tenantId()).orElseThrow();
-        List<com.rhn.billing.domain.SettlementLine> lines = settlementLines
-                .findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), settlement.id());
-        Map<Long, ChargeItem> byId = charges.findAllById(lines.stream().map(com.rhn.billing.domain.SettlementLine::chargeItemId).toList())
-                .stream().collect(Collectors.toMap(ChargeItem::id, value -> value));
-        List<ReceiptLine> receiptLines = lines.stream().map(line -> {
-            ChargeItem charge = byId.get(line.chargeItemId());
-            return new ReceiptLine(line.lineNo(), category(charge), charge.itemCodeSnapshot(),
-                    charge.itemNameSnapshot(), line.settledQuantity(), line.netAmount());
-        }).toList();
+        var allocation = funding.resolve(settlement);
+        if (receipt.receiptAmount().compareTo(settlement.netAmount()) != 0
+                || !Objects.equals(receipt.currencyCode(), settlement.currencyCode())) {
+            throw conflict("RECEIPT_FUNDING_UNVERIFIED", "票据金额或币种与结算不一致");
+        }
+        List<ReceiptLine> lines = receiptLines.resolve(settlement);
         return new ReceiptInstruction(receipt.id(), settlement.id(), receipt.receiptNo(), receipt.commandCode(),
                 receipt.receiptType(), receipt.issueChannel(), receipt.fiscalAuthorityCode(), receipt.externalReceiptNo(), receipt.payerName(),
-                receipt.payerIdentityDigest(), receipt.receiptAmount(), receipt.currencyCode(),
-                settlement.insuranceAmount(), BigDecimal.ZERO, settlement.patientAmount(), receiptLines,
+                receipt.payerIdentityDigest(), receipt.receiptAmount(), settlement.roundingAmount(), receipt.currencyCode(),
+                allocation.insuranceAmount(), allocation.personalAccountAmount(), allocation.patientAmount(), allocation.otherFundAmount(), lines,
                 receipt.correlationId());
     }
 
@@ -157,7 +213,11 @@ class ReceiptTransactionService {
         ExecutionContext context = contextProvider.requireCurrent();
         Receipt value = receipts.lockByIdAndTenantId(receiptId, context.tenantId())
                 .orElseThrow(() -> notFound("RECEIPT_NOT_FOUND", "未找到票据请求"));
-        if (events.findByTenantIdAndReceiptIdAndCommandCode(context.tenantId(), receiptId, commandCode).isPresent()) return;
+        require(value.id(), context);
+        commandCode = required(commandCode, "RECEIPT_EVENT_COMMAND_REQUIRED", "票据事件命令编码不能为空");
+        if (events.findByTenantIdAndReceiptIdAndCommandCode(context.tenantId(), receiptId, commandCode).isPresent()) {
+            throw conflict("RECEIPT_RESULT_REPLAY_UNVERIFIED", "命令已有票据事件但缺少本次完整回执核验，不能直接认定处理成功");
+        }
         String previous;
         try { previous = value.applyIssueResult(result); }
         catch (IllegalStateException exception) {
@@ -177,7 +237,11 @@ class ReceiptTransactionService {
         ExecutionContext context = contextProvider.requireCurrent();
         Receipt value = receipts.lockByIdAndTenantId(receiptId, context.tenantId())
                 .orElseThrow(() -> notFound("RECEIPT_NOT_FOUND", "未找到票据请求"));
-        if (events.findByTenantIdAndReceiptIdAndCommandCode(context.tenantId(), receiptId, commandCode).isPresent()) return;
+        require(value.id(), context);
+        commandCode = required(commandCode, "RECEIPT_EVENT_COMMAND_REQUIRED", "票据事件命令编码不能为空");
+        if (events.findByTenantIdAndReceiptIdAndCommandCode(context.tenantId(), receiptId, commandCode).isPresent()) {
+            throw conflict("RECEIPT_RESULT_REPLAY_UNVERIFIED", "命令已有票据事件但缺少本次完整回执核验，不能直接认定处理成功");
+        }
         String previous;
         try { previous = value.applyVoidResult(result); }
         catch (IllegalStateException exception) {
@@ -194,7 +258,11 @@ class ReceiptTransactionService {
         ExecutionContext context = contextProvider.requireCurrent();
         Receipt value = receipts.lockByIdAndTenantId(receiptId, context.tenantId())
                 .orElseThrow(() -> notFound("RECEIPT_NOT_FOUND", "未找到红冲票据"));
-        if (events.findByTenantIdAndReceiptIdAndCommandCode(context.tenantId(), receiptId, commandCode).isPresent()) return;
+        require(value.id(), context);
+        commandCode = required(commandCode, "RECEIPT_EVENT_COMMAND_REQUIRED", "票据事件命令编码不能为空");
+        if (events.findByTenantIdAndReceiptIdAndCommandCode(context.tenantId(), receiptId, commandCode).isPresent()) {
+            throw conflict("RECEIPT_RESULT_REPLAY_UNVERIFIED", "命令已有票据事件但缺少本次完整回执核验，不能直接认定处理成功");
+        }
         String previous;
         try { previous = value.applyRedFlushResult(result); }
         catch (IllegalStateException exception) {
@@ -350,13 +418,6 @@ class ReceiptTransactionService {
                 value.errorMessage(), duplicate, eventViews);
     }
 
-    private String category(ChargeItem value) {
-        if (value.accountingCategory() != null && !value.accountingCategory().isBlank()) {
-            return value.accountingCategory().trim();
-        }
-        if ("DIRECT_VISIT_SERVICE".equals(value.sourceType())) return "TREATMENT";
-        return "REGISTRATION".equals(value.sourceType()) ? "REGISTRATION" : "MEDICATION";
-    }
     private String required(String value, String code, String message) {
         if (value == null || value.isBlank() || value.trim().length() > 128) throw badRequest(code, message);
         return value.trim();

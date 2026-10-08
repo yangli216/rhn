@@ -7,6 +7,8 @@ import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'reac
 import { ModuleSearch } from './ModuleSearch'
 import { LoginScreen } from '../features/auth/LoginScreen'
 import { Dashboard } from '../features/dashboard/Dashboard'
+import { requirePortalSummary } from '../features/dashboard/portalSummary'
+import { requirePortalNotifications } from './portalNotificationTruth'
 import type { Department, Organization, Session } from '../shared/model'
 import { createRhnApi, createRhnSessionApi, errorMessage, type Credentials, type RhnApi, type WorkContextOption, type WorkContextType } from '../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, Icon, IconButton, LoadingState, PlannedPage, StatusBadge, type IconName } from '../shared/ui'
@@ -931,11 +933,11 @@ export function AppShell() {
                 {!authorized ? <EmptyState icon="error" title="无权访问该功能"
                   copy={`当前工作上下文缺少权限：${requiredAuthority}`} /> :
                 <Suspense fallback={<LoadingState label="正在加载功能…" />}><Routes location={tab.path}>
-                  <Route path="/" element={<Dashboard api={tabSlot.api} onStart={() => navigate('/outpatient/registration')}
+                  <Route path="/" element={<Dashboard api={tabSlot.api} contextKey={`${tabSlot.option.workContextType}:${workContextKey(tabSlot.option)}`} onStart={() => navigate('/outpatient/registration')}
                     onOpenTasks={() => navigate('/tasks')}
                     onNavigate={(path) => navigate(path)} />} />
                   <Route path="/residents" element={<ResidentCenterWorkspace api={tabSlot.api} onNavigate={(path) => navigate(path)} />} />
-                  <Route path="/tasks" element={<TasksWorkspace api={tabSlot.api} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/tasks" element={<TasksWorkspace api={tabSlot.api} contextKey={`${tabSlot.option.workContextType}:${workContextKey(tabSlot.option)}`} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/pharmacy" element={<PharmacyWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/pharmacy/review" element={<PharmacyWorkspace api={tabSlot.api}
@@ -1369,15 +1371,15 @@ function UserAccountMenu({ session, activeContexts, activeContextType, themeColo
   </div>
 }
 
-function NotificationCenter({ api, contextKey, onNavigate }: {
+export function NotificationCenter({ api, contextKey, onNavigate }: {
   api: RhnApi; contextKey: string; onNavigate: (path: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
   const summaryKey = ['portal-summary', contextKey]
   const notificationKey = ['portal-notifications', contextKey]
-  const summary = useQuery({ queryKey: summaryKey, queryFn: api.portal.summary, refetchInterval: 60_000 })
-  const notifications = useQuery({ queryKey: notificationKey, queryFn: api.portal.notifications.list, enabled: open })
+  const summary = useQuery({ queryKey: summaryKey, queryFn: async () => requirePortalSummary(await api.portal.summary()), refetchInterval: 60_000 })
+  const notifications = useQuery({ queryKey: notificationKey, queryFn: async () => requirePortalNotifications(await api.portal.notifications.list()), enabled: open })
   const markRead = useMutation({
     mutationFn: api.portal.notifications.markRead,
     onSuccess: () => {
@@ -1399,27 +1401,33 @@ function NotificationCenter({ api, contextKey, onNavigate }: {
     setOpen(false)
   }
 
-  const unread = summary.data?.notifications.unread ?? 0
+  const unread = summary.isSuccess && !summary.isFetching ? summary.data.notifications.unread : undefined
+  const unreadDescription = unread !== undefined ? `${unread} 条未读消息`
+    : summary.isError ? '未读消息数加载失败' : '正在加载未读消息数…'
+  const inboxReady = notifications.isSuccess && !notifications.isFetching
   return <div className="notification-button">
-    <IconButton icon="notification" label={unread > 0 ? `消息，${unread} 条未读` : '消息'} onClick={() => setOpen(true)} />
-    {unread > 0 && <span className="notice"><span className="visually-hidden">有新消息</span></span>}
-    {open && <Dialog title="消息中心" eyebrow="工作门户" description={`${unread} 条未读消息`} onClose={() => setOpen(false)}>
-      {notifications.isPending && <LoadingState label="正在加载消息…" />}
-      {(notifications.error || markRead.error || archive.error) && <Alert>{errorMessage(
-        notifications.error || markRead.error || archive.error,
-      )}</Alert>}
-      {!notifications.isPending && notifications.data?.length === 0 && <EmptyState icon="notification"
+    <IconButton icon="notification" label={unread !== undefined ? `消息，${unread} 条未读` : `消息，${unreadDescription}`}
+      onClick={() => setOpen(true)} />
+    {unread !== undefined && unread > 0 && <span className="notice"><span className="visually-hidden">有新消息</span></span>}
+    {open && <Dialog title="消息中心" eyebrow="工作门户" description={unreadDescription} onClose={() => setOpen(false)}>
+      {summary.isError && <EmptyState icon="notification" title="未读数暂不可用" copy={errorMessage(summary.error)}
+        action={<Button variant="secondary" onClick={() => void summary.refetch()}>重新加载未读数</Button>} />}
+      {(notifications.isPending || notifications.isFetching) && <LoadingState label="正在加载消息…" />}
+      {notifications.isError && <EmptyState icon="notification" title="消息列表加载失败" copy={errorMessage(notifications.error)}
+        action={<Button variant="secondary" onClick={() => void notifications.refetch()}>重新加载消息</Button>} />}
+      {(markRead.error || archive.error) && <Alert duration={null}>{errorMessage(markRead.error || archive.error)}</Alert>}
+      {inboxReady && notifications.data.length === 0 && <EmptyState icon="notification"
         title="暂无消息" copy="任务变化和业务事件会在这里形成可追踪通知。" />}
-      {notifications.data && notifications.data.length > 0 && <div className="notification-list">
+      {inboxReady && notifications.data.length > 0 && <div className="notification-list">
         {notifications.data.map((notification) => <article className={`notification-item ${notification.status === 'UNREAD' ? 'is-unread' : ''}`}
           key={notification.id}>
           <button type="button" className="notification-item__main"
             onClick={() => openNotification(notification.id, notification.routePath)}>
             <span><strong>{notification.title}</strong>
-              {notification.status === 'UNREAD' && <StatusBadge tone="info">未读</StatusBadge>}</span>
+              {notification.status === 'UNREAD' ? <StatusBadge tone="info">未读</StatusBadge> : <StatusBadge tone="neutral">已读</StatusBadge>}</span>
             <p>{notification.message}</p><small>{formatTime(notification.createdAt)}</small>
           </button>
-          <Button variant="text" size="sm" onClick={() => archive.mutate(notification.id)}>归档</Button>
+          <Button variant="text" size="sm" busy={archive.isPending} onClick={() => archive.mutate(notification.id)}>归档</Button>
         </article>)}
       </div>}
     </Dialog>}

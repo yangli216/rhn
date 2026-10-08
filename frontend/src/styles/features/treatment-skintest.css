@@ -1869,7 +1869,7 @@
 .dictionary-category-form textarea.ui-field__control { min-height: 5.5rem; background: var(--color-surface); }
 
 .parameter-feedback { margin: calc(-1 * var(--space-2)) 0 var(--space-5); }
-.parameter-workspace { display: grid; grid-template-columns: minmax(11.5rem, 14rem) minmax(20rem, 23.5rem) minmax(0, 1fr); align-items: stretch; gap: var(--space-4); min-height: 0; flex: 1; overflow: hidden; }
+.parameter-workspace { display: grid; grid-template-columns: minmax(15rem, 17rem) minmax(20rem, 23.5rem) minmax(0, 1fr); align-items: stretch; gap: var(--space-4); min-height: 0; flex: 1; overflow: hidden; }
 .parameter-category-nav, .parameter-catalog, .parameter-detail { min-width: 0; height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .parameter-catalog { position: static; }
 .parameter-filters { padding: var(--space-3); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); flex: none; }

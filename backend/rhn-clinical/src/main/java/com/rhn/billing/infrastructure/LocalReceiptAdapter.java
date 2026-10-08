@@ -16,13 +16,13 @@ public class LocalReceiptAdapter implements FiscalReceiptAdapter {
     public ReceiptResult issue(ReceiptInstruction instruction) {
         return new ReceiptResult(ReceiptResult.Outcome.ISSUED, "LOCAL-" + instruction.receiptRequestNo(),
                 "LOCAL", instruction.receiptRequestNo(), null,
-                "receipt-object:" + instruction.receiptId(), Instant.now(), null, null, null);
+                null, Instant.now(), null, null, null);
     }
 
     @Override
     public ReceiptResult query(String receiptRequestNo, String externalReceiptNo, String correlationId) {
-        return new ReceiptResult(ReceiptResult.Outcome.ISSUED, externalReceiptNo, "LOCAL", receiptRequestNo,
-                null, null, Instant.now(), null, null, null);
+        throw com.rhn.shared.api.BusinessErrors.conflict("LOCAL_RECEIPT_RESULT_UNVERIFIED",
+                "本地票据查询须核实已保存的开具事实，不能仅凭申请号推定已开具");
     }
 
     @Override

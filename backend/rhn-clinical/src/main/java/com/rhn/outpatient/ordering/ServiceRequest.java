@@ -113,7 +113,7 @@ class ServiceRequest {
         this.requestingOrganizationId = performerOrganizationId;
         this.requestingDepartmentId = performerDepartmentId;
         this.businessDate = businessDate;
-        this.authoredAt = Instant.now();
+        this.authoredAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         this.authoredBy = authoredBy;
         this.reasonText = reasonText;
         this.itemCodeSnapshot = itemCodeSnapshot;
@@ -145,7 +145,7 @@ class ServiceRequest {
             throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "只有生效中的诊疗请求可以撤销", HttpStatus.CONFLICT);
         }
         status = ServiceRequestStatus.CANCELLED;
-        cancelledAt = Instant.now();
+        cancelledAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         cancelledBy = actorId;
         cancelReason = reason;
     }

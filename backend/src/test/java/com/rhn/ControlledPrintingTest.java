@@ -100,7 +100,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.taskCode").value("OP.MEDICAL_RECORD.PRINT"))
                 .andExpect(jsonPath("$.implementationScope").value("PLATFORM"))
                 .andExpect(jsonPath("$.payloadSchema").value("RHN.PRINT.OUTPATIENT_NOTE.V1"))
-                .andExpect(jsonPath("$.templateCode").value("OUTPATIENT_NOTE_A5"))
+                .andExpect(jsonPath("$.templateCode").value("OUTPATIENT_NOTE_A4"))
                 .andExpect(jsonPath("$.delivery.channel").value("BROWSER_PDF"))
                 .andExpect(jsonPath("$.delivery.status").value("SENT"))
                 .andExpect(jsonPath("$.contentDigest").value(org.hamcrest.Matchers.matchesPattern("[0-9A-F]{64}")))
@@ -155,7 +155,8 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.templateCode").value("OUTPATIENT_PRESCRIPTION_A5"))
                 .andExpect(jsonPath("$.taskCode").value("OP.PRESCRIPTION.WESTERN.PRINT"))
-                .andExpect(jsonPath("$.delivery.deviceName").value("全科门诊浏览器 PDF"))
+                // Existing landscape device bindings must not be reused for the new portrait media.
+                .andExpect(jsonPath("$.delivery.deviceName").value("浏览器 PDF"))
                 .andReturn().getResponse().getContentAsString());
         assertPdf(download(prescriptionReceipt));
 
@@ -173,12 +174,12 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                                 "expectedRevision", 0, "deviceCode", "APPLICATION-" + suffix,
                                 "deviceName", "申请单测试打印机", "channel", "LOCAL_BRIDGE",
                                 "outputLanguage", "PDF", "queueName", "TEST-APPLICATION",
-                                "capabilitiesJson", "{\"mediaCodes\":[\"A4_PORTRAIT\"]}"))))
+                                "capabilitiesJson", "{\"mediaCodes\":[\"A5_LANDSCAPE\"]}"))))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         mockMvc.perform(post("/api/platform/printing/device-bindings").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":0,"documentType":"LABORATORY_APPLICATION",
-                                 "mediaProfileId":"270000000000201","deviceId":"%s"}
+                                 "mediaProfileId":"270000000000208","deviceId":"%s"}
                                 """.formatted(applicationPrinter.get("id").asString())))
                 .andExpect(status().isOk());
         JsonNode applicationReceipt = json(mockMvc.perform(post(
@@ -189,7 +190,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.documentType").value("LABORATORY_APPLICATION"))
                 .andExpect(jsonPath("$.taskCode").value("OP.APPLICATION.LAB.PRINT"))
-                .andExpect(jsonPath("$.templateCode").value("LABORATORY_APPLICATION_A4"))
+                .andExpect(jsonPath("$.templateCode").value("LABORATORY_APPLICATION_A5"))
                 .andExpect(jsonPath("$.delivery.channel").value("LOCAL_BRIDGE"))
                 .andExpect(jsonPath("$.delivery.status").value("QUEUED"))
                 .andReturn().getResponse().getContentAsString());
@@ -237,9 +238,9 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/printing/templates").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].templateCode", org.hamcrest.Matchers.hasItems(
-                        "OUTPATIENT_NOTE_A5", "OUTPATIENT_PRESCRIPTION_A5", "ORAL_MEDICATION_CARD_80",
-                        "INFUSION_LABEL_70X50", "INFUSION_PATROL_A5", "LABORATORY_APPLICATION_A4",
-                        "EXAMINATION_APPLICATION_A4", "TREATMENT_APPLICATION_A4")));
+                        "OUTPATIENT_NOTE_A4", "OUTPATIENT_PRESCRIPTION_A5", "ORAL_MEDICATION_CARD_80",
+                        "INFUSION_LABEL_70X50", "INFUSION_PATROL_A5", "LABORATORY_APPLICATION_A5",
+                        "EXAMINATION_APPLICATION_A5", "TREATMENT_APPLICATION_A5")));
         assertEquals(4, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_JOB where ID_TNT = ?", Integer.class,
                 Long.valueOf(TENANT)));
         assertEquals(3, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_OUTPUT where ID_TNT = ?", Integer.class,

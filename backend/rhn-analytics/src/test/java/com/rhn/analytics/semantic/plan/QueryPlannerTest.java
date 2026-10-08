@@ -27,6 +27,19 @@ class QueryPlannerTest {
     }
 
     @Test
+    void rejectsMissingScopeInsteadOfInventingDevelopmentOwnership() {
+        SemanticQuery query = new SemanticQuery(
+                AnalysisIntent.METRIC_SUMMARY, List.of(new MetricIntent("挂号人次")),
+                List.of(), List.of(), TimeIntent.monthToDate(), ScopeIntent.AUTHORIZED, null, null);
+        Resolution resolution = resolver.resolve(query);
+        assertEquals(ResolutionStatus.READY, resolution.status());
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> planner.plan(resolution.query(), null, LocalDate.of(2026, 9, 17)));
+        assertTrue(error.getMessage().contains("explicit authorized scope"));
+    }
+
+    @Test
     @DisplayName("典型案例：‘本月各科室药品费用’ -> 生成以收费明细为中心，关联科室与医嘱的安全逻辑计划")
     void plan_drug_charge_by_department() {
         SemanticQuery query = new SemanticQuery(
@@ -44,7 +57,7 @@ class QueryPlannerTest {
         assertEquals(ResolutionStatus.READY, resolution.status());
 
         LocalDate testToday = LocalDate.of(2026, 9, 17);
-        LogicalQueryPlan plan = planner.plan(resolution.query(), PlannedScope.defaultDevScope(), testToday);
+        LogicalQueryPlan plan = planner.plan(resolution.query(), TestScopes.authorized(), testToday);
 
         assertNotNull(plan);
         assertEquals("CHARGE", plan.primaryEntity());
@@ -129,7 +142,7 @@ class QueryPlannerTest {
         Resolution resolution = resolver.resolve(query);
         assertEquals(ResolutionStatus.READY, resolution.status());
 
-        LogicalQueryPlan plan = planner.plan(resolution.query());
+        LogicalQueryPlan plan = planner.plan(resolution.query(), TestScopes.authorized(), LocalDate.of(2026, 9, 17));
 
         // 验证过滤器中包含显式下推的 dept.SD_DEPT_TYPE = CLINICAL
         assertTrue(plan.filters().stream().anyMatch(f ->
@@ -203,7 +216,7 @@ class QueryPlannerTest {
                 ScopeIntent.AUTHORIZED,
                 null,
                 null
-            ));
+            ), TestScopes.authorized(), LocalDate.of(2026, 9, 17));
         });
 
         // 2. 按月维度与排序
@@ -222,7 +235,7 @@ class QueryPlannerTest {
         assertEquals(ResolutionStatus.READY, res.status());
 
         LocalDate testToday = LocalDate.of(2026, 9, 17);
-        LogicalQueryPlan plan = planner.plan(res.query(), PlannedScope.defaultDevScope(), testToday);
+        LogicalQueryPlan plan = planner.plan(res.query(), TestScopes.authorized(), testToday);
 
         assertEquals(1, plan.dimensions().size());
         assertEquals("MONTH", plan.dimensions().get(0).dimensionCode());

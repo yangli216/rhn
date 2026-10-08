@@ -25,7 +25,7 @@ const dilutedItem: SkinTestWorkItem = {
   status: 'PENDING', originalSolution: false,
 }
 
-function renderWorkspace(item: SkinTestWorkItem) {
+function renderWorkspace(item: SkinTestWorkItem, options: { allergies?: () => Promise<unknown> } = {}) {
   const startSkinTest = vi.fn().mockResolvedValue({ ...item, status: 'IN_PROGRESS' })
   const completeSkinTest = vi.fn().mockResolvedValue({ ...item, status: 'NEGATIVE' })
   const api = {
@@ -41,7 +41,7 @@ function renderWorkspace(item: SkinTestWorkItem) {
       ]),
     },
     residents: {
-      allergies: vi.fn().mockResolvedValue([
+      allergies: options.allergies ?? vi.fn().mockResolvedValue([
         {
           id: 'allergy-1',
           assertionType: 'ALLERGY',
@@ -83,9 +83,91 @@ describe('SkinTestManagementWorkspace', () => {
       testMethod: 'INTRADERMAL',
       originalSolution: false,
       observationMinutes: 20,
-      solutionName: '按主数据方案配制的皮试液',
+      solutionName: undefined,
       bodySite: '右前臂屈侧下段',
     })))
+  })
+
+  it.each(['configuredTestMethod', 'configuredSolutionMode', 'configuredObservationMinutes', 'resultValidityHours'] as const)(
+    'blocks start when %s is missing instead of assuming a standard plan', async (field) => {
+      const user = userEvent.setup()
+      const { startSkinTest } = renderWorkspace({ ...dilutedItem, [field]: undefined })
+      await screen.findByLabelText('药品主数据皮试方案')
+      await user.click(screen.getByRole('checkbox', { name: /已当面核对患者身份/ }))
+      expect(screen.getByRole('button', { name: '配置缺失，无法开始皮试' })).toBeDisabled()
+      expect(screen.getByText(/医嘱皮试配置缺失或无效/)).toBeInTheDocument()
+      expect(startSkinTest).not.toHaveBeenCalled()
+    },
+  )
+
+  it('keeps configuration-blocked tasks visible in the actionable queue', async () => {
+    renderWorkspace({ ...dilutedItem, status: 'CONFIGURATION_REQUIRED', configuredTestMethod: undefined,
+      configuredObservationMinutes: undefined, resultValidityHours: undefined })
+    const plan = await screen.findByLabelText('药品主数据皮试方案')
+    expect(within(plan).queryByText('皮内试验')).not.toBeInTheDocument()
+    expect(within(plan).queryByText('20 分钟')).not.toBeInTheDocument()
+    expect(screen.queryByText('24 小时有效')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /确认开始并计时/ })).not.toBeInTheDocument()
+  })
+
+  it('uses a configured prick plan without injecting intradermal instructions or recorded body sites', async () => {
+    const user = userEvent.setup()
+    const { startSkinTest } = renderWorkspace({ ...dilutedItem, configuredTestMethod: 'PRICK',
+      configuredObservationMinutes: 30, resultValidityHours: 48, configurationInstructions: '实际维护的点刺方案' })
+    expect(await screen.findByRole('heading', { name: '开始皮试（点刺试验）' })).toBeInTheDocument()
+    expect(screen.queryByText(/注射 0.1ml 形成/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: /已当面核对患者身份/ }))
+    await user.click(screen.getByRole('button', { name: /启动 30 分钟留观/ }))
+    await waitFor(() => expect(startSkinTest).toHaveBeenCalledWith('request-1', expect.objectContaining({
+      testMethod: 'PRICK', observationMinutes: 30, solutionName: undefined, bodySite: undefined,
+    })))
+  })
+
+  it('does not declare observation complete when the recorded start time is missing', async () => {
+    renderWorkspace({ ...dilutedItem, status: 'IN_PROGRESS', eventId: 'event-1', eventRevision: 1,
+      startedAt: undefined, observationMinutes: 20 })
+    expect(await screen.findByText('计时数据缺失，无法确认判读时间')).toBeInTheDocument()
+    expect(screen.queryByText('已到判读时间')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '等待观察期结束' })).toBeDisabled()
+  })
+
+  it('shows failed allergy queries as unknown and retries without inventing a negative history', async () => {
+    const user = userEvent.setup()
+    const allergies = vi.fn().mockRejectedValueOnce(new Error('过敏接口不可用')).mockResolvedValue([])
+    renderWorkspace(dilutedItem, { allergies })
+    expect(await screen.findByText('过敏史查询失败')).toBeInTheDocument()
+    expect(screen.queryByText('未见药物过敏')).not.toBeInTheDocument()
+    expect(screen.queryByText(/暂无过敏登记/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '重试过敏史查询' }))
+    expect(await screen.findByText('过敏史待核实')).toBeInTheDocument()
+    expect(screen.getByText('暂无过敏登记，不能据此认定无药物过敏，请核实。')).toBeInTheDocument()
+  })
+
+  it('does not render a negative allergy badge while the request is loading', async () => {
+    renderWorkspace(dilutedItem, { allergies: () => new Promise(() => {}) })
+    expect(await screen.findByText('过敏史加载中')).toBeInTheDocument()
+    expect(screen.queryByText('未见药物过敏')).not.toBeInTheDocument()
+    expect(screen.queryByText('已记录无已知药物过敏')).not.toBeInTheDocument()
+  })
+
+  it('requires an explicit confirmed negative allergy assertion for the negative badge', async () => {
+    renderWorkspace(dilutedItem, { allergies: async () => [{ id: 'clear', assertionType: 'NO_KNOWN_DRUG_ALLERGY',
+      clinicalStatus: 'ACTIVE', verificationStatus: 'CONFIRMED' }] })
+    expect(await screen.findByText('已记录无已知药物过敏')).toBeInTheDocument()
+  })
+
+  it('does not present an unconfirmed allergy record as confirmed when reaction details are missing', async () => {
+    renderWorkspace(dilutedItem, { allergies: async () => [{ id: 'allergy', assertionType: 'ALLERGY',
+      substanceDisplay: '测试药品', clinicalStatus: 'ACTIVE', verificationStatus: 'UNCONFIRMED' }] })
+    expect(await screen.findByText('存在过敏记录')).toBeInTheDocument()
+    expect(screen.getByText('反应详情未记录')).toBeInTheDocument()
+    expect(screen.queryByText('已确证')).not.toBeInTheDocument()
+  })
+
+  it('rejects malformed allergy responses instead of displaying an empty history', async () => {
+    renderWorkspace(dilutedItem, { allergies: async () => null })
+    expect(await screen.findByText('过敏史查询失败')).toBeInTheDocument()
+    expect(screen.queryByText(/暂无过敏登记/)).not.toBeInTheDocument()
   })
 
   it('keeps an original-solution task blocked until medication settlement and dispensing complete', async () => {

@@ -52,6 +52,7 @@ class PaymentOrderTransactionService {
     private final DictionaryAttributeDirectory attributeDirectory;
     private final ExecutionContextProvider contextProvider;
     private final SettlementApplicationService settlements;
+    private final PaymentRoundingPolicy roundingPolicy;
 
     PaymentOrderTransactionService(PaymentOrderRepository orderRepository,
                                    PaymentEventRepository eventRepository,
@@ -62,13 +63,14 @@ class PaymentOrderTransactionService {
                                    DictionaryDirectory dictionaryDirectory,
                                    DictionaryAttributeDirectory attributeDirectory,
                                    ExecutionContextProvider contextProvider,
-                                   SettlementApplicationService settlements) {
+                                   SettlementApplicationService settlements, PaymentRoundingPolicy roundingPolicy) {
         this.orderRepository = orderRepository; this.eventRepository = eventRepository;
         this.accountRepository = accountRepository; this.invoiceRepository = invoiceRepository;
         this.paymentRepository = paymentRepository; this.ledgerRepository = ledgerRepository;
         this.dictionaryDirectory = dictionaryDirectory;
         this.attributeDirectory = attributeDirectory; this.contextProvider = contextProvider;
         this.settlements = settlements;
+        this.roundingPolicy = roundingPolicy;
     }
 
     @Transactional
@@ -90,11 +92,6 @@ class PaymentOrderTransactionService {
         requireAccess(context, account);
         existing = orderRepository.findByTenantIdAndIdempotencyKey(context.tenantId(), idempotencyKey).orElse(null);
         if (existing != null) return new CreateResult(verifySame(existing, input), true);
-
-        if (input.roundingAdjustment() != null && input.roundingAdjustment().signum() != 0) {
-            formalSettlement.applyRoundingAdjustment(input.roundingAdjustment());
-            invoice.adjustRounding(input.roundingAdjustment());
-        }
 
         BigDecimal amount = money(input.amount());
         if (amount.signum() <= 0) throw badRequest("PAYMENT_AMOUNT_INVALID", "支付金额必须大于零");
@@ -121,6 +118,13 @@ class PaymentOrderTransactionService {
         BigDecimal paid = money(paymentRepository.netPaidForInvoice(context.tenantId(), invoice.id()));
         BigDecimal externallyFunded = money(settlements.nonPaymentTendered(context, formalSettlement.id()));
         BigDecimal reserved = money(orderRepository.activeRequestedForInvoice(context.tenantId(), invoice.id()));
+        if (input.roundingAdjustment() != null && input.roundingAdjustment().signum() != 0) {
+            BigDecimal adjustment = roundingPolicy.totalAdjustment(context, invoice.id(), paymentMethod, paymentScene,
+                    invoice.netAmount().subtract(paid).subtract(externallyFunded), input.amount(),
+                    input.roundingAdjustment(), formalSettlement.roundingAmount());
+            formalSettlement.applyRoundingAdjustment(adjustment);
+            invoice.adjustRounding(adjustment);
+        }
         BigDecimal available = money(invoice.netAmount().subtract(paid).subtract(externallyFunded).subtract(reserved));
         if (amount.compareTo(available) > 0) {
             throw conflict("PAYMENT_ORDER_EXCEEDS_AVAILABLE", "支付金额超过结算凭证扣除在途支付后的未付金额");
@@ -203,8 +207,11 @@ class PaymentOrderTransactionService {
         requireAccess(context, accountRepository.findByIdAndTenantId(order.patientAccountId(), context.tenantId())
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户")));
         String commandCode = required(input.commandCode(), "PAYMENT_EVENT_COMMAND_REQUIRED", "支付事件命令编码不能为空");
-        if (eventRepository.findByTenantIdAndPaymentOrderIdAndCommandCode(
-                context.tenantId(), order.id(), commandCode).isPresent()) {
+        PaymentEvent replay = eventRepository.findByTenantIdAndPaymentOrderIdAndCommandCode(
+                context.tenantId(), order.id(), commandCode).orElse(null);
+        if (replay != null) {
+            requireSameEvent(replay, input.eventType(), input.nextStatus(), input.externalTransactionNo(),
+                    input.eventAmount(), input.errorCode(), input.errorMessage());
             return new TransitionResult(order, true);
         }
         String next = upper(input.nextStatus()); String current = order.status();
@@ -234,8 +241,11 @@ class PaymentOrderTransactionService {
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户")));
         if (!"REFUND".equals(order.orderType())) throw conflict("REFUND_ORDER_TYPE_INVALID", "当前指令不是退款指令");
         String commandCode = required(input.commandCode(), "REFUND_EVENT_COMMAND_REQUIRED", "退款事件命令编码不能为空");
-        if (eventRepository.findByTenantIdAndPaymentOrderIdAndCommandCode(
-                context.tenantId(), order.id(), commandCode).isPresent()) {
+        PaymentEvent replay = eventRepository.findByTenantIdAndPaymentOrderIdAndCommandCode(
+                context.tenantId(), order.id(), commandCode).orElse(null);
+        if (replay != null) {
+            requireSameEvent(replay, input.eventType(), input.nextStatus(), input.externalTransactionNo(),
+                    input.eventAmount(), input.errorCode(), input.errorMessage());
             return new TransitionResult(order, true);
         }
         String next = upper(input.nextStatus()); String current = order.status();
@@ -266,6 +276,29 @@ class PaymentOrderTransactionService {
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户")));
         return value;
     }
+
+    @Transactional
+    PaymentOrder lockByOrderNo(String orderNo) {
+        ExecutionContext context = requireWorkContext();
+        PaymentOrder value = orderRepository.lockByOrderNoAndTenantId(required(orderNo,
+                        "PAYMENT_ORDER_NO_REQUIRED", "支付指令编码不能为空"), context.tenantId())
+                .orElseThrow(() -> notFound("PAYMENT_ORDER_NOT_FOUND", "未找到支付指令"));
+        requireAccess(context, accountRepository.findByIdAndTenantId(value.patientAccountId(), context.tenantId())
+                .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户")));
+        return value;
+    }
+
+    @Transactional
+    PaymentOrder lock(Long orderId) {
+        ExecutionContext context = requireWorkContext();
+        PaymentOrder value = orderRepository.lockByIdAndTenantId(orderId, context.tenantId())
+                .orElseThrow(() -> notFound("PAYMENT_ORDER_NOT_FOUND", "未找到支付指令"));
+        requireAccess(context, accountRepository.findByIdAndTenantId(value.patientAccountId(), context.tenantId())
+                .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户")));
+        return value;
+    }
+
+    void flush() { orderRepository.flush(); }
 
     @Transactional(readOnly = true)
     PaymentOrder require(Long orderId) {
@@ -360,6 +393,14 @@ class PaymentOrderTransactionService {
             case "REFUNDING", "PENDING" -> Set.of("PENDING", "REFUNDED", "FAILED", "CANCELLED").contains(next);
             default -> false;
         };
+    }
+
+    private void requireSameEvent(PaymentEvent event, String type, String next, String transactionNo,
+                                  BigDecimal amount, String code, String message) {
+        if (!event.matches(upper(type), upper(next), Strings.trimToNull(transactionNo), amount,
+                Strings.trimToNull(code), Strings.trimToNull(message))) {
+            throw conflict("PAYMENT_EVENT_COMMAND_REUSED", "支付事件命令已被不同状态、金额或流水使用");
+        }
     }
 
     private PaymentEventView eventView(PaymentEvent value) {

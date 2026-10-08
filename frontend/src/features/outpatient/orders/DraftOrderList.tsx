@@ -1,6 +1,8 @@
+import { summarizeExecutingDepartments } from './orderPresentation'
+import { draftOrderSubtotal } from './orderSubtotal'
 import { Fragment, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import type { ActiveOrderFrequency } from '../../../shared/api/masterDataApi'
-import type { SkinTestWorkItem } from '../../../shared/api/treatmentApi'
+import type { SkinTestWorklistState } from './skinTestHistory'
 import type { AllergyIntolerance } from '../../../shared/api/residentsApi'
 import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
@@ -48,20 +50,23 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
   encounter: Encounter
   api: RhnApi
   allergies: AllergyIntolerance[]
-  skinTests: { data?: SkinTestWorkItem[] }
+  skinTests: SkinTestWorklistState
 }) {
   return <>{draftEntries.map((entry, index) => {
         const currCat = draftCategoryOf(entry)
         const prevCat = index > 0 ? draftCategoryOf(draftEntries[index - 1]) : null
         const isFirstOfDraftCat = currCat !== prevCat
         const catDrafts = draftEntries.filter((e) => draftCategoryOf(e) === currCat)
+        const executingDepartments = summarizeExecutingDepartments(catDrafts.map(e => e.kind === 'medication'
+          ? { kind: 'medication', stockSiteName: e.value.stockSiteName }
+          : { kind: 'service', performerDepartmentId: e.value.performerDepartmentId, performerDepartmentName: e.value.performerDepartmentName }))
         const getDraftQuantity = (e: typeof draftEntries[0]) =>
-          e.kind === 'medication' ? ((e.value as MedicationPlanDraft).request.quantity || 1) : ((e.value as ServicePlanDraft).quantity || 1)
+          e.kind === 'medication' ? e.value.request.quantity : e.value.quantity
 
         let headerNode: React.ReactNode = null
         if (isFirstOfDraftCat) {
           if (currCat === 'herbal') {
-            const subtotal = catDrafts.reduce((sum, e) => sum + (e.value.unitPrice || 0) * getDraftQuantity(e), 0)
+            const subtotal = draftOrderSubtotal(catDrafts.map(e => ({ unitPrice: e.value.unitPrice, currencyCode: e.value.currencyCode, quantity: getDraftQuantity(e) })))
             const firstHerbDraft = catDrafts[0]?.value as MedicationPlanDraft
             const herbalDoseCount = firstHerbDraft?.request.durationValue || herbalFormula.herbalDoseCount || 7
             const parsedFirstInstruction = parseHerbalInstruction(firstHerbDraft?.request.medicationInstruction)
@@ -77,7 +82,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                   isDraft
                   itemCount={catDrafts.length}
                   itemUnit="味"
-                  dept="中药房"
+                  dept={executingDepartments}
                   subtotal={subtotal}
                 >
                   <HerbalFormulaHeaderBar
@@ -125,7 +130,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                       name: d.medicationName,
                       doseValue: d.request.doseValue || 0,
                       doseUnit: d.request.doseUnit || 'g',
-                      price: d.unitPrice,
+                      price: d.unitPrice, currencyCode: d.currencyCode,
                       specialMethod: extractSpecialMethod(d.request.medicationInstruction),
                       isDraft: true,
                     }
@@ -159,7 +164,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
               </Fragment>
             )
           } else if (currCat === 'regular-med') {
-            const subtotal = catDrafts.reduce((sum, e) => sum + (e.value.unitPrice || 0) * getDraftQuantity(e), 0)
+            const subtotal = draftOrderSubtotal(catDrafts.map(e => ({ unitPrice: e.value.unitPrice, currencyCode: e.value.currencyCode, quantity: getDraftQuantity(e) })))
             headerNode = (
               <OrderDocumentGroupHeader
                 key="draft-group-med"
@@ -168,12 +173,12 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                 isDraft
                 itemCount={catDrafts.length}
                 itemUnit="项"
-                dept="西药房"
+                dept={executingDepartments}
                 subtotal={subtotal}
               />
             )
           } else if (currCat === 'lab') {
-            const subtotal = catDrafts.reduce((sum, e) => sum + (e.value.unitPrice || 0) * getDraftQuantity(e), 0)
+            const subtotal = draftOrderSubtotal(catDrafts.map(e => ({ unitPrice: e.value.unitPrice, currencyCode: e.value.currencyCode, quantity: getDraftQuantity(e) })))
             headerNode = (
               <OrderDocumentGroupHeader
                 key="draft-group-lab"
@@ -182,12 +187,12 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                 isDraft
                 itemCount={catDrafts.length}
                 itemUnit="项"
-                dept="检验科"
+                dept={executingDepartments}
                 subtotal={subtotal}
               />
             )
           } else if (currCat === 'exam') {
-            const subtotal = catDrafts.reduce((sum, e) => sum + (e.value.unitPrice || 0) * getDraftQuantity(e), 0)
+            const subtotal = draftOrderSubtotal(catDrafts.map(e => ({ unitPrice: e.value.unitPrice, currencyCode: e.value.currencyCode, quantity: getDraftQuantity(e) })))
             headerNode = (
               <OrderDocumentGroupHeader
                 key="draft-group-exam"
@@ -196,17 +201,18 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                 isDraft
                 itemCount={catDrafts.length}
                 itemUnit="项"
-                dept="放射/超声科"
+                dept={executingDepartments}
                 subtotal={subtotal}
               />
             )
           } else {
-            const subtotal = catDrafts.reduce((sum, e) => sum + (e.value.unitPrice || 0) * getDraftQuantity(e), 0)
+            const subtotal = draftOrderSubtotal(catDrafts.map(e => ({ unitPrice: e.value.unitPrice, currencyCode: e.value.currencyCode, quantity: getDraftQuantity(e) })))
             headerNode = (
               <OrderDocumentGroupHeader
                 key="draft-group-other"
                 title="诊疗医嘱"
                 kind="treatment"
+                dept={executingDepartments}
                 isDraft
                 itemCount={catDrafts.length}
                 itemUnit="项"

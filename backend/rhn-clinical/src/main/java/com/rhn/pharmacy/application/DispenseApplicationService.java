@@ -161,6 +161,7 @@ public class DispenseApplicationService {
         if (existing != null) return verifyIdempotentDispense(existing, taskId, input);
 
         DispenseTask task = lockTask(context, taskId); StockSite site = requireSite(context, task.stockSiteId());
+        Long deptId = StockSiteRequirements.requireDepartment(site);
         requireOrganizationAccess(context, site.organizationId()); DispenseTaskLine taskLine = requireTaskLine(context, task.id());
         StockItem item = requireItem(context, taskLine.stockItemId());
         quantity = quantityPolicy.require(context.tenantId(), taskLine.dispenseUnitCode(), quantity,
@@ -172,7 +173,8 @@ public class DispenseApplicationService {
         if (quantity.compareTo(taskLine.remainingQuantity()) > 0) {
             throw conflict("MEDICATION_DISPENSE_EXCEEDS_REMAINING", "发药数量超过任务剩余计划量");
         }
-        Instant occurredAt = input.occurredAt() == null ? Instant.now() : input.occurredAt();
+        Instant occurredAt = (input.occurredAt() == null ? Instant.now() : input.occurredAt())
+                .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         List<InventoryReservation> reservations = reservationRepository.lockActiveByDispenseTaskLine(
                 context.tenantId(), taskLine.id());
         if (reservations.stream().anyMatch(value -> value.expiresAt() != null && !value.expiresAt().isAfter(Instant.now()))) {
@@ -186,7 +188,6 @@ public class DispenseApplicationService {
         if (reserved.compareTo(baseRequired) < 0) {
             throw conflict("MEDICATION_DISPENSE_RESERVATION_INSUFFICIENT", "有效预留余量不足，不能完成本次发药");
         }
-        Long deptId = site.departmentId() != null ? site.departmentId() : 1L;
         MedicationDispense event = dispenseRepository.save(new MedicationDispense(context.tenantId(),
                 site.organizationId(), deptId, task.id(),
                 task.residentId(), task.encounterId(), site.id(), null, requestCode, "DISPENSE", occurredAt,
@@ -274,7 +275,8 @@ public class DispenseApplicationService {
         if (input.lines() == null || input.lines().isEmpty()) throw badRequest(
                 "STOCK_RETURN_LINES_REQUIRED", "退药必须至少选择一条原发药批次明细");
         String reasonCode = required(input.reasonCode(), "STOCK_RETURN_REASON_REQUIRED", "退药必须填写原因编码");
-        Instant occurredAt = input.occurredAt() == null ? Instant.now() : input.occurredAt();
+        Instant occurredAt = (input.occurredAt() == null ? Instant.now() : input.occurredAt())
+                .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         ReturnPreparation preparation = validateReturnLines(context, taskLine, original, input.lines());
         BigDecimal total = preparation.total(); Map<Long, MedicationDispenseLine> originals = preparation.originals();
         Long returnDeptId = site.departmentId() != null ? site.departmentId() : original.departmentId();

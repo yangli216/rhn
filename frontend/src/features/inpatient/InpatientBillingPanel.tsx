@@ -98,7 +98,7 @@ export function InpatientBillingPanel({ api, episode, view = 'full' }: {
       await queryClient.invalidateQueries({ queryKey: ['inpatient-billing', episode.id] })
     },
   })
-  const account = billing.data
+  const account = billing.isFetching || billing.isError ? undefined : billing.data
   const settlement = account?.financialSettlement
   const validAmount = Number.isFinite(Number(amount)) && Number(amount) > 0
 
@@ -111,7 +111,10 @@ export function InpatientBillingPanel({ api, episode, view = 'full' }: {
         {settlement ? financialStatusText(settlement.financialStatus)
           : account.paymentDue ? '待结算' : '余额正常'}</StatusBadge>}
     </header>
-    {billing.isPending ? <LoadingState label="正在汇总住院费用…" /> : billing.error ? <Alert>{errorMessage(billing.error)}</Alert> : account && <>
+    {billing.isPending || billing.isFetching ? <LoadingState label="正在汇总住院费用…" /> : billing.error ? <>
+      <Alert>{errorMessage(billing.error)}</Alert>
+      <Button variant="secondary" onClick={() => void billing.refetch()}>重新读取住院费用</Button>
+    </> : account && <>
       <section className={`inpatient-billing__summary ${view === 'deposits' ? 'is-deposit-view' : ''}`}
         aria-label={view === 'deposits' ? '住院预交金汇总' : '住院费用汇总'}>
         {view === 'full' && <>
@@ -192,8 +195,9 @@ export function InpatientBillingPanel({ api, episode, view = 'full' }: {
         <header><div><strong>患者日清单</strong><small>实账与预计分开显示</small></div>
           <input aria-label="日清单日期" type="date" value={businessDate} max={today()}
             onChange={(event) => setBusinessDate(event.target.value)} /></header>
-        {dailyStatement.isPending ? <LoadingState label="正在读取日清单…" />
-          : dailyStatement.error ? <Alert>{errorMessage(dailyStatement.error)}</Alert>
+        {dailyStatement.isPending || dailyStatement.isFetching ? <LoadingState label="正在读取日清单…" />
+          : dailyStatement.error ? <><Alert>{errorMessage(dailyStatement.error)}</Alert>
+            <Button variant="secondary" onClick={() => void dailyStatement.refetch()}>重新读取日清单</Button></>
             : dailyStatement.data && <>
               <div className="inpatient-daily-statement__summary">
                 <span>已记账 <b>{money(dailyStatement.data.postedAmount, account.currencyCode)}</b></span>

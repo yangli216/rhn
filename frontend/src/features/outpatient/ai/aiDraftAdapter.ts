@@ -5,6 +5,7 @@ import type {
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
 import type { OutpatientPlanTemplate } from '../../../shared/api/outpatientPlanTemplatesApi'
 import { VITAL_HARD_LIMITS } from '../../../shared/validation/businessValidation'
+import { diagnosisIdentityKey } from '../record/diagnosisIdentity'
 
 export interface ClinicalAiDraftRequest {
   requestId: string
@@ -25,8 +26,11 @@ export function clinicalAiContextFingerprint(value: ClinicalAiDraftContext) {
   return stableClinicalAiFingerprint('ctx', {
     ...value,
     diagnoses: [...value.diagnoses]
-      .map(({ code, display, type }) => ({ code, display, type }))
-      .sort((left, right) => left.code.localeCompare(right.code)),
+      .map(({ conceptId, codeSystem, diagnosisDomain, code, display, type }) => ({
+        conceptId: conceptId ?? null, codeSystem: codeSystem ?? null, diagnosisDomain: diagnosisDomain ?? null,
+        code, display, type,
+      }))
+      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
   })
 }
 
@@ -95,16 +99,17 @@ export function mergeAiRecordDraft<T extends ClinicalAiRecordDraft>(current: T,
 }
 
 export function mergeAiDiagnoses(current: DiagnosisInput[], suggestions: DiagnosisInput[]) {
-  const existing = new Set(current.map((item) => item.code.trim().toUpperCase()))
+  const existing = new Set(current.map(diagnosisIdentityKey))
   let hasPrimary = current.some((item) => item.type === 'PRIMARY')
   const additions: DiagnosisInput[] = []
   for (const suggestion of suggestions) {
     const code = suggestion.code.trim()
     const display = suggestion.display.trim()
-    if (!code || !display || existing.has(code.toUpperCase())) continue
+    const identity = diagnosisIdentityKey(suggestion)
+    if (!code || !display || existing.has(identity)) continue
     const type = suggestion.type === 'PRIMARY' && !hasPrimary ? 'PRIMARY' : 'SECONDARY'
-    additions.push({ code, display, type })
-    existing.add(code.toUpperCase())
+    additions.push({ ...suggestion, code, display, type })
+    existing.add(identity)
     hasPrimary ||= type === 'PRIMARY'
   }
   return [...current, ...additions]

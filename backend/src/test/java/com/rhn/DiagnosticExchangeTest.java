@@ -15,7 +15,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@TestPropertySource(properties = "rhn.diagnostics.require-settlement-authorization=false")
+@TestPropertySource(properties = {"rhn.diagnostics.require-settlement-authorization=false",
+        "rhn.diagnostics.critical-value.acknowledgement-window=PT7M"})
 class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbcTemplate;
 
@@ -42,13 +43,37 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
         for (JsonNode item : active) if (item.get("reportId").asString().equals(report.get("id").asString())) alert = item;
         if (alert == null) throw new AssertionError("危急值未形成持久化告警");
 
+        JsonNode reminders = json(mockMvc.perform(get("/api/tasks").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode reminder = java.util.stream.StreamSupport.stream(reminders.spliterator(), false)
+                .filter(task -> "CRITICAL_VALUE_ACKNOWLEDGE".equals(task.path("taskType").asString())
+                        && encounterId.equals(task.path("encounterId").asString())).findFirst().orElseThrow();
+        assertEquals(java.time.Instant.parse(alert.get("acknowledgeDeadlineAt").asString()),
+                java.time.Instant.parse(reminder.get("dueAt").asString()));
+        assertEquals(java.time.Duration.ofMinutes(7), java.time.Duration.between(
+                java.time.Instant.parse(alert.get("detectedAt").asString()),
+                java.time.Instant.parse(alert.get("acknowledgeDeadlineAt").asString())));
+        assertEquals(alert.get("triggerEvidence").asString(), reminder.get("summary").asString());
+        mockMvc.perform(post("/api/tasks/{id}/complete", reminder.get("id").asString()).with(rhnWorkContext()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("TASK_BUSINESS_ACTION_REQUIRED"));
+        mockMvc.perform(get("/api/tasks").with(rhnWorkContext()))
+                .andExpect(jsonPath("$[?(@.id == '%s')].status".formatted(reminder.get("id").asString())).value("READY"));
+
         mockMvc.perform(post("/api/critical-values/{id}/acknowledge", alert.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":%d,\"note\":\"已确认并联系患者\"}"
                                 .formatted(alert.get("revision").asLong())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACKNOWLEDGED"))
                 .andExpect(jsonPath("$.acknowledgedAt").isNotEmpty());
+        mockMvc.perform(get("/api/tasks").with(rhnWorkContext()))
+                .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(reminder.get("id").asString())).isEmpty());
 
+        assertEquals(1, jdbcTemplate.queryForObject("""
+                select count(*) from RHN_SYS_WORK_TASK task join RHN_VIS_CRIT_VAL_ALERT alert
+                  on task.ID_SRC = alert.ID_CRIT_VAL_ALERT and task.ID_TNT = alert.ID_TNT
+                where task.ID_WORK_TASK = ? and task.DT_CMPLD = alert.DT_ACKD
+                  and task.ID_USER_CMPLD = alert.ID_USER_ACKD
+                """, Integer.class, reminder.get("id").asLong()));
         mockMvc.perform(post("/api/integration/diagnostics/inbound/reports")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(laboratoryReport(suffix + "C", requestNo, "CRITICAL-" + suffix, 2,
@@ -59,6 +84,27 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[?(@.reportId == '%s')]".formatted(report.get("id").asString())).isEmpty());
         assertEquals("SUPERSEDED", jdbcTemplate.queryForObject(
                 "select SD_STATUS as status from RHN_VIS_CRIT_VAL_ALERT where ID_CRIT_VAL_ALERT = ?", String.class, alert.get("id").asLong()));
+    }
+
+    @Test
+    void a_corrected_report_cancels_an_unacknowledged_reminder_without_completing_it() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        String encounterId = createActiveEncounter(createResident(suffix));
+        JsonNode request = createRequest(encounterId, "362387869795101", "未确认告警替代测试");
+        String requestNo = request.get("requestNo").asString();
+        mockMvc.perform(post("/api/integration/diagnostics/inbound/reports").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(laboratoryReport(suffix, requestNo,
+                                "UNACK-" + suffix, 1, "FINAL", "UNACK-RPT-" + suffix, 32.8, "HH")))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/integration/diagnostics/inbound/reports").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(laboratoryReport(suffix + "C", requestNo,
+                                "UNACK-" + suffix, 2, "CORRECTED", "UNACK-RPT-" + suffix, 5.6, "N")))
+                .andExpect(status().isCreated());
+        assertEquals(1, jdbcTemplate.queryForObject("""
+                select count(*) from RHN_SYS_WORK_TASK where ID_TNT = ? and ID_ENC = ?
+                  and SD_TASK_TYPE = 'CRITICAL_VALUE_ACKNOWLEDGE' and SD_STATUS = 'CANCELLED'
+                  and DT_CMPLD is null and ID_USER_CMPLD is null
+                """, Integer.class, Long.valueOf(TENANT), Long.valueOf(encounterId)));
     }
 
     @Test
@@ -178,6 +224,76 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
         assertEquals(2, jdbcTemplate.queryForObject(
                 "select count(*) from RHN_VIS_OBS where ID_TNT = ? and ID_ENC = ?",
                 Integer.class, Long.valueOf(TENANT), Long.valueOf(encounterId)));
+    }
+
+    @Test
+    void historical_completed_flag_without_report_is_presented_as_unverified() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        JsonNode request = createRequest(createActiveEncounter(createResident(suffix)), "362387869795101", "历史完成标记");
+        jdbcTemplate.update("""
+                update RHN_EX_DIAG_EXEC_TASK set SD_STATUS = 'COMPLETED', DT_CMPLD = current_timestamp,
+                       DES_COMP_NOTE = '旧完成标记' where ID_CARE_REQ = ?
+                """, request.get("id").asLong());
+        mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext()).param("status", "EXCEPTION"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.requestId == '%s')].status".formatted(request.get("id").asString())).value("EXCEPTION"))
+                .andExpect(jsonPath("$[?(@.requestId == '%s')].exceptionNote".formatted(request.get("id").asString()))
+                        .value("任务完成标记与最新有效报告不一致，请核对报告记录"));
+        mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext()).param("status", "COMPLETED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.requestId == '%s')]".formatted(request.get("id").asString())).isEmpty());
+        assertEquals("COMPLETED", jdbcTemplate.queryForObject("select SD_STATUS from RHN_EX_DIAG_EXEC_TASK where ID_CARE_REQ = ?",
+                String.class, request.get("id").asLong()));
+    }
+
+    @Test
+    void cancelled_report_removes_task_completion_evidence() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        JsonNode request = createRequest(createActiveEncounter(createResident(suffix)), "362387869795101", "取消报告");
+        mockMvc.perform(post("/api/integration/diagnostics/inbound/reports").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(laboratoryReport(suffix,
+                                request.get("requestNo").asString(), "CANCEL-" + suffix, 1, "FINAL", "LAB", 5.8, "N")))
+                .andExpect(status().isCreated());
+        var cancellation = (tools.jackson.databind.node.ObjectNode) json(laboratoryReport(suffix + "C",
+                request.get("requestNo").asString(), "CANCEL-" + suffix, 2, "CANCELLED", "LAB", 5.8, "N"));
+        cancellation.putArray("observations");
+        JsonNode cancelled = json(mockMvc.perform(post("/api/integration/diagnostics/inbound/reports").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(cancellation.toString()))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.requestId == '%s')].status".formatted(request.get("id").asString())).value("EXCEPTION"))
+                .andExpect(jsonPath("$[?(@.requestId == '%s')].reportId".formatted(request.get("id").asString())).value(cancelled.get("id").asString()));
+        assertEquals(0, jdbcTemplate.queryForObject("""
+                select count(*) from RHN_EX_DIAG_EXEC_TASK where ID_CARE_REQ = ?
+                  and (DT_CMPLD is not null or ID_USER_CMPLD is not null or DES_COMP_NOTE is not null)
+                """, Integer.class, request.get("id").asLong()));
+    }
+
+    @Test
+    void report_version_cannot_be_reused_to_replace_another_requests_report() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String encounterId = createActiveEncounter(createResident(suffix));
+        JsonNode first = createRequest(encounterId, "362387869795101", "首次申请");
+        JsonNode second = createRequest(encounterId, "362387869795101", "另一申请");
+        String externalId = "OWNER-" + suffix;
+        mockMvc.perform(post("/api/integration/diagnostics/inbound/reports").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(laboratoryReport(suffix, first.get("requestNo").asString(), externalId, 1,
+                                "FINAL", "LAB-OWNER", 5.8, "N")))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/integration/diagnostics/inbound/reports").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(laboratoryReport(suffix + "C", second.get("requestNo").asString(), externalId, 2,
+                                "CORRECTED", "LAB-OWNER", 5.6, "N")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DIAGNOSTIC_REPORT_REQUEST_MISMATCH"));
+        mockMvc.perform(get("/api/service-requests/{id}/diagnostic-reports", second.get("id").asString()).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.requestId == '%s')].status".formatted(second.get("id").asString())).value("READY"));
+        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_EX_DIAG_REPORT where ID_EXT_REPORT = ?",
+                Integer.class, externalId));
     }
 
     private JsonNode createRequest(String encounterId, String catalogItemId, String reason) throws Exception {

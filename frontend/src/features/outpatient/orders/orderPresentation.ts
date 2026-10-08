@@ -1,3 +1,4 @@
+import { unitPriceText } from './dispensableOptions'
 import { type OrderEntryType } from './orderDraftTypes'
 
 export function formatPackageUnit(unitName?: string, unitCode?: string): string {
@@ -25,47 +26,27 @@ export function formatPackageUnit(unitName?: string, unitCode?: string): string 
 export interface ExecutingDepartmentSource {
   kind: 'medication' | 'service'
   type?: string
-  stockSiteName?: string
+  stockSiteName?: string | null
+  selfProvided?: boolean
   itemName?: string
+  performerDepartmentId?: string
+  performerDepartmentName?: string
 }
 
 export function resolveExecutingDepartment(
   item: ExecutingDepartmentSource,
-  currentDepartmentName?: string
+  _currentDepartmentName?: string
 ): string {
-  if (item.kind === 'medication') {
-    if (item.stockSiteName?.trim()) {
-      return item.stockSiteName.trim()
-    }
-    if (item.type === 'HERBAL') {
-      return '门诊中药房'
-    }
-    return '门诊西药房'
-  }
+  // 当前就诊科室、项目类型与名称都不是执行去向的证据。
+  if (item.kind === 'medication') return item.selfProvided ? '患者自备，无需药房发药' : item.stockSiteName?.trim() || '发药药房待确认'
+  const name = item.performerDepartmentName?.trim()
+  if (name) return name
+  const id = item.performerDepartmentId?.trim()
+  return id ? `科室编号：${id}（名称待确认）` : '执行科室待确认'
+}
 
-  // 诊疗项目
-  const sType = item.type || ''
-  const name = item.itemName || ''
-
-  if (sType === 'LABORATORY') {
-    return '检验科'
-  }
-
-  if (sType === 'EXAMINATION') {
-    if (/(超声|彩超|B超|多普勒)/i.test(name)) return '超声科'
-    if (/(心电|脑电|肌电)/i.test(name)) return '心电图室'
-    if (/(CT|磁共振|MRI|X线|DR|摄片|胸片|造影|透视)/i.test(name)) return '放射影像科'
-    if (/(胃镜|肠镜|内镜|支气管镜|喉镜)/i.test(name)) return '内窥镜中心'
-    if (/(病理|活检|细胞学)/i.test(name)) return '病理科'
-    return '医技检查科'
-  }
-
-  if (sType === 'PATHOLOGY') {
-    return '病理科'
-  }
-
-  // 一般费用类/治疗处置类（不需要特别执行过的，默认当前科室）
-  return currentDepartmentName?.trim() || '当前科室'
+export function summarizeExecutingDepartments(items: ExecutingDepartmentSource[]): string {
+  return [...new Set(items.map(item => resolveExecutingDepartment(item)))].join(' / ')
 }
 
 export function serviceTypeLabel(value?: string) {
@@ -74,10 +55,8 @@ export function serviceTypeLabel(value?: string) {
 }
 
 export function formatServiceExecution(value?: string) {
-  if (value === 'LABORATORY') return '门诊检验送检'
-  if (value === 'EXAMINATION') return '放射/医技检查'
-  if (value === 'TREATMENT') return '门诊治疗室执行'
-  return '门诊常规执行'
+  return ({ LABORATORY: '检验项目', EXAMINATION: '检查项目', TREATMENT: '治疗项目', OTHER: '诊疗项目' } as Record<string, string>)[value ?? '']
+    ?? '项目类型待确认'
 }
 
 export function orderTypeLabel(value: OrderEntryType) {
@@ -93,9 +72,12 @@ export function orderStatusLabel(status: string) {
   return ({ DRAFT: '草稿', ACTIVE: '已开立', SUBMITTED: '已提交', CANCELLED: '已撤销' } as Record<string, string>)[status] ?? status
 }
 
-export function formatUnitPrice(value?: number, currencyCode = 'CNY') {
-  if (value == null || !Number.isFinite(Number(value))) return '—'
+export function formatUnitPrice(value?: number, currencyCode?: string) {
+  if (value == null) return '价格待确认'
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0
+    || !currencyCode || !/^[A-Z]{3}$/.test(currencyCode)) return '价格待确认'
+  if (value > 0 && value < 1e-20) return unitPriceText(value, currencyCode)
   return new Intl.NumberFormat('zh-CN', {
-    style: 'currency', currency: currencyCode || 'CNY', minimumFractionDigits: 2, maximumFractionDigits: 4,
-  }).format(Number(value))
+    style: 'currency', currency: currencyCode, minimumFractionDigits: 2, maximumFractionDigits: 20,
+  }).format(value)
 }

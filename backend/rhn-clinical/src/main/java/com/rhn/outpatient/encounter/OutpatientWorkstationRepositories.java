@@ -9,6 +9,8 @@ interface EncounterIdentityCheckRepository extends JpaRepository<EncounterIdenti
 }
 
 interface EncounterStatusEventRepository extends JpaRepository<EncounterStatusEvent, Long> {
+    Optional<EncounterStatusEvent> findFirstByTenantIdAndEncounterIdAndStatusFromAndStatusToOrderByOccurredAtAsc(
+            Long tenantId, Long encounterId, String statusFrom, String statusTo);
 }
 
 interface EncounterWorkSessionRepository extends JpaRepository<EncounterWorkSession, Long> {

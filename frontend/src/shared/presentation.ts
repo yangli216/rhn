@@ -1,4 +1,4 @@
-import type { Encounter } from './model'
+import type { Encounter, Resident } from './model'
 import type { ClinicalDocument, ClinicalDocumentVersion } from './api/clinicalDocumentsApi'
 import type { CriticalValueAlert, DiagnosticReport } from './api/diagnosticsApi'
 import type {
@@ -15,6 +15,113 @@ export type SemanticTone = 'success' | 'info' | 'warning' | 'danger' | 'neutral'
 export interface StatusPresentation {
   label: string
   tone: SemanticTone
+}
+
+export function historicalPlanDifferencePresentation(status: string): StatusPresentation {
+  const values: Record<string, StatusPresentation> = {
+    CONSISTENT: { label: '一致', tone: 'success' }, CONFLICT: { label: '冲突', tone: 'warning' },
+    MISSING_IN_HISTORY: { label: '历史方案未列入', tone: 'neutral' }, MISSING_IN_STANDARD: { label: '标准方案未列入', tone: 'neutral' },
+    NEEDS_REVIEW: { label: '待核对', tone: 'warning' },
+  }
+  return values[status] ?? { label: '状态未确认', tone: 'warning' }
+}
+
+export function residentStatusPresentation(resident: Pick<Resident, 'status' | 'deceased'>): StatusPresentation {
+  if (resident.status === 'MERGED') return { label: '已合并', tone: 'neutral' }
+  if (resident.status === 'INACTIVE') return { label: '已停用', tone: 'neutral' }
+  if (resident.status !== 'ACTIVE' || typeof resident.deceased !== 'boolean') return { label: '居民状态未知', tone: 'warning' }
+  return resident.deceased ? { label: '已登记死亡', tone: 'warning' } : { label: '有效居民', tone: 'success' }
+}
+
+export function residentIdentifierSystemLabel(system?: string | null): string {
+  const labels: Record<string, string> = {
+    '1': '居民身份证', NATIONAL_ID: '居民身份证',
+    '2': '中国人民解放军军人身份证件', '3': '中国人民武装警察身份证件',
+    '4': '港澳居民来往内地通行证', '5': '台湾居民来往大陆通行证',
+    '6': '护照', PASSPORT: '护照', '9': '其他证件/卡', OTHER: '其他证件/卡',
+    SOCIAL_SECURITY_CARD: '社会保障卡', HEALTH_CARD: '电子健康卡',
+    HOSPITAL_MRN: '病案号', BIRTH_CERTIFICATE: '出生医学证明',
+  }
+  return system ? labels[system.trim().toUpperCase()] ?? system : '证件类型未提供'
+}
+
+export function inventoryReconciliationPresentation(status: string): StatusPresentation {
+  const values: Record<string, StatusPresentation> = {
+    PASSED: { label: '校验通过', tone: 'success' }, ISSUES: { label: '发现差异', tone: 'warning' },
+    RUNNING: { label: '校验中', tone: 'info' }, FAILED: { label: '校验失败', tone: 'danger' },
+  }
+  return values[status] ?? { label: '校验状态未知', tone: 'warning' }
+}
+
+export function inventoryPeriodClosePresentation(status: string): StatusPresentation {
+  const values: Record<string, StatusPresentation> = {
+    RUNNING: { label: '预检中', tone: 'info' }, VALIDATED: { label: '预检完成', tone: 'info' },
+    POSTED: { label: '已正式月结', tone: 'success' }, FAILED: { label: '执行失败', tone: 'danger' },
+  }
+  return values[status] ?? { label: '月结状态未知', tone: 'warning' }
+}
+
+export function inventoryPriceAdjustmentPresentation(status: string): StatusPresentation {
+  const values: Record<string, StatusPresentation> = {
+    DRAFT: { label: '草稿', tone: 'info' }, SUBMITTED: { label: '待审核', tone: 'warning' },
+    APPROVED: { label: '已审核', tone: 'warning' }, POSTING: { label: '记账中', tone: 'info' },
+    POSTED: { label: '已记账', tone: 'success' }, CANCELLED: { label: '已取消', tone: 'neutral' },
+  }
+  return values[status] ?? { label: '调价状态未知', tone: 'warning' }
+}
+
+export function careTaskStatusPresentation(status: string): StatusPresentation {
+  const values: Record<string, StatusPresentation> = {
+    READY: { label: '待复核', tone: 'info' }, IN_PROGRESS: { label: '处理中', tone: 'info' },
+    WAITING_EXTERNAL: { label: '等待外部', tone: 'warning' }, COMPLETED: { label: '已完成', tone: 'success' },
+    CANCELLED: { label: '已取消', tone: 'neutral' }, OVERDUE: { label: '已逾期', tone: 'danger' },
+    ESCALATED: { label: '已升级', tone: 'warning' }, PLANNED: { label: '计划中', tone: 'info' },
+  }
+  return values[status] ?? { label: '任务状态未知', tone: 'warning' }
+}
+
+export function conditionVerificationPresentation(status: string): StatusPresentation {
+  const values: Record<string, StatusPresentation> = {
+    SUSPECTED: { label: '疑似，待临床确认', tone: 'warning' },
+    CONFIRMED: { label: '已确认', tone: 'info' }, REFUTED: { label: '已排除', tone: 'neutral' },
+  }
+  return values[status] ?? { label: '核验状态未知', tone: 'warning' }
+}
+
+export function workTaskStatusPresentation(status: string): StatusPresentation {
+  const values: Record<string, StatusPresentation> = {
+    READY: { label: '待认领', tone: 'neutral' }, IN_PROGRESS: { label: '处理中', tone: 'info' },
+    COMPLETED: { label: '已完成', tone: 'success' }, CANCELLED: { label: '已取消', tone: 'neutral' },
+  }
+  return values[status] ?? { label: '任务状态未知', tone: 'warning' }
+}
+
+export function workTaskPriorityPresentation(priority: string): StatusPresentation {
+  const values: Record<string, StatusPresentation> = {
+    URGENT: { label: '紧急', tone: 'warning' }, HIGH: { label: '高优先级', tone: 'warning' },
+    NORMAL: { label: '普通', tone: 'info' }, LOW: { label: '低优先级', tone: 'neutral' },
+  }
+  return values[priority] ?? { label: '优先级未知', tone: 'warning' }
+}
+
+export function workTaskBusinessAction(taskType: string): string | undefined {
+  const messages: Record<string, string> = {
+    CLINICAL_DOCUMENT_SIGN: '需在病历中完成签署', CRITICAL_VALUE_ACKNOWLEDGE: '需在危急值业务中完成确认',
+    OUTPATIENT_ENCOUNTER: '需在门诊业务中完成接诊', CONTINUOUS_CARE: '需在连续照护业务中处理',
+  }
+  return messages[taskType]
+}
+
+export function treatmentFulfillmentPresentation(status: string | undefined, dispenseId?: string): StatusPresentation {
+  if (status === 'COMPLETED') return dispenseId
+    ? { label: '已发药', tone: 'success' }
+    : { label: '发药凭证缺失', tone: 'warning' }
+  const labels: Record<string, string> = {
+    NOT_INTAKE: '待接收发药', PENDING: '待审方', READY: '待配药', PICKING: '配药中',
+    READY_TO_DISPENSE: '待发药', PARTIAL: '部分发药或退药', REJECTED: '审方未通过',
+    RETURNED: '已退药', CANCELLED: '发药已取消', RETURNED_OR_PARTIAL: '退药或部分发药', INCOMPLETE: '发药未完成',
+  }
+  return { label: (status && labels[status]) || '发药状态未知', tone: 'warning' }
 }
 
 export function medicationStandardBindingStatusPresentation(status: string): StatusPresentation {
@@ -159,9 +266,12 @@ export function clinicalDocumentVersionLabel(version: ClinicalDocumentVersion) {
 }
 
 export function criticalValueStatusPresentation(value: CriticalValueAlert['status']): StatusPresentation {
-  if (value === 'ESCALATED') return { label: '已超时升级', tone: 'danger' }
-  if (value === 'ACKNOWLEDGED') return { label: '已确认，待处置', tone: 'warning' }
-  return { label: '待确认', tone: 'warning' }
+  const states: Record<CriticalValueAlert['status'], StatusPresentation> = {
+    OPEN: { label: '待确认', tone: 'danger' }, ESCALATED: { label: '已超时升级', tone: 'danger' },
+    ACKNOWLEDGED: { label: '已确认，待处置', tone: 'warning' }, CLOSED: { label: '已关闭', tone: 'neutral' },
+    SUPERSEDED: { label: '报告已替代', tone: 'neutral' },
+  }
+  return states[value] ?? { label: '危急值状态未知', tone: 'warning' }
 }
 
 export function diagnosticReportStatusPresentation(value: DiagnosticReport['status']): StatusPresentation {
@@ -187,4 +297,25 @@ export function schemaIssuePresentation(severity: string) {
   if (severity === 'error') return { label: '需修正', tone: 'danger' as const }
   if (severity === 'warning') return { label: '待核对', tone: 'warning' as const }
   return { label: '待补充', tone: 'neutral' as const }
+}
+
+export function fiscalReceiptStatusPresentation(status: string): StatusPresentation {
+  const states: Record<string, StatusPresentation> = {
+    REQUESTED: { label: '开具处理中', tone: 'info' },
+    ISSUED: { label: '已开具', tone: 'success' },
+    FAILED: { label: '开具失败', tone: 'danger' },
+    VOIDED: { label: '已作废', tone: 'neutral' },
+    RED_FLUSHED: { label: '已红字冲红', tone: 'warning' },
+  }
+  return states[status] ?? { label: status, tone: 'neutral' }
+}
+
+/** Missing terminology is explicitly unknown, never implicitly western medicine. */
+export function diagnosisDomainLabel(domain?: string | null): string {
+  switch (domain) {
+    case 'WESTERN_MEDICINE': return '西医诊断'
+    case 'TCM_DISEASE': return '中医病名'
+    case 'TCM_SYNDROME': return '中医证候'
+    default: return '体系待确认'
+  }
 }

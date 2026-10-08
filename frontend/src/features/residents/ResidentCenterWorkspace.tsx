@@ -3,13 +3,15 @@ import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { useState, type ReactNode } from 'react'
 import { age, formatTime } from '../../shared/format'
 import type { Resident } from '../../shared/model'
+import { residentIdentifierSystemLabel, residentStatusPresentation } from '../../shared/presentation'
+import { requireCoverageFacts, requireResidentPage, requireResidentProfile } from './residentFacts'
 import type {
-  CreateResidentInput, ResidentIdentifierInput, ResidentProfile, UpdateResidentProfileInput,
+  CreateResidentInput, ResidentProfile, UpdateResidentProfileInput,
 } from '../../shared/api/residentsApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
 import {
-  Alert, BackButton, Button, DataTable, Dialog, DictionarySelect,
+  Alert, BackButton, Button, DataTable, DatePicker, Dialog, DictionarySelect,
   EmptyState, FormField, GridAddressInput, Icon, IconButton, LoadingState, ObjectContextBar,
   PageHeader, Pagination, Panel, PanelHead, Select, StatusBadge, tableCellClass, TableShell,
 } from '../../shared/ui'
@@ -30,6 +32,7 @@ const statusOptions = [
   { value: '', label: '全部状态' },
   { value: 'ACTIVE', label: '有效居民' },
   { value: 'MERGED', label: '已合并' },
+  { value: 'INACTIVE', label: '已停用' },
 ]
 
 const deceasedOptions = [
@@ -45,7 +48,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
   const [keyword, setKeyword] = useState('')
   const [submittedKeyword, setSubmittedKeyword] = useState('')
   const [genderFilter, setGenderFilter] = useState<'MALE' | 'FEMALE' | 'UNKNOWN' | ''>('')
-  const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'MERGED' | ''>('')
+  const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'MERGED' | 'INACTIVE' | ''>('')
   const [deceasedFilter, setDeceasedFilter] = useState<'ALL' | 'ALIVE' | 'DECEASED'>('ALL')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(20)
@@ -54,19 +57,19 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
 
   const residentsPageQuery = useQuery({
     queryKey: ['residents-page', submittedKeyword, genderFilter, statusFilter, deceasedFilter, page, pageSize],
-    queryFn: () => api.residents.page({
+    queryFn: async () => requireResidentPage(await api.residents.page({
       query: submittedKeyword || undefined,
       gender: genderFilter || undefined,
       status: statusFilter || undefined,
       deceased: deceasedFilter === 'ALL' ? undefined : deceasedFilter === 'DECEASED',
       page,
       size: pageSize,
-    }),
+    }), page, pageSize),
   })
 
   const profile = useQuery({
     queryKey: ['resident-profile', selected?.id],
-    queryFn: () => api.residents.profile(selected!.id),
+    queryFn: async () => requireResidentProfile(await api.residents.profile(selected!.id), selected!.id),
     enabled: Boolean(selected),
   })
 
@@ -94,23 +97,28 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
     setPage(0)
   }
 
-  const pageData = residentsPageQuery.data
+  const listReady = !residentsPageQuery.isFetching && !residentsPageQuery.isError && !!residentsPageQuery.data
+  const pageData = listReady ? residentsPageQuery.data : undefined
   const residentsList = pageData?.content ?? []
   const totalElements = pageData?.totalElements ?? 0
   const totalPages = pageData?.totalPages ?? 0
+  const profileReady = !profile.isFetching && !profile.isError && !!profile.data
+  const currentResident = profileReady ? profile.data!.resident : selected
 
   if (selected) return <>
     <BackButton onClick={() => { setSelected(null); setShowEdit(false) }}>返回居民列表</BackButton>
-    <ObjectContextBar avatar={selected.fullName.slice(-1)} title={selected.fullName}
-      description={`${selected.genderText ?? '未知'} · ${age(selected.birthDate)} 岁 · ${selected.maskedNationalId || '无身份证标识'}`}
-      facts={[{ label: '健康档案号', value: selected.healthRecordNo }, { label: '联系电话', value: selected.phone || '未登记' }]}
-      actions={<><Button variant="secondary" onClick={() => onNavigate(`/outpatient/registration?residentId=${selected.id}`)}>
+    <ObjectContextBar avatar={currentResident!.fullName.slice(-1)} title={currentResident!.fullName}
+      description={profileReady ? `${currentResident!.genderText ?? '未知'} · ${age(currentResident!.birthDate)} 岁 · ${currentResident!.maskedNationalId || '无身份证标识'}` : '档案信息待核实'}
+      facts={[{ label: '健康档案号', value: currentResident!.healthRecordNo }, { label: '联系电话', value: profileReady ? currentResident!.phone || '未登记' : '待读取' }]}
+      actions={<><Button variant="secondary" disabled={!profileReady || currentResident!.status !== 'ACTIVE' || currentResident!.deceased}
+        onClick={() => onNavigate(`/outpatient/registration?residentId=${selected.id}`)}>
         <Icon name="clinical" />门诊挂号</Button>
-        <Button onClick={() => setShowEdit(true)} disabled={!profile.data}><Icon name="settings" />维护档案</Button></>} />
-    {profile.isPending ? <Panel><LoadingState label="正在加载居民档案…" /></Panel> : profile.error
-      ? <Alert>{errorMessage(profile.error)}</Alert> : profile.data && <ResidentProfileView profile={profile.data} />}
+        <Button onClick={() => setShowEdit(true)} disabled={!profileReady || currentResident!.status !== 'ACTIVE'}><Icon name="settings" />维护档案</Button></>} />
+    {profile.isPending || profile.isFetching ? <Panel><LoadingState label="正在加载居民档案…" /></Panel> : profile.error
+      ? <><Alert>{errorMessage(profile.error)}</Alert><Button variant="secondary" onClick={() => void profile.refetch()}>重新读取居民档案</Button></> : profile.data && <ResidentProfileView profile={profile.data} />}
     {showEdit && profile.data && <ResidentProfileDialog api={api} profile={profile.data}
-      onClose={() => setShowEdit(false)} onSaved={profileUpdated} />}
+      available={profileReady && profile.data.resident.status === 'ACTIVE'} checking={profile.isFetching}
+      onRefresh={() => void profile.refetch()} onClose={() => setShowEdit(false)} onSaved={profileUpdated} />}
   </>
 
   return <>
@@ -170,13 +178,13 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
     <Panel className="resident-roster-panel">
       <PanelHead
         title="已建档居民列表"
-        meta={residentsPageQuery.isPending ? '加载中…' : `共 ${totalElements} 条档案记录`}
+        meta={residentsPageQuery.isPending || residentsPageQuery.isFetching ? '加载中…' : listReady ? `共 ${totalElements} 条档案记录` : '档案数量暂不可用'}
       />
 
-      {residentsPageQuery.isPending && <LoadingState label="正在加载居民档案列表…" />}
+      {(residentsPageQuery.isPending || residentsPageQuery.isFetching) && <LoadingState label="正在加载居民档案列表…" />}
       {residentsPageQuery.error && <Alert>{errorMessage(residentsPageQuery.error)}</Alert>}
 
-      {!residentsPageQuery.isPending && !residentsPageQuery.error && residentsList.length === 0 && (
+      {listReady && residentsList.length === 0 && (
         <EmptyState
           icon="residents"
           title="未找到居民档案记录"
@@ -189,7 +197,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
         />
       )}
 
-      {!residentsPageQuery.isPending && !residentsPageQuery.error && residentsList.length > 0 && (
+      {listReady && residentsList.length > 0 && (
         <TableShell
           footer={
             <Pagination
@@ -253,8 +261,8 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
                       {resident.phone ? <span>{resident.phone}</span> : <span className="resident-cell-muted">未登记</span>}
                     </td>
                     <td className={tableCellClass('status')}>
-                      <StatusBadge tone={resident.deceased ? 'warning' : resident.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                        {resident.deceased ? '已登记死亡' : resident.status === 'ACTIVE' ? '有效居民' : '已合并'}
+                      <StatusBadge tone={residentStatusPresentation(resident).tone}>
+                        {residentStatusPresentation(resident).label}
                       </StatusBadge>
                     </td>
                     <td>
@@ -295,56 +303,11 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
   </>
 }
 
-function identifierSystemLabel(system?: string | null, value?: string | null) {
-  if (value && /^E/i.test(value)) {
-    return '电子健康卡'
-  }
-  if (value && /^YB/i.test(value)) {
-    return '医疗保障卡'
-  }
-  if (value && /^MRN/i.test(value)) {
-    return '病案号'
-  }
-  if (!system) return '证件/卡'
-  const normalized = system.trim().toUpperCase()
-  switch (normalized) {
-    case '1':
-    case 'NATIONAL_ID':
-      return '居民身份证'
-    case '2':
-      return '军官证'
-    case '3':
-      return '警官证'
-    case '4':
-      return '文职干部证'
-    case '6':
-    case 'PASSPORT':
-      return '护照'
-    case '7':
-      return '港澳居民来往内地通行证'
-    case '8':
-      return '台湾居民来往大陆通行证'
-    case '9':
-    case 'OTHER':
-      return '其他证件/卡'
-    case 'SOCIAL_SECURITY_CARD':
-      return '社会保障卡'
-    case 'HEALTH_CARD':
-      return '电子健康卡'
-    case 'HOSPITAL_MRN':
-      return '病案号'
-    case 'BIRTH_CERTIFICATE':
-      return '出生医学证明'
-    default:
-      return system
-  }
-}
-
 function ResidentProfileView({ profile }: { profile: ResidentProfile }) {
   const { resident, demographicProfile } = profile
   return <div className="resident-profile-grid">
-    <Panel><PanelHead title="基本与人口学资料" meta={<StatusBadge tone={resident.deceased ? 'warning' : 'success'}>
-      {resident.deceased ? '已登记死亡' : '有效居民'}</StatusBadge>} />
+    <Panel><PanelHead title="基本与人口学资料" meta={<StatusBadge tone={residentStatusPresentation(resident).tone}>
+      {residentStatusPresentation(resident).label}</StatusBadge>} />
       <dl className="resident-profile-facts">
         <div><dt>身份证号</dt><dd>{resident.maskedNationalId || '未登记'}</dd></div>
         <div><dt>姓名</dt><dd>{resident.fullName}</dd></div><div><dt>出生日期</dt><dd>{resident.birthDate}</dd></div>
@@ -358,7 +321,7 @@ function ResidentProfileView({ profile }: { profile: ResidentProfile }) {
       </dl>
       <div className="resident-profile-list"><article><strong>已登记证件与卡</strong>
         <span>{resident.identifiers?.length
-          ? resident.identifiers.map((item) => `${identifierSystemLabel(item.system, item.maskedValue)}: ${item.maskedValue}`).join(' · ')
+          ? resident.identifiers.map((item) => `${residentIdentifierSystemLabel(item.system)}: ${item.maskedValue}`).join(' · ')
           : (resident.maskedNationalId ? `居民身份证: ${resident.maskedNationalId}` : '暂无其他证件与卡')}</span></article></div>
     </Panel>
     <Panel><PanelHead title="地址" meta={`${profile.addresses.length} 条`} />
@@ -385,8 +348,9 @@ function ResidentProfileView({ profile }: { profile: ResidentProfile }) {
   </div>
 }
 
-function ResidentProfileDialog({ api, profile, onClose, onSaved }: {
-  api: RhnApi; profile: ResidentProfile; onClose: () => void; onSaved: (value: ResidentProfile) => void
+function ResidentProfileDialog({ api, profile, available, checking, onRefresh, onClose, onSaved }: {
+  api: RhnApi; profile: ResidentProfile; available: boolean; checking: boolean; onRefresh: () => void
+  onClose: () => void; onSaved: (value: ResidentProfile) => void
 }) {
   const { control, register, handleSubmit, watch } = useForm<UpdateResidentProfileInput>({
     defaultValues: {
@@ -404,25 +368,29 @@ function ResidentProfileDialog({ api, profile, onClose, onSaved }: {
   const coverages = useFieldArray({ control, name: 'coverages' })
   const employments = useFieldArray({ control, name: 'employments' })
   const save = useMutation({
-    mutationFn: (input: UpdateResidentProfileInput) => {
+    mutationFn: async (input: UpdateResidentProfileInput) => {
+      if (!available) throw new Error('档案尚未确认，暂不能保存，请重新读取后重试')
+      requireCoverageFacts(input.coverages)
       const { sdResidencyTypeText: _residencyText, sdMaritalStatusText: _maritalText,
         sdEducationLevelText: _educationText, sdOccupationTypeText: _occupationText,
         sdBloodTypeText: _bloodText, sdRhTypeText: _rhText, ...demographicProfile } = input.demographicProfile
-      return api.residents.updateProfile(profile.resident.id, {
+      return requireResidentProfile(await api.residents.updateProfile(profile.resident.id, {
         ...input, demographicProfile,
         deceasedAt: input.deceased && input.deceasedAt ? new Date(input.deceasedAt).toISOString() : undefined,
         addresses: input.addresses.map(({ id: _id, sdUseText: _text, ...item }) => item),
         relatedPersons: input.relatedPersons.map(({ id: _id, sdRelationshipText: _text, ...item }) => item),
         coverages: input.coverages.map(({ id: _id, sdCoverageTypeText: _text, ...item }) => item),
         employments: input.employments.map(({ id: _id, sdOccupationTypeText: _text, ...item }) => item),
-      })
+      }), profile.resident.id)
     },
     onSuccess: onSaved,
   })
 
   return <Dialog title="维护居民档案" eyebrow="居民中心" size="xwide" closeOnBackdrop={false} onClose={onClose}
     footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
-      <Button type="submit" form="resident-profile-form" busy={save.isPending}>保存档案</Button></>}>
+      <Button type="submit" form="resident-profile-form" busy={save.isPending} disabled={!available}>保存档案</Button></>}>
+    {!available && <Alert>档案尚未确认或已不可维护，暂不能保存；已填写内容保留。
+      <Button variant="secondary" busy={checking} onClick={onRefresh}>重新确认档案</Button></Alert>}
     <form id="resident-profile-form" className="resident-profile-form" onSubmit={handleSubmit((value) => save.mutate(value))}>
       <section className="resident-profile-section">
         <header className="resident-profile-section-head">
@@ -443,7 +411,7 @@ function ResidentProfileDialog({ api, profile, onClose, onSaved }: {
         </div>
         <div className="ui-form-row">
           <FormField className="ui-field--grow" label="姓名" required><input {...register('fullName')} required /></FormField>
-          <FormField label="性别" required><Controller control={control} name="gender" render={({ field }) => <Select
+          <FormField label="性别" required><Controller control={control} name="gender" render={({ field }) => <Select aria-label="性别"
             options={[{ value: 'UNKNOWN', label: '未知' }, { value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }]}
             value={field.value} onChange={field.onChange} showValue />}/></FormField>
           <FormField label="出生日期" required><input type="date" max={today()} {...register('birthDate')} required /></FormField>
@@ -512,7 +480,7 @@ function ResidentProfileDialog({ api, profile, onClose, onSaved }: {
               <div className="resident-registered-card" key={item.id}>
                 <div className="resident-registered-card__head">
                   <Icon name="card" />
-                  <strong>{identifierSystemLabel(item.system, item.maskedValue)}</strong>
+                  <strong>{residentIdentifierSystemLabel(item.system)}</strong>
                   <span className="ui-badge ui-badge--neutral">{item.useType || '辅助标识'}</span>
                 </div>
                 <div className="resident-registered-card__body">
@@ -560,12 +528,17 @@ function ResidentProfileDialog({ api, profile, onClose, onSaved }: {
         </div>)}
       </ProfileArraySection>
 
-      <ProfileArraySection title="保障信息" count={coverages.fields.length} onAdd={() => coverages.append({ sdCoverageType: 'RESIDENT_BASIC', payerName: '基本医疗保险', memberNo: '', primary: coverages.fields.length === 0, validFrom: today() })}>
+      <ProfileArraySection title="保障信息" count={coverages.fields.length} onAdd={() => coverages.append({ sdCoverageType: '', payerName: '', memberNo: '', primary: coverages.fields.length === 0, validFrom: '' })}>
         {coverages.fields.map((field, index) => <div className="resident-profile-item-card" key={field.id}>
           <div className="resident-profile-item-row">
             <FormField label="保障类型" className="field-compact-cov"><Controller control={control} name={`coverages.${index}.sdCoverageType`} render={({ field: value }) =>
-              <DictionarySelect api={api.dictionaries} dictionaryCode="INS_COVERAGE_TYPE" value={value.value} onChange={value.onChange} />}/></FormField>
+              <DictionarySelect api={api.dictionaries} dictionaryCode="INS_COVERAGE_TYPE" aria-label={`第${index + 1}项保障类型`} value={value.value} onChange={value.onChange} />}/></FormField>
             <FormField className="ui-field--grow" label="个人编号/卡号"><input {...register(`coverages.${index}.memberNo`)} placeholder="医保卡号/个人编号" /></FormField>
+            <FormField className="ui-field--grow" label="支付方名称" required><input {...register(`coverages.${index}.payerName`)} placeholder="按实际保障资料填写" required /></FormField>
+            <FormField label="保障生效日期" required><Controller control={control} name={`coverages.${index}.validFrom`} render={({ field: value }) =>
+              <DatePicker aria-label={`第${index + 1}项保障生效日期`} value={value.value} onChange={value.onChange} required showShortcuts={false} />}/></FormField>
+            <FormField label="保障失效日期"><Controller control={control} name={`coverages.${index}.validTo`} render={({ field: value }) =>
+              <DatePicker aria-label={`第${index + 1}项保障失效日期`} value={value.value ?? ''} onChange={(date) => value.onChange(date || undefined)} showShortcuts={false} />}/></FormField>
             <div className="resident-profile-item-actions">
               <label className="resident-profile-check"><input type="checkbox" {...register(`coverages.${index}.primary`)} />主要保障</label>
               <IconButton icon="close" label="移除保障" onClick={() => coverages.remove(index)} />
@@ -679,7 +652,8 @@ function IdentifierCardItem({
             render={({ field: value }) => (
               <DictionarySelect
                 api={api.dictionaries}
-                dictionaryCode="PI_IDENTIFIER_TYPE"
+                dictionaryCode="PI_RESIDENT_IDENTIFIER_SYSTEM"
+                aria-label={`第${index + 1}项证件/卡类型`}
                 value={value.value}
                 onChange={(val) => {
                   value.onChange(val)
@@ -715,7 +689,7 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
     defaultValues: {
       fullName: '', nationalId: '', gender: 'UNKNOWN', birthDate: '', phone: '',
       identifiers: [{ system: '1', value: '', useType: 'OFFICIAL' }],
-      demographicProfile: { nationalityCode: 'CN', ethnicityCode: '01', sdResidencyType: 'UNKNOWN' },
+      demographicProfile: {},
       addresses: [], relatedPersons: [], coverages: [], employments: [],
     },
   })
@@ -724,84 +698,30 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
   const relatedPersons = useFieldArray({ control, name: 'relatedPersons' })
   const coverages = useFieldArray({ control, name: 'coverages' })
   const employments = useFieldArray({ control, name: 'employments' })
-  const create = useMutation({ mutationFn: api.residents.create, onSuccess: onCreated })
-
-  function syncCoverageWithIdentifiers(updatedIdentifiers?: ResidentIdentifierInput[]) {
-    const currentIdentifiers = updatedIdentifiers ?? getValues('identifiers') ?? []
-    const socialSecurity = currentIdentifiers.find((id) => id.system === 'SOCIAL_SECURITY_CARD' && id.value?.trim())
-    const nationalId = currentIdentifiers.find((id) => (id.system === '1' || id.system === 'NATIONAL_ID' || !id.system) && id.value?.trim())
-
-    if (socialSecurity) {
-      const cardNo = socialSecurity.value.trim()
-      const currentCoverages = getValues('coverages') ?? []
-      if (currentCoverages.length === 0) {
-        coverages.append({
-          sdCoverageType: '01',
-          payerName: '城镇职工基本医疗保险',
-          memberNo: cardNo,
-          primary: true,
-          validFrom: today(),
-        })
-      } else {
-        setValue('coverages.0.sdCoverageType', '01', { shouldDirty: true, shouldValidate: true })
-        setValue('coverages.0.memberNo', cardNo, { shouldDirty: true, shouldValidate: true })
-        setValue('coverages.0.payerName', '城镇职工基本医疗保险', { shouldDirty: true })
-      }
-    } else if (nationalId) {
-      const idNo = nationalId.value.trim()
-      const currentCoverages = getValues('coverages') ?? []
-      if (currentCoverages.length === 0) {
-        coverages.append({
-          sdCoverageType: '02',
-          payerName: '城镇居民基本医疗保险',
-          memberNo: idNo,
-          primary: true,
-          validFrom: today(),
-        })
-      } else {
-        setValue('coverages.0.sdCoverageType', '02', { shouldDirty: true, shouldValidate: true })
-        setValue('coverages.0.memberNo', idNo, { shouldDirty: true, shouldValidate: true })
-        setValue('coverages.0.payerName', '城镇居民基本医疗保险', { shouldDirty: true })
-      }
-    }
-  }
+  const create = useMutation({ mutationFn: (input: CreateResidentInput) => {
+    requireCoverageFacts(input.coverages ?? [])
+    return api.residents.create(input)
+  }, onSuccess: onCreated })
 
   function handleIdentifierChange(index: number, val: string, changedSystem?: string) {
     const currentIds = getValues('identifiers') ?? []
-    const system = changedSystem ?? currentIds[index]?.system ?? '1'
+    const system = changedSystem ?? currentIds[index]?.system ?? ''
+    if (changedSystem) setValue(`identifiers.${index}.value`, '', { shouldDirty: true })
     const clean = val.trim()
-    // Auto-parse ID card if system is 1 / NATIONAL_ID or length is 18 digits
-    if (system === '1' || system === 'NATIONAL_ID' || /^\d{17}[\dXx]$/.test(clean)) {
+    if (system === '1' || system === 'NATIONAL_ID') {
       const parsed = parseChineseResidentId(clean)
       if (parsed) {
         setValue('birthDate', parsed.birthDate, { shouldValidate: true, shouldDirty: true })
         setValue('gender', parsed.gender, { shouldValidate: true, shouldDirty: true })
       }
     }
-    // Real-time sync with coverages
-    const updated = currentIds.map((id, i) => i === index ? { ...id, system, value: val } : id)
-    syncCoverageWithIdentifiers(updated)
-  }
-
-  function handleRemoveIdentifier(index: number) {
-    identifiers.remove(index)
-    setTimeout(() => {
-      syncCoverageWithIdentifiers()
-    }, 0)
   }
 
   return <Dialog title="新建居民" eyebrow="居民中心" size="xwide" className="resident-create-dialog" onClose={onClose} closeOnBackdrop={false}
     footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
       <Button type="submit" form="resident-center-create" busy={create.isPending}>保存居民档案</Button></>}>
     <form id="resident-center-create" className="resident-profile-form" onSubmit={handleSubmit((value) => {
-      const payload: CreateResidentInput = {
-        ...value,
-        coverages: value.coverages?.map((c) => ({
-          ...c,
-          payerName: c.payerName?.trim() || '基本医疗保险',
-        })),
-      }
-      create.mutate(payload)
+      create.mutate(value)
     })}>
       <section className="resident-profile-section">
         <header className="resident-profile-section-head">
@@ -814,7 +734,7 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
             <input {...register('fullName')} autoFocus required maxLength={100} />
           </FormField>
           <FormField label="性别" required>
-            <Controller control={control} name="gender" render={({ field }) => <Select
+            <Controller control={control} name="gender" render={({ field }) => <Select aria-label="性别"
               options={[{ value: 'UNKNOWN', label: '未知' }, { value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }]}
               value={field.value} onChange={field.onChange} showValue />} />
           </FormField>
@@ -835,7 +755,7 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
             fieldId={field.id}
             control={control}
             register={register}
-            remove={() => handleRemoveIdentifier(index)}
+            remove={() => identifiers.remove(index)}
             canRemove={identifiers.fields.length > 1}
             onValueChange={handleIdentifierChange}
             api={api}
@@ -911,12 +831,17 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
         </div>
       </section>
 
-      <ProfileArraySection title="保障信息" count={coverages.fields.length} onAdd={() => coverages.append({ sdCoverageType: '02', payerName: '城镇居民基本医疗保险', memberNo: '', primary: coverages.fields.length === 0, validFrom: today() })}>
+      <ProfileArraySection title="保障信息" count={coverages.fields.length} onAdd={() => coverages.append({ sdCoverageType: '', payerName: '', memberNo: '', primary: coverages.fields.length === 0, validFrom: '' })}>
         {coverages.fields.map((field, index) => <div className="resident-profile-item-card" key={field.id}>
           <div className="resident-profile-item-row">
             <FormField label="保障类型" className="field-compact-cov"><Controller control={control} name={`coverages.${index}.sdCoverageType`} render={({ field: value }) =>
-              <DictionarySelect api={api.dictionaries} dictionaryCode="INS_COVERAGE_TYPE" value={value.value} onChange={value.onChange} />}/></FormField>
-            <FormField className="ui-field--grow" label="个人编号/卡号"><input {...register(`coverages.${index}.memberNo`)} placeholder="医保卡号/个人编号（自动关联社保卡或身份证）" /></FormField>
+              <DictionarySelect api={api.dictionaries} dictionaryCode="INS_COVERAGE_TYPE" aria-label={`第${index + 1}项保障类型`} value={value.value} onChange={value.onChange} />}/></FormField>
+            <FormField className="ui-field--grow" label="个人编号/卡号"><input {...register(`coverages.${index}.memberNo`)} placeholder="医保卡号/个人编号" /></FormField>
+            <FormField className="ui-field--grow" label="支付方名称" required><input {...register(`coverages.${index}.payerName`)} placeholder="按实际保障资料填写" required /></FormField>
+            <FormField label="保障生效日期" required><Controller control={control} name={`coverages.${index}.validFrom`} render={({ field: value }) =>
+              <DatePicker aria-label={`第${index + 1}项保障生效日期`} value={value.value} onChange={value.onChange} required showShortcuts={false} />}/></FormField>
+            <FormField label="保障失效日期"><Controller control={control} name={`coverages.${index}.validTo`} render={({ field: value }) =>
+              <DatePicker aria-label={`第${index + 1}项保障失效日期`} value={value.value ?? ''} onChange={(date) => value.onChange(date || undefined)} showShortcuts={false} />}/></FormField>
             <div className="resident-profile-item-actions">
               <label className="resident-profile-check"><input type="checkbox" {...register(`coverages.${index}.primary`)} />主要保障</label>
               <IconButton icon="close" label="移除保障" onClick={() => coverages.remove(index)} />

@@ -162,7 +162,7 @@
   height: 690px;
   max-height: calc(90vh - 130px);
 }
-.specimen-template-box {
+.specimen-configuration-summary {
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -172,7 +172,7 @@
   height: 100%;
   overflow-y: auto;
 }
-.specimen-template-box__header {
+.specimen-configuration-summary__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -181,15 +181,10 @@
   border-bottom: 1px solid var(--color-border);
   min-height: 2.25rem;
 }
-.specimen-template-box__header strong {
+.specimen-configuration-summary__header strong {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
-}
-.specimen-template-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 .specimen-config-main {
   display: flex;
@@ -199,62 +194,6 @@
   overflow-y: auto;
   padding-right: var(--space-1);
 }
-.specimen-template-card {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  cursor: pointer;
-  transition: all 0.15s ease-in-out;
-  position: relative;
-  overflow: hidden;
-}
-.specimen-template-card:hover {
-  border-color: var(--color-brand-primary);
-  background: var(--color-surface-subtle);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-.specimen-template-card.is-active {
-  border-color: var(--color-brand-primary);
-  background: var(--color-brand-soft);
-  box-shadow: 0 0 0 calc(var(--space-1) * 0.25) var(--color-brand-primary);
-}
-.specimen-template-card__color-bar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-}
-.specimen-template-card strong {
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-.specimen-template-card.is-active strong {
-  color: var(--color-brand-primary);
-}
-.specimen-template-card span {
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-  line-height: var(--line-height-body);
-  margin-top: calc(var(--space-1) * 0.5);
-}
-.specimen-template-card small {
-  display: inline-block;
-  font-size: var(--font-size-small);
-  color: var(--color-brand-primary);
-  font-weight: var(--font-weight-medium);
-  margin-top: var(--space-1);
-}
-
 /* 业务卡片区块 (Form Section Card) */
 .form-section-card {
   background: var(--color-surface);
@@ -1552,6 +1491,7 @@
 .master-data-table td > .ui-badge + .ui-badge { margin-left: var(--space-1); }
 .master-data-table.is-compact { min-width: 68rem; }
 .master-data-dialog-form { margin-top: var(--space-4); }
+.master-data-dialog-fields { display: contents; border: 0; padding: 0; margin: 0; min-width: 0; }
 .master-data-form-section { padding: var(--space-5) 0; border-top: 1px solid var(--color-border); }
 .master-data-form-section:first-child { padding-top: 0; border-top: 0; }
 .master-data-form-section:last-of-type { padding-bottom: var(--space-6); }
@@ -1706,6 +1646,7 @@
 .master-data-lifecycle-dialog { display: grid; gap: var(--space-3); }
 .master-data-lifecycle-dialog > .ui-tabs { margin-bottom: 0; }
 .master-data-lifecycle-tab-panel { display: grid; gap: var(--space-3); }
+.master-data-lifecycle-tab-panel[hidden] { display: none; }
 
 /* 顶部紧凑单行基准状态栏 */
 .master-data-lifecycle-tab-panel > section.master-data-lifecycle-status { padding: var(--space-2) var(--space-4); display: flex; align-items: center; gap: var(--space-4); background: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-md); }

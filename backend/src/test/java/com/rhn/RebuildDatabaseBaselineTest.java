@@ -7,9 +7,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.DriverManager;
 import java.util.UUID;
+import java.util.Set;
+import java.util.TreeSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,8 +27,15 @@ class RebuildDatabaseBaselineTest {
                         "classpath:db/h2")
                 .load();
 
+        Set<String> expectedScripts = new TreeSet<>();
+        for (String folder : new String[]{"migration", "local", "h2"}) {
+            try (var scripts = Files.list(path("src/main/resources/db/" + folder))) {
+                scripts.filter(file -> file.getFileName().toString().endsWith(".sql"))
+                        .forEach(file -> assertTrue(expectedScripts.add(file.getFileName().toString()), "Duplicate migration filename"));
+            }
+        }
         var result = flyway.migrate();
-        assertEquals(10, result.migrationsExecuted);
+        assertEquals(expectedScripts.size(), result.migrationsExecuted);
         assertEquals(0, flyway.migrate().migrationsExecuted);
 
         try (var connection = DriverManager.getConnection(url, "sa", ""); var sql = connection.createStatement()) {
@@ -35,27 +43,15 @@ class RebuildDatabaseBaselineTest {
                 assertTrue(history.next());
                 assertEquals("TABLE", history.getString("type"));
                 assertNull(history.getString("version"));
+                Set<String> appliedScripts = new TreeSet<>();
                 assertTrue(history.next());
                 assertEquals("1.84.0", history.getString("version"));
-                assertTrue(history.next());
-                assertEquals("1.84.1", history.getString("version"));
-                assertTrue(history.next());
-                assertEquals("1.84.2", history.getString("version"));
-                assertTrue(history.next());
-                assertEquals("1.85.0", history.getString("version"));
-                assertTrue(history.next());
-                assertEquals("1.86.0", history.getString("version"));
-                assertTrue(history.next());
-                assertEquals("1.87.0", history.getString("version"));
-                assertTrue(history.next());
-                assertEquals("1.88.0", history.getString("version"));
-                assertTrue(history.next());
-                assertEquals("1.89.0", history.getString("version"));
-                assertTrue(history.next());
-                assertEquals("1.90.0", history.getString("version"));
-                assertTrue(history.next());
-                assertEquals("1.92.0", history.getString("version"));
-                assertFalse(history.next());
+                appliedScripts.add(history.getString("script"));
+                while (history.next()) {
+                    assertEquals("SQL", history.getString("type"));
+                    assertTrue(appliedScripts.add(history.getString("script")), "Migration was applied more than once");
+                }
+                assertEquals(expectedScripts, appliedScripts);
             }
             assertTrue(count(sql, "select count(*) from information_schema.tables"
                     + " where table_schema = current_schema() and table_name like 'rhn_%'") >= 318);

@@ -47,6 +47,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -389,13 +390,13 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                         && value.targetType() == com.rhn.platform.configuration.domain.ConfigurationChangeTargetType.VALUE
                         && (value.tenantId() == null || value.tenantId().equals(context.tenantId())))
                 .orElseThrow(() -> notFound("PARAMETER_CHANGE_NOT_FOUND", "未找到可回退的参数变更"));
-        JsonNode snapshot = parseSnapshot(target.afterJson());
         ParameterValue value = requireVisibleValue(definitionId, target.valueId(), context.tenantId());
         requireAiValueAuthority(definition.configKey(), value.scopeType());
-        ConfigurationValueMode mode = ConfigurationValueMode.valueOf(snapshot.get("valueMode").asString());
-        String valueJson = textOrNull(snapshot.get("valueJson"));
-        String secretRef = textOrNull(snapshot.get("secretRef"));
-        boolean active = snapshot.get("active").asBoolean();
+        RollbackSnapshot snapshot = requireRollbackSnapshot(target, value);
+        ConfigurationValueMode mode = snapshot.mode();
+        String valueJson = snapshot.valueJson();
+        String secretRef = snapshot.secretRef();
+        boolean active = snapshot.active();
         validateValueCommand(definition, new ValueCommand(expectedRevision, value.scopeType(), value.scopeId(),
                 null, value.scopeReference(), mode, valueJson, secretRef, reason, requestCode));
         String before = valueSnapshot(definition, value);
@@ -408,6 +409,56 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         invalidateCacheAfterCommit();
         return detail(definition);
     }
+
+    private RollbackSnapshot requireRollbackSnapshot(ParameterChange change, ParameterValue value) {
+        JsonNode snapshot;
+        try {
+            snapshot = parseSnapshot(change.afterJson());
+        } catch (RuntimeException exception) {
+            throw badRequest("PARAMETER_ROLLBACK_SNAPSHOT_INVALID", "历史快照不是有效 JSON，无法恢复");
+        }
+        if (snapshot == null || !snapshot.isObject()) {
+            throw badRequest("PARAMETER_ROLLBACK_SNAPSHOT_INVALID", "历史快照缺失或格式不完整，无法恢复");
+        }
+        JsonNode active = snapshot.get("active");
+        if (active == null || !active.isBoolean()) {
+            throw badRequest("PARAMETER_ROLLBACK_SNAPSHOT_INVALID", "历史启用状态未确认，无法恢复");
+        }
+        if (!Objects.equals(change.tenantId(), value.tenantId())
+                || !Objects.equals(snapshotText(snapshot, "scopeType"), value.scopeType().name())
+                || !Objects.equals(snapshotText(snapshot, "scopeCode"), value.scopeCode())
+                || !Objects.equals(snapshotText(snapshot, "scopeReference"), value.scopeReference())
+                || !snapshotScopeIdMatches(snapshot.get("scopeId"), value.scopeId())) {
+            throw badRequest("PARAMETER_ROLLBACK_SNAPSHOT_INVALID", "历史快照的作用域与当前记录不一致，无法恢复");
+        }
+        ConfigurationValueMode mode;
+        String modeText = snapshotText(snapshot, "valueMode");
+        try {
+            mode = ConfigurationValueMode.valueOf(modeText == null ? "" : modeText);
+        } catch (IllegalArgumentException exception) {
+            throw badRequest("PARAMETER_ROLLBACK_SNAPSHOT_INVALID", "历史值模式未确认，无法恢复");
+        }
+        return new RollbackSnapshot(mode, snapshotText(snapshot, "valueJson"),
+                snapshotText(snapshot, "secretRef"), active.booleanValue());
+    }
+
+    private String snapshotText(JsonNode snapshot, String field) {
+        JsonNode value = snapshot.get(field);
+        if (value == null || !value.isNull() && !value.isString()) {
+            throw badRequest("PARAMETER_ROLLBACK_SNAPSHOT_INVALID", "历史快照字段缺失或类型错误，无法恢复");
+        }
+        return value.isNull() ? null : value.asString();
+    }
+
+    private boolean snapshotScopeIdMatches(JsonNode id, Long expected) {
+        if (id == null) return false;
+        if (expected == null) return id.isNull();
+        // Internal snapshots may serialize Long IDs as JSON integers or decimal strings; never coerce floats/booleans.
+        return id.isIntegralNumber() && id.bigIntegerValue().equals(BigInteger.valueOf(expected))
+                || id.isString() && id.asString().equals(expected.toString());
+    }
+
+    private record RollbackSnapshot(ConfigurationValueMode mode, String valueJson, String secretRef, boolean active) {}
 
     @Override
     @Transactional(readOnly = true)
@@ -457,42 +508,15 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
     private boolean isDependencySatisfied(Long tenantId, Long userId, Long organizationId,
                                          Long departmentId, String productCode, String moduleCode,
                                          String environmentCode, String parentKey, String expectedValue) {
-        try {
-            ConfigurationValue parentValue = resolveCurrent(tenantId, userId, organizationId, departmentId,
-                    productCode, moduleCode, environmentCode, parentKey);
-            if (parentValue == null || parentValue.suppressedByDependency() || parentValue.value() == null || parentValue.value().isNull()) {
-                return false;
-            }
-            return matchExpectedValue(parentValue.value(), expectedValue);
-        } catch (Exception e) {
+        ConfigurationValue parentValue = resolveCurrent(tenantId, userId, organizationId, departmentId,
+                productCode, moduleCode, environmentCode, parentKey);
+        if (parentValue == null) throw badRequest("PARAMETER_DEPENDENCY_UNRESOLVED", "未取得前置参数解析结果");
+        ConfigurationDependencyCondition condition = ConfigurationDependencyCondition.parse(
+                ConfigurationValueType.valueOf(parentValue.valueType()), expectedValue);
+        if (parentValue.suppressedByDependency() || parentValue.value() == null || parentValue.value().isNull()) {
             return false;
         }
-    }
-
-    private boolean matchExpectedValue(JsonNode actualNode, String expectedExpr) {
-        if (actualNode == null || actualNode.isNull() || expectedExpr == null || expectedExpr.isBlank()) {
-            return false;
-        }
-        String cleanExpected = expectedExpr.trim();
-        if (cleanExpected.startsWith("\"") && cleanExpected.endsWith("\"") && cleanExpected.length() >= 2) {
-            cleanExpected = cleanExpected.substring(1, cleanExpected.length() - 1);
-        }
-        if (actualNode.isBoolean()) {
-            return actualNode.asBoolean() == Boolean.parseBoolean(cleanExpected);
-        }
-        if (actualNode.isNumber()) {
-            try {
-                BigDecimal actualNum = new BigDecimal(actualNode.asString());
-                BigDecimal expectedNum = new BigDecimal(cleanExpected);
-                return actualNum.compareTo(expectedNum) == 0;
-            } catch (NumberFormatException ignored) {
-                return actualNode.asString().equalsIgnoreCase(cleanExpected);
-            }
-        }
-        if (actualNode.isTextual()) {
-            return actualNode.asString().equalsIgnoreCase(cleanExpected);
-        }
-        return actualNode.toString().equals(cleanExpected);
+        return condition.matches(parentValue.value());
     }
 
     private ConfigurationValue resolve(ConfigurationDefinition definition, ScopeCandidate requested,
@@ -691,11 +715,9 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         if (parentKey.equalsIgnoreCase(currentKey.trim())) {
             throw badRequest("PARAMETER_DEPENDENCY_SELF", "参数不能依赖自身");
         }
-        definitionRepository.findByConfigKey(parentKey)
+        ConfigurationDefinition parent = definitionRepository.findByConfigKey(parentKey)
                 .orElseThrow(() -> badRequest("PARAMETER_DEPENDENCY_NOT_FOUND", "所依赖的前置参数不存在: " + parentKey));
-        if (dependsOnValue == null || dependsOnValue.isBlank()) {
-            throw badRequest("PARAMETER_DEPENDENCY_VALUE_REQUIRED", "必须指定满足依赖的前置期望值");
-        }
+        ConfigurationDependencyCondition.parse(parent.valueType(), dependsOnValue);
         Set<String> visited = new HashSet<>();
         visited.add(currentKey.trim());
         String current = parentKey;
@@ -836,7 +858,10 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
             case JSON -> value.isObject() || value.isArray();
         };
         if (!matches) throw badRequest("PARAMETER_TYPE_MISMATCH", "参数值与声明类型 " + type + " 不匹配");
-        if (schemaJson != null) validateAgainstSchema(value, parseSchema(schemaJson));
+        if (schemaJson != null) {
+            validateSchema(schemaJson, type);
+            validateAgainstSchema(value, parseSchema(schemaJson));
+        }
     }
 
     private void validateSchema(String schemaJson, ConfigurationValueType valueType) {
@@ -859,7 +884,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         validateLengthKeyword(schema, "minLength");
         validateLengthKeyword(schema, "maxLength");
         if (schema.has("minLength") && schema.has("maxLength")
-                && schema.get("minLength").asInt() > schema.get("maxLength").asInt()) {
+                && schema.get("minLength").bigIntegerValue().compareTo(schema.get("maxLength").bigIntegerValue()) > 0) {
             throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 minLength 不能大于 maxLength");
         }
         if (schema.has("pattern")) {
@@ -899,7 +924,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
     }
 
     private void validateLengthKeyword(JsonNode schema, String keyword) {
-        if (schema.has(keyword) && (!schema.get(keyword).isIntegralNumber() || schema.get(keyword).asInt() < 0)) {
+        if (schema.has(keyword) && (!schema.get(keyword).isIntegralNumber() || schema.get(keyword).bigIntegerValue().signum() < 0)) {
             throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 " + keyword + " 必须是非负整数");
         }
     }
@@ -931,10 +956,10 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         }
         if (value.isString()) {
             int length = value.asString().length();
-            if (schema.has("minLength") && length < schema.get("minLength").asInt()) {
+            if (schema.has("minLength") && BigInteger.valueOf(length).compareTo(schema.get("minLength").bigIntegerValue()) < 0) {
                 throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值长度小于允许的最小长度");
             }
-            if (schema.has("maxLength") && length > schema.get("maxLength").asInt()) {
+            if (schema.has("maxLength") && BigInteger.valueOf(length).compareTo(schema.get("maxLength").bigIntegerValue()) > 0) {
                 throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值长度超过允许的最大长度");
             }
             if (schema.has("pattern")) {
@@ -970,7 +995,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
 
     private JsonNode parseValue(String rawJson) {
         try {
-            return jsonCodec.readTree(rawJson);
+            return ConfigurationJson.read(rawJson);
         } catch (RuntimeException exception) {
             throw badRequest("PARAMETER_JSON_INVALID", "参数内容不是合法 JSON");
         }
@@ -1062,11 +1087,12 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 dependsOnName = parentDef.name();
             }
             try {
-                dependencySatisfied = isDependencySatisfied(current().tenantId(), current().subjectId(), null, null, null, null, null,
+                dependencySatisfied = isDependencySatisfied(current().tenantId(), current().subjectId(),
+                        current().organizationId(), current().departmentId(), null, null, null,
                         value.dependsOnKey(), value.dependsOnValue());
-            } catch (Exception ignored) {
-                // 依赖项无法求值时按“未满足”展示，避免参数定义页整体加载失败。
-                dependencySatisfied = false;
+            } catch (RuntimeException ignored) {
+                // A failed preview is unknown; runtime resolution still propagates the original error.
+                dependencySatisfied = null;
             }
         }
         return new ParameterDefinitionDetailResponse(value.id(), value.revision(), value.categoryId(),
@@ -1115,8 +1141,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         return protectedSnapshot;
     }
 
-    private JsonNode parseSnapshot(String value) { return value == null ? null : jsonCodec.readTree(value); }
-    private String textOrNull(JsonNode value) { return value == null || value.isNull() ? null : value.asString(); }
+    private JsonNode parseSnapshot(String value) { return value == null ? null : ConfigurationJson.read(value); }
 
     private ParameterCategory requireCategory(Long id) {
         return categoryRepository.findById(id)
@@ -1209,11 +1234,11 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
 
     private DefinitionCommand preserveProtectedValues(DefinitionCommand command,
                                                        ConfigurationDefinition existing) {
-        if (command.sensitivity() == ConfigurationSensitivity.SECRET
-                || existing.sensitivity() == ConfigurationSensitivity.NORMAL
+        if (existing.sensitivity() == ConfigurationSensitivity.NORMAL
                 && existing.displayPolicy() == ConfigurationDisplayPolicy.PLAIN) return command;
-        String defaultValue = command.defaultValueJson() == null
-                ? existing.defaultValueJson() : command.defaultValueJson();
+        String defaultValue = command.sensitivity() == ConfigurationSensitivity.SECRET
+                ? command.defaultValueJson() : command.defaultValueJson() == null
+                    ? existing.defaultValueJson() : command.defaultValueJson();
         String exampleValue = command.exampleValueJson() == null
                 ? existing.exampleValueJson() : command.exampleValueJson();
         return new DefinitionCommand(command.categoryId(), command.key(), command.name(), command.description(),

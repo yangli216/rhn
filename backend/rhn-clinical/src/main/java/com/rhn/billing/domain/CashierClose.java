@@ -41,15 +41,6 @@ public class CashierClose {
 
     protected CashierClose() {}
 
-    public CashierClose(Long tenantId, Long organizationId, Long cashierUserId, Long reversesCloseId,
-                        String closeNo, String commandCode, String terminalCode, CashierCloseStatus status,
-                        Instant rangeFrom, Instant rangeTo, int transactionCount, BigDecimal expectedAmount,
-                        BigDecimal actualAmount, BigDecimal differenceAmount, String currencyCode, Long createdBy) {
-        this(tenantId, organizationId, 1L, cashierUserId, reversesCloseId, closeNo, commandCode,
-                terminalCode, status, rangeFrom, rangeTo, transactionCount, expectedAmount,
-                actualAmount, differenceAmount, currencyCode, createdBy);
-    }
-
     public CashierClose(Long tenantId, Long organizationId, Long departmentId, Long cashierUserId, Long reversesCloseId,
                         String closeNo, String commandCode, String terminalCode, CashierCloseStatus status,
                         Instant rangeFrom, Instant rangeTo, int transactionCount, BigDecimal expectedAmount,

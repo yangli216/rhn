@@ -104,6 +104,10 @@ class PrescriptionPrintDataProvider implements PrintDataProvider {
         }
         payload.put("diagnoses", diagnosesList);
         payload.put("medications", medicationMaps(items));
+        if (!items.isEmpty() && items.stream().allMatch(item -> item.totalAmount() != null)) {
+            payload.put("totalAmount", items.stream().map(MedicationRequest::totalAmount)
+                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add));
+        }
 
         String fileName = ("HERBAL".equalsIgnoreCase(categoryCode) ? "中药饮片处方-" : "门诊处方-")
                 + prescription.groupNo() + ".pdf";
@@ -127,7 +131,9 @@ class PrescriptionPrintDataProvider implements PrintDataProvider {
             value.put("durationValue", item.durationValue());
             value.put("durationUnit", item.durationUnit());
             value.put("routeCode", item.routeCode());
+            value.put("routeName", item.routeNameSnapshot());
             value.put("frequencyCode", item.frequencyCode());
+            value.put("frequencyName", item.frequencyNameSnapshot());
             value.put("instruction", item.medicationInstruction());
             result.add(value);
         });

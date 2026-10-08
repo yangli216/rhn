@@ -42,8 +42,8 @@ export function withSkinTestExemption(current: MedicationEntry, checked: boolean
   return {
     ...current,
     skinTestExempt: checked,
-    skinTestExemptReason: evidence ? `周期内皮试阴性有效（引用记录 #${evidence.eventId}）`
-      : checked ? (current.skinTestExemptReason || '周期内已有阴性结果（有效时间内）') : '',
+    skinTestExemptReason: checked && evidence?.eventId ? `周期内皮试阴性有效（引用记录 #${evidence.eventId}）`
+      : checked ? (current.skinTestExemptReason || '') : '',
     exemptEvidenceEventId: checked ? (evidence ? evidence.eventId : current.exemptEvidenceEventId) : undefined,
   }
 }

@@ -15,6 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
 
+    @org.springframework.beans.factory.annotation.Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @Test
     void outpatient_note_requires_current_signature_and_drives_department_task() throws Exception {
         String residentBody = mockMvc.perform(post("/api/residents")
@@ -57,6 +59,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
         org.junit.jupiter.api.Assertions.assertEquals(
                 "/outpatient/reception?residentId=" + residentId + "&encounterId=" + encounterId,
                 signTask.path("routePath").asString());
+        org.junit.jupiter.api.Assertions.assertTrue(signTask.path("dueAt").isMissingNode() || signTask.path("dueAt").isNull());
         mockMvc.perform(post("/api/tasks/{id}/complete", signTask.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isConflict())
@@ -72,6 +75,12 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.status").value("SIGNED"))
                 .andExpect(jsonPath("$.history[0].signatureEvidenceId").isNotEmpty());
 
+        org.junit.jupiter.api.Assertions.assertEquals(1, jdbc.queryForObject("""
+                select count(*) from RHN_SYS_WORK_TASK task join RHN_VIS_CLIN_DOC_VER version
+                  on task.ID_SRC = version.ID_CLIN_DOC and task.ID_TNT = version.ID_TNT
+                where task.ID_WORK_TASK = ? and version.CD_VER_NUMBER = 2
+                  and task.SD_STATUS = 'COMPLETED' and task.DT_CMPLD = version.DT_SIGNED
+                """, Integer.class, signTask.get("id").asLong()));
         String remainingTasks = mockMvc.perform(get("/api/tasks").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         boolean stillOpen = StreamSupport.stream(objectMapper.readTree(remainingTasks).spliterator(), false)

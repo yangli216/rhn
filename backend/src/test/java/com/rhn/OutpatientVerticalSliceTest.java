@@ -116,6 +116,10 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.medicationRequests[0].status").value("CANCELLED"))
                 .andExpect(jsonPath("$.medicationRequests[0].cancelReason").value("调整整体处方"));
 
+        assertBillingDecision(line.get("id").asLong(), "MEDICATION_REQUEST_ACTIVATED", "UNPRICED");
+        assertBillingDecision(line.get("id").asLong(), "MEDICATION_REQUEST_CANCELLED", "UNPRICED");
+        assertEquals(0, jdbc.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_SRC=?", Integer.class, line.get("id").asLong()));
+
         mockMvc.perform(get("/api/encounters/{id}/prescriptions", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].prescriptionNo").value(prescription.get("prescriptionNo").asString()))
@@ -308,6 +312,11 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.standardMappings").isArray())
                 .andReturn().getResponse().getContentAsString());
 
+        org.junit.jupiter.api.Assertions.assertNull(jdbc.queryForObject(
+                "select SD_ACCTG_CAT from RHN_BIL_CHARGE_ITEM where SD_SRC_TYPE='SERVICE_REQUEST' and ID_SRC=?", String.class, request.get("id").asLong()));
+        org.junit.jupiter.api.Assertions.assertEquals(0, new java.math.BigDecimal("25").compareTo(jdbc.queryForObject(
+                "select AMT_TOTAL from RHN_BIL_CHARGE_ITEM where SD_SRC_TYPE='SERVICE_REQUEST' and ID_SRC=?", java.math.BigDecimal.class, request.get("id").asLong())));
+
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/prices/{id}/replace",
                                 originalPrice.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -333,6 +342,19 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.cancelReason").value("患者取消"));
+        org.junit.jupiter.api.Assertions.assertNull(jdbc.queryForObject(
+                "select SD_ACCTG_CAT from RHN_BIL_CHARGE_ITEM where SD_SRC_TYPE='SERVICE_REQUEST_REVERSAL' and ID_SRC=?", String.class, request.get("id").asLong()));
+        assertBillingDecision(request.get("id").asLong(), "SERVICE_REQUEST_AUTHORED", "CHARGEABLE");
+        assertBillingDecision(request.get("id").asLong(), "SERVICE_REQUEST_CANCELLED", "CHARGEABLE");
+        assertEquals(2, jdbc.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_SRC=?", Integer.class, request.get("id").asLong()));
+        assertEquals(1, jdbc.queryForObject("""
+                select count(*) from RHN_BIL_LEDGER_ENTRY r
+                join RHN_BIL_LEDGER_ENTRY o on r.ID_LEDGER_ENTRY_RVRS=o.ID_LEDGER_ENTRY
+                join RHN_BIL_CHARGE_ITEM c on r.ID_CHARGE_ITEM=c.ID_CHARGE_ITEM
+                where c.ID_SRC=? and r.SD_ENTRY_TYPE='CHARGE_REVERSAL' and r.AMT_ENTRY=o.AMT_ENTRY
+                """, Integer.class, request.get("id").asLong()));
+
+
     }
 
     @Test
@@ -422,6 +444,18 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
         assertEquals(outboxCountBefore + 12, outboxEventRepository.countByTenantId(Long.valueOf(TENANT)));
         assertTrue(outboxEvents.stream().allMatch(event -> event.publicationStatus().equals("PENDING")));
         assertEquals(5, outboxEvents.stream().map(OutboxEvent::eventId).distinct().count());
+    }
+
+    private void assertBillingDecision(Long requestId, String type, String decision) {
+        var event = outboxEventRepository.findByAggregateIdOrderByRecordedAt(requestId).stream()
+                .filter(value -> type.equals(value.eventType())).findFirst().orElseThrow();
+        assertEquals(2, event.eventVersion());
+        var payload = objectMapper.readTree(event.payloadJson());
+        assertEquals(decision, payload.get("billingDisposition").asString());
+        assertTrue(payload.hasNonNull("itemName"));
+        assertTrue(payload.hasNonNull(type.endsWith("CANCELLED") ? "cancelledBy" : "authoredBy"));
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_INT_EVT_CONSUME where ID_EVT=? and NA_CNSMR=?",
+                Integer.class, event.eventId(), "billing-clinical-order-charge-v1"));
     }
 
     @Test

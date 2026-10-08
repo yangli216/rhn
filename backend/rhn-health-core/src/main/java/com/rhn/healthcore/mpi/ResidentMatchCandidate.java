@@ -21,7 +21,7 @@ class ResidentMatchCandidate {
     private Long sourceRecordId;
     @Column(name = "ID_PAT_CAND", nullable = false)
     private Long candidateResidentId;
-    @Column(name = "MATCH_SCORE", nullable = false)
+    @Column(name = "MATCH_SCORE")
     private BigDecimal matchScore;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "JSON_REASONS", nullable = false)

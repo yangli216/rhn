@@ -9,5 +9,5 @@ public interface PharmacyFlowDirectory {
                                                Collection<Long> encounterIds);
 
     record PharmacyFlowSnapshot(int totalCount, int waitingCount, int inProgressCount,
-                                int exceptionCount, int completedCount) {}
+                                int exceptionCount, int completedCount, int returnedCount, int partiallyReturnedCount) {}
 }

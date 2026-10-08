@@ -55,6 +55,31 @@ class StructuredAnalysisPageTest extends RhnIntegrationTestSupport {
             .andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString();
     }
+    @Test void workload_report_uses_actual_encounters_distinct_patients_and_active_order_kinds() throws Exception {
+        long enc = encounter(Long.parseLong(DEPARTMENT), "OUTPATIENT");
+        encounter(Long.parseLong(DEPARTMENT), "OUTPATIENT");
+        order(enc, "MEDICATION", "ACTIVE", "2036-01-15T00:00:00+08:00");
+        order(enc, "MEDICATION", "ACTIVE", "2036-01-16T00:00:00+08:00");
+        order(enc, "SERVICE", "ACTIVE", "2036-01-17T00:00:00+08:00");
+        order(enc, "SERVICE", "CANCELLED", "2036-01-18T00:00:00+08:00");
+        order(enc, "MEDICATION", "DRAFT", "2036-01-18T00:00:00+08:00");
+        var active = Map.of("field", "status", "operator", "EQ", "values", List.of("ACTIVE"));
+        var med = Map.of("field", "kind", "operator", "EQ", "values", List.of("MEDICATION"));
+        var service = Map.of("field", "kind", "operator", "EQ", "values", List.of("SERVICE"));
+        var plan = spec(List.of(
+                measure("M1", "ENCOUNTER", "COUNT", "encounterId", List.of()),
+                measure("M2", "ENCOUNTER", "COUNT_DISTINCT", "patientId", List.of()),
+                measure("M3", "ORDER", "COUNT", "orderId", List.of(active, med)),
+                measure("M4", "ORDER", "COUNT", "orderId", List.of(active, service))), "DEPARTMENT");
+        var series = json(query(plan)).path("series");
+        assertEquals(4, series.size());
+        int[] expected = {2, 1, 2, 1};
+        for (int i = 0; i < expected.length; i++) {
+            assertEquals(expected[i], series.path(i).path("total").asInt());
+            assertEquals(expected[i], series.path(i).path("points").path(0).path("value").asInt());
+            assertEquals(DEPARTMENT, series.path(i).path("points").path(0).path("key").asText());
+        }
+    }
     @Test void independently_aggregates_orders_charge_reversals_and_global_distinct_without_fanout() throws Exception {
         long enc=encounter(Long.parseLong(DEPARTMENT),"OUTPATIENT");
         long order=order(enc,"MEDICATION","ACTIVE","2036-01-01T00:00:00+08:00");
@@ -190,12 +215,14 @@ class StructuredAnalysisPageTest extends RhnIntegrationTestSupport {
     @Test void registration_source_queries_total_and_cancelled_registrations() throws Exception {
         var m1 = measure("M1", "REGISTRATION", "COUNT", "registrationId", List.of());
         var m2 = measure("M2", "REGISTRATION", "COUNT", "registrationId", List.of(Map.of("field", "status", "operator", "EQ", "values", List.of("CANCELLED"))));
-        var regSpec = spec(List.of(m1, m2), "DAY");
+        var m3 = measure("M3", "REGISTRATION", "COUNT_DISTINCT", "patientId", List.of());
+        var regSpec = spec(List.of(m1, m2, m3), "DAY");
         mockMvc.perform(post("/api/analytics/pages/query").with(rhnWorkContext()).contentType("application/json")
             .content(objectMapper.writeValueAsString(regSpec)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.series.length()").value(2))
+            .andExpect(jsonPath("$.series.length()").value(3))
             .andExpect(jsonPath("$.series[0].code").value("M1"))
-            .andExpect(jsonPath("$.series[1].code").value("M2"));
+            .andExpect(jsonPath("$.series[1].code").value("M2"))
+            .andExpect(jsonPath("$.series[2].code").value("M3"));
     }
 }

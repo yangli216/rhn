@@ -1,6 +1,10 @@
 package com.rhn;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 import tools.jackson.databind.JsonNode;
 
@@ -14,6 +18,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ResetDatabaseBeforeEachTestMethod
 class InventoryPeriodCloseWorkflowTest extends RhnIntegrationTestSupport {
+    @Autowired JdbcTemplate jdbc;
+
     private static final String PRODUCT_ID = "362387869795113";
     private static final String PACKAGE_ID = "362387869795403";
 
@@ -62,6 +68,106 @@ class InventoryPeriodCloseWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INVENTORY_PERIOD_NOT_OPEN"));
         receive("MC-NEXT-" + suffix, fixture, lotId, "1", "2026-09-01T08:00:00Z");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"USD", "EUR"})
+    void preview_rejects_relabeling_cny_cost_as_foreign_currency(String currency) throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        Fixture fixture = createFixture(suffix);
+        receive("CURRENCY-" + suffix, fixture, createLot(fixture.itemId(), suffix), "1", "2026-08-27T08:00:00Z");
+        String periodId = period(fixture.siteId(), "202608").get("id").asString();
+        mockMvc.perform(post("/api/pharmacy/inventory-periods/{id}/close-runs", periodId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"requestCode\":\"FX-%s\",\"currencyCode\":\"%s\"}".formatted(suffix, currency)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVENTORY_COST_CURRENCY_UNSUPPORTED"));
+        assertEquals(0, jdbc.queryForObject("select count(*) from RHN_SUP_INV_PERIOD_CLOSE_RUN where ID_INV_PERIOD = ?",
+                Integer.class, Long.valueOf(periodId)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"missing", "amount", "currency"})
+    void posting_requires_actual_matching_cost_total(String problem) throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        Fixture fixture = createFixture(suffix);
+        receive("TOTAL-" + suffix, fixture, createLot(fixture.itemId(), suffix), "1", "2026-08-27T08:00:00Z");
+        String periodId = period(fixture.siteId(), "202608").get("id").asString();
+        String runId = prepare(periodId, "TOTAL-CLOSE-" + suffix).get("id").asString();
+        if (problem.equals("missing")) {
+            jdbc.update("delete from RHN_SUP_INV_PERIOD_CLOSE_TOTAL where ID_INV_PERIOD_CLOSE_RUN = ?", Long.valueOf(runId));
+        } else if (problem.equals("amount")) {
+            jdbc.update("update RHN_SUP_INV_PERIOD_CLOSE_TOTAL set AMT_MVMT = AMT_MVMT + 1, AMT_CLOSE = AMT_CLOSE + 1, AMT_BAL = AMT_BAL + 1 where ID_INV_PERIOD_CLOSE_RUN = ?", Long.valueOf(runId));
+        } else {
+            jdbc.update("update RHN_SUP_INV_PERIOD_CLOSE_TOTAL set CD_CCY = 'USD' where ID_INV_PERIOD_CLOSE_RUN = ?", Long.valueOf(runId));
+        }
+        mockMvc.perform(post("/api/pharmacy/inventory-periods/close-runs/{id}/post", runId).with(rhnWorkContext()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(problem.equals("currency")
+                        ? "INVENTORY_COST_CURRENCY_UNSUPPORTED" : "INVENTORY_CLOSE_TOTAL_INVALID"));
+        assertEquals("OPEN", period(fixture.siteId(), "202608").get("status").asString());
+        assertEquals("VALIDATED", jdbc.queryForObject("select SD_STATUS from RHN_SUP_INV_PERIOD_CLOSE_RUN where ID_INV_PERIOD_CLOSE_RUN = ?",
+                String.class, Long.valueOf(runId)));
+    }
+
+    @Test
+    void actual_zero_cost_can_close_and_retry_without_fabricated_amounts() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        Fixture fixture = createFixture(suffix);
+        mockMvc.perform(post("/api/pharmacy/inventory/receipts").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(receiptBody("FREE-" + suffix, fixture, createLot(fixture.itemId(), suffix), "1", "2026-08-27T08:00:00Z")
+                                .replace("8.50", "0")))
+                .andExpect(status().isCreated());
+        JsonNode preview = prepare(period(fixture.siteId(), "202608").get("id").asString(), "FREE-CLOSE-" + suffix);
+        assertEquals(0, preview.get("differenceCount").asInt());
+        for (int attempt = 0; attempt < 2; attempt++) {
+            mockMvc.perform(post("/api/pharmacy/inventory-periods/close-runs/{id}/post", preview.get("id").asString())
+                            .with(rhnWorkContext())).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("POSTED"))
+                    .andExpect(jsonPath("$.totals[0].closingValue").value(0));
+        }
+    }
+
+    @Test
+    void posting_detects_loss_of_zero_cost_evidence() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        Fixture fixture = createFixture(suffix);
+        String lotId = createLot(fixture.itemId(), suffix);
+        mockMvc.perform(post("/api/pharmacy/inventory/receipts").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(receiptBody("ZERO-" + suffix, fixture, lotId, "1", "2026-08-27T08:00:00Z")
+                                .replace("8.50", "0")))
+                .andExpect(status().isCreated());
+        String periodId = period(fixture.siteId(), "202608").get("id").asString();
+        String runId = prepare(periodId, "ZERO-CLOSE-" + suffix).get("id").asString();
+        jdbc.update("update RHN_SUP_INV_TXN_LINE set AMT_DELTA = null, PRICE_UNIT_COST = null where ID_STOCK_SITE = ?",
+                Long.valueOf(fixture.siteId()));
+        mockMvc.perform(post("/api/pharmacy/inventory-periods/close-runs/{id}/post", runId).with(rhnWorkContext()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("INVENTORY_CLOSE_STALE"));
+        JsonNode fresh = prepare(periodId, "ZERO-FRESH-" + suffix);
+        assertEquals(1, fresh.get("differenceCount").asInt());
+        mockMvc.perform(post("/api/pharmacy/inventory-periods/close-runs/{id}/post", fresh.get("id").asString())
+                        .with(rhnWorkContext())).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVENTORY_CLOSE_HAS_DIFFERENCES"));
+    }
+
+    @Test
+    void next_period_rejects_foreign_currency_opening_snapshot() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        Fixture fixture = createFixture(suffix);
+        receive("OPENING-" + suffix, fixture, createLot(fixture.itemId(), suffix), "1", "2026-08-27T08:00:00Z");
+        String runId = prepare(period(fixture.siteId(), "202608").get("id").asString(), "OPENING-CLOSE-" + suffix).get("id").asString();
+        mockMvc.perform(post("/api/pharmacy/inventory-periods/close-runs/{id}/post", runId).with(rhnWorkContext()))
+                .andExpect(status().isOk());
+        jdbc.update("""
+                update RHN_SUP_INV_PERIOD_BAL_VAL set CD_CCY = 'USD' where ID_INV_PERIOD_BAL_SNAP in
+                (select ID_INV_PERIOD_BAL_SNAP from RHN_SUP_INV_PERIOD_BAL_SNAP where ID_INV_PERIOD_CLOSE_RUN = ?)
+                """, Long.valueOf(runId));
+        mockMvc.perform(post("/api/pharmacy/inventory-periods/{id}/close-runs", period(fixture.siteId(), "202609").get("id").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"requestCode\":\"NEXT-%s\",\"currencyCode\":\"CNY\"}".formatted(suffix)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("INVENTORY_COST_CURRENCY_UNSUPPORTED"));
     }
 
     private JsonNode prepare(String periodId, String requestCode) throws Exception {

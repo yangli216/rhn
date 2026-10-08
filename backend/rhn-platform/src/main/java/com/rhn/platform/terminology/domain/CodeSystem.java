@@ -95,7 +95,10 @@ public class CodeSystem {
         this.versionCode = TerminologyCodePolicy.requireVersion(code, versionCode);
         this.systemType = systemType == null || systemType.isBlank() ? "COMMON" : systemType.trim();
         this.diagnosisDomain = diagnosisDomain == null || diagnosisDomain.isBlank()
-                ? ("DISEASE".equals(this.systemType) ? "WESTERN_MEDICINE" : null) : diagnosisDomain.trim();
+                ? null : diagnosisDomain.trim();
+        if ("DISEASE".equals(this.systemType) && this.diagnosisDomain == null) {
+            throw new IllegalArgumentException("疾病编码体系必须明确指定诊断体系，不能默认推定为西医");
+        }
         if (this.diagnosisDomain != null && !java.util.Set.of(
                 "WESTERN_MEDICINE", "TCM_DISEASE", "TCM_SYNDROME").contains(this.diagnosisDomain)) {
             throw new IllegalArgumentException("诊断体系不正确");

@@ -5,12 +5,16 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { OutpatientFlowBoard } from '../../shared/api/outpatientFlowApi'
 import type { RhnApi } from '../../shared/rhnApi'
+import { getTodayRange } from '../../shared/ui'
 import { OutpatientFlowWorkspace } from './OutpatientFlowWorkspace'
 
 describe('OutpatientFlowWorkspace composite visit', () => {
-  it('shows every completed downstream stage before declaring that the patient can leave', async () => {
+  it.each([
+    ['COMPLETED', '已完成'], ['RETURNED', '已退药'], ['PARTIALLY_RETURNED', '含部分退药'],
+  ] as const)('shows the actual pharmacy outcome %s after downstream processing ends', async (pharmacyStatus, pharmacyText) => {
+    const reason = pharmacyStatus === 'COMPLETED' ? '接诊及诊后环节均已完成' : '接诊及诊后环节已结束，含退药记录'
     const board: OutpatientFlowBoard = {
-      businessDate: '2026-08-30', refreshedAt: '2026-08-30T12:50:00Z',
+      businessDate: getTodayRange().from, refreshedAt: '2026-08-30T12:50:00Z',
       summary: {
         totalCount: 1, waitingConsultationCount: 0, inConsultationCount: 0,
         downstreamPendingCount: 0, exceptionCount: 0, completedCount: 1,
@@ -19,13 +23,13 @@ describe('OutpatientFlowWorkspace composite visit', () => {
         encounterId: 'encounter-composite', encounterNo: 'OP-COMPOSITE', residentId: 'resident-composite',
         residentName: '复合门诊居民', healthRecordNo: 'RHN-COMPOSITE', gender: 'FEMALE',
         clinicalStatus: 'COMPLETED', flowStatus: 'COMPLETED', flowStatusText: '流程完成',
-        nextDestination: '可以离院', attentionReason: '接诊及诊后环节均已完成', pendingMinutes: 0,
+        nextDestination: '可以离院', attentionReason: reason, pendingMinutes: 0,
         outstandingAmount: 0, registeredAt: '2026-08-30T12:00:00Z',
         startedAt: '2026-08-30T12:05:00Z', clinicalCompletedAt: '2026-08-30T12:20:00Z',
         stages: [
           { stageCode: 'CLINICAL', stageName: '接诊', status: 'COMPLETED', statusText: '诊毕', totalCount: 1, pendingCount: 0 },
           { stageCode: 'BILLING', stageName: '费用', status: 'COMPLETED', statusText: '已结算', totalCount: 1, pendingCount: 0 },
-          { stageCode: 'PHARMACY', stageName: '取药', status: 'COMPLETED', statusText: '已完成', totalCount: 1, pendingCount: 0 },
+          { stageCode: 'PHARMACY', stageName: '取药', status: pharmacyStatus, statusText: pharmacyText, totalCount: 1, pendingCount: 0 },
           { stageCode: 'DIAGNOSTICS', stageName: '医技', status: 'COMPLETED', statusText: '已完成', totalCount: 2, pendingCount: 0 },
           { stageCode: 'TREATMENT', stageName: '治疗', status: 'COMPLETED', statusText: '已完成', totalCount: 1, pendingCount: 0 },
         ],
@@ -46,11 +50,14 @@ describe('OutpatientFlowWorkspace composite visit', () => {
     const row = await screen.findByRole('row', { name: /复合门诊居民/ })
     expect(row).toHaveTextContent('接诊诊毕')
     expect(row).toHaveTextContent('费用已结算')
-    expect(row).toHaveTextContent('取药已完成')
+    expect(row).toHaveTextContent(`取药${pharmacyText}`)
+    if (pharmacyStatus !== 'COMPLETED') {
+      expect(row.querySelector(`.is-${pharmacyStatus.toLowerCase()}`)).not.toHaveTextContent('✓')
+    }
     expect(row).toHaveTextContent('医技已完成 · 2项')
     expect(row).toHaveTextContent('治疗已完成')
     expect(row).toHaveTextContent('可以离院')
-    expect(row).toHaveTextContent('接诊及诊后环节均已完成')
+    expect(row).toHaveTextContent(reason)
   })
 
   it('renders standard SearchField and supports list pagination', async () => {
@@ -71,12 +78,12 @@ describe('OutpatientFlowWorkspace composite visit', () => {
       outstandingAmount: 0,
       registeredAt: '2026-08-30T08:00:00Z',
       stages: [
-        { stageCode: 'CLINICAL' as const, stageName: '接诊', status: 'IN_PROGRESS' as const, statusText: '候诊中', totalCount: 1, pendingCount: 1 },
+        { stageCode: 'CLINICAL' as const, stageName: '接诊', status: 'WAITING' as const, statusText: '候诊中', totalCount: 1, pendingCount: 1 },
       ],
     }))
 
     const board: OutpatientFlowBoard = {
-      businessDate: '2026-08-30',
+      businessDate: getTodayRange().from,
       refreshedAt: '2026-08-30T12:50:00Z',
       summary: {
         totalCount: 15,

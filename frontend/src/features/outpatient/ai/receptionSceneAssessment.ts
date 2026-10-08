@@ -1,3 +1,4 @@
+import { diagnosticObservationValue } from '../../../shared/clinical/diagnosticResults'
 import type { Encounter } from '../../../shared/model'
 import type { DiagnosticReport, DiagnosticObservation } from '../../../shared/api/diagnosticsApi'
 import type { ClinicalAiRecordDraft, ReceptionSceneType } from '../../../shared/api/clinicalAiApi'
@@ -49,8 +50,9 @@ export function isAbnormalObservation(item: DiagnosticObservation): boolean {
   if (item.status === 'CANCELLED') return false
   if (['H', 'HH', 'L', 'LL', 'A', 'AA', 'ABNORMAL', 'POS', 'POSITIVE', 'CRITICAL', 'PANIC']
     .includes(item.interpretationCode?.trim().toUpperCase() ?? '')) return true
-  if (/^(阳性|阳性[+＋]|[+＋]{1,4}|positive)$/i.test((item.valueString ?? item.valueCode ?? '').trim())) return true
-  if (item.valueNumber == null) return false
+  const qualitative = item.valueType === 'STRING' ? item.valueString : item.valueType === 'CODE' ? item.valueCode : undefined
+  if (typeof qualitative === 'string' && /^(阳性|阳性[+＋]|[+＋]{1,4}|positive)$/i.test(qualitative.trim())) return true
+  if (item.valueType !== 'NUMBER' || typeof item.valueNumber !== 'number' || !Number.isFinite(item.valueNumber)) return false
   return (item.referenceRangeLow != null && item.valueNumber < item.referenceRangeLow)
     || (item.referenceRangeHigh != null && item.valueNumber > item.referenceRangeHigh)
 }
@@ -85,7 +87,7 @@ export function assessReceptionScene({ encounter, historyEncounters = [], diagno
   const reportHighlights = eligibleReports.flatMap((report) => report.observations.filter(isAbnormalObservation).map((obs) => {
     const direction = obs.valueNumber != null && obs.referenceRangeHigh != null && obs.valueNumber > obs.referenceRangeHigh ? ' ↑'
       : obs.valueNumber != null && obs.referenceRangeLow != null && obs.valueNumber < obs.referenceRangeLow ? ' ↓' : ' 异常'
-    return `${report.reportName}：${obs.observationName} ${obs.valueNumber ?? obs.valueString ?? obs.valueCode ?? ''}${obs.unitCode ?? ''}${direction}`
+    return `${report.reportName}：${obs.observationName} ${diagnosticObservationValue(obs)}${obs.unitCode ?? ''}${direction}`
   }))
   const chief = currentDraft?.chiefComplaint || encounter.chiefComplaint || ''
   const intent = [chief, currentDraft?.presentIllness].filter(Boolean).join('；')

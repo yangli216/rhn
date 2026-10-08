@@ -18,7 +18,8 @@ const episode: InpatientEpisode = {
 
 function renderWithQuery(children: React.ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(<QueryClientProvider client={client}>{children}</QueryClientProvider>)
+  const result = render(<QueryClientProvider client={client}>{children}</QueryClientProvider>)
+  return { ...result, client, rerender: (next: React.ReactNode) => result.rerender(<QueryClientProvider client={client}>{next}</QueryClientProvider>) }
 }
 
 describe('InpatientNursingWorkspace', () => {
@@ -44,22 +45,107 @@ describe('InpatientNursingWorkspace', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: /入院评估/ }))
     await userEvent.click(screen.getByRole('button', { name: '新增护理评估' }))
-    await userEvent.click(screen.getByLabelText('自理能力'))
-    await userEvent.click(screen.getByRole('option', { name: '部分协助' }))
-    await userEvent.click(screen.getByLabelText('跌倒风险'))
-    await userEvent.click(screen.getByRole('option', { name: '高' }))
+    expect(screen.getByRole('button', { name: '保存评估事实' })).toBeDisabled()
+    expect(screen.getByLabelText('护理评估疼痛评分')).toHaveValue(null)
+    for (const [label, option] of [
+      ['入院方式', '轮椅'], ['沟通状态', '受限'], ['自理能力', '部分协助'], ['活动能力', '需协助'],
+      ['皮肤状态', '有风险'], ['营养状态', '正常'], ['跌倒风险', '高'], ['压力损伤风险', '中'],
+    ]) {
+      expect(screen.getByLabelText(label)).toHaveTextContent('未评估')
+      await userEvent.click(screen.getByLabelText(label))
+      await userEvent.click(screen.getByRole('option', { name: option }))
+    }
     await userEvent.type(screen.getByLabelText('护理评估结论'), '步态不稳，活动时需陪同')
     await userEvent.click(screen.getByRole('button', { name: '保存评估事实' }))
     await waitFor(() => expect(appendNursingRecord).toHaveBeenCalledWith(episode.id, expect.objectContaining({
       recordType: 'ASSESSMENT', assessment: expect.objectContaining({
-        assessmentType: 'ADMISSION', selfCareLevel: 'PARTIAL_ASSISTANCE', fallRiskLevel: 'HIGH',
+        assessmentType: 'ADMISSION', admissionMethod: 'WHEELCHAIR', communicationStatus: 'IMPAIRED',
+        selfCareLevel: 'PARTIAL_ASSISTANCE', fallRiskLevel: 'HIGH', painScore: undefined,
         conclusion: '步态不稳，活动时需陪同',
       }), commandCode: 'IP-NURSING-ASSESSMENT-command-1',
     })))
+    await userEvent.click(await screen.findByRole('button', { name: '新增护理评估' }))
+    expect(screen.getByLabelText('自理能力')).toHaveTextContent('未评估')
+    expect(screen.getByRole('button', { name: '保存评估事实' })).toBeDisabled()
+  })
+
+  it.each([new Error('网络不可用'), null])('does not present a failed or malformed query as no nursing facts: %s', async (response) => {
+    const nursingRecords = response instanceof Error ? vi.fn().mockRejectedValue(response) : vi.fn().mockResolvedValue(response)
+    const api = { clinicalSafety: { vitalSignRules: vi.fn().mockResolvedValue({ rules: [] }) },
+      inpatient: { nursingRecords } } as unknown as RhnApi
+    renderWithQuery(<InpatientNursingWorkspace api={api} episode={episode} />)
+    expect(await screen.findByRole('button', { name: '重试护理记录' })).toBeInTheDocument()
+    expect(screen.queryByText('尚未完成护理评估')).not.toBeInTheDocument()
+    nursingRecords.mockResolvedValue([])
+    await userEvent.click(screen.getByRole('button', { name: '重试护理记录' }))
+    expect(await screen.findByRole('button', { name: '新增护理记录' })).toBeInTheDocument()
+  })
+
+  it('clears unsaved observations when switching patients', async () => {
+    const api = { clinicalSafety: { vitalSignRules: vi.fn().mockResolvedValue({ rules: [] }) },
+      inpatient: { nursingRecords: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi
+    const view = renderWithQuery(<InpatientNursingWorkspace api={api} episode={episode} />)
+    await userEvent.click(await screen.findByRole('button', { name: '新增护理记录' }))
+    await userEvent.type(screen.getByLabelText('病情观察'), '仅属于张三的观察')
+    const originalKey = view.client.getQueryCache().find({ queryKey: ['inpatient-nursing-records', episode.id], exact: false })!.queryKey
+    view.client.setQueryData([originalKey[0], 'episode-2', ...originalKey.slice(2)], [])
+    view.rerender(<InpatientNursingWorkspace api={api} episode={{ ...episode, id: 'episode-2', residentName: '李四' }} />)
+    await userEvent.click(await screen.findByRole('button', { name: '新增护理记录' }))
+    expect(screen.getByLabelText('病情观察')).toHaveValue('')
   })
 })
 
 describe('InpatientShiftHandoffWorkspace', () => {
+  it('requires actual ward and patient facts and clears them after saving', async () => {
+    const createShiftHandoff = vi.fn().mockResolvedValue({ id: 'handoff-2' })
+    const api = { inpatient: { shiftHandoffs: vi.fn().mockResolvedValue([]), createShiftHandoff } } as unknown as RhnApi
+    renderWithQuery(<InpatientShiftHandoffWorkspace api={api} episodes={[episode,
+      { ...episode, id: 'episode-2', residentName: '李四' }]} />)
+    await userEvent.click(await screen.findByRole('button', { name: '新建本班交班' }))
+    expect(screen.getByLabelText('病区摘要')).toHaveValue('')
+    expect(screen.getAllByLabelText('患者情况').every((input) => (input as HTMLInputElement).value === '')).toBe(true)
+    expect(screen.getByRole('button', { name: '保存交班草稿' })).toBeDisabled()
+    await userEvent.type(screen.getByLabelText('病区摘要'), '本班收治两位患者')
+    await userEvent.type(screen.getAllByLabelText('患者情况')[0], '张三发热待复测')
+    expect(screen.getByRole('button', { name: '保存交班草稿' })).toBeDisabled()
+    await userEvent.type(screen.getAllByLabelText('患者情况')[1], '李四术后需观察伤口')
+    await userEvent.click(screen.getByRole('button', { name: '保存交班草稿' }))
+    await waitFor(() => expect(createShiftHandoff).toHaveBeenCalledWith(expect.objectContaining({
+      wardSummary: '本班收治两位患者', patients: [
+        expect.objectContaining({ episodeId: 'episode-1', situation: '张三发热待复测' }),
+        expect.objectContaining({ episodeId: 'episode-2', situation: '李四术后需观察伤口' }),
+      ],
+    })))
+    await userEvent.click(await screen.findByRole('button', { name: '新建本班交班' }))
+    expect(screen.getByLabelText('病区摘要')).toHaveValue('')
+    expect(screen.getAllByLabelText('患者情况')[0]).toHaveValue('')
+    expect(screen.getByRole('button', { name: '保存交班草稿' })).toBeDisabled()
+  })
+
+  it.each([new Error('网络不可用'), null])('does not report absent handoffs when the query fails: %s', async (response) => {
+    const shiftHandoffs = response instanceof Error ? vi.fn().mockRejectedValue(response) : vi.fn().mockResolvedValue(response)
+    const api = { inpatient: { shiftHandoffs } } as unknown as RhnApi
+    renderWithQuery(<InpatientShiftHandoffWorkspace api={api} episodes={[episode]} />)
+    expect(await screen.findByRole('button', { name: '重试交接记录' })).toBeInTheDocument()
+    expect(screen.queryByText('本班尚未创建交班')).not.toBeInTheDocument()
+    expect(screen.getByText('查询失败')).toBeInTheDocument()
+    shiftHandoffs.mockResolvedValue([])
+    await userEvent.click(screen.getByRole('button', { name: '重试交接记录' }))
+    expect(await screen.findByText('本班尚未创建交班')).toBeInTheDocument()
+  })
+
+  it('clears unsaved handoff facts when switching wards', async () => {
+    const api = { inpatient: { shiftHandoffs: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi
+    const view = renderWithQuery(<InpatientShiftHandoffWorkspace api={api} episodes={[episode]} />)
+    await userEvent.click(await screen.findByRole('button', { name: '新建本班交班' }))
+    await userEvent.type(screen.getByLabelText('病区摘要'), '综合病区摘要')
+    await userEvent.type(screen.getByLabelText('患者情况'), '原病区患者情况')
+    view.rerender(<InpatientShiftHandoffWorkspace api={api} episodes={[{ ...episode, departmentId: 'ward-2' }]} />)
+    await userEvent.click(await screen.findByRole('button', { name: '新建本班交班' }))
+    expect(screen.getByLabelText('病区摘要')).toHaveValue('')
+    expect(screen.getByLabelText('患者情况')).toHaveValue('')
+  })
+
   it('presents and signs a ward-level shift handoff', async () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'command-1' })
     const handoff: InpatientShiftHandoff = {

@@ -13,6 +13,8 @@ import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.SaveRequest;
 import com.rhn.outpatient.api.OutpatientPlanTemplateContracts.ServiceInput;
 import com.rhn.outpatient.api.OutpatientPlanTemplateDirectory;
 import com.rhn.platform.masterdata.api.MedicationKnowledgeDirectory;
+import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
+import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -22,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -51,6 +52,8 @@ public class ClinicalPlanTemplateAiApplicationService {
     private final MedicationIntentParser medicationParser;
     private final MedicationCandidateMatchingService medicationMatcher;
     private final MedicationKnowledgeDirectory medicationKnowledgeDirectory;
+    private final MedicationRouteDirectory routes;
+    private final OrderFrequencyDirectory frequencies;
     private final PlanInvestigationDecisionService investigationDecisions;
     private final DiagnosisNormalizationService diagnosisNormalizer;
     private final ClinicalPlanRetrievalService planRetrieval;
@@ -63,6 +66,7 @@ public class ClinicalPlanTemplateAiApplicationService {
     public ClinicalPlanTemplateAiApplicationService(MedicationIntentParser medicationParser,
                                                      MedicationCandidateMatchingService medicationMatcher,
                                                      MedicationKnowledgeDirectory medicationKnowledgeDirectory,
+                                                     MedicationRouteDirectory routes, OrderFrequencyDirectory frequencies,
                                                      PlanInvestigationDecisionService investigationDecisions,
                                                      DiagnosisNormalizationService diagnosisNormalizer,
                                                      ClinicalPlanRetrievalService planRetrieval,
@@ -74,6 +78,7 @@ public class ClinicalPlanTemplateAiApplicationService {
         this.medicationParser = medicationParser;
         this.medicationMatcher = medicationMatcher;
         this.medicationKnowledgeDirectory = medicationKnowledgeDirectory;
+        this.routes = routes; this.frequencies = frequencies;
         this.investigationDecisions = investigationDecisions;
         this.diagnosisNormalizer = diagnosisNormalizer;
         this.planRetrieval = planRetrieval;
@@ -413,14 +418,64 @@ public class ClinicalPlanTemplateAiApplicationService {
                                             List<ServiceInput> services, Set<Long> serviceIds) {
         String details = value.details();
         if (resolution != null && !resolution.detail().isBlank()) details = appendDetails(details, resolution.detail());
+        if (resolution != null && resolution.requiresReview()) return new ItemOutcome("NEEDS_REVIEW", details);
         if (resolution != null && !resolution.items().isEmpty()) {
-            for (var matched : resolution.items()) {
-                if (serviceIds.add(matched.id())) {
-                    services.add(new ServiceInput(matched.id(), matched.code(), matched.name(),
-                            matched.serviceType(), matched.quantity(),
-                            matched.unitCode(), "SALE", true, value.name(), AiPlanOrderInstructions.service(value.details())));
-                }
+            String evidence = Stream.of(value.name(), value.sourceQuote(), value.details())
+                    .filter(s -> s != null && !s.isBlank()).distinct().collect(Collectors.joining("；"));
+            if (PlanInvestigationAmounts.restricted(evidence)) {
+                return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                        "项目要求包含否定、条件、重复执行或数量限制，未自动生成医嘱，请核对后确认"));
             }
+            if (resolution.groupMatch() && PlanInvestigationAmounts.hasAmount(evidence)) {
+                return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                        "原文另有数量要求，不能直接替换或倍乘组套成员数量，请逐项核对"));
+            }
+            var pending = new ArrayList<ServiceInput>();
+            var pendingIds = new LinkedHashSet<Long>();
+            for (var matched : resolution.items()) {
+                if (matched.id() == null || matched.id() <= 0 || matched.code() == null || matched.code().isBlank()
+                        || matched.name() == null || matched.name().isBlank() || !value.kind().equals(matched.serviceType())
+                        || matched.unitCode() == null || matched.unitCode().isBlank()) {
+                    return new ItemOutcome("NEEDS_REVIEW", appendDetails(details, "目录项目身份、类型或数量单位不完整，请核实目录"));
+                }
+                if (resolution.groupMatch() && !matched.requiredMember()) {
+                    return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                            "组套包含可选成员“" + matched.name() + "”，请确认实际开立成员，未自动全选"));
+                }
+                if (!matched.unitCode().equals(matched.catalogUnitCode())) {
+                    return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                            "组套单位与目录单位不一致，未自动换算数量，请核实换算关系"));
+                }
+                if (!Boolean.TRUE.equals(matched.chargeable())) {
+                    return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                            "当前机构目录未确认支持计价，未自动生成计价或免计价医嘱，请核实"));
+                }
+                String memberDescription = matched.memberDescription();
+                if (memberDescription != null && PlanInvestigationAmounts.restricted(memberDescription)) {
+                    return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                            "组套成员“" + matched.name() + "”有限制要求：" + memberDescription));
+                }
+                String clinicalDescription = memberDescription == null || memberDescription.isBlank()
+                        ? evidence : evidence + "；组套成员说明：" + memberDescription;
+                if (clinicalDescription.length() > 2000) {
+                    return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                            "原文与组套成员说明超过医嘱说明长度，未截断，请核对后整理"));
+                }
+                if (serviceIds.contains(matched.id()) || !pendingIds.add(matched.id())) {
+                    return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                            "同一项目已有方案明细或组套成员重复，未自动合并，请核对重复开立要求"));
+                }
+                var quantity = resolution.groupMatch() ? matched.quantity()
+                        : PlanInvestigationAmounts.quantity(evidence, matched.unitCode());
+                if (quantity == null || quantity.signum() <= 0) {
+                    return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                            "缺少明确有效的数量，或数量与目录单位不一致，请确认数量及单位后重新匹配"));
+                }
+                pending.add(new ServiceInput(matched.id(), matched.code(), matched.name(),
+                        matched.serviceType(), quantity, matched.unitCode(), "SALE", true, value.name(), clinicalDescription));
+            }
+            services.addAll(pending);
+            serviceIds.addAll(pendingIds);
             return new ItemOutcome("MATCHED", details);
         }
         if (resolution != null && resolution.exactCount() > 1) {
@@ -437,76 +492,70 @@ public class ClinicalPlanTemplateAiApplicationService {
         String extra = Stream.of(value.details(), value.sourceQuote(), item.details())
                 .filter(s -> s != null && !s.isBlank()).distinct()
                 .collect(Collectors.joining(" "));
-        var parsed = medicationParser.parse(value.name(), extra);
+        var parsed = resolveMedicationDirections(medicationParser.parse(value.name(), extra), context);
+        if (parsed.requiresReview()) return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                "用法包含否定、范围、冲突、无效数量或未解析内容，未自动生成医嘱，请明确后重新匹配"));
         var match = medicationMatcher.match(context.tenantId(), context.organizationId(),
                 context.departmentId(), parsed);
-        if (match.product() != null && match.itemPackage() != null
-                && (match.status() == MedicationCandidateMatchingService.Status.UNIQUE_MATCH
-                        || match.status() == MedicationCandidateMatchingService.Status.NEEDS_REVIEW)) {
+        if (match.status() == MedicationCandidateMatchingService.Status.NEEDS_REVIEW
+                || match.status() == MedicationCandidateMatchingService.Status.AMBIGUOUS) {
+            return new ItemOutcome("NEEDS_REVIEW", appendDetails(details, match.evidence()));
+        }
+        if (match.status() == MedicationCandidateMatchingService.Status.UNIQUE_MATCH
+                && match.medication() != null && match.product() != null && match.itemPackage() != null) {
+            if (!hasConfirmedMedicationAmounts(parsed)) {
+                return new ItemOutcome("NEEDS_REVIEW", appendDetails(details, "剂量、用法或数量不完整或无效，请明确后重新匹配"));
+            }
             var medication = match.medication();
+            String specificationReview = MedicationSpecificationEvidence.reviewReason(parsed, medication.preparationSpec());
+            if (specificationReview != null) return new ItemOutcome("NEEDS_REVIEW", appendDetails(details, specificationReview));
             var product = match.product();
             var itemPackage = match.itemPackage();
-            BigDecimal doseValue = parsed.doseValue() != null ? parsed.doseValue()
-                    : (medication.defaultDose() != null ? medication.defaultDose()
-                    : (medication.strengthValue() != null ? medication.strengthValue()
-                    : BigDecimal.ONE));
-            String doseUnit = parsed.doseUnit() != null && !parsed.doseUnit().isBlank() ? parsed.doseUnit()
-                    : (medication.defaultDoseUnit() != null && !medication.defaultDoseUnit().isBlank() ? medication.defaultDoseUnit()
-                    : (medication.strengthUnit() != null && !medication.strengthUnit().isBlank() ? medication.strengthUnit()
-                    : (medication.preparationUnit() != null && !medication.preparationUnit().isBlank() ? medication.preparationUnit()
-                    : "片")));
-            String route = parsed.routeCode() != null ? parsed.routeCode() : medication.defaultRoute();
-            String frequency = parsed.frequencyCode() != null ? parsed.frequencyCode() : medication.defaultFrequency();
-            BigDecimal durationValue = parsed.durationValue() != null ? parsed.durationValue() : BigDecimal.valueOf(3);
-            String durationUnit = parsed.durationUnit() != null && !parsed.durationUnit().isBlank() ? parsed.durationUnit() : "天";
-            BigDecimal qty = parsed.quantity() != null ? parsed.quantity() : BigDecimal.ONE;
-            String unit = parsed.quantityUnit() != null && !parsed.quantityUnit().isBlank()
-                    ? parsed.quantityUnit() : itemPackage.unitCode();
-            if (medicationProductIds.add(product.id()) && medicationIds.add(medication.id())) {
-                medications.add(new MedicationInput(medication.id(), product.id(), itemPackage.id(),
-                        medication.name(), medication.preparationSpec(), doseValue,
-                        doseUnit, route, frequency,
-                        durationValue, durationUnit, qty,
-                        unit, true, false, AiPlanOrderInstructions.medication(value.details()), "SALE", true,
-                        value.name()));
+            if (itemPackage.unitCode() == null || itemPackage.unitCode().isBlank()) {
+                return new ItemOutcome("NEEDS_REVIEW", appendDetails(details, "目录包装缺少数量单位，请核实目录"));
             }
+            if (medicationProductIds.contains(product.id()) || medicationIds.contains(medication.id())) {
+                return new ItemOutcome("NEEDS_REVIEW", appendDetails(details, "同一药品已有方案明细，未自动合并，请核对重复用药要求"));
+            }
+            medicationProductIds.add(product.id());
+            medicationIds.add(medication.id());
+            medications.add(new MedicationInput(medication.id(), product.id(), itemPackage.id(),
+                    medication.name(), medication.preparationSpec(), parsed.doseValue(), parsed.doseUnit(),
+                    parsed.routeCode(), parsed.frequencyCode(), parsed.durationValue(), parsed.durationUnit(),
+                    parsed.quantity(), itemPackage.unitCode(), true, false,
+                    AiPlanOrderInstructions.medication(value.details()), "SALE", true, value.name()));
             status = "MATCHED";
-        } else {
+        } else if (match.status() == MedicationCandidateMatchingService.Status.UNAVAILABLE) {
             var genericKnowledge = matchGenericMedication(parsed, value.name());
-            if (genericKnowledge != null) {
-                var medication = genericKnowledge.medication();
-                if (medicationIds.add(medication.id())) {
-                    BigDecimal doseValue = parsed.doseValue() != null ? parsed.doseValue()
-                            : (medication.defaultDose() != null ? medication.defaultDose()
-                            : (medication.strengthValue() != null ? medication.strengthValue()
-                            : BigDecimal.ONE));
-                    String doseUnit = parsed.doseUnit() != null && !parsed.doseUnit().isBlank() ? parsed.doseUnit()
-                            : (medication.defaultDoseUnit() != null && !medication.defaultDoseUnit().isBlank() ? medication.defaultDoseUnit()
-                            : (medication.strengthUnit() != null && !medication.strengthUnit().isBlank() ? medication.strengthUnit()
-                            : (medication.preparationUnit() != null && !medication.preparationUnit().isBlank() ? medication.preparationUnit()
-                            : "片")));
-                    String route = parsed.routeCode() != null ? parsed.routeCode() : medication.defaultRoute();
-                    String frequency = parsed.frequencyCode() != null ? parsed.frequencyCode() : medication.defaultFrequency();
-                    BigDecimal durationValue = parsed.durationValue() != null ? parsed.durationValue() : BigDecimal.valueOf(3);
-                    String durationUnit = parsed.durationUnit() != null && !parsed.durationUnit().isBlank() ? parsed.durationUnit() : "天";
-                    BigDecimal qty = parsed.quantity() != null ? parsed.quantity() : BigDecimal.ONE;
-                    String unit = parsed.quantityUnit() != null && !parsed.quantityUnit().isBlank()
-                            ? parsed.quantityUnit()
-                            : (medication.preparationUnit() != null ? medication.preparationUnit() : "盒");
-                    medications.add(new MedicationInput(medication.id(), null, null,
-                            medication.name(), medication.preparationSpec(), doseValue,
-                            doseUnit, route, frequency,
-                            durationValue, durationUnit, qty,
-                            unit, true, false, AiPlanOrderInstructions.medication(value.details()), "SALE", false,
-                            value.name()));
-                }
-                status = "MATCHED";
-                details = appendDetails(details, "已对齐通用药品主档（开立时再选择药房产品）");
-            } else {
-                status = match.status() == MedicationCandidateMatchingService.Status.UNAVAILABLE
-                        ? "UNMATCHED" : "NEEDS_REVIEW";
-                details = appendDetails(details, match.evidence());
+            if (genericKnowledge == null) {
+                return new ItemOutcome("UNMATCHED", appendDetails(details,
+                        match.evidence() + "；通用药品目录未返回唯一启用的精确匹配项，请人工选择"));
             }
+            var medication = genericKnowledge.medication();
+            String specificationReview = MedicationSpecificationEvidence.reviewReason(parsed, medication.preparationSpec());
+            if (specificationReview != null) return new ItemOutcome("NEEDS_REVIEW", appendDetails(details, specificationReview));
+            if (!hasConfirmedMedicationAmounts(parsed)) {
+                return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                        "已找到通用药品，但剂量、途径、频次或数量不完整或无效，未自动补值"));
+            }
+            if (medication.preparationUnit() == null || medication.preparationUnit().isBlank()
+                    || !medication.preparationUnit().equalsIgnoreCase(parsed.quantityUnit())) {
+                return new ItemOutcome("NEEDS_REVIEW", appendDetails(details,
+                        "请求数量单位与通用药品目录单位尚未确认一致，请选择明确的产品包装"));
+            }
+            if (!medicationIds.add(medication.id())) {
+                return new ItemOutcome("NEEDS_REVIEW", appendDetails(details, "同一药品已有方案明细，未自动合并，请核对重复用药要求"));
+            }
+            medications.add(new MedicationInput(medication.id(), null, null,
+                    medication.name(), medication.preparationSpec(), parsed.doseValue(), parsed.doseUnit(),
+                    parsed.routeCode(), parsed.frequencyCode(), parsed.durationValue(), parsed.durationUnit(),
+                    parsed.quantity(), medication.preparationUnit(), true, false,
+                    AiPlanOrderInstructions.medication(value.details()), "SALE", null, value.name()));
+            status = "MATCHED";
+            details = appendDetails(details, "已对齐通用药品主档（开立时再选择药房产品并确认计价）");
+        } else {
+            status = "NEEDS_REVIEW";
+            details = appendDetails(details, "药品匹配结果缺少完整目录身份，请重新核实");
         }
         return new ItemOutcome(status, details);
     }
@@ -635,33 +684,40 @@ public class ClinicalPlanTemplateAiApplicationService {
         String normQuery = normalizeMedName(query);
         var exact = found.stream().filter(k -> {
             var m = k.medication();
-            return normQuery.equals(normalizeMedName(m.name()))
+            return "ACTIVE".equals(m.status()) && (normQuery.equals(normalizeMedName(m.name()))
                     || normQuery.equals(normalizeMedName(m.code()))
-                    || (m.aliasName() != null && normQuery.equals(normalizeMedName(m.aliasName())));
+                    || (m.aliasName() != null && java.util.Arrays.stream(m.aliasName().split("[,，;；]"))
+                            .anyMatch(alias -> normQuery.equals(normalizeMedName(alias)))));
         }).toList();
-        if (exact.size() == 1) return exact.getFirst();
-        if (exact.size() > 1) {
-            if (parsed != null && parsed.doseUnit() != null) {
-                var specMatch = exact.stream()
-                        .filter(k -> k.medication().preparationSpec() != null
-                                && k.medication().preparationSpec().contains(parsed.doseUnit()))
-                        .findFirst();
-                if (specMatch.isPresent()) return specMatch.get();
-            }
-            return exact.getFirst();
+        return exact.size() == 1 ? exact.getFirst() : null;
+    }
+
+    private MedicationIntentParser.ParsedMedication resolveMedicationDirections(MedicationIntentParser.ParsedMedication parsed,
+                                                                                ExecutionContext context) {
+        if (parsed.requiresReview()) return parsed;
+        LocalDate today = LocalDate.now(ZONE);
+        String route = parsed.routeCode() == null ? null : routes.resolveActive(context.tenantId(), parsed.routeCode(), "OUTPATIENT", today)
+                .map(MedicationRouteDirectory.RouteSnapshot::code).orElse(null);
+        String frequency = null;
+        if (parsed.frequencyCode() != null) {
+            var matches = frequencies.active(context.tenantId(), context.organizationId(), context.departmentId(), "OUTPATIENT", "MEDICATION", today)
+                    .stream().filter(value -> sameToken(parsed.frequencyCode(), value.code())
+                            || sameToken(parsed.frequencyCode(), value.name()) || sameToken(parsed.frequencyCode(), value.shortName())).toList();
+            if (matches.size() == 1) frequency = matches.getFirst().code();
         }
-        var contains = found.stream().filter(k -> {
-            String candName = normalizeMedName(k.medication().name());
-            return candName.contains(normQuery) || normQuery.contains(candName);
-        }).toList();
-        if (contains.size() == 1) return contains.getFirst();
-        if (!contains.isEmpty()) {
-            var startsWith = contains.stream()
-                    .filter(k -> normalizeMedName(k.medication().name()).startsWith(normQuery))
-                    .findFirst();
-            return startsWith.orElse(contains.getFirst());
-        }
-        return found.getFirst();
+        return new MedicationIntentParser.ParsedMedication(parsed.medicationName(), parsed.productHint(), parsed.ingredientMentions(),
+                parsed.doseValue(), parsed.doseUnit(), route, frequency, parsed.durationValue(), parsed.durationUnit(),
+                parsed.quantity(), parsed.quantityUnit(), parsed.sourceText(), false);
+    }
+
+    private boolean sameToken(String candidate, String actual) {
+        return actual != null && candidate.trim().equalsIgnoreCase(actual.trim());
+    }
+
+    private boolean hasConfirmedMedicationAmounts(MedicationIntentParser.ParsedMedication parsed) {
+        return parsed.hasExecutableDirections() && parsed.doseValue().signum() > 0 && parsed.quantity().signum() > 0
+                && (parsed.durationValue() == null || parsed.durationValue().signum() > 0)
+                && (parsed.durationValue() == null || parsed.durationUnit() != null && !parsed.durationUnit().isBlank());
     }
 
     private String normalizeMedName(String value) {

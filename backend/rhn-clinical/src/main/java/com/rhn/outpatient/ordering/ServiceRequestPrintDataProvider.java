@@ -62,6 +62,7 @@ class ServiceRequestPrintDataProvider implements PrintDataProvider {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("title", documentName); payload.put("organizationName", organization.name());
         payload.put("departmentName", department.name()); payload.put("encounterNo", encounter.encounterNo());
+        payload.put("orderingDepartmentName", encounter.departmentName());
         payload.put("resident", residentMap(resident)); payload.put("requestNo", request.requestNo());
         payload.put("serviceType", request.serviceTypeSnapshot());
         payload.put("serviceTypeText", serviceTypeText(request.serviceTypeSnapshot()));
@@ -73,6 +74,7 @@ class ServiceRequestPrintDataProvider implements PrintDataProvider {
         payload.put("documentInfo", documentInfoSupport.read(request.documentInfoJson()));
         payload.put("examinationPurpose", documentInfoSupport.read(request.documentInfoJson()).examinationPurpose());
         payload.put("clinicalDescription", valueOrDash(documentInfoSupport.appendSummary(request.clinicalDescription(), request.documentInfoJson())));
+        payload.put("clinicalSummary", valueOrDash(request.clinicalDescription()));
         payload.put("reason", valueOrDash(request.reasonText())); payload.put("authoredAt", request.authoredAt());
         payload.put("authoredBy", request.authoredBy()); payload.put("businessDate", request.businessDate());
         payload.put("items", List.of(Map.of("itemCode", request.itemCodeSnapshot(),

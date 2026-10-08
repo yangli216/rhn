@@ -41,7 +41,7 @@ class EncounterDiagnosis {
     private String codeSystemCodeSnapshot;
     @Column(name = "CODE_SYSTEM_VERSION_SNAP")
     private String codeSystemVersionSnapshot;
-    @Column(name = "SD_DIAG_DOMAIN", nullable = false)
+    @Column(name = "SD_DIAG_DOMAIN")
     private String diagnosisDomain;
     @Column(name = "ID_DIAG_GRP")
     private String diagnosisGroupId;
@@ -70,45 +70,12 @@ class EncounterDiagnosis {
     protected EncounterDiagnosis() {
     }
 
-    EncounterDiagnosis(Long tenantId, Long encounterId, String code, String display, DiagnosisType diagnosisType,
-                       Long updatedBy) {
-        this(tenantId, encounterId, "ENCOUNTER", code, display, diagnosisType, updatedBy);
-    }
-
-    EncounterDiagnosis(Long tenantId, Long encounterId, String diagnosisStage, String code, String display,
-                       DiagnosisType diagnosisType, Long updatedBy) {
-        this(tenantId, encounterId, diagnosisStage, code, display, diagnosisType, "CONFIRMED", updatedBy);
-    }
-
-    EncounterDiagnosis(Long tenantId, Long encounterId, String diagnosisStage, String code, String display,
-                       DiagnosisType diagnosisType, String verificationStatus, Long updatedBy) {
-        this(tenantId, encounterId, diagnosisStage, null, null, null, "WESTERN_MEDICINE", null,
-                code, display, diagnosisType, verificationStatus, null, updatedBy);
-    }
-
-    EncounterDiagnosis(Long tenantId, Long encounterId, String diagnosisStage, Long conceptId,
-                       String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
-                       String diagnosisGroupId, String code, String display, DiagnosisType diagnosisType,
-                       String verificationStatus, String managementSnapshotJson, Long updatedBy) {
-        this(tenantId, encounterId, diagnosisStage, conceptId, codeSystemCode, codeSystemVersion,
-                diagnosisDomain, diagnosisGroupId, code, display, diagnosisType, verificationStatus,
-                managementSnapshotJson, 1, updatedBy);
-    }
-
-    EncounterDiagnosis(Long tenantId, Long encounterId, String diagnosisStage, Long conceptId,
-                       String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
-                       String diagnosisGroupId, String code, String display, DiagnosisType diagnosisType,
-                       String verificationStatus, String managementSnapshotJson, int sortOrder, Long updatedBy) {
-        this(tenantId, 1L, 1L, 1L, encounterId, diagnosisStage, conceptId, codeSystemCode, codeSystemVersion,
-                diagnosisDomain, diagnosisGroupId, code, display, diagnosisType, verificationStatus,
-                managementSnapshotJson, sortOrder, updatedBy);
-    }
-
     EncounterDiagnosis(Long tenantId, Long residentId, Long organizationId, Long departmentId,
                        Long encounterId, String diagnosisStage, Long conceptId,
                        String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
                        String diagnosisGroupId, String code, String display, DiagnosisType diagnosisType,
                        String verificationStatus, String managementSnapshotJson, int sortOrder, Long updatedBy) {
+        requireOwnership(tenantId, residentId, organizationId, departmentId, encounterId);
         this.id = com.rhn.shared.id.GlobalIds.next();
         this.tenantId = tenantId;
         this.residentId = residentId;
@@ -119,7 +86,7 @@ class EncounterDiagnosis {
         this.conceptId = conceptId;
         this.codeSystemCodeSnapshot = codeSystemCode;
         this.codeSystemVersionSnapshot = codeSystemVersion;
-        this.diagnosisDomain = diagnosisDomain == null ? "WESTERN_MEDICINE" : diagnosisDomain;
+        this.diagnosisDomain = diagnosisDomain;
         this.diagnosisGroupId = diagnosisGroupId;
         this.sortOrder = sortOrder;
         this.code = code;
@@ -132,6 +99,16 @@ class EncounterDiagnosis {
         this.diagnosisStatus = "ACTIVE";
         this.updatedAt = recordedAt;
         this.updatedBy = updatedBy;
+    }
+
+    static void requireOwnership(Long tenantId, Long residentId, Long organizationId, Long departmentId,
+                                 Long encounterId) {
+        if (tenantId == null || tenantId <= 0 || residentId == null || residentId <= 0
+                || organizationId == null || organizationId <= 0 || departmentId == null || departmentId <= 0
+                || encounterId == null || encounterId <= 0) {
+            throw new com.rhn.shared.api.BusinessException("DIAGNOSIS_OWNERSHIP_UNCONFIRMED",
+                    "诊断关联就诊的患者、机构或科室信息不完整，请核实后重试", org.springframework.http.HttpStatus.CONFLICT);
+        }
     }
 
     void revise(String display, DiagnosisType type, Long actor) {
@@ -156,7 +133,7 @@ class EncounterDiagnosis {
         this.conceptId = conceptId;
         this.codeSystemCodeSnapshot = codeSystemCode;
         this.codeSystemVersionSnapshot = codeSystemVersion;
-        this.diagnosisDomain = diagnosisDomain == null ? "WESTERN_MEDICINE" : diagnosisDomain;
+        this.diagnosisDomain = diagnosisDomain;
         this.diagnosisGroupId = diagnosisGroupId;
         this.sortOrder = sortOrder;
         this.display = display;
@@ -192,7 +169,7 @@ class EncounterDiagnosis {
     String diagnosisGroupId() { return diagnosisGroupId; }
     int sortOrder() { return sortOrder; }
     String managementSnapshotJson() { return managementSnapshotJson; }
-    String terminologyKey() { return (codeSystemCodeSnapshot == null ? "LEGACY" : codeSystemCodeSnapshot) + "|" + code; }
+    String terminologyKey() { return DiagnosisTerminology.identityKey(conceptId, codeSystemCodeSnapshot, diagnosisDomain, code); }
     DiagnosisType diagnosisType() { return diagnosisType; }
     int businessVersionNo() { return businessVersionNo; }
     String verificationStatus() { return verificationStatus; }

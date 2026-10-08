@@ -33,6 +33,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -263,15 +265,19 @@ public class ItemAttributeMaintenanceService {
             JsonNode itemSchema = schema.get("items");
             for (JsonNode item : value) validateScalar(definition, item, itemSchema == null ? schema : itemSchema);
             validateArrayKeywords(value, schema);
-            return;
+        } else {
+            if (value.isArray()) throw badRequest("ITEM_ATTRIBUTE_CARDINALITY_MISMATCH", "单值属性不能提交 JSON 数组");
+            validateScalar(definition, value, parseSchema(definition.schemaJson()));
         }
-        if (value.isArray()) throw badRequest("ITEM_ATTRIBUTE_CARDINALITY_MISMATCH", "单值属性不能提交 JSON 数组");
-        validateScalar(definition, value, parseSchema(definition.schemaJson()));
         if ("DICT_REF".equals(definition.dataType())) {
-            String code = value.asString();
-            boolean found = dictionaryDirectory.resolveActiveItems(current().tenantId(), definition.dictionaryId())
-                    .stream().anyMatch(item -> item.code().equals(code));
-            if (!found) throw badRequest("ITEM_ATTRIBUTE_DICTIONARY_VALUE_INVALID", "属性值不是字典中的有效编码");
+            Set<String> activeCodes = dictionaryDirectory.resolveActiveItems(current().tenantId(), definition.dictionaryId())
+                    .stream().map(item -> item.code()).collect(Collectors.toSet());
+            Iterable<JsonNode> values = value.isArray() ? value : List.of(value);
+            for (JsonNode item : values) {
+                if (!activeCodes.contains(item.asString())) {
+                    throw badRequest("ITEM_ATTRIBUTE_DICTIONARY_VALUE_INVALID", "属性值不是字典中的有效编码");
+                }
+            }
         }
     }
 

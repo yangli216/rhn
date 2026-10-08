@@ -15,10 +15,15 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestControllerAdvice
@@ -38,6 +43,45 @@ public class ApiExceptionHandler {
                 .toList();
         return ResponseEntity.badRequest().body(error(
                 "VALIDATION_FAILED", "请求数据校验失败", request, violations));
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    ResponseEntity<ApiError> handleMethodValidation(HandlerMethodValidationException exception,
+                                                    HttpServletRequest request) {
+        // Invalid controller output is a server failure, not bad input from the caller.
+        if (exception.isForReturnValue()) return handleUnexpected(exception, request);
+        List<ApiError.FieldViolation> violations = new ArrayList<>();
+        for (var result : exception.getParameterValidationResults()) {
+            var parameter = result.getMethodParameter();
+            var annotation = parameter.getParameterAnnotation(RequestParam.class);
+            String field = parameter.getParameterName();
+            if (annotation != null && !annotation.name().isBlank()) field = annotation.name();
+            else if (annotation != null && !annotation.value().isBlank()) field = annotation.value();
+            if (field == null) field = "arg" + parameter.getParameterIndex();
+            for (var failure : result.getResolvableErrors()) {
+                violations.add(failure instanceof FieldError error ? toViolation(error)
+                        : new ApiError.FieldViolation(field, failure.getDefaultMessage()));
+            }
+        }
+        for (var failure : exception.getCrossParameterValidationResults()) {
+            violations.add(new ApiError.FieldViolation("_request", failure.getDefaultMessage()));
+        }
+        return ResponseEntity.badRequest().body(error(
+                "VALIDATION_FAILED", "请求参数校验失败", request, violations));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ApiError> handleParameterTypeMismatch(MethodArgumentTypeMismatchException exception,
+                                                         HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(error("VALIDATION_FAILED", "请求参数类型不正确", request,
+                List.of(new ApiError.FieldViolation(exception.getName(), "参数类型不正确"))));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<ApiError> handleMissingParameter(MissingServletRequestParameterException exception,
+                                                    HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(error("VALIDATION_FAILED", "缺少必填请求参数", request,
+                List.of(new ApiError.FieldViolation(exception.getParameterName(), "参数不能为空"))));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

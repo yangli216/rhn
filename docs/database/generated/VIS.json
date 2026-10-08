@@ -1,5 +1,5 @@
 {
-  "fingerprint": "cf6b790881c7cf89a94898e2de0d7d9f33de0ebee3ca9d002f9ab8cca929a48e",
+  "fingerprint": "29033795aa43ffea288b26ca6e7fbda613f90ac95920280da8122dd5a636c9d6",
   "tables": [
     {
       "logical": "vis.allergy_intolerance",
@@ -3137,7 +3137,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
-          "line": 184
+          "line": 187
         }
       ]
     },
@@ -3323,7 +3323,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
-          "line": 215
+          "line": 218
         }
       ]
     },
@@ -3555,8 +3555,8 @@
           "type": "CHARACTER VARYING",
           "size": 32,
           "scale": 0,
-          "nullable": false,
-          "defaultValue": "'WESTERN_MEDICINE'",
+          "nullable": true,
+          "defaultValue": null,
           "ordinal": 19,
           "comment": "诊断领域",
           "logical": "diagnosis_domain",
@@ -4236,8 +4236,8 @@
           "type": "CHARACTER VARYING",
           "size": 32,
           "scale": 0,
-          "nullable": false,
-          "defaultValue": "'WESTERN_MEDICINE'",
+          "nullable": true,
+          "defaultValue": null,
           "ordinal": 21,
           "comment": "诊断领域",
           "logical": "diagnosis_domain",
@@ -4443,7 +4443,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
-          "line": 127
+          "line": 130
         }
       ]
     },
@@ -5703,7 +5703,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
-          "line": 88
+          "line": 91
         }
       ]
     },
@@ -6387,15 +6387,15 @@
         },
         {
           "path": "backend/rhn-app/src/main/java/com/rhn/portal/dashboard/PortalSummaryService.java",
-          "line": 39
+          "line": 40
         },
         {
           "path": "backend/rhn-app/src/main/java/com/rhn/portal/dashboard/PortalSummaryService.java",
-          "line": 43
+          "line": 44
         },
         {
           "path": "backend/rhn-app/src/main/java/com/rhn/portal/dashboard/PortalSummaryService.java",
-          "line": 47
+          "line": 48
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/reporting/BillingReportSources.java",
@@ -6427,7 +6427,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/JpaEncounterDiagnosisDirectory.java",
-          "line": 45
+          "line": 56
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/reporting/OutpatientAnalyticsAdapter.java",
@@ -6475,7 +6475,7 @@
         },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/allergy/AllergyService.java",
-          "line": 199
+          "line": 200
         }
       ]
     },

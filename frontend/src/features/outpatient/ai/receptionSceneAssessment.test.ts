@@ -132,7 +132,7 @@ describe('reception evidence boundaries', () => {
   it('uses only the latest valid report and recognizes qualitative positives', () => {
     const report = { id: 'r1', residentId: current.residentId, encounterId: current.id, requestId: 'req', reportCode: 'LAB',
       reportVersion: 1, status: 'FINAL', reportName: '病原检测', observations: [{ id: 'o', status: 'FINAL',
-        observationName: '病原', valueString: '阳性', interpretationCode: 'N' }] } as DiagnosticReport
+        observationName: '病原', valueType: 'STRING', valueString: '阳性', interpretationCode: 'N' }] } as DiagnosticReport
     expect(assessReceptionScene({ encounter: current, diagnosticReports: [report], now }).scene).toBe('REPORT_FOLLOW_UP')
     const corrected = { ...report, id: 'r2', replacesReportId: 'r1', reportVersion: 2, status: 'CORRECTED' as const,
       observations: [{ ...report.observations[0], valueString: '阴性' }] }
@@ -149,5 +149,20 @@ describe('reception evidence boundaries', () => {
       historyEncounters: [{ ...chronic, registeredAt: new Date(now - 7 * 86_400_000).toISOString() }], diagnosticReports: [report], now })
     expect(assessment.scene).toBe('REPORT_FOLLOW_UP')
     expect(assessment.selectedReportIds).toEqual(['r'])
+  })
+})
+
+
+describe('report highlight source values', () => {
+  it.each([
+    [{ valueType: 'BOOLEAN', valueBoolean: false }, '布尔结果 否'],
+    [{ valueType: 'BOOLEAN', valueBoolean: null }, '布尔结果 结果缺失'],
+    [{ valueType: 'BOOLEAN', valueNumber: 0 }, '布尔结果 结果数据异常，请核对'],
+  ])('retains or flags a boolean result in report highlights: %j', (value, expected) => {
+    const report = { id: 'report1', residentId: baseEncounter.residentId, encounterId: baseEncounter.id, requestId: 'req1',
+      reportVersion: 1, reportCode: 'LAB', status: 'FINAL', reportName: '结果报告', issuedAt: baseEncounter.registeredAt,
+      observations: [{ id: 'obs1', observationName: '布尔结果', status: 'FINAL', interpretationCode: 'A', ...value }] } as DiagnosticReport
+    const result = assessReceptionScene({ encounter: baseEncounter, diagnosticReports: [report] })
+    expect(result.reportHighlights[0]).toContain(expected)
   })
 })

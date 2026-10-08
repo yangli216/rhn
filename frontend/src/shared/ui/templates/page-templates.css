@@ -21,6 +21,7 @@
 .ui-page-template__pane-header, .ui-page-template__pane-footer { flex: none; min-width: 0; }
 .ui-page-template__pane-header { padding: var(--space-2) var(--space-3); }
 .ui-page-template__pane-header > .ui-panel__head:first-child { margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) var(--space-2); }
+.ui-page-template__pane-header > .ui-panel__head:last-child { margin-bottom: calc(-1 * var(--space-2)); }
 .ui-page-template__pane-header > .ui-search-field { margin-top: var(--space-2); }
 .ui-page-template__pane-footer > .ui-pagination { flex-wrap: wrap; gap: var(--space-2); justify-content: space-between; padding-inline: var(--space-3); }
 .ui-page-template__pane-footer > .ui-pagination.ui-pagination--compact,

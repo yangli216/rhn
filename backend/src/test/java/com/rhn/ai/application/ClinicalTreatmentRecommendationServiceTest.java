@@ -103,7 +103,7 @@ class ClinicalTreatmentRecommendationServiceTest {
         when(medication.products()).thenReturn(List.of(product));
         when(product.id()).thenReturn(202L); when(product.orderable()).thenReturn(true); when(product.sdStatus()).thenReturn("ACTIVE");
         when(product.organizationAdoption()).thenReturn(adoption); when(adoption.orderable()).thenReturn(true); when(adoption.dispensable()).thenReturn(true);
-        when(inventory.findOrderableMedications(1L, 3L, 4L, "退热药")).thenReturn(List.of(medication));
+        when(inventory.findOrderableMedicationCandidates(1L, 3L, 4L, "退热药")).thenReturn(List.of(medication));
         when(inventory.inspectMedicationAvailability(1L, 3L, 4L, 202L, null)).thenReturn(
                 new OutpatientPrescriptionInventoryDirectory.MedicationAvailabilityView(true, 8L, "药房", false,
                         null, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO));
@@ -132,5 +132,84 @@ class ClinicalTreatmentRecommendationServiceTest {
         when(gateway.analyze(any(), any())).thenThrow(new IllegalStateException("private error"));
         var result = service.recommend(List.of(intent("LABORATORY", "血常规"), intent("LABORATORY", "肝功能")), request, settings);
         assertEquals(List.of(101L), result.items().stream().map(TreatmentRecommendation::catalogItemId).toList());
+    }
+
+    @Test void tooManyCandidatesDoNotProduceASelectionFromATruncatedSubset() {
+        var rows = java.util.stream.LongStream.range(100, 165).mapToObj(id -> {
+            var value = mock(MasterDataViews.ServiceView.class);
+            when(value.id()).thenReturn(id);
+            when(value.code()).thenReturn("LAB" + id);
+            when(value.name()).thenReturn("检验项目" + id);
+            return value;
+        }).toList();
+        when(services.searchOrderableServices(eq("检验"), eq("LABORATORY"), eq(3L), any())).thenReturn(rows);
+        var result = service.recommend(List.of(intent("LABORATORY", "检验")), request, settings);
+        assertTrue(result.items().isEmpty());
+        assertTrue(result.alerts().stream().anyMatch(alert -> alert.detail().contains("未截取")));
+        verifyNoInteractions(gateway, decisions);
+    }
+
+    @Test void unavailableEarlyMedicationRowsDoNotHideAnOrderableNinthMedication() {
+        var rows = new java.util.ArrayList<OutpatientPrescriptionInventoryDirectory.OrderableMedicationView>();
+        for (int index = 0; index < 8; index++) {
+            var inactive = mock(OutpatientPrescriptionInventoryDirectory.OrderableMedicationView.class);
+            when(inactive.sdStatus()).thenReturn("INACTIVE");
+            rows.add(inactive);
+        }
+        var medication = mock(OutpatientPrescriptionInventoryDirectory.OrderableMedicationView.class);
+        var product = mock(MasterDataViews.MedicationProductView.class);
+        var adoption = mock(MasterDataViews.OrganizationAdoptionView.class);
+        when(medication.sdStatus()).thenReturn("ACTIVE");
+        when(medication.availablePackageQuantity()).thenReturn(BigDecimal.ONE);
+        when(medication.products()).thenReturn(List.of(product));
+        when(medication.id()).thenReturn(300L);
+        when(medication.name()).thenReturn("退热药");
+        when(medication.code()).thenReturn("MED300");
+        when(product.id()).thenReturn(202L);
+        when(product.orderable()).thenReturn(true);
+        when(product.sdStatus()).thenReturn("ACTIVE");
+        when(product.organizationAdoption()).thenReturn(adoption);
+        when(adoption.orderable()).thenReturn(true);
+        when(adoption.dispensable()).thenReturn(true);
+        rows.add(medication);
+        when(inventory.findOrderableMedicationCandidates(1L, 3L, 4L, "退热药")).thenReturn(rows);
+        when(inventory.inspectMedicationAvailability(1L, 3L, 4L, 202L, null)).thenReturn(
+                new OutpatientPrescriptionInventoryDirectory.MedicationAvailabilityView(true, 8L, "药房", true,
+                        null, null, null, null, BigDecimal.ONE, BigDecimal.ONE));
+        var result = service.recommend(List.of(intent("MEDICATION", "退热药")), request, settings);
+        assertEquals(List.of(202L), result.items().stream().map(TreatmentRecommendation::catalogItemId).toList());
+        verifyNoInteractions(gateway);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"5.00mg,true", "10mg,false", ",false"})
+    void recommendationsRespectRequestedSpecificationBeforeModelSelection(String catalogSpec, boolean matched) {
+        var medication = mock(OutpatientPrescriptionInventoryDirectory.OrderableMedicationView.class);
+        var product = mock(MasterDataViews.MedicationProductView.class);
+        var adoption = mock(MasterDataViews.OrganizationAdoptionView.class);
+        when(medication.sdStatus()).thenReturn("ACTIVE");
+        when(medication.availablePackageQuantity()).thenReturn(BigDecimal.ONE);
+        when(medication.products()).thenReturn(List.of(product));
+        when(medication.id()).thenReturn(300L);
+        when(medication.name()).thenReturn("测试药品");
+        when(medication.code()).thenReturn("MED300");
+        when(medication.preparationSpec()).thenReturn(catalogSpec);
+        when(product.id()).thenReturn(202L);
+        when(product.orderable()).thenReturn(true);
+        when(product.sdStatus()).thenReturn("ACTIVE");
+        when(product.organizationAdoption()).thenReturn(adoption);
+        when(adoption.orderable()).thenReturn(true);
+        when(adoption.dispensable()).thenReturn(true);
+        when(inventory.findOrderableMedicationCandidates(1L, 3L, 4L, "测试药品")).thenReturn(List.of(medication));
+        when(inventory.inspectMedicationAvailability(1L, 3L, 4L, 202L, null)).thenReturn(
+                new OutpatientPrescriptionInventoryDirectory.MedicationAvailabilityView(true, 8L, "药房", true,
+                        null, null, null, null, BigDecimal.ONE, BigDecimal.ONE));
+
+        var intent = new TreatmentRecommendation("MEDICATION", null, null, null, "测试药品", "5mg", "来源明确规格");
+        var result = service.recommend(List.of(intent), request, settings);
+
+        assertEquals(matched ? 1 : 0, result.items().size());
+        if (!matched) assertTrue(result.alerts().stream().anyMatch(alert -> alert.detail().contains("规格")));
+        verifyNoInteractions(gateway, decisions);
     }
 }

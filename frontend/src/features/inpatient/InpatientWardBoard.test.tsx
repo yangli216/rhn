@@ -33,6 +33,13 @@ const board: WardBoardValue = {
 }
 
 describe('InpatientWardBoard', () => {
+  it('describes the absence of task alerts without asserting clinical stability', () => {
+    render(<InpatientWardBoard value={{ ...board, patients: [{ ...board.patients[1], attentionLevel: 'STABLE' }] }}
+      loading={false} onSelect={() => undefined} />)
+    expect(screen.getByText('暂无待办预警')).toBeInTheDocument()
+    expect(screen.queryByText('平稳')).not.toBeInTheDocument()
+  })
+
   it('renders compact handover metrics and selects a patient row', async () => {
     const onSelect = vi.fn()
     render(<InpatientWardBoard value={board} loading={false} onSelect={onSelect} />)

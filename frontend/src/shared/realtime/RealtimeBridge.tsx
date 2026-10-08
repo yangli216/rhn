@@ -25,6 +25,7 @@ export function RealtimeBridge({ api, contextKey, organizationId, onSessionTermi
       }
       if (event.type.startsWith('DIAGNOSTIC_CRITICAL_VALUE_')) {
         void queryClient.invalidateQueries({ queryKey: ['critical-values', contextKey] })
+        void queryClient.invalidateQueries({ queryKey: ['inpatient-critical-values'] })
         void queryClient.invalidateQueries({ queryKey: ['portal-notifications', contextKey] })
         void queryClient.invalidateQueries({ queryKey: ['portal-summary', contextKey] })
         void queryClient.invalidateQueries({ queryKey: ['work-tasks'] })
@@ -58,8 +59,10 @@ export function RealtimeBridge({ api, contextKey, organizationId, onSessionTermi
         if (!controller.signal.aborted) {
           void queryClient.invalidateQueries({ queryKey: ['pharmacy-inbox', organizationId] })
           void queryClient.invalidateQueries({ queryKey: ['critical-values', contextKey] })
+          void queryClient.invalidateQueries({ queryKey: ['inpatient-critical-values'] })
           void queryClient.invalidateQueries({ queryKey: ['portal-summary', contextKey] })
           void queryClient.invalidateQueries({ queryKey: ['announcement-summary', contextKey] })
+          void queryClient.invalidateQueries({ queryKey: ['announcements', contextKey] })
         }
       }
     }

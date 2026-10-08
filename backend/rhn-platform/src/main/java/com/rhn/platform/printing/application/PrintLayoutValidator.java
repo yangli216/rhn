@@ -40,7 +40,11 @@ class PrintLayoutValidator {
 
         String expectedSchema = "CANVAS".equals(definition.layoutMode())
                 ? ConfigurablePdfRenderer.CANVAS_SCHEMA : ConfigurablePdfRenderer.FLOW_SCHEMA;
-        if (!expectedSchema.equals(layoutSchema)) {
+        boolean outpatient = OutpatientDocumentPdfRenderer.SCHEMA.equals(layoutSchema);
+        if (outpatient && !OutpatientDocumentPdfRenderer.TYPES.contains(definition.documentType())) {
+            throw badRequest("PRINT_LAYOUT_MODE_MISMATCH", "门诊纸质单据模板不支持该文档类型");
+        }
+        if (!outpatient && !expectedSchema.equals(layoutSchema)) {
             throw badRequest("PRINT_LAYOUT_MODE_MISMATCH", "布局协议与单据定义的布局模式不一致");
         }
         Map<String, Object> paper = map(config.get("paper"));
@@ -50,7 +54,13 @@ class PrintLayoutValidator {
                 || (media.heightMm() != null && Math.abs(height - media.heightMm().doubleValue()) > 0.11)) {
             throw badRequest("PRINT_LAYOUT_MEDIA_MISMATCH", "模板纸张尺寸必须与所选介质一致");
         }
-        if (ConfigurablePdfRenderer.CANVAS_SCHEMA.equals(layoutSchema)) validateCanvas(config, width, height);
+        if (outpatient) {
+            double margin = decimal(paper.get("marginMm"), -1);
+            if (width < 140 || height < 140 || margin < 8 || margin * 2 >= Math.min(width, height)) {
+                throw badRequest("PRINT_LAYOUT_MEDIA_MISMATCH", "门诊纸质单据纸张至少为 140mm，页边距至少为 8mm 且不能超出纸张");
+            }
+            rejectExecutableText(config);
+        } else if (ConfigurablePdfRenderer.CANVAS_SCHEMA.equals(layoutSchema)) validateCanvas(config, width, height);
         else validateFlow(config);
         return config;
     }
@@ -69,7 +79,10 @@ class PrintLayoutValidator {
             double y = decimal(element.get("yMm"), -1);
             double width = decimal(element.get("widthMm"), -1);
             double height = decimal(element.get("heightMm"), -1);
-            if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > pageWidth + 0.01
+            boolean invalidSize = "line".equals(type)
+                    ? width < 0 || height < 0 || (width == 0 && height == 0)
+                    : width <= 0 || height <= 0;
+            if (x < 0 || y < 0 || invalidSize || x + width > pageWidth + 0.01
                     || y + height > pageHeight + 0.01) invalid(index, "超出纸张物理边界");
             if ("text".equals(type)) {
                 double fontSize = decimal(element.get("fontSize"), 9);

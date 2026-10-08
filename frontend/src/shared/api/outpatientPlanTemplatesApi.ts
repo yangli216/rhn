@@ -325,6 +325,18 @@ export interface MinedPlanSuggestion {
   services: CompiledPlanServiceItem[]
 }
 
+export type HistoricalPlanCategory = 'DIAGNOSIS' | 'MEDICATION' | 'SERVICE'
+
+export interface HistoricalPlanReviewItem {
+  category: HistoricalPlanCategory
+  sourceId?: string | null
+  medicationId?: string | null
+  catalogItemId?: string | null
+  code?: string | null
+  display?: string | null
+  reason: string
+}
+
 export interface HistoricalStablePlan {
   encounterId: string
   sourceEncounterId: string
@@ -335,16 +347,18 @@ export interface HistoricalStablePlan {
   medications: CompiledPlanMedicationItem[]
   services: CompiledPlanServiceItem[]
   guidanceNotes: string[]
+  reviewItems: HistoricalPlanReviewItem[]
+  assessedCategories: HistoricalPlanCategory[]
 }
 
-export type HistoricalPlanDifferenceStatus = 'CONSISTENT' | 'MISSING_IN_HISTORY' | 'MISSING_IN_STANDARD' | 'CONFLICT'
+export type HistoricalPlanDifferenceStatus = 'CONSISTENT' | 'MISSING_IN_HISTORY' | 'MISSING_IN_STANDARD' | 'CONFLICT' | 'NEEDS_REVIEW'
 
 export interface HistoricalPlanDifference {
   key: string
   category: 'DIAGNOSIS' | 'MEDICATION' | 'SERVICE'
   status: HistoricalPlanDifferenceStatus
-  historicalIndex?: number
-  standardIndex?: number
+  historicalIndex?: number | null
+  standardIndex?: number | null
   historicalDisplay?: string
   standardDisplay?: string
   reason: string

@@ -18,9 +18,8 @@ public class InpatientOrderChargeService {
 
     public void postExecutedTask(InpatientOrderTask task, InpatientCareRequest request) {
         if (task.status() != InpatientOrderTaskStatus.EXECUTED || "MEDICATION".equals(request.orderCategory())
-                || request.catalogItemId() == null
-                || request.unitPrice() == null || request.totalAmount() == null
-                || request.currencyCode() == null) return;
+                || InpatientOrderPriceFacts.isUnpricedNursing(request)) return;
+        InpatientOrderPriceFacts.requirePrice(request);
         billing.postExecutedOrderTask(new InpatientBillingDirectory.ExecutedOrderChargeCommand(
                 request.tenantId(), request.residentId(), request.encounterId(),
                 request.performerOrganizationId(), request.performerDepartmentId(), request.id(), task.id(),

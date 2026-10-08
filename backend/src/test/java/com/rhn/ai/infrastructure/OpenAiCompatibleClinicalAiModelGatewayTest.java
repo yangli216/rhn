@@ -255,11 +255,19 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertEquals("结构化分析完成", result.summary());
         assertEquals("现病史草稿", result.recordDraft().presentIllness());
         assertEquals("Bearer secret-key", authorization.get());
-        assertTrue(requestBody.get().contains("RHN-CLINICAL-ASSISTANT-V8"));
+        assertTrue(requestBody.get().contains("RHN-CLINICAL-ASSISTANT-V9"));
         assertTrue(requestBody.get().contains("语音转写内容"));
         var sent = jsonCodec.readTree(requestBody.get());
         var context = jsonCodec.readTree(sent.get("messages").get(1).get("content").asString());
         assertEquals("REPORT_FOLLOW_UP", context.get("receptionScene").asString());
+        var historicalCatalog = context.get("clinicalHistory").get(0).get("medications").get(0).get("catalogSnapshot");
+        assertEquals("0.5g", historicalCatalog.get("preparationSpec").asString());
+        assertEquals(60, historicalCatalog.get("baseQuantity").asInt());
+        assertEquals(1, historicalCatalog.get("packageFactor").asInt());
+        var historicalUsage = context.get("clinicalHistory").get(0).get("medications").get(0).get("usageSnapshot");
+        assertEquals(400L, historicalUsage.get("routeId").asLong());
+        assertEquals("ADMINISTRATION", historicalUsage.get("routeExecutionType").asString());
+        assertEquals("{\"code\":\"BID\",\"frequencyCount\":2}", historicalUsage.get("frequencyRuleSnapshot").asString());
         assertEquals(10, context.get("receptionSceneContext").get("selectedReportIds").get(0).asInt());
         assertEquals(10, context.get("diagnosticReports").get(0).get("reportId").asInt());
         assertEquals("1988-08-08", context.get("patient").get("birthDate").asText());
@@ -272,6 +280,13 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
                 context.get("temporalContext").get("currentDate").asText());
         assertTrue(sent.get("messages").get(0).get("content").asString().contains("不得将默认既往体健或否认过敏、慢病作为已确认事实"));
         assertTrue(sent.get("messages").get(0).get("content").asString().contains("已有预设不改为缺失提示"));
+        String writingPrompt = sent.get("messages").get(0).get("content").asString();
+        assertTrue(writingPrompt.contains("缺失信息只写入 missingInformation"));
+        assertTrue(writingPrompt.contains("整段均无依据时返回 null"));
+        assertTrue(writingPrompt.contains("患者3天前出现发热，最高体温38℃。"));
+        assertTrue(writingPrompt.contains("复诊触发条件"));
+        assertFalse(writingPrompt.contains("有有效临床输入时生成五个段落"));
+        assertFalse(writingPrompt.contains("没有事实且没有既有预设时写"));
         assertTrue(requestBody.get().contains("FEMALE"));
         assertTrue(requestBody.get().contains("血常规"));
         assertTrue(requestBody.get().contains("白细胞计数"));
@@ -471,6 +486,69 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         } finally { release.countDown(); }
     }
 
+    @ParameterizedTest
+    @CsvSource({"0,RECORD_DIAGNOSIS", "20,RECORD_DIAGNOSIS", "21,RECORD_DIAGNOSIS", "50,RECORD_DIAGNOSIS", "51,RECORD_DIAGNOSIS",
+            "0,PLAN_MATCH", "20,PLAN_MATCH", "21,PLAN_MATCH", "50,PLAN_MATCH", "51,PLAN_MATCH"})
+    void modelHistoryBudgetReportsRealCoverageWithoutChangingDomainFacts(int count, String stage) throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        var content = new SuggestionContent("历史资料待核对", new RecordDraft(null, null, null, null, null),
+                List.of(), List.of(), List.of(), List.of(), List.of(), "");
+        startServer(exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] response = jsonCodec.write(Map.of("choices", List.of(Map.of("message",
+                    Map.of("content", jsonCodec.write(content)))))).getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        var base = request();
+        var example = base.clinicalHistory().getFirst().medications().getFirst();
+        var diagnoses = java.util.stream.LongStream.rangeClosed(1, count).mapToObj(id ->
+                new OutpatientClinicalHistoryDirectory.DiagnosisFact(id, "D" + id, "历史诊断" + id, "SECONDARY")).toList();
+        var medications = java.util.stream.LongStream.rangeClosed(1, count).mapToObj(id ->
+                new OutpatientClinicalHistoryDirectory.MedicationFact(id, example.revision(), example.status(),
+                        "M" + id, "历史用药" + id, example.doseValue(), example.doseUnit(), example.routeCode(),
+                        example.frequencyCode(), example.durationValue(), example.durationUnit(), example.quantity(),
+                        example.quantityUnit(), example.authoredAt(), example.catalog(), example.usage())).toList();
+        var services = java.util.stream.LongStream.rangeClosed(1, count).mapToObj(id ->
+                new OutpatientClinicalHistoryDirectory.ServiceFact(id, 0, "ACTIVE", "EXAMINATION", "S" + id,
+                        "历史检查" + id, BigDecimal.ONE, "次", "原因", "临床说明", Instant.now())).toList();
+        var history = new OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot(70L, 1, Instant.now(),
+                diagnoses, medications, services);
+        var input = new ModelRequest(base.promptVersion(), base.question(), base.voiceTranscript(), base.draft(),
+                base.resident(), base.allergies(), base.availablePlans(), base.diagnosticReports(), List.of(history),
+                null, base.receptionScene(), base.receptionSceneContext(), stage, List.of(), base.temporalContext());
+
+        new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec).analyze(input);
+
+        var messages = jsonCodec.readTree(requestBody.get()).get("messages");
+        var sent = jsonCodec.readTree(messages.get(1).get("content").asString()).get("clinicalHistory").get(0);
+        for (var entry : Map.of("diagnoses", 20, "medications", 50, "services", 50).entrySet()) {
+            int included = Math.min(count, entry.getValue());
+            assertEquals(included, sent.get(entry.getKey()).size());
+            var coverage = sent.get("coverage").get(entry.getKey());
+            assertEquals(count, coverage.get("total").asInt());
+            assertEquals(included, coverage.get("included").asInt());
+            assertEquals(count - included, coverage.get("omitted").asInt());
+        }
+        if (count > 0) {
+            assertEquals("D" + Math.min(count, 20), sent.get("diagnoses").get(Math.min(count, 20) - 1).get("code").asString());
+            assertEquals("M" + Math.min(count, 50), sent.get("medications").get(Math.min(count, 50) - 1).get("code").asString());
+            assertEquals("S" + Math.min(count, 50), sent.get("services").get(Math.min(count, 50) - 1).get("code").asString());
+        }
+        assertTrue(messages.get(0).get("content").asString().contains("不得据此断言无其他诊断、用药或服务"));
+        assertEquals(count, history.diagnoses().size());
+        assertEquals(count, history.medications().size());
+        assertEquals(count, history.services().size());
+    }
+
+    @Test void unavailableHistoryCannotBecomeAnEmptyModelContext() {
+        var base = request();
+        assertThrows(NullPointerException.class, () -> new ModelRequest(base.promptVersion(), base.question(),
+                base.voiceTranscript(), base.draft(), base.resident(), base.allergies(), base.availablePlans(),
+                base.diagnosticReports(), null, null));
+    }
+
     private ClinicalAssistantSettings settings(String apiKey) {
         return new ClinicalAssistantSettings("MODEL", "test-provider", "test-model", Duration.ofMinutes(30),
                 "http://127.0.0.1:" + server.getAddress().getPort() + "/v1/chat/completions", apiKey,
@@ -492,8 +570,12 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
                 List.of(new OutpatientClinicalHistoryDirectory.MedicationFact(
                         71L, 1, "ACTIVE", "METFORMIN", "二甲双胍", new BigDecimal("0.5"),
                         "g", "PO", "BID", new BigDecimal("30"), "DAY", new BigDecimal("60"),
-                        "片", Instant.parse("2026-08-08T08:10:00Z"))), List.of());
-        return new ModelRequest("RHN-CLINICAL-ASSISTANT-V8", "补全病历", "语音转写内容",
+                        "片", Instant.parse("2026-08-08T08:10:00Z"),
+                        new OutpatientClinicalHistoryDirectory.MedicationCatalogFact(100L, 200L, null, "0.5g", "片",
+                                new BigDecimal("60"), "片", BigDecimal.ONE, "片", null, false, false, "SALE", null),
+                        new OutpatientClinicalHistoryDirectory.MedicationUsageFact(400L, "ADMINISTRATION", "RESOLVED", 500L,
+                                "{\"code\":\"BID\",\"frequencyCount\":2}"))), List.of());
+        return new ModelRequest("RHN-CLINICAL-ASSISTANT-V9", "补全病历", "语音转写内容",
                 new Draft("头晕", "", "高血压病史", "", "", 160, 100, null, 80, 18, 98, List.of()),
                 new ResidentDirectory.ResidentSnapshot(1L, "HRN001", "测试患者", "FEMALE",
                         LocalDate.of(1988, 8, 8), "13800000000", false),

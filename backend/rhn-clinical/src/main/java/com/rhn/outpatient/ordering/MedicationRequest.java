@@ -136,7 +136,7 @@ class MedicationRequest {
         this.priorityCode = "ROUTINE"; this.catalogItemId = catalogItemId; this.packageId = packageId;
         this.performerOrganizationId = performerOrganizationId; this.performerDepartmentId = performerDepartmentId;
         this.requestingOrganizationId = performerOrganizationId; this.requestingDepartmentId = performerDepartmentId;
-        this.businessDate = businessDate; this.authoredAt = Instant.now(); this.authoredBy = authoredBy;
+        this.businessDate = businessDate; this.authoredAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS); this.authoredBy = authoredBy;
         this.reasonText = reasonText; this.itemCodeSnapshot = itemCode; this.itemNameSnapshot = itemName;
         this.unitCodeSnapshot = quantityUnit; this.localCodeSnapshot = localCode; this.localNameSnapshot = localName;
         this.adoptionId = adoptionId; this.adoptionRevision = adoptionRevision; this.priceId = priceId;
@@ -175,7 +175,7 @@ class MedicationRequest {
             throw new BusinessException("MEDICATION_REQUEST_STATE_INVALID",
                     "只有草稿或生效中的药品请求可以撤销", HttpStatus.CONFLICT);
         }
-        status = MedicationRequestStatus.CANCELLED; cancelledAt = Instant.now(); cancelledBy = actorId; cancelReason = reason;
+        status = MedicationRequestStatus.CANCELLED; cancelledAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS); cancelledBy = actorId; cancelReason = reason;
     }
 
     void activateFromPrescription() {
@@ -186,7 +186,7 @@ class MedicationRequest {
 
     void cancelFromPrescription(String reason, Long actorId) {
         if (status == MedicationRequestStatus.CANCELLED) return;
-        status = MedicationRequestStatus.CANCELLED; cancelledAt = Instant.now(); cancelledBy = actorId; cancelReason = reason;
+        status = MedicationRequestStatus.CANCELLED; cancelledAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS); cancelledBy = actorId; cancelReason = reason;
     }
 
     Long id() { return id; } long revision() { return revision; } Long tenantId() { return tenantId; }

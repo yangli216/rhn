@@ -11,6 +11,7 @@ export interface HerbalMatrixItem {
   doseValue: number
   doseUnit: string
   price?: number
+  currencyCode?: string
   specialMethod?: string
   isDraft: boolean
   status?: string
@@ -178,9 +179,7 @@ export function HerbalPrescriptionMatrix({
                   <span className="doctor-herb-dose">{formatDose(herb.doseValue)}{herb.doseUnit || 'g'}</span>
                 )}
 
-                {herb.price != null && herb.price > 0 && (
-                  <span className="doctor-herb-price">{formatUnitPrice(herb.price, 'CNY')}</span>
-                )}
+                <span className="doctor-herb-price">{formatUnitPrice(herb.price, herb.currencyCode)}</span>
                 {!readOnly && herb.isDraft && onRemoveDraft && (
                   <button
                     type="button"

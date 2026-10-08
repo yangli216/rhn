@@ -67,12 +67,35 @@ class IdentityAccessAuthorizationTest extends RhnIntegrationTestSupport {
                                  "dataScopeType":"DEPARTMENT"}
                                 """.formatted(roleId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.userId").value("362387869790222"))
+                .andExpect(jsonPath("$.username").isNotEmpty())
+                .andExpect(jsonPath("$.roleId").value(roleId))
+                .andExpect(jsonPath("$.roleCode").value("TEST_REVIEWER"))
+                .andExpect(jsonPath("$.organizationId").value(ORGANIZATION))
+                .andExpect(jsonPath("$.organizationName").isNotEmpty())
+                .andExpect(jsonPath("$.departmentId").value(DEPARTMENT))
+                .andExpect(jsonPath("$.departmentName").isNotEmpty())
+                .andExpect(jsonPath("$.dataScopeType").value("DEPARTMENT"))
+                .andExpect(jsonPath("$.validFrom").isNotEmpty())
+                .andExpect(jsonPath("$.createdAt").isNotEmpty())
                 .andExpect(jsonPath("$.effective").value(true))
                 .andReturn().getResponse().getContentAsString();
         String assignmentId = json(assignmentBody).get("id").asString();
 
         mockMvc.perform(delete("/api/platform/iam/user-role-assignments/{id}", assignmentId).with(rhnWorkContext()))
                 .andExpect(status().isNoContent());
+        String reloaded = mockMvc.perform(get("/api/platform/iam/users/{id}/role-assignments", "362387869790222")
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var ended = json(reloaded).valueStream().filter(value -> assignmentId.equals(value.get("id").asString()))
+                .findFirst().orElseThrow();
+        assertThat(ended.get("effective").asBoolean()).isFalse();
+        assertThat(ended.get("userId").asString()).isEqualTo("362387869790222");
+        assertThat(ended.get("roleId").asString()).isEqualTo(roleId);
+        assertThat(ended.get("departmentId").asString()).isEqualTo(DEPARTMENT);
+        assertThat(ended.get("validFrom").asString()).isEqualTo(json(assignmentBody).get("validFrom").asString());
+        assertThat(ended.get("createdAt").asString()).isEqualTo(json(assignmentBody).get("createdAt").asString());
+        assertThat(Instant.parse(ended.get("validTo").asString())).isBeforeOrEqualTo(Instant.now());
         Integer events = jdbc.queryForObject("""
                 select count(*) from RHN_AUD_IAM_AUTH_EVT where ID_TNT = cast(? as bigint)
                   and ID_TARGET in (cast(? as bigint), cast(? as bigint))

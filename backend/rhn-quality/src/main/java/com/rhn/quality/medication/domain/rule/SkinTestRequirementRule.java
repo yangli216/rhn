@@ -54,7 +54,7 @@ public final class SkinTestRequirementRule implements MedicationSafetyRule {
                 findings.add(new MedicationSafetyFinding(GlobalIds.next(), version,
                         "药品【" + name + "】开立前必须具有有效的阴性皮试结果，当前未登记免试记录。",
                         List.of(item.medicationRequestId()),
-                        "请开立皮试医嘱完成试验；或在确认24小时内同批号原药阴性后勾选免试。"));
+                        "请开立皮试医嘱完成试验；或在按已维护的结果有效期确认同批号原药阴性后勾选免试。"));
             }
         }
         return findings;

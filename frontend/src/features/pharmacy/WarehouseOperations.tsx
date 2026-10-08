@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 import type { GoodsReceipt, MedicationProduct, PurchaseOrder, Requisition, StockBin, StockCount, StockItem, StockSite, StockTransfer } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
+import { inventoryKnownTotal, requireInventoryList } from './inventoryLedgerTruth'
+import { procurementPackage, receiptAcceptedAmount, receiptAcceptedTotal, requireGoodsReceipts, requirePurchaseOrders } from './procurementTruth'
 import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, RemoteSearchSelect, Select, StatusBadge, UnitNumberInput, tableCellClass } from '../../shared/ui'
 import {
   IconBolt,
@@ -18,48 +20,50 @@ import {
   IconTruckDelivery,
 } from '@tabler/icons-react'
 
+function recordedPrice(value: unknown): number | undefined {
+  if (value == null || (typeof value === 'string' && !value.trim())) return undefined
+  if (typeof value !== 'number' && typeof value !== 'string') return undefined
+  const price = Number(value)
+  return Number.isFinite(price) && price >= 0 ? price : undefined
+}
+
+type SupplierPrice = { catalogItemId?: string; packageId?: string; agreementPrice?: number;
+  purchaseEnabled?: boolean; validFrom?: string; validTo?: string }
+
 export function resolveItemDefaultPrices(
   item: StockItem | undefined,
   orders: PurchaseOrder[] = [],
   products: MedicationProduct[] = [],
-  supplierItems?: Array<{ catalogItemId?: string; packageId?: string; agreementPrice?: number }>,
+  supplierItems?: SupplierPrice[],
 ): { purchasePrice?: string; salePrice?: string } {
   if (!item) return {}
+  const samePackage = (packageId?: string) => Boolean(item.packageId) && packageId === item.packageId
+  const today = new Date()
+  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
-  // 1. 最近一次采购单价（从历史 orders 中倒序查找）
+  // Only recorded prices for the same package can be reused; a missing price is not zero.
+  const latestOrders = orders.filter(order => ['APPROVED', 'PARTIALLY_RECEIVED', 'COMPLETED'].includes(order.status)
+    && Number.isFinite(Date.parse(order.orderDate)))
+    .sort((left, right) => Date.parse(right.orderDate) - Date.parse(left.orderDate))
   let recentPurchasePrice: number | undefined
-  for (const o of orders) {
-    const line = o.lines?.find(l => String(l.stockItemId) === String(item.id) && Number(l.unitPrice) > 0)
-    if (line) {
-      recentPurchasePrice = Number(line.unitPrice)
-      break
-    }
+  for (const order of latestOrders) {
+    const line = order.lines?.find(value => value.stockItemId === item.id && samePackage(value.packageId)
+      && recordedPrice(value.unitPrice) !== undefined)
+    if (line) { recentPurchasePrice = recordedPrice(line.unitPrice); break }
   }
-
-  // 2. 供应商协议价
-  const targetCatalogId = item.catalogItemId || item.id
-  const supply = supplierItems?.find(s => String(s.catalogItemId) === String(targetCatalogId) && (!s.packageId || !item.packageId || String(s.packageId) === String(item.packageId)))
-  const embeddedAgreementPrice = Number((item as StockItem & { agreementPrice?: number }).agreementPrice)
-  const agreementPrice = Number.isFinite(embeddedAgreementPrice) && embeddedAgreementPrice >= 0
-    ? embeddedAgreementPrice
-    : supply && Number(supply.agreementPrice) >= 0 ? Number(supply.agreementPrice) : undefined
-
-  // 3. 药品主数据标准价格
-  const product = products.find(p => String(p.id) === String(targetCatalogId))
-  const today = new Date().toISOString().slice(0, 10)
-  const activePrices = product?.prices?.filter(p => p.sdStatus === 'ACTIVE' && p.validFrom <= today && (!p.validTo || p.validTo >= today)) ?? product?.prices ?? []
-  const purchasePriceObj = activePrices.find(p => p.sdPriceType === 'PURCHASE' && (!p.packageId || !item.packageId || String(p.packageId) === String(item.packageId)))
-  const salePriceObj = activePrices.find(p => p.sdPriceType === 'SALE' && (!p.packageId || !item.packageId || String(p.packageId) === String(item.packageId)))
-
-  const standardPurchasePrice = purchasePriceObj ? Number(purchasePriceObj.price) : undefined
-  const standardSalePrice = salePriceObj ? Number(salePriceObj.price) : undefined
-
-  const finalPurchasePrice = recentPurchasePrice ?? agreementPrice ?? standardPurchasePrice
-
-  return {
-    purchasePrice: finalPurchasePrice !== undefined ? String(finalPurchasePrice) : undefined,
-    salePrice: standardSalePrice !== undefined ? String(standardSalePrice) : undefined,
-  }
+  const supply = item.catalogItemId ? supplierItems?.find(value => value.catalogItemId === item.catalogItemId
+    && samePackage(value.packageId) && value.purchaseEnabled !== false
+    && (!value.validFrom || value.validFrom <= date) && (!value.validTo || value.validTo >= date)) : undefined
+  const agreementPrice = recordedPrice((item as StockItem & { agreementPrice?: number }).agreementPrice)
+    ?? recordedPrice(supply?.agreementPrice)
+  const product = item.catalogItemId ? products.find(value => value.id === item.catalogItemId) : undefined
+  const activePrices = product?.prices?.filter(value => value.sdStatus === 'ACTIVE'
+    && value.validFrom <= date && (!value.validTo || value.validTo >= date) && samePackage(value.packageId)) ?? []
+  const standardPurchasePrice = recordedPrice(activePrices.find(value => value.sdPriceType === 'PURCHASE')?.price)
+  const standardSalePrice = recordedPrice(activePrices.find(value => value.sdPriceType === 'SALE')?.price)
+  const purchasePrice = recentPurchasePrice ?? agreementPrice ?? standardPurchasePrice
+  return { purchasePrice: purchasePrice === undefined ? undefined : String(purchasePrice),
+    salePrice: standardSalePrice === undefined ? undefined : String(standardSalePrice) }
 }
 
 export type OperationTab = 'purchase' | 'requisition' | 'transfer' | 'count'
@@ -119,9 +123,9 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
   const [search, setSearch] = useState('')
   const [notice, setNotice] = useState('')
 
-  const suppliers = useQuery({ queryKey: ['warehouse-suppliers', site.organizationId], queryFn: () => api.pharmacy.suppliers(site.organizationId) })
-  const orders = useQuery({ queryKey: ['warehouse-purchase-orders', site.id], queryFn: () => api.pharmacy.purchaseOrders(site.id) })
-  const receipts = useQuery({ queryKey: ['warehouse-goods-receipts', site.id], queryFn: () => api.pharmacy.goodsReceipts(site.id) })
+  const suppliers = useQuery({ queryKey: ['warehouse-suppliers', site.organizationId], queryFn: async () => requireInventoryList(await api.pharmacy.suppliers(site.organizationId)) })
+  const orders = useQuery({ queryKey: ['warehouse-purchase-orders', site.id], queryFn: async () => requirePurchaseOrders(await api.pharmacy.purchaseOrders(site.id)) })
+  const receipts = useQuery({ queryKey: ['warehouse-goods-receipts', site.id], queryFn: async () => requireGoodsReceipts(await api.pharmacy.goodsReceipts(site.id)) })
   const refresh = () => Promise.all([
     queryClient.invalidateQueries({ queryKey: ['warehouse-purchase-orders', site.id] }),
     queryClient.invalidateQueries({ queryKey: ['warehouse-goods-receipts', site.id] }),
@@ -137,7 +141,8 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
     onSuccess: refresh,
   })
 
-  const error = suppliers.error || orders.error || receipts.error || action.error
+  const dataError = suppliers.error || orders.error || receipts.error
+  const retryData = () => { void suppliers.refetch(); void orders.refetch(); void receipts.refetch() }
 
   const medProducts = useQuery({
     queryKey: ['warehouse-med-products', site.organizationId],
@@ -146,8 +151,8 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
   })
   const productsList = useMemo(() => (medProducts.data?.content ?? []).map(entry => entry.product), [medProducts.data])
 
-  const ordersList = orders.data ?? []
-  const receiptsList = receipts.data ?? []
+  const ordersList = orders.isSuccess ? orders.data : []
+  const receiptsList = receipts.isSuccess ? receipts.data : []
 
   // KPI Metrics calculation
   const pendingApprovalCount = ordersList.filter(o => ['DRAFT', 'SUBMITTED'].includes(o.status)).length
@@ -155,7 +160,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
   const pendingInspectionCount = receiptsList.filter(r => ['RECEIVED', 'INSPECTING'].includes(r.status)).length
   const pendingPostingCount = receiptsList.filter(r => ['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(r.status)).length
   const postedReceipts = receiptsList.filter(r => r.status === 'POSTED')
-  const totalPostedAmount = postedReceipts.reduce((sum, r) => sum + r.lines.reduce((sub, l) => sub + (Number(l.acceptedQuantity ?? l.deliveredQuantity) * Number(l.unitCost ?? 0)), 0), 0)
+  const totalPostedAmount = inventoryKnownTotal(postedReceipts.map(receiptAcceptedTotal))
 
   const matches = (...values: (string | undefined)[]) => values.join(' ').toLowerCase().includes(search.trim().toLowerCase())
 
@@ -167,7 +172,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
     supplierName: string
     date: string
     status: string
-    amount: number
+    amount?: number
     countText: string
     rawOrder?: PurchaseOrder
     rawReceipt?: GoodsReceipt
@@ -216,7 +221,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
         if (stage === 'inspection' && !['RECEIVED', 'INSPECTING'].includes(receipt.status)) continue
         if (stage === 'posting' && !['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status)) continue
 
-        const amount = receipt.lines.reduce((sum, l) => sum + Number(l.acceptedQuantity ?? l.deliveredQuantity) * Number(l.unitCost ?? 0), 0)
+        const amount = receiptAcceptedTotal(receipt)
         list.push({
           kind: 'receipt',
           id: receipt.id,
@@ -251,13 +256,14 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
   }, [activeItem, selectedDocId, selectedDocKind])
 
   return <>
-    {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
+    {action.isError && <Alert duration={null}>{errorMessage(action.error)}</Alert>}
     {notice && <Alert>{notice}</Alert>}
 
-    <Worklist
+    {dataError ? <EmptyState icon="pharmacy" title="采购验收数据读取失败" copy={errorMessage(dataError)}
+      action={<Button variant="secondary" onClick={retryData}>重新读取采购验收数据</Button>} /> : <Worklist
       title="采购与验收入库"
       copy="采购计划编制、审批流转、逐批质量验收与库存记账"
-      loading={orders.isPending || receipts.isPending}
+      loading={suppliers.isPending || orders.isPending || receipts.isPending}
       empty={!ordersList.length && !receiptsList.length}
       action={<div className="warehouse-operation-actions">
         {site.siteType === 'PHARMACY' && (
@@ -313,9 +319,9 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           <div className="warehouse-kpi-icon warehouse-kpi-icon--purple"><IconChecklist size={20} /></div>
           <div className="warehouse-kpi-content">
             <div className="warehouse-kpi-label">待质量检验验收</div>
-            <div className="warehouse-kpi-value">{pendingInspectionCount} 批</div>
+            <div className="warehouse-kpi-value">{pendingInspectionCount} 单</div>
             <div className="warehouse-kpi-sub">
-              {pendingPostingCount > 0 ? `待质检 ${pendingInspectionCount} 批 · 待记账 ${pendingPostingCount} 批` : '货品已到库，等待药检'}
+              {pendingPostingCount > 0 ? `待质检 ${pendingInspectionCount} 单 · 待记账 ${pendingPostingCount} 批` : '货品已到库，等待药检'}
             </div>
           </div>
         </div>
@@ -329,7 +335,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           <div className="warehouse-kpi-icon warehouse-kpi-icon--emerald"><IconBuildingStore size={20} /></div>
           <div className="warehouse-kpi-content">
             <div className="warehouse-kpi-label">累计入库总额</div>
-            <div className="warehouse-kpi-value">{postedReceipts.length > 0 ? formatMoney(totalPostedAmount) : '¥0.00'}</div>
+            <div className="warehouse-kpi-value">{formatRecordedMoney(totalPostedAmount)}</div>
             <div className="warehouse-kpi-sub">已记账入库 {postedReceipts.length} 笔</div>
           </div>
         </div>
@@ -424,7 +430,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                   </div>
                   <div className="warehouse-doc-card__foot">
                     <span>{item.date}</span>
-                    <strong className="warehouse-doc-card__amount">{formatMoney(item.amount)}</strong>
+                    <strong className="warehouse-doc-card__amount">{formatRecordedMoney(item.amount)}</strong>
                   </div>
                 </div>
               )
@@ -541,6 +547,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                 <tbody>
                   {order.lines.map((line, idx) => {
                     const itm = items.find(i => i.id === line.stockItemId)
+                    const packaging = procurementPackage(itm, line.packageId)
                     const lineTotal = Number(line.orderedQuantity) * Number(line.unitPrice)
                     const isFinished = Number(line.remainingQuantity) === 0
                     return <tr key={line.id}>
@@ -548,19 +555,19 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                       <td>
                         <strong>{itm?.productName ?? line.stockItemId}</strong>
                         <small className="warehouse-entry-spec-inline">
-                          <span>{itm?.packageSpec || '通用规格'}</span>
-                          <span>1{itm?.packageUnitName || '盒'}={itm?.packageFactor || 1}{itm?.baseUnitCode || '粒'}</span>
+                          <span>{packaging.specification}</span>
+                          <span>{packaging.conversion}</span>
                         </small>
                       </td>
                       <td>{itm?.manufacturerName || '—'}</td>
                       <td className={tableCellClass('numeric')}>
-                        <strong>{formatQuantity(line.orderedQuantity)} {itm?.packageUnitName || '盒'}</strong>
+                        <strong>{formatQuantity(line.orderedQuantity)} {packaging.unit}</strong>
                       </td>
                       <td className={tableCellClass('numeric')}>{formatMoney(line.unitPrice)}</td>
                       <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}><strong>{formatMoney(lineTotal)}</strong></td>
                       <td>
                         <StatusBadge tone={isFinished ? 'success' : 'info'}>
-                          {isFinished ? '全部已到货' : `剩余待收 ${formatQuantity(line.remainingQuantity)} ${itm?.packageUnitName || '盒'}`}
+                          {isFinished ? '全部已到货' : `剩余待收 ${formatQuantity(line.remainingQuantity)} ${packaging.unit}`}
                         </StatusBadge>
                       </td>
                     </tr>
@@ -582,14 +589,14 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
         {activeItem?.kind === 'receipt' && activeItem.rawReceipt && (() => {
           const receipt = activeItem.rawReceipt
           const sourceOrder = ordersList.find(o => o.id === receipt.purchaseOrderId)
-          const totalCost = receipt.lines.reduce((sum, l) => sum + Number(l.acceptedQuantity ?? l.deliveredQuantity) * Number(l.unitCost ?? 0), 0)
+          const totalCost = receiptAcceptedTotal(receipt)
           const totalDelivered = receipt.lines.reduce((sum, l) => sum + Number(l.deliveredQuantity), 0)
-          const totalAccepted = receipt.lines.reduce((sum, l) => sum + Number(l.acceptedQuantity ?? 0), 0)
-          const totalRejected = receipt.lines.reduce((sum, l) => sum + Number(l.rejectedQuantity ?? 0), 0)
+          const totalAccepted = inventoryKnownTotal(receipt.lines.map(l => l.acceptedQuantity))
+          const totalRejected = inventoryKnownTotal(receipt.lines.map(l => l.rejectedQuantity))
           const hasTraceRequired = receipt.lines.some(l => items.find(i => i.id === l.stockItemId)?.traceRequired && Number(l.acceptedQuantity) > 0)
 
-          const isStep1 = true
-          const isStep2 = ['INSPECTING', 'ACCEPTED', 'PARTIALLY_ACCEPTED', 'POSTED'].includes(receipt.status)
+          const isStep1 = ['RECEIVED', 'INSPECTING', 'ACCEPTED', 'PARTIALLY_ACCEPTED', 'REJECTED', 'POSTED'].includes(receipt.status)
+          const isStep2 = ['INSPECTING', 'ACCEPTED', 'PARTIALLY_ACCEPTED', 'REJECTED', 'POSTED'].includes(receipt.status)
           const isStep3 = ['ACCEPTED', 'PARTIALLY_ACCEPTED', 'POSTED'].includes(receipt.status)
           const isStep4 = receipt.status === 'POSTED'
 
@@ -642,7 +649,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                     {sourceOrder.orderNo}
                   </button>
                 ) : (
-                  <strong>{receipt.purchaseOrderId || '直接采购入库'}</strong>
+                  <strong>{receipt.purchaseOrderId || '来源采购单未取得'}</strong>
                 )}
               </div>
             </div>
@@ -660,7 +667,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
               <div className={`warehouse-doc-timeline-line ${isStep3 ? 'is-done' : ''}`} />
               <div className={`warehouse-doc-timeline-step ${isStep3 ? (['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status) ? 'is-current' : 'is-done') : ''}`}>
                 <div className="warehouse-doc-timeline-dot">3</div>
-                <span>追溯码采集</span>
+                <span>入库准备</span>
               </div>
               <div className={`warehouse-doc-timeline-line ${isStep4 ? 'is-done' : ''}`} />
               <div className={`warehouse-doc-timeline-step ${isStep4 ? 'is-done' : ''}`}>
@@ -687,15 +694,15 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                 <tbody>
                   {receipt.lines.map((line, idx) => {
                     const itm = items.find(i => i.id === line.stockItemId)
+                    const packaging = procurementPackage(itm, line.packageId)
                     const bin = bins.find(b => b.id === line.destinationBinId)
-                    const acceptedQty = line.acceptedQuantity ?? line.deliveredQuantity
-                    const lineCost = acceptedQty * Number(line.unitCost ?? 0)
+                    const lineCost = receiptAcceptedAmount(line)
                     return <tr key={line.id}>
                       <td style={{ textAlign: 'center' }}>{idx + 1}</td>
                       <td>
                         <strong>{itm?.productName ?? line.stockItemId}</strong>
                         <small className="warehouse-entry-spec-inline">
-                          <span>{itm?.packageSpec || '通用规格'}</span>
+                          <span>{packaging.specification}</span>
                           <span>{itm?.manufacturerName || ''}</span>
                         </small>
                       </td>
@@ -704,19 +711,19 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                         <small>效期至：{line.expiryDate || '未维护'}</small>
                       </td>
                       <td className={tableCellClass('numeric')}>
-                        <strong>{formatQuantity(line.deliveredQuantity)} {itm?.packageUnitName || '盒'}</strong>
+                        <strong>{formatQuantity(line.deliveredQuantity)} {packaging.unit}</strong>
                       </td>
                       <td className={tableCellClass('numeric')}>
-                        <span className="warehouse-accepted-quantity">{formatQuantity(line.acceptedQuantity ?? line.deliveredQuantity)}</span>
+                        <span className="warehouse-accepted-quantity">{line.acceptedQuantity == null ? (line.qualityStatus === 'PENDING' ? '未验收' : '数量未取得') : formatQuantity(line.acceptedQuantity)}</span>
                         {Boolean(line.rejectedQuantity && line.rejectedQuantity > 0) && (
                           <small style={{ color: 'var(--color-danger)' }}>
-                            拒收 {line.rejectedQuantity} ({line.rejectionReason || '破损'})
+                            拒收 {line.rejectedQuantity} ({line.rejectionReason || '原因未记录'})
                           </small>
                         )}
                       </td>
-                      <td>{bin?.name || '中心合格品库'}</td>
-                      <td className={tableCellClass('numeric')}>{line.unitCost ? formatMoney(line.unitCost) : '—'}</td>
-                      <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}><strong>{formatMoney(lineCost)}</strong></td>
+                      <td>{bin?.name || (line.destinationBinId ? `货位 ${line.destinationBinId}` : '货位未取得')}</td>
+                      <td className={tableCellClass('numeric')}>{formatRecordedMoney(line.unitCost)}</td>
+                      <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}><strong>{formatRecordedMoney(lineCost)}</strong></td>
                       <td>
                         <StatusBadge tone={statusTone(line.qualityStatus)}>{statusText[line.qualityStatus] ?? line.qualityStatus}</StatusBadge>
                       </td>
@@ -730,9 +737,9 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
               <div>共 <strong>{receipt.lines.length}</strong> 批次</div>
               <div className="warehouse-detail-footer__metrics">
                 <span>实收总数：<strong>{formatQuantity(totalDelivered)}</strong></span>
-                <span>合格总数：<strong className="warehouse-accepted-quantity">{formatQuantity(totalAccepted || totalDelivered)}</strong></span>
-                {totalRejected > 0 && <span>拒收总数：<strong style={{ color: 'var(--color-danger)' }}>{formatQuantity(totalRejected)}</strong></span>}
-                <span>入库采购总额：<strong>{formatMoney(totalCost)}</strong></span>
+                <span>合格总数：<strong className="warehouse-accepted-quantity">{totalAccepted === undefined ? '数量未取得' : formatQuantity(totalAccepted)}</strong></span>
+                {totalRejected !== undefined && totalRejected > 0 && <span>拒收总数：<strong style={{ color: 'var(--color-danger)' }}>{formatQuantity(totalRejected)}</strong></span>}
+                <span>入库采购总额：<strong>{formatRecordedMoney(totalCost)}</strong></span>
               </div>
             </div>
           </div>
@@ -744,7 +751,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           </div>
         )}
       </div>
-    </Worklist>
+    </Worklist>}
 
     {dialog === 'order' && <PurchaseDialog api={api} site={site} suppliers={(suppliers.data ?? []).filter(supplierEffective)} items={items} bins={bins}
       orders={orders.data ?? []} products={productsList}
@@ -865,13 +872,13 @@ type EntryRow = { key: string; stockItemId: string; quantity: string; price: str
 export function MultiItemDialog({
   title, submitText, items, quantityLabel, withPrice = false, showBaseConversion = false,
   orders = [], products = [], supplierItems, loadItems,
-  lead, emptyCopy = '当前没有可选经营项目。', hideReason = false, onClose, onSubmit,
+  lead, emptyCopy = '当前没有可选经营项目。', hideReason = false, submissionBlocked = false, onClose, onSubmit,
 }: {
   title: string; submitText: string; items: StockItem[]; quantityLabel: string; withPrice?: boolean
   orders?: PurchaseOrder[]; products?: MedicationProduct[]
   supplierItems?: Array<{ catalogItemId?: string; packageId?: string; agreementPrice?: number }>
   loadItems?: (query: string) => Promise<StockItem[]>
-  showBaseConversion?: boolean; lead?: ReactNode; emptyCopy?: string; hideReason?: boolean; onClose: () => void
+  showBaseConversion?: boolean; lead?: ReactNode; emptyCopy?: string; hideReason?: boolean; submissionBlocked?: boolean; onClose: () => void
   onSubmit: (reason: string, rows: ItemRow[]) => Promise<void>
 }) {
   const [rows, setRows] = useState<EntryRow[]>([
@@ -981,7 +988,7 @@ export function MultiItemDialog({
       return {
         ...row,
         stockItemId: val,
-        price: defaultPrice !== undefined ? defaultPrice : row.price,
+        price: defaultPrice ?? (row.stockItemId === val ? row.price : ''),
       }
     }))
     const currentRow = rows[index]
@@ -1013,7 +1020,7 @@ export function MultiItemDialog({
     setRows(current => current.map((row, rowIndex) => rowIndex === index ? {
       ...row,
       stockItemId: item.id,
-      price: defaultPrices.purchasePrice ?? row.price,
+      price: defaultPrices.purchasePrice ?? (row.stockItemId === item.id ? row.price : ''),
     } : row))
     const currentRow = rows[index]
     if (currentRow) focusQuantity(currentRow.key)
@@ -1089,7 +1096,7 @@ export function MultiItemDialog({
   const incomplete = enteredRows.length !== validRows.length
   const duplicate = new Set(validRows.map(row => row.item.id)).size !== validRows.length
   const totalAmount = validRows.reduce((sum, r) => sum + r.quantity * r.price, 0)
-  const canSubmit = validRows.length > 0 && !incomplete && !duplicate && !busy
+  const canSubmit = validRows.length > 0 && !incomplete && !duplicate && !busy && !submissionBlocked
 
   const triggerSubmit = async () => {
     setHasAttemptedSubmit(true)
@@ -1108,7 +1115,7 @@ export function MultiItemDialog({
     <div className="warehouse-entry-summary">
       <span>已录入 <strong>{validRows.length}</strong> 个品种</span>
       <span>按包装单位计算</span>
-      {withPrice && <span>预估总金额 <strong className="warehouse-entry-total">{formatMoney(totalAmount)}</strong></span>}
+      {withPrice && <span>预估总金额 <strong className="warehouse-entry-total">{incomplete ? '待完善价格和数量' : formatMoney(totalAmount)}</strong></span>}
     </div>
     <div className="warehouse-entry-actions">
       <Button variant="secondary" disabled={busy} onClick={onClose}>取消</Button>
@@ -1141,14 +1148,13 @@ export function MultiItemDialog({
             <tbody>
               {rows.map((row, index) => {
                 const item = itemMap.get(row.stockItemId)
-                const lineTotal = item && withPrice && Number(row.quantity) > 0 && Number(row.price) >= 0
-                  ? Number(row.quantity) * Number(row.price)
-                  : 0
+                const lineTotal = item && withPrice && Number(row.quantity) > 0 && recordedPrice(row.price) !== undefined
+                  ? Number(row.quantity) * recordedPrice(row.price)! : undefined
                 return <EditableRow key={row.key}>
                   <td className="warehouse-entry-index">{index + 1}</td>
                   <EditableCell display={item?.productName} placeholder="输入药品名称、拼音或编码搜索">
                     <div ref={el => { selectWrapperRefs.current[row.key] = el }}>
-                      {loadItems ? <RemoteSearchSelect<StockItem>
+                      {loadItems ? <RemoteSearchSelect<StockItem> disabled={submissionBlocked}
                         value={item ? {
                           value: item.id,
                           label: item.productName,
@@ -1164,7 +1170,7 @@ export function MultiItemDialog({
                         popoverMinWidth={560}
                         showCode
                         aria-label={`第${index + 1}行药品`}
-                      /> : <Select searchable showValue popoverMinWidth={520} value={row.stockItemId}
+                      /> : <Select disabled={submissionBlocked} searchable showValue popoverMinWidth={520} value={row.stockItemId}
                         aria-label={`第${index + 1}行药品`}
                         onChange={(val) => handleItemSelect(index, val)}
                         placeholder="输入药品名称、拼音或编码搜索"
@@ -1205,7 +1211,7 @@ export function MultiItemDialog({
                       />
                   </EditableCell>}
                   {withPrice && <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}>
-                    {lineTotal > 0 ? formatMoney(lineTotal) : '—'}
+                    {lineTotal !== undefined ? formatMoney(lineTotal) : '—'}
                   </td>}
                   <td style={{ textAlign: 'center' }}>
                     <Button variant="text" size="sm" onClick={() => removeRow(index)} title="删除此行"><IconTrash size={14} /> 删除</Button>
@@ -1276,17 +1282,17 @@ function RequisitionApprovalDialog({ api, value, items, onClose, onDone }: {
 
 export function DirectPurchaseReceiptDialog({
   api, site, suppliers, items, bins = [],
-  orders = [], products = [], supplierItems,
+  orders = [], products = [], supplierItems, supplierId, onSupplierChange, referenceStatus, submissionBlocked = false,
   onNavigate, onClose, onDone, onSwitchMode,
 }: {
   api: RhnApi; site: StockSite; suppliers: Awaited<ReturnType<RhnApi['pharmacy']['suppliers']>>; items: StockItem[]
   orders?: PurchaseOrder[]; products?: MedicationProduct[]
   supplierItems?: Array<{ catalogItemId?: string; packageId?: string; agreementPrice?: number }>
+  supplierId: string; onSupplierChange: (value: string) => void; referenceStatus?: ReactNode; submissionBlocked?: boolean
   bins?: StockBin[]; onNavigate: (path: string) => void; onClose: () => void; onDone: (message?: string) => void
   onSwitchMode?: (mode: 'plan' | 'direct') => void
 }) {
   const receiveBins = bins.filter(v => v.active && v.receiveAllowed)
-  const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? '')
   const [deliveryNoteNo, setDeliveryNoteNo] = useState('')
   const [receivedAt, setReceivedAt] = useState(() => {
     const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); return now.toISOString().slice(0, 16)
@@ -1360,8 +1366,8 @@ export function DirectPurchaseReceiptDialog({
       return {
         ...row,
         stockItemId: val,
-        price: defaultPrices.purchasePrice !== undefined ? defaultPrices.purchasePrice : row.price,
-        salePrice: defaultPrices.salePrice !== undefined ? defaultPrices.salePrice : (row.salePrice ?? ''),
+        price: defaultPrices.purchasePrice ?? (row.stockItemId === val ? row.price : ''),
+        salePrice: defaultPrices.salePrice ?? (row.stockItemId === val ? row.salePrice ?? '' : ''),
       }
     }))
     const currentRow = rows[index]
@@ -1386,8 +1392,9 @@ export function DirectPurchaseReceiptDialog({
   const enteredRows = rows.filter(r => r.stockItemId || r.price.trim() || r.lotNo.trim() || !['', '1'].includes(r.quantity))
   const incomplete = enteredRows.length !== validRows.length
   const totalAmount = validRows.reduce((sum, r) => sum + r.quantity * r.price, 0)
-  const totalSaleAmount = validRows.reduce((sum, r) => sum + r.quantity * (Number(r.salePrice) || 0), 0)
-  const canSubmit = validRows.length > 0 && !incomplete && Boolean(supplierId) && Boolean(commonBin || validRows.every(r => r.binId)) && !busy
+  const totalSaleAmount = validRows.length > 0 && !incomplete && validRows.every(row => recordedPrice(row.salePrice) !== undefined)
+    ? validRows.reduce((sum, row) => sum + row.quantity * recordedPrice(row.salePrice)!, 0) : undefined
+  const canSubmit = validRows.length > 0 && !incomplete && Boolean(supplierId) && Boolean(commonBin || validRows.every(r => r.binId)) && !busy && !submissionBlocked
 
   const triggerSubmit = async () => {
     setHasAttemptedSubmit(true)
@@ -1428,8 +1435,8 @@ export function DirectPurchaseReceiptDialog({
     <div className="warehouse-entry-summary">
       <span>已录入 <strong>{validRows.length}</strong> 个品种</span>
       <span>直接记账入库</span>
-      <span>进价总额 <strong className="warehouse-entry-total">{formatMoney(totalAmount)}</strong></span>
-      {totalSaleAmount > 0 && <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-small)' }}>售价总额 <strong>{formatMoney(totalSaleAmount)}</strong></span>}
+      <span>进价总额 <strong className="warehouse-entry-total">{incomplete ? '待完善价格和数量' : formatMoney(totalAmount)}</strong></span>
+      {totalSaleAmount !== undefined && <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-small)' }}>参考售价总额 <strong>{formatMoney(totalSaleAmount)}</strong></span>}
     </div>
     <div className="warehouse-entry-actions">
       <Button variant="secondary" disabled={busy} onClick={onClose}>取消</Button>
@@ -1437,6 +1444,7 @@ export function DirectPurchaseReceiptDialog({
     </div>
   </div>}>
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
+    {referenceStatus}
     <div className="warehouse-purchase-mode-tabs" role="tablist" aria-label="采购场景模式">
       <button type="button" role="tab" aria-selected={false} className="warehouse-purchase-mode-tab" onClick={() => onSwitchMode?.('plan')}>
         <IconClipboardList size={15} /> 采购计划（报审流）
@@ -1447,7 +1455,7 @@ export function DirectPurchaseReceiptDialog({
     </div>
     <div className="warehouse-header-grid">
       <FormField label="供应商" required>
-        <Select value={supplierId} onChange={setSupplierId} clearable={false} showValue options={suppliers.map(v => ({ value: v.id, label: v.name, secondaryText: v.code }))} />
+        <Select value={supplierId} onChange={onSupplierChange} clearable={false} showValue options={suppliers.map(v => ({ value: v.id, label: v.name, secondaryText: v.code }))} />
       </FormField>
       <FormField label="送货单号">
         <input className="ui-field__control" value={deliveryNoteNo} onChange={e => setDeliveryNoteNo(e.target.value)} placeholder="随货凭单号（选填）" />
@@ -1479,7 +1487,7 @@ export function DirectPurchaseReceiptDialog({
                 <th style={{ width: '10.5rem' }}>包装规格 / 厂家</th>
                 <th className={tableCellClass('numeric')} style={{ width: '7.5rem' }}>入库数量</th>
                 <th className={tableCellClass('numeric')} style={{ width: '7.5rem' }}>采购单价</th>
-                <th className={tableCellClass('numeric')} style={{ width: '7.5rem' }}>零售单价</th>
+                <th className={tableCellClass('numeric')} style={{ width: '7.5rem' }}>参考零售单价</th>
                 <th style={{ width: '8rem' }}>批号</th>
                 <th style={{ width: '11rem' }}>有效期至</th>
                 <th style={{ width: '8.5rem' }}>货位</th>
@@ -1490,14 +1498,13 @@ export function DirectPurchaseReceiptDialog({
             <tbody>
               {rows.map((row, index) => {
                 const item = itemMap.get(row.stockItemId)
-                const lineTotal = item && Number(row.quantity) > 0 && Number(row.price) >= 0
-                  ? Number(row.quantity) * Number(row.price)
-                  : 0
+                const lineTotal = item && Number(row.quantity) > 0 && recordedPrice(row.price) !== undefined
+                  ? Number(row.quantity) * recordedPrice(row.price)! : undefined
                 return <EditableRow key={row.key}>
                   <td className="warehouse-entry-index">{index + 1}</td>
                   <EditableCell display={item?.productName} placeholder="拼音/名称搜索药品">
                     <div ref={el => { selectWrapperRefs.current[row.key] = el }}>
-                      <Select searchable showValue popoverMinWidth={480} value={row.stockItemId}
+                      <Select disabled={submissionBlocked} searchable showValue popoverMinWidth={480} value={row.stockItemId}
                         aria-label={`第${index + 1}行药品`}
                         onChange={val => handleItemSelect(index, val)}
                         placeholder="拼音/名称搜索药品" options={itemOptions} />
@@ -1522,8 +1529,8 @@ export function DirectPurchaseReceiptDialog({
                   </EditableCell>
                   <EditableCell className={tableCellClass('numeric')} display={row.salePrice ? `${formatQuantity(Number(row.salePrice))} 元` : undefined}>
                     <UnitNumberInput unit="元" unitReadOnly min="0" step="0.01"
-                      value={row.salePrice ?? ''} onValueChange={value => updateRow(index, 'salePrice', value)}
-                      aria-label={`第${index + 1}行零售单价`} placeholder="0.00" />
+                      value={row.salePrice ?? ''} readOnly
+                      aria-label={`第${index + 1}行零售单价`} placeholder="未维护" />
                   </EditableCell>
                   <EditableCell display={row.lotNo} placeholder={item?.lotRequired ? '必填批号' : '批号'}>
                     <input
@@ -1544,7 +1551,7 @@ export function DirectPurchaseReceiptDialog({
                       onChange={value => updateRow(index, 'binId', value)} aria-label={`第${index + 1}行货位`}
                       options={receiveBins.map(bin => ({ value: bin.id, label: bin.name }))} />
                   </EditableCell>
-                  <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}>{lineTotal > 0 ? formatMoney(lineTotal) : '—'}</td>
+                  <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}>{lineTotal !== undefined ? formatMoney(lineTotal) : '—'}</td>
                   <td style={{ textAlign: 'center' }}>
                     <Button variant="text" size="sm" onClick={() => removeRow(index)} title="删除行"><IconTrash size={14} /> 删除</Button>
                   </td>
@@ -1575,15 +1582,30 @@ export function PurchaseDialog({
   const [expectedDate, setExpectedDate] = useState('')
   const [submitNow, setSubmitNow] = useState(true)
   const [reason, setReason] = useState('')
-  const [supplierItems, setSupplierItems] = useState<Array<{ catalogItemId?: string; packageId?: string; agreementPrice?: number }>>([])
+  const [supplierQuery, setSupplierQuery] = useState<{
+    supplierId: string; status: 'pending' | 'success' | 'error'; data?: SupplierPrice[]; error?: unknown
+  }>({ supplierId: '', status: 'pending' })
+  const [supplierRetry, setSupplierRetry] = useState(0)
   useEffect(() => {
-    if (!supplierId || !api.pharmacy?.supplyItems) return
-    let cancelled = false
-    api.pharmacy.supplyItems(supplierId).then(list => {
-      if (!cancelled && Array.isArray(list)) setSupplierItems(list)
-    }).catch(() => {})
-    return () => { cancelled = true }
-  }, [api.pharmacy, supplierId])
+    if (!supplierId) return
+    let current = true
+    setSupplierQuery({ supplierId, status: 'pending' })
+    Promise.resolve().then(() => api.pharmacy.supplyItems(supplierId)).then(values => {
+      if (!Array.isArray(values)) throw new Error('供应商供货目录返回无效结果')
+      if (current) setSupplierQuery({ supplierId, status: 'success', data: values })
+    }).catch(error => {
+      if (current) setSupplierQuery({ supplierId, status: 'error', error })
+    })
+    return () => { current = false }
+  }, [api.pharmacy, supplierId, supplierRetry])
+  const supplierReady = supplierQuery.supplierId === supplierId && supplierQuery.status === 'success'
+  const supplierFailed = supplierQuery.supplierId === supplierId && supplierQuery.status === 'error'
+  const supplierItems = supplierReady ? supplierQuery.data : undefined
+  const supplierOrders = orders.filter(order => order.supplierId === supplierId)
+  const referenceStatus = supplierFailed ? <>
+    <Alert tone="warning">供应商供货目录查询失败，无法确认协议价格，请重试。{errorMessage(supplierQuery.error)}</Alert>
+    <Button variant="secondary" onClick={() => setSupplierRetry(value => value + 1)}>重试供应商查询</Button>
+  </> : !supplierReady ? <LoadingState label="正在查询供应商供货目录…" /> : null
 
   const [requestCode] = useState(() => `PO-${crypto.randomUUID()}`)
   const supportsRemoteCatalog = typeof api.pharmacy?.searchProcurementCatalog === 'function'
@@ -1596,16 +1618,18 @@ export function PurchaseDialog({
     action={<Button onClick={() => { onClose(); onNavigate('/settings/partners?tab=suppliers') }}>前往供应商档案</Button>} /></Dialog>
 
   if (mode === 'direct') {
-    return <DirectPurchaseReceiptDialog api={api} site={site} suppliers={suppliers} items={items} bins={bins}
-      orders={orders} products={products} supplierItems={supplierItems}
+    return <DirectPurchaseReceiptDialog key={supplierId} api={api} site={site} suppliers={suppliers} items={items} bins={bins}
+      orders={supplierOrders} products={products} supplierItems={supplierItems}
+      supplierId={supplierId} onSupplierChange={setSupplierId} referenceStatus={referenceStatus} submissionBlocked={!supplierReady}
       onNavigate={onNavigate} onClose={onClose} onDone={onDone} onSwitchMode={setMode} />
   }
 
   return <MultiItemDialog key={supplierId} title="新建采购计划" submitText={submitNow ? '保存并提交审核' : '保存草稿'}
     items={supportsRemoteCatalog ? [] : items} loadItems={supportsRemoteCatalog ? loadProcurementItems : undefined}
     quantityLabel="采购数量（包装）" withPrice
-    hideReason={true} orders={orders} products={products} supplierItems={supplierItems}
+    hideReason={true} orders={supplierOrders} products={products} supplierItems={supplierItems} submissionBlocked={!supplierReady}
     lead={<>
+      {referenceStatus}
       <div className="warehouse-purchase-mode-tabs" role="tablist" aria-label="采购场景模式">
         <button type="button" role="tab" aria-selected={true} className="warehouse-purchase-mode-tab is-active" onClick={() => setMode('plan')}>
           <IconClipboardList size={15} /> 采购计划（报审流）
@@ -1774,7 +1798,7 @@ export function GoodsInspectionDialog({ api, receipt, items, onClose, onDone }: 
       {receipt.lines.map(line => {
         const item = items.find(v => v.id === line.stockItemId)
         return <tr key={line.id}><td><strong>{item?.productName ?? line.stockItemId}</strong><small>{[item?.manufacturerName, `批号 ${line.lotNo}`].filter(Boolean).join(' · ')}</small></td>
-          <td><strong>{line.expiryDate ?? '无效期'}</strong><small>生产 {line.productionDate ?? '未记录'}</small></td><td>{line.deliveredQuantity} {item?.packageUnitName}</td>
+          <td><strong>{line.expiryDate ?? '效期未记录'}</strong><small>生产 {line.productionDate ?? '未记录'}</small></td><td>{line.deliveredQuantity} {item?.packageUnitName}</td>
           <td><input aria-label={`${line.lotNo}合格数`} className="ui-field__control" type="number" min="0" max={line.deliveredQuantity} value={accepted[line.id]} onChange={e => setAccepted(v => ({ ...v, [line.id]: e.target.value }))} /></td>
           <td><input aria-label={`${line.lotNo}不合格数`} className="ui-field__control" type="number" min="0" max={line.deliveredQuantity} value={rejected[line.id]} onChange={e => { const value = e.target.value; setRejected(v => ({ ...v, [line.id]: value })); setAccepted(v => ({ ...v, [line.id]: String(Math.max(0, Number(line.deliveredQuantity) - Number(value))) })) }} /></td>
           <td><input aria-label={`${line.lotNo}不合格原因`} className="ui-field__control" disabled={Number(rejected[line.id]) === 0} value={reasons[line.id] ?? ''} onChange={e => setReasons(v => ({ ...v, [line.id]: e.target.value }))} placeholder="存在不合格时必填" /></td></tr>
@@ -1868,7 +1892,7 @@ function TransferReceiveDialog({ api, value, items, bins, onClose, onDone }: { a
         const operationUnitName = item?.packageUnitName ?? line.operationUnitCode
         const baseUnitName = displayUnitName(line.baseUnitCode)
         return <tr key={allocation.id}><td><strong>{item?.productName ?? line.destinationStockItemId}</strong>
-          <small>{[lot ? `批号 ${lot.lotNo} · 效期 ${lot.expiryDate ?? '无效期'}` : lots.isPending ? '正在读取批次…' : '批次资料缺失', item?.manufacturerName].filter(Boolean).join(' · ')}</small></td><td>{formatQuantity(allocation.dispatchedQuantity)}{baseUnitName}
+          <small>{[lot ? `批号 ${lot.lotNo} · 效期 ${lot.expiryDate ?? '效期未记录'}` : lots.isPending ? '正在读取批次…' : '批次资料缺失', item?.manufacturerName].filter(Boolean).join(' · ')}</small></td><td>{formatQuantity(allocation.dispatchedQuantity)}{baseUnitName}
           <small>申请 {formatQuantity(line.requestedOperationQuantity)}{operationUnitName} · 1{operationUnitName} = {formatQuantity(line.baseQuantityFactor)}{baseUnitName}</small></td>
         <td><input aria-label="正常调入数" className="ui-field__control" type="number" min="0" max={allocation.dispatchedQuantity} value={received[allocation.id]} onChange={e => setReceived(v => ({ ...v, [allocation.id]: e.target.value }))} /></td>
         <td><input aria-label="破损调入数" className="ui-field__control" type="number" min="0" max={allocation.dispatchedQuantity} value={damaged[allocation.id]} onChange={e => setDamaged(v => ({ ...v, [allocation.id]: e.target.value }))} /></td>
@@ -1925,7 +1949,7 @@ function CountRecordDialog({ api, value, items, bins, onClose, onDone }: { api: 
       return <tr key={line.id}><td><strong>{item?.productName ?? line.stockItemId}</strong>
         <small>{[bins.find(bin => bin.id === line.stockBinId)?.name ?? line.stockBinId, item?.manufacturerName].filter(Boolean).join(' · ')}</small></td>
         <td><strong>{lot?.lotNo ?? (lots.isPending ? '正在读取…' : '批次资料缺失')}</strong>
-          <small>{lot?.expiryDate ?? '无效期'} · {stockStatusText[line.stockStatus] ?? line.stockStatus}</small></td>
+          <small>{lot?.expiryDate ?? '效期未记录'} · {stockStatusText[line.stockStatus] ?? line.stockStatus}</small></td>
         <td>{blind ? '盲盘隐藏' : formatQuantity(line.bookQuantity)}</td><td><input aria-label={`${line.id}实盘数量`} className="ui-field__control"
           type="number" min="0" placeholder="清点后录入" value={counts[line.id] ?? ''}
           onChange={event => setCounts(current => ({ ...current, [line.id]: event.target.value }))} /></td>
@@ -1949,3 +1973,5 @@ function transferRequestSummary(value: StockTransfer, items: StockItem[]) {
 }
 function formatQuantity(value: number) { return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(Number(value)) }
 function formatMoney(value: number) { return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 2 }).format(value) }
+
+function formatRecordedMoney(value: number | undefined) { return value == null ? '金额未取得' : formatMoney(value) }

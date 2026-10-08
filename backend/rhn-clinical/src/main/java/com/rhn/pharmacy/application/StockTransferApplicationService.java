@@ -103,10 +103,8 @@ public class StockTransferApplicationService {
         if (input.lines().size() > 500) throw badRequest("TRANSFER_LINES_TOO_MANY", "单张调拨单不能超过500条明细");
         String no = Strings.trimToNull(input.transferNo());
         if (no == null) no = nextNo("TR");
-        Long srcDeptId = source.departmentId() != null ? source.departmentId()
-                : (context.departmentId() != null ? context.departmentId() : 1L);
-        Long destDeptId = destination.departmentId() != null ? destination.departmentId()
-                : (context.departmentId() != null ? context.departmentId() : 1L);
+        Long srcDeptId = StockSiteRequirements.requireDepartment(source);
+        Long destDeptId = StockSiteRequirements.requireDepartment(destination);
         StockTransfer value = new StockTransfer(context.tenantId(), source.organizationId(), srcDeptId, destDeptId,
                 source.id(), destination.id(), no, requestCode,
                 input.requestedAt() == null ? Instant.now() : input.requestedAt(), Strings.trimToNull(input.reason()),
@@ -284,6 +282,7 @@ public class StockTransferApplicationService {
                 throw badRequest("TRANSFER_RECEIPT_DUPLICATE", "调入确认明细不能重复");
         List<DocumentPostingLineCommand> posting = new ArrayList<>();
         List<TraceTransferReceiptLine> traceReceipts = new ArrayList<>();
+        var outboundLines = inventoryService.transactionLines(v.outboundTransactionId());
         for (StockTransferLine line : lines) {
             if (!"IN_TRANSIT".equals(line.lineStatus())) continue;
             BigDecimal received = BigDecimal.ZERO;
@@ -302,12 +301,20 @@ public class StockTransferApplicationService {
                     throw badRequest("TRANSFER_RECEIPT_QUANTITY_INVALID", "调入与破损数量之和必须等于调出数量");
                 if (dm.signum() > 0 && Strings.trimToNull(d.discrepancyReason()) == null)
                     throw badRequest("TRANSFER_DISCREPANCY_REASON_REQUIRED", "存在破损差异时必须填写原因");
+                var sourceCosts = outboundLines.stream().filter(source ->
+                        source.stockSiteId().equals(v.sourceSiteId()) && source.stockItemId().equals(line.sourceStockItemId())
+                        && source.stockBinId().equals(a.sourceBinId()) && source.stockLotId().equals(a.stockLotId())
+                        && source.stockStatus().equals(a.stockStatus())).toList();
+                if (sourceCosts.size() != 1 || sourceCosts.getFirst().quantityDelta().negate().compareTo(a.dispatchedQuantity()) != 0) {
+                    throw conflict("TRANSFER_OUTBOUND_LEDGER_MISMATCH", "调出流水与调拨分配不一致，无法确认调入成本");
+                }
+                BigDecimal sourceCost = sourceCosts.getFirst().unitCost();
                 if (r.signum() > 0)
                     posting.add(new DocumentPostingLineCommand(bin.id(), line.destinationStockItemId(), a.stockLotId(),
-                            "AVAILABLE", r, null, false));
+                            "AVAILABLE", r, sourceCost, false));
                 if (dm.signum() > 0)
                     posting.add(new DocumentPostingLineCommand(bin.id(), line.destinationStockItemId(), a.stockLotId(),
-                            "DAMAGED", dm, null, false));
+                            "DAMAGED", dm, sourceCost, false));
                 traceReceipts.add(
                         new TraceTransferReceiptLine(line.destinationStockItemId(), a.stockLotId(), bin.id(), r, dm));
                 a.receive(bin.id(), r, dm);

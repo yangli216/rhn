@@ -1,4 +1,5 @@
-import type { ItemPackage, MedicationKnowledge, MedicationProduct } from '../../../shared/api/masterDataApi'
+import { z } from 'zod'
+import type { CatalogPrice, ItemPackage, MedicationKnowledge, MedicationProduct } from '../../../shared/api/masterDataApi'
 
 export function canPrintPrescription(value: { status: string; medicationRequests: Array<{ status: string }> }) {
   return value.status === 'ACTIVE' && value.medicationRequests.length > 0
@@ -20,42 +21,70 @@ export interface DispensableProductOption {
   secondaryText: string
 }
 
+const textKnown = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
+const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const currencyKnown = (value: unknown): value is string => typeof value === 'string' && /^[A-Z]{3}$/.test(value)
+const dateKnown = (value: unknown): value is string => z.iso.date().safeParse(value).success
+const periodKnown = (value: { validFrom: string; validTo?: string }) => dateKnown(value.validFrom)
+  && (value.validTo == null || (dateKnown(value.validTo) && value.validTo >= value.validFrom))
+const effective = (value: { validFrom: string; validTo?: string }, today: string) => periodKnown(value)
+  && value.validFrom <= today && (value.validTo == null || value.validTo >= today)
+const uniqueIds = (rows: Array<{ id: string }>) => rows.every(row => row && textKnown(row.id))
+  && new Set(rows.map(row => row.id)).size === rows.length
+
 export function resolveDispensableOptions(
   medication: MedicationKnowledge, organizationId: string,
+  requireDispensable = true,
 ): DispensableProductOption[] {
-  const today = new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  if (!textKnown(organizationId) || !Array.isArray(medication.products) || !uniqueIds(medication.products)) return []
   const result: DispensableProductOption[] = []
   for (const product of medication.products) {
     const adoption = product.organizationAdoption
-    if (product.sdStatus !== 'ACTIVE' || !product.orderable || !product.chargeable
+    if (product.sdStatus !== 'ACTIVE' || product.orderable !== true || product.chargeable !== true
+      || !textKnown(product.unitCode) || !effective(product, today)
       || !adoption || adoption.organizationId !== organizationId || adoption.sdStatus !== 'ACTIVE'
-      || !adoption.orderable || !adoption.chargeable || !adoption.dispensable) continue
-    const prices = product.prices.filter((value) => value.sdStatus === 'ACTIVE'
-      && value.sdPriceType === 'SALE' && (!value.organizationId || value.organizationId === organizationId)
-      && value.validFrom <= today && (!value.validTo || value.validTo >= today))
-      .sort((left, right) => Number(Boolean(right.organizationId)) - Number(Boolean(left.organizationId)))
-    const packages = [...product.packages].filter((value) => value.sdStatus === 'ACTIVE'
-      && value.validFrom <= today && (!value.validTo || value.validTo >= today))
-      .sort((left, right) => Number(right.defaultDispense) - Number(left.defaultDispense)
-        || Number(right.defaultSale) - Number(left.defaultSale))
+      || adoption.orderable !== true || adoption.chargeable !== true || (requireDispensable && adoption.dispensable !== true)
+      || !effective(adoption, today)) continue
+    if (!Array.isArray(product.prices) || !uniqueIds(product.prices)
+      || !Array.isArray(product.packages) || !uniqueIds(product.packages)) continue
+    // Unknown scope/effectivity cannot be discarded to expose a cheaper fallback price.
+    const saleRows = product.prices.filter(value => value.sdStatus === 'ACTIVE' && value.sdPriceType === 'SALE')
+    if (saleRows.some(value => value.organizationId !== null && !textKnown(value.organizationId))) continue
+    const scopedRows = saleRows.filter(value => value.organizationId === null || value.organizationId === organizationId)
+    if (scopedRows.some(value => !periodKnown(value))) continue
+    const prices = scopedRows.filter(value => effective(value, today))
+    if (prices.some(value => !finite(value.price) || value.price < 0 || !currencyKnown(value.currencyCode)
+      || (value.packageId != null && !textKnown(value.packageId)))) continue
+    const selectPrice = (packageId?: string): CatalogPrice | undefined => {
+      const matches = prices.filter(value => (value.packageId ?? undefined) === packageId)
+      const local = matches.filter(value => value.organizationId === organizationId)
+      const applicable = local.length ? local : matches.filter(value => value.organizationId === null)
+      return applicable.length === 1 ? applicable[0] : undefined
+    }
+    const packages = product.packages.filter(value => value.sdStatus === 'ACTIVE' && effective(value, today)
+      && finite(value.quantityFactor) && value.quantityFactor > 0 && textKnown(value.unitCode) && textKnown(value.unitName))
+      .sort((left, right) => Number(right.defaultDispense === true) - Number(left.defaultDispense === true)
+        || Number(right.defaultSale === true) - Number(left.defaultSale === true))
     for (const itemPackage of packages) {
-      const price = prices.find((value) => value.packageId === itemPackage.id)
+      const price = selectPrice(itemPackage.id)
       if (price) result.push({
         key: `${product.id}:${itemPackage.id}`, product, itemPackage,
         unitCode: itemPackage.unitCode, unitName: itemPackage.unitName,
-        packageFactor: Number(itemPackage.quantityFactor), priceType: price.sdPriceType,
-        price: Number(price.price), currencyCode: price.currencyCode, split: false,
+        packageFactor: itemPackage.quantityFactor, priceType: price.sdPriceType,
+        price: price.price, currencyCode: price.currencyCode, split: false,
         label: itemPackage.packageSpec || itemPackage.unitName,
-        secondaryText: `${itemPackage.quantityFactor}${product.unitCode || medication.preparationUnit || '最小单位'} · ${unitPriceText(Number(price.price), price.currencyCode)}/${itemPackage.unitName}`,
+        secondaryText: `${itemPackage.quantityFactor}${product.unitCode} · ${unitPriceText(price.price, price.currencyCode)}/${itemPackage.unitName}`,
       })
     }
-    const basePrice = prices.find((value) => !value.packageId)
-    const baseUnit = product.unitCode || medication.preparationUnit
-    if (basePrice && baseUnit) result.push({
+    const basePrice = selectPrice()
+    const baseUnit = product.unitCode
+    if (basePrice) result.push({
       key: `${product.id}:BASE`, product, unitCode: baseUnit, unitName: baseUnit,
-      packageFactor: 1, priceType: basePrice.sdPriceType, price: Number(basePrice.price),
+      packageFactor: 1, priceType: basePrice.sdPriceType, price: basePrice.price,
       currencyCode: basePrice.currencyCode, split: true, label: `${baseUnit}（拆零）`,
-      secondaryText: `${unitPriceText(Number(basePrice.price), basePrice.currencyCode)}/${baseUnit} · 按最小单位计价`,
+      secondaryText: `${unitPriceText(basePrice.price, basePrice.currencyCode)}/${baseUnit} · 按最小单位计价`,
     })
   }
   return result
@@ -69,7 +98,9 @@ export function resolveDispensableProduct(medication: MedicationKnowledge, organ
 }
 
 export function unitPriceText(value: number, currencyCode: string) {
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency', currency: currencyCode || 'CNY', minimumFractionDigits: 2, maximumFractionDigits: 4,
-  }).format(value)
+  if (!finite(value) || value < 0 || !currencyKnown(currencyCode)) return '价格待确认'
+  // Keep the actual amount, including tiny unit prices; formatting must not round them to zero.
+  const amount = String(value)
+  const [integer, fraction = ''] = amount.split('.')
+  return `${currencyCode} ${/[eE]/.test(amount) ? amount : `${integer}.${fraction.padEnd(2, '0')}`}`
 }

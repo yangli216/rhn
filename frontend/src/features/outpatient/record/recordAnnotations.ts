@@ -1,8 +1,9 @@
 import { recordTextFields, type RecordAnnotation, type RecordText, type RecordTextField } from '../../../shared/api/recordAnnotations'
 
-export function anchorAnnotations(content: RecordText, values: readonly RecordAnnotation[] = []): RecordAnnotation[] {
+export function anchorAnnotations(content: RecordText, values?: readonly RecordAnnotation[] | null): RecordAnnotation[] {
+  const safeValues = values ?? []
   const seen = new Set<string>()
-  return values.slice(0, 200).flatMap((item) => {
+  return safeValues.slice(0, 200).flatMap((item) => {
     if (!item || !recordTextFields.includes(item.field) || typeof item.text !== 'string' || !item.text
       || !['TEMPLATE', 'VOICE', 'CONTEXT', 'DOCTOR', 'AI'].includes(item.source)
       || !['PRESET', 'VARIABLE', 'IMPORTANT', 'FACT', 'CONFLICT'].includes(item.kind)) return []
@@ -18,16 +19,18 @@ export function anchorAnnotations(content: RecordText, values: readonly RecordAn
 }
 
 /** Fresh template use retains the whole preset as provenance without highlighting the whole paragraph. */
-export function templateAnnotations(content: RecordText, annotations: readonly RecordAnnotation[] = []): RecordAnnotation[] {
+export function templateAnnotations(content: RecordText, annotations?: readonly RecordAnnotation[] | null): RecordAnnotation[] {
+  const safeAnnotations = annotations ?? []
   const defaults: RecordAnnotation[] = recordTextFields.flatMap((field) => content[field]
     ? [{ field, text: content[field]!, start: 0, source: 'TEMPLATE', kind: 'PRESET', confirmed: false }] : [])
-  return anchorAnnotations(content, [...defaults, ...annotations.map((item) => ({ ...item, source: 'TEMPLATE' as const, confirmed: false }))])
+  return anchorAnnotations(content, [...defaults, ...safeAnnotations.map((item) => ({ ...item, source: 'TEMPLATE' as const, confirmed: false }))])
 }
 
-export function annotationSegments(text: string, values: readonly RecordAnnotation[]) {
+export function annotationSegments(text: string, values?: readonly RecordAnnotation[] | null) {
+  const safeValues = values ?? []
   const selected: RecordAnnotation[] = []
   // Manual edits retain provenance for merge protection, without highlighting ordinary typing.
-  const candidates = values.filter((item) => item.kind !== 'PRESET' && item.source !== 'DOCTOR'
+  const candidates = safeValues.filter((item) => item.kind !== 'PRESET' && item.source !== 'DOCTOR'
     && item.start != null && text.startsWith(item.text, item.start))
     .sort((a, b) => (a.kind === 'CONFLICT' ? -1 : b.kind === 'CONFLICT' ? 1 : 0) || a.text.length - b.text.length)
   for (const item of candidates) {
@@ -46,8 +49,9 @@ export function annotationSegments(text: string, values: readonly RecordAnnotati
 }
 
 /** Rebase only provably unchanged ranges. Never re-find an edited phrase elsewhere in the document. */
-export function rebaseAnnotations(field: RecordTextField, before: string, after: string, values: readonly RecordAnnotation[]): RecordAnnotation[] {
-  if (before === after) return [...values]
+export function rebaseAnnotations(field: RecordTextField, before: string, after: string, values?: readonly RecordAnnotation[] | null): RecordAnnotation[] {
+  const safeValues = values ?? []
+  if (before === after) return [...safeValues]
   let prefix = 0
   while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) prefix++
   let suffix = 0
@@ -58,7 +62,7 @@ export function rebaseAnnotations(field: RecordTextField, before: string, after:
   const delta = after.length - before.length
   const result: RecordAnnotation[] = []
   const touchedBindings = new Set<string>()
-  for (const item of values) {
+  for (const item of safeValues) {
     if (item.field !== field) { result.push(item); continue }
     if (item.start == null || !before.startsWith(item.text, item.start)) continue
     const end = item.start + item.text.length
@@ -85,8 +89,8 @@ export function rebaseAnnotations(field: RecordTextField, before: string, after:
 }
 
 /** Unconfirmed presets remain in the editor but do not prove their own applicability. */
-export function recordEvidence(content: RecordText, annotations: readonly RecordAnnotation[]): RecordText {
-  const anchored = anchorAnnotations(content, annotations)
+export function recordEvidence(content: RecordText, annotations?: readonly RecordAnnotation[] | null): RecordText {
+  const anchored = anchorAnnotations(content, annotations ?? [])
   return Object.fromEntries(recordTextFields.map((field) => {
     const text = content[field] || ''
     const exclude = anchored.filter((item) => item.field === field && !item.confirmed
@@ -104,10 +108,10 @@ export function recordEvidence(content: RecordText, annotations: readonly Record
 }
 
 /** Update a semantic slot, never all occurrences of a number such as 3天. */
-export function applyBoundFacts(content: RecordText, annotations: readonly RecordAnnotation[], incoming: readonly RecordAnnotation[]) {
+export function applyBoundFacts(content: RecordText, annotations?: readonly RecordAnnotation[] | null, incoming?: readonly RecordAnnotation[] | null) {
   const next = { ...content }
-  let marks = anchorAnnotations(content, annotations)
-  for (const fact of incoming) {
+  let marks = anchorAnnotations(content, annotations ?? [])
+  for (const fact of incoming ?? []) {
     if (!fact.binding || !['VOICE', 'CONTEXT'].includes(fact.source) || !fact.text) continue
     const targets = marks.filter((item) => item.binding === fact.binding && item.field === fact.field)
     const manual = targets.find((item) => item.source === 'DOCTOR')

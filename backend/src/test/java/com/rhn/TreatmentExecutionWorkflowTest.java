@@ -39,7 +39,7 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
         org.junit.jupiter.api.Assertions.assertEquals("WAITING_SETTLEMENT", task.get("status").asString());
         mockMvc.perform(post("/api/treatments/tasks/{id}/start", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"expectedRevision\":%d,\"identityVerified\":true}"
+                        .content("{\"expectedRevision\":%d,\"identityVerified\":true,\"verificationMethod\":\"NAME_AND_IDENTIFIER\"}"
                                 .formatted(task.get("revision").asLong())))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("TREATMENT_START_STATE_INVALID"));
 
@@ -64,10 +64,15 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
         org.junit.jupiter.api.Assertions.assertEquals("READY", task.get("status").asString());
         mockMvc.perform(post("/api/treatments/tasks/{id}/start", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"expectedRevision\":%d,\"identityVerified\":false}"
+                        .content("{\"expectedRevision\":%d,\"identityVerified\":false,\"verificationMethod\":\"NAME_AND_IDENTIFIER\"}"
                                 .formatted(task.get("revision").asLong())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("TREATMENT_IDENTITY_VERIFICATION_REQUIRED"));
+        org.junit.jupiter.api.Assertions.assertFalse(task.hasNonNull("adverseReaction"));
+        mockMvc.perform(post("/api/treatments/tasks/{id}/start", task.get("id").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":%d,\"identityVerified\":true}".formatted(task.get("revision").asLong())))
+                .andExpect(status().isBadRequest());
         JsonNode started = json(mockMvc.perform(post("/api/treatments/tasks/{id}/start", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"identityVerified":true,
@@ -75,13 +80,22 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
                                 """.formatted(task.get("revision").asLong())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"))
                 .andReturn().getResponse().getContentAsString());
+        org.junit.jupiter.api.Assertions.assertFalse(started.hasNonNull("adverseReaction"));
+        for (String assessment : java.util.List.of("", ",\"resultCode\":\"COMPLETED\"", ",\"adverseReaction\":false")) {
+            mockMvc.perform(post("/api/treatments/tasks/{id}/complete", task.get("id").asString())
+                            .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d%s}".formatted(started.get("revision").asLong(), assessment)))
+                    .andExpect(status().isBadRequest());
+        }
+        org.junit.jupiter.api.Assertions.assertEquals("IN_PROGRESS", taskBySource(request.get("id").asString()).get("status").asString());
         mockMvc.perform(post("/api/treatments/tasks/{id}/complete", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"resultCode":"COMPLETED",
                                  "note":"治疗完成，留观后无不适","adverseReaction":false}
                                 """.formatted(started.get("revision").asLong())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.resultCode").value("COMPLETED"));
+                .andExpect(jsonPath("$.resultCode").value("COMPLETED"))
+                .andExpect(jsonPath("$.adverseReaction").value(false));
     }
 
     @Test
@@ -221,6 +235,8 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
                                  "sdDoseForm":"INJECTION","preparationSpec":"80万U","preparationUnit":"支",
                                  "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":true,
                                  "sdAntimicrobialLevel":"NON_RESTRICTED","skinTestRequired":true,
+                                 "skinTestMethod":"INTRADERMAL","skinTestSolutionMode":"DILUTED_SOLUTION",
+                                 "skinTestObservationMinutes":20,"skinTestResultValidityHours":24,
                                  "defaultDose":1,"defaultDoseUnit":"支","defaultRoute":"IM",
                                  "defaultFrequency":"ONCE","chronicDiseaseDrug":false,"singleOrder":false,
                                  "sdStatus":"ACTIVE"}
@@ -248,6 +264,10 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
 
         JsonNode task = taskBySource(request.get("id").asString());
         org.junit.jupiter.api.Assertions.assertEquals("WAITING_SKIN_TEST", task.get("status").asString());
+        mockMvc.perform(get("/api/outpatient-flow").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.visits[?(@.encounterId == '%s')].stages[?(@.stageCode == 'TREATMENT')].status"
+                        .formatted(encounterId)).value("WAITING"));
         JsonNode skinItems = json(mockMvc.perform(get("/api/treatments/skin-tests/worklist")
                         .with(rhnWorkContext()).queryParam("encounterId", encounterId))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());

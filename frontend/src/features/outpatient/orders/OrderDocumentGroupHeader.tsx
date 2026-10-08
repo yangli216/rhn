@@ -1,6 +1,6 @@
 import { Button, Popconfirm } from '../../../shared/ui'
 import { IconAlertCircle, IconFlask, IconPill, IconPlant2, IconPrinter, IconScan, IconTrash, IconFileText } from '@tabler/icons-react'
-import { formatCurrency } from '../../../shared/utils/precision'
+import { formatOrderSubtotal, type OrderSubtotal } from './orderSubtotal'
 
 export function OrderDocumentGroupHeader({
   title,
@@ -10,7 +10,6 @@ export function OrderDocumentGroupHeader({
   itemCount,
   itemUnit = '项',
   subtotal,
-  currencyCode = 'CNY',
   missingFields = [],
   isSelected,
   canPrint,
@@ -27,8 +26,7 @@ export function OrderDocumentGroupHeader({
   specimen?: string
   itemCount: number
   itemUnit?: string
-  subtotal: number
-  currencyCode?: string
+  subtotal: OrderSubtotal
   missingFields?: string[]
   isSelected?: boolean
   canPrint?: boolean
@@ -72,11 +70,9 @@ export function OrderDocumentGroupHeader({
       {children && <div className="doctor-group-header-middle">{children}</div>}
 
       <div className="doctor-group-header-right">
-        {subtotal > 0 && (
-          <span className="doctor-group-subtotal">
-            小计 <strong>{formatCurrency(subtotal, currencyCode)}</strong>
-          </span>
-        )}
+        <span className="doctor-group-subtotal">
+          小计 <strong>{formatOrderSubtotal(subtotal)}</strong>
+        </span>
         <div className="doctor-group-actions">
           {canCancel && onCancel && (
             <Popconfirm

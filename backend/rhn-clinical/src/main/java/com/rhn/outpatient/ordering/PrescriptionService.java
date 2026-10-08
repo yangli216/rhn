@@ -208,7 +208,7 @@ class PrescriptionService {
                     .filter(request -> !request.selfProvided())
                     .map(request -> new PrescriptionItemFreezeRequest(
                             request.id(), request.catalogItemId(), request.packageId(),
-                            request.quantity(), request.quantityUnit()))
+                            request.quantity(), request.quantityUnit(), request.baseQuantity(), request.baseUnit()))
                     .toList();
             if (!freezeItems.isEmpty()) {
                 inventoryDirectory.freezePrescription(new PrescriptionFreezeCommand(

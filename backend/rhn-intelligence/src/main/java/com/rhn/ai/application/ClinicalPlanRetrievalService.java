@@ -17,7 +17,8 @@ public class ClinicalPlanRetrievalService {
 
     public List<Match> retrieve(List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> visiblePlans,
                                 Query query, int limit) {
-        if (visiblePlans == null || visiblePlans.isEmpty() || limit <= 0) return List.of();
+        java.util.Objects.requireNonNull(visiblePlans, "可见方案目录未返回，不能视为没有匹配方案");
+        if (visiblePlans.isEmpty() || limit <= 0) return List.of();
         String text = normalized(query == null ? null : query.text());
         Set<DiagnosisIdentity> diagnoses = query == null || query.diagnoses() == null
                 ? Set.of() : Set.copyOf(query.diagnoses());
@@ -41,11 +42,11 @@ public class ClinicalPlanRetrievalService {
         int clinicalScore = 0;
         List<String> evidence = new ArrayList<>();
         for (var diagnosis : plan.diagnoses()) {
-            boolean exactCode = diagnoses.contains(new DiagnosisIdentity(diagnosis.codeSystem(),
-                    diagnosis.diagnosisDomain(), diagnosis.code().toUpperCase(Locale.ROOT)));
+            var identity = new DiagnosisIdentity(diagnosis.codeSystem(), diagnosis.diagnosisDomain(), diagnosis.code());
+            boolean exactCode = identity.complete() && diagnoses.contains(identity);
             if (exactCode) {
                 clinicalScore += 100;
-                evidence.add("DIAGNOSIS_CODE:" + diagnosis.codeSystem() + "|" + diagnosis.code());
+                evidence.add("DIAGNOSIS_CODE:" + identity.codeSystem() + "|" + identity.diagnosisDomain() + "|" + identity.code());
             } else if (contains(text, diagnosis.display())) {
                 clinicalScore += 35;
                 evidence.add("DIAGNOSIS_TEXT:" + diagnosis.display());
@@ -85,7 +86,7 @@ public class ClinicalPlanRetrievalService {
         int score = clinicalScore;
         if ((preferredScope == null ? "PERSONAL" : preferredScope).equals(plan.scopeType())) {
             score += 4;
-            evidence.add("SCOPE:" + preferredScope);
+            evidence.add("SCOPE:" + plan.scopeType());
         }
         if (plan.useCount() > 0) {
             score += Math.min(8, Long.toString(plan.useCount()).length());
@@ -114,11 +115,19 @@ public class ClinicalPlanRetrievalService {
 
     public record DiagnosisIdentity(String codeSystem, String diagnosisDomain, String code) {
         public DiagnosisIdentity {
-            codeSystem = codeSystem == null ? DiagnosisNormalizationService.ICD10_SYSTEM : codeSystem.trim();
-            diagnosisDomain = diagnosisDomain == null ? "WESTERN_MEDICINE" : diagnosisDomain.trim();
-            code = code == null ? "" : code.trim().toUpperCase(Locale.ROOT);
+            codeSystem = clean(codeSystem);
+            diagnosisDomain = clean(diagnosisDomain);
+            code = clean(code);
+            if (code != null) code = code.toUpperCase(Locale.ROOT);
         }
+        boolean complete() {
+            return codeSystem != null && code != null && diagnosisDomain != null
+                    && Set.of("WESTERN_MEDICINE", "TCM_DISEASE", "TCM_SYNDROME").contains(diagnosisDomain);
+        }
+
+        private static String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     }
+
 
     public record Match(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot plan, int score,
                         int clinicalScore, List<String> evidence) {}

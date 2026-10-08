@@ -77,8 +77,8 @@ export interface Department {
   description?: string | null
   sdDepartmentType: string
   sdDepartmentTypeText: string
-  sdDepartmentProperty: string
-  sdDepartmentPropertyText: string
+  sdDepartmentProperty?: string | null
+  sdDepartmentPropertyText?: string | null
   sdOrgType: OrganizationType
   sdOrgTypeText: string
   virtual: boolean
@@ -102,6 +102,16 @@ export interface Practitioner {
   sdPersonnelStatusText: string
   createdAt: string
   updatedAt: string
+}
+
+export interface PractitionerOnboardingInput {
+  code: string
+  fullName: string
+  sdPractGender: PractitionerGender
+  organizationId: string
+  departmentId: string
+  positionId: string
+  hireDate: string
 }
 
 export interface Employment {
@@ -341,6 +351,8 @@ export function createOrganizationApi(client: ApiClient) {
     createPractitioner: (input: { code: string; fullName: string; sdPractGender: PractitionerGender }) =>
       client.request<Practitioner>('/api/platform/practitioners',
         { method: 'POST', body: JSON.stringify(input) }),
+    onboardPractitioner: (input: PractitionerOnboardingInput) => client.request<PractitionerDetail>(
+      '/api/platform/practitioners/onboarding', { method: 'POST', body: JSON.stringify(input) }),
     updatePractitioner: (id: string, input: { expectedRevision: number; fullName: string; sdPractGender: PractitionerGender }) =>
       client.request<Practitioner>(`/api/platform/practitioners/${id}`,
         { method: 'PUT', body: JSON.stringify(input) }),

@@ -63,7 +63,6 @@ public class ItemGroupDirectoryService implements ItemGroupDirectory {
                         || contains(group.name(), query) || contains(group.code(), query))
                 .map(group -> snapshot(tenantId, organizationId, group, serviceType, at))
                 .filter(Objects::nonNull)
-                .limit(20)
                 .toList();
     }
 
@@ -80,6 +79,7 @@ public class ItemGroupDirectoryService implements ItemGroupDirectory {
                 .collect(Collectors.toMap(OrganizationCatalogItem::catalogItemId, Function.identity(),
                         (left, right) -> left.validFrom().isAfter(right.validFrom()) ? left : right));
         List<MemberSnapshot> result = new ArrayList<>();
+        List<Long> unavailableOptionalMembers = new ArrayList<>();
         for (ItemGroupMember member : configured) {
             ServiceCatalogItem service = serviceById.get(member.catalogItemId());
             OrganizationCatalogItem adoption = adoptionById.get(member.catalogItemId());
@@ -90,13 +90,16 @@ public class ItemGroupDirectoryService implements ItemGroupDirectory {
                     || adoption == null || !"ACTIVE".equals(adoption.status())
                     || !adoption.orderable() || !adoption.executable()) {
                 if (member.requiredMember()) return null;
+                unavailableOptionalMembers.add(member.catalogItemId());
                 continue;
             }
             result.add(new MemberSnapshot(service.id(), service.code(), service.name(), service.serviceType(),
-                    member.quantity(), member.unitCode() == null ? service.unitCode() : member.unitCode(), member.memberDescription(), member.requiredMember()));
+                    member.quantity(), member.unitCode() == null ? service.unitCode() : member.unitCode(),
+                    member.memberDescription(), member.requiredMember(), service.unitCode(),
+                    service.chargeable() && adoption.chargeable()));
         }
-        return result.isEmpty() ? null : new ItemGroupSnapshot(group.id(), group.revision(), group.code(),
-                group.name(), group.groupType(), result);
+        return new ItemGroupSnapshot(group.id(), group.revision(), group.code(),
+                group.name(), group.groupType(), result, List.copyOf(unavailableOptionalMembers));
     }
 
     private boolean outpatientUsage(String value) {

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { RhnApi } from '../../shared/rhnApi'
+import type { PrescriptionPreview } from '../../shared/api/medicationWorkbenchApi'
 import { MedicationWorkbench } from './MedicationWorkbench'
 
 const med = {
@@ -174,7 +175,7 @@ function setup(available: boolean, saved: unknown[] = []) {
     }),
     trial: vi.fn().mockResolvedValue({ id: 'r2', candidateId: '900001', mode: 'SYNTHETIC', createdAt: '2026-09-16T00:00:00Z', cases: [] }),
     shadow: vi.fn().mockResolvedValue({ id: 'r3', candidateId: '900001', mode: 'HIS_SHADOW', createdAt: '2026-09-16T00:00:00Z', cases: [] }),
-    prescriptionPreview: vi.fn().mockResolvedValue({
+    prescriptionPreview: vi.fn<() => Promise<PrescriptionPreview>>().mockResolvedValue({
       encounterId: '1001', prescriptionId: '2001', residentId: '3001', departmentId: '4001', prescriptionStatus: 'DRAFT',
       patientContext: { patientAgeYears: 14, gender: '男', activeAllergies: [] },
       items: [{ medicationId: med.medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'ORAL', frequencyCode: 'TID',
@@ -191,6 +192,78 @@ function setup(available: boolean, saved: unknown[] = []) {
 }
 
 describe('MedicationWorkbench', () => {
+  async function importHisPrescription(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole('tab', { name: /AI 规则工坊与候选孵化/ }))
+    await user.click(screen.getByRole('button', { name: '模板候选与历史' }))
+    await user.click(await screen.findByRole('button', { name: /候选版本 重复核对/ }))
+    await user.click(screen.getByRole('button', { name: /调入门诊真实历史处方/ }))
+    await user.type(screen.getByLabelText(/就诊标识/), '1001')
+    await user.type(screen.getByLabelText(/处方标识/), '2001')
+    await user.click(screen.getByRole('button', { name: '读取并载入处方' }))
+    await screen.findByDisplayValue('患者 3001')
+  }
+
+  it('keeps the historical drug name and specification even when the current catalog contains the same id', async () => {
+    const api = setup(true, [candidate])
+    api.prescriptionPreview.mockResolvedValue({
+      encounterId: '1001', prescriptionId: '2001', residentId: '3001', departmentId: '4001', prescriptionStatus: 'DRAFT',
+      patientContext: { patientAgeYears: 14, gender: '女', activeAllergies: ['青霉素'] },
+      items: [{ medicationId: med.medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'ORAL', frequencyCode: 'TID',
+        medicationName: '历史阿莫西林', preparationSpec: '历史规格 0.125g', historicalSnapshotAvailable: true }]
+    })
+    const user = userEvent.setup()
+    await importHisPrescription(user)
+    const drug = screen.getByRole('combobox', { name: '第1行药品' })
+    expect(drug).toHaveTextContent('历史阿莫西林')
+    await user.click(drug)
+    expect(await screen.findByText('历史规格 0.125g')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(screen.getByLabelText('药物过敏史')).toHaveValue('青霉素')
+    expect(screen.getByRole('combobox', { name: '性别' })).toHaveTextContent('女')
+    expect(screen.getByText(/模拟采用当前药品知识/)).toBeInTheDocument()
+  })
+
+  it.each([null, { patientAgeYears: null, gender: null, activeAllergies: [] }])(
+    'does not turn missing HIS facts into current medication data or default patient and dosing facts: %j', async patientContext => {
+      const api = setup(true, [candidate])
+      api.prescriptionPreview.mockResolvedValue({
+        encounterId: '1001', prescriptionId: '2001', residentId: '3001', departmentId: '4001', prescriptionStatus: 'DRAFT',
+        patientContext,
+        items: [{ medicationId: med.medication.id, status: 'DRAFT', durationDays: null, routeCode: null, frequencyCode: null,
+          medicationName: null, preparationSpec: null, historicalSnapshotAvailable: false }]
+      })
+      const user = userEvent.setup()
+      await importHisPrescription(user)
+      expect(screen.getByRole('combobox', { name: '第1行药品' })).toHaveTextContent('历史药品快照不可用')
+      expect(screen.getByText(/部分历史药品快照不可用/)).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: '第1行给药途径' })).toHaveTextContent('选择给药途径')
+      expect(screen.getByRole('combobox', { name: '第1行给药频次' })).toHaveTextContent('选择频次')
+      expect(screen.getByLabelText('第1行疗程天数')).toHaveValue(null)
+      expect(screen.getByLabelText('年龄（岁）')).toHaveValue(null)
+      expect(screen.getByRole('combobox', { name: '性别' })).not.toHaveTextContent('男')
+      expect(screen.getByLabelText('药物过敏史')).toHaveValue('')
+      await user.click(screen.getByRole('button', { name: '模拟门诊就诊审查' }))
+      await waitFor(() => expect(api.trial).toHaveBeenCalledWith(candidate.id,
+        [expect.objectContaining({ durationDays: null, routeCode: null, frequencyCode: null })],
+        expect.objectContaining({ patientAgeYears: null, activeAllergies: [] })))
+      await user.click(screen.getByRole('button', { name: '原始处方旁路核对' }))
+      await waitFor(() => expect(api.shadow).toHaveBeenCalledWith(candidate.id, '1001', '2001'))
+    }
+  )
+
+  it('displays stored route and frequency codes when they no longer exist in the current catalog', async () => {
+    const api = setup(true, [candidate])
+    api.prescriptionPreview.mockResolvedValue({
+      encounterId: '1001', prescriptionId: '2001', residentId: '3001', departmentId: '4001', prescriptionStatus: 'DRAFT',
+      patientContext: null,
+      items: [{ medicationId: med.medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'OLD_ROUTE', frequencyCode: 'OLD_FREQ',
+        medicationName: '历史药品', preparationSpec: null, historicalSnapshotAvailable: true }]
+    })
+    await importHisPrescription(userEvent.setup())
+    expect(screen.getByRole('combobox', { name: '第1行给药途径' })).toHaveTextContent('OLD_ROUTE（未在当前目录中找到）')
+    expect(screen.getByRole('combobox', { name: '第1行给药频次' })).toHaveTextContent('OLD_FREQ（未在当前目录中找到）')
+  })
+
   it('does not present the built-in baseline as the entire deployed rule catalog', async () => {
     setup(true)
     await screen.findByText('qmed-foundation-shadow-v1')

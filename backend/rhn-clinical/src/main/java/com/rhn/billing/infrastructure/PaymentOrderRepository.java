@@ -36,6 +36,10 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Long
     @Query("select value from PaymentOrder value where value.id = :id and value.tenantId = :tenantId")
     Optional<PaymentOrder> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select value from PaymentOrder value where value.orderNo = :orderNo and value.tenantId = :tenantId")
+    Optional<PaymentOrder> lockByOrderNoAndTenantId(@Param("orderNo") String orderNo, @Param("tenantId") Long tenantId);
+
     @Query("""
             select coalesce(sum(value.requestedAmount - value.capturedAmount), 0) from PaymentOrder value
              where value.tenantId = :tenantId and value.invoiceId = :invoiceId

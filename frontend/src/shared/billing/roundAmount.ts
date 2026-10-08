@@ -1,70 +1,35 @@
-/**
- * 支付金额精度与舍入计算工具
- *
- * precision: '0.01' (分), '0.1' (角), '1' (元)
- * roundingMode: 'HALF_UP' (四舍五入), 'HALF_EVEN_SIX' (五舍六入), 'FLOOR' (抹零/截断)
- */
+/** 支付规则来自 PAY_METHOD 字典；仅支持字典定义的分、角精度。 */
 export interface RoundAmountResult {
   rounded: number
   adjustment: number
 }
 
-export function roundAmount(
-  amount: number,
-  precision: string = '0.01',
-  roundingMode: string = 'HALF_UP'
-): RoundAmountResult {
-  if (!Number.isFinite(amount) || amount === 0) {
-    return { rounded: 0, adjustment: 0 }
+export function requirePaymentRounding(precision: unknown, roundingMode: unknown) {
+  if (precision !== '0.01' && precision !== '0.1') {
+    throw new Error('支付精度未配置或无效，请联系管理员维护支付方式')
   }
-
-  const prec = parseFloat(precision) || 0.01
-  const stepInCents = Math.round(prec * 100)
-
-  if (stepInCents <= 1) {
-    // 精度到分或更细，无需进行整角/整元舍入，直接保留两位小数
-    const rounded = Number((Math.round(amount * 100) / 100).toFixed(2))
-    return { rounded, adjustment: 0 }
+  if (roundingMode !== 'HALF_UP' && roundingMode !== 'HALF_EVEN_SIX' && roundingMode !== 'FLOOR') {
+    throw new Error('支付舍入方式未配置或无效，请联系管理员维护支付方式')
   }
+  return { precision, roundingMode }
+}
 
-  const isNegative = amount < 0
-  const absAmount = Math.abs(amount)
-  const cents = Math.round(absAmount * 100)
+export function roundAmount(amount: number, precision?: string, roundingMode?: string): RoundAmountResult {
+  const rule = requirePaymentRounding(precision, roundingMode)
+  if (!Number.isFinite(amount)) throw new Error('待支付金额无效，请重新读取结算单')
 
-  const quotient = Math.floor(cents / stepInCents)
-  const remainder = cents % stepInCents
-
-  let roundedCents: number
-  if (remainder === 0) {
-    roundedCents = cents
-  } else if (roundingMode === 'FLOOR') {
-    // 抹零（直接截断尾数）
-    roundedCents = quotient * stepInCents
-  } else if (roundingMode === 'HALF_EVEN_SIX') {
-    // 五舍六入：余数 <= 5舍弃，> 5进位 (以角 stepInCents=10 为例：1~5舍，6~9入)
-    const half = stepInCents / 2
-    if (remainder > half) {
-      roundedCents = (quotient + 1) * stepInCents
-    } else {
-      roundedCents = quotient * stepInCents
-    }
-  } else {
-    // 默认：HALF_UP 四舍五入 (以角 stepInCents=10 为例：1~4舍，5~9入)
-    const half = stepInCents / 2
-    if (remainder >= half) {
-      roundedCents = (quotient + 1) * stepInCents
-    } else {
-      roundedCents = quotient * stepInCents
-    }
+  // 账务金额最多六位小数；直接按目标精度计算，避免先舍入到分引起二次进位。
+  const absolute = Math.abs(amount)
+  const units = Math.round(absolute * 1_000_000)
+  if (!Number.isSafeInteger(units) || Math.abs(units / 1_000_000 - absolute) > Number.EPSILON * Math.max(1, absolute) * 2) {
+    throw new Error('待支付金额超出支持的范围或六位小数精度')
   }
-
-  const finalRounded = isNegative ? -(roundedCents / 100) : roundedCents / 100
-  const roundedVal = Number(finalRounded.toFixed(2))
-  const originalVal = Number(amount.toFixed(2))
-  const adjustmentVal = Number((roundedVal - originalVal).toFixed(2))
-
-  return {
-    rounded: roundedVal,
-    adjustment: adjustmentVal,
-  }
+  const step = rule.precision === '0.01' ? 10_000 : 100_000
+  const quotient = Math.floor(units / step)
+  const remainder = units % step
+  const increment = rule.roundingMode === 'HALF_UP' ? remainder >= step / 2
+    : rule.roundingMode === 'HALF_EVEN_SIX' ? remainder > step / 2 : false
+  const rounded = Number(((quotient + Number(increment)) * step / 1_000_000 * (amount < 0 ? -1 : 1)).toFixed(2))
+  const adjustment = Number((rounded - amount).toFixed(6))
+  return { rounded: rounded === 0 ? 0 : rounded, adjustment: adjustment === 0 ? 0 : adjustment }
 }

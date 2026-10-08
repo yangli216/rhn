@@ -102,14 +102,19 @@ public class DispenseRouteApplicationService {
                                            String medicationType, String careSetting, LocalDate businessDate) {
         LocalDate date = businessDate == null ? LocalDate.now() : businessDate;
         String normalizedCareSetting = normalizeCareSetting(careSetting);
-        DispenseRoute selected = routes.findByTenantIdAndOrganizationIdOrderByCode(tenantId, organizationId).stream()
+        List<DispenseRoute> matches = routes.findByTenantIdAndOrganizationIdOrderByCode(tenantId, organizationId).stream()
                 .filter(value -> value.effective(date)
                         && value.matches(normalizedCareSetting, sourceDepartmentId, medicationType))
                 .sorted(Comparator.comparingInt(DispenseRoute::specificity).reversed()
                         .thenComparing(DispenseRoute::code))
-                .findFirst().orElse(null);
-        if (selected == null) {
-            return RouteResolution.notConfigured("未配置当前病区和药品类型的住院发药路由");
+                .toList();
+        if (matches.isEmpty()) {
+            return RouteResolution.notConfigured("未配置当前科室、药品类型和诊疗场景的发药路由");
+        }
+        DispenseRoute selected = matches.getFirst();
+        if (matches.size() > 1 && matches.get(1).specificity() == selected.specificity()) {
+            return new RouteResolution("AMBIGUOUS", null, "DISPENSE_ROUTE_AMBIGUOUS",
+                    "存在多条同优先级的发药路由，请核实配置");
         }
         return resolved(tenantId, organizationId, date, selected)
                 .map(RouteResolution::matched)
@@ -122,7 +127,7 @@ public class DispenseRouteApplicationService {
         StockSite site = sites.findByIdAndTenantId(route.targetStockSiteId(), tenantId).orElse(null);
         if (site == null || !organizationId.equals(site.organizationId()) || !site.effective(date)
                 || !"PHARMACY".equals(site.siteType())
-                || !supportsDispenseRouting(site)) {
+                || !supportsDispenseRouting(site) || !supportsCareSetting(site, route.careSetting())) {
             return Optional.empty();
         }
         return Optional.of(new ResolvedRoute(route.id(), route.revision(), route.code(), site.id(), site.departmentId()));

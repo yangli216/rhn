@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { ReceiptView, Settlement } from '../api/billingApi'
@@ -105,8 +105,8 @@ describe('FiscalReceiptModal', () => {
     )
 
     // 票据版头与大标题
-    expect(screen.getByText('江西省医疗门诊收费电子票据')).toBeInTheDocument()
-    expect(screen.getByText('全国统一财政电子票据')).toBeInTheDocument()
+    expect(screen.getByText('电子票据信息')).toBeInTheDocument()
+    expect(screen.getByText('已开具')).toBeInTheDocument()
 
     // 票据核心四要素
     expect(screen.getByText('3601060126')).toBeInTheDocument()
@@ -115,19 +115,20 @@ describe('FiscalReceiptModal', () => {
 
     // 明细清单与交款人
     expect(screen.getByText('李四')).toBeInTheDocument()
-    expect(screen.getByText('门诊医疗收费项目 #1')).toBeInTheDocument()
-    expect(screen.getByText('门诊医疗收费项目 #2')).toBeInTheDocument()
+    expect(screen.getByText('chg-1')).toBeInTheDocument()
+    expect(screen.getByText('chg-2')).toBeInTheDocument()
 
     // 金额与医保统筹分解
     expect(screen.getByText('壹佰捌拾捌元伍角整')).toBeInTheDocument()
-    expect(screen.getByText('¥188.50')).toBeInTheDocument()
+    expect(screen.getAllByText('¥188.50').length).toBeGreaterThan(0)
     expect(screen.getByText('¥120.00')).toBeInTheDocument()
     expect(screen.getByText('¥68.50')).toBeInTheDocument()
 
     // 官方监制章与动态查验二维码
-    expect(screen.getByText('江西省财政厅')).toBeInTheDocument()
-    expect(screen.getByText('医疗收费票据监制章')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /防伪查验二维码/ })).toBeInTheDocument()
+    expect(screen.queryByText('江西省财政厅')).not.toBeInTheDocument()
+    expect(screen.queryByText('医疗收费票据监制章')).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: /防伪查验二维码/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '打开平台返回的票据链接' })).toHaveAttribute('href', mockReceipt.controlledObjectReference)
   })
 
   it('supports copying verification code and triggering print', async () => {
@@ -164,7 +165,7 @@ describe('FiscalReceiptModal', () => {
     })
 
     // 打印票据
-    const printBtn = screen.getByRole('button', { name: /打印电子票据/ })
+    const printBtn = screen.getByRole('button', { name: /打印票据信息/ })
     await user.click(printBtn)
     expect(onPrint).toHaveBeenCalledWith('rcpt-101')
     expect(window.print).toHaveBeenCalled()
@@ -188,7 +189,47 @@ describe('FiscalReceiptModal', () => {
       />,
     )
 
-    expect(screen.getByText('红字作废冲红')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /打印票据信息/ })).toBeDisabled()
     expect(screen.getByText('已红字冲红')).toBeInTheDocument()
   })
 })
+
+ it.each(['FAILED', 'REQUESTED', 'VOIDED', 'RED_FLUSHED'] as const)('never prints or invents fiscal details for %s', (status) => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    const onPrint = vi.fn()
+    render(<FiscalReceiptModal open onClose={vi.fn()} onPrint={onPrint} receipt={{ ...mockReceipt,
+      status, fiscalCode: undefined, fiscalNumber: undefined, verificationCode: undefined,
+      controlledObjectReference: undefined, issuedAt: undefined,
+    }} />)
+    expect(screen.queryByText('3601060126')).not.toBeInTheDocument()
+    expect(screen.queryByText('0001859231')).not.toBeInTheDocument()
+    expect(screen.queryByText('251132')).not.toBeInTheDocument()
+    expect(screen.queryByText(/验真有效/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /打印票据信息/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '复制票据链接' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '复制防伪校验码' })).toBeDisabled()
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    expect(onPrint).not.toHaveBeenCalled()
+    expect(print).not.toHaveBeenCalled()
+    print.mockRestore()
+  })
+
+  it('preserves zero patient allocation and uses actual personal-account tenders', () => {
+    render(<FiscalReceiptModal open onClose={vi.fn()} receipt={{ ...mockReceipt, amount: 0 }}
+      settlement={{ ...mockSettlement, patientAmount: 0, tenders: [{ id: 't-1', lineNo: 1,
+        tenderType: 'PERSONAL_ACCOUNT', amount: 30, currencyCode: 'CNY' }] }} />)
+    const patient = screen.getByText('结算患者分摊').parentElement!
+    const account = screen.getByText('已记录个人账户支付').parentElement!
+    expect(within(patient).getByText('¥0.00')).toBeInTheDocument()
+    expect(within(account).getByText('¥30.00')).toBeInTheDocument()
+    expect(screen.getByText('零元整')).toBeInTheDocument()
+  })
+
+  it('does not use mismatched settlement details or unsafe external references', () => {
+    render(<FiscalReceiptModal open onClose={vi.fn()} receipt={{ ...mockReceipt, controlledObjectReference: 'javascript:alert(1)' }}
+      settlement={{ ...mockSettlement, id: 'another-settlement' }} />)
+    expect(screen.getByText('未提供结算明细')).toBeInTheDocument()
+    expect(screen.queryByText('chg-1')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })

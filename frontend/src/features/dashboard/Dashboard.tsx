@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Icon, type IconName, LoadingState, Panel, PanelHead, StatusBadge } from '../../shared/ui'
+import { Button, EmptyState, Icon, type IconName, LoadingState, Panel, PanelHead } from '../../shared/ui'
 import '../../styles/features/dashboard-analytics.css'
+import { requirePortalSummary } from './portalSummary'
 
 function greetingTime(): string {
   const hour = new Date().getHours()
@@ -13,13 +14,14 @@ function greetingTime(): string {
   return '晚上好'
 }
 
-export function Dashboard({ api, onStart, onOpenTasks, onNavigate }: {
+export function Dashboard({ api, contextKey, onStart, onOpenTasks, onNavigate }: {
   api: RhnApi
+  contextKey: string
   onStart: () => void
   onOpenTasks: () => void
   onNavigate?: (path: string) => void
 }) {
-  const summary = useQuery({ queryKey: ['portal-summary'], queryFn: api.portal.summary, refetchInterval: 60_000 })
+  const summary = useQuery({ queryKey: ['portal-summary', contextKey], queryFn: async () => requirePortalSummary(await api.portal.summary()), refetchInterval: 60_000 })
   const todayText = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })
 
   return (
@@ -32,10 +34,10 @@ export function Dashboard({ api, onStart, onOpenTasks, onNavigate }: {
             <span className="welcome-banner__date">{todayText}</span>
           </div>
           <h1 className="welcome-banner__title">{greetingTime()}，开始今天的连续照护</h1>
-          <p className="welcome-banner__desc">聚合全科门诊、住院病区、待办任务与危急值提醒，守护居民健康生命周期。</p>
+          <p className="welcome-banner__desc">查看当前工作范围内的业务摘要、待办任务与通知，并进入相应业务处理。</p>
         </div>
 
-        {summary.data && (
+        {summary.isSuccess && !summary.isFetching && (
           <div className="welcome-banner__quick-stats">
             <div className="welcome-banner__stat-pill">
               <span className="welcome-banner__stat-dot is-online" />
@@ -54,9 +56,10 @@ export function Dashboard({ api, onStart, onOpenTasks, onNavigate }: {
         </div>
       </section>
 
-      {summary.isPending && <LoadingState label="正在汇总工作台数据…" />}
-      {summary.error && <Alert>{errorMessage(summary.error)}</Alert>}
-      {summary.data && <>
+      {(summary.isPending || summary.isFetching) && <LoadingState label="正在汇总工作台数据…" />}
+      {summary.isError && <Panel><EmptyState icon="tasks" title="工作台摘要加载失败" copy={errorMessage(summary.error)}
+        action={<Button variant="secondary" onClick={() => void summary.refetch()}>重新加载摘要</Button>} /></Panel>}
+      {summary.isSuccess && !summary.isFetching && <>
         <section className="metric-grid" aria-label="今日业务摘要">
           <MetricCard tone="teal" icon="residents" label="活跃居民" value={summary.data.activeResidents} detail="统一居民主索引建档" />
           <MetricCard tone="blue" icon="clinical" label="今日挂号" value={summary.data.registeredToday} detail={`正在接诊 ${summary.data.inProgress} 人`} />
@@ -110,61 +113,49 @@ export function Dashboard({ api, onStart, onOpenTasks, onNavigate }: {
             </div>
           </Panel>
 
-          <Panel className="roadmap-panel">
-            <PanelHead title="核心系统底座状态" meta="Active v1.2" />
-            <div className="foundation-checklist">
-              <StatusBadge tone="success">受信工作上下文</StatusBadge>
-              <StatusBadge tone="success">可靠事件与幂等</StatusBadge>
-              <StatusBadge tone="success">实时任务通知</StatusBadge>
-              <StatusBadge tone="success">读模型动态聚合</StatusBadge>
-            </div>
-            <div className="roadmap-card">
-              <div className="roadmap-card__icon"><Icon name="sparkles" /></div>
-              <div>
-                <strong>全域工作门户底座已贯通</strong>
-                <p>实时聚合各科室数据，支持主色调即时切换与全链路闭环照护。</p>
-              </div>
+          <Panel className="portal-summary-scope">
+            <PanelHead title="统计范围" />
+            <div className="portal-summary-scope__body">
+              <p><strong>活跃居民：</strong>当前租户内启用的居民档案。</p>
+              <p><strong>挂号与接诊：</strong>当前机构、科室的就诊记录；“今日”按机构时区统计，机构未单独设置时使用租户时区。</p>
+              <p><strong>待办与通知：</strong>当前账号可见范围内的工作任务和消息。</p>
+              <p>摘要每分钟刷新；待办处理结果请在对应业务中核实。</p>
             </div>
           </Panel>
         </section>
       </>}
 
       <Panel className="capability-panel">
-        <PanelHead title="临床业务直通车与连续照护地图" meta="全县域一体化 · 临床全链路实时互通" />
+        <PanelHead title="业务快捷入口" />
         <div className="capabilities">
           <QuickAccessCard
             icon="stethoscope"
             name="门诊全科工作站"
             desc="排班挂号 · 医生接诊 · 病历处方"
-            status="已贯通"
             onClick={() => onNavigate?.('/outpatient/reception')}
           />
           <QuickAccessCard
             icon="hospital"
             name="住院病区工作站"
             desc="床位看板 · 医嘱流转 · 护理记录"
-            status="已贯通"
             onClick={() => onNavigate?.('/inpatient/doctor-station')}
           />
           <QuickAccessCard
             icon="pharmacy"
             name="药房调配与库存"
             desc="门诊发药 · 病区退药 · 进销存盘点"
-            status="已贯通"
             onClick={() => onNavigate?.('/pharmacy')}
           />
           <QuickAccessCard
             icon="user"
             name="居民健康档案"
-            desc="主索引 MPI · 慢病随访 · 连续时间轴"
-            status="已贯通"
+            desc="居民资料查询与维护"
             onClick={() => onNavigate?.('/residents')}
           />
           <QuickAccessCard
             icon="billing"
             name="结算与预交金"
             desc="自费医保 · 预交金充值 · 出院结算"
-            status="已贯通"
             onClick={() => onNavigate?.('/billing')}
           />
         </div>
@@ -206,13 +197,11 @@ function QuickAccessCard({
   icon,
   name,
   desc,
-  status,
   onClick,
 }: {
   icon: IconName
   name: string
   desc: string
-  status: string
   onClick?: () => void
 }) {
   return (
@@ -221,10 +210,7 @@ function QuickAccessCard({
         <div className="quick-access-card__icon">
           <Icon name={icon} />
         </div>
-        <div className="quick-access-card__badge">
-          <span className="quick-access-card__dot" />
-          <span>{status}</span>
-        </div>
+
       </div>
       <div className="quick-access-card__body">
         <strong>{name}</strong>

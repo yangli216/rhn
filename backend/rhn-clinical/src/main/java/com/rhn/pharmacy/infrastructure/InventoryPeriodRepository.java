@@ -22,6 +22,12 @@ public interface InventoryPeriodRepository extends JpaRepository<InventoryPeriod
                                              @Param("code") String code);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from InventoryPeriod p where p.tenantId = :tenantId and p.stockSiteId = :siteId and p.periodCode = :code")
+    Optional<InventoryPeriod> lockForValuation(@Param("tenantId") Long tenantId,
+                                               @Param("siteId") Long siteId,
+                                               @Param("code") String code);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from InventoryPeriod p where p.id = :id and p.tenantId = :tenantId")
     Optional<InventoryPeriod> lockById(@Param("tenantId") Long tenantId, @Param("id") Long id);
 }

@@ -82,24 +82,17 @@ public class MedicalOperationsMasterDataService {
         this.searchProjections = searchProjections;
     }
 
-    private LaboratoryService ensureLaboratory(Long tenantId, Long serviceId) {
+    private LaboratoryService requireLaboratory(Long tenantId, Long serviceId) {
         return laboratoryRepository.findByTenantIdAndCatalogItemId(tenantId, serviceId)
-                .orElseGet(() -> {
-                    ServiceCatalogItem s = requireService(tenantId, serviceId);
-                    return laboratoryRepository.save(new LaboratoryService(s.tenantId(), s.id(), s.attention()));
-                });
+                .orElseThrow(() -> notFound("LAB_PROFILE_NOT_FOUND", "未找到检验项目配置，请先维护项目主档"));
     }
 
-    private ExaminationService ensureExamination(Long tenantId, Long serviceId) {
+    private ExaminationService requireExamination(Long tenantId, Long serviceId) {
         return examinationRepository.findByTenantIdAndCatalogItemId(tenantId, serviceId)
-                .orElseGet(() -> {
-                    ServiceCatalogItem s = requireService(tenantId, serviceId);
-                    return examinationRepository.save(new ExaminationService(s.tenantId(), s.id(),
-                            s.examinationType(), s.maxBodySiteCount(), s.attention()));
-                });
+                .orElseThrow(() -> notFound("EXAM_PROFILE_NOT_FOUND", "未找到检查项目配置，请先维护项目主档"));
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public ClinicalConfiguration clinicalConfiguration(Long serviceId) {
         ExecutionContext context = current();
         ServiceCatalogItem service = requireService(context.tenantId(), serviceId);
@@ -107,12 +100,10 @@ public class MedicalOperationsMasterDataService {
         List<DictionaryOption> containerOptions = options(context.tenantId(), MasterDataDictionaryCodes.SPECIMEN_CONTAINER);
         Map<Long, DictionaryOption> specimenMap = specimenOptions.stream().collect(Collectors.toMap(DictionaryOption::id, Function.identity()));
         Map<Long, DictionaryOption> containerMap = containerOptions.stream().collect(Collectors.toMap(DictionaryOption::id, Function.identity()));
-        LaboratoryService laboratory = "LABORATORY".equals(service.serviceType())
-                ? ensureLaboratory(context.tenantId(), serviceId)
-                : laboratoryRepository.findByTenantIdAndCatalogItemId(context.tenantId(), serviceId).orElse(null);
-        ExaminationService examination = "EXAMINATION".equals(service.serviceType())
-                ? ensureExamination(context.tenantId(), serviceId)
-                : examinationRepository.findByTenantIdAndCatalogItemId(context.tenantId(), serviceId).orElse(null);
+        LaboratoryService laboratory = laboratoryRepository
+                .findByTenantIdAndCatalogItemId(context.tenantId(), serviceId).orElse(null);
+        ExaminationService examination = examinationRepository
+                .findByTenantIdAndCatalogItemId(context.tenantId(), serviceId).orElse(null);
         return new ClinicalConfiguration(service.id(), service.code(), service.name(), service.serviceType(),
                 laboratory == null ? null : laboratoryView(laboratory, specimenMap, containerMap),
                 examination == null ? null : examinationView(examination), specimenOptions, containerOptions);
@@ -123,7 +114,7 @@ public class MedicalOperationsMasterDataService {
             LaboratoryProfileCommand command) {
         ExecutionContext context = current();
         requireServiceType(context.tenantId(), serviceId, "LABORATORY");
-        LaboratoryService value = ensureLaboratory(context.tenantId(), serviceId);
+        LaboratoryService value = requireLaboratory(context.tenantId(), serviceId);
         requireRevision(value.revision(), expectedRevision, "LAB_PROFILE_REVISION_STALE");
         if (text(command.laboratoryMethod()) != null) requireDictionaryCode(context.tenantId(), MasterDataDictionaryCodes.LAB_METHOD, command.laboratoryMethod());
         if (text(command.reportDurationUnit()) != null) {
@@ -143,7 +134,7 @@ public class MedicalOperationsMasterDataService {
     public ClinicalConfiguration createSpecimen(Long serviceId, SpecimenCommand command) {
         ExecutionContext context = current();
         requireServiceType(context.tenantId(), serviceId, "LABORATORY");
-        ensureLaboratory(context.tenantId(), serviceId);
+        requireLaboratory(context.tenantId(), serviceId);
         validateSpecimen(context.tenantId(), serviceId, null, command);
         specimenRepository.save(new LaboratoryServiceSpecimen(context.tenantId(), serviceId,
                 command.specimenItemId(), command.containerItemId(), command.minimumQuantity(),
@@ -201,7 +192,7 @@ public class MedicalOperationsMasterDataService {
             ExaminationProfileCommand command) {
         ExecutionContext context = current();
         requireServiceType(context.tenantId(), serviceId, "EXAMINATION");
-        ExaminationService value = ensureExamination(context.tenantId(), serviceId);
+        ExaminationService value = requireExamination(context.tenantId(), serviceId);
         requireRevision(value.revision(), expectedRevision, "EXAM_PROFILE_REVISION_STALE");
         if (text(command.examinationType()) != null) requireDictionaryCode(context.tenantId(), MasterDataDictionaryCodes.EXAM_TYPE, command.examinationType());
         String pricingMode = text(command.sitePricingMode()) == null ? value.sitePricingMode() : command.sitePricingMode();
@@ -231,7 +222,7 @@ public class MedicalOperationsMasterDataService {
     public ClinicalConfiguration createVariant(Long serviceId, ExaminationVariantCommand command) {
         ExecutionContext context = current();
         requireServiceType(context.tenantId(), serviceId, "EXAMINATION");
-        ensureExamination(context.tenantId(), serviceId);
+        requireExamination(context.tenantId(), serviceId);
         validateVariant(context.tenantId(), serviceId, null, command);
         ServiceVariant value = variantRepository.save(new ServiceVariant(context.tenantId(), serviceId,
                 command.bodySiteConceptId(), command.code(), command.name(), text(command.methodType()),
@@ -260,7 +251,7 @@ public class MedicalOperationsMasterDataService {
     public ClinicalConfiguration createAttachment(Long serviceId, ExaminationAttachmentCommand command) {
         ExecutionContext context = current();
         requireServiceType(context.tenantId(), serviceId, "EXAMINATION");
-        ensureExamination(context.tenantId(), serviceId);
+        requireExamination(context.tenantId(), serviceId);
         validateAttachment(context.tenantId(), serviceId, null, command);
         attachmentRepository.save(new ExaminationAttachmentItem(context.tenantId(), serviceId,
                 command.attachmentCatalogItemId(), command.triggerType(), command.quantityBasis(),

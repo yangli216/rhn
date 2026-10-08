@@ -44,7 +44,8 @@ export function aiContextFromDraft(value: RecordForm, diagnoses: DiagnosisInput[
     allergyHistory: value.allergyHistory, medicationHistory: value.medicationHistory, auxiliaryExaminations: value.auxiliaryExaminations, healthEducation: value.healthEducation, followUp: value.followUp,  systolic: value.systolic, diastolic: value.diastolic,
     temperature: value.temperature, pulseRate: value.pulseRate, respiratoryRate: value.respiratoryRate,
     oxygenSaturation: value.oxygenSaturation, heightCm: value.heightCm, weightKg: value.weightKg,
-    diagnoses: diagnoses.map(({ code, display, type }) => ({ code, display, type })),
+    diagnoses: diagnoses.map(({ conceptId, codeSystem, diagnosisDomain, code, display, type }) => ({
+      conceptId, codeSystem, diagnosisDomain, code, display, type,
+    })),
   }
 }
-

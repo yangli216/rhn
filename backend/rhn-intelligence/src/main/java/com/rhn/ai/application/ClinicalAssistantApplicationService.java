@@ -58,6 +58,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 import static com.rhn.shared.api.BusinessErrors.forbidden;
 import static com.rhn.shared.api.BusinessErrors.notFound;
@@ -67,8 +68,8 @@ public class ClinicalAssistantApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ClinicalAssistantApplicationService.class);
     private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
     private static final String OUTPATIENT_NOTE = "OUTPATIENT_NOTE";
-    private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V8";
-    private static final String LOCAL_PROMPT_VERSION = "local-assist-v1";
+    private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V9";
+    private static final String LOCAL_PROMPT_VERSION = "local-assist-v2";
     private static final String DISCLAIMER = "本结果仅为本地规则辅助生成的待核对建议，不构成诊断或处方；系统不会自动保存病历、确认诊断、开立医嘱或完成诊毕，须由医生独立判断并确认。";
     private static final String MODEL_DISCLAIMER = "本结果由模型基于当前就诊资料生成，并已通过院内术语、方案白名单和确定性安全规则复核；不构成诊断或处方，须由医生独立判断并确认。";
     /** 发热提示阈值（℃）。 */
@@ -238,7 +239,7 @@ public class ClinicalAssistantApplicationService {
         }
         var matches = retrievePlans(input, index, expansion);
         if (matches.isEmpty()) return List.of();
-        if (runtime.mode() != ClinicalAssistantSettings.Mode.MODEL) return recommendedPlans(matches, List.of());
+        if (runtime.mode() != ClinicalAssistantSettings.Mode.MODEL) return recommendedPlans(matches);
         requireAvailable(runtime, access.context());
         var context = loadServerContext(access, false);
         var ids = matches.stream().map(match -> match.plan().id()).toList();
@@ -419,7 +420,7 @@ public class ClinicalAssistantApplicationService {
         List<String> missing = missingInformation(draft);
         List<SafetyAlert> alerts = safetyAlerts(draft, serverContext.allergies());
         List<DiagnosisCandidate> candidates = diagnosisCandidates(access.context().tenantId(), draft, alerts);
-        List<RecommendedPlan> plans = recommendedPlans(planMatches, candidates);
+        List<RecommendedPlan> plans = recommendedPlans(planMatches);
         String summary = "已核对病历完整性、生命体征、过敏风险及 " + draft.diagnoses().size()
                 + " 条诊断编码；发现 " + missing.size() + " 项待补充信息、" + alerts.size()
                 + " 项优先核对内容，并匹配 " + plans.size() + " 个院内既有方案。";
@@ -531,7 +532,7 @@ public class ClinicalAssistantApplicationService {
         String presentIllness = null;
         if (blank(draft.presentIllness()) && !blank(draft.chiefComplaint())) {
             presentIllness = "患者因“" + draft.chiefComplaint().trim()
-                    + "”就诊；起病时间、症状演变、伴随症状及已采取措施待医生补充核实。";
+                    + "”就诊。";
         }
         String physicalExam = null;
         if (blank(draft.physicalExam())) {
@@ -546,7 +547,7 @@ public class ClinicalAssistantApplicationService {
             if (draft.heightCm() != null) vitalFacts.add("身高 " + draft.heightCm() + " cm");
             if (draft.weightKg() != null) vitalFacts.add("体重 " + draft.weightKg() + " kg");
             if (!vitalFacts.isEmpty()) {
-                physicalExam = "已录入生命体征：" + String.join("，", vitalFacts) + "；专科查体待医生补充核实。";
+                physicalExam = String.join("，", vitalFacts) + "。";
             }
         }
         return new RecordDraft(null, presentIllness, null, physicalExam, null);
@@ -601,7 +602,14 @@ public class ClinicalAssistantApplicationService {
         List<DiagnosisCandidate> result = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
         for (DiagnosisInput input : draft.diagnoses()) {
-            String code = input.code().trim().toUpperCase(Locale.ROOT);
+            var identity = draftDiagnosisIdentity(tenantId, input);
+            if (!identity.complete() || !ICD10_SYSTEM.equals(identity.codeSystem())
+                    || !"WESTERN_MEDICINE".equals(identity.diagnosisDomain())) {
+                alerts.add(new SafetyAlert("WARNING", "诊断未进入自动候选",
+                        input.display() + " 的诊断体系未明确或不在当前 ICD-10 候选校验范围内；原草稿诊断保留，请人工核对。"));
+                continue;
+            }
+            String code = identity.code();
             if (!seen.add(code) || result.size() >= 3) continue;
             terminologyDirectory.findConcept(tenantId, ICD10_SYSTEM, code, LocalDate.now()).ifPresentOrElse(concept ->
                 result.add(new DiagnosisCandidate(concept.code(), concept.display(), input.type(), 1.0,
@@ -612,15 +620,12 @@ public class ClinicalAssistantApplicationService {
         return result;
     }
 
-    private List<RecommendedPlan> recommendedPlans(List<ClinicalPlanRetrievalService.Match> matches,
-                                                    List<DiagnosisCandidate> candidates) {
-        Set<String> diagnosisCodes = candidates.stream().map(value -> value.code().toUpperCase(Locale.ROOT))
-                .collect(java.util.stream.Collectors.toSet());
+    private List<RecommendedPlan> recommendedPlans(List<ClinicalPlanRetrievalService.Match> matches) {
         return matches.stream().filter(value -> value.clinicalScore() > 0)
                 .limit(3)
                 .map(value -> new RecommendedPlan(value.plan().id(), value.plan().name(), value.plan().description(),
-                        value.plan().diagnoses().stream().anyMatch(item -> diagnosisCodes.contains(item.code().toUpperCase(Locale.ROOT)))
-                                ? "与当前已录入且通过术语校验的诊断匹配；仅推荐既有方案，未生成药品剂量。"
+                        value.evidence().stream().anyMatch(item -> item.startsWith("DIAGNOSIS_CODE:"))
+                                ? "与当前草稿的完整诊断标识匹配；带入前需由医生核对方案适用性。"
                                 : "与本次病历关键词匹配（" + String.join("、", value.evidence())
                                   + "）；带入前需由医生完整核对。"))
                 .toList();
@@ -837,11 +842,23 @@ public class ClinicalAssistantApplicationService {
             List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> visiblePlans, List<String> expansion) {
         String text = planSearchText(input) + " " + String.join(" ", expansion);
         List<ClinicalPlanRetrievalService.DiagnosisIdentity> diagnoses = input.draft().diagnoses().stream()
-                .map(value -> new ClinicalPlanRetrievalService.DiagnosisIdentity(
-                        ICD10_SYSTEM, "WESTERN_MEDICINE", value.code())).toList();
+                .map(value -> draftDiagnosisIdentity(contextProvider.requireCurrent().tenantId(), value)).toList();
         return planRetrieval.retrieve(visiblePlans,
                 new ClinicalPlanRetrievalService.Query(text, diagnoses, null),
                 ClinicalPlanRetrievalService.MODEL_CANDIDATE_LIMIT);
+    }
+
+    private ClinicalPlanRetrievalService.DiagnosisIdentity draftDiagnosisIdentity(Long tenantId, DiagnosisInput input) {
+        if (input.conceptId() == null) {
+            return new ClinicalPlanRetrievalService.DiagnosisIdentity(input.codeSystem(), input.diagnosisDomain(), input.code());
+        }
+        var concept = terminologyDirectory.requireDisease(tenantId, input.conceptId(), LocalDate.now());
+        if (!concept.code().equalsIgnoreCase(input.code().trim())
+                || !blank(input.codeSystem()) && !concept.systemCode().equals(input.codeSystem().trim())
+                || input.diagnosisDomain() != null && !input.diagnosisDomain().equals(concept.diagnosisDomain())) {
+            throw badRequest("AI_DIAGNOSIS_IDENTITY_MISMATCH", "草稿诊断编码或体系与所选目录概念不一致，请重新核对");
+        }
+        return new ClinicalPlanRetrievalService.DiagnosisIdentity(concept.systemCode(), concept.diagnosisDomain(), concept.code());
     }
 
     private Access requireAccess(Long encounterId, boolean requireActive) {

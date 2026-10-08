@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { RhnApi } from '../../shared/rhnApi'
 import {
@@ -7,20 +7,9 @@ import {
   offsetDays,
   type DateRange,
 } from '../../shared/utils/dateRange'
-import { Alert, Button, DateRangePicker, Icon, LoadingState, PageHeader, Select } from '../../shared/ui'
-import type { PageResult, PageSpec } from '../../shared/api/analysisPagesApi'
+import { Alert, Button, DataTable, DateRangePicker, EmptyState, Icon, LoadingState, PageHeader, Select, tableCellClass } from '../../shared/ui'
+import { workloadData, workloadSpec } from './workloadReportData'
 import './analytics-reports.css'
-
-interface WorkloadStat {
-  deptId: string
-  deptName: string
-  encounterCount: number
-  patientCount: number
-  medOrderCount: number
-  serviceOrderCount: number
-  totalOrderCount: number
-  avgOrdersPerEncounter: number
-}
 
 export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
   const navigate = useNavigate()
@@ -33,178 +22,43 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
     }
   })
   const [scope, setScope] = useState<'AUTHORIZED' | 'CURRENT'>('AUTHORIZED')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [workloadList, setWorkloadList] = useState<WorkloadStat[]>([])
-  const [totalEnc, setTotalEnc] = useState(0)
-  const [totalPat, setTotalPat] = useState(0)
-  const [totalOrders, setTotalOrders] = useState(0)
-  const [totalMedOrders, setTotalMedOrders] = useState(0)
+  const [data, setData] = useState<ReturnType<typeof workloadData>>(() => workloadData({ series: [] }))
+  const { list: workloadList, totalEnc, totalPat, totalOrders, totalMedOrders } = data
+  const requestVersion = useRef(0)
 
   const loadData = async () => {
+    const version = ++requestVersion.current
     setLoading(true)
     setError('')
     try {
-      // 1. 查询就诊总量（按科室）
-      const encSpec: PageSpec = {
-        title: '门诊就诊科室统计',
-        template: 'RANKING',
-        metrics: ['M1'],
-        dimension: 'DEPARTMENT',
-        scope,
-        period: { kind: 'FIXED', startDate: dateRange.from, endDate: dateRange.to },
-        limit: 20,
-        measures: [
-          {
-            code: 'M1',
-            name: '就诊人次',
-            source: 'ENCOUNTER',
-            sourceVersion: 1,
-            aggregate: 'COUNT',
-            field: 'encounterId',
-            filters: [],
-          },
-        ],
-      }
-
-      // 2. 查询药品医嘱量（按科室）
-      const orderSpec: PageSpec = {
-        title: '门诊药品医嘱科室统计',
-        template: 'RANKING',
-        metrics: ['M1'],
-        dimension: 'DEPARTMENT',
-        scope,
-        period: { kind: 'FIXED', startDate: dateRange.from, endDate: dateRange.to },
-        limit: 20,
-        measures: [
-          {
-            code: 'M1',
-            name: '药品医嘱条数',
-            source: 'ORDER',
-            sourceVersion: 1,
-            aggregate: 'COUNT',
-            field: 'orderId',
-            filters: [
-              { field: 'status', operator: 'EQ', values: ['ACTIVE'] },
-              { field: 'kind', operator: 'EQ', values: ['MEDICATION'] },
-            ],
-          },
-        ],
-      }
-
-      let resEnc: PageResult | null = null
-      let resOrder: PageResult | null = null
-
-      try {
-        resEnc = await api.analytics.queryPage(encSpec)
-      } catch (e) {
-        // 降级容错
-      }
-      try {
-        resOrder = await api.analytics.queryPage(orderSpec)
-      } catch (e) {
-        // 降级容错
-      }
-
-      if (resEnc && resEnc.series.length > 0) {
-        const encPoints = resEnc.series[0].points
-        const orderMap = new Map<string, number>()
-        if (resOrder && resOrder.series.length > 0) {
-          resOrder.series[0].points.forEach((p) => orderMap.set(p.key, p.value))
-        }
-
-        let sumE = 0
-        let sumO = 0
-        let sumMed = 0
-
-        const list: WorkloadStat[] = encPoints.map((pt) => {
-          const encVal = pt.value
-          const medVal = orderMap.get(pt.key) ?? Math.round(encVal * 1.6)
-          const srvVal = Math.round(encVal * 0.7)
-          const totVal = medVal + srvVal
-
-          sumE += encVal
-          sumMed += medVal
-          sumO += totVal
-
-          return {
-            deptId: pt.key,
-            deptName: pt.label,
-            encounterCount: encVal,
-            patientCount: Math.round(encVal * 0.9),
-            medOrderCount: medVal,
-            serviceOrderCount: srvVal,
-            totalOrderCount: totVal,
-            avgOrdersPerEncounter: Number((totVal / Math.max(1, encVal)).toFixed(2)),
-          }
-        })
-
-        setWorkloadList(list)
-        setTotalEnc(sumE)
-        setTotalPat(Math.round(sumE * 0.88))
-        setTotalOrders(sumO)
-        setTotalMedOrders(sumMed)
-      } else {
-        // 演示/缺省兜底数据
-        const sampleDepts = [
-          { name: '心血管内科门诊', enc: 340, med: 580, srv: 220 },
-          { name: '呼吸与危重症门诊', enc: 260, med: 420, srv: 180 },
-          { name: '消化内科门诊', enc: 230, med: 350, srv: 190 },
-          { name: '普通外科门诊', enc: 195, med: 210, srv: 160 },
-          { name: '儿科门诊', enc: 180, med: 290, srv: 90 },
-          { name: '中医科门诊', enc: 145, med: 270, srv: 60 },
-          { name: '神经内科门诊', enc: 125, med: 190, srv: 110 },
-          { name: '急诊内科', enc: 105, med: 140, srv: 130 },
-        ]
-
-        let sumE = 0
-        let sumO = 0
-        let sumMed = 0
-
-        const list: WorkloadStat[] = sampleDepts.map((d, i) => {
-          const tot = d.med + d.srv
-          sumE += d.enc
-          sumMed += d.med
-          sumO += tot
-          return {
-            deptId: `dept-${i + 1}`,
-            deptName: d.name,
-            encounterCount: d.enc,
-            patientCount: Math.round(d.enc * 0.88),
-            medOrderCount: d.med,
-            serviceOrderCount: d.srv,
-            totalOrderCount: tot,
-            avgOrdersPerEncounter: Number((tot / d.enc).toFixed(2)),
-          }
-        })
-
-        setWorkloadList(list)
-        setTotalEnc(sumE)
-        setTotalPat(Math.round(sumE * 0.88))
-        setTotalOrders(sumO)
-        setTotalMedOrders(sumMed)
-      }
-    } catch (e) {
-      setError('就诊统计数据加载异常，请稍后刷新重试。')
+      const result = await api.analytics.queryPage(workloadSpec(dateRange, scope))
+      if (version !== requestVersion.current) return
+      setData(workloadData(result))
+    } catch {
+      if (version !== requestVersion.current) return
+      setError('工作量统计数据加载失败或指标不完整，请刷新重试。')
     } finally {
-      setLoading(false)
+      if (version === requestVersion.current) setLoading(false)
     }
   }
 
   useEffect(() => {
     void loadData()
-  }, [dateRange, scope])
+    return () => { requestVersion.current += 1 }
+  }, [api, dateRange, scope])
 
   const maxEnc = useMemo(() => Math.max(1, ...workloadList.map((w) => w.encounterCount)), [workloadList])
-  const avgOverallOrders = totalEnc > 0 ? (totalOrders / totalEnc).toFixed(2) : '0.00'
+  const avgOverallOrders = totalEnc > 0 ? (totalOrders / totalEnc).toFixed(2) : '—'
 
   return (
     <section className="analytics-report-page" aria-label="门诊就诊与工作量统计报表">
       <PageHeader
         eyebrow="统计分析 · 固化业务报表"
         title="门诊就诊与医疗工作量统计"
-        description="汇总统计各科室门诊就诊人次、确诊患者规模及开立医嘱/处方工作量，掌握临床医疗负荷与服务强度。"
+        description="按就诊登记日期统计就诊记录及去重患者，按医嘱开立日期统计当前有效的药品与服务医嘱。"
         actions={
           <div className="analytics-page-actions">
             <Button
@@ -217,7 +71,7 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
             >
               <Icon name="sparkles" /> AI 探索此数据
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => window.print()} title="打印或导出此报表">
+            <Button variant="secondary" size="sm" onClick={() => window.print()} disabled={loading || !!error || workloadList.length === 0} title="打印或导出此报表">
               <Icon name="print" /> 打印报表
             </Button>
             <Button size="sm" onClick={() => void loadData()} busy={loading}>
@@ -256,64 +110,66 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
       </div>
 
       {/* KPI 卡片 */}
-      <div className="analytics-kpi-grid">
+      {!loading && !error && workloadList.length > 0 && <div className="analytics-kpi-grid">
         <article className="analytics-kpi-card analytics-kpi-card--primary">
-          <span className="analytics-kpi-label">门诊接诊总人次</span>
+          <span className="analytics-kpi-label">门诊登记就诊总人次</span>
           <div className="analytics-kpi-val-row">
             <strong>{totalEnc.toLocaleString()}</strong>
             <small>人次</small>
           </div>
           <p className="analytics-kpi-sub">
-            去重服务患者 {totalPat.toLocaleString()} 人 · 初复诊平稳
+            去重服务患者 {totalPat.toLocaleString()} 人
           </p>
         </article>
 
         <article className="analytics-kpi-card analytics-kpi-card--success">
-          <span className="analytics-kpi-label">医嘱与处方开立总量</span>
+          <span className="analytics-kpi-label">有效医嘱总量</span>
           <div className="analytics-kpi-val-row">
             <strong>{totalOrders.toLocaleString()}</strong>
             <small>条</small>
           </div>
           <p className="analytics-kpi-sub">
-            药品医嘱 {totalMedOrders.toLocaleString()} 条 · 检查检验 {Math.max(0, totalOrders - totalMedOrders).toLocaleString()} 条
+            药品医嘱 {totalMedOrders.toLocaleString()} 条 · 服务医嘱 {Math.max(0, totalOrders - totalMedOrders).toLocaleString()} 条
           </p>
         </article>
 
         <article className="analytics-kpi-card analytics-kpi-card--info">
-          <span className="analytics-kpi-label">人均医嘱开立强度</span>
+          <span className="analytics-kpi-label">每就诊人次医嘱数</span>
           <div className="analytics-kpi-val-row">
             <strong>{avgOverallOrders}</strong>
             <small>条 / 人次</small>
           </div>
           <p className="analytics-kpi-sub">
-            每诊疗人次平均开立医嘱项数符合临床规范
+            有效医嘱条数 ÷ 登记就诊人次
           </p>
         </article>
 
         <article className="analytics-kpi-card analytics-kpi-card--warning">
-          <span className="analytics-kpi-label">接诊科室总数</span>
+          <span className="analytics-kpi-label">有业务记录科室数</span>
           <div className="analytics-kpi-val-row">
             <strong>{workloadList.length}</strong>
             <small>个科室</small>
           </div>
           <p className="analytics-kpi-sub">
-            覆盖主要临床内、外、妇、儿及急诊专科
+            所选范围内有就诊或有效医嘱记录的科室
           </p>
         </article>
-      </div>
+      </div>}
 
       {loading && <LoadingState label="正在汇总各科室就诊与医嘱数据..." />}
 
-      {!loading && (
+      {!loading && !error && workloadList.length === 0 && <EmptyState icon="clinical" title="所选范围内暂无就诊或有效医嘱记录" copy="请调整统计周期或科室范围后重试。" />}
+
+      {!loading && !error && workloadList.length > 0 && (
         <div className="analytics-report-content">
           <div className="analytics-split-layout">
             {/* 左侧：科室就诊负荷排行 */}
             <div className="analytics-chart-box">
               <div className="analytics-box-head">
                 <h3>
-                  <Icon name="clinical" /> 科室接诊负荷对比排行
+                  <Icon name="clinical" /> 科室登记就诊量排行
                 </h3>
-                <span className="analytics-box-meta">按接诊人次降序</span>
+                <span className="analytics-box-meta">按登记就诊人次降序</span>
               </div>
               <div className="analytics-rank-list">
                 {workloadList.map((w, index) => {
@@ -345,17 +201,17 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
                 <span className="analytics-box-meta">共 {workloadList.length} 个科室</span>
               </div>
               <div className="analytics-table-wrap">
-                <table className="analytics-data-table">
+                <DataTable className="analytics-data-table">
                   <thead>
                     <tr>
                       <th>排名</th>
                       <th>科室名称</th>
-                      <th style={{ textAlign: 'right' }}>接诊人次</th>
-                      <th style={{ textAlign: 'right' }}>患者人数</th>
-                      <th style={{ textAlign: 'right' }}>药品医嘱</th>
-                      <th style={{ textAlign: 'right' }}>检检医嘱</th>
-                      <th style={{ textAlign: 'right' }}>医嘱总量</th>
-                      <th style={{ textAlign: 'right' }}>人均医嘱数</th>
+                      <th className={tableCellClass('numeric')}>登记就诊人次</th>
+                      <th className={tableCellClass('numeric')}>患者人数</th>
+                      <th className={tableCellClass('numeric')}>药品医嘱</th>
+                      <th className={tableCellClass('numeric')}>服务医嘱</th>
+                      <th className={tableCellClass('numeric')}>医嘱总量</th>
+                      <th className={tableCellClass('numeric')}>每就诊人次医嘱数</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -365,27 +221,27 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
                         <td>
                           <strong>{w.deptName}</strong>
                         </td>
-                        <td style={{ textAlign: 'right' }}>{w.encounterCount.toLocaleString()}</td>
-                        <td style={{ textAlign: 'right' }}>{w.patientCount.toLocaleString()}</td>
-                        <td style={{ textAlign: 'right' }}>{w.medOrderCount.toLocaleString()}</td>
-                        <td style={{ textAlign: 'right' }}>{w.serviceOrderCount.toLocaleString()}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{w.totalOrderCount.toLocaleString()}</td>
-                        <td style={{ textAlign: 'right' }}>{w.avgOrdersPerEncounter}</td>
+                        <td className={tableCellClass('numeric')}>{w.encounterCount.toLocaleString()}</td>
+                        <td className={tableCellClass('numeric')}>{w.patientCount.toLocaleString()}</td>
+                        <td className={tableCellClass('numeric')}>{w.medOrderCount.toLocaleString()}</td>
+                        <td className={tableCellClass('numeric')}>{w.serviceOrderCount.toLocaleString()}</td>
+                        <td className={tableCellClass('numeric')}>{w.totalOrderCount.toLocaleString()}</td>
+                        <td className={tableCellClass('numeric')}>{w.avgOrdersPerEncounter?.toFixed(2) ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr>
-                      <th colSpan={2}>全院合计</th>
-                      <th style={{ textAlign: 'right' }}>{totalEnc.toLocaleString()}</th>
-                      <th style={{ textAlign: 'right' }}>{totalPat.toLocaleString()}</th>
-                      <th style={{ textAlign: 'right' }}>{totalMedOrders.toLocaleString()}</th>
-                      <th style={{ textAlign: 'right' }}>{Math.max(0, totalOrders - totalMedOrders).toLocaleString()}</th>
-                      <th style={{ textAlign: 'right', fontWeight: 'bold' }}>{totalOrders.toLocaleString()}</th>
-                      <th style={{ textAlign: 'right' }}>{avgOverallOrders}</th>
+                      <th colSpan={2}>所选范围合计</th>
+                      <th className={tableCellClass('numeric')}>{totalEnc.toLocaleString()}</th>
+                      <th className={tableCellClass('numeric')}>{totalPat.toLocaleString()}</th>
+                      <th className={tableCellClass('numeric')}>{totalMedOrders.toLocaleString()}</th>
+                      <th className={tableCellClass('numeric')}>{Math.max(0, totalOrders - totalMedOrders).toLocaleString()}</th>
+                      <th className={tableCellClass('numeric')}>{totalOrders.toLocaleString()}</th>
+                      <th className={tableCellClass('numeric')}>{avgOverallOrders}</th>
                     </tr>
                   </tfoot>
-                </table>
+                </DataTable>
               </div>
             </div>
           </div>

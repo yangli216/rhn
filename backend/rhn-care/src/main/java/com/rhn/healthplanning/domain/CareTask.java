@@ -69,6 +69,17 @@ public class CareTask {
         return task;
     }
 
+    /** New urgent evidence may tighten a deadline; a later reading must never postpone it. */
+    public boolean raiseUrgency(Instant requiredAt, String urgentTitle, String urgentDescription) {
+        boolean earlier = dueAt == null || requiredAt.isBefore(dueAt);
+        if (priority == CareTaskPriority.URGENT && !earlier) return false;
+        priority = CareTaskPriority.URGENT;
+        if (earlier) dueAt = requiredAt;
+        title = urgentTitle;
+        description = urgentDescription;
+        return true;
+    }
+
     public Long id() { return id; }
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }

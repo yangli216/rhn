@@ -20,8 +20,8 @@ public interface FiscalReceiptAdapter {
             Long receiptId, Long settlementId, String receiptRequestNo, String idempotencyKey,
             String receiptType, String issueChannel, String fiscalAuthorityCode,
             String externalReceiptNo,
-            String payerName, String payerIdentityDigest, BigDecimal amount, String currencyCode,
-            BigDecimal insuranceAmount, BigDecimal personalAccountAmount, BigDecimal patientAmount,
+            String payerName, String payerIdentityDigest, BigDecimal amount, BigDecimal roundingAmount, String currencyCode,
+            BigDecimal insuranceAmount, BigDecimal personalAccountAmount, BigDecimal patientAmount, BigDecimal otherFundAmount,
             List<ReceiptLine> lines, String correlationId) {}
 
     record ReceiptLine(int lineNo, String categoryCode, String itemCode, String itemName,

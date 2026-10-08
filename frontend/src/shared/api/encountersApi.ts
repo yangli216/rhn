@@ -20,9 +20,10 @@ type ClinicalRecordContract = components['schemas']['RecordClinicalDataRequest']
 export type DiagnosisInput = DiagnosisInputContract & {
   conceptId?: string
   codeSystem?: string
-  diagnosisDomain?: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME'
+  diagnosisDomain?: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME' | null
   type: 'PRIMARY' | 'SECONDARY'
   diagnosisGroupId?: string
+  managementResolutionStatus?: 'CONFIRMED' | 'UNCONFIRMED'
   managementPrograms?: Array<{
     id: string
     code: string
@@ -31,10 +32,10 @@ export type DiagnosisInput = DiagnosisInputContract & {
     triggerAction: 'PROMPT_CONFIRMATION' | 'CREATE_FOLLOW_UP_TASK' | 'CREATE_REPORT_DRAFT'
     reportCardType?: string
     reportDeadlineHours?: number
-  }>
+  }> | null
 }
 
-export type ClinicalRecordInput = Omit<ClinicalRecordContract, 'diagnoses'> & {
+export type ClinicalRecordInput = Omit<ClinicalRecordContract, 'diagnoses' | 'annotations'> & {
   annotations?: RecordAnnotation[]
   commandCode: string
   presentIllness?: string
@@ -117,6 +118,8 @@ export interface OrderDocumentInfo {
 }
 
 export interface ServiceRequest {
+  performerOrganizationId?: string
+  performerDepartmentId?: string
   documentInfoEditable?: boolean
   documentInfo?: OrderDocumentInfo
   id: string
@@ -162,6 +165,8 @@ export interface CreateServiceRequestInput {
   businessDate?: string
   reason?: string
   clinicalDescription?: string
+  performerOrganizationId?: string
+  performerDepartmentId?: string
 }
 
 export interface MedicationRequest {
@@ -338,6 +343,7 @@ export function createEncountersApi(client: ApiClient) {
     byResident: (residentId: string) => client.request<Encounter[]>(
       `/api/encounters?residentId=${encodeURIComponent(residentId)}`,
     ),
+    get: (encounterId: string) => client.request<Encounter>(`/api/encounters/${encodeURIComponent(encounterId)}`),
     register: (input: RegisterEncounterInput) =>
       client.request<Encounter>('/api/encounters', {
         method: 'POST', body: JSON.stringify(input),
@@ -418,6 +424,9 @@ export function createEncountersApi(client: ApiClient) {
       `/api/encounters/${encounterId}/prescriptions/auto-split-preview`, {
         method: 'POST', body: JSON.stringify(items),
       },
+    ),
+    saveOrderDrafts: (encounterId: string, input: OrderDraftSaveInput) => client.request<OrderDraftSaveReceipt>(
+      `/api/encounters/${encounterId}/order-drafts`, { method: 'POST', body: JSON.stringify(input) },
     ),
     batchOrderPrescriptions: (encounterId: string, input: BatchOrderPrescriptionInput) => client.request<Prescription[]>(
       `/api/encounters/${encounterId}/prescriptions/batch-order`, {
@@ -514,8 +523,8 @@ export interface BatchOrderMedicationItem {
   allergyOverrideReason?: string
   priceType?: string
   pricingRequired?: boolean
-  stockSiteId?: string
-  stockSiteName?: string
+  stockSiteId?: string | null
+  stockSiteName?: string | null
   administrationGroupKey?: string
   routeExecutionType?: string
   categoryCode?: string
@@ -523,6 +532,19 @@ export interface BatchOrderMedicationItem {
   skinTestExemptReason?: string
   exemptEvidenceEventId?: string
   reason?: string
+}
+
+export interface OrderDraftSaveInput {
+  commandCode: string
+  medicationItems: BatchOrderMedicationItem[]
+  serviceItems: CreateServiceRequestInput[]
+}
+
+export interface OrderDraftSaveReceipt {
+  commandCode: string
+  encounterId: string
+  prescriptions: Prescription[]
+  services: ServiceRequest[]
 }
 
 export interface BatchOrderPrescriptionInput {
@@ -533,8 +555,8 @@ export interface BatchOrderPrescriptionInput {
 export interface SplitPrescriptionPlan {
   categoryCode: string
   title: string
-  stockSiteId: string | number
-  stockSiteName: string
+  stockSiteId: string | number | null
+  stockSiteName: string | null
   routeGroupType: string
   ruleReasons: string[]
   items: Array<{

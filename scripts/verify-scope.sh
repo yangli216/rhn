@@ -38,17 +38,59 @@ esac
 if [[ "$rhn_scope" == outpatient-draft || "$rhn_scope" == round1 ]]; then
   rhn_frontend_tests+=(
     src/features/outpatient/record/saveClinicalDraft.test.ts
+    src/features/outpatient/record/clinicalRecordReceipt.test.ts
+    src/features/outpatient/record/clinicalDocumentWorkflow.test.ts
+    src/features/outpatient/record/useClinicalDocumentSession.test.tsx
+    src/features/outpatient/record/useClinicalDraftSession.test.tsx
+    src/features/outpatient/record/completeEncounter.test.ts
+    src/features/outpatient/record/completionFacts.test.ts
+    src/features/outpatient/record/completionBillingWrites.test.ts
+    src/shared/billing/SettlementPaymentPanel.test.tsx
     src/features/outpatient/record/DiagnosisPanel.test.tsx
+    src/features/outpatient/record/diagnosisManagementEvidence.test.ts
     src/features/outpatient/record/ClinicalVitalsFields.test.tsx
     src/features/outpatient/record/useClinicalAiDraft.test.tsx
+    src/features/outpatient/record/useAiPlanApplication.test.tsx
+    src/features/outpatient/record/NoteTemplateBar.test.tsx
     src/features/outpatient/DoctorWorkstation.test.tsx
+    src/features/outpatient/orders/usePrescriptionSplitPreview.test.tsx
+    src/features/outpatient/orders/persistOrderDrafts.test.ts
     src/features/outpatient/DoctorNoteTemplate.test.ts
     src/features/outpatient/PrescriptionPackaging.test.ts
     src/features/outpatient/ai/aiDraftAdapter.test.ts
+    src/features/outpatient/ai/canonicalAiDiagnoses.test.ts
     src/features/outpatient/ai/ClinicalAiQuietWorkflow.test.tsx
+    src/features/outpatient/ai/ClinicalAiAssistantPanel.test.tsx
+    src/features/outpatient/ai/ClinicalAiPlanAdoption.test.tsx
     src/features/outpatient/ai/HistoryPrescriptionReference.test.tsx
+    src/features/outpatient/ai/historicalPrescriptionImport.test.ts
+    src/features/outpatient/templates/templateApplicationReceipt.test.ts
+    src/features/outpatient/templates/noteTemplateSaveInput.test.ts
+    src/features/outpatient/templates/maintainedTemplateSave.test.ts
+    src/features/outpatient/templates/TemplateMaintenanceTruth.test.tsx
+    src/features/outpatient/templates/templateCatalogSearch.test.ts
+    src/features/outpatient/templates/useTemplateCatalogSearch.test.tsx
+    src/features/outpatient/templates/AiPlanCatalogSearch.test.tsx
+    src/features/outpatient/templates/ManualClinicalTemplateDialog.test.tsx
+    src/features/outpatient/templates/templateEditorFacts.test.ts
+    src/features/outpatient/templates/ManualTemplateEditorTruth.test.tsx
+    src/features/outpatient/templates/AiPlanTemplateDraftModal.test.tsx
+    src/features/outpatient/templates/convertedPlanFacts.test.ts
+    src/features/outpatient/templates/AiPlanConversionTruth.test.tsx
+    src/features/outpatient/templates/AiPlanMedicationTruth.test.tsx
+    src/features/outpatient/templates/AiPlanServiceTruth.test.tsx
+    src/features/outpatient/templates/aiPlanServiceFacts.test.ts
+    src/features/outpatient/templates/aiPlanMedicationFacts.test.ts
+    src/features/outpatient/templates/planMedicationPresentation.test.ts
+    src/features/outpatient/templates/OutpatientPlanTemplatesWorkspace.test.tsx
+    src/features/outpatient/templates/resolveTemplateOrders.test.ts
+    src/features/outpatient/templates/resolveTemplateOrders.api.test.ts
+    src/features/outpatient/templates/useTemplateApplication.test.tsx
+    src/features/outpatient/templates/historicalPlanSelection.test.ts
   )
-  rhn_backend_tests+=",OutpatientDoctorWorkstationTest"
+  rhn_backend_tests+=",OutpatientDoctorWorkstationTest,ClinicalAiPlanPreflightTest,OutpatientNoteTemplateTest,OutpatientPlanTemplateTest,ClinicalAiPlanCompilationTest,TemplateCatalogPagingContractTest,ServiceOrderableCatalogCompletenessTest,com.rhn.ai.application.ClinicalTreatmentRecommendationServiceTest,com.rhn.platform.web.ApiExceptionHandlerTest,com.rhn.platform.masterdata.application.ItemGroupDirectoryServiceTest,com.rhn.ai.application.ClinicalPlanInvestigationTruthTest,com.rhn.ai.application.PlanInvestigationDecisionServiceTest,com.rhn.ai.application.ClinicalPlanMedicationTruthTest,com.rhn.ai.application.MedicationIntentParserTest,com.rhn.ai.application.MedicationSpecificationEvidenceTest,com.rhn.ai.application.MedicationCandidateMatchingServiceTest,com.rhn.ai.application.HistoricalPlanResolutionServiceTest,com.rhn.ai.application.HistoricalPlanComparisonServiceTest,com.rhn.ai.application.ClinicalPlanRetrievalServiceTest,ClinicalAiPlanIdentityTest,HistoricalPlanCoverageContractTest,HistoricalEncounterWindowTest,DiagnosisManagementEvidenceTest,DiagnosisDomainTruthTest,DiagnosisDomainMigrationTest,DiagnosisOwnershipPersistenceTest,com.rhn.outpatient.encounter.DiagnosisOwnershipValidationTest,com.rhn.outpatient.encounter.DiagnosisManagementSnapshotTest,com.rhn.pharmacy.application.OutpatientInventoryRoutingTruthTest,com.rhn.outpatient.ordering.JpaOutpatientClinicalHistoryDirectoryTest"
+  rhn_backend_tests+=",OutpatientStructuredNoteFormTest,ClinicalDocumentFoundationTest"
+  rhn_backend_tests+=",BillingSettlementTest,PaymentRoundingIntegrationTest"
 fi
 
 # Fail loudly when a mapped test moves; a stale mapping must not silently turn green.
@@ -57,7 +99,9 @@ for rhn_test in "${rhn_frontend_tests[@]}"; do
 done
 IFS=',' read -r -a rhn_backend_classes <<< "$rhn_backend_tests"
 for rhn_class in "${rhn_backend_classes[@]}"; do
-  [[ -f "$rhn_root/backend/src/test/java/com/rhn/$rhn_class.java" ]] || {
+  rhn_class_path="${rhn_class#com.rhn.}"
+  rhn_class_path="${rhn_class_path//.//}"
+  [[ -f "$rhn_root/backend/src/test/java/com/rhn/$rhn_class_path.java" ]] || {
     echo "Missing test: $rhn_class" >&2; exit 2;
   }
 done

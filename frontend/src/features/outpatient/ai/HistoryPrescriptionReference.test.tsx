@@ -1,37 +1,76 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import type { Prescription } from '../../../shared/api/encountersApi'
-import type { Encounter } from '../../../shared/model'
-import type { RhnApi } from '../../../shared/rhnApi'
-import { historicalMedicationDrafts, HistoryPrescriptionReference } from './HistoryPrescriptionReference'
-const rx = { id: 'rx', status: 'ACTIVE', categoryCode: 'WESTERN', prescriptionNo: 'RX-1', medicationRequests: [
-  { id: 'med', status: 'ACTIVE', medicationId: 'm', medicationName: '历史测试药', medicationCode: 'TEST', itemName: '测试药产品',
-    doseValue: 5, doseUnit: 'mg', routeCode: 'PO', frequencyCode: 'QD', quantity: 30, quantityUnit: '片' },
-] } as Prescription
+import { HistoryPrescriptionReference } from './HistoryPrescriptionReference'
+import { historicalImportFixture } from './historicalPrescriptionImport.testFixtures'
+
+function setup() {
+  const f = historicalImportFixture(), onStage = vi.fn()
+  const props = { encounter: f.source, targetEncounter: f.target, api: f.api, disabled: false,
+    allergies: [], allergyReady: true, onStage }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const view = render(<QueryClientProvider client={client}><HistoryPrescriptionReference {...props} /></QueryClientProvider>)
+  const rerender = (patch: Partial<Parameters<typeof HistoryPrescriptionReference>[0]>) =>
+    view.rerender(<QueryClientProvider client={client}><HistoryPrescriptionReference {...props} {...patch} /></QueryClientProvider>)
+  const select = async () => {
+    fireEvent.click(await screen.findByRole('checkbox', { name: /历史测试药/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /已核对当前病情/ }))
+  }
+  const click = () => fireEvent.click(screen.getByRole('button', { name: /加入续方草稿/ }))
+  return { ...f, onStage, props, view, rerender, select, click }
+}
 
 describe('historical prescription reference', () => {
-  it('requires explicit selection and excludes cancelled and special-treatment lines without reusing prescription IDs', () => {
-    expect(historicalMedicationDrafts([rx], [])).toEqual([])
-    const drafts = historicalMedicationDrafts([rx, { ...rx, id: 'copy' }], ['med'])
-    expect(drafts).toHaveLength(1)
-    expect(drafts[0].request).toMatchObject({ medicationId: 'm', doseValue: 5, quantity: 30 })
-    expect(drafts[0].request).not.toHaveProperty('prescriptionId')
-    expect(drafts[0].request).not.toHaveProperty('parentRequestId')
-    expect(historicalMedicationDrafts([{ ...rx, status: 'CANCELLED' }], ['med'])).toEqual([])
-    expect(historicalMedicationDrafts([{ ...rx, medicationRequests: [{ ...rx.medicationRequests[0], antimicrobial: true }] }], ['med'])).toEqual([])
-  })
-  it('shows real historical dosing and only stages after current safety review', async () => {
-    const onStage = vi.fn()
-    const api = { encounters: { prescriptions: vi.fn().mockResolvedValue([rx]) } } as unknown as RhnApi
-    render(<QueryClientProvider client={new QueryClient()}><HistoryPrescriptionReference
-      encounter={{ id: 'history', status: 'COMPLETED', registeredAt: new Date().toISOString() } as Encounter}
-      api={api} disabled={false} allergies={[]} allergyReady onStage={onStage} /></QueryClientProvider>)
+  it('requires selection and review, then verifies current facts before staging exactly once', async () => {
+    const f = setup()
     fireEvent.click(await screen.findByRole('checkbox', { name: /历史测试药/ }))
     expect(screen.getByRole('button', { name: /加入续方草稿/ })).toBeDisabled()
     fireEvent.click(screen.getByRole('checkbox', { name: /已核对当前病情/ }))
-    fireEvent.click(screen.getByRole('button', { name: /加入续方草稿/ }))
-    await waitFor(() => expect(onStage).toHaveBeenCalledTimes(1))
-    expect(onStage.mock.calls[0][0][0].request).toMatchObject({ frequencyCode: 'QD', allergyReviewConfirmed: true })
+    f.click(); f.click()
+    await waitFor(() => expect(f.onStage).toHaveBeenCalledTimes(1))
+    expect(f.onStage.mock.calls[0][0][0]).toMatchObject({ unitPrice: 2.5, stockSiteId: 'pharmacy',
+      request: { frequencyCode: 'QD', allergyReviewConfirmed: true, substitutionAllowed: true } })
+    expect(screen.getByRole('button', { name: /加入续方草稿/ })).toBeDisabled()
+  })
+  it('retains the selection and a persistent error after failure, then allows an explicit retry', async () => {
+    const f = setup()
+    f.orderableMedications.mockRejectedValueOnce(new Error('目录暂不可用'))
+    await f.select(); f.click()
+    expect(await screen.findByRole('alert')).toHaveTextContent('目录暂不可用')
+    expect(f.onStage).not.toHaveBeenCalled()
+    expect(screen.getByRole('checkbox', { name: /历史测试药/ })).toBeChecked()
+    await waitFor(() => expect(screen.getByRole('button', { name: /加入续方草稿/ })).toBeEnabled())
+    f.click()
+    await waitFor(() => expect(f.onStage).toHaveBeenCalledTimes(1))
+  })
+  it.each(['patient', 'organization', 'department', 'disabled', 'allergy', 'signed', 'api', 'unmount'])(
+    'discards a late result after %s changes', async change => {
+      const f = setup()
+      let resolve!: (value: unknown) => void
+      f.orderableMedications.mockImplementation(() => new Promise(done => { resolve = done }))
+      await f.select(); f.click()
+      await waitFor(() => expect(f.orderableMedications).toHaveBeenCalledTimes(1))
+      if (change === 'unmount') f.view.unmount()
+      else f.rerender({
+        ...(change === 'disabled' ? { disabled: true } : {}),
+        ...(change === 'allergy' ? { allergyReady: false } : {}),
+        ...(change === 'api' ? { api: historicalImportFixture().api } : {}),
+        targetEncounter: { ...f.target,
+          ...(change === 'patient' ? { id: 'new', residentId: 'new-patient' } : {}),
+          ...(change === 'organization' ? { organizationId: 'new-org' } : {}),
+          ...(change === 'department' ? { departmentId: 'new-dept' } : {}),
+          ...(change === 'signed' ? { status: 'COMPLETED' } : {}),
+        },
+      })
+      await act(async () => { resolve([f.medication]) })
+      expect(f.onStage).not.toHaveBeenCalled()
+    })
+  it('shows a missing duration unit explicitly instead of inventing days', async () => {
+    const f = setup()
+    f.rx.medicationRequests[0].durationUnit = undefined
+    expect(await screen.findByText(/5疗程单位待核对/)).toBeInTheDocument()
+    await f.select(); f.click()
+    expect(await screen.findByRole('alert')).toHaveTextContent('单位不完整')
+    expect(f.onStage).not.toHaveBeenCalled()
   })
 })

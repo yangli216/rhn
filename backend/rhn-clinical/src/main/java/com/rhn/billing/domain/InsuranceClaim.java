@@ -95,15 +95,32 @@ public class InsuranceClaim {
     }
 
     public String apply(String operation, InsuranceResult result) {
-        if (!operation.equals(currentOperation) && !"QUERY".equals(operation)) {
+        if (operation == null || !operation.equals(currentOperation)) {
             throw new IllegalStateException("医保结果操作类型与当前申请阶段不一致");
         }
-        String effective = "QUERY".equals(operation) ? currentOperation : operation;
+        if (result == null || result.outcome() == null) throw new IllegalStateException("医保结果或处理状态缺失");
+        String effective = operation;
         String previous = status;
-        BigDecimal fund = amount(result.insuranceFundAmount());
-        BigDecimal personal = amount(result.personalAccountAmount());
-        BigDecimal patient = amount(result.patientCashAmount());
-        BigDecimal other = amount(result.otherFundAmount());
+        boolean succeeded = result.outcome() == InsuranceResult.Outcome.SUCCEEDED;
+        boolean confirmed = switch (effective) {
+            case "PRE_SETTLE" -> "PRE_SETTLED".equals(status);
+            case "SETTLE" -> "SETTLED".equals(status);
+            case "REVERSE" -> "REVERSED".equals(status);
+            default -> throw new IllegalStateException("医保结果缺少明确的业务阶段");
+        };
+        if (confirmed && !succeeded) throw new IllegalStateException("已确认的医保结果不能被处理中或失败回执覆盖");
+        if (succeeded && (!currencyCode.equals(result.currencyCode()) || result.externalSettlementNo() == null
+                || result.externalSettlementNo().isBlank() || result.errorCode() != null && !result.errorCode().isBlank())) {
+            throw new IllegalStateException("医保成功结果缺少流水、币种不一致或同时包含失败代码");
+        }
+        BigDecimal fund = succeeded ? confirmedAmount(result.insuranceFundAmount()) : amount(result.insuranceFundAmount());
+        BigDecimal personal = succeeded ? confirmedAmount(result.personalAccountAmount()) : amount(result.personalAccountAmount());
+        BigDecimal patient = succeeded ? confirmedAmount(result.patientCashAmount()) : amount(result.patientCashAmount());
+        BigDecimal other = succeeded ? confirmedAmount(result.otherFundAmount()) : amount(result.otherFundAmount());
+        String preNo = externalPreSettlementNo;
+        String settlementNo = externalSettlementNo;
+        if (succeeded && "PRE_SETTLE".equals(effective)) preNo = sameOrSet(preNo, result.externalSettlementNo());
+        if (succeeded && "SETTLE".equals(effective)) settlementNo = sameOrSet(settlementNo, result.externalSettlementNo());
         if (result.outcome() == InsuranceResult.Outcome.SUCCEEDED
                 && fund.add(personal).add(patient).add(other).compareTo(grossAmount) != 0) {
             throw new IllegalStateException("医保资金分摊合计与结算总额不一致");
@@ -115,13 +132,20 @@ public class InsuranceClaim {
                 || other.compareTo(otherFundAmount) != 0)) {
             throw new IllegalStateException("医保冲正资金分摊与原结算结果不一致");
         }
+        if (confirmed) {
+            if (fund.compareTo(insuranceFundAmount) != 0 || personal.compareTo(personalAccountAmount) != 0
+                    || patient.compareTo(patientCashAmount) != 0 || other.compareTo(otherFundAmount) != 0) {
+                throw new IllegalStateException("重复医保成功回执的资金分摊与已确认结果不一致");
+            }
+            return previous;
+        }
         if (result.outcome() == InsuranceResult.Outcome.SUCCEEDED) {
             insuranceFundAmount = fund; personalAccountAmount = personal; patientCashAmount = patient; otherFundAmount = other;
             if ("PRE_SETTLE".equals(effective)) {
-                externalPreSettlementNo = sameOrSet(externalPreSettlementNo, result.externalSettlementNo());
+                externalPreSettlementNo = preNo;
                 status = "PRE_SETTLED";
             } else if ("SETTLE".equals(effective)) {
-                externalSettlementNo = sameOrSet(externalSettlementNo, result.externalSettlementNo());
+                externalSettlementNo = settlementNo;
                 status = "SETTLED";
             } else if ("REVERSE".equals(effective)) {
                 status = "REVERSED"; reversedAt = Instant.now();
@@ -130,7 +154,7 @@ public class InsuranceClaim {
         } else if (result.outcome() == InsuranceResult.Outcome.PENDING) {
             if (result.externalSettlementNo() != null) {
                 if ("PRE_SETTLE".equals(effective)) externalPreSettlementNo = sameOrSet(externalPreSettlementNo, result.externalSettlementNo());
-                else externalSettlementNo = sameOrSet(externalSettlementNo, result.externalSettlementNo());
+                else if ("SETTLE".equals(effective)) externalSettlementNo = sameOrSet(externalSettlementNo, result.externalSettlementNo());
             }
             status = switch (effective) {
                 case "PRE_SETTLE" -> "PRE_SETTLEMENT_PENDING";
@@ -151,7 +175,12 @@ public class InsuranceClaim {
         if (current != null && !current.equals(value)) throw new IllegalStateException("医保外部结算号与既有结果不一致");
         return value;
     }
-    private BigDecimal amount(BigDecimal value) { return value == null ? zero() : value.setScale(6); }
+    private BigDecimal confirmedAmount(BigDecimal value) {
+        if (value == null || value.signum() < 0) throw new IllegalStateException("医保成功结果的资金分摊金额必须明确且非负");
+        try { return value.setScale(6, java.math.RoundingMode.UNNECESSARY); }
+        catch (ArithmeticException exception) { throw new IllegalStateException("医保成功结果金额精度无效", exception); }
+    }
+    private BigDecimal amount(BigDecimal value) { return value == null ? null : confirmedAmount(value); }
     private BigDecimal zero() { return BigDecimal.ZERO.setScale(6); }
 
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }

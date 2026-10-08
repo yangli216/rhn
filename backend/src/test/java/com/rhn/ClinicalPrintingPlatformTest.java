@@ -19,6 +19,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
+    @org.springframework.beans.factory.annotation.Autowired org.springframework.jdbc.core.JdbcTemplate printJdbc;
+
+    @Test
+    void paper_defaults_publish_new_versions_without_rewriting_legacy_layouts() {
+        assertEquals("RHN_PRINT_LAYOUT_V1", printJdbc.queryForObject(
+                "select JSON_LAYOUT_SCHEMA from RHN_META_PRINT_TMPL_VER where ID_PRINT_TMPL_VER = 270000000000011", String.class));
+        assertEquals("RHN_PRINT_FLOW_V1", printJdbc.queryForObject(
+                "select JSON_LAYOUT_SCHEMA from RHN_META_PRINT_TMPL_VER where ID_PRINT_TMPL_VER = 270000000000016", String.class));
+        assertEquals(5, printJdbc.queryForObject(
+                "select count(*) from RHN_META_PRINT_TMPL_VER where JSON_LAYOUT_SCHEMA = 'RHN_OUTPATIENT_DOCUMENT_V2' and CD_VER_NO = 2", Integer.class));
+        assertEquals(5, printJdbc.queryForObject(
+                "select count(*) from RHN_META_PRINT_TMPL where ID_PRINT_TMPL in (270000000000001,270000000000002,270000000000006,270000000000007,270000000000008) and SN_CURRENT_VER = 2", Integer.class));
+    }
 
     @Test
     void manages_validates_previews_and_publishes_a_canvas_template() throws Exception {
@@ -117,14 +130,14 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
     }
 
     @Test
-    void previews_published_a5_landscape_clinical_templates() throws Exception {
+    void previews_published_paper_clinical_templates() throws Exception {
         JsonNode templates = json(mockMvc.perform(get("/api/platform/printing/templates").with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.templateCode == 'OUTPATIENT_NOTE_A5')].templateName").value("门诊病历 A5 标准模板"))
-                .andExpect(jsonPath("$[?(@.templateCode == 'OUTPATIENT_PRESCRIPTION_A5')].templateName").value("门诊处方 A5 标准模板"))
+                .andExpect(jsonPath("$[?(@.templateCode == 'OUTPATIENT_NOTE_A4')].templateName").value("门诊病历 A4 纸质模板"))
+                .andExpect(jsonPath("$[?(@.templateCode == 'OUTPATIENT_PRESCRIPTION_A5')].templateName").value("门诊处方 A5 纸质模板"))
                 .andReturn().getResponse().getContentAsString());
 
-        JsonNode noteTemplate = find(templates, "templateCode", "OUTPATIENT_NOTE_A5");
+        JsonNode noteTemplate = find(templates, "templateCode", "OUTPATIENT_NOTE_A4");
         String noteSample = """
                 {"sampleData":{
                   "organizationName":"仁和医院",
@@ -149,6 +162,10 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
         byte[] notePdf = notePreview.getResponse().getContentAsByteArray();
         assertTrue(notePdf.length > 1000);
         assertEquals("%PDF-", new String(notePdf, 0, 5, StandardCharsets.US_ASCII));
+        try (var reader = new org.openpdf.text.pdf.PdfReader(notePdf)) {
+            assertEquals(595.28, reader.getPageSize(1).getWidth(), .1);
+            assertEquals(841.89, reader.getPageSize(1).getHeight(), .1);
+        }
 
         JsonNode rxTemplate = find(templates, "templateCode", "OUTPATIENT_PRESCRIPTION_A5");
         String westernRxSample = """
@@ -170,6 +187,10 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(content().contentType("application/pdf"))
                 .andReturn();
         byte[] westernPdf = westernPreview.getResponse().getContentAsByteArray();
+        try (var reader = new org.openpdf.text.pdf.PdfReader(westernPdf)) {
+            assertEquals(419.53, reader.getPageSize(1).getWidth(), .1);
+            assertEquals(595.28, reader.getPageSize(1).getHeight(), .1);
+        }
         assertTrue(westernPdf.length > 1000);
         assertEquals("%PDF-", new String(westernPdf, 0, 5, StandardCharsets.US_ASCII));
 

@@ -22,6 +22,9 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verifyNoInteractions;
+import com.rhn.shared.api.BusinessException;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -41,7 +44,7 @@ class RefundPreCheckServiceTest {
     private ExecutionContextProvider contextProvider;
 
     private RefundPreCheckService service;
-    private final ExecutionContext context = new ExecutionContext(1L, 2L, "operator", "corr-1", Set.of());
+    private final ExecutionContext context = new ExecutionContext(1L, 2L, "operator", "corr-1", Set.of(), 1001L, 1002L, "ORGANIZATION", Set.of(1001L), Set.of(1002L));
 
     @BeforeEach
     void setUp() {
@@ -151,6 +154,31 @@ class RefundPreCheckServiceTest {
         assertFalse(result.eligibleForRefund());
         assertEquals("BLOCKED", result.overallDecision());
         assertEquals("UNDISPENSED_NEED_CANCEL", result.items().get(0).executionStatusCode());
+    }
+
+    @Test
+    void rejects_foreign_organization_before_loading_clinical_or_payment_details() {
+        var foreign = account(100L, 10L);
+        when(foreign.organizationId()).thenReturn(2001L);
+        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(100L))).thenReturn(List.of(foreign));
+        assertEquals("BILLING_ACCOUNT_SCOPE_INVALID", assertThrows(BusinessException.class,
+                () -> service.preCheck(100L)).code());
+        verifyNoInteractions(charges, payments, pharmacy, diagnostics, treatment, refundPolicy);
+    }
+
+    @Test
+    void requires_a_selected_work_context_before_querying_accounts() {
+        when(contextProvider.requireCurrent()).thenReturn(new ExecutionContext(1L, 2L, "operator", "corr", Set.of()));
+        assertEquals("BILLING_WORK_CONTEXT_REQUIRED", assertThrows(BusinessException.class,
+                () -> service.preCheck(100L)).code());
+        verifyNoInteractions(accounts, charges, payments);
+    }
+
+    @Test
+    void accepts_an_explicitly_accessible_organization() {
+        when(contextProvider.requireCurrent()).thenReturn(new ExecutionContext(1L, 2L, "operator", "corr",
+                Set.of(), 2001L, 2002L, "ORGANIZATION", Set.of(1001L), Set.of()));
+        whenUnexecutedAndPolicyEnabled_shouldAllowDirectRefund();
     }
 
     private PatientAccount account(Long encounterId, Long accountId) {

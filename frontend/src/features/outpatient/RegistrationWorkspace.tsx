@@ -11,9 +11,10 @@ import { age } from '../../shared/format'
 import type { Encounter, Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
+import { useCashierPaymentMethods } from '../../shared/billing/useCashierPaymentMethods'
 import { CashierPanel } from '../../shared/billing/CashierPanel'
 import { CashPaymentCalculator, getCashPresets } from '../../shared/billing/CashPaymentCalculator'
-import { PaymentMethodSelector, DEFAULT_FALLBACK_PAYMENT_METHODS } from '../../shared/billing/PaymentMethodSelector'
+import { PaymentMethodSelector } from '../../shared/billing/PaymentMethodSelector'
 import { Alert, Button, DataTable, Dialog, SearchField, tableCellClass, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
   PatientIdentitySearch, type PatientIntakeChannel, type PatientIntakeMeta, Select, StatusBadge } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
@@ -458,9 +459,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const [selectedDayPart, setSelectedDayPart] = useState<'ALL' | 'MORNING' | 'AFTERNOON'>(getSmartDayPart)
   const [dayPartManuallyChanged, setDayPartManuallyChanged] = useState(false)
   const [manualAppointmentId, setManualAppointmentId] = useState<string | null>(null)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('CASH')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('')
   const [cashTendered, setCashTendered] = useState('')
-  const [cashTenderedTouched, setCashTenderedTouched] = useState(false)
   const [intakeChannel, setIntakeChannel] = useState<PatientIntakeChannel>('MANUAL')
   const [smartDecisionReason, setSmartDecisionReason] = useState<string | null>(null)
   const [autoPrintTicket, setAutoPrintTicket] = useState(true)
@@ -477,7 +477,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     setSuccess(null)
     setManualAppointmentId(null)
     setCoverageTouched(false)
-    setCashTenderedTouched(false)
     setTimeout(() => {
       deptSearchInputRef.current?.focus()
       deptSearchInputRef.current?.select()
@@ -554,10 +553,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     queryKey: ['system-enum', SCHEDULING_SYSTEM_ENUM.receptionStatus],
     queryFn: () => api.dictionaries.systemEnum(SCHEDULING_SYSTEM_ENUM.receptionStatus),
   })
-  const paymentMethods = useQuery({
-    queryKey: ['applicable-dictionary-items', 'PAY_METHOD', 'AVAILABLE_SCENE', 'CASHIER'],
-    queryFn: () => api.dictionaries.applicable('PAY_METHOD', 'AVAILABLE_SCENE', 'CASHIER'),
-  })
+  const paymentMethods = useCashierPaymentMethods(api, clinicalContext)
   const intent = useQuery({
     queryKey: ['registration-billing-intent', intentId],
     queryFn: () => api.billing.registrationIntent(intentId), enabled: Boolean(intentId),
@@ -703,30 +699,22 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
   const showPaymentShortcuts = Boolean(selected) && Boolean(scheduleId) && feeBreakdown.feeConfigured && feeBreakdown.payableAmount > 0
 
-  // 现金缴款金额智能默认值与联动：
-  // 1. 调入患者、或切换号源价格变动、或切换为现金支付时：
-  //    若未被挂号员手动输入修改大额（!cashTenderedTouched），默认自动填入当前应收金额 String(payableAmount)
-  // 2. 若挂号员输入过但金额小于应收金额，自动修复为应收金额
   useEffect(() => {
-    if (selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0) {
-      if (!cashTenderedTouched) {
-        setCashTendered(String(feeBreakdown.payableAmount))
-      } else {
-        const num = Number(cashTendered)
-        if (!cashTendered || isNaN(num) || num < feeBreakdown.payableAmount) {
-          setCashTendered(String(feeBreakdown.payableAmount))
-          setCashTenderedTouched(false)
-        }
-      }
-    } else if (selectedPaymentMethod !== 'CASH') {
-      setCashTendered('')
-      setCashTenderedTouched(false)
+    if (!paymentMethods.options.some((item) => item.code === selectedPaymentMethod)) {
+      setSelectedPaymentMethod([...paymentMethods.options]
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))[0]?.code ?? '')
     }
-  }, [cashTenderedTouched, feeBreakdown.payableAmount, selected?.id, selectedPaymentMethod])
+  }, [paymentMethods.options, selectedPaymentMethod])
+
+  useEffect(() => { setCashTendered('') },
+    [feeBreakdown.payableAmount, scheduleId, selected?.id, selectedPaymentMethod, coverageSelection, paymentMethods.status])
+
+  const paymentMethodAvailable = paymentMethods.status === 'ready'
+    && paymentMethods.options.some((item) => item.code === selectedPaymentMethod)
 
   const numericTendered = Number(cashTendered)
   const cashChange = numericTendered >= feeBreakdown.payableAmount ? numericTendered - feeBreakdown.payableAmount : 0
-  const isCashShort = selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0 && Boolean(cashTendered) && (isNaN(numericTendered) || numericTendered < feeBreakdown.payableAmount)
+  const isCashShort = selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0 && (!cashTendered || !Number.isFinite(numericTendered) || numericTendered < feeBreakdown.payableAmount)
 
   useEffect(() => {
     if (linkedResident.data) setSelected(linkedResident.data)
@@ -753,7 +741,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
   useEffect(() => {
     setCoverageTouched(false)
-    setCashTenderedTouched(false)
     setValidationError(null)
   }, [selected?.id])
 
@@ -800,22 +787,32 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   }, [clinicalContext.department.id])
 
   const createIntent = useMutation({
-    mutationFn: () => api.billing.createRegistrationIntent({
-      residentId: selected!.id,
-      appointmentId: effectiveAppointmentId || undefined,
-      scheduleId: scheduleId === 'DIRECT' ? undefined : scheduleId,
-      organizationId: clinicalContext.organization.id,
-      departmentId: selectedSchedule?.departmentId || clinicalContext.department.id,
-      idempotencyCode: `REG-INTENT-${crypto.randomUUID()}`,
-      registrationSource: scheduleId === 'DIRECT' ? (visitType === 'EMERGENCY' ? 'EMERGENCY' : 'DIRECT') : 'WINDOW',
-      visitType,
-      settlementMode: selectedCoverage ? 'MEDICAL_INSURANCE' : 'SELF_PAY',
-      coverageId: selectedCoverage?.id,
-    }),
+    mutationFn: () => {
+      if (!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort
+        || (feeBreakdown.payableAmount > 0 && !paymentMethodAvailable)) {
+        throw new Error('请确认号源、支付方式与实收金额后再挂号')
+      }
+      if (selectedCoverage || ['WECHAT', 'ALIPAY'].includes(selectedPaymentMethod)) {
+        throw new Error('当前结算接口未对接，请选择已支持的支付方式')
+      }
+      return api.billing.createRegistrationIntent({
+        residentId: selected!.id,
+        appointmentId: effectiveAppointmentId || undefined,
+        scheduleId: scheduleId === 'DIRECT' ? undefined : scheduleId,
+        organizationId: clinicalContext.organization.id,
+        departmentId: selectedSchedule?.departmentId || clinicalContext.department.id,
+        idempotencyCode: `REG-INTENT-${crypto.randomUUID()}`,
+        registrationSource: scheduleId === 'DIRECT' ? (visitType === 'EMERGENCY' ? 'EMERGENCY' : 'DIRECT') : 'WINDOW',
+        visitType,
+        settlementMode: 'SELF_PAY',
+      })
+    },
     onSuccess: async (value) => {
       setIntentId(value.id)
       await queryClient.invalidateQueries({ queryKey: ['registration-schedules'] })
-      if (value.settlementId && value.feeAmount > 0 && ['CASH', 'BANK_CARD'].includes(selectedPaymentMethod) && value.settlementMode === 'SELF_PAY') {
+      if (value.settlementId && value.feeAmount > 0 && ['CASH', 'BANK_CARD'].includes(selectedPaymentMethod) && value.settlementMode === 'SELF_PAY'
+        && paymentMethodAvailable
+        && (selectedPaymentMethod !== 'CASH' || (cashTendered.trim() !== '' && Number.isFinite(numericTendered) && numericTendered >= value.feeAmount))) {
         try {
           await api.billing.createPaymentOrder(value.settlementId, {
             idempotencyKey: `REG-PAY-${crypto.randomUUID()}`,
@@ -831,8 +828,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             intent.refetch(),
             queryClient.invalidateQueries({ queryKey: ['registration-schedules'] }),
           ])
-        } catch {
-          // Fallback to manual payment step
+        } catch (error) {
+          setValidationError(`挂号已出单，收款结果待核实：${errorMessage(error)}。请核实支付结果后继续办理。`)
         }
       }
     },
@@ -947,18 +944,14 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       } else if (e.key === 'F8' || (e.altKey && (e.key === 's' || e.key === 'S'))) {
         if (selected && scheduleId && !createIntent.isPending) {
           e.preventDefault()
-          createIntent.mutate()
+          confirmButtonRef.current?.click()
         }
       } else if (e.key === 'Escape') {
         setSelected(null)
         setSuccess(null)
         setTimeout(() => patientSearchInputRef.current?.focus(), 50)
       } else if (!isInputFocused && showPaymentShortcuts) {
-        const rawList = (paymentMethods.data && paymentMethods.data.length > 0)
-          ? paymentMethods.data
-          : DEFAULT_FALLBACK_PAYMENT_METHODS
-        const sorted = [...rawList]
-          .filter((m) => m.code !== 'MEDICAL_INSURANCE')
+        const sorted = [...paymentMethods.options]
           .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
         const keyIdx = ['1', '2', '3', '4'].indexOf(e.key)
         if (keyIdx >= 0 && sorted[keyIdx]) {
@@ -970,7 +963,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [cancellingItem, createIntent, scheduleId, selected, showPaymentShortcuts, showQuickCreate, showReceiptModal])
+  }, [cancellingItem, createIntent, scheduleId, selected, showPaymentShortcuts, showQuickCreate, showReceiptModal, paymentMethods.options])
 
   const displayedSchedules = linkedSchedule ? [linkedSchedule] : filteredSchedules
   const remainingSlots = displayedSchedules.reduce((total, item) => total + item.availableCount, 0)
@@ -1226,11 +1219,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             <PaymentMethodSelector
               value={selectedPaymentMethod}
               onChange={setSelectedPaymentMethod}
-              methods={(paymentMethods.data ?? []).map((item) => ({
-                code: item.code,
-                name: item.name,
-                sortOrder: item.sortOrder,
-              }))}
+              methods={paymentMethods.options}
+              status={paymentMethods.status}
+              onRetry={() => { void paymentMethods.refetch() }}
               showShortcuts={showPaymentShortcuts}
             />
 
@@ -1250,10 +1241,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               <CashPaymentCalculator
                 payableAmount={feeBreakdown.payableAmount}
                 tendered={cashTendered}
-                onTenderedChange={(val) => {
-                  setCashTendered(val)
-                  setCashTenderedTouched(true)
-                }}
+                onTenderedChange={setCashTendered}
               />
             )}
 
@@ -1273,7 +1261,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             {!intentId && !currentIntent && <div className="registration-submit-area">
               <Button ref={confirmButtonRef} className="registration-confirm-button"
                 busy={createIntent.isPending} busyLabel="正在核价并出单"
-                disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort}
+                disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort || (feeBreakdown.payableAmount > 0 && !paymentMethodAvailable)}
                 onClick={() => {
                   if (selectedCoverage) {
                     setValidationError('【医保接口未对接】当前系统未对接国家/地方医保平台，暂不支持医保预结算与统筹基金抵扣。请在“费用类别”中切换为「自费」后再办理。')
@@ -1337,13 +1325,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 busy={cancelIntent.isPending} onClick={() => cancelIntent.mutate()}>取消本次挂号并释放号源</Button>}
               {currentIntent.feeAmount > 0 && ['PAYMENT_PENDING', 'PAID'].includes(currentIntent.status)
                 && <SettlementPaymentPanel settlements={settlementOptions}
-                  methods={(paymentMethods.data ?? []).map((item) => ({
-                    code: item.code,
-                    name: item.name,
-                    sortOrder: item.sortOrder,
-                    precision: item.attributes?.PAYMENT_PRECISION,
-                    roundingMode: item.attributes?.ROUNDING_MODE,
-                  }))}
+                  methods={paymentMethods.options}
+                  methodsStatus={paymentMethods.status}
+                  onReloadMethods={() => { void paymentMethods.refetch() }}
                   orders={paymentOrders.data ?? []} busy={createPaymentOrder.isPending} sceneLabel="挂号费收款"
                   settlementModeCode={currentIntent.settlementMode}
                   submitShortcut

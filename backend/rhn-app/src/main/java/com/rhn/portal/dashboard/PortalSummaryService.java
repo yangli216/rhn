@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 
 import static com.rhn.shared.api.BusinessErrors.forbidden;
+import static com.rhn.shared.api.BusinessErrors.conflict;
 
 @Service
 class PortalSummaryService {
@@ -55,18 +56,29 @@ class PortalSummaryService {
 
     private long count(String sql, Object... arguments) {
         Long value = jdbcTemplate.queryForObject(sql, Long.class, arguments);
-        return value == null ? 0 : value;
+        if (value == null || value < 0) throw new IllegalStateException("门户统计未返回有效计数");
+        return value;
     }
 
     private ZoneId organizationZone(ExecutionContext context) {
         String configured = jdbcTemplate.query("""
-                        select CD_TZ as timezone_code from RHN_SYS_ORG where ID_TNT = ? and ID_ORG = ?
-                        """, resultSet -> resultSet.next() ? resultSet.getString(1) : null,
+                        select o.CD_TZ as organization_timezone, t.CD_TZ as tenant_timezone
+                          from RHN_SYS_ORG o join RHN_SYS_TNT t on t.ID_TNT = o.ID_TNT
+                         where o.ID_TNT = ? and o.ID_ORG = ?
+                        """, resultSet -> {
+                            if (!resultSet.next()) return null;
+                            String organizationTimezone = resultSet.getString(1);
+                            return organizationTimezone == null || organizationTimezone.isBlank()
+                                    ? resultSet.getString(2) : organizationTimezone;
+                        },
                 context.tenantId(), context.organizationId());
+        if (configured == null || configured.isBlank()) {
+            throw conflict("PORTAL_ORGANIZATION_TIMEZONE_REQUIRED", "机构及租户时区未配置，无法确定今日统计范围，请联系管理员维护");
+        }
         try {
-            return configured == null || configured.isBlank() ? ZoneId.of("Asia/Shanghai") : ZoneId.of(configured);
+            return ZoneId.of(configured.trim());
         } catch (DateTimeException exception) {
-            return ZoneId.of("Asia/Shanghai");
+            throw conflict("PORTAL_ORGANIZATION_TIMEZONE_INVALID", "统计时区配置无效，无法确定今日统计范围，请联系管理员修复");
         }
     }
 }

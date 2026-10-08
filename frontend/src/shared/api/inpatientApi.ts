@@ -370,6 +370,8 @@ export interface InpatientDischargeDocument {
 }
 
 export interface InpatientDischargeDiagnosis {
+  conceptId?: string | null
+  diagnosisDomain?: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME' | null
   id?: string
   diagnosisStage: 'DISCHARGE'
   code: string
@@ -380,6 +382,8 @@ export interface InpatientDischargeDiagnosis {
 }
 
 export interface InpatientAdmissionDiagnosis {
+  conceptId?: string | null
+  diagnosisDomain?: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME' | null
   id?: string
   diagnosisStage: 'ADMISSION'
   code: string
@@ -690,7 +694,7 @@ export function createInpatientApi(client: ApiClient) {
     }>(`/api/inpatient/episodes/${episodeId}/discharge-diagnoses`),
     saveDischargeDiagnoses: (episodeId: string, input: {
       expectedEpisodeRevision: number
-      diagnoses: Array<Pick<InpatientDischargeDiagnosis, 'code' | 'display' | 'diagnosisType'>>
+      diagnoses: Array<Pick<InpatientDischargeDiagnosis, 'code' | 'display' | 'diagnosisType' | 'conceptId' | 'diagnosisDomain'>>
       commandCode: string
     }) => client.request<{ episodeId: string; encounterId: string; diagnoses: InpatientDischargeDiagnosis[] }>(
       `/api/inpatient/episodes/${episodeId}/discharge-diagnoses`, {
@@ -719,7 +723,7 @@ export function createInpatientApi(client: ApiClient) {
     saveAdmissionDiagnoses: (episodeId: string, input: {
       expectedEpisodeRevision: number
       diagnoses: Array<Pick<InpatientAdmissionDiagnosis,
-        'code' | 'display' | 'diagnosisType' | 'verificationStatus'>>
+        'code' | 'display' | 'diagnosisType' | 'verificationStatus' | 'conceptId' | 'diagnosisDomain'>>
       commandCode: string
     }) => client.request<{ episodeId: string; encounterId: string; diagnoses: InpatientAdmissionDiagnosis[] }>(
       `/api/inpatient/episodes/${episodeId}/admission-diagnoses`, {

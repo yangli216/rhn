@@ -1,3 +1,6 @@
+import { useOrderSetImport } from './orders/useOrderSetImport'
+import { resolveServicePricing } from './orders/servicePricing'
+import { useSkinTestHistory } from './orders/skinTestHistory'
 import { OrderComposerSafety } from './orders/OrderComposerSafety'
 import { OrderComposerInstruction } from './orders/OrderComposerInstruction'
 import { OrderComposerQuantity } from './orders/OrderComposerQuantity'
@@ -207,8 +210,13 @@ export function UnifiedOrderListEditor({
     staleTime: 5 * 60 * 1000,
   })
   const skinTests = useQuery({
-    queryKey: ['doctor-skin-tests', encounter.id],
-    queryFn: () => api.treatments.skinTestWorklist(undefined, undefined, encounter.id),
+    queryKey: ['doctor-skin-tests', encounter.organizationId, encounter.id],
+    queryFn: async () => {
+      const records = await api.treatments.skinTestWorklist(undefined, undefined, encounter.id)
+      if (!Array.isArray(records)) throw new Error('就诊皮试结果返回格式异常')
+      return records
+    },
+    retry: false,
     refetchInterval: 20_000,
   })
   const skinTestByRequest = new Map((skinTests.data ?? []).map((item) => [item.medicationRequestId, item]))
@@ -227,7 +235,6 @@ export function UnifiedOrderListEditor({
   const dispensableOptions = currentMedication
     ? resolveDispensableOptions(currentMedication, encounter.organizationId) : []
   const selectedProduct = dispensableOptions.find((value) => value.key === medicationEntry.dispenseOptionKey)
-    ?? dispensableOptions[0]
   const currentRouteExecutionType = medicationEntry.routeExecutionType
     ?? routes.data?.find((value) => value.code === medicationEntry.routeCode)?.executionType
   const currentIsInfusion = currentRouteExecutionType === 'INFUSION'
@@ -255,7 +262,7 @@ export function UnifiedOrderListEditor({
   }), [currentMedication, medicationEntry.doseValue, medicationEntry.doseUnit, medicationEntry.frequencyCode, medicationEntry.durationValue, selectedProduct, frequencies.data])
   const frequencyQuantityUnavailable = Boolean(currentMedication && medicationEntry.frequencyCode)
     && resolveFrequencyTimesPerDay(frequencies.data, medicationEntry.frequencyCode) === null
-  const automaticQuantity = frequencyQuantityUnavailable ? '' : calcResult?.quantity
+  const automaticQuantity = calcResult?.quantity ?? ''
   useEffect(() => {
     if (!currentMedication || entryType === 'HERBAL' || automaticQuantity === undefined) return
     setMedicationEntry((current) => current.isManualQuantity || current.quantity === automaticQuantity
@@ -272,15 +279,9 @@ export function UnifiedOrderListEditor({
   const isSkinTest = Boolean(currentMedication?.skinTestRequired)
   const isAntimicrobial = Boolean(currentMedication?.antimicrobial)
   const isAllergyHit = matchedAllergies.length > 0
-  const recentNegativeQuery = useQuery({
-    queryKey: ['recent-negative-skin-test', encounter.residentId, currentMedication?.id],
-    queryFn: () => (currentMedication?.skinTestRequired && currentMedication?.id)
-      ? api.treatments.validNegativeSkinTests(encounter.residentId, currentMedication.id, currentMedication.skinTestResultValidityHours)
-      : Promise.resolve([]),
-    enabled: Boolean(currentMedication?.skinTestRequired && currentMedication?.id),
-    staleTime: 30_000,
-  })
-  const recentNegativeItem = recentNegativeQuery.data?.[0]
+  const skinTestHistory = useSkinTestHistory(api, encounter.organizationId, encounter.residentId,
+    currentMedication?.id, currentMedication?.skinTestResultValidityHours, isSkinTest)
+  const recentNegativeItem = skinTestHistory.item
   const hasPositiveSkinTest = Boolean(
     currentMedication?.id &&
     (skinTests.data ?? []).some((item) => item.medicationId === currentMedication.id && item.status === 'POSITIVE')
@@ -304,6 +305,7 @@ export function UnifiedOrderListEditor({
   ), [isComposerActive, groupingSession?.groupKey, draftEntries, savedEntries])
 
   function changeType(value: OrderEntryType) {
+    groupImport.cancel()
     if (groupingSession && value !== 'WESTERN' && value !== 'MEDICATION' && value !== 'ALL') {
       setGroupingSession(null)
     }
@@ -341,7 +343,15 @@ export function UnifiedOrderListEditor({
     }
   }
 
-  const hasEnteredOrder = isMedication ? Boolean(medicationEntry.medication) : Boolean(service)
+  const groupImport = useOrderSetImport({ encounter, api, busy, readOnly, onResolved: ({ name, drafts }) => {
+    setServiceDrafts(current => [...current, ...drafts])
+    setSuccessToast(`已成功调入组套【${name}】共 ${drafts.length} 项项目`)
+    setEditingDraft(null); setComposerOpen(true); shouldFocusOnOpenRef.current = true
+    selectMedication(undefined); setService(undefined); setServiceQuantity(1); setServiceDescription('')
+    setEntryType('ALL'); setValidationError(''); focusResource('ALL')
+  } })
+
+  const hasEnteredOrder = groupImport.pending || (isMedication ? Boolean(medicationEntry.medication) : Boolean(service))
 
   useEffect(() => {
     if (!composerOpen && hasOrders) return
@@ -435,7 +445,7 @@ export function UnifiedOrderListEditor({
       administrationGroupKey: initialGroupKey,
       frequencyCode: initialFrequency,
       durationValue: initialDuration,
-      quantity: calc?.quantity ?? (resolveFrequencyTimesPerDay(frequencies.data, initialFrequency) === null ? '' : 1),
+      quantity: calc?.quantity ?? '',
       dispenseOptionKey: defaultDispenseOption?.key ?? '',
       instruction: '',
       herbalDoseCount: entryType === 'HERBAL' ? medicationEntry.herbalDoseCount : 7,
@@ -456,6 +466,8 @@ export function UnifiedOrderListEditor({
   }
 
   function handleOrderResourceSelect(option?: ClinicalResourceOption<ClinicalResource>) {
+    if (busy || readOnly || groupImport.pending) return
+    groupImport.cancel()
     if (!option) {
       selectMedication(undefined)
       setService(undefined)
@@ -466,34 +478,8 @@ export function UnifiedOrderListEditor({
     // 1. 组套 (ItemGroup) 一键批量展开
     if (raw && ('groupType' in raw || 'members' in raw)) {
       const group = raw as ItemGroup
-      const members = group.members || []
-      if (members.length === 0) {
-        setValidationError(`组套【${group.name}】未配置任何项目明细`)
-        return
-      }
-      const newServiceDrafts: ServicePlanDraft[] = members.map((m, idx) => ({
-        id: globalThis.crypto.randomUUID(),
-        sequence: Date.now() + idx,
-        serviceType: m.serviceType || 'LABORATORY',
-        catalogItemId: m.catalogItemId,
-        itemCode: m.itemCode,
-        itemName: m.itemName,
-        quantity: m.quantity || 1,
-        unitCode: m.unitCode || '项',
-        clinicalDescription: m.memberDescription,
-      }))
-      setServiceDrafts((cur) => [...cur, ...newServiceDrafts])
-      setSuccessToast(`已成功调入组套【${group.name}】共 ${newServiceDrafts.length} 项项目`)
-      setEditingDraft(null)
-      setComposerOpen(true)
-      shouldFocusOnOpenRef.current = true
-      selectMedication(undefined)
-      setService(undefined)
-      setServiceQuantity(1)
-      setServiceDescription('')
-      setEntryType('ALL')
-      setValidationError('')
-      focusResource('ALL')
+      setSuccessToast('')
+      void groupImport.start(group)
       return
     }
 
@@ -533,11 +519,11 @@ export function UnifiedOrderListEditor({
       const next = { ...current, [field]: value }
       if (field === 'quantity') {
         next.isManualQuantity = true
-      } else if (['doseValue', 'frequencyCode', 'durationValue', 'dispenseOptionKey'].includes(field as string)) {
+      } else if (['doseValue', 'doseUnit', 'frequencyCode', 'durationValue', 'dispenseOptionKey'].includes(field as string)) {
         if (!next.isManualQuantity) {
           const currentMed = next.medication?.raw
           const options = currentMed ? resolveDispensableOptions(currentMed, encounter.organizationId) : []
-          const pkg = options.find((opt) => opt.key === next.dispenseOptionKey) ?? options[0]
+          const pkg = options.find((opt) => opt.key === next.dispenseOptionKey)
           const calc = calculatePackageQuantity({
             medication: currentMed,
             doseValue: next.doseValue,
@@ -549,7 +535,7 @@ export function UnifiedOrderListEditor({
           })
           if (calc?.quantity) {
             next.quantity = calc.quantity
-          } else if (resolveFrequencyTimesPerDay(frequencies.data, next.frequencyCode) === null) {
+          } else {
             next.quantity = ''
           }
         }
@@ -604,10 +590,13 @@ export function UnifiedOrderListEditor({
   }
 
   function addCurrentEntry() {
+    if (busy || readOnly || groupImport.pending) return
     if (!isMedication) {
       const selected = service?.raw
-      if (!selected || serviceQuantity <= 0) { setValidationError('请选择诊疗项目并填写数量'); return }
-      const activePrice = selected.prices?.find((p) => p.sdStatus === 'ACTIVE') ?? selected.prices?.[0]
+      if (!selected || !Number.isFinite(serviceQuantity) || serviceQuantity <= 0) { setValidationError('请选择诊疗项目并填写数量'); return }
+      const pricing = resolveServicePricing(selected, encounter.organizationId)
+      if (pricing.error) { setValidationError(pricing.error); return }
+      const activePrice = pricing.price
       setServiceDrafts((current) => [...current, {
         id: globalThis.crypto.randomUUID(), sequence: Date.now(), serviceType: selected.sdServiceType,
         catalogItemId: selected.id, itemCode: selected.code, itemName: selected.name,
@@ -629,8 +618,7 @@ export function UnifiedOrderListEditor({
     if (!medication) { setValidationError('请选择药品'); return }
     const product = resolveDispensableOptions(medication, encounter.organizationId)
       .find((value) => value.key === medicationEntry.dispenseOptionKey)
-      ?? resolveDispensableOptions(medication, encounter.organizationId)[0]
-    if (!product) { setValidationError('该药品未配置当前机构可发药产品、包装或有效价格'); return }
+    if (!product) { setValidationError('所选发药产品、包装或有效价格尚未确认，请核实目录后重新选择'); return }
     if (medicationEntry.doseValue === '' || Number(medicationEntry.doseValue) <= 0 || !medicationEntry.doseUnit.trim()) {
       setValidationError('请完整填写剂量'); return
     }
@@ -704,7 +692,7 @@ export function UnifiedOrderListEditor({
         allergyOverrideReason: medicationEntry.allergyOverrideReason.trim() || undefined,
         skinTestExempt: medicationEntry.skinTestExempt,
         skinTestExemptReason: medicationEntry.skinTestExempt
-          ? (medicationEntry.skinTestExemptReason?.trim() || '周期内已有阴性结果（有效时间内）')
+          ? medicationEntry.skinTestExemptReason?.trim()
           : undefined,
         exemptEvidenceEventId: medicationEntry.exemptEvidenceEventId,
         priceType: product.priceType, pricingRequired: true,
@@ -881,6 +869,7 @@ export function UnifiedOrderListEditor({
           <OrderComposerResource entryType={entryType} changeType={changeType} hasEnteredOrder={hasEnteredOrder}
             isMedication={isMedication} selectedProduct={selectedProduct} grouping={Boolean(groupingSession)}
             api={api} encounter={encounter} searchMode={searchMode} changeSearchMode={changeSearchMode}
+            disabled={busy || readOnly || groupImport.pending}
             medicationOption={medicationEntry.medication} service={service} handleOrderResourceSelect={handleOrderResourceSelect} />
 
           <OrderComposerDirections entryType={entryType} isMedication={isMedication} hasEnteredOrder={hasEnteredOrder}
@@ -928,8 +917,8 @@ export function UnifiedOrderListEditor({
           ) : (
             <div className="doctor-inline-order-static doctor-inline-order-price">
               {(() => {
-                const activePrice = service?.raw?.prices?.find((p) => p.sdStatus === 'ACTIVE') ?? service?.raw?.prices?.[0]
-                return activePrice ? formatUnitPrice(activePrice.price, activePrice.currencyCode) : '—'
+                const pricing = service?.raw ? resolveServicePricing(service.raw, encounter.organizationId) : undefined
+                return pricing?.price ? formatUnitPrice(pricing.price.price, pricing.price.currencyCode) : service ? '价格待确认' : '—'
               })()}
             </div>
           )}
@@ -973,20 +962,28 @@ export function UnifiedOrderListEditor({
           </div>
         )}
 
-        <OrderComposerSafety hasSafetyAlert={hasSafetyAlert} allergyVerificationMissing={allergyVerificationMissing}
+        <OrderComposerSafety skinTests={skinTests} hasSafetyAlert={hasSafetyAlert} allergyVerificationMissing={allergyVerificationMissing}
           isAllergyHit={isAllergyHit} hasKnownAllergies={hasKnownAllergies} matchedAllergies={matchedAllergies}
           drugAllergies={drugAllergies} isSkinTest={isSkinTest} hasPositiveSkinTest={hasPositiveSkinTest}
           isAntimicrobial={isAntimicrobial} antimicrobialLevelText={currentMedication?.sdAntimicrobialLevelText}
-          recentNegativeItem={recentNegativeItem} medicationEntry={medicationEntry} updateMedication={updateMedication}
-          onChangeReason={(reason) => setMedicationEntry((current) => ({ ...current, skinTestExemptReason: reason }))}
+          skinTestHistory={skinTestHistory} recentNegativeItem={recentNegativeItem} medicationEntry={medicationEntry} updateMedication={updateMedication}
+          onChangeReason={(reason) => setMedicationEntry((current) => ({ ...current, skinTestExemptReason: reason, exemptEvidenceEventId: undefined }))}
           onChangeExemption={(checked, evidence) => setMedicationEntry((current) =>
             withSkinTestExemption(current, checked, evidence))} />
 
-        {frequencyQuantityUnavailable && entryType !== 'HERBAL' && (
+        {currentMedication && !calcResult && entryType !== 'HERBAL' && (
           <div className="doctor-unified-order-subrow" role="row">
-            <Alert className="doctor-unified-order-alert" tone="warning">当前频次无法自动推算总量，请核对并手动填写数量。</Alert>
+            <div className="doctor-unified-order-alert" role="alert">{frequencyQuantityUnavailable
+              ? '当前频次无法自动推算总量，请核对并手动填写数量。'
+              : '剂量、疗程或包装信息不足，无法自动推算总量，请核对并手动填写数量。'}</div>
           </div>
         )}
+        {(groupImport.pending || groupImport.error) && <div className="doctor-unified-order-subrow" role="row">
+          <div className="doctor-unified-order-alert" role={groupImport.error ? 'alert' : 'status'}>
+            {groupImport.error || '正在核对组套目录、执行科室和销售价格…'}
+            {groupImport.error && <Button variant="text" size="sm" onClick={groupImport.retry}>重试导入组套</Button>}
+          </div>
+        </div>}
         {(validationError || frequencies.error || routes.error) && (
           <div className="doctor-unified-order-subrow doctor-unified-order-error" role="row">
             <Alert className="doctor-unified-order-alert">

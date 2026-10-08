@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { Resident } from '../../shared/model'
@@ -76,6 +76,13 @@ function createMockApi(overrides: Partial<RhnApi['residents']> = {}) {
   const searchMock = vi.fn().mockResolvedValue([sampleResident1])
 
   return {
+    dictionaries: {
+      resolve: vi.fn().mockImplementation(async (code: string) => code === 'PI_RESIDENT_IDENTIFIER_SYSTEM'
+        ? [{ code: '1', name: '居民身份证', sortOrder: 1 }, { code: '6', name: '护照', sortOrder: 2 },
+          { code: 'SOCIAL_SECURITY_CARD', name: '社会保障卡', sortOrder: 3 }]
+        : code === 'INS_COVERAGE_TYPE' ? [{ code: '02', name: '居民医疗保障', sortOrder: 1 }] : []),
+      get: vi.fn(),
+    },
     residents: {
       page: pageMock,
       profile: profileMock,
@@ -106,6 +113,118 @@ function renderWorkspace(api: RhnApi, onNavigate = vi.fn()) {
 }
 
 describe('ResidentCenterWorkspace', () => {
+  const validPage: ResidentPageView = { content: [sampleResident1, sampleResident2], page: 0, size: 20,
+    totalElements: 2, totalPages: 1, first: true, last: true }
+
+  it('reports unavailable counts on list failures and recovers through refresh', async () => {
+    const page = vi.fn().mockRejectedValueOnce(new Error('居民查询失败')).mockResolvedValue(validPage)
+    renderWorkspace(createMockApi({ page }))
+    expect(await screen.findByText('居民查询失败')).toBeInTheDocument()
+    expect(screen.getByText('档案数量暂不可用')).toBeInTheDocument()
+    expect(screen.queryByText('共 0 条档案记录')).not.toBeInTheDocument()
+    expect(screen.queryByText('未找到居民档案记录')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '刷新' }))
+    expect(await screen.findByText('共 2 条档案记录')).toBeInTheDocument()
+  })
+
+  it.each([
+    null, {}, { ...validPage, content: null }, { ...validPage, totalElements: -1 },
+    { ...validPage, totalElements: 0 }, { ...validPage, totalPages: 9 }, { ...validPage, page: 1 },
+    { ...validPage, content: [sampleResident1, sampleResident1] },
+    { ...validPage, content: [sampleResident1, { ...sampleResident2, status: 'UNRECOGNIZED' }] },
+    { ...validPage, content: [sampleResident1, { ...sampleResident2, deceased: undefined }] },
+  ])('does not present malformed resident data as a successful empty or valid roster: %j', async response => {
+    renderWorkspace(createMockApi({ page: vi.fn().mockResolvedValue(response) }))
+    expect(await screen.findByText('档案数量暂不可用')).toBeInTheDocument()
+    expect(screen.queryByText('共 0 条档案记录')).not.toBeInTheDocument()
+    expect(screen.queryByText('未找到居民档案记录')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '查看档案' })).not.toBeInTheDocument()
+  })
+
+  it('distinguishes a valid empty roster from a failed request', async () => {
+    renderWorkspace(createMockApi({ page: vi.fn().mockResolvedValue({ ...validPage, content: [], totalElements: 0, totalPages: 0 }) }))
+    expect(await screen.findByText('共 0 条档案记录')).toBeInTheDocument()
+    expect(screen.getByText('未找到居民档案记录')).toBeInTheDocument()
+  })
+
+  it.each([['MERGED', '已合并'], ['INACTIVE', '已停用']] as const)(
+    'uses current profile status %s instead of claiming an effective resident', async (status, label) => {
+      const profile = { ...sampleProfile1, resident: { ...sampleResident1, status } }
+      renderWorkspace(createMockApi({ profile: vi.fn().mockResolvedValue(profile) }))
+      fireEvent.click((await screen.findAllByRole('button', { name: '查看档案' }))[0])
+      expect(await screen.findByText(label)).toBeInTheDocument()
+      expect(screen.queryByText('有效居民')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '门诊挂号' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: '维护档案' })).toBeDisabled()
+    }
+  )
+
+  it.each([
+    { ...sampleProfile1, resident: sampleResident2 },
+    { ...sampleProfile1, addresses: null },
+    { ...sampleProfile1, demographicProfile: null },
+  ])('rejects mismatched or incomplete profile data: %j', async response => {
+    renderWorkspace(createMockApi({ profile: vi.fn().mockResolvedValue(response) }))
+    fireEvent.click((await screen.findAllByRole('button', { name: '查看档案' }))[0])
+    expect(await screen.findByRole('button', { name: '重新读取居民档案' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '门诊挂号' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '维护档案' })).toBeDisabled()
+    expect(screen.queryByText('有效居民')).not.toBeInTheDocument()
+  })
+
+  it('hides stale profile facts and disables actions through a failed refresh', async () => {
+    const profile = vi.fn().mockResolvedValue(sampleProfile1)
+    const { queryClient } = renderWorkspace(createMockApi({ profile }))
+    fireEvent.click((await screen.findAllByRole('button', { name: '查看档案' }))[0])
+    expect(await screen.findByText('户籍人口')).toBeInTheDocument()
+    let reject!: (reason: Error) => void
+    profile.mockImplementationOnce(() => new Promise((_resolve, rejectRead) => { reject = rejectRead }))
+    act(() => { void queryClient.invalidateQueries({ queryKey: ['resident-profile', sampleResident1.id] }) })
+    expect(await screen.findByText('正在加载居民档案…')).toBeInTheDocument()
+    expect(screen.queryByText('有效居民')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '维护档案' })).toBeDisabled()
+    await act(async () => reject(new Error('档案刷新失败')))
+    expect(await screen.findByText('档案刷新失败')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '门诊挂号' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: '重新读取居民档案' }))
+    expect(await screen.findByText('户籍人口')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '维护档案' })).toBeEnabled()
+  })
+
+  it('hides cached roster rows and totals while refreshing or failed', async () => {
+    const page = vi.fn().mockResolvedValue(validPage)
+    const { queryClient } = renderWorkspace(createMockApi({ page }))
+    expect(await screen.findByText('共 2 条档案记录')).toBeInTheDocument()
+    let reject!: (reason: Error) => void
+    page.mockImplementationOnce(() => new Promise((_resolve, rejectRead) => { reject = rejectRead }))
+    act(() => { void queryClient.invalidateQueries({ queryKey: ['residents-page'] }) })
+    expect(await screen.findByText('正在加载居民档案列表…')).toBeInTheDocument()
+    expect(screen.queryByText('共 2 条档案记录')).not.toBeInTheDocument()
+    expect(screen.queryByText('赵大海')).not.toBeInTheDocument()
+    await act(async () => reject(new Error('名单刷新失败')))
+    expect(await screen.findByText('档案数量暂不可用')).toBeInTheDocument()
+    expect(screen.queryByText('赵大海')).not.toBeInTheDocument()
+  })
+
+  it('preserves unsaved edits but blocks saving until the profile is confirmed again', async () => {
+    const profile = vi.fn().mockResolvedValue(sampleProfile1)
+    const api = createMockApi({ profile })
+    Object.assign(api, { dictionaries: { resolve: vi.fn().mockResolvedValue([]), get: vi.fn() } })
+    const { queryClient } = renderWorkspace(api)
+    fireEvent.click((await screen.findAllByRole('button', { name: '查看档案' }))[0])
+    await screen.findByText('户籍人口')
+    fireEvent.click(screen.getByRole('button', { name: '维护档案' }))
+    fireEvent.change(screen.getByLabelText(/^姓名/), { target: { value: '待保存姓名' } })
+    profile.mockRejectedValueOnce(new Error('档案刷新失败'))
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['resident-profile', sampleResident1.id] }) })
+    await waitFor(() => expect(screen.getByRole('button', { name: '保存档案' })).toBeDisabled())
+    expect(screen.getByLabelText(/^姓名/)).toHaveValue('待保存姓名')
+    expect(api.residents.updateProfile).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '重新确认档案' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '保存档案' })).toBeEnabled())
+    expect(screen.getByLabelText(/^姓名/)).toHaveValue('待保存姓名')
+  })
+
   it('renders the resident roster table with correct items and pagination', async () => {
     const api = createMockApi()
     renderWorkspace(api)
@@ -192,7 +311,7 @@ describe('ResidentCenterWorkspace', () => {
     expect(onNavigate).toHaveBeenCalledWith('/outpatient/registration?residentId=resident-1')
   })
 
-  it('opens CreateResidentDialog and parses national ID automatically', async () => {
+  it('parses a valid national ID without fabricating coverage, nationality or ethnicity in the create payload', async () => {
     const api = createMockApi()
     renderWorkspace(api)
 
@@ -215,10 +334,64 @@ describe('ResidentCenterWorkspace', () => {
       expect(birthDateInput.value).toBe('1990-08-15')
     })
 
-    // Also check that coverage is synced
-    await waitFor(() => {
-      const memberNoInput = screen.getByPlaceholderText(/自动关联社保卡或身份证/) as HTMLInputElement
-      expect(memberNoInput.value).toBe('33010219900815123X')
-    })
+    expect(screen.queryByLabelText('个人编号/卡号')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/^姓名/), { target: { value: '测试居民' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存居民档案' }))
+    await waitFor(() => expect(api.residents.create).toHaveBeenCalled())
+    const payload = vi.mocked(api.residents.create).mock.calls[0][0]
+    expect(payload.coverages).toEqual([])
+    expect(payload.demographicProfile?.nationalityCode).toBeUndefined()
+    expect(payload.demographicProfile?.ethnicityCode).toBeUndefined()
+  })
+
+  it('does not parse a passport as a national ID just because the number has 18 characters', async () => {
+    renderWorkspace(createMockApi())
+    fireEvent.click(screen.getByRole('button', { name: /新建居民/ }))
+    await waitFor(() => expect(screen.getByRole('combobox', { name: '第1项证件/卡类型' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('combobox', { name: '第1项证件/卡类型' }))
+    fireEvent.click(await screen.findByRole('option', { name: /护照/ }))
+    fireEvent.change(screen.getByLabelText(/^出生日期/), { target: { value: '1988-01-01' } })
+    fireEvent.change(screen.getByPlaceholderText('录入护照号码'), { target: { value: '33010219900815123X' } })
+    expect(screen.getByLabelText(/^出生日期/)).toHaveValue('1988-01-01')
+    expect(within(screen.getByRole('dialog', { name: '新建居民' })).getByRole('combobox', { name: '性别' })).toHaveTextContent('未知')
+    expect(screen.queryByLabelText('个人编号/卡号')).not.toBeInTheDocument()
+  })
+
+  it('preserves explicitly entered coverage while identity documents change', async () => {
+    const api = createMockApi()
+    renderWorkspace(api)
+    fireEvent.click(screen.getByRole('button', { name: /新建居民/ }))
+    fireEvent.click(screen.getByRole('button', { name: '新增保障信息' }))
+    expect(screen.getByLabelText(/^支付方名称/)).toHaveValue('')
+    expect(screen.getByLabelText('第1项保障生效日期')).toHaveValue('')
+    await waitFor(() => expect(screen.getByLabelText('第1项保障类型')).toBeEnabled())
+    fireEvent.click(screen.getByLabelText('第1项保障类型'))
+    fireEvent.click(await screen.findByRole('option', { name: /居民医疗保障/ }))
+    fireEvent.change(screen.getByLabelText(/^支付方名称/), { target: { value: '实际支付机构' } })
+    fireEvent.change(screen.getByLabelText('个人编号/卡号'), { target: { value: 'MEMBER-007' } })
+    fireEvent.change(screen.getByLabelText('第1项保障生效日期'), { target: { value: '2021-01-01' } })
+    fireEvent.blur(screen.getByLabelText('第1项保障生效日期'))
+    fireEvent.change(screen.getByPlaceholderText(/录入18位身份证/), { target: { value: '33010219900815123X' } })
+    fireEvent.click(screen.getByLabelText(/证件\/卡类型/))
+    fireEvent.click(await screen.findByRole('option', { name: /社会保障卡/ }))
+    fireEvent.change(screen.getByPlaceholderText('录入社保卡号 / 社会保障号码'), { target: { value: 'SOCIAL-12345678' } })
+    expect(screen.getByLabelText(/^支付方名称/)).toHaveValue('实际支付机构')
+    expect(screen.getByLabelText('个人编号/卡号')).toHaveValue('MEMBER-007')
+    expect(screen.getByLabelText('第1项保障类型')).toHaveTextContent('居民医疗保障')
+    fireEvent.change(screen.getByLabelText(/^姓名/), { target: { value: '测试居民' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存居民档案' }))
+    await waitFor(() => expect(api.residents.create).toHaveBeenCalled())
+    expect(vi.mocked(api.residents.create).mock.calls[0][0].coverages).toEqual([
+      expect.objectContaining({ sdCoverageType: '02', payerName: '实际支付机构', memberNo: 'MEMBER-007', validFrom: '2021-01-01' }),
+    ])
+  })
+
+  it.each([['PASSPORT', 'E123****5678', '护照'], ['OTHER', 'YB12****5678', '其他证件/卡'],
+    ['HEALTH_CARD', 'MRN1****5678', '电子健康卡']])('labels a %s from its registered type instead of the number prefix', async (system, maskedValue, label) => {
+    renderWorkspace(createMockApi({ profile: vi.fn().mockResolvedValue({ ...sampleProfile1,
+      resident: { ...sampleResident1, identifiers: [{ ...sampleResident1.identifiers[0], system, maskedValue }] },
+    }) }))
+    fireEvent.click((await screen.findAllByRole('button', { name: '查看档案' }))[0])
+    expect(await screen.findByText(`${label}: ${maskedValue}`)).toBeInTheDocument()
   })
 })

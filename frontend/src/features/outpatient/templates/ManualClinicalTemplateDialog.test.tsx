@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { ManualClinicalTemplateDialog } from './ManualClinicalTemplateDialog'
+import { editorStandardsFixture } from './templateEditorFacts.testFixtures'
 
 function mockApi() {
   const orderableMedications = vi.fn()
@@ -22,7 +23,7 @@ function mockApi() {
       diseases: vi.fn(), medications: vi.fn(), services: vi.fn(),
       searchMedications: vi.fn().mockResolvedValue({ content: [], totalElements: 0, totalPages: 0, page: 0, size: 30 }),
       searchServices: vi.fn().mockResolvedValue({ content: [], totalElements: 0, totalPages: 0, page: 0, size: 30 }),
-      clinicalMedicationStandards: vi.fn().mockResolvedValue({ version: '1', doseUnits: [], routes: [], frequencies: [] }),
+      clinicalMedicationStandards: vi.fn().mockResolvedValue(editorStandardsFixture()),
     },
   } as unknown as RhnApi
 }
@@ -95,7 +96,7 @@ describe('ManualClinicalTemplateDialog', () => {
     const api = mockApi()
     const onSaved = vi.fn()
     vi.mocked(api.outpatientPlanTemplates.update).mockImplementation(async (_id, input) => ({
-      id: 'plan-1', revision: 4, status: 'ACTIVE', sourceType: 'MANUAL', sortOrder: 0, useCount: 0,
+      id: 'plan-1', revision: 4, status: 'ACTIVE', sourceType: 'MANUAL', sortOrder: 0, useCount: 2,
       createdAt: '2026-09-25T00:00:00Z', updatedAt: '2026-09-28T00:00:00Z', tasks: [], ...input,
     } as never))
     const editingPlan = {

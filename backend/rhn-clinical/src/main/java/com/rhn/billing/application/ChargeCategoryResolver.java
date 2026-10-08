@@ -14,7 +14,7 @@ import java.util.Map;
  * 1. 优先读取费用明细的会计大类快照 (SD_ACCTG_CAT)；
  * 2. 结合租户字典 (BD_ACCOUNTING_CATEGORY) 动态解析标准分类或机构自定义扩展分类；
  * 3. 对未知或自定义分类保持代码独立归并（避免粗暴混入其他费）；
- * 4. 对未标注 SD_ACCTG_CAT 的历史数据按业务来源类型 (SD_SRC_TYPE) 平滑降级兼容。
+ * 4. 未标注分类的历史数据明确显示“分类未确认”，不根据业务来源补齐分类。
  */
 @Component
 public class ChargeCategoryResolver {
@@ -49,30 +49,26 @@ public class ChargeCategoryResolver {
      * 根据 ChargeItem 解析归并分类及显示名称
      */
     public ChargeCategory resolve(Long tenantId, ChargeItem charge) {
-        if (charge == null) return new ChargeCategory("OTHER", "其他费用");
+        if (charge == null) return unclassified();
         String category = charge.accountingCategory();
         if (category != null && !category.isBlank()) {
             return resolveByCode(tenantId, category.trim());
         }
-        return resolveFallback(charge.sourceType());
+        return unclassified();
     }
 
     /**
      * 根据分类编码与租户上下文解析分类对象
      */
     public ChargeCategory resolveByCode(Long tenantId, String code) {
-        if (code == null || code.isBlank()) return new ChargeCategory("OTHER", "其他费用");
+        if (code == null || code.isBlank() || "UNCLASSIFIED".equals(code.trim())) return unclassified();
         String trimmed = code.trim();
         // 1. 尝试从租户字典中解析自定义或标准字典条目名称
         if (dictionaryDirectory != null && tenantId != null) {
-            try {
-                Map<String, String> dict = dictionaryDirectory.resolveItemTexts(
-                        tenantId, MasterDataDictionaryCodes.ACCOUNTING_CATEGORY);
-                if (dict != null && dict.containsKey(trimmed)) {
-                    return new ChargeCategory(trimmed, dict.get(trimmed));
-                }
-            } catch (Exception ignored) {
-                // 忽略字典查询异常，降级到内置标准映射
+            Map<String, String> dict = dictionaryDirectory.resolveItemTexts(tenantId, MasterDataDictionaryCodes.ACCOUNTING_CATEGORY);
+            if (dict == null) throw new IllegalStateException("会计分类字典未返回，无法确认分类名称");
+            if (dict.containsKey(trimmed) && dict.get(trimmed) != null && !dict.get(trimmed).isBlank()) {
+                return new ChargeCategory(trimmed, dict.get(trimmed));
             }
         }
         // 2. 内置标准分类映射
@@ -80,28 +76,15 @@ public class ChargeCategoryResolver {
         if (label != null) {
             return new ChargeCategory(trimmed, label);
         }
-        // 3. 用户自定义分类但暂未在字典中录入中文：保留编码并提供人性化默认名称
-        return new ChargeCategory(trimmed, humanizeCode(trimmed));
+        // 3. 自定义分类缺少名称时只展示原编码，不生成仿真的分类名称
+        return new ChargeCategory(trimmed, trimmed);
     }
 
     public String label(Long tenantId, String code) {
         return resolveByCode(tenantId, code).name();
     }
 
-    private ChargeCategory resolveFallback(String sourceType) {
-        if (sourceType == null) return new ChargeCategory("OTHER", "其他费");
-        if ("DIRECT_VISIT_SERVICE".equals(sourceType)) return new ChargeCategory("TREATMENT", "诊疗费");
-        if (sourceType.startsWith("REGISTRATION")) return new ChargeCategory("REGISTRATION", "挂号费");
-        if (sourceType.startsWith("INPATIENT_BED_DAY")) return new ChargeCategory("BED", "床位费");
-        if (sourceType.startsWith("MEDICATION_") || sourceType.equals("MED_DISPENSE"))
-            return new ChargeCategory("MEDICATION", "药品费");
-        if (sourceType.startsWith("SERVICE_REQUEST")) return new ChargeCategory("TREATMENT", "诊疗费");
-        return new ChargeCategory("OTHER", "其他费");
-    }
-
-    private String humanizeCode(String code) {
-        if (code == null || code.isBlank()) return "其他费用";
-        String replaced = code.replace('_', ' ').toLowerCase();
-        return Character.toUpperCase(replaced.charAt(0)) + replaced.substring(1);
+    private ChargeCategory unclassified() {
+        return new ChargeCategory("UNCLASSIFIED", "分类未确认");
     }
 }

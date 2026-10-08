@@ -8,7 +8,8 @@ import type {
   ClinicalAiDraftContext, ClinicalAiTreatmentRecommendation, ClinicalAiPlanPreflight, ClinicalAiRecommendedPlan, ClinicalAiSuggestion,
   ClinicalAiSuggestionEventType,
 } from '../../../shared/api/clinicalAiApi'
-import type { DiagnosisInput } from '../../../shared/api/encountersApi'
+import { canonicalizeAiDiagnoses } from './canonicalAiDiagnoses'
+import { diagnosisIdentityKey } from '../record/diagnosisIdentity'
 import type { OutpatientPlanTemplate } from '../../../shared/api/outpatientPlanTemplatesApi'
 import type { AllergyIntolerance } from '../../../shared/api/residentsApi'
 import type { Encounter } from '../../../shared/model'
@@ -19,6 +20,10 @@ import {
   recordDraftFieldLabels, aiRecordDraftFields, formatAiRecordDraftValue, stableClinicalAiFingerprint, mergeAiRecordDraft, mergeAiDiagnoses,
 } from './aiDraftAdapter'
 
+import type { PrepareAiPlan } from '../record/useAiPlanApplication'
+import { requireUsedPlanReceipt, templateApiScope } from '../templates/templateApplicationReceipt'
+import { requirePlanPreflight } from './planPreflightReceipt'
+
 interface AiAdoptionIntent {
   suggestion: ClinicalAiSuggestion
   request: ClinicalAiDraftRequest
@@ -27,6 +32,7 @@ interface AiAdoptionIntent {
   commandKey?: string
   planTemplateId?: string
   selectedPlanTemplate?: OutpatientPlanTemplate
+  viewedPlanTemplate?: OutpatientPlanTemplate
   closePlan?: boolean
   eventDetail?: string
   allergyReviewConfirmed?: boolean
@@ -34,7 +40,7 @@ interface AiAdoptionIntent {
 }
 
 export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies, allergyState, api, disabled,
-  onAdoptionBusyChange, onApply, surfaces, onOpenDetail, onOpenHistory, onOpenResults, historyEncounters, onFieldStream,
+  onAdoptionBusyChange, onApply, onPreparePlan, surfaces, onOpenDetail, onOpenHistory, onOpenResults, historyEncounters, onFieldStream,
   onReviewTreatment, onReviewRecommendedPlan, existingTreatmentKeys = [] }: {
   encounter: Encounter
   currentContext: ClinicalAiDraftContext
@@ -44,6 +50,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   disabled: boolean
   onAdoptionBusyChange: (busy: boolean) => void
   onApply: (request: ClinicalAiDraftRequest) => void
+  onPreparePlan?: PrepareAiPlan
   surfaces?: ClinicalAiSurfaces
   onOpenDetail?: () => void
   onOpenHistory?: () => void
@@ -127,7 +134,13 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const latestAllergyState = useRef(allergyState)
   latestContext.current = currentContext
   latestAllergyState.current = allergyState
-  const scopeKey = [encounter.organizationId, encounter.departmentId, encounter.clinicianId ?? 'UNASSIGNED']
+  const scopeKey = [templateApiScope(api), encounter.organizationId, encounter.departmentId, encounter.clinicianId ?? 'UNASSIGNED']
+  const adoptionScope = JSON.stringify([scopeKey, encounter.id, encounter.residentId, disabled, viewMode])
+  const adoptionGeneration = useRef(0), previousAdoptionScope = useRef(adoptionScope)
+  if (previousAdoptionScope.current !== adoptionScope) {
+    adoptionGeneration.current += 1; previousAdoptionScope.current = adoptionScope
+  }
+  useEffect(() => () => { adoptionGeneration.current += 1 }, [])
   const historyQueryKey = ['clinical-ai-suggestion-history', encounter.id, ...scopeKey]
   const capabilities = useQuery({ queryKey: ['clinical-ai-capabilities', ...scopeKey], queryFn: api.clinicalAi.capabilities,
     staleTime: 5 * 60 * 1000, retry: false })
@@ -295,60 +308,57 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   })
   const adoptDraft = useMutation({
     mutationFn: async (value: AiAdoptionIntent) => {
-      requireCurrentAdoption(value.suggestion, value.request, latestContext.current, encounter)
       let request = value.request
+      const generation = adoptionGeneration.current
+      const assertCurrent = () => {
+        if (generation !== adoptionGeneration.current) throw new Error('工作上下文或 AI 面板已变化，本次未带入，请重新核对。')
+        requireCurrentAdoption(value.suggestion, request, latestContext.current, encounter)
+      }
+      assertCurrent()
       if (request.diagnoses?.length) {
-        request = { ...request, diagnoses: await canonicalizeActiveDiagnoses(api, request.diagnoses) }
+        request = { ...request, diagnoses: await canonicalizeAiDiagnoses(api, request.diagnoses, 'model') }
       }
       if (value.planTemplateId) {
         const planTemplateId = value.planTemplateId
         if (latestAllergyState.current !== 'READY' || latestContext.current.allergyState !== 'READY') {
           throw new Error('患者过敏信息尚未就绪，不能带入诊疗方案。')
         }
-        const selected = value.selectedPlanTemplate
+        const selected = value.selectedPlanTemplate, viewed = value.viewedPlanTemplate
+        if (!selected || !viewed || selected.id !== planTemplateId || !onPreparePlan) {
+          throw new Error('方案或当前编辑器未确认，本次未带入。')
+        }
         const selectedMedicationLineIds = selected?.medications.map((item) => item.lineId) ?? []
         if (selectedMedicationLineIds.length) {
-          const preflight = await api.clinicalAi.preflightPlan(encounter.id, planTemplateId, {
+          const preflight = requirePlanPreflight(await api.clinicalAi.preflightPlan(encounter.id, planTemplateId, {
             selectedMedicationLineIds,
             allergyReviewConfirmed: Boolean(value.allergyReviewConfirmed),
             allergyOverrideReason: value.allergyOverrideReason,
-          })
+          }), selected)
           if (preflight.status === 'BLOCKED') {
             throw new Error(`方案预检未通过，仍有 ${preflight.blockingCount} 项阻断问题。`)
           }
-          if (selected && preflight.templateRevision !== selected.revision) {
-            throw new Error('院内方案在核对期间发生变化，请重新分析。')
-          }
           value = { ...value, eventDetail: appendPreflightDetail(value.eventDetail, preflight) }
         }
+        assertCurrent()
         const currentTemplate = await api.outpatientPlanTemplates.use(planTemplateId)
         if (latestAllergyState.current !== 'READY') {
           throw new Error('患者过敏信息在方案核对期间发生刷新，不能带入诊疗方案。')
         }
-        const selectedDiagnosisKeys = new Set(selected?.diagnoses.map(planDiagnosisKey))
-        const selectedMedicationKeys = new Set(selected?.medications.map(planMedicationKey))
-        const selectedServiceKeys = new Set(selected?.services.map(planServiceKey))
-        const planTemplate = selected ? {
-          ...currentTemplate,
-          diagnoses: currentTemplate.diagnoses.filter((item) => selectedDiagnosisKeys.has(planDiagnosisKey(item))),
-          medications: currentTemplate.medications.filter((item) => selectedMedicationKeys.has(planMedicationKey(item))),
-          services: currentTemplate.services.filter((item) => selectedServiceKeys.has(planServiceKey(item))),
-        } : currentTemplate
-        if (selected && (planTemplate.diagnoses.length !== selected.diagnoses.length
-          || planTemplate.medications.length !== selected.medications.length
-          || planTemplate.services.length !== selected.services.length)) {
-          throw new Error('院内方案条目在核对期间发生变化，请重新分析。')
-        }
-        const planDiagnoses = await canonicalizeActiveDiagnoses(api, planTemplate.diagnoses)
+        const planTemplate = requireUsedPlanReceipt(currentTemplate, viewed, selected)
+        const planDiagnoses = await canonicalizeAiDiagnoses(api, planTemplate.diagnoses, 'plan')
         request = { ...request, planTemplate: { ...planTemplate, diagnoses: planDiagnoses } }
       }
-      requireCurrentAdoption(value.suggestion, request, latestContext.current, encounter)
+      assertCurrent()
+      const commitPlan = request.planTemplate ? await onPreparePlan!(request) : undefined
+      if (request.planTemplate && typeof commitPlan !== 'function') throw new Error('方案核对结果未确认，本次未带入。')
+      assertCurrent()
       await api.clinicalAi.recordEvent(value.suggestion.id,
         eventInput(value.suggestion, 'ADOPTED', value.sectionCode, value.commandCode, value.eventDetail))
-      return { ...value, request }
+      return { ...value, request, commitPlan, assertCurrent }
     },
     onSuccess: (value) => {
-      if (!guardCurrent(value.suggestion, latestContext.current, setLocalError, value.request, encounter)) return
+      value.assertCurrent()
+      value.commitPlan?.()
       adoptionCommands.current.delete(`${value.suggestion.id}:${value.commandKey ?? value.sectionCode}`)
       if (value.closePlan) setSelectedPlan(null)
       if (!value.request.planTemplate) {
@@ -368,7 +378,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
           controls: controlsKey,
         }
       }
-      onApply(value.request)
+      if (!value.request.planTemplate) onApply(value.request)
     },
   })
   const ignoreSuggestion = useMutation({
@@ -490,18 +500,23 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       {realtimeListening && <span className="doctor-ai-voice-pulse" aria-hidden="true" />}
     </Button>
   )
-  const planReview = !historicalView && selectedPlan && <AiPlanReviewDialog recommendation={selectedPlan} api={api} encounterId={encounter.id}
+  const planReview = !historicalView && selectedPlan && <AiPlanReviewDialog recommendation={selectedPlan} api={api} encounterId={encounter.id} contextForPreflight={currentContext}
       template={templates.data?.find((value) => value.id === selectedPlan.templateId)}
       allergies={allergies} allergyState={allergyState} suggestion={suggestion!}
       recordAvailable={!surfaces && recordEntries.length > 0} diagnosisAvailable={!surfaces && diagnosisDrafts.length > 0}
-      disabled={disabled || !current || !auditFeature} busy={adoptDraft.isPending} error={adoptDraft.error}
+      disabled={disabled || !current || !auditFeature || templates.isFetching || templates.isError} busy={adoptDraft.isPending} error={adoptDraft.error}
       onClose={() => setSelectedPlan(null)} onApply={(template, safetyConfirmed, overrideReason, includeClinicalDraft,
         eventDetail) => {
         if (!guardCurrent(suggestion!, latestContext.current, setLocalError, undefined, encounter)) return
+        const viewed = templates.data?.find(item => item.id === template.id)
+        if (!viewed || templates.isFetching || templates.isError) {
+          setLocalError('方案目录尚未确认，请重新加载核对。'); return
+        }
         const context = latestContext.current
         const sectionCode = includeClinicalDraft ? 'ALL' : `PLAN:${template.id}`
         adoptDraft.mutate({ suggestion: suggestion!, planTemplateId: template.id,
-          selectedPlanTemplate: template, closePlan: true,
+          selectedPlanTemplate: structuredClone(template),
+          viewedPlanTemplate: structuredClone(viewed), closePlan: true,
           eventDetail,
           allergyReviewConfirmed: safetyConfirmed, allergyOverrideReason: overrideReason || undefined,
           sectionCode, commandCode: adoptionCommand(adoptionCommands.current, suggestion!.id, sectionCode),
@@ -793,9 +808,10 @@ function SuggestionResult({ suggestion, recordEntries, showMissing, showSafety, 
   </div>
 }
 
-function AiPlanReviewDialog({ recommendation, template, allergies, allergyState, suggestion, api, encounterId,
+function AiPlanReviewDialog({ recommendation, template, allergies, allergyState, suggestion, api, encounterId, contextForPreflight,
   recordAvailable, diagnosisAvailable, disabled, busy, error, onClose, onApply }: {
   recommendation: ClinicalAiRecommendedPlan
+  contextForPreflight: ClinicalAiDraftContext
   api: RhnApi
   encounterId: string
   template?: OutpatientPlanTemplate
@@ -838,13 +854,13 @@ function AiPlanReviewDialog({ recommendation, template, allergies, allergyState,
   const selectedMedicationLineIds = useMemo(() => selectedTemplate?.medications
     .map((item) => item.lineId).sort() ?? [], [selectedTemplate])
   const preflight = useQuery({
-    queryKey: ['clinical-ai-plan-preflight', encounterId, template?.id, selectedMedicationLineIds.join(','),
-      safetyConfirmed, Boolean(overrideReason.trim())],
-    queryFn: () => api.clinicalAi.preflightPlan(encounterId, template!.id, {
+    queryKey: ['clinical-ai-plan-preflight', templateApiScope(api), encounterId, template?.id, template?.revision,
+      clinicalAiContextFingerprint(contextForPreflight), selectedMedicationLineIds.join(','), safetyConfirmed, overrideReason.trim()],
+    queryFn: async () => requirePlanPreflight(await api.clinicalAi.preflightPlan(encounterId, template!.id, {
       selectedMedicationLineIds,
       allergyReviewConfirmed: safetyConfirmed,
       allergyOverrideReason: overrideReason.trim() || undefined,
-    }),
+    }), selectedTemplate!),
     enabled: Boolean(template && selectedMedicationLineIds.length),
     retry: false,
   })
@@ -858,7 +874,7 @@ function AiPlanReviewDialog({ recommendation, template, allergies, allergyState,
       <Button busy={busy} disabled={disabled || busy || !selectedTemplate || !allergyReady
         || selectedItemCount === 0 && !includeClinicalDraft || containsMedication
         && (!safetyConfirmed || matched.length > 0 && !overrideReason.trim()
-          || preflight.isPending || Boolean(preflight.error) || preflight.data?.status === 'BLOCKED')}
+          || preflight.isFetching || preflight.isPending || !preflight.data || Boolean(preflight.error) || preflight.data?.status === 'BLOCKED')}
         onClick={() => onApply(selectedTemplate!, safetyConfirmed, overrideReason.trim(), includeClinicalDraft,
           planSelectionDetail(selectedTemplate!))}>
         确认带入草稿</Button>
@@ -872,7 +888,7 @@ function AiPlanReviewDialog({ recommendation, template, allergies, allergyState,
         <div><span>药品</span><strong>{template.medications.length} 条</strong></div>
         <div><span>诊疗项目</span><strong>{template.services.length} 条</strong></div>
       </div>
-      <PlanItemReview template={template} selectedDiagnoses={selectedDiagnoses}
+      <PlanItemReview disabled={busy} template={template} selectedDiagnoses={selectedDiagnoses}
         selectedMedications={selectedMedications} selectedServices={selectedServices}
         onToggleDiagnosis={(key) => setSelectedDiagnoses((current) => toggled(current, key))}
         onToggleMedication={(key) => {
@@ -880,7 +896,7 @@ function AiPlanReviewDialog({ recommendation, template, allergies, allergyState,
         }}
         onToggleService={(key) => setSelectedServices((current) => toggled(current, key))} />
       {containsMedication && <PlanPreflightReview preflight={preflight.data}
-        pending={preflight.isPending} error={preflight.error} />}
+        pending={preflight.isFetching || preflight.isPending} error={preflight.error} />}
       <p className="doctor-ai-assistant__plan-reason">推荐理由：{recommendation.rationale}</p>
       {(recordAvailable || diagnosisAvailable) && <div className="doctor-template-safety-review">
         <label><input type="checkbox" checked={includeClinicalDraft} disabled={busy}
@@ -893,7 +909,7 @@ function AiPlanReviewDialog({ recommendation, template, allergies, allergyState,
         <label><input type="checkbox" checked={safetyConfirmed} disabled={!allergyReady || busy}
           onChange={(event) => setSafetyConfirmed(event.target.checked)} />
           <span><strong>已核对患者过敏信息及方案内全部药品</strong>
-            <small>带入后仍需在原医嘱审核流程中核对目录、价格、库存和剂量。</small></span></label>
+            <small>带入前核对当前目录、价格与库存，正式开立时仍需核对剂量与用药风险。</small></span></label>
         {matched.length > 0 && <FormField label="命中过敏原，继续带入的临床理由" required>
           <textarea value={overrideReason} maxLength={1000} disabled={!allergyReady || busy}
             onChange={(event) => setOverrideReason(event.target.value)}
@@ -901,14 +917,15 @@ function AiPlanReviewDialog({ recommendation, template, allergies, allergyState,
         </FormField>}
       </div>}
     </>}
-    {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
+    {Boolean(error) && <div role="alert" className="doctor-plan-pool-notice">{errorMessage(error)}</div>}
     <small className="doctor-ai-assistant__audit-note">建议编号 {suggestion.id}，采纳动作将单独留痕。</small>
   </Dialog>
 }
 
-function PlanItemReview({ template, selectedDiagnoses, selectedMedications, selectedServices,
+function PlanItemReview({ template, disabled, selectedDiagnoses, selectedMedications, selectedServices,
   onToggleDiagnosis, onToggleMedication, onToggleService }: {
   template: OutpatientPlanTemplate
+  disabled: boolean
   selectedDiagnoses: Set<string>
   selectedMedications: Set<string>
   selectedServices: Set<string>
@@ -935,7 +952,7 @@ function PlanItemReview({ template, selectedDiagnoses, selectedMedications, sele
       key: serviceType,
       label: ({ LABORATORY: '检验', EXAMINATION: '检查', TREATMENT: '处置', OTHER: '其他项目' })[serviceType],
       items: template.services.filter((item) => item.serviceType === serviceType).map((item) => ({
-        id: `${item.catalogItemId}:${item.itemCode}`, name: item.itemName,
+        id: planServiceKey(item), name: item.itemName,
         detail: [item.itemCode, `${item.quantity}${item.unitCode || ''}`, item.clinicalDescription, item.reason]
           .filter(Boolean).join(' · '),
         selected: selectedServices.has(planServiceKey(item)), onToggle: onToggleService,
@@ -947,7 +964,7 @@ function PlanItemReview({ template, selectedDiagnoses, selectedMedications, sele
     {groups.map((group) => <section key={group.key}>
       <header><strong>{group.label}</strong><small>{group.items.length} 项</small></header>
       {group.items.map((item) => <label className="doctor-ai-assistant__plan-item" key={item.id}>
-        <input type="checkbox" checked={item.selected} onChange={() => item.onToggle(item.id)} />
+        <input disabled={disabled} type="checkbox" checked={item.selected} onChange={() => item.onToggle(item.id)} />
         <span><strong>{item.name}</strong><small>{item.detail || '具体属性待在医嘱草稿中核对'}</small></span>
       </label>)}
     </section>)}
@@ -960,7 +977,7 @@ function PlanPreflightReview({ preflight, pending, error }: {
   error: unknown
 }) {
   if (pending) return <div className="doctor-ai-assistant__preflight"><LoadingState label="正在核对目录、用法、过敏与路由药房库存…" /></div>
-  if (error) return <div className="doctor-ai-assistant__preflight"><Alert>{errorMessage(error)}</Alert></div>
+  if (error) return <div role="alert" className="doctor-ai-assistant__preflight">{errorMessage(error)}</div>
   if (!preflight) return null
   const tone = preflight.status === 'BLOCKED' ? 'danger' : preflight.status === 'WARNING' ? 'warning' : 'success'
   const label = preflight.status === 'BLOCKED' ? `${preflight.blockingCount} 项阻断`
@@ -994,7 +1011,7 @@ function preflightCheckLabel(code: string) {
 }
 
 function planDiagnosisKey(item: OutpatientPlanTemplate['diagnoses'][number]) {
-  return `${item.type}:${item.code}`
+  return diagnosisIdentityKey(item)
 }
 
 function planMedicationKey(item: OutpatientPlanTemplate['medications'][number]) {
@@ -1013,7 +1030,8 @@ function toggled(current: Set<string>, key: string) {
 }
 
 function planSelectionDetail(template: OutpatientPlanTemplate) {
-  return JSON.stringify({ templateId: template.id, diagnoses: template.diagnoses.map((item) => item.code),
+  return JSON.stringify({ templateId: template.id, diagnoses: template.diagnoses.map(({ conceptId, codeSystem, diagnosisDomain, code }) =>
+    ({ conceptId, codeSystem, diagnosisDomain, code })),
     medications: template.medications.map((item) => item.catalogItemId || `MED:${item.medicationId}`),
     services: template.services.map((item) => item.catalogItemId) }).slice(0, 1000)
 }
@@ -1046,19 +1064,6 @@ function requireCurrentAdoption(suggestion: ClinicalAiSuggestion, request: Clini
   if (!canApplyClinicalAiSuggestion(suggestion, context)) {
     throw new Error('当前草稿与建议生成时已经不同，请重新分析后再带入。')
   }
-}
-
-async function canonicalizeActiveDiagnoses(api: RhnApi, values: DiagnosisInput[]) {
-  const unique = [...new Map(values.map((value) => [value.code.trim().toUpperCase(), value])).values()]
-  return Promise.all(unique.map(async (value): Promise<DiagnosisInput> => {
-    const code = value.code.trim()
-    if (!code) throw new Error('AI 返回了空诊断编码，系统已拒绝带入。')
-    const concepts = await api.masterData.diseases(code, '', 'ACTIVE')
-    const exact = concepts.find((item) => item.sdStatus === 'ACTIVE' && item.systemCode === 'WHO.BD.CS.ICD10'
-      && item.code.trim().toUpperCase() === code.toUpperCase())
-    if (!exact) throw new Error(`诊断编码 ${code} 未通过院内有效术语目录复核，系统已拒绝带入。`)
-    return { code: exact.code.trim(), display: exact.display.trim(), type: value.type }
-  }))
 }
 
 function adoptionCommand(commands: Map<string, string>, suggestionId: string, sectionCode: string) {

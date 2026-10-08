@@ -221,7 +221,8 @@ describe('RefundManagementWorkspace', () => {
             statusBadgeText: '未发药 · 允许直接退款',
             statusTone: 'success',
           }],
-          refundablePayments: [],
+          refundablePayments: [{ paymentId: 'pay-2', paymentNo: 'PAY20260901002',
+            paymentMethodCode: 'CASH', amount: 38, refundedAmount: 0, refundableAmount: 38, currencyCode: 'CNY' }],
         }),
         directRefund: directRefundMock,
       },
@@ -241,6 +242,9 @@ describe('RefundManagementWorkspace', () => {
 
     // 确认直接退款按钮可用并能触发点击
     const refundBtn = await screen.findByRole('button', { name: /确认未发药直接退款/ })
+    expect(refundBtn).toBeDisabled()
+    expect(screen.getByLabelText('退款原因')).toHaveValue('')
+    fireEvent.change(screen.getByLabelText('退款原因'), { target: { value: '患者取消未执行项目' } })
     expect(refundBtn).not.toBeDisabled()
 
     fireEvent.click(refundBtn)

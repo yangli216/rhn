@@ -15,6 +15,10 @@ import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import com.rhn.shared.api.BusinessException;
+import com.rhn.platform.tenant.TenantContext;
+import com.rhn.pharmacy.api.RefundPharmacyDirectory;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,6 +36,9 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
     private InventoryApplicationService inventoryService;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private RefundPharmacyDirectory refundPharmacy;
 
     @Test
     void immutable_receipts_fefo_reservation_release_and_concurrent_gate_form_one_atomic_slice() throws Exception {
@@ -226,6 +233,8 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
         String firstCode = "DSP-1-" + suffix;
         JsonNode first = dispense(task.get("id").asString(), firstCode, "1", pharmacist);
         assertEquals("DISPENSE", first.get("dispenseType").asString());
+        assertEquals(Long.valueOf(DEPARTMENT), jdbcTemplate.queryForObject(
+                "select ID_DEPT from RHN_SUP_MED_DISP where ID_MED_DISP = ?", Long.class, Long.valueOf(first.get("id").asString())));
         assertEquals(1, first.get("lines").size());
         assertEquals(lot.get("id").asString(), first.at("/lines/0/stockLotId").asString());
         JsonNode afterFirst = json(mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace",
@@ -258,6 +267,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.taskStatus").value("COMPLETED"))
                 .andExpect(jsonPath("$.dispensedQuantity").value(2))
                 .andExpect(jsonPath("$.events.length()").value(2));
+        assertPharmacyFlow(task, "COMPLETED", "已完成");
         JsonNode afterDispenseBalance = balances(fixture);
         assertEquals(14, sum(afterDispenseBalance, "quantityOnHand"));
         assertEquals(0, sum(afterDispenseBalance, "quantityReserved"));
@@ -274,7 +284,9 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.returnedQuantity").value(1))
                 .andExpect(jsonPath("$.netDispensedQuantity").value(1));
 
+        assertPharmacyFlow(task, "PARTIALLY_RETURNED", "含部分退药");
         returnMedication(second, "RET-2-" + suffix, pharmacist, "QUARANTINE");
+        assertPharmacyFlow(task, "RETURNED", "已退药");
         JsonNode trace = json(mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace",
                         task.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -344,6 +356,74 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                         .queryParam("stockSiteId", fixture.siteId()).queryParam("periodCode", "202608"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void refund_cancellation_releases_picking_inventory_and_is_idempotent() throws Exception {
+        verifyRefundRelease("PICKING");
+    }
+
+    @Test
+    void refund_cancellation_releases_prepared_inventory_and_does_not_break_expiry() throws Exception {
+        verifyRefundRelease("READY_TO_DISPENSE");
+    }
+
+    @Test
+    void retry_repairs_inventory_left_reserved_by_a_previously_cancelled_task() throws Exception {
+        verifyRefundRelease("CANCELLED");
+    }
+
+    private void verifyRefundRelease(String initialState) throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        PharmacyFixture fixture = createPharmacy(suffix);
+        JsonNode lot = createLot(fixture.stockItemId(), "REFUND-" + suffix, "2027-12-31");
+        receive("REFUND-RCV-" + suffix, fixture, lot.get("id").asString(), "2");
+        Reviewer reviewer = createReviewer(suffix);
+        JsonNode task = createReviewedTask(suffix, fixture.stockItemId(), reviewer, 1);
+        String taskId = task.get("id").asString();
+        reserve(taskId);
+        if ("READY_TO_DISPENSE".equals(initialState)) completePicking(taskId, reviewer);
+        if ("CANCELLED".equals(initialState)) {
+            jdbcTemplate.update("update RHN_SUP_DISP_TASK set SD_STATUS = 'CANCELLED' where ID_DISP_TASK = ?", taskId);
+        }
+        assertEquals(14, sum(balances(fixture), "quantityReserved"));
+        Long requestId = jdbcTemplate.queryForObject("select ID_CARE_REQ from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK = ?", Long.class, taskId);
+        for (int retry = 0; retry < 2; retry++) {
+            TenantContext.set(Long.valueOf(TENANT));
+            try { refundPharmacy.cancelUnfulfilledForRefund(Long.valueOf(TENANT), requestId); }
+            finally { TenantContext.clear(); }
+        }
+        assertEquals(0, sum(balances(fixture), "quantityReserved"));
+        assertEquals(28, sum(balances(fixture), "quantityAvailable"));
+        assertEquals("CANCELLED", jdbcTemplate.queryForObject("select SD_STATUS from RHN_SUP_DISP_TASK where ID_DISP_TASK = ?", String.class, taskId));
+        assertEquals("CANCELLED", jdbcTemplate.queryForObject("select SD_STATUS from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK = ?", String.class, taskId));
+        assertEquals(0, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_RESV where ID_CARE_REQ = ? and SD_STATUS in ('ACTIVE','PARTIAL')", Integer.class, requestId));
+        jdbcTemplate.update("update RHN_SUP_INV_RESV set DT_EXPIRES = ? where ID_CARE_REQ = ?", java.sql.Timestamp.from(Instant.now().minusSeconds(60)), requestId);
+        inventoryService.expireDueReservations();
+        assertEquals(28, sum(balances(fixture), "quantityAvailable"));
+    }
+
+    @Test
+    void refund_release_rolls_back_all_allocations_when_one_balance_is_invalid() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        PharmacyFixture fixture = createPharmacy(suffix);
+        JsonNode firstLot = createLot(fixture.stockItemId(), "RF-FIRST-" + suffix, "2027-01-01");
+        JsonNode secondLot = createLot(fixture.stockItemId(), "RF-SECOND-" + suffix, "2027-12-31");
+        receive("RF-RCV1-" + suffix, fixture, firstLot.get("id").asString(), "1");
+        receive("RF-RCV2-" + suffix, fixture, secondLot.get("id").asString(), "1");
+        JsonNode task = createReviewedTask(suffix, fixture.stockItemId(), createReviewer(suffix), 2);
+        String taskId = task.get("id").asString();
+        reserve(taskId);
+        Long requestId = jdbcTemplate.queryForObject("select ID_CARE_REQ from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK = ?", Long.class, taskId);
+        jdbcTemplate.update("update RHN_SUP_INV_BAL set QTY_RESVD = 0, QTY_AVAIL = QTY_ON_HAND where ID_STOCK_LOT = ?", secondLot.get("id").asString());
+        TenantContext.set(Long.valueOf(TENANT));
+        try {
+            assertEquals("INVENTORY_RESERVATION_RELEASE_INVALID", assertThrows(BusinessException.class,
+                    () -> refundPharmacy.cancelUnfulfilledForRefund(Long.valueOf(TENANT), requestId)).code());
+        } finally { TenantContext.clear(); }
+        assertEquals(14, sum(balances(fixture), "quantityReserved"));
+        assertEquals("PICKING", jdbcTemplate.queryForObject("select SD_STATUS from RHN_SUP_DISP_TASK where ID_DISP_TASK = ?", String.class, taskId));
+        assertEquals(2, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_RESV where ID_CARE_REQ = ? and SD_STATUS = 'ACTIVE'", Integer.class, requestId));
     }
 
     private JsonNode dispense(String taskId, String requestCode, String quantity, Reviewer pharmacist) throws Exception {
@@ -500,6 +580,16 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         return new PharmacyFixture(site.get("id").asString(), item.get("id").asString(), bin.get("id").asString());
+    }
+
+    private void assertPharmacyFlow(JsonNode task, String expectedStatus, String expectedText) throws Exception {
+        String encounterId = task.get("encounterId").asString();
+        mockMvc.perform(get("/api/outpatient-flow").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.visits[?(@.encounterId == '%s')].stages[?(@.stageCode == 'PHARMACY')].status"
+                        .formatted(encounterId)).value(expectedStatus))
+                .andExpect(jsonPath("$.visits[?(@.encounterId == '%s')].stages[?(@.stageCode == 'PHARMACY')].statusText"
+                        .formatted(encounterId)).value(expectedText));
     }
 
     private JsonNode createReviewedTask(String suffix, String stockItemId, Reviewer reviewer, int quantity) throws Exception {

@@ -1,7 +1,8 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import '../../styles/features/inpatient.css'
 import type { ReceiptView, Settlement } from '../api/billingApi'
-import { Button, Dialog, StatusBadge } from '../ui'
+import { fiscalReceiptStatusPresentation } from '../presentation'
+import { Alert, Button, DataTable, Dialog, StatusBadge, tableCellClass } from '../ui'
 import { Icon } from '../ui/Icon'
 
 export interface FiscalReceiptModalProps {
@@ -58,383 +59,146 @@ export function convertToChineseCurrency(amount: number): string {
   return head + intStr + fracPart
 }
 
-/**
- * 生成简易矢量 QR 矩阵图案 (SVG)
- */
-function SimpleSvgQrCode({ value, size = 110 }: { value: string; size?: number }) {
-  // 基于字符串哈希确定性生成 21x21 的仿真实体二维码矩阵
-  const matrix = useMemo(() => {
-    const grid: boolean[][] = Array.from({ length: 21 }, () => Array(21).fill(false))
-    // 绘制定位角点 (Finder Patterns)
-    const drawFinder = (startX: number, startY: number) => {
-      for (let r = 0; r < 7; r++) {
-        for (let c = 0; c < 7; c++) {
-          const isBorder = r === 0 || r === 6 || c === 0 || c === 6
-          const isCenter = r >= 2 && r <= 4 && c >= 2 && c <= 4
-          grid[startY + r][startX + c] = isBorder || isCenter
-        }
-      }
-    }
-    drawFinder(0, 0)
-    drawFinder(14, 0)
-    drawFinder(0, 14)
-
-    // 基于内容哈希填充数据位
-    let hash = 0
-    for (let i = 0; i < value.length; i++) {
-      hash = (hash << 5) - hash + value.charCodeAt(i)
-      hash |= 0
-    }
-    for (let r = 0; r < 21; r++) {
-      for (let c = 0; c < 21; c++) {
-        const inFinder =
-          (r < 8 && c < 8) || (r < 8 && c >= 13) || (r >= 13 && c < 8)
-        if (!inFinder) {
-          const bit = Math.abs((hash ^ (r * 31 + c * 17))) % 2 === 1
-          grid[r][c] = bit
-        }
-      }
-    }
-    return grid
-  }, [value])
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 21 21"
-      className="fiscal-qr-svg"
-      role="img"
-      aria-label={`防伪查验二维码: ${value}`}
-    >
-      <rect width="21" height="21" fill="var(--color-surface)" />
-      {matrix.map((row, r) =>
-        row.map((active, c) =>
-          active ? (
-            <rect
-              key={`${r}-${c}`}
-              x={c}
-              y={r}
-              width="1"
-              height="1"
-              fill="var(--color-text)"
-            />
-          ) : null,
-        ),
-      )}
-    </svg>
-  )
+function httpReference(reference?: string): string | null {
+  if (!reference) return null
+  try {
+    const url = new URL(reference)
+    return ['https:', 'http:'].includes(url.protocol) ? url.href : null
+  } catch { return null }
 }
 
-export function FiscalReceiptModal({
-  open,
-  onClose,
-  receipt,
-  settlement,
-  onPrint,
-}: FiscalReceiptModalProps) {
+export function FiscalReceiptModal({ open, onClose, receipt, settlement, onPrint }: FiscalReceiptModalProps) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [printing, setPrinting] = useState(false)
-  const titleId = useId()
+  const [actionError, setActionError] = useState('')
+  const printInFlight = useRef(false)
+  const canPrint = receipt?.status === 'ISSUED' && !!receipt.fiscalCode && !!receipt.fiscalNumber
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'p') {
-        event.preventDefault()
-        handlePrint()
-      }
-    }
-    if (open) {
-      window.addEventListener('keydown', handleKeyDown)
-      return () => window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [open, receipt])
-
-  if (!open || !receipt) return null
-
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedKey(key)
-    setTimeout(() => setCopiedKey(null), 2000)
-  }
-
-  const handlePrint = async () => {
+  const handlePrint = useCallback(async () => {
+    if (!open || !receipt || !canPrint || printInFlight.current) return
+    printInFlight.current = true
     setPrinting(true)
+    setActionError('')
     try {
-      if (onPrint) {
-        await onPrint(receipt.id)
-      }
+      if (onPrint) await onPrint(receipt.id)
       window.print()
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '打印失败，请重试。')
     } finally {
+      printInFlight.current = false
       setPrinting(false)
     }
-  }
+  }, [open, receipt, canPrint, onPrint])
 
-  const fiscalCode = receipt.fiscalCode || '3601060126'
-  const fiscalNumber = receipt.fiscalNumber || receipt.receiptNo || '0001859231'
-  const verificationCode = receipt.verificationCode || '251132'
-  const verifyUrl =
-    receipt.controlledObjectReference ||
-    `https://pjcy.jx-fiscal.gov.cn/bill/verify?bill_code=${fiscalCode}&bill_no=${fiscalNumber}&check_code=${verificationCode}`
-
-  const isRedFlushed = receipt.status === 'RED_FLUSHED'
-  const isVoided = receipt.status === 'VOIDED'
-
-  const totalAmount = receipt.amount || settlement?.grossAmount || 0
-  const insuranceAmount = settlement?.insuranceAmount || 0
-  const patientAmount = settlement?.patientAmount || totalAmount
-
-  return (
-    <Dialog
-      title="财政医疗收费电子票据"
-      eyebrow="电子发票验真与打印"
-      onClose={onClose}
-      size="xwide"
-      className="fiscal-receipt-dialog"
-      footer={
-        <div className="fiscal-receipt-actions">
-          <div className="fiscal-receipt-actions__info">
-            <span>支持患者扫码查验原件真伪并下载国家标准 PDF 版式文件</span>
-          </div>
-          <div className="fiscal-receipt-actions__buttons">
-            <Button
-              variant="secondary"
-              onClick={() => handleCopy(verificationCode, 'code')}
-            >
-              {copiedKey === 'code' && <Icon name="check" />}
-              {copiedKey === 'code' ? '已复制校验码' : '复制防伪校验码'}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => handleCopy(verifyUrl, 'url')}
-            >
-              {copiedKey === 'url' && <Icon name="check" />}
-              {copiedKey === 'url' ? '已复制查验链接' : '复制查验链接'}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handlePrint}
-              disabled={printing}
-            >
-              <Icon name="print" />
-              {printing ? '正在调起打印...' : '打印电子票据 (Ctrl+P)'}
-            </Button>
-            <Button variant="secondary" onClick={onClose}>
-              关闭
-            </Button>
-          </div>
-        </div>
+  useEffect(() => {
+    if (!open) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+        event.preventDefault()
+        void handlePrint()
       }
-    >
-      <div className="fiscal-invoice-container">
-        {/* 全真纸质发票版式 Paper Card */}
-        <div
-          className={`fiscal-invoice-paper ${isRedFlushed ? 'fiscal-invoice-paper--red' : ''} ${isVoided ? 'fiscal-invoice-paper--void' : ''}`}
-          id="fiscal-printable-area"
-        >
-          {/* 发票状态背景斜印章 */}
-          {isRedFlushed && (
-            <div className="fiscal-watermark-stamp fiscal-watermark-stamp--red">
-              红字作废冲红
-            </div>
-          )}
-          {isVoided && (
-            <div className="fiscal-watermark-stamp fiscal-watermark-stamp--void">
-              已作废 VOID
-            </div>
-          )}
-          {!isRedFlushed && !isVoided && (
-            <div className="fiscal-watermark-stamp fiscal-watermark-stamp--valid">
-              财政部监制·验真有效
-            </div>
-          )}
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [open, handlePrint])
 
-          {/* 票据版头区 */}
-          <header className="fiscal-header">
-            <div className="fiscal-header__emblem">
-              <span className="fiscal-emblem-icon" aria-hidden="true">★</span>
-              <span className="fiscal-emblem-text">全国统一财政电子票据</span>
-            </div>
-            <h1 className="fiscal-title" id={titleId}>
-              江西省医疗门诊收费电子票据
-            </h1>
-            <div className="fiscal-subtitle">
-              （财政部与国家医疗保障局统一规范标准版式）
-            </div>
+  useEffect(() => { setCopiedKey(null); setActionError('') }, [open, receipt?.id])
+  if (!open || !receipt) return null
 
-            {/* 右上角四要素卡片 */}
-            <div className="fiscal-four-elements">
-              <div className="fiscal-element-row">
-                <span className="fiscal-element-label">电子票据代码：</span>
-                <span className="fiscal-element-value fiscal-element-value--highlight">
-                  {fiscalCode}
-                </span>
-              </div>
-              <div className="fiscal-element-row">
-                <span className="fiscal-element-label">电子票据号码：</span>
-                <span className="fiscal-element-value fiscal-element-value--highlight">
-                  {fiscalNumber}
-                </span>
-              </div>
-              <div className="fiscal-element-row">
-                <span className="fiscal-element-label">防伪校验码：</span>
-                <span className="fiscal-element-value fiscal-element-value--code">
-                  {verificationCode}
-                </span>
-              </div>
-              <div className="fiscal-element-row">
-                <span className="fiscal-element-label">开票日期：</span>
-                <span className="fiscal-element-value">
-                  {receipt.issuedAt
-                    ? new Date(receipt.issuedAt).toLocaleString('zh-CN', { hour12: false })
-                    : new Date().toLocaleString('zh-CN', { hour12: false })}
-                </span>
-              </div>
-            </div>
-          </header>
+  const handleCopy = async (value: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopiedKey(key)
+    } catch { setActionError('复制失败，请手动复制。') }
+  }
+  const status = fiscalReceiptStatusPresentation(receipt.status)
+  const reference = httpReference(receipt.controlledObjectReference)
+  const sameSettlement = settlement?.id === receipt.settlementId ? settlement : null
+  const money = (amount?: number) => amount == null ? '未提供' : `${receipt.currencyCode === 'CNY' ? '¥' : receipt.currencyCode + ' '}${amount.toFixed(2)}`
 
-          {/* 业务与人员信息两列栏 */}
-          <section className="fiscal-meta-grid">
-            <div className="fiscal-meta-item">
-              <span className="fiscal-meta-label">交款人姓名：</span>
-              <span className="fiscal-meta-text">
-                {receipt.payerName || '门诊患者'}
-              </span>
-            </div>
-            <div className="fiscal-meta-item">
-              <span className="fiscal-meta-label">医保统筹区：</span>
-              <span className="fiscal-meta-text">
-                {receipt.fiscalAuthorityCode || '360100 江西南昌市直统筹'}
-              </span>
-            </div>
-            <div className="fiscal-meta-item">
-              <span className="fiscal-meta-label">业务流水号：</span>
-              <span className="fiscal-meta-text">{receipt.receiptNo}</span>
-            </div>
-            <div className="fiscal-meta-item">
-              <span className="fiscal-meta-label">结算单号：</span>
-              <span className="fiscal-meta-text">
-                {receipt.settlementId ? `SETTL-${receipt.settlementId}` : '门诊即时结算'}
-              </span>
-            </div>
-            <div className="fiscal-meta-item">
-              <span className="fiscal-meta-label">开票渠道：</span>
-              <span className="fiscal-meta-text">
-                {receipt.issueChannel === 'CASHIER' ? '窗口收银台' : '自助服务终端'}
-              </span>
-            </div>
-            <div className="fiscal-meta-item">
-              <span className="fiscal-meta-label">收款单位名称：</span>
-              <span className="fiscal-meta-text">江西省人民医院（医疗收费专户）</span>
-            </div>
-          </section>
-
-          {/* 费用明细表格 */}
-          <section className="fiscal-details-section">
-            <table className="fiscal-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '40px' }}>序号</th>
-                  <th>收费项目名称 / 诊疗服务</th>
-                  <th style={{ width: '80px', textAlign: 'right' }}>数量</th>
-                  <th style={{ width: '100px', textAlign: 'right' }}>单价 (元)</th>
-                  <th style={{ width: '110px', textAlign: 'right' }}>金额 (元)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {settlement?.lines && settlement.lines.length > 0 ? (
-                  settlement.lines.map((line, idx) => (
-                    <tr key={line.id || idx}>
-                      <td>{idx + 1}</td>
-                      <td>{(line as unknown as { itemName?: string }).itemName || `门诊医疗收费项目 #${line.lineNo || idx + 1}`}</td>
-                      <td style={{ textAlign: 'right' }}>{line.settledQuantity || 1}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        {((line.netAmount || 0) / (line.settledQuantity || 1)).toFixed(2)}
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        {(line.netAmount || 0).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td>1</td>
-                    <td>门诊西药、诊疗化验及综合医疗服务费用汇总</td>
-                    <td style={{ textAlign: 'right' }}>1</td>
-                    <td style={{ textAlign: 'right' }}>{totalAmount.toFixed(2)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                      {totalAmount.toFixed(2)}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </section>
-
-          {/* 费用合计与医保分解卡片 */}
-          <section className="fiscal-totals-section">
-            <div className="fiscal-total-words">
-              <span className="fiscal-label-bold">合计金额（大写）：</span>
-              <span className="fiscal-words-value">
-                {convertToChineseCurrency(totalAmount)}
-              </span>
-            </div>
-            <div className="fiscal-total-figure">
-              <span className="fiscal-label-bold">小写合计：</span>
-              <span className="fiscal-figure-amount">¥{totalAmount.toFixed(2)}</span>
-            </div>
-          </section>
-
-          {/* 医保统筹与基金结算分拆 */}
-          <section className="fiscal-breakdown-grid">
-            <div className="fiscal-breakdown-card">
-              <span className="fiscal-breakdown-label">医保统筹基金支付</span>
-              <span className="fiscal-breakdown-num">¥{insuranceAmount.toFixed(2)}</span>
-            </div>
-            <div className="fiscal-breakdown-card">
-              <span className="fiscal-breakdown-label">个人账户支付</span>
-              <span className="fiscal-breakdown-num">¥0.00</span>
-            </div>
-            <div className="fiscal-breakdown-card fiscal-breakdown-card--primary">
-              <span className="fiscal-breakdown-label">个人自付实收 (现金/扫码)</span>
-              <span className="fiscal-breakdown-num">¥{patientAmount.toFixed(2)}</span>
-            </div>
-          </section>
-
-          {/* 底部印章与二维码真伪查验区 */}
-          <footer className="fiscal-footer-grid">
-            <div className="fiscal-qr-box">
-              <SimpleSvgQrCode value={verifyUrl} size={96} />
-              <div className="fiscal-qr-info">
-                <div className="fiscal-qr-title">国家财政电子票据查验</div>
-                <div className="fiscal-qr-hint">使用微信/支付宝或财政政务 App 扫码查验真伪</div>
-                <div className="fiscal-verify-link" title={verifyUrl}>
-                  {verifyUrl}
-                </div>
-              </div>
-            </div>
-
-            <div className="fiscal-stamps-box">
-              <div className="fiscal-official-seal">
-                <div className="fiscal-seal-inner">
-                  <div className="fiscal-seal-star">★</div>
-                  <div className="fiscal-seal-text">江西省财政厅</div>
-                  <div className="fiscal-seal-sub">医疗收费票据监制章</div>
-                </div>
-              </div>
-              <div className="fiscal-cashier-sign">
-                <div>开票人：系统智能收银终端</div>
-                <div>收费员：工号 8801</div>
-                <div>状态：
-                  <StatusBadge tone={isRedFlushed ? 'danger' : isVoided ? 'neutral' : 'success'}>
-                    {isRedFlushed ? '已红字冲红' : isVoided ? '已作废' : '已入账查验有效'}
-                  </StatusBadge>
-                </div>
-              </div>
-            </div>
-          </footer>
+  return <Dialog title="财政医疗收费电子票据" eyebrow="票据信息与结算明细" onClose={onClose}
+    size="xwide" className="fiscal-receipt-dialog" footer={
+      <div className="fiscal-receipt-actions">
+        <span>打印内容为系统票据信息摘要，原件及查验结果以财政平台为准。</span>
+        <div className="fiscal-receipt-actions__buttons">
+          <Button variant="secondary" disabled={!receipt.verificationCode}
+            onClick={() => void handleCopy(receipt.verificationCode!, 'code')}>
+            {copiedKey === 'code' ? '已复制校验码' : '复制防伪校验码'}
+          </Button>
+          <Button variant="secondary" disabled={!reference}
+            onClick={() => void handleCopy(reference!, 'url')}>
+            {copiedKey === 'url' ? '已复制票据链接' : '复制票据链接'}
+          </Button>
+          <Button onClick={() => void handlePrint()} disabled={!canPrint || printing}>
+            <Icon name="print" />{printing ? '正在调起打印...' : '打印票据信息 (Ctrl+P)'}
+          </Button>
+          <Button variant="secondary" onClick={onClose}>关闭</Button>
         </div>
       </div>
-    </Dialog>
-  )
+    }>
+    {actionError && <Alert tone="warning">{actionError}</Alert>}
+    <div className="fiscal-invoice-container">
+      <div className="fiscal-invoice-paper" id="fiscal-printable-area">
+        <header className="fiscal-header">
+          <h2 className="fiscal-title">电子票据信息</h2>
+          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+          {receipt.errorMessage && <Alert tone="warning">{receipt.errorMessage}</Alert>}
+          <div className="fiscal-four-elements">
+            {[
+              ['电子票据代码', receipt.fiscalCode], ['电子票据号码', receipt.fiscalNumber],
+              ['防伪校验码', receipt.verificationCode],
+              ['开票日期', receipt.issuedAt ? new Date(receipt.issuedAt).toLocaleString('zh-CN', { hour12: false }) : undefined],
+            ].map(([label, value]) => <div className="fiscal-element-row" key={label}>
+              <span className="fiscal-element-label">{label}：</span>
+              <span className="fiscal-element-value">{value || '未提供'}</span>
+            </div>)}
+          </div>
+        </header>
+        <section className="fiscal-meta-grid">
+          {[
+            ['交款人姓名', receipt.payerName], ['财政主管机构代码', receipt.fiscalAuthorityCode],
+            ['票据申请流水号', receipt.receiptNo], ['关联结算单号', sameSettlement?.settlementNo],
+            ['开票渠道代码', receipt.issueChannel], ['创建人标识', receipt.createdBy],
+          ].map(([label, value]) => <div className="fiscal-meta-item" key={label}>
+            <span className="fiscal-meta-label">{label}：</span>
+            <span className="fiscal-meta-text">{value || '未提供'}</span>
+          </div>)}
+        </section>
+        <section className="fiscal-details-section">
+          <h3>关联结算明细</h3>
+          <DataTable className="fiscal-table">
+            <thead><tr><th>结算行号</th><th>收费项目标识</th>
+              <th className={tableCellClass('numeric')}>数量</th>
+              <th className={tableCellClass('numeric')}>结算金额</th></tr></thead>
+            <tbody>{sameSettlement?.lines.length ? sameSettlement.lines.map((line) => <tr key={line.id}>
+              <td>{line.lineNo}</td><td>{line.chargeItemId}</td>
+              <td className={tableCellClass('numeric')}>{line.settledQuantity}</td>
+              <td className={tableCellClass('numeric')}>{money(line.netAmount)}</td>
+            </tr>) : <tr><td colSpan={4}>未提供结算明细</td></tr>}</tbody>
+          </DataTable>
+        </section>
+        <section className="fiscal-totals-section">
+          {receipt.currencyCode === 'CNY' && <div className="fiscal-total-words">
+            <span>票据金额（大写）：</span><span>{convertToChineseCurrency(receipt.amount)}</span>
+          </div>}
+          <div className="fiscal-total-figure"><span>票据金额：</span><strong>{money(receipt.amount)}</strong></div>
+        </section>
+        <section className="fiscal-breakdown-grid">
+          {[
+            ['结算医保分摊', sameSettlement?.insuranceAmount],
+            ['已记录个人账户支付', sameSettlement?.tenders.filter((t) => t.tenderType === 'PERSONAL_ACCOUNT').reduce((sum, t) => sum + t.amount, 0)],
+            ['结算患者分摊', sameSettlement?.patientAmount],
+          ].map(([label, value]) => <div className="fiscal-breakdown-card" key={label}>
+            <span className="fiscal-breakdown-label">{label}</span>
+            <span className="fiscal-breakdown-num">{money(value as number | undefined)}</span>
+          </div>)}
+        </section>
+        <footer className="fiscal-footer-grid">
+          {reference ? <a href={reference} target="_blank" rel="noopener noreferrer">打开平台返回的票据链接</a>
+            : <span>平台未提供可打开的票据链接</span>}
+          <span>本页展示业务系统收到的票据信息，不代表已完成财政平台验真。</span>
+        </footer>
+      </div>
+    </div>
+  </Dialog>
 }

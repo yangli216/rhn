@@ -112,6 +112,7 @@ export function ServiceReadRow({ value, busy, readOnly, onCancel, currentDept, d
       <span className="doctor-direction-chip is-dept">
         {resolveExecutingDepartment({
           kind: 'service',
+          performerDepartmentId: value.performerDepartmentId,
           type: value.serviceType,
           itemName: value.itemName,
         }, currentDept)}

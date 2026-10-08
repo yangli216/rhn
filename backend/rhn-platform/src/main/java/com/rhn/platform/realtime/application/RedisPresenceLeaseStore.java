@@ -57,26 +57,29 @@ public class RedisPresenceLeaseStore implements PresenceLeaseStore {
         double now = Instant.now().toEpochMilli();
         redis.opsForZSet().removeRangeByScore(indexKey, Double.NEGATIVE_INFINITY, now - 1);
         Set<String> leaseKeys = redis.opsForZSet().rangeByScore(indexKey, now, Double.POSITIVE_INFINITY);
-        if (leaseKeys == null || leaseKeys.isEmpty()) return List.of();
+        if (leaseKeys == null) throw new IllegalStateException("Presence lease index was not returned");
+        if (leaseKeys.isEmpty()) return List.of();
 
         List<String> orderedKeys = List.copyOf(leaseKeys);
         List<String> payloads = redis.opsForValue().multiGet(orderedKeys);
-        if (payloads == null) return List.of();
+        if (payloads == null || payloads.size() != orderedKeys.size()) {
+            throw new IllegalStateException("Presence lease lookup is incomplete");
+        }
         List<PresenceConnectionSnapshot> result = new ArrayList<>();
         for (int index = 0; index < orderedKeys.size(); index++) {
-            String payload = index < payloads.size() ? payloads.get(index) : null;
+            String payload = payloads.get(index);
             if (payload == null) {
                 redis.opsForZSet().remove(indexKey, orderedKeys.get(index));
                 continue;
             }
+            PresenceConnectionSnapshot snapshot;
             try {
-                PresenceConnectionSnapshot snapshot = jsonCodec.read(payload, PresenceConnectionSnapshot.class);
-                if (tenantId.equals(snapshot.tenantId())) result.add(snapshot);
-                else redis.opsForZSet().remove(indexKey, orderedKeys.get(index));
+                snapshot = jsonCodec.read(payload, PresenceConnectionSnapshot.class);
             } catch (RuntimeException error) {
-                redis.delete(orderedKeys.get(index));
-                redis.opsForZSet().remove(indexKey, orderedKeys.get(index));
+                throw new IllegalStateException("Presence lease data cannot be decoded", error);
             }
+            requireSnapshot(tenantId, orderedKeys.get(index), snapshot);
+            result.add(snapshot);
         }
         result.sort(Comparator.comparing(PresenceConnectionSnapshot::connectedAt)
                 .thenComparing(PresenceConnectionSnapshot::connectionId));
@@ -89,13 +92,31 @@ public class RedisPresenceLeaseStore implements PresenceLeaseStore {
         String key = tenantIndexKey();
         redis.opsForZSet().removeRangeByScore(key, Double.NEGATIVE_INFINITY, now - 1);
         Set<String> values = redis.opsForZSet().rangeByScore(key, now, Double.POSITIVE_INFINITY);
-        if (values == null || values.isEmpty()) return Set.of();
+        if (values == null) throw new IllegalStateException("Presence tenant index was not returned");
+        if (values.isEmpty()) return Set.of();
         java.util.HashSet<Long> result = new java.util.HashSet<>();
         values.forEach(value -> {
-            try { result.add(Long.valueOf(value)); }
-            catch (NumberFormatException error) { redis.opsForZSet().remove(key, value); }
+            try {
+                Long tenantId = Long.valueOf(value);
+                if (tenantId <= 0 || !tenantId.toString().equals(value)) throw new NumberFormatException("Invalid tenant identifier");
+                result.add(tenantId);
+            } catch (NumberFormatException error) {
+                throw new IllegalStateException("Presence tenant index contains an invalid identifier", error);
+            }
         });
         return Set.copyOf(result);
+    }
+
+    private void requireSnapshot(Long tenantId, String key, PresenceConnectionSnapshot value) {
+        if (value == null || !tenantId.equals(value.tenantId()) || value.userId() == null || value.userId() <= 0
+                || value.connectionId() == null || value.connectionId().isBlank()
+                || !key.equals(leaseKey(tenantId, value.connectionId()))
+                || value.instanceId() == null || value.instanceId().isBlank()
+                || value.username() == null || value.username().isBlank()
+                || value.connectedAt() == null || value.lastSeenAt() == null || value.lastActivityAt() == null
+                || value.lastSeenAt().isBefore(value.connectedAt()) || value.lastActivityAt().isBefore(value.connectedAt())) {
+            throw new IllegalStateException("Presence lease identity or timestamps are invalid");
+        }
     }
 
     String leaseKey(Long tenantId, String connectionId) {

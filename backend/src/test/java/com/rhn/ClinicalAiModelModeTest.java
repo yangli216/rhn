@@ -265,7 +265,7 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.safetyAlerts[0].level").value("CRITICAL"))
                 .andExpect(jsonPath("$.safetyAlerts[1].level").value("WARNING"))
                 .andExpect(jsonPath("$.recommendedPlans.length()").value(0))
-                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V8"))
+                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V9"))
                 .andExpect(jsonPath("$.disclaimer").value(org.hamcrest.Matchers.containsString("院内术语")))
                 .andReturn().getResponse().getContentAsString());
 

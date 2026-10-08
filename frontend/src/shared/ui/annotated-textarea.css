@@ -9,5 +9,6 @@
 .ui-text-annotation:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
 .ui-annotation-popover { position: fixed; width: 360px; max-height: 250px; overflow: auto; z-index: var(--z-popover); padding: var(--space-3); background: var(--color-surface); color: var(--color-text-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
 .ui-annotation-popover__heading { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+.ui-annotation-popover, .ui-annotation-popover textarea { overscroll-behavior: contain; }
 .ui-annotation-popover p { margin: var(--space-2) 0; font-size: var(--font-size-small); white-space: pre-wrap; }
 .ui-annotation-popover__actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }

@@ -231,8 +231,7 @@ public class InpatientBillingService {
         requests.findByTenantIdAndEncounterIdAndStatusInOrderByAuthoredAtAscIdAsc(
                         context.tenantId(), inpatient.encounter().id(),
                         List.of(InpatientCareRequestStatus.ACTIVE, InpatientCareRequestStatus.COMPLETED)).stream()
-                .filter(value -> currency.equals(value.currencyCode()))
-                .forEach(value -> orderEstimateLines(context, value).forEach(lines::add));
+                .forEach(value -> orderEstimateLines(context, value, currency).forEach(lines::add));
         bedEstimateLines(context, inpatient, currency).forEach(lines::add);
 
         BigDecimal postedAmount = sum(lines, true, null);
@@ -287,12 +286,17 @@ public class InpatientBillingService {
                 money(value.totalAmount()), value.currencyCode(), value.occurredAt(), true);
     }
 
-    private List<CostLineView> orderEstimateLines(ExecutionContext context, InpatientCareRequest request) {
-        if (request.unitPrice() == null || request.totalAmount() == null) return List.of();
-        List<InpatientOrderTask> planned = orderTasks.findByTenantIdAndRequestIdOrderByOccurrenceNoAsc(
-                        context.tenantId(), request.id()).stream()
+    private List<CostLineView> orderEstimateLines(ExecutionContext context, InpatientCareRequest request, String currency) {
+        if (InpatientOrderPriceFacts.isUnpricedNursing(request)) return List.of();
+        List<InpatientOrderTask> tasks = orderTasks.findByTenantIdAndRequestIdOrderByOccurrenceNoAsc(
+                context.tenantId(), request.id());
+        List<InpatientOrderTask> planned = tasks.stream()
                 .filter(task -> task.status() == InpatientOrderTaskStatus.PLANNED)
                 .toList();
+        // An active long-term order does not imply another occurrence after its recorded tasks are finished.
+        if (planned.isEmpty() && (!tasks.isEmpty() || request.status() != InpatientCareRequestStatus.ACTIVE)) return List.of();
+        InpatientOrderPriceFacts.requirePrice(request);
+        if (!currency.equals(request.currencyCode())) return List.of();
         if (!planned.isEmpty()) {
             BigDecimal price = money(request.unitPrice());
             return planned.stream().map(task -> new CostLineView(
@@ -319,14 +323,15 @@ public class InpatientBillingService {
         for (LocalDate date = first; !date.isAfter(last); date = date.plusDays(1)) {
             if (postedDates.contains(date)) continue;
             EncounterLocationHistory history = historyForDate(histories, date);
-            if (history == null) continue;
-            InpatientBedProfile profile = beds.findById(history.locationId()).orElse(null);
+            if (history == null) {
+                throw conflict("INPATIENT_BED_DAY_LOCATION_MISSING", date + " 缺少有效床位占用记录");
+            }
+            var pricing = requireBedPricing(context, inpatient, history, date, currency);
             ServiceLocation location = serviceLocations.findByIdAndTenantId(history.locationId(), context.tenantId())
-                    .orElse(null);
-            BigDecimal rate = estimatedRate(context, inpatient, profile, date, currency);
+                    .orElseThrow(() -> conflict("INPATIENT_BED_DAY_LOCATION_MISSING", "床位占用记录关联的位置不存在"));
+            BigDecimal rate = money(pricing.price().price());
             result.add(new CostLineView("BED", "INPATIENT_BED_ESTIMATE", history.id(),
-                    location == null ? null : location.code(),
-                    location == null ? "住院床位费" : location.name() + "床位费",
+                    location.code(), location.name() + "床位费",
                     history.status().name(), BigDecimal.ONE, "床日", rate, rate, currency,
                     date.atStartOfDay(BUSINESS_ZONE).toInstant(), false));
         }
@@ -362,28 +367,7 @@ public class InpatientBillingService {
             if (history == null) {
                 throw conflict("INPATIENT_BED_DAY_LOCATION_MISSING", date + " 缺少有效床位占用记录");
             }
-            InpatientBedProfile profile = beds.findById(history.locationId())
-                    .filter(value -> context.tenantId().equals(value.tenantId()))
-                    .orElse(null);
-            if (profile == null) {
-                throw conflict("INPATIENT_BED_DAY_PROFILE_MISSING", date + " 缺少床位计费配置");
-            }
-            if (profile.chargeCatalogItemId() == null) {
-                throw conflict("INPATIENT_BED_DAY_CATALOG_MISSING", date + " 的床位未绑定收费目录项目");
-            }
-            var pricing = catalog.resolve(context.tenantId(), profile.chargeCatalogItemId(),
-                    inpatient.episode().organizationId(), null, "SALE", date);
-            if (!pricing.item().chargeable() || !"ACTIVE".equals(pricing.item().status())
-                    || pricing.adoption() == null || !pricing.adoption().chargeable()
-                    || !"ACTIVE".equals(pricing.adoption().sdStatus())) {
-                throw conflict("INPATIENT_BED_DAY_CATALOG_INACTIVE", date + " 的床位收费项目未在当前机构启用");
-            }
-            if (pricing.price() == null || !"ACTIVE".equals(pricing.price().sdStatus())) {
-                throw conflict("INPATIENT_BED_DAY_PRICE_MISSING", date + " 缺少有效床位价格");
-            }
-            if (!currency.equals(pricing.price().currencyCode())) {
-                throw conflict("INPATIENT_BED_DAY_CURRENCY_MISMATCH", date + " 的床位价格币种与住院账户不一致");
-            }
+            var pricing = requireBedPricing(context, inpatient, history, date, currency);
             String dayCommand = commandCode + "-" + date;
             InpatientBedDayFact replay = bedDays.findByTenantIdAndCommandCode(context.tenantId(), dayCommand)
                     .orElse(null);
@@ -422,21 +406,32 @@ public class InpatientBillingService {
                 .orElse(null);
     }
 
-    private BigDecimal estimatedRate(ExecutionContext context, EpisodeContext inpatient,
-                                     InpatientBedProfile profile, LocalDate date, String currency) {
-        if (profile != null && profile.chargeCatalogItemId() != null) {
-            try {
-                var pricing = catalog.resolve(context.tenantId(), profile.chargeCatalogItemId(),
-                        inpatient.episode().organizationId(), null, "SALE", date);
-                if (pricing.price() != null && currency.equals(pricing.price().currencyCode())) {
-                    return money(pricing.price().price());
-                }
-            } catch (RuntimeException ignored) {
-                // Estimation remains available while an explicit posting command reports configuration gaps.
-            }
+    private CatalogLifecycleDirectory.CatalogOperationalSnapshot requireBedPricing(
+            ExecutionContext context, EpisodeContext inpatient, EncounterLocationHistory history,
+            LocalDate date, String currency) {
+        InpatientBedProfile profile = beds.findById(history.locationId())
+                .filter(value -> context.tenantId().equals(value.tenantId())).orElse(null);
+        if (profile == null) {
+            throw conflict("INPATIENT_BED_DAY_PROFILE_MISSING", date + " 缺少床位计费配置");
         }
-        return profile == null || profile.dailyBedRate() == null
-                ? BigDecimal.ZERO.setScale(6) : money(profile.dailyBedRate());
+        if (profile.chargeCatalogItemId() == null) {
+            throw conflict("INPATIENT_BED_DAY_CATALOG_MISSING", date + " 的床位未绑定收费目录项目");
+        }
+        var pricing = catalog.resolve(context.tenantId(), profile.chargeCatalogItemId(),
+                inpatient.episode().organizationId(), null, "SALE", date);
+        if (pricing == null || pricing.item() == null || !pricing.item().chargeable()
+                || !"ACTIVE".equals(pricing.item().status()) || pricing.adoption() == null
+                || !pricing.adoption().chargeable() || !"ACTIVE".equals(pricing.adoption().sdStatus())) {
+            throw conflict("INPATIENT_BED_DAY_CATALOG_INACTIVE", date + " 的床位收费项目未在当前机构启用");
+        }
+        if (pricing.price() == null || !"ACTIVE".equals(pricing.price().sdStatus())
+                || pricing.price().price() == null || pricing.price().price().signum() < 0) {
+            throw conflict("INPATIENT_BED_DAY_PRICE_MISSING", date + " 缺少有效床位价格");
+        }
+        if (!currency.equals(pricing.price().currencyCode())) {
+            throw conflict("INPATIENT_BED_DAY_CURRENCY_MISMATCH", date + " 的床位价格币种与住院账户不一致");
+        }
+        return pricing;
     }
 
     private LocalDate lastBillableDate(CareEpisode episode) {

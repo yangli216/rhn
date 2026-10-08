@@ -13,6 +13,7 @@ describe('ClinicalResourceSearch', () => {
       diseases: vi.fn(),
       medications: vi.fn(),
       services: vi.fn(),
+      itemGroups: vi.fn().mockResolvedValue([]),
     },
   } as unknown as RhnApi
 
@@ -32,6 +33,7 @@ describe('ClinicalResourceSearch', () => {
       essentialDrug: true,
       skinTestRequired: true,
       antimicrobial: false,
+      chronicDiseaseDrug: false,
       stockSiteId: 'stock-1',
       stockSiteName: '门诊药房',
       availablePackageQuantity: 49,
@@ -42,18 +44,18 @@ describe('ClinicalResourceSearch', () => {
           code: 'PROD-001',
           name: '对乙酰氨基酚片（泰诺林）',
           manufacturerName: '中美天津史克制药有限公司',
-          unitCode: '片',
+          unitCode: '片', sdStatus: 'ACTIVE', validFrom: '2020-01-01',
           packages: [
             {
               id: 'pkg-1',
               packageSpec: '0.5g*20片/盒',
               unitName: '盒',
-              quantityFactor: 20,
+              quantityFactor: 20, sdStatus: 'ACTIVE', validFrom: '2020-01-01',
             },
           ],
           prices: [
             {
-              id: 'price-1',
+              id: 'price-1', organizationId: null, sdPriceType: 'SALE', currencyCode: 'CNY', validFrom: '2020-01-01',
               packageId: 'pkg-1',
               price: 15.6,
               sdStatus: 'ACTIVE',
@@ -91,7 +93,7 @@ describe('ClinicalResourceSearch', () => {
 
     // 验证第二行产品信息：厂家、单价、包装、药房库存（直接显示纯内容，无 label 前缀）
     expect(option.textContent).toContain('中美天津史克制药有限公司')
-    expect(option.textContent).toContain('¥15.60/盒')
+    expect(option.textContent).toContain('CNY 15.60/盒')
     expect(option.textContent).toContain('0.5g*20片/盒')
     expect(option.textContent).toContain('门诊药房 (可用: 49盒)')
     expect(option.textContent).not.toContain('厂家:')
@@ -148,7 +150,7 @@ describe('ClinicalResourceSearch', () => {
   it('renders service items with unit price and tags', async () => {
     const user = userEvent.setup()
     const mockService = {
-      id: 'srv-1',
+      id: 'srv-1', sdStatus: 'ACTIVE', validFrom: '2020-01-01',
       code: 'SRV-001',
       name: '血常规五分类',
       unitCode: '次',
@@ -157,7 +159,7 @@ describe('ClinicalResourceSearch', () => {
       medicalTechnology: true,
       prices: [
         {
-          id: 'p-1',
+          id: 'p-1', organizationId: null, sdPriceType: 'SALE', currencyCode: 'CNY', validFrom: '2020-01-01',
           price: 20.0,
           sdStatus: 'ACTIVE',
         },
@@ -180,7 +182,7 @@ describe('ClinicalResourceSearch', () => {
     await user.type(searchInput, '血常规')
 
     const option = await screen.findByRole('option', { name: /血常规五分类/ })
-    expect(option.textContent).toContain('检验 · 血液学 · ¥20.00/次')
+    expect(option.textContent).toContain('检验 · 血液学 · 参考销售价：CNY 20.00/次')
     expect(option.textContent).not.toContain('单价:')
     expect(option.textContent).not.toContain('单位:')
     expect(option.textContent).toContain('医疗技术')
@@ -245,7 +247,7 @@ describe('ClinicalResourceSearch', () => {
       prices: [{ price: 18.0, sdStatus: 'ACTIVE' }],
     }
 
-    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValueOnce([] as never)
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([] as never)
     vi.mocked(mockApi.masterData.services)
       .mockResolvedValueOnce([] as never)
       .mockResolvedValueOnce([mockService] as never)

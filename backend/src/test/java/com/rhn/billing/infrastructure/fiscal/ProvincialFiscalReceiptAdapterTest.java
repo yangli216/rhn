@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class ProvincialFiscalReceiptAdapterTest {
 
@@ -60,10 +61,12 @@ class ProvincialFiscalReceiptAdapterTest {
                 "赵六",
                 "DIGEST-赵六",
                 new BigDecimal("198.00"),
+                BigDecimal.ZERO,
                 "CNY",
                 new BigDecimal("120.00"),
                 BigDecimal.ZERO,
                 new BigDecimal("78.00"),
+                BigDecimal.ZERO,
                 lines,
                 "CORR-501"
         );
@@ -82,6 +85,40 @@ class ProvincialFiscalReceiptAdapterTest {
         assertNotNull(result.controlledObjectReference());
         assertTrue(result.controlledObjectReference().contains("bill_code="));
         assertNotNull(result.issuedAt());
+    }
+
+    @Test
+    void forwardsPersonalAccountAndOtherFundWithoutFoldingThemIntoPatientCash() {
+        var client = mock(NationalFiscalReceiptClient.class);
+        when(client.issue(any())).thenReturn(FiscalModels.FiscalIssueResponse.pending(null, null, null));
+        var adapter = new ProvincialFiscalReceiptAdapter(client);
+        adapter.issue(new ReceiptInstruction(1L, 2L, "REQ", "CMD", "MEDICAL_E_INVOICE", "CASHIER", "FISCAL", null,
+                "payer", null, BigDecimal.TEN, BigDecimal.ZERO, "CNY", new BigDecimal("5"), BigDecimal.ONE, new BigDecimal("2"),
+                new BigDecimal("2"), List.of(), "CORR"));
+        var captured = org.mockito.ArgumentCaptor.forClass(FiscalModels.FiscalIssueRequest.class);
+        verify(client).issue(captured.capture());
+        var request = captured.getValue();
+        assertEquals(new BigDecimal("5"), request.insuranceAmount());
+        assertEquals(BigDecimal.ONE, request.personalAccountAmount());
+        assertEquals(new BigDecimal("2"), request.patientAmount());
+        assertEquals(new BigDecimal("2"), request.otherFundAmount());
+        assertEquals(0, request.totalAmount().compareTo(request.insuranceAmount().add(request.personalAccountAmount())
+                .add(request.patientAmount()).add(request.otherFundAmount())));
+    }
+
+    @Test
+    void forwardsRoundingSeparatelyWithoutRepricingTheItem() {
+        var client = mock(NationalFiscalReceiptClient.class);
+        when(client.issue(any())).thenReturn(FiscalModels.FiscalIssueResponse.pending(null, null, null));
+        new ProvincialFiscalReceiptAdapter(client).issue(new ReceiptInstruction(1L, 2L, "REQ", "CMD", "MEDICAL_E_INVOICE", "CASHIER", "FISCAL", null,
+                "payer", null, new BigDecimal("9.96"), new BigDecimal("-0.04"), "CNY", BigDecimal.ZERO, BigDecimal.ZERO,
+                new BigDecimal("9.96"), BigDecimal.ZERO, List.of(new ReceiptLine(1, "LABORATORY", "LAB", "检验", BigDecimal.ONE, BigDecimal.TEN)), "CORR"));
+        var captured = org.mockito.ArgumentCaptor.forClass(FiscalModels.FiscalIssueRequest.class);
+        verify(client).issue(captured.capture());
+        var request = captured.getValue();
+        assertEquals(new BigDecimal("-0.04"), request.roundingAmount());
+        assertEquals(BigDecimal.TEN, request.items().getFirst().amount());
+        assertEquals(0, request.items().getFirst().amount().add(request.roundingAmount()).compareTo(request.totalAmount()));
     }
 
     @Test
@@ -122,4 +159,44 @@ class ProvincialFiscalReceiptAdapterTest {
         assertNotNull(result.fiscalNumber());
         assertNotNull(result.verificationCode());
     }
+    @Test void missingPlatformTimeIsNotFilledWithLocalNow() {
+        var client=mock(NationalFiscalReceiptClient.class);
+        var value=new ProvincialFiscalReceiptAdapter(client);
+        when(client.query(any(),any(),any())).thenReturn(FiscalModels.FiscalIssueResponse.success("EXT","CODE","NO",null,null,null));
+        assertNull(value.query("REQ","EXT","corr").issuedAt());
+        when(client.voidReceipt(any())).thenReturn(FiscalModels.FiscalVoidResponse.success("EXT",null));
+        assertNull(value.voidReceipt(new ReceiptAction(1L,"REQ","CMD","EXT","reason","corr")).issuedAt());
+        when(client.redFlush(any())).thenReturn(FiscalModels.FiscalRedFlushResponse.success("RED","CODE","NO",null,null,null));
+        assertNull(value.redFlush(new ReceiptAction(1L,"REQ","CMD","EXT","reason","corr")).issuedAt());
+    }
+    @Test void missingReversalReceiptNumberCannotBorrowOriginalTicket() {
+        var client=mock(NationalFiscalReceiptClient.class);var value=new ProvincialFiscalReceiptAdapter(client);
+        when(client.redFlush(any())).thenReturn(FiscalModels.FiscalRedFlushResponse.failed("FAILED","failed"));
+        var result=value.redFlush(new ReceiptAction(1L,"REQ","CMD","ORIGINAL","reason","corr"));
+        assertNull(result.externalReceiptNo());assertNull(result.issuedAt());
+    }
+    @Test void queryRetainsActualSuccessfulOperationInsteadOfAlwaysReportingIssued() {
+        var client=mock(NationalFiscalReceiptClient.class);var value=new ProvincialFiscalReceiptAdapter(client);
+        for(String outcome:new String[]{"VOIDED","RED_FLUSHED"}) {
+            when(client.query(any(),any(),any())).thenReturn(new FiscalModels.FiscalIssueResponse(true,outcome,"EXT","CODE","NO",null,null,
+                    java.time.Instant.parse("2026-10-04T00:00:00Z"),null,null));
+            assertEquals(ReceiptResult.Outcome.valueOf(outcome),value.query("REQ","EXT","corr").outcome());
+        }
+    }
+    @Test void conflictingOrUnknownPlatformStateCannotBecomeAValidResult() {
+        var client=mock(NationalFiscalReceiptClient.class);var value=new ProvincialFiscalReceiptAdapter(client);
+        for(String outcome:new String[]{"PENDING","UNKNOWN",null}) {
+            when(client.query(any(),any(),any())).thenReturn(new FiscalModels.FiscalIssueResponse(true,outcome,"EXT","CODE","NO",null,null,null,null,null));
+            assertThrows(IllegalStateException.class,()->value.query("REQ","EXT","corr"));
+        }
+    }
+
+    @Test void pendingQueryDoesNotInventAFailureCodeOrIssuanceTime() {
+        var client=mock(NationalFiscalReceiptClient.class);var value=new ProvincialFiscalReceiptAdapter(client);
+        when(client.query(any(),any(),any())).thenReturn(FiscalModels.FiscalIssueResponse.pending(null,null,null));
+        var result=value.query("REQ",null,"corr");
+        assertEquals(ReceiptResult.Outcome.PENDING,result.outcome());
+        assertNull(result.errorCode());assertNull(result.errorMessage());assertNull(result.issuedAt());
+    }
+
 }

@@ -101,6 +101,7 @@ export interface VitalsInputData {
 
 export function assessVitals(vitals: VitalsInputData): {
   assessments: VitalSignAssessment[]
+  hasData: boolean
   hasCritical: boolean
   hasWarning: boolean
   criticalMessages: string[]
@@ -295,7 +296,10 @@ export function assessVitals(vitals: VitalsInputData): {
 
   // 计算推荐分级
   let suggestedLevel: TriageLevel = 'LEVEL_4_NON_URGENT'
-  let suggestedReason = '生命体征平稳，无急重症指征'
+  const hasData = assessments.length > 0 || Boolean(vitals.consciousness)
+  let suggestedReason = hasData
+    ? '已采集项目未触发预警，仍需结合主诉和未采集项目评估'
+    : '尚未采集体征，待评估'
 
   if (vitals.consciousness === 'UNRESPONSIVE' || vitals.consciousness === 'PAIN') {
     suggestedLevel = 'LEVEL_1_CRITICAL'
@@ -313,6 +317,7 @@ export function assessVitals(vitals: VitalsInputData): {
 
   return {
     assessments,
+    hasData,
     hasCritical,
     hasWarning,
     criticalMessages,

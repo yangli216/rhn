@@ -23,6 +23,13 @@ spring:
     validate-on-migrate: false
 
 rhn:
+  # 手工验收环境显式启用模拟网关；未配置 mock 开关的环境默认拒绝未接入的正式交易。
+  billing:
+    insurance:
+      chs:
+        mock-enabled: true
+    fiscal:
+      mock-enabled: true
   id:
     allow-default-node: true
   security:

@@ -118,9 +118,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         BigDecimal quantity = BigDecimal.ONE;
         BigDecimal unitPrice = money(command.unitPrice());
         BigDecimal amount = money(command.totalAmount());
-        String accountingCategory = command.accountingCategory() != null && !command.accountingCategory().isBlank()
-                ? command.accountingCategory().trim()
-                : "TREATMENT";
+        String accountingCategory = com.rhn.shared.text.Strings.trimToNull(command.accountingCategory());
         ChargeItem charge = charges.save(new ChargeItem(
                 command.tenantId(), command.organizationId(), command.departmentId(),
                 account.id(), command.residentId(), command.encounterId(), command.requestId(),

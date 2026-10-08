@@ -22,7 +22,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,6 +36,9 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 public class ResidentService implements ResidentDirectory {
     private static final String ACTIVE = "ACTIVE";
+    private static final String IDENTIFIER_SYSTEM_DICTIONARY = "PI_RESIDENT_IDENTIFIER_SYSTEM";
+    // Other identifiers lack a verified issuing scope (or have already lost their original type).
+    private static final Set<String> EXACT_MATCH_SYSTEMS = Set.of("1", "2", "3", "4", "5", "6");
 
     private final ResidentRepository residentRepository;
     private final ResidentIdentifierRepository identifierRepository;
@@ -100,12 +102,8 @@ public class ResidentService implements ResidentDirectory {
                 request.gender(),
                 java.time.LocalDate.now(clock));
         List<NormalizedIdentifier> identifiers = normalizedIdentifiers(request.nationalId(), request.identifiers());
-        if (identifiers.isEmpty()) {
-            NormalizedIdentifier autoCard = normalizeIdentifier("HEALTH_CARD", nextTempCardNo(), "SECONDARY");
-            identifiers = List.of(autoCard);
-        }
         validateNationalIdentifiers(identifiers, request.birthDate(), request.gender());
-        identifiers.forEach(identifier -> requireDictionaryValue(tenantId, "PI_IDENTIFIER_TYPE", identifier.system()));
+        identifiers.forEach(identifier -> requireDictionaryValue(tenantId, IDENTIFIER_SYSTEM_DICTIONARY, identifier.system()));
         ensureIdentifiersAvailable(tenantId, identifiers);
         ProfileValues profile = validateProfile(tenantId, request.demographicProfile(), request.addresses(),
                 request.relatedPersons(), request.coverages(), request.employments());
@@ -369,14 +367,25 @@ public class ResidentService implements ResidentDirectory {
                 request.sourceOrganizationId(), sourceSystem, sourceRecordId, serialize(request)));
         List<NormalizedIdentifier> identifiers = normalizedIdentifiers(null, request.identifiers());
         validateNationalIdentifiers(identifiers, request.birthDate(), request.gender());
+        identifiers.forEach(identifier -> requireDictionaryValue(tenantId, IDENTIFIER_SYSTEM_DICTIONARY, identifier.system()));
         Set<Long> exactMatches = new LinkedHashSet<>();
-        identifiers.forEach(identifier -> identifierRepository
-                .findByTenantIdAndIdentifierSystemAndNormalizedValueAndStatus(
-                        tenantId, identifier.system(), identifier.normalized(), ACTIVE)
-                .ifPresent(match -> exactMatches.add(match.residentId())));
+        Set<Long> reviewMatches = new LinkedHashSet<>();
+        for (NormalizedIdentifier identifier : identifiers) {
+            boolean exactSystem = EXACT_MATCH_SYSTEMS.contains(identifier.system());
+            identifierRepository.findByTenantIdAndIdentifierSystemAndNormalizedValueAndStatus(
+                            tenantId, identifier.system(), identifier.normalized(), ACTIVE)
+                    .ifPresent(match -> (exactSystem ? exactMatches : reviewMatches)
+                            .add(resolveCanonicalResidentId(match.residentId())));
+            if (!exactSystem && !"9".equals(identifier.system())) {
+                // Legacy normalization stored unrelated card systems as 9. This is review evidence only.
+                identifierRepository.findByTenantIdAndIdentifierSystemAndNormalizedValueAndStatus(
+                                tenantId, "9", identifier.normalized(), ACTIVE)
+                        .ifPresent(match -> reviewMatches.add(resolveCanonicalResidentId(match.residentId())));
+            }
+        }
 
-        if (exactMatches.size() == 1) {
-            Long residentId = resolveCanonicalResidentId(exactMatches.iterator().next());
+        if (exactMatches.size() == 1 && exactMatches.containsAll(reviewMatches)) {
+            Long residentId = exactMatches.iterator().next();
             source.link(residentId, actor(), "标识精确匹配");
             return SourceRecordResponse.from(source, List.of());
         }
@@ -384,12 +393,18 @@ public class ResidentService implements ResidentDirectory {
             throw conflict("SOURCE_RECORD_IDENTIFIER_CONFLICT", "来源记录中的标识指向不同居民，需要先处理冲突");
         }
 
-        List<ResidentMatchCandidate> candidates = new ArrayList<>();
+        Map<Long, ResidentMatchCandidate> candidatesByResident = new LinkedHashMap<>();
+        reviewMatches.addAll(exactMatches);
+        reviewMatches.forEach(residentId -> candidatesByResident.put(residentId,
+                candidateRepository.save(new ResidentMatchCandidate(tenantId, source.id(), residentId,
+                        null, "[\"IDENTIFIER_SCOPE_REQUIRES_REVIEW\"]"))));
         residentRepository.findTop10ByTenantIdAndStatusAndFullNameIgnoreCaseAndBirthDate(
                         tenantId, ResidentStatus.ACTIVE, request.fullName().trim(), request.birthDate())
-                .forEach(resident -> candidates.add(candidateRepository.save(new ResidentMatchCandidate(
+                .forEach(resident -> candidatesByResident.computeIfAbsent(resident.id(), ignored ->
+                        candidateRepository.save(new ResidentMatchCandidate(
                         tenantId, source.id(), resident.id(), demographicScore(resident, request),
                         "[\"NAME_EXACT\",\"BIRTH_DATE_EXACT\"]"))));
+        List<ResidentMatchCandidate> candidates = List.copyOf(candidatesByResident.values());
         if (!candidates.isEmpty()) {
             source.requireReview();
         }
@@ -486,13 +501,12 @@ public class ResidentService implements ResidentDirectory {
     }
 
     private String normalizeIdentifierSystem(String system) {
-        if (StrUtil.isBlank(system)) return "1";
-        String trimmed = system.trim();
-        return switch (trimmed.toUpperCase(Locale.ROOT)) {
+        if (StrUtil.isBlank(system)) throw badRequest("RESIDENT_IDENTIFIER_SYSTEM_REQUIRED", "必须提供居民标识类型");
+        return switch (system.trim().toUpperCase(Locale.ROOT)) {
             case "NATIONAL_ID" -> "1";
             case "PASSPORT" -> "6";
-            case "SOCIAL_SECURITY_CARD", "HEALTH_CARD", "OTHER", "HOSPITAL_MRN", "BIRTH_CERTIFICATE" -> "9";
-            default -> trimmed;
+            case "OTHER" -> "9";
+            default -> system.trim().toUpperCase(Locale.ROOT);
         };
     }
 
@@ -525,11 +539,6 @@ public class ResidentService implements ResidentDirectory {
     private String nextRecordNo() {
         String time = LocalDateTime.now(clock).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         return "RHN" + time + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
-
-    private String nextTempCardNo() {
-        String time = LocalDateTime.now(clock).format(DateTimeFormatter.ofPattern("yyMMddHHmmss"));
-        return "TC" + time + com.rhn.shared.id.GlobalIds.randomSuffix(4);
     }
 
     private String normalize(String value) {

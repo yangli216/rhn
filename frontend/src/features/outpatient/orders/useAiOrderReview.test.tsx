@@ -4,7 +4,7 @@ import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { useAiOrderReview } from './useAiOrderReview'
 
-function setup() {
+function setup(pricePatch: Record<string, unknown> = {}) {
   let resolve!: (value: unknown) => void
   const catalog = new Promise((done) => { resolve = done })
   const searchServices = vi.fn(() => catalog)
@@ -22,8 +22,8 @@ function setup() {
   }
   const complete = async () => act(async () => {
     resolve({ content: [{ id: 'lab-1', code: 'LAB', name: '血常规', sdServiceType: 'LABORATORY',
-      sdStatus: 'ACTIVE', orderable: true, sdUsageType: 'OUTPATIENT', prices: [],
-      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true },
+      sdStatus: 'ACTIVE', orderable: true, chargeable: true, unitCode: '次', validFrom: '2020-01-01', sdUsageType: 'OUTPATIENT', prices: [{ id: 'service-price', organizationId: 'org-1', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 12.5, currencyCode: 'CNY', validFrom: '2020-01-01', ...pricePatch }],
+      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true, chargeable: true, validFrom: '2020-01-01' },
     }] })
     await catalog
   })
@@ -57,4 +57,14 @@ describe('AI order review lifecycle', () => {
     expect(props.aiOrderReview?.onCompleted).toHaveBeenCalledWith(['LABORATORY:lab-1'])
     expect(props.onAiOrderReviewConsumed).toHaveBeenCalledTimes(1)
   })
+  it.each([{ sdStatus: 'INACTIVE' }, { validTo: '2020-01-01' }, { currencyCode: undefined }])(
+    'does not confirm an AI service with unavailable pricing: %j', async patch => {
+      const { props, complete } = setup(patch)
+      renderHook(useAiOrderReview, { initialProps: props })
+      await complete()
+      expect(props.setServiceDrafts).not.toHaveBeenCalled()
+      expect(props.aiOrderReview?.onCompleted).not.toHaveBeenCalled()
+      expect(props.setValidationError).toHaveBeenCalledWith(expect.stringMatching(/价格/))
+    })
+
 })

@@ -38,11 +38,14 @@ public record RecordClinicalDataRequest(
 ) {
     public record DiagnosisInput(
             Long conceptId,
-            @Pattern(regexp = "WESTERN_MEDICINE|TCM_DISEASE|TCM_SYNDROME") String diagnosisDomain,
+            @Pattern(regexp = "WESTERN_MEDICINE|TCM_DISEASE|TCM_SYNDROME")
+            @io.swagger.v3.oas.annotations.media.Schema(nullable = true) String diagnosisDomain,
             @NotBlank(message = "诊断编码不能为空") @Size(max = 64) String code,
             @NotBlank(message = "诊断名称不能为空") @Size(max = 200) String display,
             @NotNull(message = "诊断类型不能为空") EncounterDiagnosis.DiagnosisType type,
-            @Size(max = 64) String diagnosisGroupId
+            @Size(max = 64) String diagnosisGroupId,
+            @Size(max = 100) @io.swagger.v3.oas.annotations.media.Schema(nullable = true)
+            @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String codeSystem
     ) {
     }
 }

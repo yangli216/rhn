@@ -7,10 +7,13 @@ import java.util.List;
 public interface EncounterDirectory {
     EncounterSnapshot requireAccessible(Long encounterId);
     EncounterSnapshot requireOrganizationAccessible(Long encounterId);
+    EncounterServiceSnapshot requireOrganizationAccessibleService(Long encounterId);
     EncounterSnapshot requireActiveForOrdering(Long encounterId);
     List<EncounterSnapshot> findAccessible(Collection<Long> encounterIds);
     List<EncounterSnapshot> findOrganizationAccessible(Collection<Long> encounterIds);
-    List<EncounterSnapshot> recentForResident(Long residentId, int limit);
+    /** Current organization/department's completed outpatient visits, filtered before the ten-visit limit. */
+    List<EncounterSnapshot> recentCompletedForResident(Long residentId, Long excludedEncounterId,
+                                                       java.time.Instant registeredSince, int limit);
     PharmacyClinicalSnapshot requireForPharmacy(Long tenantId, Long encounterId);
 
     void validateRegistration(RegistrationEligibilityCommand command);
@@ -27,6 +30,8 @@ public interface EncounterDirectory {
             Long id, Long tenantId, Long residentId, Long organizationId, Long departmentId,
             String encounterNo, String clinicianId, String status, long revision,
             String departmentName, java.time.Instant registeredAt) {}
+
+    record EncounterServiceSnapshot(EncounterSnapshot encounter, java.time.Instant startedAt, java.time.Instant completedAt) {}
 
     record PharmacyClinicalSnapshot(
             Long encounterId, Long residentId, String encounterNo, String clinicianId,

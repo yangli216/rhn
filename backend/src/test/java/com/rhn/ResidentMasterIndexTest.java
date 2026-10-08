@@ -1,14 +1,21 @@
 package com.rhn;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Test
     void identifiers_source_matching_merge_and_split_remain_reversible() throws Exception {
@@ -74,7 +81,7 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.mergedIntoId").doesNotExist())
                 .andExpect(jsonPath("$.identifiers.length()").value(2));
 
-        mockMvc.perform(post("/api/residents/source-records")
+        String sourceBody = mockMvc.perform(post("/api/residents/source-records")
                         .with(rhn())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -91,6 +98,16 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(ORGANIZATION)))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.matchStatus").value("REVIEW"))
+                .andExpect(jsonPath("$.residentId").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        String sourceId = objectMapper.readTree(sourceBody).get("id").asString();
+        mockMvc.perform(post("/api/residents/source-records/{id}/link", sourceId)
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"residentId":"%s","reason":"已核实来源机构病案号与居民身份"}
+                                """.formatted(duplicateId)))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.matchStatus").value("MATCHED"))
                 .andExpect(jsonPath("$.residentId").value(duplicateId));
     }
@@ -135,9 +152,10 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.content.length()").value(0));
     }
 
-    @Test
-    void quick_resident_creation_without_national_id_allocates_temporary_health_card() throws Exception {
-        String testName = "临时卡测试" + Long.toString(System.currentTimeMillis()).substring(8);
+    @ParameterizedTest
+    @ValueSource(strings = {"", ",\"identifiers\":[]", ",\"identifiers\":null"})
+    void creation_without_identifiers_preserves_absence_and_supports_search_and_encounter(String identifiersField) throws Exception {
+        String testName = "无证件建档";
         String body = mockMvc.perform(post("/api/residents")
                         .with(rhn())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -146,23 +164,37 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                                   "fullName":"%s",
                                   "gender":"MALE",
                                   "birthDate":"1990-01-01",
-                                  "phone":"13600000001",
-                                  "identifiers":[]
+                                  "phone":"13600000001"%s
                                 }
-                                """.formatted(testName)))
+                                """.formatted(testName, identifiersField)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.fullName").value(testName))
                 .andExpect(jsonPath("$.maskedNationalId").doesNotExist())
-                .andExpect(jsonPath("$.identifiers[0].system").value("9"))
-                .andExpect(jsonPath("$.identifiers[0].maskedValue").value(org.hamcrest.Matchers.startsWith("TC")))
+                .andExpect(jsonPath("$.healthRecordNo").isNotEmpty())
+                .andExpect(jsonPath("$.identifiers").isEmpty())
                 .andReturn().getResponse().getContentAsString();
 
         String residentId = objectMapper.readTree(body).get("id").asString();
         mockMvc.perform(get("/api/residents/{id}", residentId)
                         .with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.identifiers[0].system").value("9"))
-                .andExpect(jsonPath("$.identifiers[0].maskedValue").value(org.hamcrest.Matchers.startsWith("TC")));
+                .andExpect(jsonPath("$.identifiers").isEmpty());
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM RHN_PI_PAT_IDENT WHERE ID_PAT = ?",
+                Integer.class, Long.valueOf(residentId))).isZero();
+        String recordNo = objectMapper.readTree(body).get("healthRecordNo").asString();
+        mockMvc.perform(get("/api/residents/page").with(rhn()).queryParam("query", recordNo))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(residentId))
+                .andExpect(jsonPath("$.content[0].identifiers").isEmpty());
+        mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.residentId").value(residentId));
     }
 
     private String createResident(String name, String nationalId, String identifiers) throws Exception {

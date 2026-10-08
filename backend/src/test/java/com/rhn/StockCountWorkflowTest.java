@@ -14,6 +14,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ResetDatabaseBeforeEachTestMethod
 class StockCountWorkflowTest extends RhnIntegrationTestSupport {
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     private static final String PRODUCT = "362387869795113";
     private static final String PACKAGE = "362387869795403";
 
@@ -28,6 +31,8 @@ class StockCountWorkflowTest extends RhnIntegrationTestSupport {
 
         JsonNode count = createCount(site, "CT-" + suffix);
         String id = count.get("id").asString();
+        org.junit.jupiter.api.Assertions.assertEquals(Long.valueOf(DEPARTMENT), jdbc.queryForObject(
+                "select ID_DEPT from RHN_SUP_STOCK_COUNT where ID_STOCK_COUNT = ?", Long.class, Long.valueOf(id)));
         String lineId = count.at("/lines/0/id").asString();
         mockMvc.perform(post("/api/pharmacy/stock-counts/{id}/start", id).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COUNTING"));

@@ -10,9 +10,10 @@ import { focusResource } from './orderEditorControls'
 
 export function OrderComposerResource({
   entryType, changeType, hasEnteredOrder, isMedication, selectedProduct, grouping, api, encounter,
-  searchMode, changeSearchMode, medicationOption, service, handleOrderResourceSelect
+  searchMode, changeSearchMode, medicationOption, service, handleOrderResourceSelect, disabled = false
 }: {
   entryType: OrderEntryType
+  disabled?: boolean
   changeType: (type: OrderEntryType) => void
   hasEnteredOrder: boolean
   isMedication: boolean
@@ -29,7 +30,7 @@ export function OrderComposerResource({
   return <>
     <div className="doctor-inline-order-field doctor-inline-order-type">
       <div className="doctor-composer-type-wrap">
-        <Select id="doctor-unified-entry-type" aria-label="医嘱类型" value={entryType} clearable={false} searchable={false}
+        <Select disabled={disabled} id="doctor-unified-entry-type" aria-label="医嘱类型" value={entryType} clearable={false} searchable={false}
           options={[
             { value: 'ALL', label: '全部' },
             { value: 'WESTERN', label: '西药' },
@@ -54,6 +55,7 @@ export function OrderComposerResource({
           <AdministrationGroupBracket isTail />
         )}
         <ClinicalResourceSearch
+          disabled={disabled}
           id={`doctor-unified-${entryType}-resource`}
           api={api}
           resource={entryType === 'ALL' ? 'mixed' : (isMedication ? 'medication' : 'service')}

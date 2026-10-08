@@ -27,6 +27,11 @@ class WorkTaskHistory {
 
     WorkTaskHistory(WorkTask task, String action, TaskStatus fromStatus, Long actorId,
                     String comment, String correlationId) {
+        this(task, action, fromStatus, actorId, comment, correlationId, Instant.now());
+    }
+
+    WorkTaskHistory(WorkTask task, String action, TaskStatus fromStatus, Long actorId,
+                    String comment, String correlationId, Instant occurredAt) {
         this.id = GlobalIds.next();
         this.tenantId = task.tenantId();
         this.taskId = task.id();
@@ -36,6 +41,6 @@ class WorkTaskHistory {
         this.actorId = actorId;
         this.comment = comment;
         this.correlationId = correlationId;
-        this.occurredAt = Instant.now();
+        this.occurredAt = occurredAt;
     }
 }

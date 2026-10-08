@@ -44,10 +44,10 @@ public class InsuranceClaimController {
     @PostMapping("/settlements/{settlementId}/insurance/quick-pre-settle")
     @ResponseStatus(HttpStatus.CREATED)
     InsuranceSettlementView quickPreSettle(@PathVariable Long settlementId,
-                                          @RequestBody(required = false) QuickPreSettleRequest input) {
-        return service.quickPreSettle(settlementId, input == null ? null : input.coverageId(),
-                input == null ? null : input.insuranceTypeCode(), input == null ? null : input.regionCode(),
-                input == null ? null : input.idempotencyKey());
+                                          @Valid @RequestBody QuickPreSettleRequest input) {
+        return service.quickPreSettle(settlementId, input.coverageId(),
+                input.insuranceTypeCode(), input.regionCode(),
+                input.idempotencyKey());
     }
 
     @PostMapping("/settlements/{settlementId}/insurance/pre-settlements")
@@ -96,7 +96,7 @@ public class InsuranceClaimController {
             @NotBlank @Size(max = 128) String departmentCode,
             @NotBlank @Size(max = 128) String practitionerCode,
             @NotBlank @Size(max = 128) String diagnosisPayloadDigest,
-            Instant serviceStartedAt, Instant serviceEndedAt,
+            @NotNull Instant serviceStartedAt, Instant serviceEndedAt,
             @Size(max = 128) String correlationId,
             @NotEmpty @Size(max = 500) List<@Valid LineMappingRequest> lines) {}
     record LineMappingRequest(@NotNull Long settlementLineId,
@@ -108,5 +108,7 @@ public class InsuranceClaimController {
     record RecoveryRequest(@NotBlank @Size(max = 96) String batchCode,
                            @jakarta.validation.constraints.Min(1)
                            @jakarta.validation.constraints.Max(100) Integer limit) {}
-    record QuickPreSettleRequest(Long coverageId, String insuranceTypeCode, String regionCode, String idempotencyKey) {}
+    record QuickPreSettleRequest(Long coverageId, @Size(max = 64) String insuranceTypeCode,
+                                 @Size(max = 64) String regionCode,
+                                 @NotBlank @Size(max = 128) String idempotencyKey) {}
 }

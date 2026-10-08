@@ -1,5 +1,16 @@
+import { RemoteSearchSelect, type RemoteSearchOption } from '../../shared/ui/RemoteSearchSelect'
+import { diseaseMemberEditorScope, diseaseMemberPageSize, requireDiseaseMemberSearchPage, type DiseaseMemberCandidate } from './diseaseMemberSearchFacts'
+import { prepareDiseaseScopeSave, requireDiseaseScopeReceipt } from './diseaseScopeReceipt'
+import { requireMappingSystems, requireMappingTerms, mappingAuthorityMatches, assertMappingSaveCommand, verifyMappingSaveReceipt, requireUnchangedMappingSelection, type MappingSaveCommand, requireStandardMappings, assertMappingStatusCommand, verifyMappingStatusReceipt, requirePersistedMappings } from './standardMappingFacts'
+import { ItemAttributeValueEditor, parseAttributeRaw, loadAttributeMaintenance } from './ItemAttributeValueEditor'
+import { assertCatalogLifecycleCommand, requireCatalogLifecycleReceipt, requirePersistedCatalogReceipt, type CatalogLifecycleCommand } from './catalogLifecycleReceipt'
+import { requireCatalogLifecycle, requireCatalogDepartments, nextCatalogVersionDate } from './catalogLifecycleFacts'
+import { requireCatalogSource } from './organizationCatalogFacts'
+import { requireOrganizationDictionary } from './organizationDictionaryFacts'
+import { catalogImportScope, requireImportCandidates, requireImportReceipt, type CatalogImportAttempt } from './catalogImportFacts'
+import { saveMasterDataAttributes } from './saveMasterDataAttributes'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { Organization } from '../../shared/model'
 import {
@@ -13,9 +24,9 @@ import {
   type ItemAttributeJson, type ItemAttributeOverride, type ItemAttributeSchema,
   type ItemAttributeSubjectType, type ItemAttributeValue, type ItemAttributeMaintenance, type MasterDataImportBatch,
   type MasterDataImportRow, type MasterDataImportType, type ItemTermMapping,
-  type StandardEquivalence, type StandardMappingType,
+  type StandardEquivalence, type StandardMappingType, type StandardTerm,
   type CatalogLifecycle, type LifecycleAdoptionInput, type LifecyclePriceInput,
-  type CatalogAdoptionCandidate, type OrganizationAdoption,
+  type CatalogAdoptionCandidate, type OrganizationAdoption, type CatalogChangeBatch,
   type ActiveOrderFrequency,
   type MedicationRoute, type StandardMedicationDetail, type StandardMedicationSpecification,
 } from '../../shared/rhnApi'
@@ -101,6 +112,8 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(20)
   const [dialog, setDialog] = useState<ReactNode>()
+  const [diseaseScopeEditor, setDiseaseScopeEditor] = useState<{ program: DiseaseManagementProgram; api: RhnApi }>()
+  useEffect(() => { setDiseaseScopeEditor(undefined) }, [api])
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
 
@@ -218,7 +231,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
           .then(() => invalidate('疾病管理项目已创建')).catch(fail)} />)
       if (tab === 'service') setDialog(<ServiceDialog api={api} organization={organization} dictionaries={dictionaries.data!}
         onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createService(input, organization.id)
-          .then(() => invalidate('诊疗项目已创建')).catch(fail)} />)
+          .then(() => invalidate('诊疗项目已创建'))} />)
       if (tab === 'medication') setMedicationMode('standard')
     }}><Icon name="add" />{tab === 'disease' && diseaseMode === 'management' ? '新增管理项目' : tab === 'medication' ? '从标准目录建档' : `新增${tabLabel(tab)}`}</Button>
   </>
@@ -318,12 +331,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
             value={value} onClose={() => setDialog(undefined)}
             onSave={(input) => api.masterData.updateDiseaseManagementProgram(value.id, value.revision, input)
               .then(() => invalidate('疾病管理项目已更新')).catch(fail)} />)}
-          onMembers={(value) => setDialog(<DiseaseManagementMembersDialog program={value}
-            api={api} dictionaries={dictionaries.data!} codeSystems={codeSystems.data ?? []}
-            onClose={() => setDialog(undefined)}
-            onSave={(rules, exceptions) => api.masterData.replaceDiseaseManagementScope(
-              value.id, value.revision, rules, exceptions)
-              .then(() => invalidate('适用疾病范围已更新')).catch(fail)} />)}
+          onMembers={(value) => setDiseaseScopeEditor({ program: value, api })}
           onStatus={(value) => api.masterData.diseaseManagementProgramStatus(value.id, value.revision,
             value.sdStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE')
             .then(() => invalidate('疾病管理项目状态已更新')).catch(fail)} />}
@@ -334,7 +342,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
           onClose={() => setDialog(undefined)} />)}
         onEdit={(value) => setDialog(<ServiceDialog api={api} organization={organization} dictionaries={dictionaries.data!} value={value}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.updateService(
-            value.id, value.revision, input, organization.id).then(() => invalidate('诊疗项目已更新')).catch(fail)} />)} />}
+            value.id, value.revision, input, organization.id).then(() => invalidate('诊疗项目已更新'))} />)} />}
       {tab === 'medication' && (medicationMode === 'readiness' || medicationMode === 'semantics') && (
         <Suspense fallback={<LoadingState label="正在加载药品标准建设情况…" />}>
           <MedicationStandardReadinessPanel api={api} compact={scope !== 'all'} organizationId={organization.id} onOpenCatalog={() => setMedicationMode('standard')} />
@@ -370,7 +378,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
         onEdit={(value) => setDialog(<MedicationDialog api={api} organization={organization} dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
           routes={routes.data ?? []} value={value}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.updateMedication(
-            value.id, value.revision, input, organization.id).then(() => invalidate('药品知识已更新')).catch(fail)} />)}
+            value.id, value.revision, input, organization.id).then(() => invalidate('药品知识已更新'))} />)}
         onComposition={(value) => setDialog(<MedicationCompositionDialog api={api} medication={value} onClose={() => setDialog(undefined)} />)}
         onProduct={(value) => {
           if (value.standardReference?.status !== 'LINKED') {
@@ -409,9 +417,15 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
         )}
       </div>
     </Panel>
-    {dialog && (
+    {(dialog || diseaseScopeEditor?.api === api) && (
       <Suspense fallback={<DialogSuspenseFallback />}>
         {dialog}
+        {diseaseScopeEditor?.api === api && <DiseaseManagementMembersDialog program={diseaseScopeEditor.program}
+          api={api} dictionaries={dictionaries.data!} codeSystems={codeSystems.data ?? []}
+          onClose={() => setDiseaseScopeEditor(undefined)}
+          onSave={(rules, exceptions) => api.masterData.replaceDiseaseManagementScope(
+            diseaseScopeEditor.program.id, diseaseScopeEditor.program.revision, rules, exceptions)}
+          onSaved={() => { setDiseaseScopeEditor(undefined); void invalidate('适用疾病范围已更新').catch(fail) }} />}
       </Suspense>
     )}
   </div>
@@ -866,8 +880,8 @@ function medicationSafetyMarkers(value: MedicationKnowledge) {
     ? '特' : value.sdAntimicrobialLevel === 'NON_RESTRICTED' || antimicrobialLevel.includes('非限制')
       ? '非' : value.sdAntimicrobialLevel === 'RESTRICTED' || antimicrobialLevel.includes('限制') ? '限' : '抗'
   const skinTestMethod = value.skinTestMethod === 'PRICK' ? '点刺试验'
-    : value.skinTestMethod === 'OTHER' ? '其他方式' : '皮内试验'
-  const solutionMode = value.skinTestSolutionMode === 'ORIGINAL_SOLUTION' ? '原液' : '配制皮试液'
+    : value.skinTestMethod === 'OTHER' ? '其他方式' : value.skinTestMethod === 'INTRADERMAL' ? '皮内试验' : '皮试方式未维护'
+  const solutionMode = value.skinTestSolutionMode === 'ORIGINAL_SOLUTION' ? '原液' : value.skinTestSolutionMode === 'DILUTED_SOLUTION' ? '配制皮试液' : '试液方式未维护'
   const skinTestDetail = [
     '需皮试', skinTestMethod, solutionMode,
     value.skinTestObservationMinutes && `观察 ${value.skinTestObservationMinutes} 分钟`,
@@ -1475,26 +1489,6 @@ function formatStorageType(text?: string | null, code?: string | null): string |
   return text || code || undefined
 }
 
-function ensureStorageTypeValues(values: DictionaryValue[] = []): DictionaryValue[] {
-  const existingCodes = new Set(values.map((v) => v.code))
-  const additions: DictionaryValue[] = [
-    { code: 'ROOM_TEMPERATURE', name: '常温', sortOrder: 10, attributes: {} },
-    { code: 'COLD_CHAIN', name: '冷链', sortOrder: 20, attributes: {} },
-    { code: 'COOL', name: '阴凉', sortOrder: 30, attributes: {} },
-    { code: 'REFRIGERATED', name: '冷藏', sortOrder: 40, attributes: {} },
-    { code: 'FROZEN', name: '冷冻', sortOrder: 50, attributes: {} },
-    { code: 'DRY', name: '干燥', sortOrder: 60, attributes: {} },
-    { code: 'COOL_DARK', name: '凉暗', sortOrder: 70, attributes: {} },
-    { code: 'DARK', name: '避光', sortOrder: 80, attributes: {} },
-  ]
-  const merged = [...values]
-  for (const item of additions) {
-    if (!existingCodes.has(item.code)) {
-      merged.push(item)
-    }
-  }
-  return merged.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-}
 
 function PackageChips({ product, onEdit }: { product: MedicationProduct; onEdit?: (value: ItemPackage) => void }) {
   if (!product.packages.length) return <span className="medication-packages__empty">未维护</span>
@@ -1625,15 +1619,24 @@ function downloadBlob(blob: Blob, fileName: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-export function StandardMappingDialog({ api, subjectType, targetId, itemName, systemType, onClose }: {
+type StandardMappingDialogProps = {
   api: RhnApi; subjectType: ItemAttributeSubjectType; targetId: string; itemName: string
   systemType: 'SERVICE' | 'MEDICATION'; onClose: () => void
-}) {
+}
+export function StandardMappingDialog(props: StandardMappingDialogProps) {
+  const scope = `${catalogImportScope(props.api, props.subjectType)}:${props.targetId}:${props.systemType}`
+  return <StandardMappingSession key={scope} {...props} scope={scope} />
+}
+function StandardMappingSession({ api, subjectType, targetId, itemName, systemType, onClose, scope }: StandardMappingDialogProps & { scope: string }) {
+  const active = useRef(true)
+  const pendingRef = useRef(false)
+  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  const [unconfirmed, setUnconfirmed] = useState(false)
   const [businessDate, setBusinessDate] = useState(today())
   const [mappingType, setMappingType] = useState<StandardMappingType>('CLINICAL')
   const [equivalence, setEquivalence] = useState<StandardEquivalence>('EXACT')
   const [systemId, setSystemId] = useState('')
-  const [termId, setTermId] = useState('')
+  const [selectedTerm, setSelectedTerm] = useState<RemoteSearchOption<StandardTerm>>()
   const [validFrom, setValidFrom] = useState(today())
   const [validTo, setValidTo] = useState('')
   const [limitation, setLimitation] = useState('')
@@ -1642,102 +1645,131 @@ export function StandardMappingDialog({ api, subjectType, targetId, itemName, sy
   const [pending, setPending] = useState('')
   const [operationError, setOperationError] = useState('')
   const maintenance = useQuery({
-    queryKey: ['master-data-standard-mappings', subjectType, targetId, businessDate],
-    queryFn: () => api.masterData.itemTermMappings(subjectType, targetId, businessDate),
+    queryKey: ['master-data-standard-mappings', scope, businessDate],
+    queryFn: async () => requireStandardMappings(await api.masterData.itemTermMappings(subjectType, targetId, businessDate),
+      { subjectType, targetId, businessDate }),
   })
   const systems = useQuery({
-    queryKey: ['master-data-standard-systems', systemType],
-    queryFn: () => api.masterData.standardCodeSystems(systemType),
+    queryKey: ['master-data-standard-systems', scope, validFrom],
+    queryFn: async () => requireMappingSystems(await api.masterData.standardCodeSystems(systemType, '', validFrom), systemType, validFrom),
+    enabled: Boolean(validFrom),
   })
-  const eligibleSystems = useMemo(() => (systems.data ?? []).filter((value) => {
-    if (mappingType === 'INSURANCE') return value.authorityType === 'INSURANCE'
-    if (mappingType === 'REGULATORY') return ['NATIONAL', 'REGULATORY'].includes(value.authorityType)
-    if (mappingType === 'LOCAL') return ['LOCAL', 'INTERNAL'].includes(value.authorityType)
-    return true
-  }), [mappingType, systems.data])
-  useEffect(() => {
-    if (!eligibleSystems.some((value) => value.id === systemId)) {
-      setSystemId(eligibleSystems[0]?.id ?? '')
-      setTermId('')
-    }
-  }, [eligibleSystems, systemId])
-  const terms = useQuery({
-    queryKey: ['master-data-standard-terms', systemId, validFrom],
-    queryFn: () => api.masterData.standardTerms(systemId, validFrom),
-    enabled: Boolean(systemId),
-  })
-  useEffect(() => { if (termId && !(terms.data ?? []).some((value) => value.id === termId)) setTermId('') }, [termId, terms.data])
+  const systemsReady = systems.isSuccess && !systems.isFetching
+  const eligibleSystems = useMemo(() => systemsReady
+    ? systems.data.filter(value => mappingAuthorityMatches(mappingType, value.authorityType)) : [], [systemsReady, systems.data, mappingType])
+  const selectedSystem = eligibleSystems.find(value => value.id === systemId)
+  const loadTerms = useCallback(async (query: string): Promise<RemoteSearchOption<StandardTerm>[]> => {
+    if (!selectedSystem) throw new Error('请先确认标准发布版')
+    return requireMappingTerms(await api.masterData.standardTerms(selectedSystem.id, validFrom, query), selectedSystem, validFrom)
+      .map(value => ({ value: value.id, label: value.display, code: value.code, raw: value }))
+  }, [api, selectedSystem, validFrom])
 
-  const refresh = async (message: string) => {
-    setOperationError(''); setReplacement(undefined); setTermId(''); await maintenance.refetch()
-    return message
+  const ready = maintenance.isSuccess && !maintenance.isFetching && !unconfirmed
+  const reload = async () => {
+    if (pendingRef.current) return
+    try {
+      await maintenance.refetch({ throwOnError: true })
+      if (active.current) { setUnconfirmed(false); setOperationError('') }
+    } catch (error) { if (active.current) setOperationError(errorMessage(error)) }
   }
   const save = async () => {
-    if (!termId || !validFrom) return
-    setPending('save'); setOperationError('')
-    try {
-      await api.masterData.saveItemTermMapping(subjectType, targetId, {
-        conceptId: termId, mappingType, equivalence, primaryMapping,
+    if (pendingRef.current || !ready || !selectedSystem || !selectedTerm?.raw || !validFrom) return
+    const command: MappingSaveCommand = structuredClone({
+      input: { conceptId: selectedTerm.raw.id, mappingType, equivalence, primaryMapping,
         limitation: limitation.trim() || undefined, validFrom, validTo: validTo || undefined,
-        replacesMappingId: replacement?.id, expectedReplacesRevision: replacement?.revision,
-      })
-      setLimitation(''); setValidTo(''); await refresh('')
-    } catch (error) { setOperationError(errorMessage(error)) } finally { setPending('') }
+        replacesMappingId: replacement?.id, expectedReplacesRevision: replacement?.revision },
+      system: selectedSystem, term: selectedTerm.raw, replaced: replacement,
+    })
+    try { assertMappingSaveCommand(maintenance.data!, command) }
+    catch (error) { setOperationError(errorMessage(error)); return }
+    pendingRef.current = true; setPending('save'); setOperationError('')
+    try {
+      const [source, publishers, concepts] = await Promise.all([
+        api.masterData.itemTermMappings(subjectType, targetId, businessDate),
+        api.masterData.standardCodeSystems(systemType, '', command.input.validFrom),
+        api.masterData.standardTerms(command.system.id, command.input.validFrom, command.term.code),
+      ])
+      if (!active.current) return
+      const before = requireStandardMappings(source, { subjectType, targetId, businessDate })
+      const freshSystems = requireMappingSystems(publishers, systemType, command.input.validFrom)
+      const freshTerms = requireMappingTerms(concepts, command.system, command.input.validFrom)
+      requireUnchangedMappingSelection(command, freshSystems, freshTerms)
+      assertMappingSaveCommand(before, command)
+      const receipt = verifyMappingSaveReceipt(await api.masterData.saveItemTermMapping(subjectType, targetId, command.input), before, command)
+      if (!active.current) return
+      const result = await maintenance.refetch({ throwOnError: true })
+      requirePersistedMappings(receipt, requireStandardMappings(result.data, { subjectType, targetId, businessDate }))
+      if (active.current) { setLimitation(''); setValidTo(''); setReplacement(undefined); setSelectedTerm(undefined) }
+    } catch (error) { if (active.current) { setUnconfirmed(true); setOperationError(errorMessage(error)) } }
+    finally { pendingRef.current = false; if (active.current) setPending('') }
   }
   const changeStatus = async (value: ItemTermMapping, status: 'ACTIVE' | 'SUSPENDED' | 'RETIRED') => {
-    setPending(value.id); setOperationError('')
+    if (pendingRef.current || !ready) return
+    const before = structuredClone(maintenance.data!)
+    const command = { original: structuredClone(value), status, validTo: status === 'RETIRED' ? businessDate : undefined }
+    try { assertMappingStatusCommand(before, command) }
+    catch (error) { setOperationError(errorMessage(error)); return }
+    pendingRef.current = true; setPending(`${value.id}:${status}`); setOperationError('')
     try {
-      const end = status === 'RETIRED' ? (businessDate < value.validFrom ? value.validFrom : businessDate) : undefined
-      await api.masterData.changeItemTermMappingStatus(value.id, value.revision, status, end)
-      await refresh('')
-    } catch (error) { setOperationError(errorMessage(error)) } finally { setPending('') }
+      const receipt = verifyMappingStatusReceipt(await api.masterData.changeItemTermMappingStatus(
+        value.id, value.revision, status, command.validTo), before, command)
+      if (!active.current) return
+      const result = await maintenance.refetch({ throwOnError: true })
+      requirePersistedMappings(receipt, requireStandardMappings(result.data, { subjectType, targetId, businessDate }))
+    } catch (error) { if (active.current) { setUnconfirmed(true); setOperationError(errorMessage(error)) } }
+    finally { pendingRef.current = false; if (active.current) setPending('') }
   }
   const startReplacement = (value: ItemTermMapping) => {
+    if (!ready || pendingRef.current) return
     setReplacement(value); setMappingType(value.mappingType); setEquivalence(value.equivalence)
-    setPrimaryMapping(value.primaryMapping); setSystemId(value.codeSystemId); setTermId('')
-    const next = new Date(`${value.validFrom}T00:00:00`); next.setDate(next.getDate() + 1)
-    const nextDate = next.toISOString().slice(0, 10)
-    setValidFrom(today() > nextDate ? today() : nextDate); setValidTo(''); setLimitation(value.limitation ?? '')
+    setPrimaryMapping(value.primaryMapping); setSystemId(value.codeSystemId); setSelectedTerm(undefined)
+    setValidFrom(nextCatalogVersionDate(value.validFrom, today())); setValidTo(''); setLimitation(value.limitation ?? '')
   }
-  const values = maintenance.data
-  return <Dialog title={`${itemName} · 标准映射`} eyebrow="基础数据 · 标准来源与有效期" size="xwide" onClose={onClose}
+  const values = ready ? maintenance.data : undefined
+  return <Dialog title={`${itemName} · 标准映射`} eyebrow="基础数据 · 标准来源与有效期" size="xwide" closeOnBackdrop={false} onClose={() => { if (!pendingRef.current) onClose() }}
     description="维护国家、医保、监管及地方标准映射；业务模块按业务日期解析，历史映射不会被覆盖。">
     <div className="master-data-mapping-dialog">
-      {(operationError || maintenance.error || systems.error || terms.error) && <Alert>
-        {operationError || errorMessage(maintenance.error || systems.error || terms.error)}</Alert>}
+      {(operationError || maintenance.error || unconfirmed) && <div role="alert">
+        {operationError || errorMessage(maintenance.error) || '标准映射结果尚未确认'}
+        <Button variant="secondary" size="sm" disabled={Boolean(pending)} onClick={() => void reload()}>重新核实映射</Button>
+      </div>}
       <section className="master-data-mapping-current">
         <header><div><h3>业务日期下的有效映射</h3><p>改变日期可回看当时应使用的标准编码。</p></div>
-          <FormField label="业务日期"><input type="date" value={businessDate}
+          <FormField label="业务日期"><input type="date" value={businessDate} disabled={Boolean(pending)}
             onChange={(event) => setBusinessDate(event.target.value)} /></FormField></header>
-        {maintenance.isPending ? <LoadingState label="正在解析标准映射…" />
-          : !values?.effectiveMappings.length ? <EmptyState icon="clinical" title="当前日期暂无有效映射"
+        {maintenance.isFetching ? <LoadingState label="正在解析标准映射…" />
+          : !values ? <p>有效映射尚未确认，请重新加载核实。</p>
+          : !values.effectiveMappings.length ? <EmptyState icon="clinical" title="当前日期暂无有效映射"
             copy="可在右侧维护区新增首条映射。" />
             : <div className="master-data-mapping-cards">{values.effectiveMappings.map((value) =>
               <MappingSummary key={value.id} value={value} />)}</div>}
       </section>
 
-      <section className="master-data-mapping-editor">
+      <section className="master-data-mapping-editor" inert={!ready || Boolean(pending)}>
         <header><h3>{replacement ? '建立替代映射' : '新增标准映射'}</h3><p>{replacement
           ? `将替代 ${replacement.systemName} · ${replacement.termCode}，原记录自动截止到新映射生效前一天。`
           : '先选用途与权威发布版，再选标准条目和有效期。'}</p></header>
+        {systems.isError && <div role="alert">标准发布版加载失败：{errorMessage(systems.error)}
+          <Button size="sm" variant="secondary" onClick={() => void systems.refetch()}>重新加载发布版</Button></div>}
+        {systemId && systemsReady && !selectedSystem && <p role="alert">已选发布版不适用于当前日期或用途，请重新选择。</p>}
         {replacement && <Alert tone="info">正在替代：{replacement.termDisplay}（{replacement.termCode}）
           <Button size="sm" variant="text" onClick={() => setReplacement(undefined)}>取消替代</Button></Alert>}
         <div className="master-data-mapping-form">
           <FormField label="映射用途" required><Select value={mappingType} disabled={Boolean(replacement)}
-            onChange={(value) => setMappingType(value as StandardMappingType)} options={[
+            onChange={(value) => { setMappingType(value as StandardMappingType); setSystemId(''); setSelectedTerm(undefined) }} options={[
               { value: 'CLINICAL', label: '临床标准' }, { value: 'INSURANCE', label: '医保目录' },
               { value: 'REGULATORY', label: '监管标准' }, { value: 'LOCAL', label: '地方 / 院内标准' },
             ]} /></FormField>
-          <FormField label="标准发布版" required><Select value={systemId} onChange={(value) => { setSystemId(value); setTermId('') }}
-            loading={systems.isPending} placeholder="选择权威标准及发布版" showValue options={eligibleSystems.map((value) => ({
+          <FormField label="标准发布版" required><Select value={systemId} onChange={(value) => { setSystemId(value); setSelectedTerm(undefined) }}
+            loading={systems.isFetching} disabled={!systemsReady} placeholder="选择权威标准及发布版" showValue options={eligibleSystems.map((value) => ({
               value: value.id, label: `${value.name} · ${value.version}`, secondaryText: value.code,
               searchKeywords: [value.publisher ?? '', value.authorityType],
             }))} /></FormField>
-          <FormField label="标准条目" required><Select value={termId} onChange={setTermId} loading={terms.isFetching}
-            disabled={!systemId} placeholder="按名称、编码或拼音检索" showValue options={(terms.data ?? []).map((value) => ({
-              value: value.id, label: value.display, secondaryText: value.code,
-              searchKeywords: [value.shortDisplay ?? '', value.conceptType ?? ''],
-            }))} /></FormField>
+          <FormField label="标准条目" required><RemoteSearchSelect<StandardTerm>
+            key={`${scope}:${systemId}:${validFrom}`} value={selectedTerm} onChange={setSelectedTerm} loadOptions={loadTerms}
+            disabled={!selectedSystem || Boolean(pending)} placeholder="输入名称或编码远程检索" minChars={1} resultLimit={500}
+            popoverHeader={<p>每次最多显示 500 条匹配结果；可输入更精确的名称、编码或拼音码。</p>} />
+          </FormField>
           <FormField label="等价关系" required><Select value={equivalence}
             onChange={(value) => setEquivalence(value as StandardEquivalence)} options={[
               { value: 'EXACT', label: '完全匹配' }, { value: 'EQUIVALENT', label: '语义等价' },
@@ -1745,7 +1777,7 @@ export function StandardMappingDialog({ api, subjectType, targetId, itemName, sy
               { value: 'RELATED', label: '相关但不等价' },
             ]} /></FormField>
           <FormField label="生效日期" required><input type="date" value={validFrom}
-            onChange={(event) => setValidFrom(event.target.value)} required /></FormField>
+            onChange={(event) => { setValidFrom(event.target.value); setSelectedTerm(undefined) }} required /></FormField>
           <FormField label="失效日期"><input type="date" value={validTo} min={validFrom}
             onChange={(event) => setValidTo(event.target.value)} /></FormField>
           <FormField label="限制使用范围" className="span-2"><input value={limitation}
@@ -1753,13 +1785,13 @@ export function StandardMappingDialog({ api, subjectType, targetId, itemName, sy
           <Checkbox name="primaryMapping" label="设为该标准体系下的主要映射" checked={primaryMapping}
             onChange={setPrimaryMapping} />
         </div>
-        <div className="master-data-mapping-editor-actions"><Button disabled={!termId || !validFrom}
+        <div className="master-data-mapping-editor-actions"><Button disabled={!ready || Boolean(pending) || !selectedTerm?.raw || !selectedSystem || !validFrom}
           busy={pending === 'save'} onClick={() => void save()}>{replacement ? '保存替代映射' : '新增映射'}</Button></div>
       </section>
 
       <section className="master-data-mapping-history">
         <header><h3>映射历史</h3><p>包含当前、暂停、停用和已被替代的全部记录。</p></header>
-        {!values?.history.length ? <EmptyState icon="clinical" title="暂无映射历史" copy="建立映射后将在此追溯。" />
+        {!values ? <p>映射历史尚未确认，请重新加载核实。</p> : !values.history.length ? <EmptyState icon="clinical" title="暂无映射历史" copy="建立映射后将在此追溯。" />
           : <Table compact headers={['用途 / 标准来源', '标准条目', '关系 / 范围', '有效期', '状态', '操作']}>
             {values.history.map((value) => <tr key={`${value.id}-${value.revision}`}>
               <td><strong>{mappingTypeLabel(value.mappingType)}</strong><small>{value.systemName} · {value.systemVersion}</small>
@@ -1770,16 +1802,16 @@ export function StandardMappingDialog({ api, subjectType, targetId, itemName, sy
               <td><StatusBadge tone={value.status === 'ACTIVE' ? 'success' : value.status === 'SUSPENDED' ? 'warning' : 'neutral'}>
                 {mappingStatusLabel(value.status)}</StatusBadge></td>
               <td><RowActions>{value.status === 'ACTIVE' && <>
-                <Button size="sm" variant="text" onClick={() => startReplacement(value)}>替代</Button>
-                <Button size="sm" variant="text" busy={pending === value.id}
+                <Button size="sm" variant="text" disabled={Boolean(pending)} onClick={() => startReplacement(value)}>替代</Button>
+                <Button size="sm" variant="text" disabled={Boolean(pending)} busy={pending === `${value.id}:SUSPENDED`}
                   onClick={() => void changeStatus(value, 'SUSPENDED')}>暂停</Button>
-                <Button size="sm" variant="text" busy={pending === value.id}
+                <Button size="sm" variant="text" disabled={Boolean(pending)} busy={pending === `${value.id}:RETIRED`}
                   onClick={() => void changeStatus(value, 'RETIRED')}>停用</Button></>}
-                {value.status === 'SUSPENDED' && <Button size="sm" variant="text" busy={pending === value.id}
+                {value.status === 'SUSPENDED' && <Button size="sm" variant="text" disabled={Boolean(pending)} busy={pending === `${value.id}:ACTIVE`}
                   onClick={() => void changeStatus(value, 'ACTIVE')}>恢复</Button>}</RowActions></td>
             </tr>)}</Table>}
       </section>
-      <div className="ui-form-actions"><Button variant="secondary" onClick={onClose}>关闭</Button></div>
+      <div className="ui-form-actions"><Button variant="secondary" disabled={Boolean(pending)} onClick={onClose}>关闭</Button></div>
     </div>
   </Dialog>
 }
@@ -1787,41 +1819,122 @@ export function StandardMappingDialog({ api, subjectType, targetId, itemName, sy
 type AdoptionDefaults = Pick<LifecycleAdoptionInput, 'orderable' | 'executable' | 'chargeable' | 'purchasable' |
   'stocked' | 'dispensable' | 'returnable'>
 
-export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, packages = [], dictionaries,
-  defaults, onClose, onChanged }: { api: RhnApi; catalogItemId: string; itemName: string; organization: Organization;
+type CatalogLifecycleDialogProps = {
+  api: RhnApi; catalogItemId: string; itemName: string; organization: Organization;
   packages?: Array<{ id: string; packageSpec?: string; unitName: string }>; dictionaries: DictionaryMap;
-  defaults: AdoptionDefaults; onClose: () => void; onChanged: () => Promise<unknown> }) {
+  defaults: AdoptionDefaults; onClose: () => void; onChanged: () => Promise<unknown>
+}
+export function CatalogLifecycleDialog(props: CatalogLifecycleDialogProps) {
+  const scope = `${catalogImportScope(props.api, props.organization.id)}:${props.catalogItemId}`
+  return <CatalogLifecycleSession key={scope} {...props} scope={scope} />
+}
+function CatalogLifecycleSession({ api, catalogItemId, itemName, organization, packages = [],
+  defaults, onClose, onChanged, scope }: CatalogLifecycleDialogProps & { scope: string }) {
+  const queryClient = useQueryClient()
   const [businessDate, setBusinessDate] = useState(today())
   const editorsRef = useRef<HTMLDivElement>(null)
   const [replacementAdoption, setReplacementAdoption] = useState<OrganizationAdoption>()
   const [replacementPrice, setReplacementPrice] = useState<CatalogPrice>()
   const [pending, setPending] = useState('')
   const [operationError, setOperationError] = useState('')
+  const [unconfirmed, setUnconfirmed] = useState(false)
+  const [editorSnapshot, setEditorSnapshot] = useState<CatalogLifecycle>()
+  const [editorGeneration, setEditorGeneration] = useState(0)
+  const active = useRef(true), busy = useRef(false)
+  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  const source = useQuery({ queryKey: ['catalog-lifecycle-source', scope],
+    queryFn: async () => requireCatalogSource(await api.organization.catalogSource(organization.id), organization.id) })
+  const sourceReady = source.isSuccess && !source.isFetching
+  const dateReady = /^\d{4}-\d{2}-\d{2}$/.test(businessDate) && Number.isFinite(Date.parse(businessDate))
+  const priceTypes = useQuery({ queryKey: ['catalog-lifecycle-price-types', scope],
+    queryFn: async () => requireOrganizationDictionary(await api.dictionaries.resolve('BD_PRICE_TYPE')) })
+  const priceTypesReady = priceTypes.isSuccess && !priceTypes.isFetching && priceTypes.data.length > 0
   const maintenance = useQuery({
-    queryKey: ['catalog-lifecycle', catalogItemId, organization.id, businessDate],
-    queryFn: () => api.masterData.catalogLifecycle(catalogItemId, organization.id, businessDate),
+    queryKey: ['catalog-lifecycle', scope, source.data?.organizationRevision, businessDate],
+    queryFn: async () => requireCatalogLifecycle(await api.masterData.catalogLifecycle(catalogItemId, organization.id, businessDate),
+      { catalogItemId, organizationId: organization.id, businessDate, sourceOrganizationId: source.data?.sourceOrganizationId }),
+    enabled: sourceReady && dateReady,
   })
   const departments = useQuery({
-    queryKey: ['organization-catalog-departments', organization.id],
-    queryFn: () => api.organization.departments(organization.id),
+    queryKey: ['organization-catalog-departments', scope],
+    queryFn: async () => requireCatalogDepartments(await api.organization.departments(organization.id), organization.id),
   })
   const [activeTab, setActiveTab] = useState<'adoption' | 'price'>('adoption')
-  const refresh = async () => { await maintenance.refetch(); await onChanged() }
-  const execute = async (key: string, task: () => Promise<CatalogLifecycle>) => {
-    setPending(key); setOperationError('')
-    try { await task(); setReplacementAdoption(undefined); setReplacementPrice(undefined); await refresh() }
-    catch (error) { setOperationError(errorMessage(error)) } finally { setPending('') }
+  const ready = sourceReady && dateReady && maintenance.isSuccess && !maintenance.isFetching && !unconfirmed
+  const departmentsReady = departments.isSuccess && !departments.isFetching
+  const values = ready ? maintenance.data : undefined
+  useEffect(() => { if (ready && !editorSnapshot) setEditorSnapshot(maintenance.data) }, [ready, maintenance.data, editorSnapshot])
+  const outdated = Boolean(ready && editorSnapshot && JSON.stringify(editorSnapshot) !== JSON.stringify(maintenance.data))
+  const editable = ready && !pending && !outdated
+  const reload = async () => {
+    if (busy.current) return
+    const freshSource = await source.refetch()
+    if (freshSource.isError || !active.current) return
+    try {
+      const verifiedSource = freshSource.data!
+      await queryClient.fetchQuery({
+        queryKey: ['catalog-lifecycle', scope, verifiedSource.organizationRevision, businessDate], staleTime: 0,
+        queryFn: async () => requireCatalogLifecycle(await api.masterData.catalogLifecycle(catalogItemId, organization.id, businessDate),
+          { catalogItemId, organizationId: organization.id, businessDate, sourceOrganizationId: verifiedSource.sourceOrganizationId }),
+      })
+      if (active.current) { setUnconfirmed(false); setOperationError('') }
+    } catch (error) { if (active.current) setOperationError(errorMessage(error)) }
   }
-  const nextDate = (value: string) => {
-    const date = new Date(`${value}T00:00:00`); date.setDate(date.getDate() + 1)
-    return date.toISOString().slice(0, 10) > today() ? date.toISOString().slice(0, 10) : today()
+  const resetEditor = () => {
+    if (!ready || pending) return
+    setEditorSnapshot(maintenance.data); setEditorGeneration(value => value + 1)
+    setReplacementAdoption(undefined); setReplacementPrice(undefined); setOperationError('')
   }
+  const execute = async (key: string, intent: CatalogLifecycleCommand) => {
+    if (busy.current || !editable || !maintenance.data || !source.data) return
+    const before = structuredClone(maintenance.data), command = structuredClone(intent)
+    const originalSource = structuredClone(source.data)
+    const responseDate = 'input' in command ? command.input.validFrom : today()
+    try { assertCatalogLifecycleCommand(before, command) }
+    catch (error) { setOperationError(errorMessage(error)); return }
+    const sourceUnchanged = () => {
+      const current = queryClient.getQueryData<typeof originalSource>(['catalog-lifecycle-source', scope])
+      if (!current || current.organizationRevision !== originalSource.organizationRevision
+        || current.sourceOrganizationId !== originalSource.sourceOrganizationId) throw new Error('目录来源已变化，请重新核实当前目录')
+    }
+    let receiptConfirmed = false
+    busy.current = true; setPending(key); setOperationError('')
+    try {
+      const response = command.kind === 'adoption-save' ? command.replaced
+        ? await api.masterData.replaceLifecycleAdoption(command.replaced.id, command.replaced.revision, command.input)
+        : await api.masterData.createLifecycleAdoption(catalogItemId, command.input)
+        : command.kind === 'price-save' ? command.replaced
+          ? await api.masterData.replaceLifecyclePrice(command.replaced.id, command.replaced.revision, command.input)
+          : await api.masterData.createLifecyclePrice(catalogItemId, command.input)
+          : command.kind === 'adoption-status'
+            ? await api.masterData.changeLifecycleAdoptionStatus(command.original.id, command.original.revision, command.status, command.validTo)
+            : await api.masterData.changeLifecyclePriceStatus(command.original.id, command.original.revision, command.status, command.validTo)
+      const receipt = requireCatalogLifecycleReceipt(response, before, command, responseDate, originalSource.sourceOrganizationId)
+      if (!active.current) return
+      sourceUnchanged()
+      const fresh = await maintenance.refetch({ throwOnError: true })
+      if (!active.current) return
+      sourceUnchanged()
+      const persisted = requireCatalogLifecycleReceipt(fresh.data, before, command, businessDate, originalSource.sourceOrganizationId)
+      requirePersistedCatalogReceipt(receipt, persisted)
+      receiptConfirmed = true
+      await onChanged()
+      if (!active.current) return
+      setEditorSnapshot(persisted); setEditorGeneration(value => value + 1)
+      setReplacementAdoption(undefined); setReplacementPrice(undefined)
+    } catch (error) {
+      if (active.current) { setUnconfirmed(true); setOperationError(`${receiptConfirmed ? '保存已核实，但列表刷新失败' : '操作结果待核实'}：${errorMessage(error)}`) }
+    } finally { busy.current = false; if (active.current) setPending('') }
+  }
+  const nextDate = (value: string) => nextCatalogVersionDate(value, today())
   const startAdoptionReplacement = (value: OrganizationAdoption) => {
+    if (!editable) return
     setActiveTab('adoption')
     setReplacementAdoption(value); setReplacementPrice(undefined)
     editorsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
   const startPriceReplacement = (value: CatalogPrice) => {
+    if (!editable || value.organizationId !== organization.id) return
     setActiveTab('price')
     setReplacementPrice(value); setReplacementAdoption(undefined)
     editorsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1829,26 +1942,47 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
   const packageLabel = (id?: string | null) => {
     if (!id) return '最小单位拆零'
     const item = packages.find((entry) => entry.id === id)
-    return item ? (item.packageSpec || item.unitName) : '指定包装'
+    return item ? (item.packageSpec || item.unitName) : `包装 ${id}（信息待确认）`
   }
   const changeAdoptionStatus = (value: OrganizationAdoption, status: 'ACTIVE' | 'SUSPENDED' | 'RETIRED') =>
-    execute(`a-${value.id}`, () => api.masterData.changeLifecycleAdoptionStatus(value.id, value.revision,
-      status, status === 'RETIRED' ? businessDate : undefined))
+    execute(`a-${value.id}`, { kind: 'adoption-status', original: value,
+      status, validTo: status === 'RETIRED' ? businessDate : undefined })
   const changePriceStatus = (value: CatalogPrice, status: 'ACTIVE' | 'SUSPENDED' | 'RETIRED') =>
-    execute(`p-${value.id}`, () => api.masterData.changeLifecyclePriceStatus(value.id, value.revision,
-      status, status === 'RETIRED' ? businessDate : undefined))
-  const values = maintenance.data
-  const adoptionSeed = replacementAdoption ?? values?.currentAdoption
+    execute(`p-${value.id}`, { kind: 'price-status', original: value,
+      status, validTo: status === 'RETIRED' ? businessDate : undefined })
+  const adoptionSeed = replacementAdoption ?? editorSnapshot?.currentAdoption
   const priceSeed = replacementPrice
+  const adoptionOptionsReady = departmentsReady && (!adoptionSeed?.defaultDepartmentId
+    || departments.data.some(item => item.id === adoptionSeed.defaultDepartmentId))
+  const priceOptionsReady = priceTypesReady && (!priceSeed?.sdPriceType || priceTypes.data.some(item => item.code === priceSeed.sdPriceType))
+    && (!priceSeed?.packageId || packages.some(item => item.id === priceSeed.packageId))
   return <Dialog title={`${itemName} · 机构目录与价格`} eyebrow={`${organization.name} · 生命周期工作台`}
-    size="xwide" className="master-data-lifecycle-dialog-window" onClose={onClose}
-    footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
+    size="xwide" className="master-data-lifecycle-dialog-window" onClose={() => { if (!busy.current) onClose() }}
+    footer={<Button variant="secondary" disabled={Boolean(pending)} onClick={onClose}>关闭</Button>}>
     <div className="master-data-lifecycle-dialog">
-      {(operationError || maintenance.error) && <Alert>{operationError || errorMessage(maintenance.error)}</Alert>}
+      {(operationError || source.isError || maintenance.isError) && <div role="alert">
+        {operationError || `目录与价格加载失败：${errorMessage(source.error || maintenance.error)}`}
+        <Button size="sm" variant="text" disabled={Boolean(pending)} onClick={() => void reload()}>重新核实目录与价格</Button>
+      </div>}
+      {!sourceReady && !source.isError && <LoadingState label="正在核实目录来源…" />}
+      {sourceReady && maintenance.isFetching && <LoadingState label="正在读取目录与价格…" />}
+      {!dateReady && <div role="alert">请选择有效的业务基准日</div>}
+      {outdated && <div role="alert">目录或价格已更新，草稿暂不可提交。
+        <Button size="sm" variant="text" disabled={Boolean(pending)} onClick={resetEditor}>放弃草稿并载入最新数据</Button>
+      </div>}
+      {departments.isError && <div role="alert">默认科室加载失败
+        <Button size="sm" variant="text" onClick={() => void departments.refetch()}>重新加载默认科室</Button></div>}
+      {(priceTypes.isError || (priceTypes.isSuccess && !priceTypes.data.length)) && <div role="alert">
+        {priceTypes.isError ? '价格类型加载失败' : '价格类型为空，不能维护价格'}
+        <Button size="sm" variant="text" onClick={() => void priceTypes.refetch()}>重新加载价格类型</Button></div>}
+      {editorSnapshot && !ready && <div role="status">已保留编辑草稿，当前事实待确认，暂不可提交。</div>}
+      {departmentsReady && !adoptionOptionsReady && <div role="alert">原默认科室不在当前目录中，不能静默清空后保存。</div>}
+      {priceTypesReady && !priceOptionsReady && <div role="alert">原价格类型或包装不在当前选项中，请先核实目录。</div>}
+      {editorSnapshot && <>
 
       <Tabs
         value={activeTab}
-        onChange={(val) => setActiveTab(val as 'adoption' | 'price')}
+        onChange={(val) => { if (!pending) setActiveTab(val as 'adoption' | 'price') }}
         label="生命周期维护维度"
         variant="workspace"
         items={[
@@ -1865,18 +1999,19 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
         ]}
       />
 
-      {activeTab === 'adoption' && (
-        <div className="master-data-lifecycle-tab-panel">
+      {(
+        <div className="master-data-lifecycle-tab-panel" hidden={activeTab !== 'adoption'}>
           <section className="master-data-lifecycle-status">
             <FormField label="业务基准日" className="master-data-lifecycle-status__date">
-              <input type="date" value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
+              <input type="date" disabled={Boolean(pending)} value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
             </FormField>
-            {maintenance.isPending ? <LoadingState label="正在解析生效目录…" /> : (
+            {!ready ? <span>目录事实待确认</span> : (
               <div className="master-data-lifecycle-status__content">
                 <span className="master-data-lifecycle-status__label">当前生效目录：</span>
                 {values?.currentAdoption ? (
                   <div className="master-data-lifecycle-status__meta-line">
                     <DataStatus value={values.currentAdoption.sdStatus} text={values.currentAdoption.sdStatusText} />
+                    <span>{values.currentAdoption.organizationId === organization.id ? '本机构目录' : `共享 ${source.data?.sourceOrganizationName}`}</span>
                     <strong>{values.currentAdoption.localName || itemName}</strong>
                     <code>{values.currentAdoption.localCode || '沿用中心编码'}</code>
                     <span className="master-data-lifecycle-status__meta-sub">
@@ -1901,10 +2036,11 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                 </div>
               </header>
               <form
-                key={`adoption-${adoptionSeed?.id ?? 'new'}-${adoptionSeed?.revision ?? 0}`}
-                className="master-data-lifecycle-form"
+                key={`adoption-${editorGeneration}-${adoptionSeed?.id ?? 'new'}-${adoptionSeed?.revision ?? 0}`}
+                className="master-data-lifecycle-form" inert={!editable}
                 onSubmit={(event) => {
                   event.preventDefault();
+                  if (!editable) return;
                   const form = new FormData(event.currentTarget);
                   const input: LifecycleAdoptionInput = {
                     organizationId: organization.id,
@@ -1922,9 +2058,10 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                     validFrom: text(form, 'validFrom'),
                     validTo: optionalText(form, 'validTo'),
                   };
-                  void execute('save-adoption', () => replacementAdoption
-                    ? api.masterData.replaceLifecycleAdoption(replacementAdoption.id, replacementAdoption.revision, input)
-                    : api.masterData.createLifecycleAdoption(catalogItemId, input));
+                  if (!adoptionOptionsReady || (input.defaultDepartmentId && !departments.data.some(item => item.id === input.defaultDepartmentId))) {
+                    setOperationError('默认科室尚未确认或已失效，请重新加载并选择'); return;
+                  }
+                  void execute('save-adoption', { kind: 'adoption-save', input, replaced: replacementAdoption });
                 }}
               >
                 {replacementAdoption && (
@@ -1953,7 +2090,8 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                   className="span-2"
                   defaultValue={adoptionSeed?.defaultDepartmentId}
                   placeholder="请选择默认科室（选填）"
-                  options={(departments.data ?? []).map((value) => ({
+                  disabled={!editable || !departmentsReady}
+                  options={(departmentsReady ? departments.data : []).map((value) => ({
                     value: value.id,
                     label: `${value.name}（${value.code}）`,
                   }))}
@@ -1970,8 +2108,8 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                     ))}
                 </Checkboxes>
                 <div className="master-data-lifecycle-editor-actions">
-                  <Button type="submit" busy={pending === 'save-adoption'}>
-                    {replacementAdoption ? '保存替代版本' : '保存并生效'}
+                  <Button type="submit" disabled={!editable || !adoptionOptionsReady} busy={pending === 'save-adoption'}>
+                    {replacementAdoption ? '保存替代版本' : '保存目录版本'}
                   </Button>
                 </div>
               </form>
@@ -1983,7 +2121,7 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                   <h3>机构目录版本历史</h3>
                 </div>
               </header>
-              {!values?.adoptionHistory.length ? (
+              {!ready ? <span>机构目录历史待确认</span> : !values?.adoptionHistory.length ? (
                 <EmptyState icon="clinical" title="暂无机构目录历史" copy="可在左侧表单维护首个版本。" />
               ) : (
                 <div className="master-data-table-wrap">
@@ -2001,13 +2139,13 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                           <RowActions>
                             {value.sdStatus === 'ACTIVE' && (
                               <>
-                                <Button size="sm" variant="text" onClick={() => startAdoptionReplacement(value)}>替代</Button>
-                                <Button size="sm" variant="text" busy={pending === `a-${value.id}`} onClick={() => void changeAdoptionStatus(value, 'SUSPENDED')}>暂停</Button>
-                                <Button size="sm" variant="text" busy={pending === `a-${value.id}`} onClick={() => void changeAdoptionStatus(value, 'RETIRED')}>停用</Button>
+                                <Button size="sm" variant="text" disabled={!editable} onClick={() => startAdoptionReplacement(value)}>替代</Button>
+                                <Button size="sm" variant="text" disabled={!editable} busy={pending === `a-${value.id}`} onClick={() => void changeAdoptionStatus(value, 'SUSPENDED')}>暂停</Button>
+                                <Button size="sm" variant="text" disabled={!editable} busy={pending === `a-${value.id}`} onClick={() => void changeAdoptionStatus(value, 'RETIRED')}>停用</Button>
                               </>
                             )}
                             {value.sdStatus === 'SUSPENDED' && (
-                              <Button size="sm" variant="text" busy={pending === `a-${value.id}`} onClick={() => void changeAdoptionStatus(value, 'ACTIVE')}>恢复</Button>
+                              <Button size="sm" variant="text" disabled={!editable} busy={pending === `a-${value.id}`} onClick={() => void changeAdoptionStatus(value, 'ACTIVE')}>恢复</Button>
                             )}
                           </RowActions>
                         </td>
@@ -2021,21 +2159,21 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
         </div>
       )}
 
-      {activeTab === 'price' && (
-        <div className="master-data-lifecycle-tab-panel">
+      {(
+        <div className="master-data-lifecycle-tab-panel" hidden={activeTab !== 'price'}>
           <section className="master-data-lifecycle-status">
             <FormField label="业务基准日" className="master-data-lifecycle-status__date">
-              <input type="date" value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
+              <input type="date" disabled={Boolean(pending)} value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
             </FormField>
-            {maintenance.isPending ? <LoadingState label="正在解析有效价格…" /> : (
+            {!ready ? <span>价格事实待确认</span> : (
               <div className="master-data-lifecycle-status__content">
                 <span className="master-data-lifecycle-status__label">当前有效价格：</span>
                 {values?.currentPrices.length ? (
                   <div className="master-data-lifecycle-status__prices">
                     {values.currentPrices.map((value) => (
                       <div key={value.id} className="master-data-lifecycle-price-badge">
-                        <span className="master-data-price-val">¥ {Number(value.price).toFixed(2)}</span>
-                        <span className="master-data-price-meta">{value.sdPriceTypeText} · {packageLabel(value.packageId)}</span>
+                        <span className="master-data-price-val">{value.currencyCode} {value.price}</span>
+                        <span className="master-data-price-meta">{value.organizationId ? '本机构' : '租户公共'} · {value.sdPriceTypeText} · {packageLabel(value.packageId)}</span>
                       </div>
                     ))}
                   </div>
@@ -2054,10 +2192,11 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                 </div>
               </header>
               <form
-                key={`price-${priceSeed?.id ?? 'new'}-${priceSeed?.revision ?? 0}`}
-                className="master-data-lifecycle-form"
+                key={`price-${editorGeneration}-${priceSeed?.id ?? 'new'}-${priceSeed?.revision ?? 0}`}
+                className="master-data-lifecycle-form" inert={!editable}
                 onSubmit={(event) => {
                   event.preventDefault();
+                  if (!editable) return;
                   const form = new FormData(event.currentTarget);
                   const input: LifecyclePriceInput = {
                     organizationId: organization.id,
@@ -2071,14 +2210,16 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                     validTo: optionalText(form, 'validTo'),
                     status: 'ACTIVE',
                   };
-                  void execute('save-price', () => replacementPrice
-                    ? api.masterData.replaceLifecyclePrice(replacementPrice.id, replacementPrice.revision, input)
-                    : api.masterData.createLifecyclePrice(catalogItemId, input));
+                  if (!priceOptionsReady || !priceTypes.data!.some(item => item.code === input.priceType)
+                    || (input.packageId && !packages.some(item => item.id === input.packageId))) {
+                    setOperationError('价格类型或计价包装尚未确认，请重新选择'); return;
+                  }
+                  void execute('save-price', { kind: 'price-save', input, replaced: replacementPrice });
                 }}
               >
                 {replacementPrice && (
                   <Alert tone="info">
-                    调价：¥ {Number(replacementPrice.price).toFixed(2)} · {replacementPrice.sdPriceTypeText}
+                    调价：{replacementPrice.currencyCode} {replacementPrice.price} · {replacementPrice.sdPriceTypeText}
                     <Button size="sm" variant="text" onClick={() => setReplacementPrice(undefined)}>取消调价</Button>
                   </Alert>
                 )}
@@ -2101,8 +2242,9 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                     <SelectField
                       name="priceType"
                       label="价格类型"
-                      values={dictionaries.BD_PRICE_TYPE}
-                      defaultValue={priceSeed?.sdPriceType ?? 'SALE'}
+                      values={priceTypesReady ? priceTypes.data : []}
+                      disabled={!editable || !priceTypesReady}
+                      defaultValue={priceSeed?.sdPriceType}
                     />
                     <FormField label="金额" required>
                       <input name="price" type="number" min="0" step="0.000001" defaultValue={priceSeed?.price} required placeholder="0.00" />
@@ -2119,8 +2261,9 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                     <SelectField
                       name="priceType"
                       label="价格类型"
-                      values={dictionaries.BD_PRICE_TYPE}
-                      defaultValue={priceSeed?.sdPriceType ?? 'SALE'}
+                      values={priceTypesReady ? priceTypes.data : []}
+                      disabled={!editable || !priceTypesReady}
+                      defaultValue={priceSeed?.sdPriceType}
                     />
                     <FormField label="金额" required>
                       <input name="price" type="number" min="0" step="0.000001" defaultValue={priceSeed?.price} required placeholder="0.00" />
@@ -2149,8 +2292,8 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                   />
                 </FormField>
                 <div className="master-data-lifecycle-editor-actions">
-                  <Button type="submit" busy={pending === 'save-price'}>
-                    {replacementPrice ? '保存调价版本' : '保存并生效'}
+                  <Button type="submit" disabled={!editable || !priceOptionsReady} busy={pending === 'save-price'}>
+                    {replacementPrice ? '保存调价版本' : '保存价格版本'}
                   </Button>
                 </div>
               </form>
@@ -2162,7 +2305,7 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                   <h3>价格调整历史</h3>
                 </div>
               </header>
-              {!values?.priceHistory.length ? (
+              {!ready ? <span>价格历史待确认</span> : !values?.priceHistory.length ? (
                 <EmptyState icon="clinical" title="暂无价格历史" copy="可在左侧表单新增价格。" />
               ) : (
                 <div className="master-data-table-wrap">
@@ -2170,10 +2313,10 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                     {values.priceHistory.map((value) => (
                       <tr key={`${value.id}-${value.revision}`}>
                         <td>
-                          <strong className="master-data-price">¥ {Number(value.price).toFixed(2)}</strong>
+                          <strong className="master-data-price">{value.currencyCode} {value.price}</strong>
                           <small>{value.sdPriceTypeText}</small>
                         </td>
-                        <td>{packageLabel(value.packageId)}</td>
+                        <td>{value.organizationId ? '本机构价格' : '租户公共价格'}<small>{packageLabel(value.packageId)}</small></td>
                         <td>
                           {value.priceDocumentCode || '—'}
                           <small>{value.priceReason || '未说明'}</small>
@@ -2182,15 +2325,15 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
                         <td><DataStatus value={value.sdStatus} text={value.sdStatusText} /></td>
                         <td>
                           <RowActions>
-                            {value.sdStatus === 'ACTIVE' && (
+                            {value.organizationId === organization.id && value.sdStatus === 'ACTIVE' && (
                               <>
-                                <Button size="sm" variant="text" onClick={() => startPriceReplacement(value)}>调价</Button>
-                                <Button size="sm" variant="text" busy={pending === `p-${value.id}`} onClick={() => void changePriceStatus(value, 'SUSPENDED')}>暂停</Button>
-                                <Button size="sm" variant="text" busy={pending === `p-${value.id}`} onClick={() => void changePriceStatus(value, 'RETIRED')}>停用</Button>
+                                <Button size="sm" variant="text" disabled={!editable} onClick={() => startPriceReplacement(value)}>调价</Button>
+                                <Button size="sm" variant="text" disabled={!editable} busy={pending === `p-${value.id}`} onClick={() => void changePriceStatus(value, 'SUSPENDED')}>暂停</Button>
+                                <Button size="sm" variant="text" disabled={!editable} busy={pending === `p-${value.id}`} onClick={() => void changePriceStatus(value, 'RETIRED')}>停用</Button>
                               </>
                             )}
-                            {value.sdStatus === 'SUSPENDED' && (
-                              <Button size="sm" variant="text" busy={pending === `p-${value.id}`} onClick={() => void changePriceStatus(value, 'ACTIVE')}>恢复</Button>
+                            {value.organizationId === organization.id && value.sdStatus === 'SUSPENDED' && (
+                              <Button size="sm" variant="text" disabled={!editable} busy={pending === `p-${value.id}`} onClick={() => void changePriceStatus(value, 'ACTIVE')}>恢复</Button>
                             )}
                           </RowActions>
                         </td>
@@ -2203,6 +2346,7 @@ export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organizat
           </div>
         </div>
       )}
+      </>}
     </div>
   </Dialog>
 }
@@ -2211,17 +2355,33 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
   api: RhnApi; organization: Organization; initialItemType: 'SERVICE' | 'MED_PRODUCT'
   onClose: () => void; onCompleted: () => Promise<void>
 }) {
+  const scope = catalogImportScope(api, organization.id)
+  return <OrganizationCatalogImportSession key={scope} api={api} organization={organization} initialItemType={initialItemType}
+    onClose={onClose} onCompleted={onCompleted} scope={scope} />
+}
+
+function OrganizationCatalogImportSession({ api, organization, initialItemType, onClose, onCompleted, scope }: {
+  api: RhnApi; organization: Organization; initialItemType: 'SERVICE' | 'MED_PRODUCT'
+  onClose: () => void; onCompleted: () => Promise<void>; scope: string
+}) {
   const queryClient = useQueryClient()
-  const [itemType, setItemType] = useState<'SERVICE' | 'MED_PRODUCT'>(initialItemType)
+  const attemptKey = ['organization-catalog-import-attempt', scope]
+  const [attempt, setAttempt] = useState<CatalogImportAttempt | undefined>(() => queryClient.getQueryData(attemptKey))
+  const [result, setResult] = useState<CatalogChangeBatch>()
+  const active = useRef(true), busy = useRef(false)
+  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  const [itemType, setItemType] = useState<'SERVICE' | 'MED_PRODUCT'>(attempt?.items[0].itemType ?? initialItemType)
   const [keyword, setKeyword] = useState('')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(20)
-  const [businessDate, setBusinessDate] = useState(today())
-  const [selected, setSelected] = useState<Map<string, CatalogAdoptionCandidate>>(new Map())
+  const [businessDate, setBusinessDate] = useState(attempt?.input.businessDate ?? today())
+  const [selected, setSelected] = useState<Map<string, CatalogAdoptionCandidate>>(() => new Map(attempt?.items.map(item => [item.id, item])))
   const [pending, setPending] = useState(false)
-  const [operationError, setOperationError] = useState('')
-  const [feedback, setFeedback] = useState('')
+  const [operationError, setOperationError] = useState(attempt ? '上次调入结果待核实，请使用原请求重新核实本批结果。' : '')
+  const locked = pending || Boolean(attempt)
+  const dateReady = /^\d{4}-\d{2}-\d{2}$/.test(businessDate) && Number.isFinite(Date.parse(businessDate))
+  const terminal = result && result.status !== 'PROCESSING'
 
   const handleSearch = () => {
     setQuery(keyword.trim())
@@ -2235,6 +2395,8 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
   }
 
   const handleItemTypeChange = (value: string) => {
+    if (locked) return
+    setSelected(new Map())
     setItemType(value as 'SERVICE' | 'MED_PRODUCT')
     setKeyword('')
     setQuery('')
@@ -2242,82 +2404,147 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
   }
 
   const candidates = useQuery({
-    queryKey: ['master-data-adoption-candidates', organization.id, itemType, query, businessDate, page, pageSize],
-    queryFn: () => api.masterData.adoptionCandidates(
+    queryKey: ['master-data-adoption-candidates', scope, itemType, query, businessDate, page, pageSize],
+    queryFn: async () => requireImportCandidates(await api.masterData.adoptionCandidates(
       organization.id, itemType, query, page, pageSize, businessDate, true,
-    ),
+    ), { organizationId: organization.id, itemType, page, size: pageSize }),
+    enabled: dateReady && !locked,
   })
-  useEffect(() => { setPage(0); setSelected(new Map()) }, [itemType, businessDate])
   useEffect(() => { setPage(0) }, [query, pageSize])
-  const values = candidates.data?.content ?? []
+  const candidatesReady = !locked && dateReady && candidates.isSuccess && !candidates.isFetching
+  const values = candidatesReady ? candidates.data.content : []
   const totalPages = Math.max(1, candidates.data?.totalPages ?? 1)
   const toggle = (value: CatalogAdoptionCandidate) => setSelected((current) => {
+    if (locked || !candidatesReady) return current
     const next = new Map(current)
     if (next.has(value.id)) next.delete(value.id); else next.set(value.id, value)
     return next
   })
   const allPageSelected = values.length > 0 && values.every((value) => selected.has(value.id))
   const selectedValues = [...selected.values()]
-  const submit = async (form: FormData) => {
-    if (!selected.size) { setOperationError('请至少选择一个待调入项目'); return }
-    setPending(true); setOperationError(''); setFeedback('')
-    try {
-      await api.masterData.adoptionBatch({ requestCode: crypto.randomUUID(), operationType: 'ADOPT',
-        organizationId: organization.id, businessDate: text(form, 'businessDate'),
-        catalogItemIds: [...selected.keys()], template: { localCode: undefined, localName: undefined,
-          orderable: checked(form, 'orderable'), executable: checked(form, 'executable'),
-          chargeable: checked(form, 'chargeable'), purchasable: checked(form, 'purchasable'),
-          stocked: checked(form, 'stocked'), dispensable: checked(form, 'dispensable'),
-          returnable: checked(form, 'returnable'), status: 'ACTIVE' } })
-      setSelected(new Map()); setFeedback(`已调入 ${selected.size} 个项目`)
-      await queryClient.invalidateQueries({ queryKey: ['master-data-adoption-candidates'] })
-      await onCompleted()
-    } catch (error) { setOperationError(errorMessage(error)) } finally { setPending(false) }
+  const remember = (value: CatalogImportAttempt) => {
+    setAttempt(value)
+    queryClient.setQueryDefaults(attemptKey, { gcTime: Infinity })
+    queryClient.setQueryData(attemptKey, value)
   }
-  return <Dialog title="机构项目调入" eyebrow={organization.name} size="xwide" onClose={onClose}
+  const execute = async (command: CatalogImportAttempt) => {
+    if (busy.current) return
+    busy.current = true
+    setPending(true); setOperationError('')
+    try {
+      const receipt = requireImportReceipt(command.batchId
+        ? await api.masterData.catalogChangeBatch(command.batchId)
+        : await api.masterData.adoptionBatch(command.input), command)
+      if (!active.current) return
+      remember({ ...command, batchId: receipt.id })
+      setResult(receipt)
+      if (receipt.status !== 'PROCESSING') {
+        queryClient.removeQueries({ queryKey: attemptKey, exact: true })
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['master-data-adoption-candidates'] }),
+          queryClient.invalidateQueries({ queryKey: ['organization-catalog'] }),
+        ])
+      }
+    } catch (error) {
+      if (active.current) setOperationError(`调入结果未确认：${errorMessage(error)}`)
+    } finally {
+      busy.current = false
+      if (active.current) setPending(false)
+    }
+  }
+  const submit = async (form: FormData) => {
+    if (busy.current || attempt) return
+    if (!candidatesReady || !dateReady) { setOperationError('待调入目录尚未确认，请重新加载'); return }
+    if (!selected.size || selected.size > 500) { setOperationError('请选择 1 至 500 个待调入项目'); return }
+    const command: CatalogImportAttempt = { items: [...selected.values()], input: {
+      requestCode: crypto.randomUUID(), operationType: 'ADOPT', organizationId: organization.id, businessDate,
+      catalogItemIds: [...selected.keys()], template: { localCode: undefined, localName: undefined,
+        orderable: checked(form, 'orderable'), executable: checked(form, 'executable'),
+        chargeable: checked(form, 'chargeable'), purchasable: checked(form, 'purchasable'),
+        stocked: checked(form, 'stocked'), dispensable: checked(form, 'dispensable'),
+        returnable: checked(form, 'returnable'), status: 'ACTIVE' },
+    } }
+    remember(command)
+    await execute(command)
+  }
+  const finish = async () => {
+    if (busy.current || !terminal || result.status !== 'COMPLETED') return
+    busy.current = true; setPending(true); setOperationError('')
+    try { await onCompleted() }
+    catch (error) { if (active.current) setOperationError(`调入已完成，但列表刷新失败：${errorMessage(error)}`) }
+    finally { busy.current = false; if (active.current) setPending(false) }
+  }
+  const continueFailed = () => {
+    if (pending || !terminal || !attempt) return
+    const failedIds = new Set(result.rows.filter(row => row.status === 'FAILED').map(row => row.catalogItemId))
+    setSelected(new Map(attempt.items.filter(item => failedIds.has(item.id)).map(item => [item.id, item])))
+    setAttempt(undefined); setResult(undefined); setOperationError('')
+    void candidates.refetch()
+  }
+  return <Dialog title="机构项目调入" eyebrow={organization.name} size="xwide" onClose={() => { if (!busy.current) onClose() }}
     className="master-data-catalog-import-dialog"
     description="仅展示当前生效日期下尚未调入的中心目录项目；本批项目将共用同一套机构业务能力。"
     footer={<div className="master-data-catalog-import-footer">
       <span>本批已选 <strong>{selected.size}</strong> 项</span>
-      <div><Button variant="secondary" onClick={onClose}>取消</Button>
-        <Button type="submit" form="organization-catalog-import-form" disabled={!selected.size} busy={pending}>
-          确认调入 {selected.size ? `${selected.size} 项` : ''}
-        </Button></div>
+      <div><Button variant="secondary" disabled={pending} onClick={onClose}>关闭</Button>
+        {terminal ? result.status === 'COMPLETED'
+          ? <Button busy={pending} onClick={() => void finish()}>完成并刷新列表</Button>
+          : <Button disabled={pending} onClick={continueFailed}>继续处理失败项</Button>
+          : attempt ? <Button busy={pending} onClick={() => void execute(attempt)}>核实本批结果</Button>
+          : <Button type="submit" form="organization-catalog-import-form"
+            disabled={!selected.size || selected.size > 500 || !candidatesReady} busy={pending}>
+            确认调入 {selected.size ? `${selected.size} 项` : ''}
+          </Button>}
+      </div>
     </div>}>
     <div className="master-data-catalog-import">
-      {operationError && <Alert>{operationError}</Alert>}
-      {feedback && <Alert tone="success">{feedback}</Alert>}
-      <form id="organization-catalog-import-form" onSubmit={(event) => {
+      {operationError && <div role="alert">{operationError}</div>}
+      {attempt && !terminal && <div role="status">请求号：{attempt.input.requestCode}。配置已锁定，核实使用原请求内容；本页面内关闭后重新打开仍可继续核实。</div>}
+      {result && <div role="status">{result.status === 'PROCESSING' ? '批次仍在处理，尚未确认完成' : result.status === 'COMPLETED'
+        ? `全部调入完成：${result.succeededRows} 项` : `本批调入成功 ${result.succeededRows} 项，失败 ${result.failedRows} 项`} · 批次 {result.id}</div>}
+      <form id="organization-catalog-import-form" inert={locked && !result} onSubmit={(event) => {
         event.preventDefault(); void submit(new FormData(event.currentTarget))
       }}>
         <div className="master-data-catalog-import-toolbar">
           <Tabs value={itemType} onChange={handleItemTypeChange} label="待调入目录类型" variant="line"
             items={[{ value: 'SERVICE', label: '诊疗项目' }, { value: 'MED_PRODUCT', label: '药品产品' }]} />
           <div className="master-data-catalog-import-search">
-            <SearchField label="搜索待调入目录" value={keyword} onChange={setKeyword} onSearch={handleSearch}
+            <SearchField label="搜索待调入目录" disabled={locked} value={keyword} onChange={setKeyword} onSearch={handleSearch}
               placeholder="项目名称或编码" />
-            <Button size="sm" variant="primary" type="button" onClick={handleSearch}>查询</Button>
-            <Button size="sm" variant="secondary" type="button" onClick={handleReset}>重置</Button>
+            <Button size="sm" variant="primary" type="button" disabled={locked} onClick={handleSearch}>查询</Button>
+            <Button size="sm" variant="secondary" type="button" disabled={locked} onClick={handleReset}>重置</Button>
           </div>
-          <span className="master-data-count">{candidates.isFetching ? '正在刷新…'
-            : `${candidates.data?.totalElements ?? 0} 项待调入`}</span>
+          <span className="master-data-count">{candidatesReady ? `${candidates.data.totalElements} 项待调入` : '待调入数量未确认'}</span>
         </div>
 
         <div className="master-data-catalog-import-workspace">
           <section className="master-data-catalog-import-candidates" aria-label="待调入中心目录">
             <header><div><h3>待调入中心目录</h3><p>勾选后加入右侧本批清单，支持跨页累计选择。</p></div>
-              <Button size="sm" variant="text" disabled={!values.length} onClick={() => setSelected((current) => {
+              <Button size="sm" variant="text" disabled={locked || !values.length} onClick={() => setSelected((current) => {
                 const next = new Map(current)
                 values.forEach((value) => allPageSelected ? next.delete(value.id) : next.set(value.id, value))
                 return next
               })}>{allPageSelected ? '取消本页选择' : '选择本页'}</Button></header>
-            {candidates.isPending ? <LoadingState label="正在读取待调入目录…" /> : !values.length
-              ? <EmptyState icon="clinical" title={query ? '没有匹配的待调入项目' : '没有待调入项目'}
-                copy={query ? '请调整查询条件。' : '当前类型的中心目录均已调入或由共享目录提供。'} />
+            {result ? <TableShell scrollLabel="本批调入逐项结果"><DataTable compact>
+              <thead><tr><th>项目</th><th>结果</th><th>说明</th></tr></thead>
+              <tbody>{result.rows.map(row => <tr key={row.id}>
+                <td>{attempt?.items.find(item => item.id === row.catalogItemId)?.name}<code>{row.catalogItemId}</code></td>
+                <td>{row.status === 'SUCCEEDED' ? '已调入' : '失败'}</td>
+                <td>{row.status === 'SUCCEEDED' ? `采用记录：${row.targetId}` : `${row.errorCode}：${row.errorMessage}`}</td>
+              </tr>)}</tbody></DataTable></TableShell>
+              : attempt ? <EmptyState icon="clinical" title="等待核实本批结果" copy="使用下方核实按钮读取原批次的实际结果。" />
+              : !dateReady ? <EmptyState icon="clinical" title="请选择生效日期" copy="选择日期后读取对应的待调入目录。" />
+              : candidates.isFetching || candidates.isPending ? <LoadingState label="正在读取待调入目录…" />
+              : candidates.isError ? <div role="alert">待调入目录加载失败：{errorMessage(candidates.error)}
+                <Button size="sm" variant="text" onClick={() => void candidates.refetch()}>重新加载待调入目录</Button></div>
+              : !values.length
+              ? candidates.data!.totalElements > 0 ? <div>当前页已无项目<Button size="sm" variant="text" onClick={() => setPage(0)}>返回第一页</Button></div>
+              : <EmptyState icon="clinical" title={query ? '没有匹配的待调入项目' : '没有待调入项目'}
+                copy={query ? '请调整查询条件。' : '本次查询没有可调入项目。'} />
               : <TableShell className="master-data-catalog-import-table" scrollLabel="待调入中心目录列表"
                 resetScrollKey={`${itemType}-${query}-${businessDate}-${page}`}
-                footer={<Pagination page={candidates.data?.page ?? page} totalPages={totalPages}
-                  total={candidates.data?.totalElements ?? 0} pageSize={pageSize} onPageSizeChange={setPageSize}
+                footer={<Pagination page={page} totalPages={totalPages}
+                  total={candidates.data!.totalElements} pageSize={pageSize} onPageSizeChange={setPageSize}
                   onChange={setPage} label="待调入目录分页" />}>
                 <DataTable compact>
                   <thead><tr><th className="master-data-select-column">选择</th><th>中心项目</th><th>中心编码</th><th>目录信息</th></tr></thead>
@@ -2337,30 +2564,30 @@ export function OrganizationCatalogImportDialog({ api, organization, initialItem
           <aside className="master-data-catalog-import-batch" aria-label="本批调入配置">
             <section className="master-data-catalog-import-selected">
               <header><div><h3>本批调入清单</h3><p>共用下方生效日期和业务能力。</p></div>
-                <Button size="sm" variant="text" disabled={!selected.size}
+                <Button size="sm" variant="text" disabled={locked || !selected.size}
                   onClick={() => setSelected(new Map())}>清空</Button></header>
               {!selectedValues.length ? <div className="master-data-catalog-import-selected-empty">
                 <Icon name="tasks" /><strong>尚未选择项目</strong><span>从左侧勾选本批需要调入的目录项目。</span>
               </div> : <div className="master-data-catalog-import-selected-list">{selectedValues.map((value) =>
                 <article key={value.id}><div><strong>{value.name}</strong><code>{value.code}</code></div>
-                  <Button size="sm" variant="text" aria-label={`移除 ${value.name}`} title="移除"
+                  <Button size="sm" variant="text" aria-label={`移除 ${value.name}`} title="移除" disabled={locked}
                     onClick={() => toggle(value)}><Icon name="close" /></Button></article>)}</div>}
             </section>
             <section className="master-data-catalog-import-config">
               <header><div><h3>机构业务能力</h3><p>{itemType === 'SERVICE'
                 ? '配置项目在本机构的开立、执行和收费能力。'
                 : '配置药品产品从采购入库到发药退回的业务能力。'}</p></div></header>
-              <FormField label="生效日期" required><input name="businessDate" type="date" value={businessDate}
-                onChange={(event) => setBusinessDate(event.target.value)} required /></FormField>
+              <FormField label="生效日期" required><input name="businessDate" type="date" disabled={locked} value={businessDate}
+                onChange={(event) => { setBusinessDate(event.target.value); setPage(0); setSelected(new Map()) }} required /></FormField>
               <Checkboxes key={itemType} title={itemType === 'SERVICE' ? '诊疗业务范围' : '药品业务范围'}>
-                <Checkbox name="orderable" label="允许开立" defaultChecked />
-                {itemType === 'SERVICE' && <Checkbox name="executable" label="允许执行" defaultChecked />}
-                <Checkbox name="chargeable" label="允许收费" defaultChecked />
+                <Checkbox disabled={locked} name="orderable" label="允许开立" defaultChecked={attempt?.input.template?.orderable ?? true} />
+                {itemType === 'SERVICE' && <Checkbox disabled={locked} name="executable" label="允许执行" defaultChecked={attempt?.input.template?.executable ?? true} />}
+                <Checkbox disabled={locked} name="chargeable" label="允许收费" defaultChecked={attempt?.input.template?.chargeable ?? true} />
                 {itemType === 'MED_PRODUCT' && <>
-                  <Checkbox name="purchasable" label="允许采购" defaultChecked />
-                  <Checkbox name="stocked" label="允许入库" defaultChecked />
-                  <Checkbox name="dispensable" label="允许发放" defaultChecked />
-                  <Checkbox name="returnable" label="允许退药/退库" defaultChecked />
+                  <Checkbox disabled={locked} name="purchasable" label="允许采购" defaultChecked={attempt?.input.template?.purchasable ?? true} />
+                  <Checkbox disabled={locked} name="stocked" label="允许入库" defaultChecked={attempt?.input.template?.stocked ?? true} />
+                  <Checkbox disabled={locked} name="dispensable" label="允许发放" defaultChecked={attempt?.input.template?.dispensable ?? true} />
+                  <Checkbox disabled={locked} name="returnable" label="允许退药/退库" defaultChecked={attempt?.input.template?.returnable ?? true} />
                 </>}
               </Checkboxes>
             </section>
@@ -2415,7 +2642,7 @@ export function AttributeManagementDialog({ api, organization, subjectType, targ
   const queryKey = ['master-data-item-attributes', subjectType, targetId, today()]
   const maintenance = useQuery({
     queryKey,
-    queryFn: () => api.masterData.itemAttributeMaintenance(subjectType, targetId, today()),
+    queryFn: () => loadAttributeMaintenance(api, subjectType, targetId, today()),
   })
   const departments = useQuery({
     queryKey: ['master-data-attribute-departments', organization.id],
@@ -2494,7 +2721,7 @@ function AttributeEditorRow({ api, organization, scopeType, departmentId, subjec
   reason: string; pendingKey: string
   execute: (key: string, action: () => Promise<unknown>, message: string) => Promise<void>
 }) {
-  const [baseRaw, setBaseRaw] = useState(attributeRaw(baseValue?.value ?? attribute.defaultValue, attribute))
+  const [baseRaw, setBaseRaw] = useState(attributeRaw(baseValue ? baseValue.value : attribute.defaultValue, attribute))
   const [overrideRaw, setOverrideRaw] = useState(attributeRaw(overrideValue?.value, attribute))
   const [overrideMode, setOverrideMode] = useState<'OVERRIDE' | 'EXPLICIT_NULL'>(overrideValue?.valueMode ?? 'OVERRIDE')
   const baseKey = `base-${attribute.definitionId}`
@@ -2536,69 +2763,23 @@ function AttributeEditorRow({ api, organization, scopeType, departmentId, subjec
       {projected && <StatusBadge tone="warning">强类型投影</StatusBadge>}
       {attribute.unitCode && <span className="master-data-attribute-unit">单位：{attribute.unitCode}</span>}</div></td>
     <td>{projected ? <AttributeReadOnlyHint text="请在左侧强类型基础信息中维护" />
-      : baseAllowed ? <AttributeValueEditor api={api} attribute={attribute} value={baseRaw} onChange={setBaseRaw}
-        actions={<><Button size="sm" disabled={pendingKey === baseKey || !baseRaw} onClick={saveBase}>
+      : baseAllowed ? <ItemAttributeValueEditor api={api} attribute={attribute} value={baseRaw} onChange={setBaseRaw}
+        actions={(editable) => <><Button size="sm" disabled={pendingKey === baseKey || !baseRaw || !editable} onClick={saveBase}>
           {pendingKey === baseKey ? '保存中…' : '保存基线'}</Button>
           {baseValue && <Button size="sm" variant="text" disabled={pendingKey === baseKey} onClick={disableBase}>停用</Button>}</>} />
         : <AttributeReadOnlyHint text="该属性仅允许维护作用域值" />}</td>
     <td>{projected ? <AttributeReadOnlyHint text="强类型安全字段不允许覆盖" />
-      : overrideAllowed ? <AttributeValueEditor api={api} attribute={attribute} value={overrideRaw} onChange={setOverrideRaw}
+      : overrideAllowed ? <ItemAttributeValueEditor api={api} attribute={attribute} value={overrideRaw} onChange={setOverrideRaw}
         disabled={overrideMode === 'EXPLICIT_NULL'}
         placeholder={baseValue ? `继承：${displayAttributeValue(baseValue.value)}` : '未覆盖时使用类型默认值'}
-        actions={<>{explicitNullAllowed && <Select value={overrideMode} onChange={(value) => setOverrideMode(value as 'OVERRIDE' | 'EXPLICIT_NULL')}
+        actions={(editable) => <>{explicitNullAllowed && <Select value={overrideMode} onChange={(value) => setOverrideMode(value as 'OVERRIDE' | 'EXPLICIT_NULL')}
           options={[{ value: 'OVERRIDE', label: '设置覆盖值' }, { value: 'EXPLICIT_NULL', label: '明确清空' }]} />}
-          <Button size="sm" disabled={pendingKey === overrideKey || (overrideMode === 'OVERRIDE' && !overrideRaw)} onClick={saveOverride}>
+          <Button size="sm" disabled={pendingKey === overrideKey || (overrideMode === 'OVERRIDE' && (!overrideRaw || !editable))} onClick={saveOverride}>
           {pendingKey === overrideKey ? '保存中…' : '保存覆盖'}</Button>
           {overrideValue && <Button size="sm" variant="text" disabled={pendingKey === overrideKey}
             onClick={disableOverride}>恢复继承</Button>}</>} />
         : <AttributeReadOnlyHint text={attribute.overridePolicy === 'RESTRICTIVE_ONLY'
           ? '需先配置受控限制比较规则' : '该属性不允许机构覆盖'} />}</td></tr>
-}
-
-function AttributeValueEditor({ api, attribute, value, onChange, placeholder, actions, disabled = false }: {
-  api: RhnApi
-  attribute: ItemAttributeSchema; value: string; onChange: (value: string) => void
-  placeholder?: string; actions: ReactNode; disabled?: boolean
-}) {
-  const itemSchema = attribute.cardinality === 'MULTIPLE' && attribute.schema.items
-    && typeof attribute.schema.items === 'object' && !Array.isArray(attribute.schema.items)
-    ? attribute.schema.items as Record<string, ItemAttributeJson> : attribute.schema
-  const enumeration = Array.isArray(itemSchema.enum) ? itemSchema.enum.map(String) : []
-  const dictionary = useQuery({
-    queryKey: ['master-data-attribute-dictionary', attribute.dictionaryId],
-    queryFn: () => api.dictionaries.get(attribute.dictionaryId!),
-    enabled: attribute.dataType === 'DICT_REF' && Boolean(attribute.dictionaryId),
-    staleTime: 5 * 60 * 1000,
-  })
-  const options = attribute.dataType === 'DICT_REF' ? (dictionary.data?.items ?? [])
-    .filter((item) => item.sdDictItemStatus === 'ACTIVE')
-    .map((item) => ({ value: item.code, label: item.name, secondaryText: item.code }))
-    : enumeration.map((item) => ({ value: item, label: item, secondaryText: item }))
-  const selectable = options.length > 0
-  const selectedValues = attribute.cardinality === 'MULTIPLE' ? parseRawArray(value) : []
-  return <div className="master-data-attribute-editor">
-    {selectable && attribute.cardinality === 'MULTIPLE' ? <Select multiple value={selectedValues}
-      onChange={(values) => onChange(JSON.stringify(values))} placeholder={placeholder || '请选择'}
-      options={options} loading={dictionary.isPending && attribute.dataType === 'DICT_REF'} disabled={disabled} />
-      : selectable ? <Select value={value} onChange={onChange} placeholder={placeholder || '请选择'}
-      options={options} loading={dictionary.isPending && attribute.dataType === 'DICT_REF'} disabled={disabled} />
-      : attribute.dataType === 'BOOLEAN' ? <Select value={value} onChange={onChange} placeholder={placeholder || '请选择'}
-        options={[{ value: 'true', label: '是' }, { value: 'false', label: '否' }]} disabled={disabled} />
-        : attribute.cardinality === 'MULTIPLE' || ['OBJECT', 'TERM_REF'].includes(attribute.dataType)
-          ? <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={3}
-            placeholder={placeholder || '请输入合法 JSON'} disabled={disabled} />
-          : <input value={value} onChange={(event) => onChange(event.target.value)}
-            type={attribute.dataType === 'DATE' ? 'date' : ['INTEGER', 'DECIMAL'].includes(attribute.dataType) ? 'number' : 'text'}
-            step={attribute.dataType === 'INTEGER' ? '1' : attribute.dataType === 'DECIMAL' ? 'any' : undefined}
-            placeholder={placeholder || '请输入属性值'} disabled={disabled} />}
-    <div className="master-data-attribute-actions">{actions}</div>
-  </div>
-}
-
-function parseRawArray(value: string) {
-  if (!value.trim()) return []
-  try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed.map(String) : [] }
-  catch { return [] }
 }
 
 function attributeSchemaAllowsNull(attribute: ItemAttributeSchema) {
@@ -2616,16 +2797,16 @@ function attributeRaw(value: ItemAttributeJson | undefined, attribute: ItemAttri
   return String(value)
 }
 
-function parseAttributeRaw(value: string, attribute: ItemAttributeSchema): ItemAttributeJson {
-  const normalized = value.trim()
-  if (!normalized) throw new Error('属性值不能为空')
-  if (attribute.cardinality === 'MULTIPLE' || ['OBJECT', 'TERM_REF'].includes(attribute.dataType)) {
-    return JSON.parse(normalized) as ItemAttributeJson
+function effectiveAttributeRaw(attribute: ItemAttributeSchema, base?: ItemAttributeValue, override?: ItemAttributeOverride) {
+  return attributeRaw(override ? (override.valueMode === 'EXPLICIT_NULL' ? null : override.value)
+    : base ? base.value : attribute.defaultValue, attribute)
+}
+
+function validateAttributeChanges(maintenance: ItemAttributeMaintenance | undefined, values: Record<string, string>) {
+  if (!maintenance) throw new Error('扩展属性尚未加载成功，请重试后保存')
+  for (const attribute of maintenance.schema.attributes) {
+    if (values[attribute.definitionId] !== undefined) parseAttributeRaw(values[attribute.definitionId], attribute)
   }
-  if (attribute.dataType === 'BOOLEAN') return normalized === 'true'
-  if (attribute.dataType === 'INTEGER') return Number.parseInt(normalized, 10)
-  if (attribute.dataType === 'DECIMAL') return Number(normalized)
-  return normalized
 }
 
 function displayAttributeValue(value: ItemAttributeJson) {
@@ -2737,55 +2918,105 @@ function DiseaseManagementProgramDialog({ dictionaries, value, onClose, onSave }
 
 type EditableDiseaseRule = DiseaseManagementRule & { key: string }
 
-function DiseaseManagementMembersDialog({ program, api, dictionaries, codeSystems, onClose, onSave }: {
+interface DiseaseManagementMembersProps {
   program: DiseaseManagementProgram; api: RhnApi; dictionaries: DictionaryMap; codeSystems: CodeSystemSummary[]
   onClose: () => void
-  onSave: (rules: DiseaseManagementRule[], exceptions: DiseaseManagementExceptionInput[]) => void
-}) {
+  onSave: (rules: DiseaseManagementRule[], exceptions: DiseaseManagementExceptionInput[]) => Promise<unknown>
+  onSaved?: () => void
+}
+
+export function DiseaseManagementMembersDialog(props: DiseaseManagementMembersProps) {
+  return <DiseaseManagementMembersEditor key={diseaseMemberEditorScope(props.api, props.program.id, props.program.revision)} {...props} />
+}
+
+function DiseaseManagementMembersEditor({ program, api, dictionaries, codeSystems, onClose, onSave, onSaved }: DiseaseManagementMembersProps) {
   const [keyword, setKeyword] = useState('')
   const [query, setQuery] = useState('')
   const [domain, setDomain] = useState('')
   const [page, setPage] = useState(0)
+  const [session] = useState(() => crypto.randomUUID())
+  const [attempt, setAttempt] = useState(0)
+  const [selectionError, setSelectionError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const saveLock = useRef(false)
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   const [rules, setRules] = useState<EditableDiseaseRule[]>(() => program.rules.map((rule) => ({
     ...rule, key: rule.id ?? crypto.randomUUID(),
   })))
   const [exceptions, setExceptions] = useState(() => new Map(program.members.map((item) => [item.conceptId, {
-    conceptId: item.conceptId, inclusionMode: item.inclusionMode, note: '', display: item.display,
-    code: item.code, systemName: item.systemName, domainText: item.sdDiagnosisDomainText,
+    conceptId: item.conceptId, inclusionMode: item.inclusionMode, note: item.note, display: item.display,
+    code: item.code, systemName: item.systemName,
+    domainText: item.sdDiagnosisDomain ? item.sdDiagnosisDomainText?.trim() || '体系名称待确认' : '体系待确认',
   }])))
 
   const handleSearch = () => {
     setQuery(keyword.trim())
     setPage(0)
+    setAttempt(value => value + 1)
+    setSelectionError('')
   }
 
   const handleReset = () => {
     setKeyword('')
     setQuery('')
     setPage(0)
+    setAttempt(value => value + 1)
+    setSelectionError('')
   }
 
-  useEffect(() => setPage(0), [domain, query])
   const search = useQuery({
-    queryKey: ['disease-management-scope-search', query, domain, page],
-    queryFn: () => api.masterData.searchDiseases(query.trim(), '', 'ACTIVE', domain, page, 10),
+    queryKey: ['disease-management-scope-search', session, attempt, query, domain, page],
+    queryFn: async () => requireDiseaseMemberSearchPage(
+      await api.masterData.searchDiseases(query, '', 'ACTIVE', domain, page, diseaseMemberPageSize), page, domain),
     enabled: query.trim().length >= 2,
+    retry: false,
+    gcTime: 0,
   })
+  const searchReady = query.length >= 2 && search.isSuccess && !search.isFetching
+  const currentSearch = useRef({ ready: searchReady, data: search.data })
+  currentSearch.current = { ready: searchReady, data: search.data }
+  const changePage = (value: number) => { setPage(value); setAttempt(current => current + 1); setSelectionError('') }
   const addRule = () => setRules((current) => [...current, {
     key: crypto.randomUUID(), inclusionMode: 'INCLUDE', sdDiagnosisDomain: 'WESTERN_MEDICINE',
   }])
   const updateRule = (key: string, field: keyof DiseaseManagementRule, value: string) => setRules((current) =>
     current.map((rule) => rule.key === key ? { ...rule, [field]: value || undefined } : rule))
-  const addException = (disease: DiseaseConcept, inclusionMode: 'INCLUDE' | 'EXCLUDE') =>
+  const addException = (disease: DiseaseMemberCandidate, inclusionMode: 'INCLUDE' | 'EXCLUDE') => {
+    if (!currentSearch.current.ready || !currentSearch.current.data?.content.includes(disease)) {
+      setSelectionError('候选已失效，请重新检索后选择')
+      return
+    }
     setExceptions((current) => new Map(current).set(disease.id, { conceptId: disease.id, inclusionMode, note: '',
       display: disease.display, code: disease.code, systemName: disease.systemName,
-      domainText: disease.sdDiagnosisDomainText }))
+      domainText: disease.sdDiagnosisDomain ? disease.sdDiagnosisDomainText?.trim() || '体系名称待确认' : '体系待确认' }))
+  }
   const domainOptions = options(dictionaries, 'BD_DIAGNOSIS_DOMAIN')
   const conceptTypeOptions = options(dictionaries, 'BD_CONCEPT_TYPE')
   const exceptionValues = [...exceptions.values()]
-  return <Dialog title="配置疾病识别范围" eyebrow={program.name} size="xwide" onClose={onClose}
+  async function save() {
+    if (saveLock.current) return
+    setSaveError('')
+    try {
+      const command = prepareDiseaseScopeSave(program, rules.map(({ key: _key, id: _id, ...rule }) => rule),
+        exceptionValues.map(({ display: _display, code: _code, systemName: _systemName, domainText: _domainText, ...item }) => item))
+      saveLock.current = true; setSaving(true)
+      const receipt = await onSave(command.rules, command.exceptions)
+      if (!alive.current) return
+      requireDiseaseScopeReceipt(command, receipt)
+      onSaved?.()
+    } catch (error) {
+      if (alive.current) setSaveError(`${errorMessage(error)}。草稿已保留；请核实远端结果后重试，未确认不代表已回滚。`)
+    } finally {
+      saveLock.current = false
+      if (alive.current) setSaving(false)
+    }
+  }
+  return <Dialog title="配置疾病识别范围" eyebrow={program.name} size="xwide" onClose={() => { if (!saveLock.current) onClose() }}
     description="使用规则覆盖大批量疾病，只为少数特殊疾病配置精确例外；精确例外的优先级最高。">
-    <div className="disease-scope-editor">
+    {saveError && <Alert tone="warning">{saveError}</Alert>}
+    <div className="disease-scope-editor" inert={saving}>
       <section className="disease-scope-section">
         <div className="disease-scope-section__head"><div><h3>批量识别规则</h3>
           <p>同一行内的条件同时满足，多条“纳入”规则取并集；命中“排除”规则时不纳入。</p></div>
@@ -2827,7 +3058,7 @@ function DiseaseManagementMembersDialog({ program, api, dictionaries, codeSystem
           <p>仅维护规则无法表达的特殊疾病；可明确纳入，也可从规则结果中明确排除。</p></div>
           <span>{exceptionValues.length} 个例外</span></div>
         {!!exceptionValues.length && <div className="disease-exception-list">{exceptionValues.map((item) => <div key={item.conceptId}>
-          <span><strong>{item.display}</strong><small>{item.domainText} · {item.systemName}</small></span><code>{item.code}</code>
+          <span><strong>{item.display}</strong><small>{item.domainText} · {item.systemName}</small></span><code>{item.code || '编码待确认'}</code>
           <Select value={item.inclusionMode} options={[{ value: 'INCLUDE', label: '明确纳入' }, { value: 'EXCLUDE', label: '明确排除' }]}
             onChange={(value) => setExceptions((current) => {
               const next = new Map(current); next.set(item.conceptId, { ...item, inclusionMode: value as 'INCLUDE' | 'EXCLUDE' }); return next
@@ -2836,29 +3067,39 @@ function DiseaseManagementMembersDialog({ program, api, dictionaries, codeSystem
             const next = new Map(current); next.delete(item.conceptId); return next
           })}>移除</Button></div>)}</div>}
         <div className="disease-management-member-toolbar">
-          <SearchField label="查找精确疾病" value={keyword} onChange={setKeyword} onSearch={handleSearch} placeholder="至少输入 2 个字符（回车或点击检索）" />
-          <Select value={domain} onChange={(val) => { setDomain(val); setPage(0) }} placeholder="全部诊断体系" options={domainOptions} />
+          <SearchField label="查找精确疾病" value={keyword} onChange={value => {
+            setKeyword(value); setQuery(''); setPage(0); setAttempt(current => current + 1); setSelectionError('')
+          }} onSearch={handleSearch} placeholder="至少输入 2 个字符（回车或点击检索）" />
+          <Select aria-label="检索诊断体系" value={domain} onChange={(val) => {
+            setDomain(val); setPage(0); setAttempt(current => current + 1); setSelectionError('')
+          }} placeholder="全部诊断体系" options={domainOptions} />
           <Button size="sm" variant="primary" type="button" onClick={handleSearch}>检索</Button>
           <Button size="sm" variant="secondary" type="button" onClick={handleReset}>重置</Button>
-          <span>{query.trim().length < 2 ? '输入关键词后检索' : search.isFetching ? '正在检索…' : `共 ${search.data?.totalElements ?? 0} 条`}</span>
+          <span>{query.length < 2 ? '输入关键词后检索' : search.isFetching ? '正在检索…'
+            : searchReady ? `共 ${search.data.totalElements} 条` : '数量未确认'}</span>
         </div>
+        {selectionError && <Alert tone="warning">{selectionError}</Alert>}
         {query.trim().length >= 2 && <div className="disease-search-results">
-          {search.data?.content.map((disease) => <div key={disease.id}><span><strong>{disease.display}</strong>
-            <small>{disease.sdDiagnosisDomainText} · {disease.systemName}</small></span><code>{disease.code}</code>
+          {search.isFetching && <LoadingState label="正在检索疾病…" />}
+          {search.isError && !search.isFetching && <Alert tone="warning">疾病检索失败：{errorMessage(search.error)}
+            <Button variant="text" size="sm" onClick={() => { setAttempt(current => current + 1); setSelectionError('') }}>重新检索</Button></Alert>}
+          {searchReady && search.data.content.map((disease) => <div key={disease.id}><span><strong>{disease.display}</strong>
+            <small>{disease.sdDiagnosisDomain ? disease.sdDiagnosisDomainText?.trim() || '体系名称待确认' : '体系待确认'} · {disease.systemName}</small></span><code>{disease.code}</code>
             <Button variant="secondary" size="sm" onClick={() => addException(disease, 'INCLUDE')}>明确纳入</Button>
             <Button variant="text" size="sm" onClick={() => addException(disease, 'EXCLUDE')}>明确排除</Button></div>)}
-          {!search.isFetching && !search.data?.content.length && <EmptyState icon="clinical" title="未找到疾病" copy="请调整检索条件。" />}
-          {!!search.data?.totalPages && search.data.totalPages > 1 && <div className="disease-search-pagination">
-            <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>上一页</Button>
+          {searchReady && !search.data.content.length && <EmptyState icon="clinical"
+            title={search.data.totalElements === 0 ? '未找到疾病' : '当前页无结果'}
+            copy={search.data.totalElements === 0 ? '请调整检索条件。' : '目录数据已变化，请返回第一页重新检索。'} />}
+          {searchReady && !search.data.content.length && page > 0 && <Button variant="secondary" size="sm" onClick={() => changePage(0)}>返回第一页</Button>}
+          {searchReady && search.data.totalPages > 1 && <div className="disease-search-pagination">
+            <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => changePage(page - 1)}>上一页</Button>
             <span>第 {page + 1} / {search.data.totalPages} 页</span>
             <Button variant="secondary" size="sm" disabled={page + 1 >= search.data.totalPages}
-              onClick={() => setPage((value) => value + 1)}>下一页</Button></div>}
+              onClick={() => changePage(page + 1)}>下一页</Button></div>}
         </div>}
       </section>
-      <div className="ui-form-actions"><Button variant="secondary" onClick={onClose}>取消</Button>
-        <Button onClick={() => onSave(rules.map(({ key: _key, id: _id, ...rule }) => rule),
-          exceptionValues.map(({ display: _display, code: _code, systemName: _systemName,
-            domainText: _domainText, ...item }) => item))}>保存识别范围</Button></div>
+      <div className="ui-form-actions"><Button variant="secondary" disabled={saving} onClick={onClose}>取消</Button>
+        <Button busy={saving} disabled={saving} onClick={() => void save()}>保存识别范围</Button></div>
     </div>
   </Dialog>
 }
@@ -2868,77 +3109,19 @@ function DynamicAttributeField({
   attribute,
   value,
   onChange,
+  explicitNull,
 }: {
   api?: RhnApi
   attribute: ItemAttributeSchema
   value: string
   onChange: (val: string) => void
+  explicitNull?: boolean
 }) {
-  const dictionary = useQuery({
-    queryKey: ['master-data-attribute-dictionary', attribute.dictionaryId],
-    queryFn: () => api!.dictionaries.get(attribute.dictionaryId!),
-    enabled: Boolean(api && attribute.dataType === 'DICT_REF' && attribute.dictionaryId),
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const itemSchema = attribute.cardinality === 'MULTIPLE' && attribute.schema.items
-    && typeof attribute.schema.items === 'object' && !Array.isArray(attribute.schema.items)
-    ? attribute.schema.items as Record<string, ItemAttributeJson> : attribute.schema
-  const enumeration = Array.isArray(itemSchema.enum) ? itemSchema.enum.map(String) : []
-  const options = attribute.dataType === 'DICT_REF'
-    ? (dictionary.data?.items ?? [])
-        .filter((item) => item.sdDictItemStatus === 'ACTIVE')
-        .map((item) => ({ value: item.code, label: item.name, secondaryText: item.code }))
-    : enumeration.map((item) => ({ value: item, label: item, secondaryText: item }))
-
   const label = `${attribute.name}${attribute.unitCode ? ` (${attribute.unitCode})` : ''}`
-
-  return (
-    <FormField label={label} required={attribute.required} hint={attribute.description}>
-      {options.length > 0 ? (
-        <Select
-          value={value}
-          onChange={onChange}
-          placeholder="请选择"
-          options={options}
-          loading={dictionary.isPending}
-          clearable={!attribute.required}
-        />
-      ) : attribute.dataType === 'BOOLEAN' ? (
-        <Select
-          value={value}
-          onChange={onChange}
-          placeholder="请选择"
-          options={[{ value: 'true', label: '是' }, { value: 'false', label: '否' }]}
-          clearable={!attribute.required}
-        />
-      ) : attribute.dataType === 'DATE' ? (
-        <input
-          type="date"
-          value={value}
-          required={attribute.required}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      ) : ['INTEGER', 'DECIMAL'].includes(attribute.dataType) ? (
-        <input
-          type="number"
-          step={attribute.dataType === 'INTEGER' ? '1' : 'any'}
-          value={value}
-          required={attribute.required}
-          placeholder={attribute.description || '请输入数字'}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      ) : (
-        <input
-          type="text"
-          value={value}
-          required={attribute.required}
-          placeholder={attribute.description || '请输入'}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
-    </FormField>
-  )
+  return <FormField label={label} required={attribute.required} hint={attribute.description}>
+    <ItemAttributeValueEditor api={api} attribute={attribute} value={value} onChange={onChange} required={attribute.required}
+      placeholder={explicitNull ? '机构已明确清空' : undefined} />
+  </FormField>
 }
 
 function DynamicItemAttributesSection({
@@ -2948,6 +3131,8 @@ function DynamicItemAttributesSection({
   values,
   onChange,
   isLoading,
+  hasError,
+  onRetry,
 }: {
   api?: RhnApi
   maintenance?: ItemAttributeMaintenance
@@ -2955,7 +3140,12 @@ function DynamicItemAttributesSection({
   values: Record<string, string>
   onChange: (definitionId: string, val: string) => void
   isLoading?: boolean
+  hasError?: boolean
+  onRetry?: () => void
 }) {
+  if (hasError) return <FormSection title="扩展属性" description="请加载成功后核对属性配置。"><Alert tone="warning">扩展属性加载失败，尚未核验
+    <Button size="sm" variant="secondary" onClick={onRetry}>重试扩展属性</Button>
+  </Alert></FormSection>
   if (isLoading) {
     return (
       <FormSection title="扩展属性" description="正在加载当前项目类型装配的扩展属性…">
@@ -2963,6 +3153,8 @@ function DynamicItemAttributesSection({
       </FormSection>
     )
   }
+
+  if (!maintenance) return <FormSection title="扩展属性" description="请加载成功后核对属性配置。"><Alert tone="warning">扩展属性尚未加载，不能判断是否已装配</Alert></FormSection>
 
   const attributes = (maintenance?.schema?.attributes ?? []).filter((item) => item.storageMode !== 'PROJECTED')
 
@@ -2981,8 +3173,8 @@ function DynamicItemAttributesSection({
       <FormGrid columns={3}>
         {attributes.map((attr) => {
           const base = maintenance?.baseValues.find((b) => b.definitionId === attr.definitionId)
-          const override = maintenance?.overrides.find((o) => o.definitionId === attr.definitionId && o.organizationId === organization?.id)
-          const initialVal = attributeRaw(override?.value ?? base?.value ?? attr.defaultValue, attr)
+          const override = maintenance?.overrides.find((o) => o.definitionId === attr.definitionId && o.scopeType === 'ORGANIZATION' && o.organizationId === organization?.id)
+          const initialVal = effectiveAttributeRaw(attr, base, override)
           const currentVal = values[attr.definitionId] ?? initialVal
           return (
             <DynamicAttributeField
@@ -2990,6 +3182,7 @@ function DynamicItemAttributesSection({
               api={api}
               attribute={attr}
               value={currentVal}
+              explicitNull={override?.valueMode === 'EXPLICIT_NULL'}
               onChange={(val) => onChange(attr.definitionId, val)}
             />
           )
@@ -2999,7 +3192,7 @@ function DynamicItemAttributesSection({
   )
 }
 
-function ServiceDialog({ api, organization, dictionaries, value, onClose, onSave }: {
+export function ServiceDialog({ api, organization, dictionaries, value, onClose, onSave }: {
   api?: RhnApi; organization?: Organization; dictionaries: DictionaryMap;
   value?: ServiceCatalogItem; onClose: () => void; onSave: (input: ServiceInput) => void | Promise<unknown>
 }) {
@@ -3007,65 +3200,35 @@ function ServiceDialog({ api, organization, dictionaries, value, onClose, onSave
   const [attrValues, setAttrValues] = useState<Record<string, string>>({})
   const maintenanceQuery = useQuery({
     queryKey: ['master-data-item-attributes', 'CATALOG_ITEM', value?.id, today()],
-    queryFn: () => api!.masterData.itemAttributeMaintenance('CATALOG_ITEM', value!.id, today()),
+    queryFn: () => loadAttributeMaintenance(api!, 'CATALOG_ITEM', value!.id, today()),
     enabled: Boolean(api && value?.id),
     staleTime: 60 * 1000,
   })
 
+  const attributeRequests = useRef(new Map<string, string>())
+  const [attributeProgress, setAttributeProgress] = useState('')
   const saveAttributes = async () => {
     if (!api || !value?.id || !maintenanceQuery.data) return
-    const attributes = (maintenanceQuery.data.schema?.attributes ?? []).filter((item) => item.storageMode !== 'PROJECTED')
-    const promises: Promise<unknown>[] = []
-    for (const attr of attributes) {
-      const base = maintenanceQuery.data.baseValues.find((b) => b.definitionId === attr.definitionId)
-      const override = maintenanceQuery.data.overrides.find((o) => o.definitionId === attr.definitionId && o.organizationId === organization?.id)
-      const initialRaw = attributeRaw(override?.value ?? base?.value ?? attr.defaultValue, attr)
-      const currentRaw = attrValues[attr.definitionId]
-      if (currentRaw !== undefined && currentRaw !== initialRaw) {
-        if (!currentRaw.trim() && attr.required) {
-          throw new Error(`请填写必填扩展属性：${attr.name}`)
-        }
-        if (attr.variability === 'BASE_ONLY') {
-          promises.push(api.masterData.saveItemAttributeValue({
-            subjectType: 'CATALOG_ITEM',
-            targetId: value.id,
-            definitionId: attr.definitionId,
-            valueId: base?.id,
-            expectedRevision: base?.revision,
-            value: parseAttributeRaw(currentRaw, attr),
-            validFrom: base?.validFrom ?? today(),
-            validTo: base?.validTo,
-            reason: '主档编辑维护扩展属性',
-            requestCode: crypto.randomUUID(),
-          }))
-        } else {
-          promises.push(api.masterData.saveItemAttributeOverride({
-            subjectType: 'CATALOG_ITEM',
-            targetId: value.id,
-            definitionId: attr.definitionId,
-            overrideId: override?.id,
-            expectedRevision: override?.revision,
-            scopeType: 'ORGANIZATION',
-            organizationId: organization?.id || '',
-            valueMode: 'OVERRIDE',
-            value: parseAttributeRaw(currentRaw, attr),
-            validFrom: override?.validFrom ?? today(),
-            validTo: override?.validTo,
-            reason: '主档编辑维护扩展属性',
-            requestCode: crypto.randomUUID(),
-          }))
-        }
-      }
-    }
-    if (promises.length > 0) {
-      await Promise.all(promises)
-      await queryClient.invalidateQueries({ queryKey: ['master-data-item-attributes', 'CATALOG_ITEM', value.id] })
-    }
+    await queryClient.cancelQueries({ queryKey: ['master-data-item-attributes', 'CATALOG_ITEM', value.id, today()], exact: true })
+    await saveMasterDataAttributes({ api, subjectType: 'CATALOG_ITEM', targetId: value.id,
+      organizationId: organization?.id, maintenance: maintenanceQuery.data, values: attrValues,
+      date: today(), requests: attributeRequests.current,
+      onConfirmed: (attribute, snapshot) => {
+        queryClient.setQueryData(['master-data-item-attributes', 'CATALOG_ITEM', value.id, today()], snapshot)
+        setAttrValues((current) => { const next = { ...current }; delete next[attribute.definitionId]; return next })
+        setAttributeProgress(`扩展属性“${attribute.name}”已保存，主档尚待保存；已保存属性不会因其他步骤失败而回滚。`)
+      },
+    })
   }
 
   return <DataFormDialog title={value ? '编辑诊疗项目' : '新增诊疗项目'} eyebrow="临床服务目录" onClose={onClose}
     size="xwide" description="维护项目主档身份和目录属性；检验检查的执行、部位与收费规则从项目列表的“执行与收费”进入。"
     onSubmit={async (form) => {
+      if (api && value?.id) {
+        if (!maintenanceQuery.isSuccess) throw new Error('扩展属性尚未加载成功，请重试后保存')
+        validateAttributeChanges(maintenanceQuery.data, attrValues)
+      }
+      await saveAttributes()
       await onSave({ code: (value?.code || text(form, 'code')).trim(), name: text(form, 'name'), unitCode: optionalText(form, 'unitCode'),
         orderable: checked(form, 'orderable'), chargeable: checked(form, 'chargeable'), sdStatus: (value?.sdStatus ?? 'ACTIVE'),
         validFrom: text(form, 'validFrom'), validTo: optionalText(form, 'validTo'), sdServiceType: value?.sdServiceType || text(form, 'sdServiceType'),
@@ -3078,8 +3241,9 @@ function ServiceDialog({ api, organization, dictionaries, value, onClose, onSave
         mutualRecognitionCode: optionalText(form, 'mutualRecognitionCode'),
         pregnancyAlert: checked(form, 'pregnancyAlert'), attention: optionalText(form, 'attention'),
         examinationNotes: value?.examinationNotes })
-      await saveAttributes()
+      setAttributeProgress('')
     }}>
+    {attributeProgress && <Alert tone="warning">{attributeProgress}</Alert>}
     <FormSection title="标准身份" description="编码创建后保持稳定，名称与目录属性可继续维护。">
       <FormGrid columns={3}>
         <FormField label="项目编码" required><input name="code" defaultValue={value?.code} disabled={Boolean(value)}
@@ -3130,6 +3294,8 @@ function ServiceDialog({ api, organization, dictionaries, value, onClose, onSave
         values={attrValues}
         onChange={(defId, val) => setAttrValues((prev) => ({ ...prev, [defId]: val }))}
         isLoading={maintenanceQuery.isPending}
+        hasError={maintenanceQuery.isError}
+        onRetry={() => void maintenanceQuery.refetch()}
       />
     )}
   </DataFormDialog>
@@ -3208,60 +3374,25 @@ export function MedicationDialog({
   const [attrValues, setAttrValues] = useState<Record<string, string>>({})
   const maintenanceQuery = useQuery({
     queryKey: ['master-data-item-attributes', 'MEDICATION', value?.id, today()],
-    queryFn: () => api!.masterData.itemAttributeMaintenance('MEDICATION', value!.id, today()),
+    queryFn: () => loadAttributeMaintenance(api!, 'MEDICATION', value!.id, today()),
     enabled: Boolean(api && value?.id),
     staleTime: 60 * 1000,
   })
 
+  const attributeRequests = useRef(new Map<string, string>())
+  const [attributeProgress, setAttributeProgress] = useState('')
   const saveAttributes = async () => {
     if (!api || !value?.id || !maintenanceQuery.data) return
-    const attributes = (maintenanceQuery.data.schema?.attributes ?? []).filter((item) => item.storageMode !== 'PROJECTED')
-    const promises: Promise<unknown>[] = []
-    for (const attr of attributes) {
-      const base = maintenanceQuery.data.baseValues.find((b) => b.definitionId === attr.definitionId)
-      const override = maintenanceQuery.data.overrides.find((o) => o.definitionId === attr.definitionId && o.organizationId === organization?.id)
-      const initialRaw = attributeRaw(override?.value ?? base?.value ?? attr.defaultValue, attr)
-      const currentRaw = attrValues[attr.definitionId]
-      if (currentRaw !== undefined && currentRaw !== initialRaw) {
-        if (!currentRaw.trim() && attr.required) {
-          throw new Error(`请填写必填扩展属性：${attr.name}`)
-        }
-        if (attr.variability === 'BASE_ONLY') {
-          promises.push(api.masterData.saveItemAttributeValue({
-            subjectType: 'MEDICATION',
-            targetId: value.id,
-            definitionId: attr.definitionId,
-            valueId: base?.id,
-            expectedRevision: base?.revision,
-            value: parseAttributeRaw(currentRaw, attr),
-            validFrom: base?.validFrom ?? today(),
-            validTo: base?.validTo,
-            reason: '主档编辑维护扩展属性',
-            requestCode: crypto.randomUUID(),
-          }))
-        } else {
-          promises.push(api.masterData.saveItemAttributeOverride({
-            subjectType: 'MEDICATION',
-            targetId: value.id,
-            definitionId: attr.definitionId,
-            overrideId: override?.id,
-            expectedRevision: override?.revision,
-            scopeType: 'ORGANIZATION',
-            organizationId: organization?.id || '',
-            valueMode: 'OVERRIDE',
-            value: parseAttributeRaw(currentRaw, attr),
-            validFrom: override?.validFrom ?? today(),
-            validTo: override?.validTo,
-            reason: '主档编辑维护扩展属性',
-            requestCode: crypto.randomUUID(),
-          }))
-        }
-      }
-    }
-    if (promises.length > 0) {
-      await Promise.all(promises)
-      await queryClient.invalidateQueries({ queryKey: ['master-data-item-attributes', 'MEDICATION', value.id] })
-    }
+    await queryClient.cancelQueries({ queryKey: ['master-data-item-attributes', 'MEDICATION', value.id, today()], exact: true })
+    await saveMasterDataAttributes({ api, subjectType: 'MEDICATION', targetId: value.id,
+      organizationId: organization?.id, maintenance: maintenanceQuery.data, values: attrValues,
+      date: today(), requests: attributeRequests.current,
+      onConfirmed: (attribute, snapshot) => {
+        queryClient.setQueryData(['master-data-item-attributes', 'MEDICATION', value.id, today()], snapshot)
+        setAttrValues((current) => { const next = { ...current }; delete next[attribute.definitionId]; return next })
+        setAttributeProgress(`扩展属性“${attribute.name}”已保存，主档尚待保存；已保存属性不会因其他步骤失败而回滚。`)
+      },
+    })
   }
 
   const initial = value ?? initialValue
@@ -3352,6 +3483,15 @@ export function MedicationDialog({
     size="xwide" className="medication-knowledge-dialog"
     description="通用药品知识不包含厂家和价格信息，产品、包装与机构目录在后续层级维护。"
     onSubmit={async (form) => {
+      if (api && value?.id) {
+        if (!maintenanceQuery.isSuccess) throw new Error('扩展属性尚未加载成功，请重试后保存')
+        validateAttributeChanges(maintenanceQuery.data, attrValues)
+      }
+      const storageType = optionalText(form, 'sdStorageType')
+      if (storageType && !dictionaries.BD_STORAGE_TYPE?.some((item) => item.code === storageType)) {
+        throw new Error('储藏方式不在当前有效字典中，请重新选择或维护字典')
+      }
+      await saveAttributes()
       await onSave({ standardSpecificationId: standardId, code: (initial?.code || text(form, 'code')).trim(), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
         sdMedicationType: medicationType, sdDoseForm: standardLocked ? initialValue?.sdDoseForm ?? initial?.sdDoseForm : optionalText(form, 'sdDoseForm'),
         preparationSpec: optionalText(form, 'preparationSpec') || preparationSpec || undefined,
@@ -3382,8 +3522,9 @@ export function MedicationDialog({
         chronicDiseaseDrug: (western || chinesePatent) && checked(form, 'chronicDiseaseDrug'),
         singleOrder: checked(form, 'singleOrder'),
         sdStatus: initial?.sdStatus ?? 'ACTIVE' })
-      await saveAttributes()
+      setAttributeProgress('')
     }}>
+    {attributeProgress && <Alert tone="warning">{attributeProgress}</Alert>}
     {standardLocked && <Alert tone="info">已关联标准规格 {standardId}，剂型、规格及已定义含量沿用标准目录。默认用量仅用于录入，不代表安全上限。</Alert>}
     <FormSection title="药品身份" description="药品类型决定可维护的业务属性，创建后不可直接修改；类型调整需新建主档并处理替代关系。">
       <FormGrid columns={4}>
@@ -3444,8 +3585,8 @@ export function MedicationDialog({
           options={frequencies.map((frequency) => ({ value: frequency.code, label: frequency.name,
             secondaryText: `${frequency.code}${frequency.executionTimes.length ? ` · ${frequency.executionTimes.join('/')}` : ''}` }))} /></FormField>}
         <SelectField name="sdStorageType" label={vaccine ? '冷链 / 储藏方式' : '储藏方式'}
-          values={ensureStorageTypeValues(dictionaries.BD_STORAGE_TYPE)}
-          defaultValue={initial?.sdStorageType === 'NORMAL' ? 'ROOM_TEMPERATURE' : initial?.sdStorageType} required={false} />
+          values={dictionaries.BD_STORAGE_TYPE}
+          defaultValue={initial?.sdStorageType} required={false} />
         <FormField label="默认剂量"><input name="defaultDose" type="number" min="0" step="any"
           defaultValue={initial?.defaultDose} placeholder="如 0.5" /></FormField>
         <FormField label="默认剂量单位" hint="严格限制只能从「含量单位」或「制剂单位」中二选一，杜绝脏数据。">
@@ -3517,22 +3658,22 @@ export function MedicationDialog({
       </FormGrid>
     </FormSection>}
     {western && skinTestRequired && <FormSection title="皮试临床执行规则 (敏感试验)"
-      description="默认方案会随医嘱生成快照并自动带入护士皮试工作台；执行人员仍可按医嘱现场微调。">
+      description="请明确维护完整方案；方案随医嘱生成快照，皮试执行须与快照一致。">
       <FormGrid columns={4}>
-        <StaticSelectField name="skinTestMethod" label="皮试给药方式" defaultValue={initial?.skinTestMethod ?? 'INTRADERMAL'}
-          searchable={false} options={[{ value: 'INTRADERMAL', label: '皮内试验 (推荐)' },
+        <StaticSelectField name="skinTestMethod" label="皮试给药方式" defaultValue={initial?.skinTestMethod ?? ''}
+          searchable={false} options={[{ value: 'INTRADERMAL', label: '皮内试验' },
             { value: 'PRICK', label: '点刺试验' }, { value: 'OTHER', label: '其他方式' }]} />
         <StaticSelectField name="skinTestSolutionMode" label="皮试液制备方式"
-          defaultValue={initial?.skinTestSolutionMode ?? 'DILUTED_SOLUTION'} searchable={false}
+          defaultValue={initial?.skinTestSolutionMode ?? ''} searchable={false}
           options={[{ value: 'DILUTED_SOLUTION', label: '稀释配制皮试液' },
             { value: 'ORIGINAL_SOLUTION', label: '原液直接试验' }]} />
         <FormField label="皮试观察等待时长 (分钟)" required>
           <input name="skinTestObservationMinutes" type="number" min={1} max={120}
-            defaultValue={initial?.skinTestObservationMinutes ?? 20} placeholder="如 20" required />
+            defaultValue={initial?.skinTestObservationMinutes ?? ''} placeholder="如 20" required />
         </FormField>
         <FormField label="阴性结果有效期 (小时)" required>
           <input name="skinTestResultValidityHours" type="number" min={1} max={8760}
-            defaultValue={initial?.skinTestResultValidityHours ?? 24} placeholder="如 24" required />
+            defaultValue={initial?.skinTestResultValidityHours ?? ''} placeholder="如 24" required />
         </FormField>
         <FormField label="皮试液配制浓度与操作要点" className="span-full"><textarea name="skinTestInstructions" rows={2}
           defaultValue={initial?.skinTestInstructions} placeholder="如：稀释配制浓度（如青霉素 500U/ml）、试验推注剂量（0.1ml）、注射部位及阴阳性判定或复试要求" /></FormField>
@@ -3547,6 +3688,8 @@ export function MedicationDialog({
         values={attrValues}
         onChange={(defId, val) => setAttrValues((prev) => ({ ...prev, [defId]: val }))}
         isLoading={maintenanceQuery.isPending}
+        hasError={maintenanceQuery.isError}
+        onRetry={() => void maintenanceQuery.refetch()}
       />
     )}
   </DataFormDialog>
@@ -3836,7 +3979,7 @@ function DataFormDialog({ title, eyebrow, description, size = 'wide', className,
   const pending = useRef(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  return <Dialog title={title} eyebrow={eyebrow} description={description} size={size} className={className} onClose={onClose}>
+  return <Dialog title={title} eyebrow={eyebrow} description={description} size={size} className={className} onClose={() => { if (!pending.current) onClose() }}>
     <form className="master-data-dialog-form" onSubmit={async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
       if (pending.current) return
@@ -3844,7 +3987,7 @@ function DataFormDialog({ title, eyebrow, description, size = 'wide', className,
       pending.current = true; setSaving(true); setSaveError('')
       try { await onSubmit(form) } catch (error) { setSaveError(errorMessage(error)) }
       finally { pending.current = false; setSaving(false) }
-    }}>{children}{saveError && <p role="alert">{saveError}</p>}
+    }}><fieldset className="master-data-dialog-fields" disabled={saving}>{children}</fieldset>{saveError && <p role="alert">{saveError}</p>}
     <div className="ui-form-actions"><Button variant="secondary" disabled={saving} onClick={onClose}>取消</Button>
     <Button type="submit" disabled={saving}>{saving ? '正在保存…' : '保存'}</Button></div></form></Dialog>
 }

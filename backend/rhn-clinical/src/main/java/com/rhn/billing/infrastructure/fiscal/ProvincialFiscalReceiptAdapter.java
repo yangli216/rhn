@@ -10,7 +10,6 @@ import com.rhn.billing.infrastructure.fiscal.FiscalModels.FiscalVoidRequest;
 import com.rhn.billing.infrastructure.fiscal.FiscalModels.FiscalVoidResponse;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -71,39 +70,45 @@ public class ProvincialFiscalReceiptAdapter implements FiscalReceiptAdapter {
                 instruction.payerName(),
                 instruction.payerIdentityDigest(),
                 instruction.amount(),
+                instruction.roundingAmount(),
                 instruction.insuranceAmount(),
                 instruction.personalAccountAmount(),
                 instruction.patientAmount(),
+                instruction.otherFundAmount(),
                 instruction.currencyCode(),
                 items,
                 instruction.correlationId()
         );
 
         FiscalIssueResponse response = fiscalClient.issue(request);
+        ReceiptResult.Outcome outcome = outcome(response);
+        if (outcome != ReceiptResult.Outcome.ISSUED && outcome != ReceiptResult.Outcome.PENDING && outcome != ReceiptResult.Outcome.FAILED) {
+            throw new IllegalStateException("开具接口返回了非开具阶段结果");
+        }
         if (response.success()) {
             return new ReceiptResult(
-                    ReceiptResult.Outcome.ISSUED,
+                    outcome,
                     response.externalReceiptNo(),
                     response.fiscalCode(),
                     response.fiscalNumber(),
                     response.verificationCode(),
                     response.verifyUrl(),
-                    response.issuedAt() != null ? response.issuedAt() : Instant.now(),
+                    response.issuedAt(),
                     null,
                     null,
                     null
             );
         } else {
             return new ReceiptResult(
-                    ReceiptResult.Outcome.FAILED,
+                    outcome,
                     response.externalReceiptNo(),
                     null,
                     null,
                     null,
                     null,
-                    Instant.now(),
-                    response.errorCode() != null ? response.errorCode() : "FISCAL_ISSUE_FAILED",
-                    response.errorMessage() != null ? response.errorMessage() : "财政电子票据开具失败",
+                    null,
+                    response.errorCode(),
+                    response.errorMessage(),
                     null
             );
         }
@@ -112,30 +117,31 @@ public class ProvincialFiscalReceiptAdapter implements FiscalReceiptAdapter {
     @Override
     public ReceiptResult query(String receiptRequestNo, String externalReceiptNo, String correlationId) {
         FiscalIssueResponse response = fiscalClient.query(receiptRequestNo, externalReceiptNo, correlationId);
+        ReceiptResult.Outcome outcome = outcome(response);
         if (response.success()) {
             return new ReceiptResult(
-                    ReceiptResult.Outcome.ISSUED,
+                    outcome,
                     response.externalReceiptNo(),
                     response.fiscalCode(),
                     response.fiscalNumber(),
                     response.verificationCode(),
                     response.verifyUrl(),
-                    response.issuedAt() != null ? response.issuedAt() : Instant.now(),
+                    response.issuedAt(),
                     null,
                     null,
                     null
             );
         } else {
             return new ReceiptResult(
-                    ReceiptResult.Outcome.FAILED,
+                    outcome,
                     response.externalReceiptNo(),
                     null,
                     null,
                     null,
                     null,
-                    Instant.now(),
-                    response.errorCode() != null ? response.errorCode() : "FISCAL_QUERY_FAILED",
-                    response.errorMessage() != null ? response.errorMessage() : "财政电子票据查询失败",
+                    null,
+                    response.errorCode(),
+                    response.errorMessage(),
                     null
             );
         }
@@ -160,7 +166,7 @@ public class ProvincialFiscalReceiptAdapter implements FiscalReceiptAdapter {
                     null,
                     null,
                     null,
-                    response.voidedAt() != null ? response.voidedAt() : Instant.now(),
+                    response.voidedAt(),
                     null,
                     null,
                     null
@@ -168,14 +174,14 @@ public class ProvincialFiscalReceiptAdapter implements FiscalReceiptAdapter {
         } else {
             return new ReceiptResult(
                     ReceiptResult.Outcome.FAILED,
-                    instruction.externalReceiptNo(),
+                    response.externalReceiptNo(),
                     null,
                     null,
                     null,
                     null,
-                    Instant.now(),
-                    response.errorCode() != null ? response.errorCode() : "FISCAL_VOID_FAILED",
-                    response.errorMessage() != null ? response.errorMessage() : "财政电子票据作废失败",
+                    null,
+                    response.errorCode(),
+                    response.errorMessage(),
                     null
             );
         }
@@ -202,7 +208,7 @@ public class ProvincialFiscalReceiptAdapter implements FiscalReceiptAdapter {
                     response.redFiscalNumber(),
                     response.verificationCode(),
                     response.verifyUrl(),
-                    response.issuedAt() != null ? response.issuedAt() : Instant.now(),
+                    response.issuedAt(),
                     null,
                     null,
                     null
@@ -210,16 +216,26 @@ public class ProvincialFiscalReceiptAdapter implements FiscalReceiptAdapter {
         } else {
             return new ReceiptResult(
                     ReceiptResult.Outcome.FAILED,
-                    instruction.externalReceiptNo(),
+                    response.redExternalReceiptNo(),
                     null,
                     null,
                     null,
                     null,
-                    Instant.now(),
-                    response.errorCode() != null ? response.errorCode() : "FISCAL_RED_FLUSH_FAILED",
-                    response.errorMessage() != null ? response.errorMessage() : "财政电子票据红冲失败",
+                    null,
+                    response.errorCode(),
+                    response.errorMessage(),
                     null
             );
         }
     }
+    private ReceiptResult.Outcome outcome(FiscalIssueResponse response) {
+        if (response == null || response.outcome() == null) throw new IllegalStateException("财政回执状态缺失");
+        ReceiptResult.Outcome outcome;
+        try { outcome = ReceiptResult.Outcome.valueOf(response.outcome()); }
+        catch (IllegalArgumentException exception) { throw new IllegalStateException("财政回执状态无法识别", exception); }
+        boolean success = outcome == ReceiptResult.Outcome.ISSUED || outcome == ReceiptResult.Outcome.VOIDED || outcome == ReceiptResult.Outcome.RED_FLUSHED;
+        if (success != response.success()) throw new IllegalStateException("财政回执成功标志与业务状态不一致");
+        return outcome;
+    }
+
 }

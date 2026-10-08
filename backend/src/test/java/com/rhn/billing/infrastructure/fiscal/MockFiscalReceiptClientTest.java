@@ -42,9 +42,11 @@ class MockFiscalReceiptClientTest {
                 "李四",
                 "DIGEST-12345",
                 new BigDecimal("156.00"),
+                BigDecimal.ZERO,
                 new BigDecimal("100.00"),
                 new BigDecimal("20.00"),
                 new BigDecimal("36.00"),
+                BigDecimal.ZERO,
                 "CNY",
                 items,
                 "CORR-001"
@@ -82,7 +84,7 @@ class MockFiscalReceiptClientTest {
         FiscalIssueRequest request = new FiscalIssueRequest(
                 102L, 202L, "REQ-20260904-002", "IDEM-002",
                 "MEDICAL_E_INVOICE", "CASHIER", "360000", "王五", "DIGEST-67890",
-                new BigDecimal("88.00"), BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("88.00"),
+                new BigDecimal("88.00"), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("88.00"), BigDecimal.ZERO,
                 "CNY", List.of(), "CORR-002"
         );
 

@@ -8,6 +8,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import type { RefundItemPreCheckView } from '../../shared/api/billingApi'
 import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
+import { requireRefundPreCheck, requireRefundStatement } from './refundVerification'
 
 const PAYMENT_METHOD_NAMES: Record<string, string> = {
   CASH: '现金',
@@ -33,11 +34,18 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
   const [encounterId, setEncounterId] = useState('')
   const [paymentId, setPaymentId] = useState('')
   const [amount, setAmount] = useState('')
-  const [reason, setReason] = useState('误收费退费，已核验未发药未执行')
+  const [reason, setReason] = useState('')
   const [refundMode, setRefundMode] = useState<'DIRECT' | 'STANDARD'>('DIRECT')
   const [selectedChargeItemIds, setSelectedChargeItemIds] = useState<string[]>([])
 
-  const worklist = useQuery({ queryKey: ['billing-worklist'], queryFn: api.billing.worklist })
+  const worklist = useQuery({
+    queryKey: ['billing-worklist', clinicalContext.organization.id, clinicalContext.department.id],
+    queryFn: async () => {
+      const data = await api.billing.worklist()
+      if (!Array.isArray(data)) throw new Error('退费队列返回无效，请重新加载')
+      return data
+    },
+  })
   const filteredQueueItems = useMemo(() => {
     const list = worklist.data ?? []
     return list.filter((item) => item.status === queueTab)
@@ -63,25 +71,35 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
     }
   }, [encounterId, linkedEncounterId, filteredQueueItems])
 
-  const selected = worklist.data?.find((item) => item.encounterId === encounterId)
+  const selected = worklist.isSuccess ? worklist.data.find((item) => item.encounterId === encounterId) : undefined
 
   // 1. 账户账单明细查询
   const statement = useQuery({
-    queryKey: ['billing-statement', encounterId],
-    queryFn: () => api.billing.statement(encounterId),
+    queryKey: ['billing-statement', encounterId, clinicalContext.organization.id, clinicalContext.department.id],
+    queryFn: async () => requireRefundStatement(await api.billing.statement(encounterId), encounterId, selected!.accountId!),
     enabled: Boolean(encounterId && selected?.accountId),
   })
 
   // 2. 跨科室退费防损与协同审批前置检查查询
   const preCheck = useQuery({
-    queryKey: ['refund-precheck', encounterId],
-    queryFn: () => api.billing.refundPreCheck(encounterId),
-    enabled: Boolean(encounterId),
+    queryKey: ['refund-precheck', encounterId, clinicalContext.organization.id, clinicalContext.department.id],
+    queryFn: async () => requireRefundPreCheck(await api.billing.refundPreCheck(encounterId), encounterId, selected!.accountId!),
+    enabled: Boolean(encounterId && selected?.accountId),
   })
 
+  const verifiedStatement = statement.isSuccess ? statement.data : undefined
+  const verifiedPreCheck = preCheck.isSuccess ? preCheck.data : undefined
+  const verificationReady = Boolean(selected?.accountId && verifiedStatement && verifiedPreCheck
+    && !worklist.isFetching && !statement.isFetching && !preCheck.isFetching
+    && verifiedStatement.currencyCode === verifiedPreCheck.currencyCode)
+
+  useEffect(() => { setReason(''); setSelectedChargeItemIds([]); setPaymentId('') },
+    [encounterId, clinicalContext.organization.id, clinicalContext.department.id])
+
   const refundablePayments = useMemo(() => {
-    return statement.data?.payments.filter((item) => item.paymentType === 'PAYMENT') ?? []
-  }, [statement.data])
+    return verifiedStatement?.payments.filter((item) => item.paymentType === 'PAYMENT'
+      && verifiedPreCheck?.refundablePayments.some((payment) => payment.paymentId === item.id && payment.refundableAmount > 0)) ?? []
+  }, [verifiedStatement, verifiedPreCheck])
 
   useEffect(() => {
     if (paymentId && !refundablePayments.some((item) => item.id === paymentId)) setPaymentId('')
@@ -90,40 +108,40 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
 
   // 默认选中所有前置校验允许退款的项目
   useEffect(() => {
-    if (preCheck.data?.items) {
-      const allowedIds = preCheck.data.items
+    if (verifiedPreCheck?.items) {
+      const allowedIds = verifiedPreCheck.items
         .filter((item) => item.allowed)
         .map((item) => String(item.chargeItemId))
       setSelectedChargeItemIds(allowedIds)
+    } else {
+      setSelectedChargeItemIds([])
     }
-  }, [preCheck.data])
+  }, [verifiedPreCheck])
 
   // 根据当前选择的模式及项目自动计算退费金额
-  const maximumStandardRefund = Math.abs(Math.min(statement.data?.accountBalance ?? 0, 0))
+  const maximumStandardRefund = Math.abs(Math.min(verifiedStatement?.accountBalance ?? 0, 0))
   const selectedItemsTotalAmount = useMemo(() => {
-    if (!preCheck.data?.items) return 0
-    return preCheck.data.items
+    if (!verifiedPreCheck?.items) return 0
+    return verifiedPreCheck.items
       .filter((item) => selectedChargeItemIds.includes(String(item.chargeItemId)))
-      .reduce((sum, item) => sum + (item.totalAmount ?? 0), 0)
-  }, [preCheck.data, selectedChargeItemIds])
+      .reduce((sum, item) => sum + item.totalAmount, 0)
+  }, [verifiedPreCheck, selectedChargeItemIds])
 
   useEffect(() => {
     if (refundMode === 'DIRECT') {
       if (selectedItemsTotalAmount > 0) {
         setAmount(selectedItemsTotalAmount.toFixed(2))
-      } else if (preCheck.data?.refundableAmount && preCheck.data.refundableAmount > 0) {
-        setAmount(preCheck.data.refundableAmount.toFixed(2))
       } else {
         setAmount('')
       }
     } else {
       setAmount(maximumStandardRefund > 0 ? maximumStandardRefund.toFixed(2) : '')
     }
-  }, [refundMode, selectedItemsTotalAmount, preCheck.data?.refundableAmount, maximumStandardRefund])
+  }, [refundMode, selectedItemsTotalAmount, verifiedPreCheck?.refundableAmount, maximumStandardRefund])
 
   const handleAmountBlur = () => {
     const val = Number(amount)
-    if (!Number.isNaN(val) && val > 0) {
+    if (Number.isFinite(val) && val > 0) {
       setAmount(val.toFixed(2))
     }
   }
@@ -131,19 +149,22 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['billing-worklist'] }),
-      queryClient.invalidateQueries({ queryKey: ['billing-statement', encounterId] }),
-      queryClient.invalidateQueries({ queryKey: ['refund-precheck', encounterId] }),
+      queryClient.invalidateQueries({ queryKey: ['billing-statement', encounterId, clinicalContext.organization.id, clinicalContext.department.id] }),
+      queryClient.invalidateQueries({ queryKey: ['refund-precheck', encounterId, clinicalContext.organization.id, clinicalContext.department.id] }),
     ])
   }
 
   // 常规退费：药房已实物退药形成负余额
   const refund = useMutation({
-    mutationFn: () => api.billing.createRefundOrder(paymentId, {
-      idempotencyKey: `REFUND-${crypto.randomUUID()}`,
-      amount: Number(amount),
-      reason: reason.trim(),
-      terminalCode: 'CASHIER-WEB',
-    }),
+    mutationFn: () => {
+      if (!canExecuteStandardRefund) throw new Error('退款资料尚未核实或金额、原因不完整')
+      return api.billing.createRefundOrder(paymentId, {
+        idempotencyKey: `REFUND-${crypto.randomUUID()}`,
+        amount: Number(amount),
+        reason: reason.trim(),
+        terminalCode: 'CASHIER-WEB',
+      })
+    },
     onSuccess: async () => {
       setAmount('')
       await refresh()
@@ -152,13 +173,16 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
 
   // 直接退费：未发药未执行医嘱误收费直接退款（自动账务冲正、逆向作废发药任务、发票红冲）
   const directRefund = useMutation({
-    mutationFn: () => api.billing.directRefund(paymentId, {
-      idempotencyKey: `DIR-REF-${crypto.randomUUID()}`,
-      refundAmount: Number(amount),
-      reason: reason.trim(),
-      terminalCode: 'CASHIER-WEB',
-      chargeItemIds: selectedChargeItemIds.length > 0 ? selectedChargeItemIds : undefined,
-    }),
+    mutationFn: () => {
+      if (!canExecuteDirectRefund) throw new Error('请核实可退项目、原支付剩余金额与退款原因')
+      return api.billing.directRefund(paymentId, {
+        idempotencyKey: `DIR-REF-${crypto.randomUUID()}`,
+        refundAmount: Number(amount),
+        reason: reason.trim(),
+        terminalCode: 'CASHIER-WEB',
+        chargeItemIds: selectedChargeItemIds,
+      })
+    },
     onSuccess: async () => {
       setAmount('')
       await refresh()
@@ -166,27 +190,35 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
   })
 
   const error = worklist.error || statement.error || preCheck.error || refund.error || directRefund.error
-  const currency = statement.data?.currencyCode ?? selected?.currencyCode ?? 'CNY'
+  const currency = verifiedStatement?.currencyCode ?? selected?.currencyCode ?? 'CNY'
   const selectedPayment = refundablePayments.find((item) => item.id === paymentId)
 
-  const isBlocked = preCheck.data?.overallDecision === 'BLOCKED'
+  const refundableBalance = verifiedPreCheck?.refundablePayments.find((item) => item.paymentId === paymentId)?.refundableAmount
+  const isPartial = verifiedPreCheck?.overallDecision === 'PARTIAL'
+  const isBlocked = verifiedPreCheck?.overallDecision === 'BLOCKED'
   const hasSelectedBlockedItem = useMemo(() => {
-    if (!preCheck.data?.items) return false
-    return preCheck.data.items.some((item) => selectedChargeItemIds.includes(String(item.chargeItemId)) && !item.allowed)
-  }, [preCheck.data, selectedChargeItemIds])
+    if (!verifiedPreCheck?.items) return false
+    return verifiedPreCheck.items.some((item) => selectedChargeItemIds.includes(String(item.chargeItemId)) && !item.allowed)
+  }, [verifiedPreCheck, selectedChargeItemIds])
 
-  const validAmount = Number(amount) > 0 && (
+  const validAmount = Number.isFinite(Number(amount)) && Number(amount) > 0
+    && refundableBalance !== undefined && Number(amount) <= refundableBalance && (
     refundMode === 'DIRECT'
       ? Number(amount) <= (selectedPayment?.amount ?? 0)
       : Number(amount) <= maximumStandardRefund
   )
 
+  const canExecuteStandardRefund = Boolean(verificationReady && selectedPayment && validAmount && reason.trim())
   const canExecuteDirectRefund = Boolean(
-    paymentId &&
+    verificationReady && verifiedPreCheck?.eligibleForRefund
+    && ['ALLOWED', 'PARTIAL'].includes(verifiedPreCheck.overallDecision)
+    && selectedPayment &&
     validAmount &&
     reason.trim() &&
     !hasSelectedBlockedItem &&
     selectedChargeItemIds.length > 0
+    && selectedChargeItemIds.every((id) => verifiedPreCheck.items.some((item) => String(item.chargeItemId) === id && item.allowed))
+    && Number(amount) <= selectedItemsTotalAmount
   )
 
   const handleToggleItem = (itemId: string, allowed: boolean) => {
@@ -197,8 +229,8 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
   }
 
   const handleSelectAllAllowed = () => {
-    if (!preCheck.data?.items) return
-    const allAllowed = preCheck.data.items
+    if (!verifiedPreCheck?.items) return
+    const allAllowed = verifiedPreCheck.items
       .filter((item) => item.allowed)
       .map((item) => String(item.chargeItemId))
     setSelectedChargeItemIds(allAllowed)
@@ -213,7 +245,9 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
     />
     {error && <Alert tone="error">{errorMessage(error)}</Alert>}
 
-    {worklist.isPending ? <LoadingState label="正在加载退费队列…" /> : <div className="billing-refund-workspace">
+    {worklist.isPending ? <LoadingState label="正在加载退费队列…" /> : worklist.isError ?
+      <EmptyState icon="billing" title="退费队列加载失败" copy="无法确认当前待退费记录，请重新加载。"
+        action={<Button onClick={() => void worklist.refetch()}>重新加载退费队列</Button>} /> : <div className="billing-refund-workspace">
       <div>
         <div className="billing-refund-queue-tabs">
           <button
@@ -253,18 +287,25 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
           <EmptyState icon="billing" title="请选择就诊患者" copy="在左侧队列中选择就诊以进行跨科室协同审批检查与退款办理。" />
         ) : !selected.accountId ? (
           <EmptyState icon="billing" title="暂无费用账户" copy="当前就诊未形成费用账户。" />
-        ) : statement.isLoading || preCheck.isLoading ? (
+        ) : statement.isFetching || preCheck.isFetching ? (
           <LoadingState label="正在进行临床-药房-医技协同退费前置检查…" />
+        ) : !verificationReady ? (
+          <EmptyState icon="billing" title="退费资料未核实" copy="账单或协同核验未成功，不能判断是否允许退款。"
+            action={<Button onClick={() => void refresh()}>重新核验退费资料</Button>} />
         ) : (
           <>
             {/* 1. 临床-医技-药房-退费协同审批防损卡片 */}
-            <div className={`billing-collaboration-card ${isBlocked ? 'billing-collaboration-card--blocked' : 'billing-collaboration-card--allowed'}`}>
+            <div className={`billing-collaboration-card ${isBlocked ? 'billing-collaboration-card--blocked' : isPartial ? '' : 'billing-collaboration-card--allowed'}`}>
               <div className="billing-collaboration-header">
                 <div className="billing-collaboration-header-left">
                   <h3>
                     <span>协同审批防损门禁</span>
                     {isBlocked ? (
                       <StatusBadge tone="danger">⛔ 协同校验阻断 · 严禁直接退费</StatusBadge>
+                    ) : isPartial ? (
+                      <StatusBadge tone="warning">部分项目可退 · 请逐项核对</StatusBadge>
+                    ) : !verifiedPreCheck?.eligibleForRefund ? (
+                      <StatusBadge tone="warning">项目核验通过 · 未满足退款条件</StatusBadge>
                     ) : (
                       <StatusBadge tone="success">✅ 协同校验通过 · 允许直接退费</StatusBadge>
                     )}
@@ -280,12 +321,12 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
               {isBlocked ? (
                 <div className="billing-collaboration-notice billing-collaboration-notice--blocked">
                   <strong>【退费防损硬阻断】</strong>
-                  {preCheck.data?.summaryNotice || '该就诊存在药房已发药出库药品或医技已出具诊断报告项目，根据医疗财务防损制度，严禁收费处直接退费！'}
+                  {verifiedPreCheck?.summaryNotice || '核验结果为阻断，接口未提供汇总说明。'}
                 </div>
               ) : (
-                <div className="billing-collaboration-notice billing-collaboration-notice--allowed">
+                <div className={`billing-collaboration-notice ${isPartial ? '' : 'billing-collaboration-notice--allowed'}`}>
                   <strong>【协同放行指引】</strong>
-                  {preCheck.data?.summaryNotice || '未发药未执行医嘱核验通过，符合直接退费防损策略。办理直接退款后将联动逆向取消发药任务并红冲电子发票。'}
+                  {verifiedPreCheck?.summaryNotice || '接口未提供汇总说明，请核对逐项核验结果。'}
                 </div>
               )}
 
@@ -303,7 +344,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                     </tr>
                   </thead>
                   <tbody>
-                    {(preCheck.data?.items ?? []).map((item: RefundItemPreCheckView) => {
+                    {(verifiedPreCheck?.items ?? []).map((item: RefundItemPreCheckView) => {
                       const isSelected = selectedChargeItemIds.includes(String(item.chargeItemId))
                       return (
                         <tr key={item.chargeItemId} style={{ opacity: item.allowed ? 1 : 0.85 }}>
@@ -341,9 +382,9 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                                 ⚠ {item.blockReason}
                               </div>
                             ) : (
-                              <span style={{ color: 'var(--color-success)', fontSize: '0.75rem' }}>
-                                ✓ 允许直接退费
-                              </span>
+                              <StatusBadge tone={item.allowed ? 'success' : 'warning'}>
+                                {item.allowed ? '✓ 允许直接退费' : '不允许直接退费，未提供阻断说明'}
+                              </StatusBadge>
                             )}
                           </td>
                         </tr>
@@ -356,9 +397,9 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
 
             {/* 2. 费用账务数据 */}
             <div className="billing-metrics">
-              <div><span>原收费总额</span><strong>{money(statement.data?.chargeAmount ?? 0, currency)}</strong></div>
-              <div><span>实收总额</span><strong>{money(statement.data?.paymentAmount ?? 0, currency)}</strong></div>
-              <div><span>已退款</span><strong>{money(statement.data?.refundAmount ?? 0, currency)}</strong></div>
+              <div><span>原收费总额</span><strong>{money(verifiedStatement?.chargeAmount ?? 0, currency)}</strong></div>
+              <div><span>实收总额</span><strong>{money(verifiedStatement?.paymentAmount ?? 0, currency)}</strong></div>
+              <div><span>已退款</span><strong>{money(verifiedStatement?.refundAmount ?? 0, currency)}</strong></div>
               <div className="is-open">
                 <span>选中项退款金额</span>
                 <strong>{money(selectedItemsTotalAmount, currency)}</strong>
@@ -398,10 +439,10 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
               </div>
             </section>
 
-            {statement.data && (
+            {verifiedStatement && (
               <BillingTimeline
-                invoices={statement.data.invoices}
-                payments={statement.data.payments}
+                invoices={verifiedStatement.invoices}
+                payments={verifiedStatement.payments}
                 currency={currency}
               />
             )}
@@ -419,6 +460,8 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
 
         {!selected ? (
           <EmptyState icon="billing" title="请先选择就诊" copy="核对协同前置检查结果后在此办理退款。" />
+        ) : !verificationReady ? (
+          <EmptyState icon="billing" title="暂不能办理退款" copy="请先完成原收费账单与协同退费核验。" />
         ) : (
           <div className="billing-action-form billing-action-form--refund">
             <div className="billing-refund-mode-switch">
@@ -456,6 +499,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
               <div className="billing-refund-origin">
                 <span>原支付金额（{paymentMethodText(selectedPayment.paymentMethodCode)}）</span>
                 <strong>{money(selectedPayment.amount, selectedPayment.currencyCode)}</strong>
+                <span>剩余可退金额 {money(refundableBalance, selectedPayment.currencyCode)}</span>
               </div>
             )}
 
@@ -470,6 +514,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
               <div className="billing-refund-amount-input-wrap">
                 <span className="billing-refund-amount-prefix" aria-hidden="true">¥</span>
                 <input
+                  aria-label="退款金额"
                   className="ui-field__control billing-refund-amount-input"
                   type="number"
                   min="0.01"
@@ -505,7 +550,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                 <Button
                   variant="danger"
                   disabled={!canExecuteDirectRefund}
-                  busy={directRefund.isPending}
+                  busy={directRefund.isPending || refund.isPending}
                   onClick={() => directRefund.mutate()}
                 >
                   确认未发药直接退款（逆向作废并红冲发票）
@@ -520,8 +565,8 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                 )}
                 <Button
                   variant="danger"
-                  disabled={!paymentId || !validAmount || !reason.trim()}
-                  busy={refund.isPending}
+                  disabled={!canExecuteStandardRefund}
+                  busy={directRefund.isPending || refund.isPending}
                   onClick={() => refund.mutate()}
                 >
                   确认常规退款

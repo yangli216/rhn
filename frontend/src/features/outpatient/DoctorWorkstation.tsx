@@ -1,3 +1,4 @@
+import { resolveExecutingDepartment, summarizeExecutingDepartments } from './orders/orderPresentation'
 import { AnnotatedRecordField } from './record/AnnotatedRecordField'
 import { rebaseAnnotations } from './record/recordAnnotations'
 import type { RecordTextField } from '../../shared/api/recordAnnotations'
@@ -9,10 +10,20 @@ import { StructuredNoteForm, ClinicalRecordReadView } from './record/StructuredN
 import { NoteTemplateBar, mergeNoteTemplateContent, noteTemplateFields, clinicalRecordAdditionalFields, type NoteTemplateField } from './record/NoteTemplateBar'
 export { mergeNoteTemplateContent, type NoteTemplateField } from './record/NoteTemplateBar'
 import { createClinicalDraftSaver } from './record/saveClinicalDraft'
+import { createClinicalAmendmentWriter, signClinicalDocument } from './record/clinicalDocumentWorkflow'
+import { useClinicalDocumentSession } from './record/useClinicalDocumentSession'
+import { useClinicalDraftSession, type ClinicalDraftSession } from './record/useClinicalDraftSession'
+import { completeEncounter } from './record/completeEncounter'
+import { createCompletionBillingWriter } from './record/completionBillingWrites'
+import { completionModeKey, requireCompletionMode, requireCompletionOrderCount, requireCompletionStatement,
+  completionBillingSummary, requireCompletionPaymentOrders, hasPendingCompletionPayment, confirmCompletionFacts,
+  type OutpatientCompletionMode } from './record/completionFacts'
+import { requirePaymentRounding } from '../../shared/billing/roundAmount'
 import { clinicalRecordContent, createRecordSchema, diagnosisDraftSignature,
   normalizeDiagnosisOrder, structuredFormSignature, validateStructuredForm,
   type RecordForm } from './record/clinicalRecordDraft'
-import { matchSplitPreviewDraft, draftToBatchItem, persistOrderDrafts } from './orders/persistOrderDrafts'
+import { usePrescriptionSplitPreview } from './orders/usePrescriptionSplitPreview'
+import { matchSplitPreviewDraft, draftToBatchItem } from './orders/persistOrderDrafts'
 export { createRecordSchema, diagnosisDraftSignature, moveDiagnosis, normalizeDiagnosisOrder,
   structuredFormSignature, validateStructuredForm } from './record/clinicalRecordDraft'
 export { draftToBatchItem, persistOrderDrafts } from './orders/persistOrderDrafts'
@@ -22,7 +33,7 @@ import { buildDefaultDocumentInfo, getPrimaryDiagnosis } from './orders/orderDoc
 import { OrderDocumentReviewCard, OrderDocumentReviewList } from './orders/OrderDocumentReviewCard'
 import type { ClinicalAiFieldStream } from '../../shared/api/clinicalAiStream'
 import { HistoryPrescriptionReference } from './ai/HistoryPrescriptionReference'
-import { isAbnormalObservation } from './ai/receptionSceneAssessment'
+import { OutpatientDiagnosticResults } from './OutpatientDiagnosticResults'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
@@ -38,10 +49,16 @@ import type {
 } from '../../shared/api/outpatientReferralsApi'
 import type {
   ClinicalRecordInput, CompleteEncounterInput, DiagnosisInput,
-  MedicationRequest, MedicationSafetyDecision, MedicationSafetyFinding, OrderDocumentInfo, Prescription, ServiceRequest, SplitPrescriptionPlan,
+  MedicationRequest, MedicationSafetyDecision, MedicationSafetyFinding, OrderDocumentInfo, Prescription, ServiceRequest,
 } from '../../shared/api/encountersApi'
 import type { TerminateEncounterInput } from '../../shared/api/outpatientFlowApi'
-import type { OutpatientPlanTemplate, MinedPlanSuggestion, HistoricalStablePlan } from '../../shared/api/outpatientPlanTemplatesApi'
+import type { OutpatientPlanTemplate, MinedPlanSuggestion, HistoricalStablePlan, SaveOutpatientPlanTemplateInput } from '../../shared/api/outpatientPlanTemplatesApi'
+import { requireCreatedPlanReceipt, requireUsedPlanReceipt, requireUsedNoteReceipt, requireNoTemplateOrderConflicts,
+  requirePlanCreationInput, templateApiScope } from './templates/templateApplicationReceipt'
+import { useTemplateApplication } from './templates/useTemplateApplication'
+import { canSelectHistoricalPlanDifference, hasHistoricalReviewEvidence, selectHistoricalPlanDifferences } from './templates/historicalPlanSelection'
+import { useAiPlanApplication, type PrepareAiPlan } from './record/useAiPlanApplication'
+import { resolveTemplateOrders, type ResolvedTemplateOrders } from './templates/resolveTemplateOrders'
 import { planSourceReferenceLabel } from './templates/planTaskPresentation'
 import type {
   OutpatientNoteTemplate, OutpatientNoteTemplateContent,
@@ -55,7 +72,7 @@ import type { ReceptionQueueItem, ReceptionQueueScope } from '../../shared/api/s
 import type { Encounter, Resident } from '../../shared/model'
 import { age, formatTime } from '../../shared/format'
 import { requiresBloodPressure } from './bloodPressurePolicy'
-import { encounterStatusPresentation } from '../../shared/presentation'
+import { encounterStatusPresentation, historicalPlanDifferencePresentation } from '../../shared/presentation'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import type { SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import {
@@ -90,13 +107,6 @@ import type { AiPreConsultation, EnhancedQueueItem, VitalsSummary } from './wait
 const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date())
-
-const OUTPATIENT_COMPLETION_MODE_KEY = 'outpatient.doctor-workstation.completion-mode'
-type OutpatientCompletionMode = 'COMBINED_CONFIRMATION' | 'SEPARATE_CONFIRMATIONS'
-
-function outpatientCompletionMode(value: unknown): OutpatientCompletionMode {
-  return value === 'SEPARATE_CONFIRMATIONS' ? value : 'COMBINED_CONFIRMATION'
-}
 
 function commandCode(action: string, encounterId: string) {
   return `${action}-${encounterId}-${globalThis.crypto.randomUUID()}`
@@ -525,6 +535,12 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   const [existingTreatmentKeys, setExistingTreatmentKeys] = useState<string[]>([])
   const [aiContext, setAiContext] = useState<ClinicalAiDraftContext | null>(null)
   const [aiDraft, setAiDraft] = useState<ClinicalAiDraftRequest | null>(null)
+  const aiPlanHandler = useRef<PrepareAiPlan | null>(null)
+  const registerAiPlan = useCallback((handler: PrepareAiPlan | null) => { aiPlanHandler.current = handler }, [])
+  const prepareAiPlan = useCallback<PrepareAiPlan>(request => {
+    if (!aiPlanHandler.current) return Promise.reject(new Error('当前病历编辑器不可用，AI 方案未带入。'))
+    return aiPlanHandler.current(request)
+  }, [])
   const [aiAdoptionBusy, setAiAdoptionBusy] = useState(false)
   const [aiNote, setAiNote] = useState<HTMLDivElement | null>(null)
   const [aiDiagnoses, setAiDiagnoses] = useState<HTMLDivElement | null>(null)
@@ -579,25 +595,35 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     }
     return currentEnhancedItem?.vitals
   }, [patientTriageRecord.data, currentEnhancedItem?.vitals])
-  const outpatientNote = documents.data?.find((item) => item.documentType === 'OUTPATIENT_NOTE')
+  const outpatientNote = documents.data?.find((item) => item.documentType === 'OUTPATIENT_NOTE' && item.instanceKey === 'DEFAULT')
+  const completionConfigurationSession = useMemo(() => globalThis.crypto.randomUUID(), [api])
   const completionModeQuery = useQuery({
-    queryKey: ['outpatient-completion-mode', encounter?.organizationId, encounter?.departmentId],
-    queryFn: () => api.configuration.resolve<string>(OUTPATIENT_COMPLETION_MODE_KEY, {
+    queryKey: ['outpatient-completion-mode', completionConfigurationSession, encounter?.organizationId, encounter?.departmentId],
+    queryFn: async () => requireCompletionMode(await api.configuration.resolve<string>(completionModeKey, {
       organizationId: encounter?.organizationId,
       departmentId: encounter?.departmentId,
       moduleCode: 'DOCTOR_WORKSTATION',
-    }),
-    enabled: Boolean(encounter && (api as Partial<RhnApi>).configuration),
+    })),
+    enabled: Boolean(encounter), retry: false,
     staleTime: 5 * 60 * 1000,
   })
-  const completionMode = outpatientCompletionMode(completionModeQuery.data?.value)
+  const completionMode = completionModeQuery.isSuccess && !completionModeQuery.isFetching ? completionModeQuery.data : undefined
   const hasCompletionBasics = Boolean(encounter?.chiefComplaint
     && encounter.diagnoses.some((item) => item.type === 'PRIMARY') && outpatientNote)
-  const readyToComplete = Boolean(hasCompletionBasics && (outpatientNote?.status === 'SIGNED'
+  const readyToComplete = Boolean(completionMode && hasCompletionBasics && (outpatientNote?.status === 'SIGNED'
     || completionMode === 'COMBINED_CONFIRMATION'))
+  const captureDocumentSession = useClinicalDocumentSession(api, JSON.stringify([encounter?.id, resident.id,
+    clinicalContext.organization.id, clinicalContext.department.id]), canEdit)
   const signNoteMutation = useMutation({
-    mutationFn: () => api.clinicalDocuments.sign(outpatientNote!.id, outpatientNote!.currentVersion),
-    onSuccess: async () => {
+    mutationFn: async () => {
+      const assertCurrent = captureDocumentSession()
+      const signed = await signClinicalDocument(api.clinicalDocuments, outpatientNote!, assertCurrent)
+      return { signed, assertCurrent }
+    },
+    onSuccess: async ({ signed, assertCurrent }) => {
+      assertCurrent()
+      queryClient.setQueryData<ClinicalDocument[]>(['doctor-document', signed.encounterId], current =>
+        current?.map(item => item.id === signed.id ? signed : item) ?? [signed])
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter?.id] }),
         queryClient.invalidateQueries({ queryKey: ['doctor-encounters', resident.id] }),
@@ -647,8 +673,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     if (saveDraftHandlerRef.current) {
       return saveDraftHandlerRef.current()
     } else {
-      const form = document.getElementById('doctor-record-form') as HTMLFormElement | null
-      form?.requestSubmit()
+      setSaveDraftNotice({ message: '病历编辑器尚未就绪，请稍后重试保存', tone: 'error' })
       return false
     }
   }, [])
@@ -687,38 +712,41 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     onSuccess: async () => { await refresh(); setEditing(true) },
   })
   const [completionBatchPrint, setCompletionBatchPrint] = useState(false)
+  const completionBillingWriter = useRef(createCompletionBillingWriter()).current
   const [workstationBatchPrintOpen, setWorkstationBatchPrintOpen] = useState(false)
+  const finishCompletion = async ({ completed, assertCurrent }: { completed: Encounter; assertCurrent: () => void }) => {
+    assertCurrent()
+    queryClient.setQueryData<Encounter[]>(['doctor-encounters', completed.residentId], current =>
+      current?.map(item => item.id === completed.id ? completed : item))
+    await refresh()
+    assertCurrent()
+    setCompletionOpen(false)
+    if (completionBatchPrint) setWorkstationBatchPrintOpen(true)
+    else onBack()
+  }
   const complete = useMutation({
-    mutationFn: (input: CompleteEncounterInput) => api.encounters.complete(encounter!.id, input),
-    onSuccess: async () => {
-      setCompletionOpen(false)
-      await refresh()
-      if (completionBatchPrint) {
-        setWorkstationBatchPrintOpen(true)
-      } else {
-        onBack()
-      }
+    mutationFn: async (input: CompleteEncounterInput) => {
+      const assertCurrent = captureDocumentSession()
+      await confirmCompletionFacts(api, encounter!, completionMode, assertCurrent)
+      const completed = await completeEncounter(api.encounters, encounter!, input, assertCurrent)
+      return { completed, assertCurrent }
     },
+    onSuccess: finishCompletion,
   })
   const completeWithSignature = useMutation({
     mutationFn: async (input: CompleteEncounterInput) => {
       if (!outpatientNote) throw new Error('请先保存门诊病历')
-      if (outpatientNote.status !== 'SIGNED') {
-        const signedNote = await api.clinicalDocuments.sign(outpatientNote.id, outpatientNote.currentVersion)
-        queryClient.setQueryData<ClinicalDocument[]>(['doctor-document', encounter!.id], (current) =>
-          current?.map((item) => item.id === signedNote.id ? signedNote : item) ?? [signedNote])
-      }
-      return api.encounters.complete(encounter!.id, input)
+      const assertCurrent = captureDocumentSession()
+      await confirmCompletionFacts(api, encounter!, completionMode, assertCurrent)
+      const signedNote = await signClinicalDocument(api.clinicalDocuments, outpatientNote, assertCurrent)
+      assertCurrent()
+      queryClient.setQueryData<ClinicalDocument[]>(['doctor-document', encounter!.id], current =>
+        current?.map(item => item.id === signedNote.id ? signedNote : item) ?? [signedNote])
+      const completed = await completeEncounter(api.encounters, encounter!, input, assertCurrent)
+      assertCurrent()
+      return { completed, assertCurrent }
     },
-    onSuccess: async () => {
-      setCompletionOpen(false)
-      await refresh()
-      if (completionBatchPrint) {
-        setWorkstationBatchPrintOpen(true)
-      } else {
-        onBack()
-      }
-    },
+    onSuccess: finishCompletion,
   })
   const suspend = useMutation({
     mutationFn: (input: { commandCode: string; reason: string }) => api.encounters.suspend(encounter!.id, input),
@@ -874,7 +902,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                 onSaveDraftNotice={handleSaveDraftNotice}
                 aiFieldStream={aiFieldStream} aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={() => setAiOrderReview(null)}
                 onTreatmentKeysChange={setExistingTreatmentKeys}
-                aiDraft={aiDraft} onAiDraftConsumed={() => setAiDraft(null)} onAiContextChange={setAiContext}
+                onRegisterAiPlan={registerAiPlan} aiDraft={aiDraft} onAiDraftConsumed={() => setAiDraft(null)} onAiContextChange={setAiContext}
                 onRequestEditing={enterEditing} onRequestReading={enterReading} onRefresh={refresh}
                 aiPreConsultation={currentEnhancedItem?.aiPreConsultation}
                 triageVitals={effectiveTriageVitals}
@@ -893,7 +921,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                   onOpenDetail={() => setActiveTool('assistant')}
                   onReviewRecommendedPlan={(plan) => { setRecommendedPlanId(plan.templateId); setActiveTool('plans') }}
                   onOpenHistory={() => setActiveTool('history')} onOpenResults={() => setActiveTool('results')}
-                  onAdoptionBusyChange={setAiAdoptionBusy} onApply={setAiDraft} onFieldStream={setAiFieldStream}
+                  onAdoptionBusyChange={setAiAdoptionBusy} onApply={setAiDraft} onPreparePlan={prepareAiPlan} onFieldStream={setAiFieldStream}
                   existingTreatmentKeys={existingTreatmentKeys}
                   onReviewTreatment={(items, onCompleted) => setAiOrderReview({
                     id: crypto.randomUUID(), encounterId: encounter.id, items, onCompleted,
@@ -910,9 +938,9 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
               {activeTool === 'assistant' && <div ref={setAiDetail} />}
               {activeTool === 'plans' && <div ref={setPlanTemplateDrawerHost} className="doctor-plan-drawer-host" />}
               {activeTool === 'history' && <HistoryPanel encounters={encounters.data ?? []}
-                currentEncounterId={encounter.id} api={api} allergies={allergies.data ?? []} allergyReady={allergyState === 'READY'} copyDisabled={!editing || encounter.status !== 'IN_PROGRESS' || outpatientNote?.status === 'SIGNED'}
+                currentEncounter={encounter} api={api} allergies={allergies.data ?? []} allergyReady={allergyState === 'READY'} copyDisabled={!editing || encounter.status !== 'IN_PROGRESS' || outpatientNote?.status === 'SIGNED'}
                 onCopy={(draft) => { setHistoryCopy({ ...draft, targetEncounterId: encounter.id, targetResidentId: encounter.residentId }); setActiveTool(null) }} />}
-              {activeTool === 'results' && <ResultsPanel encounter={encounter} api={api} />}
+              {activeTool === 'results' && <OutpatientDiagnosticResults encounter={encounter} api={api} />}
               {activeTool === 'allergy' && <AllergySafetyPanel resident={resident} encounter={encounter}
                 allergies={allergies.data ?? []} loading={allergies.isPending} error={allergies.error}
                 api={api} readOnly={!editing} />}
@@ -937,11 +965,15 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
           </nav>
         </div>}
     {completionOpen && encounter && <EncounterCompletionDialog encounter={encounter} api={api}
+      canEdit={canEdit} billingWriter={completionBillingWriter}
       signed={outpatientNote?.status === 'SIGNED'} ready={readyToComplete}
       busy={complete.isPending || completeWithSignature.isPending}
       completionMode={completionMode}
+      configurationError={completionModeQuery.error} configurationLoading={completionModeQuery.isPending || completionModeQuery.isFetching}
+      onReloadConfiguration={() => completionModeQuery.refetch()}
       error={complete.error || completeWithSignature.error || signNoteMutation.error} onClose={() => setCompletionOpen(false)}
       onComplete={(input, batchPrint) => {
+        if (!completionMode) return
         setCompletionBatchPrint(Boolean(batchPrint))
         if (completionMode === 'COMBINED_CONFIRMATION') {
           completeWithSignature.mutate(input)
@@ -1130,54 +1162,88 @@ const quickDispositionPhrases = [
   '建议转专科进一步系统检查与治疗',
 ]
 
-function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error, completionMode,
+function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error, completionMode, canEdit, billingWriter,
+  configurationError, configurationLoading, onReloadConfiguration,
   onClose, onComplete, onSignNote, signing }: {
   encounter: Encounter; api: RhnApi; signed: boolean; ready: boolean; busy: boolean; error: unknown
-  completionMode: OutpatientCompletionMode
+  completionMode: OutpatientCompletionMode | undefined
+  configurationError: unknown; configurationLoading: boolean; onReloadConfiguration: () => Promise<unknown>
+  canEdit: boolean; billingWriter: ReturnType<typeof createCompletionBillingWriter>
   onClose: () => void; onComplete: (input: CompleteEncounterInput, batchPrint?: boolean) => void
   onSignNote?: () => void; signing?: boolean
 }) {
   const [batchPrintOnComplete, setBatchPrintOnComplete] = useState(false)
   const [dispositionCode, setDispositionCode] = useState<CompleteEncounterInput['dispositionCode']>('HOME')
-  const [dispositionNote, setDispositionNote] = useState('按医嘱用药，如症状加重及时复诊')
+  const [dispositionNote, setDispositionNote] = useState('')
   const [requestCommand, setRequestCommand] = useState(() => commandCode('COMPLETE', encounter.id))
   const queryClient = useQueryClient()
+  const sessionKey = useMemo(() => globalThis.crypto.randomUUID(), [api])
   const statement = useQuery({
-    queryKey: ['doctor-billing-statement', encounter.id], queryFn: () => api.billing.statement(encounter.id), retry: false,
+    queryKey: ['doctor-completion-statement', sessionKey, encounter.id],
+    queryFn: async () => requireCompletionStatement(await api.billing.statement(encounter.id), encounter), retry: false,
   })
-  const services = useQuery({ queryKey: ['doctor-services', encounter.id], queryFn: () => api.encounters.serviceRequests(encounter.id) })
-  const medications = useQuery({ queryKey: ['doctor-medications', encounter.id], queryFn: () => api.encounters.medicationRequests(encounter.id) })
+  const services = useQuery({ queryKey: ['doctor-completion-services', sessionKey, encounter.id], retry: false,
+    queryFn: async () => requireCompletionOrderCount(await api.encounters.serviceRequests(encounter.id), encounter, 'service') })
+  const medications = useQuery({ queryKey: ['doctor-completion-medications', sessionKey, encounter.id], retry: false,
+    queryFn: async () => requireCompletionOrderCount(await api.encounters.medicationRequests(encounter.id), encounter, 'medication') })
+  const confirmedStatement = statement.isSuccess && !statement.isFetching ? statement.data : undefined
+  const billing = confirmedStatement ? completionBillingSummary(confirmedStatement) : undefined
   const methods = useQuery({
-    queryKey: ['applicable-dictionary-items', 'PAY_METHOD', 'AVAILABLE_SCENE', 'CLINIC_SETTLE'],
-    queryFn: () => api.dictionaries.applicable('PAY_METHOD', 'AVAILABLE_SCENE', 'CLINIC_SETTLE'),
+    queryKey: ['doctor-completion-methods', sessionKey, encounter.id], retry: false,
+    enabled: Boolean(billing?.payable.length),
+    queryFn: async () => {
+      const items = await api.dictionaries.applicable('PAY_METHOD', 'AVAILABLE_SCENE', 'CLINIC_SETTLE')
+      if (!Array.isArray(items) || items.some(item => !item || !item.code?.trim() || !item.name?.trim())
+        || new Set(items.map(item => item.code)).size !== items.length) throw new Error('诊间支付方式配置无效')
+      for (const item of items) if (item.code !== 'MEDICAL_INSURANCE') {
+        requirePaymentRounding(item.attributes?.PAYMENT_PRECISION, item.attributes?.ROUNDING_MODE)
+      }
+      return items.filter(item => item.code !== 'MEDICAL_INSURANCE')
+    },
   })
   const orders = useQuery({
-    queryKey: ['doctor-payment-orders', statement.data?.accountId],
-    queryFn: () => api.billing.paymentOrders(statement.data!.accountId), enabled: Boolean(statement.data?.accountId),
-    refetchInterval: (query) => (query.state.data ?? []).some((value) =>
-      ['CREATED', 'PENDING', 'PROCESSING', 'PARTIAL'].includes(value.status)) ? 2500 : false,
+    queryKey: ['doctor-completion-payment-orders', sessionKey, encounter.id, confirmedStatement?.accountId], retry: false,
+    queryFn: async () => requireCompletionPaymentOrders(await api.billing.paymentOrders(confirmedStatement!.accountId), confirmedStatement!),
+    enabled: Boolean(confirmedStatement),
+    refetchInterval: query => query.state.data && hasPendingCompletionPayment(query.state.data) ? 2500 : false,
   })
-  const createPayment = useMutation({
-    mutationFn: (command: SettlementPaymentCommand) => api.billing.createPaymentOrder(command.settlementId, {
-      idempotencyKey: command.idempotencyKey, businessScene: 'OUTPATIENT', paymentSceneCode: 'CLINIC_SETTLE',
-      paymentMethodCode: command.paymentMethodCode, amount: command.amount,
-      roundingAdjustment: command.roundingAdjustment,
-      correlationId: `DOCTOR-STATION-${encounter.id}`, terminalCode: 'WEB-DOCTOR-WORKSTATION',
-    }),
-    onSuccess: async () => { await Promise.all([statement.refetch(), orders.refetch(),
-      queryClient.invalidateQueries({ queryKey: ['billing-statement', encounter.id] })]) },
+  const ordersReady = orders.isSuccess && !orders.isFetching && Boolean(confirmedStatement)
+  const pendingPayment = ordersReady && hasPendingCompletionPayment(orders.data)
+  const orderCount = services.isSuccess && !services.isFetching && medications.isSuccess && !medications.isFetching
+    ? services.data + medications.data : undefined
+  const factsError = configurationError || statement.error || services.error || medications.error || orders.error
+    || (billing?.payable.length ? methods.error : undefined)
+  const factsLoading = configurationLoading || statement.isFetching || services.isFetching || medications.isFetching || orders.isFetching
+  const factsReady = Boolean(completionMode && confirmedStatement && orderCount !== undefined && ordersReady && !factsError)
+  const canComplete = ready && factsReady && billing?.settled && !pendingPayment && !billingWriter.hasPending()
+  const reloadFacts = async () => {
+    await Promise.all([onReloadConfiguration(), statement.refetch(), services.refetch(), medications.refetch(),
+      ...(confirmedStatement ? [orders.refetch()] : []), ...(billing?.payable.length ? [methods.refetch()] : [])])
+  }
+  const captureBillingSession = useClinicalDocumentSession(api, JSON.stringify([encounter.id, encounter.residentId,
+    encounter.organizationId, encounter.departmentId]), canEdit)
+  const billingOperation = useMutation({
+    mutationFn: async (input: { kind: 'payment'; command: SettlementPaymentCommand } | { kind: 'invoice' | 'retry' }) => {
+      const assertCurrent = captureBillingSession()
+      if (input.kind === 'retry') return billingWriter.retry(api.billing, encounter, assertCurrent)
+      if (!confirmedStatement || !ordersReady || !canEdit) throw new Error('诊间结算资料尚未确认，请重新加载')
+      return input.kind === 'payment'
+        ? billingWriter.pay(api.billing, encounter, confirmedStatement, input.command, assertCurrent)
+        : billingWriter.issue(api.billing, encounter, confirmedStatement, assertCurrent)
+    },
+    onSuccess: result => {
+      result.assertCurrent()
+      queryClient.setQueryData(['doctor-completion-statement', sessionKey, encounter.id], result.statement)
+      queryClient.setQueryData(['doctor-completion-payment-orders', sessionKey, encounter.id, result.statement.accountId], result.orders)
+      result.confirmApplied()
+      void queryClient.invalidateQueries({ queryKey: ['billing-statement', encounter.id] })
+      void queryClient.invalidateQueries({ queryKey: ['doctor-billing-statement', encounter.id] })
+    },
   })
-  const issueInvoice = useMutation({
-    mutationFn: () => api.billing.issueInvoice(statement.data!.accountId,
-      `INV-${encounter.id}-${Date.now()}`),
-    onSuccess: async () => { await Promise.all([statement.refetch(), orders.refetch(),
-      queryClient.invalidateQueries({ queryKey: ['billing-statement', encounter.id] })]) },
-  })
-  const payable = (statement.data?.settlements ?? []).filter((value) =>
-    ['PRICED', 'PAYMENT_PENDING', 'PARTIAL'].includes(value.status) && value.outstandingAmount > 0)
-  const outstanding = payable.reduce((sum, value) => sum + value.outstandingAmount, 0)
-  const orderCount = (services.data?.filter((value) => value.status !== 'CANCELLED').length ?? 0)
-    + (medications.data?.filter((value) => value.status !== 'CANCELLED').length ?? 0)
+  const billingPending = billingWriter.hasPending()
+  const dialogBusy = busy || signing || billingOperation.isPending
+  const payable = billing?.payable ?? []
+  const outstanding = billing?.outstanding
 
   const primaryDiag = encounter.diagnoses.find((value) => value.type === 'PRIMARY')?.display || '未录入'
   const hasChiefComplaint = Boolean(encounter.chiefComplaint?.trim())
@@ -1186,17 +1252,27 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
   const completedRequirementCount = [hasChiefComplaint, hasPrimaryDiagnosis, signatureReady].filter(Boolean).length
 
   return <Dialog title="诊毕确认" eyebrow="本次就诊收口" size="xwide" className="doctor-completion-modal"
-    closeOnBackdrop={false} onClose={onClose}
+    closeOnBackdrop={false} onClose={() => !dialogBusy && onClose()}
     description="集中核对病历、诊断、医嘱、费用与患者转归；确认后当前就诊将结束。"
-    footer={<><Button variant="secondary" onClick={onClose}>继续诊疗</Button>
-      <Button busy={busy || signing} disabled={!ready || !dispositionCode || outstanding > 0}
-        title={outstanding > 0 ? '请先完成诊间结算' : !ready ? '病历或主要诊断尚未完成' : signed ? '确认诊毕' : '签署病历并完成诊毕'}
-        onClick={() => onComplete({ commandCode: requestCommand, dispositionCode,
+    footer={<><Button variant="secondary" disabled={dialogBusy} onClick={onClose}>继续诊疗</Button>
+      <Button busy={dialogBusy} disabled={!canComplete || !dispositionCode || billingOperation.isPending}
+        title={!factsReady ? '诊毕资料尚未确认' : !billing?.settled || pendingPayment ? '请先完成诊间结算' : !ready ? '病历或主要诊断尚未完成' : signed ? '确认诊毕' : '签署病历并完成诊毕'}
+        onClick={() => canComplete && onComplete({ commandCode: requestCommand, dispositionCode,
           dispositionNote: dispositionNote.trim() || undefined }, batchPrintOnComplete)}>{signed ? '确认诊毕' : completionMode === 'COMBINED_CONFIRMATION'
             ? '签署并诊毕' : '确认诊毕'}</Button></>}>
-    <div className="doctor-completion-dialog">
-      {(error || createPayment.error || issueInvoice.error)
-        && <Alert>{errorMessage(error || createPayment.error || issueInvoice.error)}</Alert>}
+    <div className="doctor-completion-dialog" inert={dialogBusy}>
+      {(error || billingOperation.error)
+        && <Alert duration={null}>{errorMessage(error || billingOperation.error)}</Alert>}
+      {factsError && <Alert duration={null}>诊毕资料加载失败：{errorMessage(factsError)}</Alert>}
+      <div className="ui-form-actions">
+        <span>{factsLoading ? '正在核对诊毕资料…' : !factsReady ? '诊毕资料待核对' : !billing?.settled || pendingPayment ? '费用或支付处理尚未完成' : '诊毕资料已核对'}</span>
+        <Button variant="secondary" size="sm" busy={factsLoading} onClick={() => void reloadFacts()}>重新加载诊毕资料</Button>
+      </div>
+      {billingPending && <div className="ui-form-actions">
+        <span>上次诊间结算尚未确认，请先核实原请求，避免重复收款或开票。</span>
+        <Button variant="secondary" disabled={!canEdit} busy={billingOperation.isPending}
+          onClick={() => billingOperation.mutate({ kind: 'retry' })}>核实上次结算操作</Button>
+      </div>}
       <section className="doctor-completion-overview" aria-label="诊毕状态汇总">
         <div className="doctor-overview-stat doctor-overview-stat--diagnosis">
           <div className="doctor-overview-stat__header">
@@ -1218,7 +1294,7 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
             <Icon name="tasks" className="ui-icon-inline" />
             <span>本次医嘱</span>
           </div>
-          <strong>{orderCount} 项</strong>
+          <strong>{orderCount === undefined ? '医嘱待核对' : `${orderCount} 项`}</strong>
         </div>
         <div className="doctor-overview-stat doctor-overview-stat--fee">
           <div className="doctor-overview-stat__header">
@@ -1226,23 +1302,28 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
               <Icon name="billing" className="ui-icon-inline" />
               <span>待收金额</span>
             </div>
-            {statement.data && statement.data.uninvoicedAmount > 0 && (
-              <Button variant="text" size="sm" type="button" className="doctor-fee-quick-invoice-btn" disabled={issueInvoice.isPending}
-                onClick={() => issueInvoice.mutate()}>
-                {issueInvoice.isPending ? '生成中…' : '生成结算单'}
+            {confirmedStatement && confirmedStatement.uninvoicedAmount > 0 && (
+              <Button variant="text" size="sm" type="button" className="doctor-fee-quick-invoice-btn" disabled={!canEdit || billingOperation.isPending || billingPending || !ordersReady || pendingPayment}
+                onClick={() => billingOperation.mutate({ kind: 'invoice' })}>
+                {billingOperation.isPending ? '处理中…' : '生成结算单'}
               </Button>
             )}
           </div>
           <div className="doctor-fee-stat-content">
-            <strong className={outstanding > 0 ? 'is-warning' : 'is-success'}>
-              {statement.data ? (outstanding > 0 ? money(outstanding, statement.data.currencyCode) : '已结清 (¥0.00)') : '暂无费用'}
+            <strong className={billing?.settled && ordersReady && !pendingPayment ? 'is-success' : 'is-warning'}>
+              {!confirmedStatement ? '费用待核对' : !ordersReady ? '支付状态待核对' : pendingPayment ? '支付处理中'
+                : billing?.settled ? `已结清 (${money(0, confirmedStatement.currencyCode)})`
+                  : outstanding! > 0 ? money(outstanding!, confirmedStatement.currencyCode)
+                    : confirmedStatement.uninvoicedAmount !== 0 ? '尚有未开票费用'
+                      : confirmedStatement.accountBalance !== 0 ? '账户余额待核对' : '结算尚未完成'}
             </strong>
-            {statement.data ? (
+            {confirmedStatement ? (
               <div className="doctor-fee-stat-metrics">
-                <span>费用合计 <strong>{money(statement.data.chargeAmount, statement.data.currencyCode)}</strong></span>
-                <span>已支付 <strong>{money(statement.data.paymentAmount, statement.data.currencyCode)}</strong></span>
-                <span>未开票 <strong>{money(statement.data.uninvoicedAmount, statement.data.currencyCode)}</strong></span>
-                <span>待支付 <strong>{money(outstanding, statement.data.currencyCode)}</strong></span>
+                <span>费用合计 <strong>{money(confirmedStatement.chargeAmount, confirmedStatement.currencyCode)}</strong></span>
+                <span>已支付 <strong>{money(confirmedStatement.paymentAmount, confirmedStatement.currencyCode)}</strong></span>
+                <span>未开票 <strong>{money(confirmedStatement.uninvoicedAmount, confirmedStatement.currencyCode)}</strong></span>
+                <span>待支付 <strong>{money(outstanding!, confirmedStatement.currencyCode)}</strong></span>
+                <span>账户余额 <strong>{money(confirmedStatement.accountBalance, confirmedStatement.currencyCode)}</strong></span>
               </div>
             ) : statement.isPending ? (
               <small className="doctor-fee-stat__hint">读取中…</small>
@@ -1258,17 +1339,19 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
           </header>
           <div className="doctor-completion-payment">
             <Suspense fallback={<LoadingState label="正在加载收款组件…" />}>
-              <SettlementPaymentPanel settlements={payable.map((value) => ({
+              {billingPending || !canEdit || !ordersReady || !methods.isSuccess || methods.isFetching || !methods.data.length
+                ? <p>支付资料尚未确认或没有可用支付方式，请重新加载或联系管理员。</p>
+                : <SettlementPaymentPanel settlements={payable.map((value) => ({
                 id: value.id, code: value.settlementNo, outstandingAmount: value.outstandingAmount, currencyCode: value.currencyCode,
-              }))} methods={(methods.data ?? []).map((value) => ({
+              }))} methods={methods.data.map((value) => ({
                 code: value.code,
                 name: value.name,
                 sortOrder: value.sortOrder,
                 precision: value.attributes?.PAYMENT_PRECISION,
                 roundingMode: value.attributes?.ROUNDING_MODE,
               }))}
-              orders={orders.data ?? []} busy={createPayment.isPending} sceneLabel="诊间收款"
-              onSubmit={(command) => createPayment.mutateAsync(command)} />
+              orders={orders.data!} busy={billingOperation.isPending} sceneLabel="诊间收款"
+              onSubmit={(command) => billingOperation.mutateAsync({ kind: 'payment', command })} />}
             </Suspense>
           </div>
         </section>
@@ -1281,25 +1364,15 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
           </div>
           <div className="doctor-disposition-form">
             <FormField label="就诊转归" required>
-              <select className="ui-field__control" value={dispositionCode}
-                onChange={(event) => {
-                  const code = event.target.value as CompleteEncounterInput['dispositionCode']
-                  setDispositionCode(code)
+              <Select value={dispositionCode} searchable={false} clearable={false}
+                onChange={(value) => {
+                  setDispositionCode(value as CompleteEncounterInput['dispositionCode'])
                   setRequestCommand(commandCode('COMPLETE', encounter.id))
-                  if (code === 'FOLLOW_UP' && dispositionNote.includes('按医嘱用药')) {
-                    setDispositionNote('预约 1 周后门诊复查，带齐既往检查检验结果')
-                  } else if (code === 'REFERRAL') {
-                    setDispositionNote('建议转上级医院专科进一步确诊与系统治疗')
-                  } else if (code === 'ADMISSION') {
-                    setDispositionNote('病情需收治住院进一步系统诊疗，已开具入院证')
-                  }
-                }}>
-                <option value="HOME">门诊离院</option>
-                <option value="FOLLOW_UP">预约复诊</option>
-                <option value="OBSERVATION">留观</option>
-                <option value="REFERRAL">转诊 / 转科</option>
-                <option value="ADMISSION">收治住院</option>
-              </select>
+                }} options={[
+                  { value: 'HOME', label: '门诊离院' }, { value: 'FOLLOW_UP', label: '预约复诊' },
+                  { value: 'OBSERVATION', label: '留观' }, { value: 'REFERRAL', label: '转诊 / 转科' },
+                  { value: 'ADMISSION', label: '收治住院' },
+                ]} />
             </FormField>
             <div className="doctor-disposition-note-wrap">
               <FormField label="转归及随访说明">
@@ -1328,13 +1401,13 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
             </div>
           </div>
         </section>
-        <div className={`doctor-completion-checklist doctor-completion-checklist--dialog ${ready ? 'is-ready-group' : 'is-pending-group'}`} aria-label="诊毕准入核对">
+        <div className={`doctor-completion-checklist doctor-completion-checklist--dialog ${canComplete ? 'is-ready-group' : 'is-pending-group'}`} aria-label="诊毕准入核对">
           <div className="doctor-completion-checklist__header">
             <span className="doctor-completion-checklist__title">
-              <Icon name={ready ? 'check' : 'warning'} className="ui-icon-inline" />
+              <Icon name={canComplete ? 'check' : 'warning'} className="ui-icon-inline" />
               <span>诊毕前置核对</span>
             </span>
-            <strong>{ready ? '已全部通过' : `${completedRequirementCount}/3 已完成`}</strong>
+            <strong>{canComplete ? '已全部通过' : !factsReady ? '资料待核对' : !billing?.settled || pendingPayment ? '结算待完成' : `${completedRequirementCount}/3 已完成`}</strong>
           </div>
           <div className="doctor-completion-checklist__items">
             <span className={`doctor-checklist-chip ${hasChiefComplaint ? 'is-ready' : 'is-missing'}`}>
@@ -1515,31 +1588,18 @@ function allergenConceptTypeLabel(value: AllergenTerm['conceptType']) {
 type AmendmentDraft = Pick<RecordForm,
   'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'allergyHistory' | 'medicationHistory' | 'auxiliaryExaminations' | 'healthEducation' | 'followUp'>
 
-export function prescriptionSplitSummary(drafts: MedicationPlanDraft[], existingPrescriptions: Prescription[] = []) {
-  const totals = new Map<string, number>()
-  for (const prescription of existingPrescriptions.filter((value) => value.status === 'DRAFT')) {
-    totals.set(prescription.categoryCode, (totals.get(prescription.categoryCode) ?? 0)
-      + prescription.medicationRequests.filter((value) => value.status !== 'CANCELLED').length)
-  }
-  for (const draft of drafts) totals.set(draft.categoryCode, (totals.get(draft.categoryCode) ?? 0) + 1)
-  return [...totals.entries()].map(([categoryCode, count]) => ({
-    categoryCode,
-    medicationCount: count,
-    prescriptionCount: categoryCode === 'HERBAL' ? (count > 0 ? 1 : 0) : Math.ceil(count / 5),
-  }))
-}
-
 function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, api, historyCopy, onHistoryCopyConsumed,
-  aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, onRegisterSaveDraft, onSaveDraftNotice,
+  aiDraft, onAiDraftConsumed, onRegisterAiPlan, onAiContextChange, onDraftStateChange, onRegisterSaveDraft, onSaveDraftNotice,
   editing, canEdit, completionMode, enteringEdit, onRequestEditing,
   onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters, aiSurfaceRefs, aiFieldStream,
   aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange, currentDepartmentName, planTemplateDrawerHost, recommendedPlanId,
   onClosePlanDrawer,
   onOpenPrintCenter }: {
   encounter: Encounter; birthDate?: string; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
-  completionMode: OutpatientCompletionMode
+  completionMode: OutpatientCompletionMode | undefined
   api: RhnApi; historyCopy: HistoryCopyDraft | null
   aiDraft: ClinicalAiDraftRequest | null; onAiDraftConsumed: () => void
+  onRegisterAiPlan: (handler: PrepareAiPlan | null) => void
   onAiContextChange: (value: ClinicalAiDraftContext | null) => void
   onHistoryCopyConsumed: () => void; onDraftStateChange: (value: EncounterDraftState) => void
   onRegisterSaveDraft?: (handler: (() => Promise<boolean>) | null) => void
@@ -1593,7 +1653,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const documents = useQuery({ queryKey: ['doctor-document', encounter.id], queryFn: () => api.clinicalDocuments.byEncounter(encounter.id) })
   const noteForms = useQuery({ queryKey: ['outpatient-note-forms', 'GENERAL_PRACTICE'],
     queryFn: () => api.outpatientNoteForms.list('GENERAL_PRACTICE') })
-  const document = documents.data?.find((item) => item.documentType === 'OUTPATIENT_NOTE')
+  const document = documents.data?.find((item) => item.documentType === 'OUTPATIENT_NOTE' && item.instanceKey === 'DEFAULT')
   const snapshot = document?.content.structuredForm
   const snapshotForm: OutpatientNoteForm | undefined = snapshot ? {
     id: snapshot.versionId, formCode: snapshot.formCode, version: snapshot.version,
@@ -1606,29 +1666,38 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const currentStructuredSignature = structuredFormSignature(selectedNoteFormId, structuredValues)
   const structuredChanged = currentStructuredSignature !== structuredBaseline
   const diagnosesChanged = diagnosisDraftSignature(diagnoses) !== diagnosisDraftSignature(
-    encounter.diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type, managementPrograms }) =>
-      ({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type, managementPrograms })))
+    encounter.diagnoses.map(({ conceptId, systemCode, diagnosisDomain, diagnosisGroupId, code, display, type, managementResolutionStatus, managementPrograms }) =>
+      ({ conceptId, codeSystem: systemCode, diagnosisDomain, diagnosisGroupId, code, display, type, managementResolutionStatus, managementPrograms })))
+  const captureDraftSession = useClinicalDraftSession(api, JSON.stringify([encounter.id, encounter.residentId,
+    encounter.organizationId, encounter.departmentId]), canEdit && editing && encounter.status === 'IN_PROGRESS', form,
+  { diagnoses, medicationDrafts, serviceDrafts, selectedNoteFormId, structuredValues })
   const save = useMutation({
-    mutationFn: async (form: RecordForm) => {
+    mutationFn: async ({ form, session }: { form: RecordForm; session: ClinicalDraftSession }) => {
+      session.assertUnchanged()
       if (!diagnoses.some((item) => item.type === 'PRIMARY')) throw new Error('请确认一个主要诊断')
       const formErrors = validateStructuredForm(selectedNoteForm, structuredValues)
       setStructuredErrors(formErrors)
       if (Object.keys(formErrors).length) throw new Error(Object.values(formErrors)[0])
       return draftSaver.current.save(api, {
         encounterId: encounter.id,
+        residentId: encounter.residentId,
+        organizationId: encounter.organizationId,
+        departmentId: encounter.departmentId,
+        previousDocument: document,
         content: clinicalRecordContent(form, diagnoses, selectedNoteFormId, structuredValues),
         medicationDrafts,
         serviceDrafts,
-      })
+      }, session.assertUnchanged)
     },
-    onSuccess: async (savedEncounter, form) => {
+    onSuccess: async ({ encounter: savedEncounter, document: savedDocument, documents: savedDocuments, confirmApplied }, { form, session }) => {
+      session.assertUnchanged()
+      confirmApplied()
       setCopyNotice('')
-      onSaveDraftNotice?.({ message: '门诊病历、诊断与医嘱草稿已保存', tone: 'success' })
       setMedicationDrafts([])
       setServiceDrafts([])
 
       reset({
-        annotations: form.annotations?.map((item) => ({ ...item, confirmed: true })),
+        annotations: savedDocument.content.annotations,
         chiefComplaint: form.chiefComplaint,
         presentIllness: form.presentIllness,
         medicalHistory: form.medicalHistory,
@@ -1650,12 +1719,16 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       })
 
       if (savedEncounter?.diagnoses?.length) {
-        setDiagnoses(normalizeDiagnosisOrder(savedEncounter.diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type, managementPrograms }) => ({
-          conceptId, diagnosisDomain, diagnosisGroupId, code, display, type, managementPrograms,
+        setDiagnoses(normalizeDiagnosisOrder(savedEncounter.diagnoses.map(({ conceptId, systemCode, diagnosisDomain, diagnosisGroupId, code, display, type, managementResolutionStatus, managementPrograms }) => ({
+          conceptId, codeSystem: systemCode, diagnosisDomain, diagnosisGroupId, code, display, type, managementResolutionStatus, managementPrograms,
         }))))
       }
 
-      setStructuredBaseline(structuredFormSignature(selectedNoteFormId, structuredValues))
+      const savedFormId = savedDocument.content.structuredForm?.versionId ?? ''
+      const savedValues = savedDocument.content.structuredData ?? {}
+      setSelectedNoteFormId(savedFormId)
+      setStructuredValues(savedValues)
+      setStructuredBaseline(structuredFormSignature(savedFormId, savedValues))
 
       if (savedEncounter) {
         queryClient.setQueriesData({ queryKey: ['doctor-encounters'] }, (old: unknown) => {
@@ -1664,12 +1737,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         })
       }
 
-      try {
-        const latestDocs = await api.clinicalDocuments.byEncounter(encounter.id)
-        queryClient.setQueryData(['doctor-document', encounter.id], latestDocs)
-      } catch {
-        // ignore
-      }
+      queryClient.setQueryData(['doctor-document', encounter.id], savedDocuments)
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['doctor-prescriptions', encounter.id] }),
@@ -1678,8 +1746,11 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         queryClient.invalidateQueries({ queryKey: ['doctor-billing-statement', encounter.id] }),
         onRefresh(),
       ])
+      session.assertCurrent()
+      onSaveDraftNotice?.({ message: '门诊病历、诊断与医嘱草稿已保存', tone: 'success' })
     },
-    onError: (error) => {
+    onError: (error, { session }) => {
+      if (!session.isCurrent()) return
       onSaveDraftNotice?.({ message: errorMessage(error), tone: 'error' })
     },
   })
@@ -1707,9 +1778,9 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       temperature: document?.content.vitalSigns?.temperature, pulseRate: document?.content.vitalSigns?.pulseRate,
       respiratoryRate: document?.content.vitalSigns?.respiratoryRate, heightCm: document?.content.vitalSigns?.heightCm,
       weightKg: document?.content.vitalSigns?.weightKg, oxygenSaturation: document?.content.vitalSigns?.oxygenSaturation })
-    setDiagnoses(normalizeDiagnosisOrder(encounter.diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type,
-      managementPrograms }) => ({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type,
-      managementPrograms }))))
+    setDiagnoses(normalizeDiagnosisOrder(encounter.diagnoses.map(({ conceptId, systemCode, diagnosisDomain, diagnosisGroupId, code, display, type,
+      managementResolutionStatus, managementPrograms }) => ({ conceptId, codeSystem: systemCode, diagnosisDomain, diagnosisGroupId, code, display, type,
+      managementResolutionStatus, managementPrograms }))))
     const savedFormId = document?.content.structuredForm?.versionId ?? ''
     const savedValues = document?.content.structuredData ?? {}
     setSelectedNoteFormId(savedFormId)
@@ -1732,10 +1803,14 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       setCopyNotice('当前就诊状态或过敏资料已变化，已拒绝历史内容带入，请重新核对。')
       onHistoryCopyConsumed(); return
     }
-    if (historyCopy.medicationDrafts?.length) setMedicationDrafts((current) => {
-      const keys = new Set(current.map(medicationDraftKey))
-      return [...current, ...historyCopy.medicationDrafts!.filter((item) => !keys.has(medicationDraftKey(item)))]
-    })
+    if (historyCopy.medicationDrafts?.length) {
+      const keys = new Set(medicationDrafts.map(medicationDraftKey))
+      if (historyCopy.medicationDrafts.some(item => keys.has(medicationDraftKey(item)))) {
+        setCopyNotice('所选历史用药与当前待确认医嘱重复，本次未带入，请先核对已有草稿。')
+        onHistoryCopyConsumed(); return
+      }
+      setMedicationDrafts(current => [...current, ...historyCopy.medicationDrafts!])
+    }
     reset({ ...getValues(), ...historyCopy.record }, { keepDefaultValues: true })
     if (historyCopy.diagnoses?.length) {
       setDiagnoses((current) => {
@@ -1748,33 +1823,42 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
     }
     setCopyNotice(`已从 ${formatTime(historyCopy.sourceRegisteredAt)}（${historyCopy.sourceEncounterNo}）带入所选内容，请核对后保存。`)
     onHistoryCopyConsumed()
-  }, [documents.isPending, getValues, historyCopy, onHistoryCopyConsumed, reset, encounter, save.isPending, orderBusy, document?.status, allergyState])
+  }, [documents.isPending, getValues, historyCopy, onHistoryCopyConsumed, reset, encounter, save.isPending, orderBusy, document?.status, allergyState, medicationDrafts])
+  const captureDocumentSession = useClinicalDocumentSession(api, JSON.stringify([encounter.id, encounter.residentId,
+    encounter.organizationId, encounter.departmentId]), canEdit)
+  const amendmentWriter = useRef(createClinicalAmendmentWriter())
+  const cacheSignedDocument = (signed: ClinicalDocument) => {
+    queryClient.setQueryData<ClinicalDocument[]>(['doctor-document', signed.encounterId], current =>
+      current?.map(item => item.id === signed.id ? signed : item) ?? [signed])
+  }
   const sign = useMutation({
-    mutationFn: () => api.clinicalDocuments.sign(document!.id, document!.currentVersion),
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] }); await onRefresh(); onRequestReading() },
+    mutationFn: async () => {
+      const assertCurrent = captureDocumentSession()
+      const signed = await signClinicalDocument(api.clinicalDocuments, document!, assertCurrent)
+      return { signed, assertCurrent }
+    },
+    onSuccess: async ({ signed, assertCurrent }) => {
+      assertCurrent()
+      cacheSignedDocument(signed)
+      await onRefresh()
+      assertCurrent()
+      onRequestReading()
+    },
   })
   const amend = useMutation({
     mutationFn: async () => {
-      const amended = await api.clinicalDocuments.amend(document!.id, {
-        expectedCurrentVersion: document!.currentVersion,
-        contentSchema: document!.contentSchema,
-        content: { ...document!.content, ...amendmentDraft },
-        changeReason: amendmentReason.trim(),
-      })
-      queryClient.setQueryData<ClinicalDocument[]>(['doctor-document', encounter.id], (current) =>
-        current?.map((item) => item.id === amended.id ? amended : item) ?? [amended])
-      try {
-        return await api.clinicalDocuments.sign(amended.id, amended.currentVersion)
-      } catch (error) {
-        await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] })
-        throw error
-      }
+      const assertCurrent = captureDocumentSession()
+      const signed = await amendmentWriter.current.save(api.clinicalDocuments, document!,
+        { ...document!.content, ...amendmentDraft }, amendmentReason, assertCurrent)
+      return { signed, assertCurrent }
     },
-    onSuccess: async () => {
+    onSuccess: async ({ signed, assertCurrent }) => {
+      assertCurrent()
+      cacheSignedDocument(signed)
       setAmendmentOpen(false)
       setAmendmentReason('')
-      await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] })
       await onRefresh()
+      assertCurrent()
       onRequestReading()
     },
   })
@@ -1782,18 +1866,21 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   const aiContextBusy = businessBusy || documents.isPending || Boolean(documents.error)
   const documentStatus = documents.isPending ? 'LOADING'
     : documents.error ? 'ERROR' : document?.status ?? 'NONE'
-  const applyAiPlan = useCallback((request: ClinicalAiDraftRequest, diagnosesWithAi: DiagnosisInput[]) => {
-    if (!request.planTemplate) return
-    stageTemplate(request.planTemplate, diagnosesWithAi, setDiagnoses, medicationDrafts, setMedicationDrafts,
-      serviceDrafts, setServiceDrafts, request.allergyOverrideReason, request.allergyReviewConfirmed === true)
-  }, [medicationDrafts, serviceDrafts])
   const { buildAiContext, canUndoAiRecord, undoAiRecord } = useClinicalAiDraft({
     encounter, form, diagnoses, setDiagnoses, aiDraft, onAiDraftConsumed, onAiContextChange,
     context: { document, documentStatus, structuredFormId: selectedNoteFormId,
       structuredFormVersion: selectedNoteForm?.version, structuredValues,
       medicationDrafts, serviceDrafts, allergies, allergyState, busy: aiContextBusy },
-    businessBusy, aiRecordUndo, setAiRecordUndo, onNotice: setCopyNotice, onPlan: applyAiPlan,
+    businessBusy, aiRecordUndo, setAiRecordUndo, onNotice: setCopyNotice,
   })
+  const preparePlan = useAiPlanApplication({ api, encounter, form, readContext: buildAiContext,
+    blocked: !editing || document?.status === 'SIGNED' || aiContextBusy, allergies, allergyReady: allergyState === 'READY',
+    diagnoses, setDiagnoses, medications: medicationDrafts, setMedications: setMedicationDrafts,
+    services: serviceDrafts, setServices: setServiceDrafts, setUndo: setAiRecordUndo, onNotice: setCopyNotice })
+  useEffect(() => {
+    onRegisterAiPlan(preparePlan)
+    return () => onRegisterAiPlan(null)
+  }, [onRegisterAiPlan, preparePlan])
   useEffect(() => {
     onDraftStateChange({ recordChanged: recordContentChanged || structuredChanged, diagnosesChanged,
       medicationDraftCount: medicationDrafts.length, serviceDraftCount: serviceDrafts.length,
@@ -1806,7 +1893,12 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         return false
       }
       try {
-        await save.mutateAsync(value)
+        const current = recordSchema.safeParse(getValues())
+        if (!current.success || JSON.stringify(current.data) !== JSON.stringify(value)) {
+          onSaveDraftNotice?.({ message: '校验期间病历内容已变化，请核对当前内容后重新保存', tone: 'warning' })
+          return false
+        }
+        await save.mutateAsync({ form: value, session: captureDraftSession() })
         return true
       } catch {
         return false
@@ -1869,11 +1961,15 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   }
   const applyNoteTemplate = (template: OutpatientNoteTemplate, fields: Set<NoteTemplateField>, overwrite: boolean) => {
     const current = getValues()
-    reset({ ...current, ...mergeNoteTemplateContent(current, template.content, fields, overwrite) },
-      { keepDefaultValues: true })
-    setCopyNotice(`已从病历模板“${template.name}”带入所选段落，请结合本次患者情况核对后保存。`)
+    const merged = mergeNoteTemplateContent(current, template.content, fields, overwrite)
+    const applied = [...fields].filter(key => merged[key] !== current[key]).length
+    if (applied) {
+      reset({ ...current, ...merged }, { keepDefaultValues: true })
+      setCopyNotice(`已从病历模板“${template.name}”带入 ${applied} 个段落，请结合本次患者情况核对后保存。`)
+    }
+    return applied
   }
-  const error = save.error || sign.error || amend.error || documents.error || noteForms.error
+  const error = (save.variables?.session.isCurrent() ? save.error : undefined) || sign.error || amend.error || documents.error || noteForms.error
   const encounterEditable = ['REGISTERED', 'IN_PROGRESS', 'SUSPENDED'].includes(encounter.status)
   const editActionLabel = encounter.status === 'REGISTERED' ? '开始接诊'
     : encounter.status === 'SUSPENDED' ? '恢复接诊' : '进入编辑'
@@ -1900,7 +1996,9 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
         actions={<>{editing && <Button size="sm" variant="text" aria-pressed={showRecordAnnotations}
           onClick={() => setShowRecordAnnotations((value) => !value)}>{showRecordAnnotations ? '隐藏标记' : '显示标记'}</Button>}
-          {editing && <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
+          {editing && <NoteTemplateBar api={api} disabled={signed || businessBusy || documents.isPending || Boolean(documents.error)}
+          contextKey={JSON.stringify([encounter.id, encounter.residentId, encounter.organizationId, encounter.departmentId,
+            encounter.clinicianId, document?.currentVersion])} currentContent={currentNoteContent}
           onApply={applyNoteTemplate} showApply={false} />}
           {editing && !signed && <div ref={aiSurfaceRefs.note} className="doctor-record-ai-slot" />}
           {document && signed && canEdit && (
@@ -1962,7 +2060,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
           </div>
         )}
         <FormField appearance="document" className="doctor-record-narrative doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
-          <AnnotatedRecordField {...annotatedField('chiefComplaint', '主诉')} {...streamingField('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" rows={2} />
+          <AnnotatedRecordField {...annotatedField('chiefComplaint', '主诉')} {...streamingField('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" rows={1} />
         </FormField>
         <FormField appearance="document" className="doctor-record-narrative doctor-record-field--present" label="现病史" error={formState.errors.presentIllness?.message}>
           <AnnotatedRecordField {...annotatedField('presentIllness', '现病史')} {...streamingField('presentIllness')} disabled={signed} placeholder="起病、演变、伴随症状及诊治经过" rows={3} />
@@ -2003,9 +2101,10 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       <DiagnosisPanel encounterId={encounter.id} api={api} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
         editing={editing} signed={signed} aiSuggestionSurfaceRef={aiSurfaceRefs.diagnoses} />
       <OrdersPanel draftDiagnoses={diagnoses} onSaveClinicalDraft={async () => {
-        if (!formState.isDirty && !diagnosesChanged && !structuredChanged) return false
+        if (!recordContentChanged && !diagnosesChanged && !structuredChanged
+          && medicationDrafts.length === 0 && serviceDrafts.length === 0) return true
         if (!await form.trigger()) throw new Error('请先补齐病历必填内容')
-        await save.mutateAsync(form.getValues())
+        await save.mutateAsync({ form: recordSchema.parse(form.getValues()), session: captureDraftSession() })
         return true
       }} aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
         onTreatmentKeysChange={onTreatmentKeysChange} encounter={encounter} allergies={allergies} api={api} editing={editing}
@@ -2015,7 +2114,10 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         currentDepartmentName={currentDepartmentName} onOpenPrintCenter={onOpenPrintCenter} />
     </aside>
     {editing && !signed && planTemplateDrawerHost && createPortal(
-      <PlanTemplatePanel initialPlanId={recommendedPlanId} encounterId={encounter.id} diagnoses={diagnoses} setDiagnoses={setDiagnoses}
+      <PlanTemplatePanel initialPlanId={recommendedPlanId} encounter={encounter} busy={aiContextBusy}
+        allergies={allergies} allergyReady={allergyState === 'READY'}
+        allergyContext={JSON.stringify([allergyState, allergies])} readRecordDraft={() => JSON.stringify(getValues())}
+        diagnoses={diagnoses} setDiagnoses={setDiagnoses}
         medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
         serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts}
         onApplyNoteTemplate={applyNoteTemplate}
@@ -2048,7 +2150,8 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
                 title={formState.isDirty || structuredChanged || diagnosesChanged ? '请先保存病历草稿后再签署' : '完成当前版本签署并打开打印窗口'}
                 onClick={async () => {
                   try {
-                    await sign.mutateAsync()
+                    const result = await sign.mutateAsync()
+                    result.assertCurrent()
                     setUnsignedPrintModalOpen(false)
                     setNotePrintOpen(true)
                   } catch {
@@ -2080,7 +2183,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       footer={<><Button variant="secondary" disabled={amend.isPending} onClick={() => setAmendmentOpen(false)}>取消</Button>
         <Button busy={amend.isPending} disabled={!amendmentReason.trim() || !amendmentDraft.chiefComplaint.trim()}
           onClick={() => amend.mutate()}>更正并重新签署</Button></>}>
-      <div className="doctor-amendment-form">
+      <div className="doctor-amendment-form" inert={amend.isPending}>
         <FormField label="更正原因" required error={amend.error ? errorMessage(amend.error) : undefined}>
           <textarea className="ui-field__control" value={amendmentReason} maxLength={500} autoFocus
             onChange={(event) => setAmendmentReason(event.target.value)}
@@ -2102,10 +2205,15 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
   </section>
 }
 
-function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
+function PlanTemplatePanel({ initialPlanId, encounter, busy, allergyContext, allergies, allergyReady, readRecordDraft, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
   serviceDrafts, setServiceDrafts, api, onApplyNoteTemplate, onClose, onNotice }: {
   initialPlanId?: string
-  encounterId?: string
+  encounter: Encounter
+  busy: boolean
+  allergyContext: string
+  allergies: AllergyIntolerance[]
+  allergyReady: boolean
+  readRecordDraft: () => string
   diagnoses: DiagnosisInput[]
   setDiagnoses: Dispatch<SetStateAction<DiagnosisInput[]>>
   medicationDrafts: MedicationPlanDraft[]
@@ -2113,11 +2221,14 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
   serviceDrafts: ServicePlanDraft[]
   setServiceDrafts: Dispatch<SetStateAction<ServicePlanDraft[]>>
   api: RhnApi
-  onApplyNoteTemplate: (template: OutpatientNoteTemplate, fields: Set<NoteTemplateField>, overwrite: boolean) => void
+  onApplyNoteTemplate: (template: OutpatientNoteTemplate, fields: Set<NoteTemplateField>, overwrite: boolean) => number
   onClose?: () => void
   onNotice?: (msg: string) => void
 }) {
   const queryClient = useQueryClient()
+  const encounterId = encounter.id
+  const apiScope = templateApiScope(api)
+  const queryScope = [apiScope, encounter.organizationId, encounter.departmentId]
   const [templateKind, setTemplateKind] = useState<'ALL' | 'NOTE' | 'PLAN'>('ALL')
   const [selectedKind, setSelectedKind] = useState<'NOTE' | 'PLAN'>('PLAN')
   const [scopeFilter, setScopeFilter] = useState<'ALL' | 'PERSONAL' | 'DEPARTMENT' | 'HOSPITAL' | 'HISTORICAL' | 'MINED'>('ALL')
@@ -2130,7 +2241,6 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
   const [checkedNoteFields, setCheckedNoteFields] = useState<Set<NoteTemplateField>>(new Set())
   const [overwriteNoteFields, setOverwriteNoteFields] = useState(false)
   const [selectedMinedKey, setSelectedMinedKey] = useState('')
-  const [pendingTemplateToApply, setPendingTemplateToApply] = useState<OutpatientPlanTemplate | null>(null)
   const [includeLinkedNoteTemplate, setIncludeLinkedNoteTemplate] = useState(false)
   const [notice, setNotice] = useState('')
 
@@ -2153,7 +2263,7 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
   const [checkedMinedServiceKeys, setCheckedMinedServiceKeys] = useState<Set<string>>(new Set())
 
   const templates = useQuery({
-    queryKey: ['outpatient-plan-templates'],
+    queryKey: ['outpatient-plan-templates', ...queryScope],
     queryFn: () => api.outpatientPlanTemplates.list(),
     select: (values) => values.filter((value) => value.status === 'ACTIVE'),
     refetchOnMount: 'always',
@@ -2161,24 +2271,24 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
   })
 
   const noteTemplates = useQuery({
-    queryKey: ['outpatient-note-templates', 'GENERAL_PRACTICE'],
+    queryKey: ['outpatient-note-templates', 'GENERAL_PRACTICE', ...queryScope],
     queryFn: () => api.outpatientNoteTemplates.list('', 'GENERAL_PRACTICE'),
   })
 
   const minedQuery = useQuery({
-    queryKey: ['outpatient-mined-suggestions'],
+    queryKey: ['outpatient-mined-suggestions', ...queryScope],
     queryFn: () => api.outpatientPlanTemplates.minedSuggestions(),
     enabled: false,
   })
 
   const historicalPlanQuery = useQuery({
-    queryKey: ['historical-stable-plan', encounterId],
+    queryKey: ['historical-stable-plan', encounterId, encounter.residentId, ...queryScope],
     queryFn: () => api.outpatientPlanTemplates.getHistoricalStablePlan(encounterId!),
     enabled: Boolean(encounterId) && (scopeFilter === 'ALL' || scopeFilter === 'HISTORICAL'),
   })
 
   const historicalComparisonQuery = useQuery({
-    queryKey: ['historical-plan-comparison', encounterId, comparisonTemplateId],
+    queryKey: ['historical-plan-comparison', encounterId, comparisonTemplateId, encounter.residentId, ...queryScope],
     queryFn: () => api.outpatientPlanTemplates.compareHistoricalPlan(encounterId!, comparisonTemplateId),
     enabled: Boolean(encounterId && comparisonTemplateId && historicalPlanQuery.data)
       && scopeFilter === 'HISTORICAL',
@@ -2315,111 +2425,115 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
 
   useEffect(() => {
     const differences = historicalComparisonQuery.data?.differences ?? []
-    setCheckedComparisonKeys(new Set(differences.map((item) => item.key)))
+    setCheckedComparisonKeys(new Set(differences.filter(item => canSelectHistoricalPlanDifference(item.status)).map((item) => item.key)))
     setComparisonSources(new Map(differences.map((item) => [item.key,
-      item.historicalIndex === undefined ? 'STANDARD' : 'HISTORICAL'])))
+      item.historicalIndex == null ? 'STANDARD' : 'HISTORICAL'])))
   }, [historicalComparisonQuery.data])
 
-  const apply = useMutation({
-    mutationFn: async (value: OutpatientPlanTemplate) => {
-      const plan = await api.outpatientPlanTemplates.use(value.id)
-      const linked = includeLinkedNoteTemplate && value.noteTemplateId
-        ? noteTemplates.data?.find((item) => item.id === value.noteTemplateId) : undefined
-      const note = linked ? await api.outpatientNoteTemplates.use(linked.id) : undefined
-      return { plan, note }
+  const application = useTemplateApplication(JSON.stringify({
+    apiScope, encounter: [encounter.id, encounter.residentId, encounter.organizationId, encounter.departmentId, encounter.status],
+    allergyContext, diagnoses, medicationDrafts, serviceDrafts,
+    viewed: [selected, selectedNote, selectedMined, historicalPlanQuery.data, historicalComparisonQuery.data],
+    selection: [templateKind, selectedKind, scopeFilter, selectedId, selectedNoteId, selectedMinedKey,
+      comparisonTemplateId, [...checkedDiagnosisCodes], [...checkedMedicationKeys], [...checkedServiceKeys],
+      [...checkedNoteFields], overwriteNoteFields, includeLinkedNoteTemplate, [...checkedHistDiagnosisCodes],
+      [...checkedHistMedicationKeys], [...checkedHistServiceKeys], [...checkedComparisonKeys], [...comparisonSources],
+      [...checkedMinedDiagnosisCodes], [...checkedMinedMedicationKeys], [...checkedMinedServiceKeys]],
+  }), busy || encounter.status !== 'IN_PROGRESS', readRecordDraft)
+
+  function finishPlan(plan: OutpatientPlanTemplate, orders: ResolvedTemplateOrders, note?: OutpatientNoteTemplate) {
+    requireNoTemplateOrderConflicts(plan, medicationDrafts, serviceDrafts)
+    const existingDiagnoses = new Set(diagnoses.map(item => item.code.toUpperCase()))
+    const newDiagnoses = plan.diagnoses.filter(item => !existingDiagnoses.has(item.code.toUpperCase())).length
+    stageTemplateDiagnoses(plan.diagnoses, diagnoses, setDiagnoses)
+    setMedicationDrafts(current => [...current, ...orders.medications])
+    setServiceDrafts(current => [...current, ...orders.services])
+    const appliedNoteFields = note ? onApplyNoteTemplate(note, new Set(noteTemplateFields
+      .filter(({ key }) => Boolean(note.content[key]?.trim())).map(({ key }) => key)), false) : 0
+    const noteResult = !note ? '' : appliedNoteFields ? `，配套病历新增 ${appliedNoteFields} 个段落` : '，配套病历保留原有内容，未新增段落'
+    const changed = newDiagnoses + plan.medications.length + plan.services.length + appliedNoteFields > 0
+    const msg = changed ? `已从“${plan.name}”带入 ${newDiagnoses} 项诊断、${plan.medications.length} 项药品和 ${plan.services.length} 项诊疗医嘱${noteResult}，请核对后保存和开立。`
+      : '所选方案内容已在当前草稿中，未新增内容。'
+    setNotice(msg)
+    if (changed) onNotice?.(msg)
+    void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
+    if (changed) onClose?.()
+  }
+
+  const apply = {
+    isPending: application.pending,
+    mutate: (selection: OutpatientPlanTemplate) => {
+      const viewed = selected, includeNote = includeLinkedNoteTemplate
+      const linked = viewed?.noteTemplateId ? noteTemplates.data?.find(item => item.id === viewed.noteTemplateId) : undefined
+      void application.run(async isCurrent => {
+        if (!viewed || templates.isFetching || templates.isError) throw new Error('方案目录尚未确认，请重新加载后带入。')
+        if (includeNote && viewed.noteTemplateId && (!linked || noteTemplates.isFetching || noteTemplates.isError)) {
+          throw new Error('所选配套病历模板不可用，本次未带入，请重新加载核对。')
+        }
+        const expected = structuredClone(viewed), selectedLines = structuredClone(selection)
+        const expectedNote = includeNote && linked ? structuredClone(linked) : undefined
+        const plan = requireUsedPlanReceipt(await api.outpatientPlanTemplates.use(expected.id), expected, selectedLines)
+        if (!isCurrent()) return undefined
+        const note = expectedNote ? requireUsedNoteReceipt(await api.outpatientNoteTemplates.use(expectedNote.id), expectedNote) : undefined
+        if (!isCurrent()) return undefined
+        const orders = await resolveTemplateOrders(plan, encounter, api, allergies, allergyReady)
+        return { plan, note, orders }
+      }, result => { if (result) finishPlan(result.plan, result.orders, result.note) })
     },
-    onSuccess: ({ plan, note }) => {
-      const target = pendingTemplateToApply || plan
-      stageTemplate(target, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
-        serviceDrafts, setServiceDrafts)
-      if (note) {
-        onApplyNoteTemplate(note, new Set(noteTemplateFields
-          .filter(({ key }) => Boolean(note.content[key]?.trim())).map(({ key }) => key)), false)
+  }
+
+  const applyNote = {
+    isPending: application.pending,
+    mutate: (value: OutpatientNoteTemplate) => {
+      const fields = new Set(checkedNoteFields), overwrite = overwriteNoteFields
+      void application.run(async () => {
+        if (noteTemplates.isFetching || noteTemplates.isError || !fields.size) throw new Error('病历模板或勾选段落尚未确认，请重新加载核对。')
+        const expected = structuredClone(value)
+        return requireUsedNoteReceipt(await api.outpatientNoteTemplates.use(expected.id), expected)
+      }, note => {
+        const applied = onApplyNoteTemplate(note, fields, overwrite)
+        const msg = applied ? `已带入病历模板“${note.name}”的 ${applied} 个段落，请结合患者情况核对。`
+          : '所选病历段落未改变当前内容；如需替换已有段落，请选择覆盖后重新核对。'
+        setNotice(msg)
+        if (applied) onNotice?.(msg)
+        void queryClient.invalidateQueries({ queryKey: ['outpatient-note-templates'] })
+        if (applied) onClose?.()
+      })
+    },
+  }
+
+  function createReviewedPlan(input: SaveOutpatientPlanTemplateInput, applyToDraft: boolean) {
+    void application.run(async isCurrent => {
+      const expected = requirePlanCreationInput(structuredClone(input))
+      const created = requireCreatedPlanReceipt(await api.outpatientPlanTemplates.create(expected), expected)
+      if (!isCurrent()) return undefined
+      const orders = applyToDraft ? await resolveTemplateOrders(created, encounter, api, allergies, allergyReady) : undefined
+      return { created, orders }
+    }, result => {
+      if (!result) return
+      const { created, orders } = result
+      if (orders) finishPlan(created, orders)
+      else {
+        setNotice(`已将开方习惯保存为个人常用方案“${created.name}”。`)
+        void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
       }
-      setPendingTemplateToApply(null)
-      const msg = `已带入“${plan.name}”${note ? `及配套病历模板“${note.name}”` : ''}，新增内容仍是草稿，请核对后保存病历和开立医嘱。`
-      setNotice(msg)
-      onNotice?.(msg)
-      void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
-      onClose?.()
-    },
-  })
-
-  const applyNote = useMutation({
-    mutationFn: (value: OutpatientNoteTemplate) => api.outpatientNoteTemplates.use(value.id),
-    onSuccess: (value) => {
-      onApplyNoteTemplate(value, checkedNoteFields, overwriteNoteFields)
-      const msg = `已带入病历模板“${value.name}”的 ${checkedNoteFields.size} 个段落，请结合患者情况核对。`
-      setNotice(msg)
-      onNotice?.(msg)
-      void queryClient.invalidateQueries({ queryKey: ['outpatient-note-templates'] })
-      onClose?.()
-    },
-  })
-
-  const applyHistoricalMutation = useMutation({
-    mutationFn: async (plan: HistoricalStablePlan) => {
-      return await api.outpatientPlanTemplates.create({
-        scopeType: 'PERSONAL',
-        name: plan.conditionTitle,
-        description: plan.summary,
-        sourceType: 'AI_INPUT',
-        diagnoses: plan.diagnoses,
-        medications: plan.medications,
-        services: plan.services,
-      })
-    },
-    onSuccess: (created) => {
-      stageTemplate(created, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
-        serviceDrafts, setServiceDrafts)
-      const msg = `已成功复用并带入患者既往成熟平稳期处方“${created.name}”！`
-      setNotice(msg)
-      onNotice?.(msg)
-      void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
-      onClose?.()
-    },
-  })
-
-  const solidifyMinedMutation = useMutation({
-    mutationFn: async (mined: MinedPlanSuggestion) => {
-      return await api.outpatientPlanTemplates.create({
-        scopeType: 'PERSONAL',
-        name: mined.suggestedName,
-        description: mined.description,
-        sourceType: 'AI_MINED',
-        diagnoses: mined.diagnoses,
-        medications: mined.medications,
-        services: mined.services,
-      })
-    },
-    onSuccess: (created) => {
-      setNotice(`已成功将开方习惯沉淀为个人常用方案“${created.name}”！`)
-      void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
-    },
-  })
-
-  const applyMinedMutation = useMutation({
-    mutationFn: async (mined: MinedPlanSuggestion) => {
-      return await api.outpatientPlanTemplates.create({
-        scopeType: 'PERSONAL',
-        name: mined.suggestedName,
-        description: mined.description,
-        sourceType: 'AI_MINED',
-        diagnoses: mined.diagnoses,
-        medications: mined.medications,
-        services: mined.services,
-      })
-    },
-    onSuccess: (created) => {
-      stageTemplate(created, diagnoses, setDiagnoses, medicationDrafts, setMedicationDrafts,
-        serviceDrafts, setServiceDrafts)
-      const msg = `已将高频方案“${created.name}”带入当前处方草稿！`
-      setNotice(msg)
-      onNotice?.(msg)
-      void queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
-      onClose?.()
-    },
-  })
+    })
+  }
+  const applyHistoricalMutation = {
+    isPending: application.pending,
+    mutate: (plan: HistoricalStablePlan) => createReviewedPlan({ scopeType: 'PERSONAL', name: plan.conditionTitle,
+      description: plan.summary, sourceType: 'AI_INPUT', diagnoses: plan.diagnoses, medications: plan.medications, services: plan.services }, true),
+  }
+  const solidifyMinedMutation = {
+    isPending: application.pending,
+    mutate: (plan: MinedPlanSuggestion) => createReviewedPlan({ scopeType: 'PERSONAL', name: plan.suggestedName,
+      description: plan.description, sourceType: 'AI_MINED', diagnoses: plan.diagnoses, medications: plan.medications, services: plan.services }, false),
+  }
+  const applyMinedMutation = {
+    isPending: application.pending,
+    mutate: (plan: MinedPlanSuggestion) => createReviewedPlan({ scopeType: 'PERSONAL', name: plan.suggestedName,
+      description: plan.description, sourceType: 'AI_MINED', diagnoses: plan.diagnoses, medications: plan.medications, services: plan.services }, true),
+  }
 
   // 勾选计数与调入处理
   const totalCheckedStandard = checkedDiagnosisCodes.size + checkedMedicationKeys.size + checkedServiceKeys.size
@@ -2433,7 +2547,6 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
       medications: selected.medications.filter((m, idx) => checkedMedicationKeys.has(m.lineId || `${m.medicationId}-${idx}`)),
       services: selected.services.filter((s, idx) => checkedServiceKeys.has(`${s.catalogItemId || s.itemCode || ''}-${idx}`)),
     }
-    setPendingTemplateToApply(templateToApply)
     apply.mutate(templateToApply)
   }
 
@@ -2444,29 +2557,15 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
   const handleApplyHistorical = () => {
     if (!historicalPlanQuery.data) return
     const comparison = historicalComparisonQuery.data
+    if (!hasHistoricalReviewEvidence(historicalPlanQuery.data) || historicalPlanQuery.isFetching || historicalPlanQuery.isError || historicalPlanQuery.data.encounterId !== encounter.id
+      || (comparisonTemplateId && (historicalComparisonQuery.isFetching || historicalComparisonQuery.isError || !comparison))) {
+      application.reject('历史方案或比较结果尚未确认，请重新加载后带入。'); return
+    }
     if (comparison) {
-      const standard = comparison.standardPlan
-      const diagnoses: HistoricalStablePlan['diagnoses'] = []
-      const medications: HistoricalStablePlan['medications'] = []
-      const services: HistoricalStablePlan['services'] = []
-      comparison.differences.filter((item) => checkedComparisonKeys.has(item.key)).forEach((item) => {
-        const source = comparisonSources.get(item.key) ?? 'HISTORICAL'
-        const index = source === 'HISTORICAL' ? item.historicalIndex : item.standardIndex
-        if (index === undefined) return
-        if (item.category === 'DIAGNOSIS') diagnoses.push(source === 'HISTORICAL'
-          ? comparison.historicalPlan.diagnoses[index] : standard.diagnoses[index])
-        if (item.category === 'MEDICATION') medications.push(source === 'HISTORICAL'
-          ? comparison.historicalPlan.medications[index] : standard.medications[index])
-        if (item.category === 'SERVICE') services.push(source === 'HISTORICAL'
-          ? comparison.historicalPlan.services[index] : standard.services[index])
-      })
-      const uniqueDiagnoses = [...new Map(diagnoses.map((item) => [`${item.codeSystem ?? ''}|${item.code}`, item])).values()]
-      const uniqueMedications = [...new Map(medications.map((item) => [`${item.medicationId}|${item.catalogItemId ?? ''}|${item.packageId ?? ''}`, item])).values()]
-      const uniqueServices = [...new Map(services.map((item) => [item.catalogItemId, item])).values()]
-      applyHistoricalMutation.mutate({ ...comparison.historicalPlan,
-        conditionTitle: `${comparison.historicalPlan.conditionTitle} + ${standard.name}`,
-        summary: `已逐项比较历史稳定方案与“${standard.name}”，仅带入医生勾选的项目。`,
-        diagnoses: uniqueDiagnoses, medications: uniqueMedications, services: uniqueServices })
+      try {
+        applyHistoricalMutation.mutate(selectHistoricalPlanDifferences(comparison, encounter.id,
+          comparisonTemplateId, checkedComparisonKeys, comparisonSources))
+      } catch (error) { application.reject(errorMessage(error)) }
       return
     }
     const filtered: HistoricalStablePlan = {
@@ -2482,6 +2581,9 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
 
   const handleApplyMined = () => {
     if (!selectedMined) return
+    if (minedQuery.isFetching || minedQuery.isError) {
+      application.reject('挖掘方案尚未确认，请重新加载后带入。'); return
+    }
     const filtered: MinedPlanSuggestion = {
       ...selectedMined,
       diagnoses: selectedMined.diagnoses.filter((d) => checkedMinedDiagnosisCodes.has(d.code)),
@@ -2491,9 +2593,12 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
     applyMinedMutation.mutate(filtered)
   }
 
-  const error = templates.error || noteTemplates.error || apply.error || applyNote.error
-    || historicalComparisonQuery.error || applyHistoricalMutation.error
-    || solidifyMinedMutation.error || applyMinedMutation.error
+  const error = application.error || templates.error || noteTemplates.error
+    || historicalPlanQuery.error || historicalComparisonQuery.error || minedQuery.error
+    || (historicalPlanQuery.data && !hasHistoricalReviewEvidence(historicalPlanQuery.data)
+      ? '历史核对状态未返回，请重新加载历史方案后再带入。' : null)
+    || (historicalComparisonQuery.data && !hasHistoricalReviewEvidence(historicalComparisonQuery.data.historicalPlan)
+      ? '历史比较核对状态未返回，请重新加载后再带入。' : null)
 
   const showingNoteTemplate = templateKind === 'NOTE'
     || (templateKind === 'ALL' && selectedKind === 'NOTE')
@@ -2513,7 +2618,12 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
 
   return <>
       <div className="doctor-plan-pool-modal is-drawer">
-        {error && <Alert>{errorMessage(error)}</Alert>}
+        {error && <div role="alert" className="doctor-plan-pool-notice">{typeof error === 'string' ? error : errorMessage(error)}
+          <Button variant="text" disabled={application.pending} onClick={() => {
+            void templates.refetch(); void noteTemplates.refetch()
+            if (scopeFilter === 'HISTORICAL') { void historicalPlanQuery.refetch(); if (comparisonTemplateId) void historicalComparisonQuery.refetch() }
+            if (scopeFilter === 'MINED') void minedQuery.refetch()
+          }}>重新加载模板</Button></div>}
         {notice && <div className="doctor-plan-pool-notice">{notice}</div>}
 
         {/* 顶部模板类型、方案范围与确认操作 */}
@@ -2545,7 +2655,7 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
               <Button
                 size="sm"
                 variant="primary"
-                disabled={!selectedNote || checkedNoteFields.size === 0}
+                disabled={busy || !selectedNote || checkedNoteFields.size === 0 || noteTemplates.isFetching || noteTemplates.isError}
                 busy={applyNote.isPending}
                 onClick={() => selectedNote && applyNote.mutate(selectedNote)}
               >
@@ -2555,7 +2665,9 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
               <Button
                 size="sm"
                 variant="primary"
-                disabled={!historicalPlanQuery.data || effectiveHistoricalSelectionCount === 0}
+                disabled={busy || !hasHistoricalReviewEvidence(historicalPlanQuery.data) || !historicalPlanQuery.data || effectiveHistoricalSelectionCount === 0 || historicalPlanQuery.isFetching || historicalPlanQuery.isError
+                  || Boolean(comparisonTemplateId && (historicalComparisonQuery.isFetching || historicalComparisonQuery.isError || !historicalComparisonQuery.data
+                    || !hasHistoricalReviewEvidence(historicalComparisonQuery.data.historicalPlan)))}
                 busy={applyHistoricalMutation.isPending}
                 onClick={handleApplyHistorical}
               >
@@ -2566,7 +2678,7 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
               <Button
                 size="sm"
                 variant="primary"
-                disabled={!selectedMined || totalCheckedMined === 0}
+                disabled={busy || !selectedMined || totalCheckedMined === 0 || minedQuery.isFetching || minedQuery.isError}
                 busy={applyMinedMutation.isPending}
                 onClick={handleApplyMined}
               >
@@ -2576,7 +2688,7 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
               <Button
                 size="sm"
                 variant="primary"
-                disabled={!selected || totalCheckedStandard === 0}
+                disabled={busy || !selected || totalCheckedStandard === 0 || templates.isFetching || templates.isError}
                 busy={apply.isPending}
                 onClick={handleApplyStandard}
               >
@@ -2825,16 +2937,18 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
                   <div className="doctor-plan-detail-hero">
                     <div className="doctor-plan-detail-hero__title">
                       <span>{historicalPlanQuery.data.conditionTitle}</span>
-                      <StatusBadge tone="success">复诊患者历史成熟方案</StatusBadge>
+                      <StatusBadge tone={historicalPlanQuery.data.reviewItems?.length ? 'warning' : 'info'}>历史重复方案</StatusBadge>
                     </div>
                     <p className="doctor-plan-detail-desc">
                       {historicalPlanQuery.data.summary}
                     </p>
                   </div>
 
-                  {comparisonTemplateId && (historicalComparisonQuery.isPending
+                  {comparisonTemplateId && (historicalComparisonQuery.isPending || historicalComparisonQuery.isFetching
                     ? <LoadingState label="正在计算历史与标准方案差异..." />
-                    : historicalComparisonQuery.data && (
+                    : !historicalComparisonQuery.isError && historicalComparisonQuery.data
+                      && hasHistoricalReviewEvidence(historicalPlanQuery.data)
+                      && hasHistoricalReviewEvidence(historicalComparisonQuery.data.historicalPlan) && (
                       <div className="doctor-plan-detail-section">
                         <div className="doctor-plan-detail-section__title">
                           与“{historicalComparisonQuery.data.standardPlan.name}”逐项比较
@@ -2850,43 +2964,58 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
                               <th className={tableCellClass('text')}>采用</th>
                             </tr></thead>
                             <tbody>{historicalComparisonQuery.data.differences.map((item) => {
-                              const checked = checkedComparisonKeys.has(item.key)
+                              const selectable = canSelectHistoricalPlanDifference(item.status)
+                              const status = historicalPlanDifferencePresentation(item.status)
+                              const checked = selectable && checkedComparisonKeys.has(item.key)
                               const source = comparisonSources.get(item.key)
-                                ?? (item.historicalIndex === undefined ? 'STANDARD' : 'HISTORICAL')
+                                ?? (item.historicalIndex == null ? 'STANDARD' : 'HISTORICAL')
                               const sourceOptions = [
-                                ...(item.historicalIndex === undefined ? [] : [{ value: 'HISTORICAL', label: '历史方案' }]),
-                                ...(item.standardIndex === undefined ? [] : [{ value: 'STANDARD', label: '标准方案' }]),
+                                ...(item.historicalIndex == null ? [] : [{ value: 'HISTORICAL', label: '历史方案' }]),
+                                ...(item.standardIndex == null ? [] : [{ value: 'STANDARD', label: '标准方案' }]),
                               ]
                               return <tr key={item.key} className={checked ? undefined : 'is-row-unchecked'}>
                                 <td className={tableCellClass('control')}><input type="checkbox"
                                   aria-label={`选择差异项 ${item.historicalDisplay || item.standardDisplay || item.key}`}
-                                  checked={checked} onChange={() => setCheckedComparisonKeys((current) => {
+                                  checked={checked} disabled={!selectable} onChange={() => setCheckedComparisonKeys((current) => {
                                     const next = new Set(current)
                                     if (next.has(item.key)) next.delete(item.key); else next.add(item.key)
                                     return next
                                   })} /></td>
                                 <td className={tableCellClass('status')}>{item.category === 'DIAGNOSIS' ? '诊断'
                                   : item.category === 'MEDICATION' ? '药品' : '诊疗'}</td>
-                                <td className={tableCellClass('status')}><StatusBadge tone={item.status === 'CONSISTENT'
-                                  ? 'success' : item.status === 'CONFLICT' ? 'warning' : 'neutral'}>
-                                  {item.status === 'CONSISTENT' ? '一致' : item.status === 'CONFLICT' ? '冲突'
-                                    : item.status === 'MISSING_IN_HISTORY' ? '历史缺失' : '标准缺失'}
+                                <td className={tableCellClass('status')}><StatusBadge tone={status.tone}>
+                                  {status.label}
                                 </StatusBadge></td>
                                 <td className={tableCellClass('text')}>{item.historicalDisplay || '—'}</td>
                                 <td className={tableCellClass('text')}>{item.standardDisplay || '—'}
                                   <small className="doctor-plan-item-subtext">{item.reason}</small></td>
-                                <td className={tableCellClass('text')}><Select aria-label={`选择 ${item.key} 的采用来源`}
-                                  value={source} onChange={(value) => setComparisonSources((current) => {
+                                <td className={tableCellClass('text')}>{sourceOptions.length ? <Select aria-label={`选择 ${item.key} 的采用来源`}
+                                  value={source} disabled={!selectable} onChange={(value) => setComparisonSources((current) => {
                                     const next = new Map(current)
                                     next.set(item.key, value as 'HISTORICAL' | 'STANDARD')
                                     return next
-                                  })} options={sourceOptions} clearable={false} searchable={false} /></td>
+                                  })} options={sourceOptions} clearable={false} searchable={false} /> : '需重新核对'}</td>
                               </tr>
                             })}</tbody>
                           </DataTable>
                         </TableShell>
                       </div>
                     ))}
+
+                  {hasHistoricalReviewEvidence(historicalPlanQuery.data) && historicalPlanQuery.data.reviewItems.length > 0 && (
+                    <div className="doctor-plan-detail-section">
+                      <div className="doctor-plan-detail-section__title">待核对的历史记录 ({historicalPlanQuery.data.reviewItems.length})</div>
+                      <TableShell className="doctor-plan-table-shell">
+                        <DataTable compact className="doctor-plan-items-table">
+                          <thead><tr><th className={tableCellClass('text')}>原始记录</th><th className={tableCellClass('text')}>未带入原因</th></tr></thead>
+                          <tbody>{historicalPlanQuery.data.reviewItems.map((item, index) => <tr key={`${item.category}:${item.sourceId}:${index}`}>
+                            <td className={tableCellClass('text')}>{item.display || item.code || '原记录名称未提供'}</td>
+                            <td className={tableCellClass('text')}>{item.reason}</td>
+                          </tr>)}</tbody>
+                        </DataTable>
+                      </TableShell>
+                    </div>
+                  )}
 
                   {historicalPlanQuery.data.guidanceNotes.length > 0 && (
                     <div className="doctor-plan-detail-notes">
@@ -3367,8 +3496,10 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
                                     />
                                   </td>
                                   <td className={`${tableCellClass('text')} doctor-col--med-name`}>
-                                    <div><strong>{m.medicationName}</strong></div>
-                                    {m.preparationSpec && <small className="doctor-plan-item-subtext">{m.preparationSpec}</small>}
+                                    <div className="doctor-plan-med-name-cell">
+                                      <strong>{m.medicationName}</strong>
+                                      {m.preparationSpec && <span className="doctor-plan-item-spec">{m.preparationSpec}</span>}
+                                    </div>
                                   </td>
                                   <td className={`${tableCellClass('numeric')} doctor-col--dose`}>{m.doseValue} {m.doseUnit}</td>
                                   <td className={`${tableCellClass('text')} doctor-col--route`}>{m.routeName || m.routeCode || '—'}</td>
@@ -3485,42 +3616,12 @@ function PlanTemplatePanel({ initialPlanId, encounterId, diagnoses, setDiagnoses
   </>
 }
 
-function stageTemplate(value: OutpatientPlanTemplate, currentDiagnoses: DiagnosisInput[],
-  setDiagnoses: Dispatch<SetStateAction<DiagnosisInput[]>>, currentMedications: MedicationPlanDraft[],
-  setMedications: Dispatch<SetStateAction<MedicationPlanDraft[]>>, currentServices: ServicePlanDraft[],
-  setServices: Dispatch<SetStateAction<ServicePlanDraft[]>>, allergyOverrideReason?: string,
-  allergyReviewConfirmed = true) {
-  const diagnosisCodes = new Set(currentDiagnoses.map((item) => item.code.toUpperCase()))
-  const hasPrimary = currentDiagnoses.some((item) => item.type === 'PRIMARY')
-  setDiagnoses((current) => normalizeDiagnosisOrder([...current, ...value.diagnoses
-    .filter((item) => !diagnosisCodes.has(item.code.toUpperCase()))
-    .map((item) => ({ ...item, type: hasPrimary && item.type === 'PRIMARY' ? 'SECONDARY' as const : item.type }))]))
-  const medicationKeys = new Set(currentMedications.map(medicationDraftKey))
-  setMedications((current) => [...current, ...value.medications.filter((item) => !medicationKeys.has([
-    item.medicationId, item.catalogItemId ?? '', item.routeCode ?? '', item.frequencyCode ?? '',
-  ].join('|'))).map((item, index) => ({
-    id: globalThis.crypto.randomUUID(), sequence: Date.now() + index, editorMode: item.editorMode, categoryCode: item.categoryCode,
-    medicationName: item.medicationName, medicationCode: item.medicationCode,
-    preparationSpec: item.preparationSpec, productName: item.productName || item.medicationName,
-    routeName: item.routeName, routeExecutionType: item.routeExecutionType,
-    administrationGroupKey: item.routeExecutionType === 'INFUSION'
-      ? `draft:${globalThis.crypto.randomUUID()}` : undefined,
-    request: {
-      medicationId: item.medicationId, catalogItemId: item.catalogItemId, packageId: item.packageId,
-      doseValue: item.doseValue, doseUnit: item.doseUnit, routeCode: item.routeCode,
-      frequencyCode: item.frequencyCode, durationValue: item.durationValue, durationUnit: item.durationUnit,
-      quantity: item.quantity, quantityUnit: item.quantityUnit,
-      substitutionAllowed: item.substitutionAllowed, selfProvided: item.selfProvided,
-      medicationInstruction: item.medicationInstruction, allergyReviewConfirmed,
-      allergyOverrideReason, priceType: item.priceType, pricingRequired: item.pricingRequired, reason: item.reason,
-    },
-  }))])
-  const serviceIds = new Set(currentServices.map((item) => item.catalogItemId))
-  setServices((current) => [...current, ...value.services.filter((item) => !serviceIds.has(item.catalogItemId))
-    .map((item, index) => ({ id: globalThis.crypto.randomUUID(), sequence: Date.now() + index,
-      serviceType: item.serviceType, catalogItemId: item.catalogItemId,
-      itemCode: item.itemCode, itemName: item.itemName, quantity: item.quantity, unitCode: item.unitCode,
-      clinicalDescription: item.clinicalDescription }))])
+function stageTemplateDiagnoses(values: DiagnosisInput[], currentDiagnoses: DiagnosisInput[], setDiagnoses: Dispatch<SetStateAction<DiagnosisInput[]>>) {
+  const diagnosisCodes = new Set(currentDiagnoses.map(item => item.code.toUpperCase()))
+  const hasPrimary = currentDiagnoses.some(item => item.type === 'PRIMARY')
+  setDiagnoses(current => normalizeDiagnosisOrder([...current, ...values
+    .filter(item => !diagnosisCodes.has(item.code.toUpperCase()))
+    .map(item => ({ ...item, type: hasPrimary && item.type === 'PRIMARY' ? 'SECONDARY' as const : item.type }))]))
 }
 
 function medicationDraftKey(item: MedicationPlanDraft) {
@@ -3672,42 +3773,22 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
     mutationFn: (value: MedicationRequest) =>
       api.encounters.cancelMedicationRequest(encounter.id, value.id, value.revision, '医生站撤销'), onSuccess: refresh,
   })
-  const saveDraftOrders = useMutation({
-    mutationFn: async () => {
-      const currentPrescriptions = await api.encounters.prescriptions(encounter.id).catch(() => prescriptions.data ?? [])
-      await persistOrderDrafts(encounter.id, medicationDrafts, serviceDrafts, api, currentPrescriptions)
-    },
-    onSuccess: async () => {
-      setMedicationDrafts([])
-      setServiceDrafts([])
-      await refresh()
-    },
-  })
-  const splitPreview = useQuery({
-    queryKey: ['auto-split-preview', encounter.id, medicationDrafts],
-    queryFn: () => medicationDrafts.length > 0
-      ? api.encounters.autoSplitPreview(encounter.id, medicationDrafts.map(draftToBatchItem))
-      : Promise.resolve<SplitPrescriptionPlan[]>([]),
-    enabled: reviewOpen && medicationDrafts.length > 0,
-  })
+  const splitPreview = usePrescriptionSplitPreview({ api: api.encounters, encounter,
+    items: medicationDrafts.map(draftToBatchItem), enabled: reviewOpen })
   const confirmPlan = useMutation({
     mutationFn: async ({ acknowledged }: { acknowledged: boolean }) => {
+      splitPreview.requireReady()
       const defaultPrescriptionInfo = buildDefaultDocumentInfo(encounter, 'prescription')
       const defaultServiceInfo = buildDefaultDocumentInfo(encounter, 'service')
       const existingPrescriptionIds = new Set((prescriptions.data ?? []).map((value) => value.id))
       const existingServiceIds = new Set((services.data ?? []).map((value) => value.id))
 
       const clinicalDraftSaved = await onSaveClinicalDraft()
-      if (!clinicalDraftSaved && (medicationDrafts.length > 0 || serviceDrafts.length > 0)) {
-        await persistOrderDrafts(encounter.id, medicationDrafts, serviceDrafts, api, [], false)
-        setMedicationDrafts([])
-        setServiceDrafts([])
-        await refresh()
-      }
+      if (!clinicalDraftSaved) throw new Error('本次草稿保存未完成，请处理保存提示后重新开立')
 
       const [latestPrescriptions, latestServices] = await Promise.all([
-        api.encounters.prescriptions(encounter.id).catch(() => []),
-        api.encounters.serviceRequests(encounter.id).catch(() => []),
+        api.encounters.prescriptions(encounter.id),
+        api.encounters.serviceRequests(encounter.id),
       ])
 
       const draftPrescriptions = latestPrescriptions.filter((p) => p.status === 'DRAFT')
@@ -3820,7 +3901,7 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
       allDocs.forEach((doc) => {
         next[doc.key] = { ...(next[doc.key] || doc.value.documentInfo || buildDefaultDocumentInfo(encounter, doc.kind)), diagnoses: primaryLink }
       })
-      ;(splitPreview.data ?? []).forEach((_, idx) => {
+      ;splitPreview.plans.forEach((_, idx) => {
         next[`preview-plan-${idx}`] = { ...(next[`preview-plan-${idx}`] || buildDefaultDocumentInfo(encounter, 'prescription')), diagnoses: primaryLink }
       })
       serviceDrafts.forEach((service) => {
@@ -3831,15 +3912,14 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
       return next
     })
   }
-  useEffect(() => onBusyChange(confirmPlan.isPending || saveDraftOrders.isPending || documentDirty), [confirmPlan.isPending, saveDraftOrders.isPending, documentDirty, onBusyChange])
+  useEffect(() => onBusyChange(confirmPlan.isPending || documentDirty), [confirmPlan.isPending, documentDirty, onBusyChange])
   const persistedDraftCount = (prescriptions.data ?? []).reduce((sum, value) => sum
     + (value.status === 'DRAFT' ? value.medicationRequests.filter((request) => request.status === 'DRAFT').length : 0), 0)
   const planCount = medicationDrafts.length + serviceDrafts.length + persistedDraftCount
   const orderCount = (services.data?.length ?? 0) + (medications.data?.length ?? 0)
-  const splitSummary = prescriptionSplitSummary(medicationDrafts, prescriptions.data ?? [])
   const hasUnverifiedAllergyDraft = medicationDrafts.some((value) => value.request.allergyReviewConfirmed !== true)
   const error = prescriptions.error || services.error || medications.error
-    || cancelService.error || cancelMedication.error || saveDraftOrders.error
+    || cancelService.error || cancelMedication.error
   const hasAnyOrders = orderCount + planCount > 0
   const safetyBlocked = safetyReviews.some(medicationSafetyBlocksSubmission)
   const safetyReasonMissing = safetyReviews.some((review) => medicationSafetyNeedsReason(review)
@@ -3855,8 +3935,7 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
     safetyPreviewKey.current = persistedDraftSignature
     previewSafetyReview.mutate(persistedDraftPrescriptions)
   }, [reviewOpen, persistedDraftSignature])
-  const previewPrescriptionDocumentCount = medicationDrafts.length > 0
-    ? (splitPreview.data?.length ?? splitSummary.reduce((sum, item) => sum + item.prescriptionCount, 0)) : 0
+  const previewPrescriptionDocumentCount = splitPreview.plans.length
   const pendingPrescriptionDocumentCount = previewPrescriptionDocumentCount + persistedDraftPrescriptions.length
   const reviewDocumentCount = planCount === 0 ? documents.length
     : pendingPrescriptionDocumentCount + serviceDrafts.length + persistedServiceDocuments.length
@@ -3873,7 +3952,7 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
     const label = type === 'LABORATORY' ? '检验' : type === 'EXAMINATION' ? '检查' : '治疗/处置'
     reviewTypeCounts.set(label, (reviewTypeCounts.get(label) ?? 0) + 1)
   }
-  ;(splitPreview.data ?? []).forEach(plan => countPrescription(plan.categoryCode))
+  ;splitPreview.plans.forEach(plan => countPrescription(plan.categoryCode))
   persistedDraftPrescriptions.forEach(rx => countPrescription(rx.categoryCode))
   serviceDrafts.forEach(service => countService(service.serviceType))
   documents.filter(doc => doc.kind === 'service' || (planCount === 0 && doc.value.status !== 'DRAFT'))
@@ -3949,8 +4028,8 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
           {planCount > 0 ? '返回修改' : '关闭'}
         </Button>
         {planCount > 0 ? (
-          <Button busy={confirmPlan.isPending} disabled={saveDraftOrders.isPending || previewSafetyReview.isPending
-            || safetyBlocked || safetyReasonMissing
+          <Button busy={confirmPlan.isPending} disabled={previewSafetyReview.isPending
+            || !splitPreview.ready || safetyBlocked || safetyReasonMissing
             || (planCount === 0 && safetyReviews.length === 0)}
             onClick={() => confirmPlan.mutate({ acknowledged: safetyReviews.length > 0 })}>
             {safetyBlocked ? '当前处方不可开立' : safetyReviews.length > 0 ? '已知晓风险，继续开立' : '确认分单并开立'}
@@ -4037,9 +4116,9 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
 
         <div className="doctor-split-overview-bar">
           <div className="doctor-split-overview-summary">
-            <strong>{reviewDocumentCount} 张单据</strong>
+            <strong>{splitPreview.ready ? `${reviewDocumentCount} 张单据` : '单据数量待确认'}</strong>
             <span>{reviewItemCount} 项医嘱</span>
-            <span aria-label="单据分类统计">{reviewTypeSummary}</span>
+            <span aria-label="单据分类统计">{splitPreview.ready ? reviewTypeSummary : '药品分方待确认'}</span>
           </div>
           {encounter.diagnoses.length > 0 && (
             <div className="doctor-split-overview-actions">
@@ -4050,15 +4129,19 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
           )}
         </div>
 
-        {splitPreview.isLoading && <LoadingState />}
+        {medicationDrafts.length > 0 && splitPreview.isFetching && <LoadingState label="正在核对药品分方…" />}
+        {medicationDrafts.length > 0 && splitPreview.isError && <div role="alert" className="doctor-unified-order-alert">
+          分方预览失败：{errorMessage(splitPreview.error)}
+          <Button variant="secondary" disabled={splitPreview.isFetching} onClick={() => void splitPreview.refetch()}>重新核对分方</Button>
+        </div>}
 
         <OrderDocumentReviewList>
           {/* 1. 待开立药品的自动分方预览卡片 */}
-          {(splitPreview.data ?? []).map((plan, pIdx) => {
+          {splitPreview.plans.map((plan, pIdx) => {
             const cardKey = `preview-plan-${pIdx}`
             const kind = plan.categoryCode === 'HERBAL' ? 'herbal'
               : plan.categoryCode === 'CHINESE_PATENT' ? 'patent' : 'western'
-            const categoryIndex = (splitPreview.data ?? []).slice(0, pIdx + 1)
+            const categoryIndex = splitPreview.plans.slice(0, pIdx + 1)
               .filter((candidate) => candidate.categoryCode === plan.categoryCode).length
             const currentInfo = reviewDocumentInfos[cardKey] || buildDefaultDocumentInfo(encounter, 'prescription')
             const items = plan.items.map((pi, iIdx) => {
@@ -4071,9 +4154,9 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
                 doseText: pi.item.doseValue ? `${pi.item.doseValue} ${pi.item.doseUnit || ''}` : '—',
                 routeAndFreqText: [routeDisplay(pi.item.routeCode, matchDraft?.routeName),
                   frequencyDisplay(pi.item.frequencyCode),
-                  pi.item.durationValue ? `${pi.item.durationValue}${pi.item.durationUnit || '天'}` : ''].filter(Boolean).join(' · '),
+                  pi.item.durationValue ? `${pi.item.durationValue}${pi.item.durationUnit || '单位待确认'}` : ''].filter(Boolean).join(' · '),
                 instruction: matchDraft?.request.medicationInstruction,
-                quantityText: `${pi.item.quantity} ${pi.item.quantityUnit || '盒'}`,
+                quantityText: `${pi.item.quantity} ${pi.item.quantityUnit || '单位待确认'}`,
                 isInfusionGroup: Boolean(pi.groupKey),
                 isGroupLeader: pi.groupLeader,
               }
@@ -4084,7 +4167,9 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
                 cardKey={cardKey}
                 title={prescriptionReviewTitle(plan.categoryCode, categoryIndex)}
                 kind={kind}
-                deptOrSite={plan.stockSiteName || '默认药房'}
+                deptOrSite={summarizeExecutingDepartments(plan.items.map(({ item }) => ({
+                  kind: 'medication', stockSiteName: item.stockSiteName, selfProvided: item.selfProvided,
+                })))}
                 ruleReasons={plan.ruleReasons}
                 items={items}
                 info={currentInfo}
@@ -4118,8 +4203,8 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
                 cardKey={cardKey}
                 title={serviceReviewTitle(serviceType, sameTypeIndex)}
                 kind={kind}
-                deptOrSite={serviceType === 'LABORATORY' ? '检验科'
-                  : serviceType === 'EXAMINATION' ? '检查科室' : currentDepartmentName || '门诊'}
+                deptOrSite={resolveExecutingDepartment({ kind: 'service', performerDepartmentId: service.performerDepartmentId,
+                  performerDepartmentName: service.performerDepartmentName })}
                 items={items}
                 info={currentInfo}
                 onChangeInfo={(next) => setReviewDocumentInfos((curr) => ({ ...curr, [cardKey]: next }))}
@@ -4134,7 +4219,7 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
               const cardKey = `prescription:${rx.id}`
               const kind = rx.categoryCode === 'CHINESE_PATENT' ? 'patent'
                 : rx.categoryCode === 'HERBAL' ? 'herbal' : 'western'
-              const categoryIndex = (splitPreview.data ?? []).filter(plan => plan.categoryCode === rx.categoryCode).length
+              const categoryIndex = splitPreview.plans.filter(plan => plan.categoryCode === rx.categoryCode).length
                 + persistedDraftPrescriptions.slice(0, rxIdx + 1)
                   .filter((candidate) => candidate.categoryCode === rx.categoryCode).length
               const currentInfo = reviewDocumentInfos[cardKey]
@@ -4157,7 +4242,7 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
                   cardKey={cardKey}
                   title={prescriptionReviewTitle(rx.categoryCode, categoryIndex)}
                   kind={kind}
-                  deptOrSite={rx.categoryCode === 'CHINESE_PATENT' ? '中成药房' : rx.categoryCode === 'HERBAL' ? '中药房' : '西药房'}
+                  deptOrSite={resolveExecutingDepartment({ kind: 'medication' })}
                   items={items}
                   info={currentInfo}
                   onChangeInfo={(next) => setReviewDocumentInfos((curr) => ({ ...curr, [cardKey]: next }))}
@@ -4213,10 +4298,8 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
                 title={isPrescription && rx ? prescriptionReviewTitle(rx.categoryCode, typeIndex)
                   : svc ? serviceReviewTitle(svc.serviceType, typeIndex) : doc.shortLabel}
                 kind={kind}
-                deptOrSite={isPrescription
-                  ? (rx?.categoryCode === 'CHINESE_PATENT' ? '中成药房' : rx?.categoryCode === 'HERBAL' ? '中药房' : '西药房')
-                  : svc?.serviceType === 'LABORATORY' ? '检验科'
-                    : svc?.serviceType === 'EXAMINATION' ? '检查科室' : currentDepartmentName || '门诊'}
+                deptOrSite={resolveExecutingDepartment(isPrescription ? { kind: 'medication' }
+                  : { kind: 'service', performerDepartmentId: svc?.performerDepartmentId })}
                 items={items}
                 info={currentInfo}
                 onChangeInfo={(next) => setReviewDocumentInfos((curr) => ({ ...curr, [cardKey]: next }))}
@@ -5102,24 +5185,6 @@ function EncounterPrintPanel({
   )
 }
 
-function ResultsPanel({ encounter, api }: { encounter: Encounter; api: RhnApi }) {
-  const reports = useQuery({ queryKey: ['doctor-reports', encounter.id], queryFn: () => api.diagnostics.reportsByEncounter(encounter.id) })
-  return <Panel><PanelHead title="本次检查检验结果" meta={`${reports.data?.length ?? 0} 份报告`}
-    actions={<Button size="sm" variant="secondary" onClick={() => void reports.refetch()}><Icon name="refresh" />刷新</Button>} />
-    {reports.error && <Alert>{errorMessage(reports.error)}</Alert>}
-    {reports.isPending ? <LoadingState /> : !reports.data?.length
-      ? <EmptyState icon="clinical" title="暂无报告" copy="报告接收后会按版本展示，获取失败不会伪造空结果。" />
-      : <div className="doctor-report-list">{reports.data.map((report) => <article key={report.id}><header>
-        <div><strong>{report.reportName}</strong><small>{report.reportCode} · V{report.reportVersion} · {formatTime(report.issuedAt)}</small></div>
-        <StatusBadge tone={report.status === 'FINAL' ? 'success' : 'warning'}>{report.status}</StatusBadge></header>
-        <p>{report.conclusion || '无报告结论'}</p><div>{report.observations.map((item) => <span key={item.id}
-          className={isAbnormalObservation(item) ? 'is-abnormal' : ''}>
-          {item.observationName}：{item.valueNumber ?? item.valueString ?? item.valueCode ?? '—'} {item.unitCode ?? ''}
-          {isAbnormalObservation(item) ? ' · 异常' : ''}</span>)}</div>
-      </article>)}</div>}
-  </Panel>
-}
-
 
 const defaultHistoryRecordFields: HistoryRecordField[] = [
   'chiefComplaint', 'presentIllness', 'medicalHistory', 'physicalExam',
@@ -5140,12 +5205,13 @@ interface HistoryCopyGroup {
 
 const historyDiagnosisKey = (code: string): HistoryCopyField => `diagnosis:${code}`
 
-function HistoryPanel({ encounters, currentEncounterId, api, copyDisabled = false, onCopy, allergies = [], allergyReady = false }: {
-  encounters: Encounter[]; currentEncounterId?: string; api: RhnApi; copyDisabled?: boolean
+function HistoryPanel({ encounters, currentEncounter, api, copyDisabled = false, onCopy, allergies = [], allergyReady = false }: {
+  encounters: Encounter[]; currentEncounter: Encounter; api: RhnApi; copyDisabled?: boolean
   onCopy?: (draft: HistoryCopyDraft) => void
   allergies?: AllergyIntolerance[]
   allergyReady?: boolean
 }) {
+  const currentEncounterId = currentEncounter.id
   const history = encounters.filter((item) => item.id !== currentEncounterId)
   const historyIds = history.map((item) => item.id).join(',')
   const [selectedId, setSelectedId] = useState<string | null>(history[0]?.id ?? null)
@@ -5243,7 +5309,7 @@ function HistoryPanel({ encounters, currentEncounterId, api, copyDisabled = fals
             <Icon name="chevron-right" />
           </Button>)}</div>
         <section className="doctor-history-detail" aria-label="历史就诊详情">
-          {selected && <HistoryPrescriptionReference key={selected.id} encounter={selected} api={api}
+          {selected && <HistoryPrescriptionReference key={selected.id} encounter={selected} targetEncounter={currentEncounter} api={api}
             disabled={copyDisabled || !onCopy} allergies={allergies} allergyReady={allergyReady}
             onStage={(medicationDrafts) => onCopy?.({ requestId: Date.now(), sourceEncounterNo: selected.encounterNo,
               sourceRegisteredAt: selected.registeredAt, record: {}, medicationDrafts })} />}

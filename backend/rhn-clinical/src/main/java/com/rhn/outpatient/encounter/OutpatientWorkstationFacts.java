@@ -82,6 +82,9 @@ class EncounterStatusEvent {
         this.reason = reason;
         this.occurredAt = Instant.now();
     }
+
+    Long userId() { return userId; }
+    Instant occurredAt() { return occurredAt; }
 }
 
 @Entity
@@ -141,7 +144,7 @@ class EncounterDiagnosisRevision {
     @Column(name = "ID_CONCEPT") private Long conceptId;
     @Column(name = "CD_CODE_SYS_SNAP") private String codeSystemCodeSnapshot;
     @Column(name = "CODE_SYSTEM_VERSION_SNAP") private String codeSystemVersionSnapshot;
-    @Column(name = "SD_DIAG_DOMAIN", nullable = false) private String diagnosisDomain;
+    @Column(name = "SD_DIAG_DOMAIN") private String diagnosisDomain;
     @Column(name = "ID_DIAG_GRP") private String diagnosisGroupId;
     @Column(name = "JSON_MGMT_SNAP") private String managementSnapshotJson;
     @Column(name = "DES_CLIN_NOTE") private String clinicalNote;

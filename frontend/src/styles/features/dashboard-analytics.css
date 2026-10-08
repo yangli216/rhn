@@ -279,51 +279,18 @@
   text-overflow: ellipsis;
 }
 
-/* Roadmap Panel & Card */
-.roadmap-panel {
+/* Portal summary scope */
+.portal-summary-scope {
   display: flex;
   flex-direction: column;
 }
-.foundation-checklist {
-  padding: var(--space-4) var(--space-5) 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.roadmap-card {
-  margin: var(--space-4) var(--space-5) var(--space-5);
+.portal-summary-scope__body {
   padding: var(--space-3) var(--space-4);
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-border));
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-soft) 30%, var(--color-surface)), var(--color-surface));
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
 }
-.roadmap-card__icon {
-  width: 2.25rem;
-  height: 2.25rem;
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-md);
-  color: var(--color-brand-primary);
-  background: var(--color-brand-soft);
-}
-.roadmap-card__icon .ui-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-.roadmap-card strong {
-  display: block;
-  font-size: var(--font-size-small);
-  color: var(--color-text-primary);
-}
-.roadmap-card p {
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-small);
-  line-height: 1.4;
+.portal-summary-scope__body p {
+  margin: 0 0 var(--space-3);
 }
 
 /* Quick Access Capabilities Cards */
@@ -374,26 +341,6 @@
 .quick-access-card__icon .ui-icon {
   width: 1.35rem;
   height: 1.35rem;
-}
-.quick-access-card__badge {
-  padding: 0.125rem 0.5rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
-  border-radius: var(--radius-round);
-  background: var(--color-success-soft);
-  color: var(--color-success);
-  font-size: 0.6875rem;
-  font-weight: var(--font-weight-medium);
-  line-height: 1;
-}
-.quick-access-card__dot {
-  width: 0.375rem;
-  height: 0.375rem;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.9;
 }
 .quick-access-card__body {
   display: grid;

@@ -325,6 +325,17 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     }
 
     @Transactional
+    public StaffDetailView onboardStaff(String code, String fullName, PractitionerGender gender,
+                                       Long organizationId, Long departmentId, Long positionId, LocalDate hireDate) {
+        StaffView practitioner = createStaff(current().tenantId(), code, fullName, gender);
+        EmploymentView employment = createEmployment(practitioner.id(), organizationId, "EMP_" + practitioner.id(),
+                EmploymentType.PERMANENT, true, hireDate, null);
+        StaffAssignmentView assignment = createAssignment(employment.id(), organizationId, departmentId, positionId,
+                "ASN_" + practitioner.id(), AssignmentType.PRIMARY, null, true, BigDecimal.valueOf(100), hireDate, null);
+        return new StaffDetailView(practitioner, List.of(employment), List.of(assignment));
+    }
+
+    @Transactional
     public StaffView changeStaffStatus(Long id, long expectedRevision, PersonnelStatus status) {
         Practitioner practitioner = requirePractitioner(current().tenantId(), id);
         return RevisionGuard.supply("PRACTITIONER_REVISION_CONFLICT",
@@ -358,6 +369,9 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         Organization organization = requireEntity(context.tenantId(), organizationId);
         requireKind(organization, OrganizationKind.LEGAL_ORGANIZATION, "EMPLOYMENT_ORGANIZATION_INVALID",
                 "聘用机构必须是法定机构");
+        if (organization.status() != OrganizationStatus.ACTIVE) {
+            throw conflict("ORGANIZATION_INACTIVE", "停用机构不能新增聘用关系");
+        }
         String normalizedCode = normalizeCode(code);
         if (employmentRepository.existsByTenantIdAndCode(context.tenantId(), normalizedCode)) {
             throw conflict("EMPLOYMENT_CODE_DUPLICATE", "聘用代码已经存在");
@@ -404,6 +418,9 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         Department department = requireDepartmentEntity(context.tenantId(), organizationId, departmentId);
         Position position = positionRepository.findByIdAndTenantId(positionId, context.tenantId())
                 .orElseThrow(() -> notFound("POSITION_NOT_FOUND", "未找到标准岗位"));
+        if (organization.status() != OrganizationStatus.ACTIVE || department.status() != OrganizationStatus.ACTIVE) {
+            throw conflict("ASSIGNMENT_TARGET_INACTIVE", "停用机构或科室不能用于新任职");
+        }
         if (position.status() != PersonnelStatus.ACTIVE) {
             throw conflict("POSITION_INACTIVE", "停用岗位不能用于新任职");
         }

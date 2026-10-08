@@ -74,9 +74,7 @@ public class DirectVisitBillingService implements DirectVisitBillingDirectory {
                         organizationId, departmentId, price.currencyCode())));
         Instant now = Instant.now();
         var item = resolved.item();
-        String accountingCategory = item.accountingCategory() != null && !item.accountingCategory().isBlank()
-                ? item.accountingCategory().trim()
-                : "REGISTRATION";
+        String accountingCategory = com.rhn.shared.text.Strings.trimToNull(item.accountingCategory());
         var charge = charges.save(new ChargeItem(context.tenantId(), organizationId, departmentId, account.id(),
                 residentId, encounterId, null, catalogItemId, "DIRECT_VISIT_SERVICE", encounterId,
                 "DIRECT-VISIT-" + encounterId, BigDecimal.ONE, item.unitCode(), amount, amount,

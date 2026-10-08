@@ -63,15 +63,17 @@ public class TreatmentExecutionItem {
     public void authorize(Long settlementId) { this.settlementId = settlementId; }
     public void reverseAuthorization() { this.settlementId = null; }
     public void fulfill(Long fulfillmentId, String status) {
-        this.fulfillmentId = fulfillmentId; this.fulfillmentStatus = status == null ? "COMPLETED" : status;
+        this.fulfillmentId = fulfillmentId; this.fulfillmentStatus = status;
     }
     public void reverseFulfillment(String status) {
-        this.fulfillmentId = null; this.fulfillmentStatus = status == null ? "PENDING" : status;
+        this.fulfillmentId = null; this.fulfillmentStatus = status;
     }
     public void cancel(Instant occurredAt) { this.cancelledAt = occurredAt; }
     public boolean cancelled() { return cancelledAt != null; }
     public boolean settled() { return !settlementRequired || settlementId != null; }
-    public boolean fulfilled() { return !fulfillmentRequired || fulfillmentId != null; }
+    public boolean fulfilled() {
+        return !fulfillmentRequired || fulfillmentId != null && "COMPLETED".equals(fulfillmentStatus);
+    }
     public boolean ready() { return !cancelled() && settled() && fulfilled(); }
 
     public Long id() { return id; }

@@ -36,4 +36,13 @@ public record BatchOrderMedicationItem(
         @Size(max = 500) String skinTestExemptReason,
         Long exemptEvidenceEventId,
         @Size(max = 1000) String reason
-) {}
+) {
+    BatchOrderMedicationItem withResolvedFacts(Long verifiedMedicationId, String verifiedCategory, String verifiedRoute,
+                                              String verifiedExecutionType, Long verifiedSiteId, String verifiedSiteName) {
+        return new BatchOrderMedicationItem(verifiedMedicationId, catalogItemId, packageId, doseValue, doseUnit,
+                verifiedRoute, frequencyCode, durationValue, durationUnit, quantity, quantityUnit,
+                substitutionAllowed, selfProvided, medicationInstruction, allergyReviewConfirmed, allergyOverrideReason,
+                priceType, pricingRequired, verifiedSiteId, verifiedSiteName, administrationGroupKey,
+                verifiedExecutionType, verifiedCategory, skinTestExempt, skinTestExemptReason, exemptEvidenceEventId, reason);
+    }
+}

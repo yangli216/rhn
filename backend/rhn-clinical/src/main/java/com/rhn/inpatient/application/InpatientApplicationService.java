@@ -171,11 +171,11 @@ public class InpatientApplicationService {
                 context.tenantId(), resident.id(), nextBusinessNo("IPE"), context.organizationId(),
                 department.id(), episode.id(), bedLocation.id(), context.practitionerId(), admittedAt));
         episodeDetails.save(new InpatientEpisodeDetail(
-                episode.id(), context.tenantId(), defaultCode(input.admissionTypeCode(), "GENERAL"),
-                defaultCode(input.admissionSourceCode(), "OUTPATIENT"), bedLocation.id(), Strings.trimToNull(input.admissionReason()),
-                defaultCode(input.nursingLevelCode(), "LEVEL_III"), defaultCode(input.dietCode(), "NORMAL"),
-                bedLocation.name(), input.responsibleNurseId(), defaultCode(input.admissionMethodCode(), "WALKING"),
-                defaultCode(input.conditionCode(), "GENERAL"), defaultCode(input.paymentMethodCode(), "SELF_PAY"),
+                episode.id(), context.tenantId(), optionalCode(input.admissionTypeCode()),
+                optionalCode(input.admissionSourceCode()), bedLocation.id(), Strings.trimToNull(input.admissionReason()),
+                optionalCode(input.nursingLevelCode()), optionalCode(input.dietCode()),
+                bedLocation.name(), input.responsibleNurseId(), optionalCode(input.admissionMethodCode()),
+                optionalCode(input.conditionCode()), optionalCode(input.paymentMethodCode()),
                 Strings.trimToNull(input.referralOrganizationName()), Strings.trimToNull(input.emergencyContactName()),
                 contactRelationship, Strings.trimToNull(input.emergencyContactPhone()),
                 Strings.trimToNull(input.admissionNote())));
@@ -270,7 +270,7 @@ public class InpatientApplicationService {
         occupancies.flush();
         bed.markCleaning(actorId);
         encounter.complete();
-        detail.discharge(occupancy.bedLocationId(), defaultCode(input.dispositionCode(), "HOME"), Strings.trimToNull(input.note()));
+        detail.discharge(occupancy.bedLocationId(), optionalCode(input.dispositionCode()), Strings.trimToNull(input.note()));
         episode.discharge(input.expectedRevision(), actorId);
         events.save(new InpatientEvent(
                 context.tenantId(), episode.id(), encounter.id(), "DISCHARGED", "ADMITTED", "DISCHARGED",
@@ -611,9 +611,9 @@ public class InpatientApplicationService {
         return trimmed == null ? "" : trimmed.toUpperCase(Locale.ROOT);
     }
 
-    private static String defaultCode(String value, String fallback) {
+    private static String optionalCode(String value) {
         String normalized = normalize(value);
-        return normalized.isEmpty() ? fallback : normalized;
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private static String defaultText(String value, String fallback) {
@@ -629,7 +629,7 @@ public class InpatientApplicationService {
                 requiredText(value.code(), "INPATIENT_DIAGNOSIS_CODE_REQUIRED", "诊断编码不能为空").toUpperCase(Locale.ROOT),
                 requiredText(value.display(), "INPATIENT_DIAGNOSIS_DISPLAY_REQUIRED", "诊断名称不能为空"),
                 requiredDiagnosisType(value.diagnosisType()),
-                requiredVerificationStatus(value.verificationStatus()))).toList();
+                requiredVerificationStatus(value.verificationStatus()), value.conceptId(), value.diagnosisDomain())).toList();
         if (normalized.stream().filter(value -> "PRIMARY".equals(value.diagnosisType())).count() > 1) {
             throw badRequest("INPATIENT_PRIMARY_DIAGNOSIS_DUPLICATE", stageName + "诊断只能有一条主要诊断");
         }
@@ -642,13 +642,13 @@ public class InpatientApplicationService {
     private static DischargeDiagnosisView diagnosisView(
             EncounterDiagnosisDirectory.DiagnosisSnapshot value) {
         return new DischargeDiagnosisView(value.id(), value.diagnosisStage(), value.code(), value.display(),
-                value.diagnosisType(), value.verificationStatus(), value.diagnosisStatus());
+                value.diagnosisType(), value.verificationStatus(), value.diagnosisStatus(), value.conceptId(), value.diagnosisDomain());
     }
 
     private static AdmissionDiagnosisView admissionDiagnosisView(
             EncounterDiagnosisDirectory.DiagnosisSnapshot value) {
         return new AdmissionDiagnosisView(value.id(), value.diagnosisStage(), value.code(), value.display(),
-                value.diagnosisType(), value.verificationStatus(), value.diagnosisStatus());
+                value.diagnosisType(), value.verificationStatus(), value.diagnosisStatus(), value.conceptId(), value.diagnosisDomain());
     }
 
     private static String requiredDiagnosisType(String value) {
@@ -700,7 +700,7 @@ public class InpatientApplicationService {
     }
 
     public record DiagnosisCommand(
-            String code, String display, String diagnosisType, String verificationStatus) {
+            String code, String display, String diagnosisType, String verificationStatus, Long conceptId, String diagnosisDomain) {
     }
 
     public record MovementCommand(long expectedRevision, Long targetBedId, String reason, String commandCode) {

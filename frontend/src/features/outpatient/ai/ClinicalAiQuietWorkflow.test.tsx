@@ -17,7 +17,8 @@ function result(input: GenerateClinicalAiSuggestionInput): ClinicalAiSuggestion 
     expiresAt: new Date(Date.now() + 600000).toISOString(), summary: '已整理合成资料', recordDraft: { chiefComplaint: '待核对的测试主诉' },
     diagnosisCandidates: [], differentialDiagnoses: [], missingInformation: [], safetyAlerts: [], recommendedPlans: [], disclaimer: '待核对' }
 }
-function setup(generateStream = vi.fn().mockImplementation(async (_id, input) => result(input)), withTreatmentReview = false, plans?: ClinicalAiRecommendedPlan[]) {
+function setup(generateStream = vi.fn().mockImplementation(async (_id, input) => result(input)), withTreatmentReview = false,
+  plans?: ClinicalAiRecommendedPlan[], diagnoses: ClinicalAiDraftContext['diagnoses'] = []) {
   const reviewRecommendedPlan = vi.fn()
   const recommendPlans = vi.fn().mockResolvedValue(plans ?? [])
   const recordEvent = vi.fn().mockResolvedValue(undefined), apply = vi.fn(), onFieldStream = vi.fn()
@@ -25,12 +26,17 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
     features: ['BACKGROUND_DRAFT', 'STREAMING_DRAFT', 'RECORD_COMPLETENESS', 'PLAN_RECOMMENDATIONS', 'TERMINOLOGY_VALIDATION', 'AUDIT_TRAIL', 'VOICE_TRANSCRIPTION'] }),
     generateStream, recommendPlans, history: vi.fn().mockResolvedValue([]), recordEvent },
     masterData: { diseases: vi.fn().mockResolvedValue([
-      { code: 'J06.9', display: '测试诊断甲', sdStatus: 'ACTIVE', systemCode: 'WHO.BD.CS.ICD10' },
-      { code: 'R50.9', display: '测试诊断乙', sdStatus: 'ACTIVE', systemCode: 'WHO.BD.CS.ICD10' },
+      { id: 'western-j069', code: 'J06.9', display: '测试诊断甲', sdStatus: 'ACTIVE', systemCode: 'WHO.BD.CS.ICD10',
+        sdDiagnosisDomain: 'WESTERN_MEDICINE', effectiveFrom: '2020-01-01', managementPrograms: [] },
+      { id: 'western-r509', code: 'R50.9', display: '测试诊断乙', sdStatus: 'ACTIVE', systemCode: 'WHO.BD.CS.ICD10',
+        sdDiagnosisDomain: 'WESTERN_MEDICINE', effectiveFrom: '2020-01-01', managementPrograms: [] },
     ]), searchServices: vi.fn().mockResolvedValue({ content: [
-      { id: 'lab-1', code: 'LAB001', name: '血常规', prices: [] },
-      { id: 'exam-1', code: 'EXAM001', name: '胸部X线', prices: [] },
-    ] }) },
+      { id: 'lab-1', code: 'LAB001', name: '血常规', sdServiceType: 'LABORATORY' },
+      { id: 'exam-1', code: 'EXAM001', name: '胸部X线', sdServiceType: 'EXAMINATION' },
+    ].map(item => ({ ...item, unitCode: '次', sdUsageType: 'OUTPATIENT', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01',
+      organizationAdoption: { organizationId: 'org', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01' },
+      prices: [{ id: `${item.id}-price`, organizationId: 'org', sdPriceType: 'SALE', sdStatus: 'ACTIVE', price: 12.5, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+    })) }) },
     diagnostics: { reportsByEncounter: vi.fn().mockResolvedValue([]) },
     outpatientPlanTemplates: { list: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi
   const nodes = render(<div><div data-testid="summary" /><div data-testid="note" /><div data-testid="diagnoses" /><div data-testid="plans" /></div>)
@@ -42,7 +48,7 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
     const [templateApplied, setTemplateApplied] = useState(false)
     const [treatmentKeys, setTreatmentKeys] = useState<string[]>([])
     return <><button onClick={() => setActiveEncounter({ ...encounter, id: 'next-enc', residentId: 'next-resident' })}>切换测试患者</button><button onClick={() => setTemplateApplied(true)}>带入测试模板</button><textarea aria-label="主病历输入" value={text} onChange={(event) => setText(event.target.value)} />
-      <ClinicalAiAssistantPanel encounter={activeEncounter} currentContext={{ ...base, encounterId: activeEncounter.id, residentId: activeEncounter.residentId, presentIllness: text,
+      <ClinicalAiAssistantPanel encounter={activeEncounter} currentContext={{ ...base, diagnoses, encounterId: activeEncounter.id, residentId: activeEncounter.residentId, presentIllness: text,
           chiefComplaint: templateApplied ? '咳嗽3天' : undefined,
           annotations: templateApplied ? [{ field: 'chiefComplaint', text: '3天', start: 2, source: 'TEMPLATE', kind: 'VARIABLE', binding: 'symptom.cough.duration' }] : [],
           serviceDraftFingerprint: treatmentKeys.join('|') || 's' }}
@@ -273,6 +279,17 @@ describe('quiet clinical AI workflow', () => {
     expect(generateStream).not.toHaveBeenCalled()
   })
 
+  it.each(['TCM_DISEASE', 'WESTERN_MEDICINE', null] as const)('only hides an existing model candidate when its complete declared identity matches (%s)', async domain => {
+    const generateStream = vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
+      diagnosisCandidates: [{ code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY', rationale: '需核对' }] }))
+    const { openHub } = setup(generateStream, false, undefined, [{ code: 'J06.9', display: '既有诊断', type: 'PRIMARY',
+      diagnosisDomain: domain, codeSystem: domain === 'WESTERN_MEDICINE' ? 'WHO.BD.CS.ICD10' : domain ? 'TCM' : undefined }])
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' })); await advance(100)
+    if (domain === 'WESTERN_MEDICINE') expect(screen.queryByLabelText('AI 诊断待确认')).not.toBeInTheDocument()
+    else expect(screen.getByRole('button', { name: '确认录入' })).toBeEnabled()
+  })
+
   it('adopts only the checked diagnosis candidates in a batch', async () => {
     const generateStream = vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
       diagnosisCandidates: [
@@ -288,7 +305,9 @@ describe('quiet clinical AI workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认所选诊断（1）' }))
     await advance(100)
     expect(apply).toHaveBeenCalledWith(expect.objectContaining({ diagnoses: [
-      { code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY' },
+      { code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY', conceptId: 'western-j069',
+        codeSystem: 'WHO.BD.CS.ICD10', diagnosisDomain: 'WESTERN_MEDICINE',
+        managementResolutionStatus: 'CONFIRMED', managementPrograms: [] },
     ] }))
   })
 

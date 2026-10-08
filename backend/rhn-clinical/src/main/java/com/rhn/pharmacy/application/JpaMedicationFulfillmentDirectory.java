@@ -77,11 +77,14 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
         if (requestLines.isEmpty()) return FulfillmentSnapshot.pending();
         BigDecimal net = requestLines.stream().map(DispenseTaskLine::netDispensedQuantity)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        FulfillmentSnapshot latest = requestLines.stream().map(line -> snapshotForLine(tenantId, line))
-                .reduce((first, second) -> second).orElse(FulfillmentSnapshot.pending());
-        boolean completed = requestLines.stream().anyMatch(line -> line.status() == DispenseTaskLineStatus.COMPLETED)
-                && net.signum() > 0;
-        return new FulfillmentSnapshot(completed, latest.dispenseId(), net, latest.status());
+        List<FulfillmentSnapshot> snapshots = requestLines.stream()
+                .map(line -> snapshotForLine(tenantId, line)).toList();
+        boolean completed = snapshots.stream().allMatch(FulfillmentSnapshot::completed);
+        Long dispenseId = snapshots.stream().map(FulfillmentSnapshot::dispenseId)
+                .filter(java.util.Objects::nonNull).reduce((first, second) -> second).orElse(null);
+        String status = snapshots.stream().map(FulfillmentSnapshot::status).distinct().count() == 1
+                ? snapshots.getFirst().status() : net.signum() > 0 ? "PARTIAL" : "INCOMPLETE";
+        return new FulfillmentSnapshot(completed, dispenseId, net, status);
     }
 
     @Override
@@ -93,12 +96,11 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
     }
 
     private FulfillmentSnapshot snapshotForLine(Long tenantId, DispenseTaskLine line) {
-        List<MedicationDispense> events = dispenses
-                .findByTenantIdAndTaskIdOrderByOccurredAtAscIdAsc(tenantId, line.taskId());
-        Long latestDispenseId = events.stream()
-                .filter(value -> "DISPENSE".equals(value.dispenseType()) || "REDISPENSE".equals(value.dispenseType()))
-                .reduce((first, second) -> second).map(MedicationDispense::id).orElse(null);
-        boolean completed = line.status() == DispenseTaskLineStatus.COMPLETED && line.netDispensedQuantity().signum() > 0;
+        Long latestDispenseId = dispenseLines.findIssuedLines(tenantId, line.id()).stream()
+                .filter(value -> value.quantityDispensed().signum() > 0)
+                .reduce((first, second) -> second).map(MedicationDispenseLine::medicationDispenseId).orElse(null);
+        boolean completed = line.status() == DispenseTaskLineStatus.COMPLETED
+                && line.netDispensedQuantity().signum() > 0 && latestDispenseId != null;
         return new FulfillmentSnapshot(completed, latestDispenseId, line.netDispensedQuantity(), line.status().name());
     }
 

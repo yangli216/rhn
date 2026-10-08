@@ -4,13 +4,12 @@ import java.time.LocalDate;
 
 /** Minimal service item contract available to scheduling and other business modules. */
 public interface ServiceCatalogDirectory {
+    /** Direct catalog/institution name and code matches must not be truncated by UI result limits. */
     java.util.List<MasterDataViews.ServiceView> searchOrderableServices(String query, String serviceType,
                                                                       Long organizationId, LocalDate businessDate);
 
-    default java.util.List<MasterDataViews.ServiceView> findOrderableServicesByIds(java.util.Collection<Long> serviceIds,
-                                                                                  Long organizationId, LocalDate businessDate) {
-        return java.util.List.of();
-    }
+    java.util.List<MasterDataViews.ServiceView> findOrderableServicesByIds(java.util.Collection<Long> serviceIds,
+                                                                        Long organizationId, LocalDate businessDate);
 
     ServiceCatalogSnapshot requireActiveService(Long tenantId, Long catalogItemId, LocalDate businessDate);
 

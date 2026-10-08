@@ -25,6 +25,26 @@ class OutpatientRegistrationPrintTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbcTemplate;
 
     @Test
+    void registration_template_opens_in_designer_and_its_copy_can_be_previewed() throws Exception {
+        String templateId = "270000000000009";
+        String sample = """
+                {"sampleData":{"organizationName":"测试卫生院","residentName":"测试患者",
+                 "ticketNo":"A001","registrationNo":"GH20261003001","barcode":"GH20261003001"}}
+                """;
+        byte[] published = mockMvc.perform(post("/api/platform/printing/administration/templates/{id}/preview", templateId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(sample))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        assertPdf(published);
+        JsonNode draft = json(mockMvc.perform(post("/api/platform/printing/administration/templates/{id}/drafts", templateId)
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        byte[] copied = mockMvc.perform(post("/api/platform/printing/administration/drafts/{id}/preview", draft.get("id").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(sample))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        assertPdf(copied);
+    }
+
+    @Test
     void registration_ticket_generates_immutable_pdf_and_audit() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         String residentId = createResident(suffix);

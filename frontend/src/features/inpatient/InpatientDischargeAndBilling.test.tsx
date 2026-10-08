@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { InpatientBillingAccount, InpatientDischargeReadiness, InpatientEpisode } from '../../shared/api/inpatientApi'
@@ -39,7 +39,7 @@ describe('DischargeDialog', () => {
     const discharge = vi.fn().mockResolvedValue({ ...episode, status: 'DISCHARGED' })
     const api = { inpatient: { dischargeReadiness, saveDischargeDiagnoses, discharge }, masterData: {
       diseases: vi.fn().mockResolvedValue([{ id: 'disease-1', code: diagnosis.code, display: diagnosis.display,
-        systemName: 'ICD-10' }]),
+        systemName: 'ICD-10', sdDiagnosisDomain: 'WESTERN_MEDICINE' }]),
     } } as unknown as RhnApi
     vi.stubGlobal('crypto', { randomUUID: () => 'command-1' })
     renderWithQuery(<DischargeDialog api={api} episode={episode} onClose={vi.fn()} onSuccess={vi.fn()} />)
@@ -53,17 +53,75 @@ describe('DischargeDialog', () => {
 
     await waitFor(() => expect(saveDischargeDiagnoses).toHaveBeenCalledWith(episode.id, expect.objectContaining({
       expectedEpisodeRevision: episode.revision,
-      diagnoses: [{ code: diagnosis.code, display: diagnosis.display, diagnosisType: 'PRIMARY' }],
+      diagnoses: [{ code: diagnosis.code, display: diagnosis.display, diagnosisType: 'PRIMARY',
+        conceptId: 'disease-1', diagnosisDomain: 'WESTERN_MEDICINE' }],
     })))
+    await screen.findByText('临床条件已满足')
+    expect(screen.getByRole('button', { name: '确认出院' })).toBeDisabled()
+    expect(screen.getByLabelText('出院转归')).toHaveTextContent('请选择出院转归')
+    await userEvent.click(screen.getByLabelText('出院转归'))
+    await userEvent.click(screen.getByRole('option', { name: '转院' }))
     await waitFor(() => expect(screen.getByRole('button', { name: '确认出院' })).toBeEnabled())
     await userEvent.click(screen.getByRole('button', { name: '确认出院' }))
     await waitFor(() => expect(discharge).toHaveBeenCalledWith(episode.id, expect.objectContaining({
-      expectedRevision: episode.revision, dispositionCode: 'HOME',
+      expectedRevision: episode.revision, dispositionCode: 'TRANSFER',
     })))
   })
 })
 
 describe('InpatientBillingPanel', () => {
+  const healthyAccount: InpatientBillingAccount = {
+    episodeId: episode.id, encounterId: episode.encounterId, patientAccountId: 'account-1', accountStatus: 'OPEN',
+    clinicalStatus: 'ADMITTED', currencyCode: 'CNY', postedChargeAmount: 0, estimatedOrderAmount: 0,
+    estimatedBedAmount: 20, estimatedTotalAmount: 20, depositAmount: 100, ledgerBalance: -100,
+    estimatedOutstandingAmount: 0, estimatedCreditAmount: 80, paymentDue: false, financialWarningOnly: true,
+    deposits: [], costLines: [],
+  }
+
+  it('hides cached balances and payment controls while refreshing and after a price failure, and supports retry', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const billing = vi.fn().mockResolvedValue(healthyAccount)
+    const api = { inpatient: { billing } } as unknown as RhnApi
+    render(<QueryClientProvider client={client}><InpatientBillingPanel api={api} episode={episode} view="deposits" /></QueryClientProvider>)
+    expect(await screen.findByText('余额正常')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '收取预交金' })).toBeInTheDocument()
+    let reject!: (reason: Error) => void
+    billing.mockImplementationOnce(() => new Promise((_resolve, rejectRead) => { reject = rejectRead }))
+    act(() => { void client.invalidateQueries({ queryKey: ['inpatient-billing', episode.id] }) })
+    expect(await screen.findByText('正在汇总住院费用…')).toBeInTheDocument()
+    expect(screen.queryByText('余额正常')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('住院预交金汇总')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '收取预交金' })).not.toBeInTheDocument()
+    await act(async () => reject(new Error('床位价格不可用')))
+    expect(await screen.findByText('床位价格不可用')).toBeInTheDocument()
+    expect(screen.queryByText('余额正常')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('住院预交金汇总')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '重新读取住院费用' }))
+    expect(await screen.findByText('余额正常')).toBeInTheDocument()
+    expect(billing).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not show an old daily statement as current while a refresh fails', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const statement = { episodeId: episode.id, encounterId: episode.encounterId,
+      businessDate: '2026-10-03', postedAmount: 0, estimatedAmount: 20, categorySummaries: [],
+      lines: [], asOf: '2026-10-03T08:00:00+08:00' }
+    const dailyStatement = vi.fn().mockResolvedValue(statement)
+    const api = { inpatient: { billing: vi.fn().mockResolvedValue(healthyAccount), dailyStatement } } as unknown as RhnApi
+    render(<QueryClientProvider client={client}><InpatientBillingPanel api={api} episode={episode} /></QueryClientProvider>)
+    expect(await screen.findByText('当日暂无费用事项')).toBeInTheDocument()
+    let reject!: (reason: Error) => void
+    dailyStatement.mockImplementationOnce(() => new Promise((_resolve, rejectRead) => { reject = rejectRead }))
+    act(() => { void client.invalidateQueries({ queryKey: ['inpatient-daily-statement', episode.id] }) })
+    expect(await screen.findByText('正在读取日清单…')).toBeInTheDocument()
+    expect(screen.queryByText('当日暂无费用事项')).not.toBeInTheDocument()
+    await act(async () => reject(new Error('日清单价格不可用')))
+    expect(await screen.findByText('日清单价格不可用')).toBeInTheDocument()
+    expect(screen.queryByText('当日暂无费用事项')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '重新读取日清单' }))
+    expect(await screen.findByText('当日暂无费用事项')).toBeInTheDocument()
+  })
+
   it('shows estimated costs and registers a deposit', async () => {
     const account: InpatientBillingAccount = {
       episodeId: episode.id, encounterId: episode.encounterId, patientAccountId: 'account-1', accountStatus: 'OPEN',

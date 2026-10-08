@@ -18,18 +18,4 @@ public record PlannedScope(
         authorizedDepartments = authorizedDepartments == null ? Map.of() : Map.copyOf(authorizedDepartments);
     }
 
-    /**
-     * 仅供单元测试与独立查询语法验证使用的基准作用域，严禁在生产运行时作为未认证上下文的静默兜底。
-     */
-    public static PlannedScope defaultDevScope() {
-        return new PlannedScope(
-            ScopeIntent.AUTHORIZED,
-            362387869790209L,
-            362387869790211L,
-            Map.of(
-                362387869799101L, "药学部",
-                362387869898501L, "综合病区"
-            )
-        );
-    }
 }

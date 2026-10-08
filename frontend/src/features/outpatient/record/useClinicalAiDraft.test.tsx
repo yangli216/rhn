@@ -9,6 +9,7 @@ import { clinicalAiContextFingerprint, type ClinicalAiDraftRequest } from '../ai
 import type { ClinicalAiContextState } from './clinicalAiDraftContext'
 import type { RecordForm } from './clinicalRecordDraft'
 import { useClinicalAiDraft, type AiRecordUndo } from './useClinicalAiDraft'
+import { templateCatalogFixture } from '../templates/resolveTemplateOrders.testFixtures'
 
 const encounter: Encounter = {
   id: 'enc-1', residentId: 'resident-1', encounterNo: 'E001', organizationId: 'org-1',
@@ -29,7 +30,7 @@ function setup() {
     document, documentStatus: 'DRAFT', structuredFormId: '', structuredValues: {},
     medicationDrafts: [], serviceDrafts: [], allergies: [], allergyState: 'READY', busy: false,
   }
-  const callbacks = { onAiDraftConsumed: vi.fn(), onAiContextChange: vi.fn(), onNotice: vi.fn(), onPlan: vi.fn() }
+  const callbacks = { onAiDraftConsumed: vi.fn(), onAiContextChange: vi.fn(), onNotice: vi.fn() }
   type Props = { aiDraft: ClinicalAiDraftRequest | null; context: ClinicalAiContextState; businessBusy: boolean }
   const props: Props = { aiDraft: null, context, businessBusy: false }
   const hook = renderHook((input: Props) => {
@@ -39,7 +40,7 @@ function setup() {
     const [aiRecordUndo, setAiRecordUndo] = useState<AiRecordUndo | null>(null)
     const ai = useClinicalAiDraft({ ...input, ...callbacks, encounter, form, diagnoses, setDiagnoses,
       aiRecordUndo, setAiRecordUndo })
-    return { ...ai, form, diagnoses }
+    return { ...ai, form, diagnoses, setDiagnoses }
   }, { initialProps: props })
   const request = (patch: Partial<ClinicalAiDraftRequest> = {}): ClinicalAiDraftRequest => ({
     requestId: 'request-1', sourceSuggestionId: 'suggestion-1', encounterId: encounter.id,
@@ -51,6 +52,21 @@ function setup() {
 }
 
 describe('clinical AI adoption boundary', () => {
+  it.each(['conceptId', 'codeSystem', 'diagnosisDomain'] as const)('preserves catalog identity and rejects old advice after changing %s', (field) => {
+    const h = setup()
+    const diagnosis: DiagnosisInput = { conceptId: 'concept-1', codeSystem: 'TCM', diagnosisDomain: 'TCM_DISEASE',
+      code: 'SAME', display: '同名诊断', type: 'PRIMARY' }
+    act(() => h.result.current.setDiagnoses([diagnosis]))
+    expect(h.result.current.buildAiContext().diagnoses).toEqual([diagnosis])
+    const aiDraft = h.request()
+    const changed = { ...diagnosis, [field]: field === 'diagnosisDomain' ? 'TCM_SYNDROME' : 'changed' }
+    act(() => h.result.current.setDiagnoses([changed]))
+    h.rerender({ ...h.props, aiDraft })
+    expect(h.result.current.form.getValues()).toEqual(original)
+    expect(h.result.current.diagnoses).toEqual([changed])
+    expect(h.onNotice).toHaveBeenCalledWith(expect.stringContaining('拒绝'))
+  })
+
   it('adopts a request once and only undoes adopted fields, retaining diagnoses and other edits', () => {
     const h = setup()
     const aiDraft = h.request({ diagnoses: [{ code: 'I10', display: '高血压', type: 'PRIMARY' }] })
@@ -77,7 +93,6 @@ describe('clinical AI adoption boundary', () => {
     expect(h.result.current.form.getValues()).toEqual(original)
     expect(h.onAiDraftConsumed).toHaveBeenCalledTimes(1)
     expect(h.onNotice).toHaveBeenCalledWith(expect.stringContaining('拒绝'))
-    expect(h.onPlan).not.toHaveBeenCalled()
   })
 
   it.each(['edited', 'saved', 'signed', 'busy'] as const)('protects undo when the record is %s', (change) => {
@@ -105,7 +120,6 @@ describe('clinical AI adoption boundary', () => {
     h.rerender({ ...h.props, aiDraft: h.request({ overwriteRecord: false,
       recordDraft: { chiefComplaint: '咳嗽5天', annotations: [oral] } }) })
     expect(h.result.current.form.getValues('chiefComplaint')).toBe('咳嗽5天，服药3天')
-    expect(h.onPlan).not.toHaveBeenCalled()
     act(() => h.result.current.form.reset({ ...h.result.current.form.getValues(), chiefComplaint: '咳嗽4天，服药3天', annotations: [
       { ...oral, text: '4天', source: 'DOCTOR' },
     ] }))
@@ -121,5 +135,15 @@ describe('clinical AI adoption boundary', () => {
     expect(h.onAiContextChange).toHaveBeenLastCalledWith(expect.objectContaining({ chiefComplaint: '新的主诉' }))
     h.unmount()
     expect(h.onAiContextChange).toHaveBeenLastCalledWith(null)
+  })
+
+  it('rejects a raw plan request before writing any accompanying record or diagnosis', () => {
+    const h = setup()
+    h.rerender({ ...h.props, aiDraft: h.request({ planTemplate: templateCatalogFixture().plan,
+      diagnoses: [{ code: 'I10', display: '高血压', type: 'PRIMARY' }] }) })
+    expect(h.result.current.form.getValues()).toEqual(original)
+    expect(h.result.current.diagnoses).toEqual([])
+    expect(h.result.current.canUndoAiRecord).toBe(false)
+    expect(h.onNotice).toHaveBeenCalledWith(expect.stringContaining('必须完成当前目录核对'))
   })
 })

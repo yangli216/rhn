@@ -6,8 +6,9 @@ import java.util.List;
 
 /** Read-only encounter facts used to coordinate the patient's outpatient journey. */
 public interface EncounterFlowDirectory {
-    List<EncounterFlowSnapshot> findRecent(Long tenantId, Long organizationId, Long departmentId,
-                                           Instant fromInclusive, Instant toExclusive, int limit);
+    /** All scoped encounters in the half-open date range; no implicit result cap. */
+    List<EncounterFlowSnapshot> findInRange(Long tenantId, Long organizationId, Long departmentId,
+                                           Instant fromInclusive, Instant toExclusive);
 
     List<EncounterFlowSnapshot> findByIds(Long tenantId, Collection<Long> encounterIds);
 

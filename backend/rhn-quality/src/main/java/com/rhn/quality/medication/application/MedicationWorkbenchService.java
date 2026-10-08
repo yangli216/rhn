@@ -328,7 +328,7 @@ public class MedicationWorkbenchService {
             throw badRequest("QMED_PRESCRIPTION_PREVIEW_INVALID","请提供就诊和处方标识");
         var snapshot=prescriptions.requireSnapshot(request.encounterId(),request.prescriptionId());
         var patient=snapshot.patientContext();
-        var patientContext=patient==null ? new PatientSimulationContext(null,null,List.of())
+        var patientContext=patient==null ? null
                 : new PatientSimulationContext(patient.patientAgeYears(),patient.gender(),patient.activeAllergies().stream()
                 .map(value -> Objects.toString(value.allergenDisplay(),Objects.toString(value.substanceName(),"")))
                 .filter(value -> !value.isBlank()).toList());
@@ -337,21 +337,16 @@ public class MedicationWorkbenchService {
             if(row.medicationSnapshot()!=null && !row.medicationSnapshot().isBlank()) {
                 try {
                     var value=json.read(row.medicationSnapshot(),MedicationSnapshot.class);
-                    if(value!=null && Objects.equals(row.medicationId(),value.id())) historical=value;
+                    if(value!=null && row.medicationId()!=null && Objects.equals(row.medicationId(),value.id())
+                            && value.name()!=null && !value.name().isBlank()) historical=value;
                 } catch(RuntimeException ignored) {
-                    // 处方快照 JSON 不可解析时，改用药品主数据兜底。
+                    // Preserve the unavailable historical fact; current master data cannot reconstruct it.
                 }
             }
             boolean historicalSnapshotAvailable=historical!=null;
-            if(historical==null && row.medicationId()!=null) {
-                try { historical=knowledge.require(row.medicationId()).medication(); }
-                catch(RuntimeException ignored) {
-                    // 主数据缺失时按“未识别药品”展示，不阻断审方预览。
-                }
-            }
             BigDecimal days="DAY".equals(row.durationUnit())?row.durationValue():null;
             return new PrescriptionPreviewItem(row.medicationId(),row.status(),days,row.routeCode(),row.frequencyCode(),
-                    historical==null?"未识别药品":historical.name(),historical==null?null:historical.preparationSpec(),
+                    historical==null?null:historical.name(),historical==null?null:historical.preparationSpec(),
                     historicalSnapshotAvailable);
         }).toList();
         return new PrescriptionPreview(snapshot.encounterId(),snapshot.prescriptionId(),snapshot.residentId(),

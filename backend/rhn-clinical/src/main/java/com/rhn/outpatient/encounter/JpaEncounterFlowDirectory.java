@@ -1,7 +1,6 @@
 package com.rhn.outpatient.encounter;
 
 import com.rhn.outpatient.api.EncounterFlowDirectory;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,13 +18,11 @@ class JpaEncounterFlowDirectory implements EncounterFlowDirectory {
 
     @Override
     @Transactional(readOnly = true)
-    public List<EncounterFlowSnapshot> findRecent(Long tenantId, Long organizationId, Long departmentId,
-                                                  Instant fromInclusive, Instant toExclusive, int limit) {
-        int pageSize = Math.max(1, Math.min(limit, 200));
+    public List<EncounterFlowSnapshot> findInRange(Long tenantId, Long organizationId, Long departmentId,
+                                                  Instant fromInclusive, Instant toExclusive) {
         return encounters
                 .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
-                        tenantId, organizationId, departmentId, fromInclusive, toExclusive,
-                        PageRequest.of(0, pageSize))
+                        tenantId, organizationId, departmentId, fromInclusive, toExclusive)
                 .stream().map(value -> new EncounterFlowSnapshot(value.id(), value.residentId(),
                         value.encounterNo(), value.organizationId(), value.departmentId(), value.clinicianId(),
                         value.status().name(), value.registeredAt(), value.startedAt(), value.completedAt(),

@@ -114,7 +114,7 @@ class QueryCompilerTest {
         );
 
         Resolution res = resolver.resolve(query);
-        LogicalQueryPlan plan = planner.plan(res.query());
+        LogicalQueryPlan plan = planner.plan(res.query(), TestScopes.authorized(), LocalDate.of(2026, 9, 17));
         ValidationResult validation = validator.validate(plan);
         assertTrue(validation.isValid());
 
@@ -138,7 +138,7 @@ class QueryCompilerTest {
         );
 
         Resolution res = resolver.resolve(query);
-        LogicalQueryPlan plan = planner.plan(res.query());
+        LogicalQueryPlan plan = planner.plan(res.query(), TestScopes.authorized(), LocalDate.of(2026, 9, 17));
         ValidationResult validation = validator.validate(plan);
         assertTrue(validation.isValid());
 

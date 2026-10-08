@@ -74,44 +74,40 @@ class ChargeCategoryAccountingTest {
     }
 
     @Test
-    @DisplayName("用户自定义分类代码但未配置字典名称时：保留独立编码并人性化显示，绝不粗暴混入其他费")
+    @DisplayName("用户自定义分类代码但未配置字典名称时：保留独立编码并显示原编码，绝不粗暴混入其他费")
     void should_preserve_custom_code_when_dict_text_not_found() {
         ChargeCategoryResolver resolver = new ChargeCategoryResolver(null);
 
         ChargeCategory customCategory = resolver.resolveByCode(1L, "AI_TELEMEDICINE");
         assertNotNull(customCategory);
         assertEquals("AI_TELEMEDICINE", customCategory.code());
-        assertEquals("Ai telemedicine", customCategory.name());
+        assertEquals("AI_TELEMEDICINE", customCategory.name());
     }
 
     @Test
-    @DisplayName("历史存量数据平滑降级：未记录 SD_ACCTG_CAT 时按业务来源类型回退兼容")
-    void should_fallback_gracefully_for_legacy_charge_items() {
-        ChargeCategoryResolver resolver = new ChargeCategoryResolver(null);
+    @DisplayName("历史缺失分类明确标注为未确认，不从来源类型推定")
+    void missing_snapshots_are_not_guessed_from_source_types() {
+        var resolver = new ChargeCategoryResolver(null);
+        for (String source : java.util.List.of("REGISTRATION_HOLD", "MED_DISPENSE", "INPATIENT_BED_DAY", "SERVICE_REQUEST", "UNKNOWN")) {
+            var charge = Mockito.mock(ChargeItem.class);
+            when(charge.sourceType()).thenReturn(source);
+            var category = resolver.resolve(1L, charge);
+            assertEquals("UNCLASSIFIED", category.code()); assertEquals("分类未确认", category.name());
+        }
+        assertEquals("UNCLASSIFIED", resolver.resolve(1L, null).code());
+        assertEquals("UNCLASSIFIED", resolver.resolveByCode(1L, " ").code());
+        assertEquals("OTHER", resolver.resolveByCode(1L, "OTHER").code());
+        assertEquals("其他费用", resolver.resolveByCode(1L, "OTHER").name());
+    }
 
-        // 挂号业务来源
-        ChargeItem regCharge = Mockito.mock(ChargeItem.class);
-        when(regCharge.accountingCategory()).thenReturn(null);
-        when(regCharge.sourceType()).thenReturn("REGISTRATION_HOLD");
-        ChargeCategory regCat = resolver.resolve(1L, regCharge);
-        assertEquals("REGISTRATION", regCat.code());
-        assertEquals("挂号费", regCat.name());
-
-        // 发药业务来源
-        ChargeItem medCharge = Mockito.mock(ChargeItem.class);
-        when(medCharge.accountingCategory()).thenReturn(null);
-        when(medCharge.sourceType()).thenReturn("MED_DISPENSE");
-        ChargeCategory medCat = resolver.resolve(1L, medCharge);
-        assertEquals("MEDICATION", medCat.code());
-        assertEquals("药品费", medCat.name());
-
-        // 床日业务来源
-        ChargeItem bedCharge = Mockito.mock(ChargeItem.class);
-        when(bedCharge.accountingCategory()).thenReturn(null);
-        when(bedCharge.sourceType()).thenReturn("INPATIENT_BED_DAY");
-        ChargeCategory bedCat = resolver.resolve(1L, bedCharge);
-        assertEquals("BED", bedCat.code());
-        assertEquals("床位费", bedCat.name());
+    @Test
+    void dictionary_failure_is_not_silently_reported_as_a_successful_lookup() {
+        var directory = Mockito.mock(DictionaryDirectory.class);
+        var resolver = new ChargeCategoryResolver(directory);
+        when(directory.resolveItemTexts(1L, MasterDataDictionaryCodes.ACCOUNTING_CATEGORY)).thenThrow(new IllegalStateException("unavailable"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> resolver.label(1L,"LABORATORY"));
+        Mockito.doReturn(null).when(directory).resolveItemTexts(1L, MasterDataDictionaryCodes.ACCOUNTING_CATEGORY);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> resolver.label(1L,"LABORATORY"));
     }
 
     @Test

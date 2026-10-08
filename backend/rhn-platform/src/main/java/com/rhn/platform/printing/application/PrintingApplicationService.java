@@ -67,6 +67,8 @@ public class PrintingApplicationService implements PrintingService {
     private final PrintImplementationBindingRepository implementationBindingRepository;
     private final IdempotencyService idempotencyService;
     private final Map<String, PrintDataProvider> dataProviders;
+    private final com.rhn.platform.identityaccess.api.IdentityAccessDirectory identities;
+    private final com.rhn.platform.organization.api.OrganizationDirectory organizations;
 
     public PrintingApplicationService(PrintTemplateRepository templateRepository,
                                       PrintTemplateVersionRepository versionRepository,
@@ -81,7 +83,10 @@ public class PrintingApplicationService implements PrintingService {
                                       PrintImplementationRepository implementationRepository,
                                       PrintImplementationBindingRepository implementationBindingRepository,
                                       IdempotencyService idempotencyService,
-                                      List<PrintDataProvider> dataProviders) {
+                                      List<PrintDataProvider> dataProviders,
+                                      com.rhn.platform.identityaccess.api.IdentityAccessDirectory identities,
+                                      com.rhn.platform.organization.api.OrganizationDirectory organizations) {
+        this.identities = identities; this.organizations = organizations;
         this.templateRepository = templateRepository; this.versionRepository = versionRepository;
         this.outputRepository = outputRepository; this.jobRepository = jobRepository;
         this.deliveryRepository = deliveryRepository; this.bindingRepository = bindingRepository;
@@ -146,6 +151,8 @@ public class PrintingApplicationService implements PrintingService {
         snapshot.put("sourceVersion", data.sourceVersion()); snapshot.put("purposeText", purposeText(purpose));
         snapshot.put("printTaskCode", resolved.task().taskCode());
         snapshot.put("payloadSchema", resolved.task().payloadSchema());
+        addSignerName(snapshot, "signedBy", context.tenantId());
+        addSignerName(snapshot, "authoredBy", context.tenantId());
         byte[] pdf = renderer.render(template.documentType(), version.layoutSchema(), version.configJson(), snapshot);
         String digest = sha256(pdf);
         PrintOutput output = outputRepository.save(new PrintOutput(context.tenantId(), template, version,
@@ -159,6 +166,20 @@ public class PrintingApplicationService implements PrintingService {
         PrintDelivery delivery = createDelivery(context, template.documentType(), version.mediaProfileId(), job.id());
         return receipt(job, output, template, version, delivery, resolved.implementation().implementationCode(),
                 resolved.binding().scopeType());
+    }
+
+    private void addSignerName(Map<String, Object> snapshot, String field, Long tenantId) {
+        if (snapshot.get(field + "Name") != null || snapshot.get(field) == null) return;
+        String id = snapshot.get(field).toString();
+        if (!id.matches("\\d+")) return;
+        try {
+            var account = identities.requireAccount(tenantId, Long.valueOf(id));
+            if (account.practitionerId() != null) snapshot.put(field + "Name",
+                    organizations.requireStaff(tenantId, account.practitionerId()).practitioner().fullName());
+        } catch (com.rhn.shared.api.BusinessException exception) {
+            // Historical accounts may be unavailable; leave a signature line instead of printing an internal ID.
+            if (exception.status() != org.springframework.http.HttpStatus.NOT_FOUND) throw exception;
+        }
     }
 
     @Override

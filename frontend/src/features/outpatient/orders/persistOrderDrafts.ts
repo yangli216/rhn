@@ -1,17 +1,9 @@
-import type { BatchOrderMedicationItem, MedicationRequest, Prescription } from '../../../shared/api/encountersApi'
+import type { BatchOrderMedicationItem, OrderDraftSaveReceipt } from '../../../shared/api/encountersApi'
 import type { RhnApi } from '../../../shared/rhnApi'
-import { isInfusionRoute, type MedicationPlanDraft } from './medicationDraft'
+import type { MedicationPlanDraft } from './medicationDraft'
 import type { ServicePlanDraft } from './orderDraftTypes'
 
-export type OrderDraftApi = { encounters: Pick<RhnApi['encounters'],
-  'batchOrderPrescriptions' | 'createPrescription' | 'createMedicationRequest' | 'createServiceRequest'> }
-
-function infusionGroupSignature(value: Pick<MedicationRequest, 'routeCode' | 'frequencyCode' | 'durationValue'>
-  | Pick<MedicationPlanDraft, 'request'>) {
-  const request = 'request' in value ? value.request : value
-  return [request.routeCode?.trim().toUpperCase(), request.frequencyCode,
-    String(request.durationValue ?? '')].join('|')
-}
+export type OrderDraftApi = { encounters: Pick<RhnApi['encounters'], 'saveOrderDrafts'> }
 
 export function draftToBatchItem(draft: MedicationPlanDraft): BatchOrderMedicationItem {
   return {
@@ -67,92 +59,70 @@ export async function persistOrderDrafts(
   medDrafts: MedicationPlanDraft[],
   svcDrafts: ServicePlanDraft[],
   api: OrderDraftApi,
-  existingPrescriptions: Prescription[] = [],
-  autoSubmit = false,
+  commandCode: string,
 ) {
   if (medDrafts.length === 0 && svcDrafts.length === 0) return
+  if (typeof api.encounters?.saveOrderDrafts !== 'function') {
+    throw new Error('医嘱整批保存接口不可用，草稿未提交，请更新服务后重试')
+  }
+  if (!commandCode.trim()) throw new Error('医嘱保存信息不完整，草稿未提交')
   const encId = String(encounterId)
-
-  if (medDrafts.length > 0) {
-    if (typeof api.encounters?.batchOrderPrescriptions === 'function') {
-      const items = medDrafts.map(draftToBatchItem)
-      await api.encounters.batchOrderPrescriptions(encId, { items, autoSubmit })
-    } else {
-      const prescriptionsByCategory = new Map<string, Prescription[]>()
-      const requestsByPrescription = new Map<string, MedicationRequest[]>()
-      for (const value of existingPrescriptions) {
-        if (value.status === 'DRAFT' && !value.documentInfo?.externalPrescription
-          && !value.documentInfo?.specialDisease && !value.documentInfo?.diagnoses.length) {
-          const values = prescriptionsByCategory.get(value.categoryCode) ?? []
-          values.push(value)
-          prescriptionsByCategory.set(value.categoryCode, values)
-        }
-        requestsByPrescription.set(value.id, [...value.medicationRequests])
-      }
-
-      const infusionRoots = new Map<string, string>()
-      const infusionSignatures = new Map<string, string>()
-      for (const prescription of existingPrescriptions) {
-        for (const request of prescription.medicationRequests.filter((value) => value.status !== 'CANCELLED'
-          && isInfusionRoute(value.routeCode, value.routeExecutionType))) {
-          const rootId = request.parentRequestId || request.id
-          infusionRoots.set(`request:${rootId}`, rootId)
-          infusionSignatures.set(`request:${rootId}`, infusionGroupSignature(request))
-        }
-      }
-
-      for (const draft of medDrafts) {
-        const categoryPrescriptions = prescriptionsByCategory.get(draft.categoryCode) ?? []
-        let prescription = draft.categoryCode === 'HERBAL'
-          ? categoryPrescriptions[0]
-          : categoryPrescriptions.find((value) => (requestsByPrescription.get(value.id) ?? [])
-              .filter((request) => request.status !== 'CANCELLED').length < 5)
-        if (!prescription) {
-          prescription = await api.encounters.createPrescription(
-            encId,
-            draft.categoryCode,
-            draft.categoryCode === 'HERBAL' ? '门诊草药处方' : '门诊西药/中成药处方'
-          )
-          categoryPrescriptions.push(prescription)
-          prescriptionsByCategory.set(draft.categoryCode, categoryPrescriptions)
-          requestsByPrescription.set(prescription.id, [])
-        }
-        const existingRequests = requestsByPrescription.get(prescription.id) ?? []
-        let parentRequestId: string | undefined
-        if (isInfusionRoute(draft.request.routeCode, draft.routeExecutionType) && draft.administrationGroupKey) {
-          const signature = infusionGroupSignature(draft)
-          const existingSignature = infusionSignatures.get(draft.administrationGroupKey)
-          if (existingSignature && existingSignature !== signature) {
-            throw new Error('同一输液组的给药途径、频次和疗程必须一致')
-          }
-          parentRequestId = infusionRoots.get(draft.administrationGroupKey)
-          infusionSignatures.set(draft.administrationGroupKey, signature)
-        }
-        const created = await api.encounters.createMedicationRequest(encId, {
-          ...draft.request,
-          prescriptionId: prescription.id,
-          parentRequestId,
-        })
-        if (isInfusionRoute(draft.request.routeCode, draft.routeExecutionType) && draft.administrationGroupKey
-          && !infusionRoots.has(draft.administrationGroupKey)) {
-          infusionRoots.set(draft.administrationGroupKey, created.id)
-        }
-        existingRequests.push(created)
-        requestsByPrescription.set(prescription.id, existingRequests)
-      }
+  const input = { commandCode, medicationItems: medDrafts.map(draftToBatchItem), serviceItems: svcDrafts.map(draft => ({
+    catalogItemId: draft.catalogItemId,
+    ...(draft.performerOrganizationId ? { performerOrganizationId: draft.performerOrganizationId } : {}),
+    ...(draft.performerDepartmentId ? { performerDepartmentId: draft.performerDepartmentId } : {}),
+    quantity: draft.quantity, unitCode: draft.unitCode, priceType: 'SALE', pricingRequired: true,
+    reason: '门诊诊疗申请', clinicalDescription: draft.clinicalDescription?.trim() || undefined,
+  })) }
+  const receipt = await api.encounters.saveOrderDrafts(encId, input).catch((error: unknown) => {
+    if ((error as { code?: string })?.code === 'IDEMPOTENCY_KEY_REUSED') {
+      throw new Error('本次内容与上次已保存的医嘱不一致，请先核对已保存医嘱，避免重复开立', { cause: error })
     }
-  }
-
-  for (const draft of svcDrafts) {
-    await api.encounters.createServiceRequest(encId, {
-      catalogItemId: draft.catalogItemId,
-      quantity: draft.quantity,
-      unitCode: draft.unitCode,
-      priceType: 'SALE',
-      pricingRequired: true,
-      reason: '门诊诊疗申请',
-      clinicalDescription: draft.clinicalDescription || '门诊医生站诊疗方案',
-    })
-  }
+    throw error
+  })
+  requireOrderDraftReceipt(receipt, encId, commandCode, medDrafts, svcDrafts)
+  return receipt
 }
 
+export function requireOrderDraftReceipt(receipt: OrderDraftSaveReceipt, encounterId: string, commandCode: string,
+  medications: MedicationPlanDraft[], services: ServicePlanDraft[]) {
+  const fail = (): never => { throw new Error('医嘱保存回执未确认，草稿已保留；请重试保存以核实结果，勿另行重复开立') }
+  const id = (value: unknown) => typeof value === 'string' && value.trim().length > 0
+  const revision = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0
+  if (!receipt || receipt.commandCode !== commandCode || receipt.encounterId !== encounterId
+    || !Array.isArray(receipt.prescriptions) || !Array.isArray(receipt.services)) fail()
+  const remaining = [...medications], seen = new Set<string>()
+  for (const prescription of receipt.prescriptions) {
+    if (!prescription || !id(prescription.id) || seen.has(prescription.id) || !revision(prescription.revision)
+      || prescription.encounterId !== encounterId || prescription.status !== 'DRAFT'
+      || !Array.isArray(prescription.medicationRequests) || !prescription.medicationRequests.length) fail()
+    seen.add(prescription.id)
+    for (const row of prescription.medicationRequests) {
+      if (!row || !id(row.id) || seen.has(row.id) || !revision(row.revision) || row.encounterId !== encounterId
+        || row.prescriptionId !== prescription.id || row.status !== 'DRAFT') fail()
+      seen.add(row.id)
+      const index = remaining.findIndex(({ request }) => (!request.medicationId || request.medicationId === row.medicationId)
+        && (!request.catalogItemId || request.catalogItemId === row.catalogItemId)
+        && Boolean(request.medicationId || request.catalogItemId)
+        && (request.packageId ?? null) === (row.packageId ?? null) && request.quantity === row.quantity
+        && (['doseValue', 'doseUnit', 'durationValue', 'durationUnit', 'quantityUnit', 'medicationInstruction',
+          'selfProvided', 'substitutionAllowed'] as const).every(field => request[field] == null
+          || String(request[field]).trim() === String(row[field] ?? '').trim()))
+      if (index < 0) fail()
+      remaining.splice(index, 1)
+    }
+  }
+  if (remaining.length || receipt.services.length !== services.length) fail()
+  const pendingServices = [...services]
+  for (const row of receipt.services) {
+    if (!row || !id(row.id) || seen.has(row.id) || !revision(row.revision)
+      || row.encounterId !== encounterId || row.status !== 'ACTIVE') fail()
+    seen.add(row.id)
+    const index = pendingServices.findIndex(draft => row.catalogItemId === draft.catalogItemId && row.quantity === draft.quantity
+      && (!draft.performerOrganizationId || draft.performerOrganizationId === row.performerOrganizationId)
+      && (!draft.performerDepartmentId || draft.performerDepartmentId === row.performerDepartmentId)
+      && (draft.clinicalDescription?.trim() ?? '') === (row.clinicalDescription?.trim() ?? ''))
+    if (index < 0) fail()
+    pendingServices.splice(index, 1)
+  }
+}

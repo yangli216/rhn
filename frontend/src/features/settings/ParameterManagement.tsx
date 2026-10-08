@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import {
   errorMessage, PARAMETER_SYSTEM_ENUM, systemEnumItems,
   type ConfigurationDependencyBehavior,
-  type ParameterCategory, type ParameterConfigType, type ParameterControlType,
+  type ParameterCategory, type ParameterChange, type ParameterConfigType, type ParameterControlType,
   type ParameterDefinition, type ParameterDefinitionInput, type ParameterDefinitionSummary,
   type ParameterDisplayPolicy, type ParameterScope, type ParameterSensitivity,
   type ParameterValue, type ParameterValueInput, type ParameterValueMode,
@@ -16,7 +16,14 @@ import {
   PageHeader, Pagination, Panel, PanelHead, SearchField, Select, SplitWorkspace, StatusBadge, TableShell,
   TreePanel, type TreePanelMove,
 } from '../../shared/ui'
-import { ConfigurationScopeTarget } from './ConfigurationScopeTarget'
+import type { ServiceCatalogItem } from '../../shared/api/masterDataApi'
+import { ParameterJsonNumber, compareParameterNumbers, isParameterJsonNumber, isParameterNumberText, parseParameterJson, stringifyParameterJson } from './parameterJson'
+import { requireSavedParameterValue } from './parameterValueReceipt'
+import { parameterControlsFor as controlsFor, requireParameterDefinition } from './parameterDefinitionFacts'
+import { requireSavedParameterDefinition, type ParameterDefinitionCommand } from './parameterDefinitionReceipt'
+import { parameterRollbackIssue, prepareParameterRollback, requireParameterChanges, requireParameterValueActionResult, type ParameterValueAction } from './parameterValueAction'
+import { mergeConfirmedCategories, requireCreatedCategory, requireParameterCategories, requireReorderedCategories, requireUpdatedCategory } from './parameterCategoryFacts'
+import { ConfigurationScopeTarget, useConfigurationScopeTarget } from './ConfigurationScopeTarget'
 
 type DefinitionDialogMode = 'create' | 'edit' | undefined
 type CategoryDialogState = { mode: 'create'; parentId?: string; category?: undefined } | { mode: 'edit'; category: ParameterCategory }
@@ -44,9 +51,19 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
   const [selectedId, setSelectedId] = useState<string>()
   const [definitionDialog, setDefinitionDialog] = useState<DefinitionDialogMode>()
   const [categoryDialog, setCategoryDialog] = useState<CategoryDialogState>()
+  const categorySession = useRef(0)
+  const categoryContext = JSON.stringify([context.tenantId, context.organization.id, context.department.id, context.userId])
+  const currentCategoryContext = useRef(categoryContext)
+  currentCategoryContext.current = categoryContext
   const [editingValue, setEditingValue] = useState<ParameterValue | null | undefined>(undefined)
   const [showChanges, setShowChanges] = useState(false)
-  const [confirmDefinitionStatus, setConfirmDefinitionStatus] = useState(false)
+  const [confirmDefinitionStatus, setConfirmDefinitionStatus] = useState<ParameterDefinition>()
+  const definitionDraftSource = useRef<ParameterDefinition | undefined>(undefined)
+  const definitionSession = useRef(0)
+  const definitionRequestCodes = useRef(new Map<string, string>())
+  const definitionContextKey = JSON.stringify([context.tenantId, context.organization.id, context.department.id, context.userId, selectedId])
+  const currentDefinitionContext = useRef(definitionContextKey)
+  currentDefinitionContext.current = definitionContextKey
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
   const cardRefs = useRef<Array<HTMLButtonElement | null>>([])
@@ -54,36 +71,71 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
   const systemEnums = useQuery({
     queryKey: ['dictionary-system-enums'], queryFn: api.dictionaries.systemEnums, staleTime: Infinity,
   })
-  const categories = useQuery({ queryKey: ['parameter-categories'], queryFn: api.configuration.categories })
+  const categories = useQuery({ queryKey: ['parameter-categories'], queryFn: async () => requireParameterCategories(await api.configuration.categories()) })
   const allDefinitions = useQuery({
     queryKey: ['parameter-definitions-all'],
-    queryFn: () => api.configuration.definitions(),
+    queryFn: async () => requireParameterList(await api.configuration.definitions(), '参数总览'),
   })
   const definitions = useQuery({
     queryKey: ['parameter-definitions', query, categoryFilter, effectiveConfigType, statusFilter],
-    queryFn: () => api.configuration.definitions(query, categoryFilter, effectiveConfigType, statusFilter),
+    queryFn: async () => requireParameterList(await api.configuration.definitions(query, categoryFilter, effectiveConfigType, statusFilter), '参数目录'),
   })
   const detail = useQuery({
-    queryKey: ['parameter-definition', selectedId], queryFn: () => api.configuration.get(selectedId!),
+    queryKey: ['parameter-definition', selectedId, context.tenantId, context.organization.id, context.department.id, context.userId], queryFn: async () => {
+      return requireParameterDefinition(await api.configuration.get(selectedId!), selectedId!, context.tenantId)
+    },
     enabled: Boolean(selectedId),
   })
   const changes = useQuery({
-    queryKey: ['parameter-changes', selectedId], queryFn: () => api.configuration.changes(selectedId!),
+    queryKey: ['parameter-changes', selectedId, context.tenantId, context.organization.id, context.department.id, context.userId],
+    queryFn: async () => requireParameterChanges(await api.configuration.changes(selectedId!), selectedId!),
     enabled: Boolean(selectedId && showChanges),
   })
 
+  const categoriesReady = categories.isSuccess && !categories.isFetching
+  const totalsReady = allDefinitions.isSuccess && !allDefinitions.isFetching
+  const catalogReady = definitions.isSuccess && !definitions.isFetching
+  const detailReady = catalogReady && definitions.data.some((item) => item.id === selectedId)
+    && detail.isSuccess && !detail.isFetching && Boolean(detail.data)
+  const enumsReady = systemEnums.isSuccess && !systemEnums.isFetching && Boolean(systemEnums.data)
+  const definitionFormReady = categoriesReady && totalsReady && enumsReady
+    && (definitionDialog !== 'edit' || detailReady)
+
+  async function refreshParameterFacts() {
+    await Promise.all([categories.refetch(), allDefinitions.refetch(), definitions.refetch(), systemEnums.refetch(),
+      ...(selectedId ? [detail.refetch()] : []), ...(selectedId && showChanges ? [changes.refetch()] : [])])
+  }
+
+  function requireCurrentDetail() {
+    if (!detailReady) throw new Error('参数当前状态尚未确认，请刷新后再操作')
+    return requireParameterDefinition(detail.data, selectedId!, context.tenantId)
+  }
+
   useEffect(() => {
+    if (!catalogReady) return
     const list = definitions.data ?? []
     const selectedIndex = list.findIndex((item) => item.id === selectedId)
     if (list.length && selectedIndex < 0) setSelectedId(list[0].id)
     if (selectedIndex >= 0) setCatalogPage(Math.floor(selectedIndex / DIRECTORY_PAGE_SIZE))
     if (!list.length) setSelectedId(undefined)
-  }, [definitions.data, selectedId])
+  }, [catalogReady, definitions.data, selectedId])
 
   useEffect(() => { setCatalogPage(0) }, [query, categoryFilter, configTypeFilter, statusFilter])
 
-  async function acceptChange(next: ParameterDefinition, message: string) {
-    queryClient.setQueryData(['parameter-definition', next.id], next)
+  useEffect(() => {
+    definitionSession.current += 1
+    categorySession.current += 1
+    setCategoryDialog(undefined)
+    setDefinitionDialog(undefined)
+    setEditingValue(undefined)
+    setConfirmDefinitionStatus(undefined)
+    setShowChanges(false)
+  }, [context.tenantId, context.organization.id, context.department.id, context.userId])
+
+
+  async function acceptChange(next: ParameterDefinition, message: string, expectedId = selectedId!) {
+    requireParameterDefinition(next, expectedId, context.tenantId)
+    queryClient.setQueryData(['parameter-definition', next.id, context.tenantId, context.organization.id, context.department.id, context.userId], next)
     setSelectedId(next.id)
     setFeedback(message)
     setOperationError('')
@@ -99,47 +151,152 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
     if (selectedId) void queryClient.invalidateQueries({ queryKey: ['parameter-definition', selectedId] })
   }
 
-  const createDefinition = useMutation({
-    mutationFn: api.configuration.create,
-    onSuccess: (next) => acceptChange(next, `已创建参数“${next.name}”`),
-    onError: (error) => setOperationError(errorMessage(error)),
+  const definitionWrite = useMutation({
+    mutationFn: async (command: ParameterDefinitionCommand) => {
+      if (command.kind !== 'create' && requireCurrentDetail().id !== command.before.id) throw new Error('参数目标已变化，请重新打开后核对')
+      const commandKey = JSON.stringify([definitionContextKey, command])
+      let requestCode = definitionRequestCodes.current.get(commandKey)
+      if (!requestCode) {
+        requestCode = crypto.randomUUID()
+        definitionRequestCodes.current.set(commandKey, requestCode)
+      }
+      const result = command.kind === 'create' ? await api.configuration.create(command.input, requestCode)
+        : command.kind === 'update' ? await api.configuration.update(command.before.id, command.before.revision, command.input, requestCode)
+          : await api.configuration.changeStatus(command.before.id, command.before.revision, command.enabled, requestCode)
+      const next = requireSavedParameterDefinition(command, result, context.tenantId)
+      definitionRequestCodes.current.delete(commandKey)
+      return next
+    },
+    onMutate: () => { setFeedback(''); setOperationError(''); return { key: definitionContextKey, session: definitionSession.current } },
+    onSuccess: (next, command, submitted) => {
+      if (submitted.key !== currentDefinitionContext.current || submitted.session !== definitionSession.current) return
+      setDefinitionDialog(undefined)
+      setConfirmDefinitionStatus(undefined)
+      return acceptChange(next, command.kind === 'create' ? `已创建参数“${next.name}”`
+        : command.kind === 'update' ? `已更新参数“${next.name}”` : `参数状态已更新为“${next.sdParamStatusText}”`, next.id)
+    },
+    onError: (error, _command, submitted) => {
+      if (submitted?.key === currentDefinitionContext.current && submitted.session === definitionSession.current) refreshAfterError(error)
+    },
   })
-  const updateDefinition = useMutation({
-    mutationFn: (input: ParameterDefinitionInput) => api.configuration.update(detail.data!.id, detail.data!.revision, input),
-    onSuccess: (next) => acceptChange(next, `已更新参数“${next.name}”`), onError: refreshAfterError,
-  })
-  const definitionStatus = useMutation({
-    mutationFn: (enabled: boolean) => api.configuration.changeStatus(detail.data!.id, detail.data!.revision, enabled),
-    onSuccess: (next) => acceptChange(next, `参数状态已更新为“${next.sdParamStatusText}”`), onError: refreshAfterError,
-  })
+
+  function openDefinitionDialog(mode: 'create' | 'edit') {
+    definitionSession.current += 1
+    definitionDraftSource.current = mode === 'edit' ? requireCurrentDetail() : undefined
+    definitionWrite.reset()
+    setDefinitionDialog(mode)
+  }
+
+  const definitionSaveError = definitionWrite.context?.key === definitionContextKey
+    && definitionWrite.context.session === definitionSession.current && definitionWrite.error
+    ? errorMessage(definitionWrite.error) : undefined
+  const valueRequestCodes = useRef(new Map<string, string>())
+  const valueContextKey = JSON.stringify([context.tenantId, context.organization.id, context.department.id, context.userId, selectedId])
+  const currentValueContext = useRef(valueContextKey)
+  currentValueContext.current = valueContextKey
+  const valueActionSession = useRef(0)
+  const valueActionRequests = useRef(new Map<string, string>())
+  useEffect(() => { valueActionSession.current += 1 }, [valueContextKey])
   const saveValue = useMutation({
-    mutationFn: (input: ParameterValueInput) => api.configuration.saveValue(detail.data!.id, input),
-    onSuccess: (next) => acceptChange(next, '参数当前值已保存').then(() => setEditingValue(undefined)),
-    onError: refreshAfterError,
+    mutationFn: async (input: ParameterValueInput) => {
+      const current = requireCurrentDetail()
+      const commandKey = JSON.stringify([valueContextKey, current.id, input])
+      let requestCode = valueRequestCodes.current.get(commandKey)
+      if (!requestCode) {
+        requestCode = crypto.randomUUID()
+        valueRequestCodes.current.set(commandKey, requestCode)
+      }
+      const result = await api.configuration.saveValue(current.id, input, requestCode)
+      const next = requireParameterDefinition(requireSavedParameterValue(current, result, input, context.tenantId), current.id, context.tenantId)
+      valueRequestCodes.current.delete(commandKey)
+      return next
+    },
+    onMutate: () => { setFeedback(''); setOperationError(''); return valueContextKey },
+    onSuccess: (next, _input, submittedContext) => {
+      if (submittedContext === currentValueContext.current) {
+        return acceptChange(next, '参数当前值已保存').then(() => {
+          if (submittedContext === currentValueContext.current) setEditingValue(undefined)
+        })
+      }
+    },
+    onError: (error, _input, submittedContext) => {
+      if (submittedContext === currentValueContext.current) refreshAfterError(error)
+    },
   })
-  const valueStatus = useMutation({
-    mutationFn: (value: ParameterValue) => api.configuration.changeValueStatus(
-      detail.data!.id, value, value.sdParamStatus !== 'ACTIVE',
-    ),
-    onSuccess: (next) => acceptChange(next, '参数当前值状态已更新'), onError: refreshAfterError,
+  const valueAction = useMutation({
+    mutationFn: async (command: ParameterValueAction) => {
+      const current = requireCurrentDetail()
+      if (current.id !== command.before.id || !current.values.some(value => value.id === command.value.id)) throw new Error('当前值目标已变化，请重新选择')
+      if (command.kind === 'rollback') {
+        if (!changes.isSuccess || changes.isFetching) throw new Error('历史记录尚未确认，请重新加载')
+        const history = changes.data.find(change => change.id === command.change.id)
+        if (!history || history.requestCode !== command.change.requestCode || JSON.stringify(history.after) !== JSON.stringify(command.change.after)) {
+          throw new Error('历史记录已变化，请重新选择快照')
+        }
+        prepareParameterRollback(command.before, command.change)
+      }
+      const key = JSON.stringify([valueContextKey, command])
+      let requestCode = valueActionRequests.current.get(key)
+      if (!requestCode) { requestCode = crypto.randomUUID(); valueActionRequests.current.set(key, requestCode) }
+      const result = command.kind === 'status'
+        ? await api.configuration.changeValueStatus(command.before.id, command.value, command.enabled, requestCode)
+        : await api.configuration.rollback(command.before.id, command.change.id, command.value.revision, '人工恢复历史快照', requestCode)
+      const next = requireParameterValueActionResult(command, result, context.tenantId)
+      valueActionRequests.current.delete(key)
+      return next
+    },
+    onMutate: () => { setFeedback(''); setOperationError(''); return { key: valueContextKey, session: valueActionSession.current } },
+    onSuccess: (next, command, submitted) => {
+      if (submitted.key === currentValueContext.current && submitted.session === valueActionSession.current) {
+        return acceptChange(next, command.kind === 'status' ? '参数当前值状态已更新' : '已将历史快照恢复为新的当前值', command.before.id)
+      }
+    },
+    onError: (error, command, submitted) => {
+      if (submitted?.key === currentValueContext.current && submitted.session === valueActionSession.current) {
+        refreshAfterError(error)
+        if (command.kind === 'rollback') void queryClient.invalidateQueries({ queryKey: ['parameter-changes', command.before.id] })
+      }
+    },
   })
-  const rollback = useMutation({
-    mutationFn: ({ changeId, revision }: { changeId: string; revision: number }) =>
-      api.configuration.rollback(detail.data!.id, changeId, revision, '人工恢复历史快照'),
-    onSuccess: (next) => acceptChange(next, '已将历史快照恢复为新的当前值'), onError: refreshAfterError,
-  })
+  const valueActionError = valueAction.context?.key === valueContextKey && valueAction.context.session === valueActionSession.current
+    && valueAction.error ? errorMessage(valueAction.error) : undefined
+  const categorySubmission = () => {
+    categorySession.current += 1
+    setFeedback(''); setOperationError('')
+    return { key: categoryContext, session: categorySession.current }
+  }
+  const isCurrentCategorySubmission = (submitted?: { key: string; session: number }) => submitted?.key === currentCategoryContext.current && submitted.session === categorySession.current
+  const categoryError = (error: unknown, _input: unknown, submitted?: { key: string; session: number }) => {
+    if (!isCurrentCategorySubmission(submitted)) return
+    setOperationError(errorMessage(error))
+    void queryClient.invalidateQueries({ queryKey: ['parameter-categories'] })
+  }
   const createCategory = useMutation({
-    mutationFn: api.configuration.createCategory,
-    onSuccess: async () => {
+    mutationFn: async (input: Parameters<RhnApi['configuration']['createCategory']>[0]) => {
+      const before = requireParameterCategories(categories.data)
+      return requireCreatedCategory(await api.configuration.createCategory(input), input, before)
+    },
+    onMutate: categorySubmission,
+    onSuccess: async (next, _input, submitted) => {
+      if (!isCurrentCategorySubmission(submitted)) return
+      queryClient.setQueryData(['parameter-categories'], (current: unknown) => mergeConfirmedCategories(current, [next]))
       setFeedback('参数分类已创建'); setOperationError('')
       await queryClient.invalidateQueries({ queryKey: ['parameter-categories'] })
     },
-    onError: (error) => setOperationError(errorMessage(error)),
+    onError: categoryError,
   })
   const updateCategory = useMutation({
-    mutationFn: ({ category, input }: { category: ParameterCategory; input: Parameters<RhnApi['configuration']['updateCategory']>[1] }) =>
-      api.configuration.updateCategory(category.id, input),
-    onSuccess: async () => {
+    mutationFn: async ({ category, input }: { category: ParameterCategory; input: Parameters<RhnApi['configuration']['updateCategory']>[1] }) => {
+      const before = requireParameterCategories(categories.data)
+      if (!before.some(item => item.id === category.id)) throw new Error('参数分类未确认：原分类已不在目录中，请重新加载并核实')
+      const next = requireUpdatedCategory(await api.configuration.updateCategory(category.id, input), category, input)
+      requireParameterCategories(before.map(item => item.id === category.id ? next : item))
+      return next
+    },
+    onMutate: categorySubmission,
+    onSuccess: async (next, _input, submitted) => {
+      if (!isCurrentCategorySubmission(submitted)) return
+      queryClient.setQueryData(['parameter-categories'], (current: unknown) => mergeConfirmedCategories(current, [next]))
       setFeedback('参数分类已更新'); setOperationError('')
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['parameter-categories'] }),
@@ -147,26 +304,24 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
         queryClient.invalidateQueries({ queryKey: ['parameter-definition'] }),
       ])
     },
-    onError: (error) => setOperationError(errorMessage(error)),
+    onError: categoryError,
   })
   const reorderCategories = useMutation({
-    mutationFn: ({ orders }: ReturnType<typeof planCategoryMove>) => api.configuration.reorderCategories(orders),
-    onMutate: async ({ next }: ReturnType<typeof planCategoryMove>) => {
-      await queryClient.cancelQueries({ queryKey: ['parameter-categories'] })
-      const previous = queryClient.getQueryData<ParameterCategory[]>(['parameter-categories'])
-      queryClient.setQueryData(['parameter-categories'], next)
-      return { previous }
+    mutationFn: async ({ orders }: ReturnType<typeof planCategoryMove>) => {
+      const before = requireParameterCategories(categories.data)
+      return requireReorderedCategories(await api.configuration.reorderCategories(orders), before, orders)
     },
-    onSuccess: (next) => {
-      queryClient.setQueryData(['parameter-categories'], next)
+    onMutate: categorySubmission,
+    onSuccess: (next, _input, submitted) => {
+      if (!isCurrentCategorySubmission(submitted)) return
+      queryClient.setQueryData(['parameter-categories'], (current: unknown) => mergeConfirmedCategories(current, next))
       setFeedback('参数分类顺序已保存'); setOperationError('')
     },
-    onError: (error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(['parameter-categories'], context.previous)
-      setOperationError(errorMessage(error))
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['parameter-categories'] }),
+    onError: categoryError,
+    onSettled: (_result, _error, _input, submitted) => isCurrentCategorySubmission(submitted)
+      ? queryClient.invalidateQueries({ queryKey: ['parameter-categories'] }) : undefined,
   })
+  const categorySaveError = [createCategory, updateCategory, reorderCategories].find(mutation => mutation.error && isCurrentCategorySubmission(mutation.context))?.error
 
   const categoryOptions = useMemo(() => flattenCategories(categories.data ?? []), [categories.data])
   const categoryCountMap = useMemo(() => {
@@ -182,22 +337,23 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
   const currentCategoryName = useMemo(() => {
     if (!categoryFilter) return '全部参数'
     const match = categories.data?.find((c) => c.id === categoryFilter)
-    return match ? match.name : '全部参数'
+    return match ? match.name : '分类待确认'
   }, [categories.data, categoryFilter])
 
   const configTypeOptions = enumOptions(systemEnums.data, PARAMETER_SYSTEM_ENUM.configType)
   const statusOptions = enumOptions(systemEnums.data, PARAMETER_SYSTEM_ENUM.status)
   const selected = detail.data
-  const definitionList = definitions.data ?? []
+  const dependency = parameterDependencyPresentation(selected?.dependencySatisfied)
+  const definitionList = catalogReady ? definitions.data : []
   const catalogPageCount = Math.max(1, Math.ceil(definitionList.length / DIRECTORY_PAGE_SIZE))
   const safeCatalogPage = Math.min(catalogPage, catalogPageCount - 1)
   const pageDefinitions = definitionList.slice(safeCatalogPage * DIRECTORY_PAGE_SIZE,
     (safeCatalogPage + 1) * DIRECTORY_PAGE_SIZE)
   const parameterRovingId = pageDefinitions.some((item) => item.id === selectedId)
     ? selectedId : pageDefinitions[0]?.id
-  const queryError = systemEnums.error || categories.error || definitions.error || detail.error
-  const busy = createDefinition.isPending || updateDefinition.isPending || definitionStatus.isPending
-    || saveValue.isPending || valueStatus.isPending || rollback.isPending
+  const queryError = systemEnums.error || categories.error || allDefinitions.error || definitions.error || detail.error
+  const busy = definitionWrite.isPending
+    || saveValue.isPending || valueAction.isPending
 
   function handleCardKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     const list = pageDefinitions
@@ -226,9 +382,12 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
   return <>
     <PageHeader compact eyebrow={pageEyebrow} title={pageTitle}
       description={pageDescription}
-      actions={<><Button className="parameter-page-action" variant="secondary" onClick={() => setCategoryDialog({ mode: 'create' })}>
-        管理分类</Button><Button className="parameter-page-action" disabled={!categories.data?.some((item) => item.sdParamStatus === 'ACTIVE') || !systemEnums.data}
-          onClick={() => setDefinitionDialog('create')}><Icon name="add" />新建参数</Button></>} />
+      actions={<>{queryError && <Button variant="secondary" onClick={() => void refreshParameterFacts()}>重新加载参数</Button>}
+        <Button className="parameter-page-action" variant="secondary" disabled={!categoriesReady} onClick={() => {
+          categorySession.current += 1; createCategory.reset(); updateCategory.reset(); reorderCategories.reset(); setCategoryDialog({ mode: 'create' })
+        }}>
+        管理分类</Button><Button className="parameter-page-action" disabled={!definitionFormReady || !categories.data?.some((item) => item.sdParamStatus === 'ACTIVE')}
+          onClick={() => openDefinitionDialog('create')}><Icon name="add" />新建参数</Button></>} />
 
     {feedback && <Alert tone="success" className="parameter-feedback">{feedback}</Alert>}
     {(operationError || queryError) && <Alert className="parameter-feedback">
@@ -236,23 +395,25 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
 
     <SplitWorkspace className="parameter-workspace">
       <Panel className="parameter-category-nav">
-        <TreePanel title="参数分类" headingLevel={2} rootLabel="全部参数"
-          rootMeta={`${allDefinitions.data?.length ?? 0} 项参数`} searchLabel="搜索分类"
+        {categories.isFetching && <LoadingState label="正在加载参数分类…" />}
+        {categories.isError && <EmptyState icon="error" title="参数分类加载失败" copy="请重新加载后再操作分类。" />}
+        {categoriesReady && <TreePanel title="参数分类" headingLevel={2} rootLabel="全部参数"
+          rootMeta={totalsReady ? `${allDefinitions.data.filter((item) => !fixedConfigType || item.sdParamConfigType === fixedConfigType).length} 项参数` : '数量待确认'} searchLabel="搜索分类"
           searchPlaceholder="搜索分类名称或编码" selectedId={categoryFilter || undefined}
           nodes={categoryOptions.map(({ category }) => ({
             id: category.id, parentId: category.parentId || undefined, label: category.name,
             keywords: [category.code], inactive: category.sdParamStatus !== 'ACTIVE',
-            secondaryText: `${categoryCountMap[category.id] ?? 0} 项${category.sdParamStatus !== 'ACTIVE' ? ' · 已停用' : ''}`,
+            secondaryText: `${totalsReady ? `${categoryCountMap[category.id] ?? 0} 项` : '数量待确认'}${category.sdParamStatus !== 'ACTIVE' ? ' · 已停用' : ''}`,
           }))}
           onSelect={id => {
             setCategoryFilter(id ?? '')
             setFeedback('')
             setOperationError('')
-          }} />
+          }} />}
       </Panel>
 
       <Panel className="parameter-catalog">
-        <PanelHead title={currentCategoryName} meta={`${definitions.data?.length ?? 0} 项`} />
+        <PanelHead title={currentCategoryName} meta={catalogReady ? `${definitionList.length} 项` : '数量待确认'} />
         <div className="parameter-filters">
           <SearchField className="parameter-filters__search" label="搜索参数" value={query}
             onChange={setQuery} placeholder="搜索名称或参数键" />
@@ -264,7 +425,8 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
             onChange={setStatusFilter} options={statusOptions.map(selectOption)} />
         </div>
         <div className="parameter-catalog__list" role="listbox" aria-label="参数目录">
-          {definitions.isPending && <LoadingState label="正在加载参数…" />}
+          {definitions.isFetching && <LoadingState label="正在加载参数…" />}
+          {definitions.isError && <EmptyState icon="error" title="参数目录加载失败" copy="请重新加载后再选择参数。" />}
           {pageDefinitions.map((definition, index) => <ParameterCard key={definition.id} definition={definition}
             tabIndex={definition.id === parameterRovingId ? 0 : -1}
             buttonRef={(node) => { cardRefs.current[index] = node }}
@@ -272,22 +434,23 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
             selected={definition.id === selectedId} onSelect={() => {
               setSelectedId(definition.id); setFeedback(''); setOperationError('')
             }} />)}
-          {!definitions.isPending && definitions.data?.length === 0 && <EmptyState icon="search"
+          {catalogReady && definitionList.length === 0 && <EmptyState icon="search"
             title="未找到匹配参数" copy={categories.data?.length ? '请调整筛选条件，或新建一个参数。' : '请先创建参数分类。'} />}
         </div>
-        <Pagination page={safeCatalogPage} totalPages={catalogPageCount} label="参数目录分页"
+        {catalogReady && <Pagination page={safeCatalogPage} totalPages={catalogPageCount} label="参数目录分页"
           onChange={(nextPage) => {
             setCatalogPage(nextPage)
             const first = definitionList[nextPage * DIRECTORY_PAGE_SIZE]
             if (first) setSelectedId(first.id)
-          }} />
+          }} />}
       </Panel>
 
       <Panel className="parameter-detail">
-        {detail.isPending && selectedId && <LoadingState label="正在加载参数详情…" />}
-        {!selected && !detail.isPending && <EmptyState icon="settings" title="暂无参数"
+        {detail.isFetching && selectedId && <LoadingState label="正在加载参数详情…" />}
+        {detail.isError && <EmptyState icon="error" title="参数详情加载失败" copy="当前值及状态尚未确认，请重新加载。" />}
+        {catalogReady && definitionList.length === 0 && <EmptyState icon="settings" title="暂无参数"
           copy="创建参数分类和参数定义后，即可按作用域维护当前值。" />}
-        {selected && <>
+        {detailReady && selected && <>
           <header className="parameter-detail__head">
             <div><div className="parameter-title-row"><h2>{selected.name}</h2>
               <StatusBadge tone={selected.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
@@ -295,10 +458,10 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
               <code>{selected.key}</code><p>{selected.description || '暂无用途说明'}</p></div>
             <div className="parameter-detail__actions">
               <Button variant="secondary" onClick={() => setShowChanges(true)}>变更记录</Button>
-              <Button variant="secondary" onClick={() => setDefinitionDialog('edit')}>编辑定义</Button>
+              <Button variant="secondary" disabled={!categoriesReady || !totalsReady || !enumsReady} onClick={() => openDefinitionDialog('edit')}>编辑定义</Button>
               <Button variant={selected.sdParamStatus === 'ACTIVE' ? 'danger' : 'secondary'}
-                busy={definitionStatus.isPending}
-                onClick={() => setConfirmDefinitionStatus(true)}>
+                busy={definitionWrite.isPending}
+                onClick={() => { definitionSession.current += 1; definitionWrite.reset(); setConfirmDefinitionStatus(requireCurrentDetail()) }}>
                 {selected.sdParamStatus === 'ACTIVE' ? '停用参数' : '启用参数'}</Button>
             </div>
           </header>
@@ -310,26 +473,26 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
             <div><dt>前置依赖</dt><dd>{selected.dependsOnKey ? `${selected.dependsOnName || selected.dependsOnKey}（期望: ${selected.dependsOnValue || '非空'}）` : '无（独立生效）'}</dd></div>
           </dl>
           {selected.dependsOnKey && (
-            <div className={`parameter-dependency-banner ${selected.dependencySatisfied ? 'is-satisfied' : 'is-unsatisfied'}`} role="status">
+            <div className={`parameter-dependency-banner ${selected.dependencySatisfied === true ? 'is-satisfied' : 'is-unsatisfied'}`} role="status">
               <div className="parameter-dependency-banner__icon">
-                <Icon name={selected.dependencySatisfied ? 'check' : 'warning'} />
+                <Icon name={selected.dependencySatisfied === true ? 'check' : 'warning'} />
               </div>
               <div className="parameter-dependency-banner__content">
                 <div className="parameter-dependency-banner__title">
-                  <strong>前置依赖联动：{selected.dependencySatisfied ? '条件已满足（正常生效）' : '条件未满足（运行时已抑制）'}</strong>
-                  <StatusBadge tone={selected.dependencySatisfied ? 'success' : 'warning'}>
-                    {selected.dependencySatisfied ? '正常生效' : '运行时抑制'}
+                  <strong>前置依赖预览：{dependency.label}</strong>
+                  <StatusBadge tone={dependency.tone}>
+                    {dependency.label}
                   </StatusBadge>
                 </div>
                 <p>
                   本参数依赖于 <code>{selected.dependsOnName || selected.dependsOnKey}</code>
                   {selected.dependsOnValue ? <>，期望匹配值：<code>{selected.dependsOnValue}</code>。</> : '，期望具有任意非空有效值。'}
-                  {selected.dependencySatisfied
-                    ? ' 当前前置参数值已达成，业务端在读取该参数时将正常生效。'
-                    : ' 当前前置条件未满足，业务调用时将安全抑制并返回空值；您在此维护的值将在前置条件满足后自动激活。'}
+                  {dependency.copy} 当前结果按本次请求的租户、用户、机构及科室预览；业务使用时按实际上下文判断。
                 </p>
               </div>
               <div className="parameter-dependency-banner__action">
+                {typeof selected.dependencySatisfied !== 'boolean' && <Button size="sm" variant="secondary"
+                  onClick={() => void detail.refetch()}>重新判断依赖</Button>}
                 <Button size="sm" variant="secondary" onClick={() => {
                   const target = definitions.data?.find((d) => d.key === selected.dependsOnKey)
                   if (target) {
@@ -356,7 +519,10 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
           </section>
           <div className="parameter-values__toolbar"><div><h3>当前值</h3>
             <span>每个作用域只保留一条当前记录；继承与重置默认均作为明确的值模式保存。</span></div>
-            <Button onClick={() => setEditingValue(null)}><Icon name="add" />维护当前值</Button></div>
+            <Button disabled={!enumsReady || valueAction.isPending} onClick={() => { saveValue.reset(); setEditingValue(null) }}><Icon name="add" />维护当前值</Button></div>
+          {valueActionError && valueAction.variables?.kind === 'status' && <div role="alert"><p>{valueActionError}</p>
+            <Button variant="secondary" busy={valueAction.isPending} disabled={!detailReady}
+              onClick={() => valueAction.variables && valueAction.mutate(valueAction.variables)}>重试本次操作</Button></div>}
           <TableShell scrollClassName="parameter-table-wrap" footerClassName="parameter-table__footer"
             footer={`${selected.values.length} 条当前值 · 定义修订 ${selected.revision}`}>
             <DataTable className="parameter-table" aria-label="参数当前值">
@@ -366,9 +532,9 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
               <td>{value.sdParamValueModeText}</td><td className="parameter-value-cell">{displayValue(value)}</td>
               <td><StatusBadge tone={value.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
                 {value.sdParamStatusText}</StatusBadge></td><td>{formatDate(value.updatedAt)}</td>
-              <td><div className="parameter-row-actions"><Button size="sm" variant="text"
-                onClick={() => setEditingValue(value)}>编辑</Button><Button size="sm" variant="text"
-                busy={valueStatus.isPending} onClick={() => valueStatus.mutate(value)}>
+              <td><div className="parameter-row-actions"><Button size="sm" variant="text" disabled={valueAction.isPending}
+                onClick={() => { saveValue.reset(); setEditingValue(value) }}>编辑</Button><Button size="sm" variant="text"
+                busy={valueAction.isPending} onClick={() => valueAction.mutate({ kind: 'status', before: selected, value, enabled: value.sdParamStatus !== 'ACTIVE' })}>
                 {value.sdParamStatus === 'ACTIVE' ? '停用' : '启用'}</Button></div></td>
             </tr>)}</tbody>
           </DataTable>{selected.values.length === 0 && <EmptyState icon="settings" title="尚未维护当前值"
@@ -385,31 +551,43 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
       initialCategoryId={categoryFilter || undefined}
       categories={categoryOptions.filter((item) => item.category.sdParamStatus === 'ACTIVE')}
       allDefinitions={allDefinitions.data ?? []}
-      systemEnums={systemEnums.data} busy={busy} onClose={() => setDefinitionDialog(undefined)}
+      systemEnums={systemEnums.data} busy={busy} available={definitionFormReady} saveError={definitionSaveError}
+      onRefresh={refreshParameterFacts} onClose={() => { definitionSession.current += 1; setDefinitionDialog(undefined) }}
       onSave={async (input) => {
-        if (definitionDialog === 'create') await createDefinition.mutateAsync(input)
-        else await updateDefinition.mutateAsync(input)
-        setDefinitionDialog(undefined)
+        if (!definitionFormReady) throw new Error('参数定义资料尚未确认，请重新加载')
+        if (definitionDialog === 'create') await definitionWrite.mutateAsync({ kind: 'create', input })
+        else {
+          const before = definitionDraftSource.current
+          if (!before) throw new Error('参数定义原始资料尚未确认，请重新打开')
+          await definitionWrite.mutateAsync({ kind: 'update', before, input })
+        }
       }} />}
-    {confirmDefinitionStatus && selected && <Dialog eyebrow="参数状态"
-      title={`确认${selected.sdParamStatus === 'ACTIVE' ? '停用' : '启用'}“${selected.name}”`}
-      description={selected.sdParamStatus === 'ACTIVE'
+    {confirmDefinitionStatus && <Dialog eyebrow="参数状态"
+      title={`确认${confirmDefinitionStatus.sdParamStatus === 'ACTIVE' ? '停用' : '启用'}“${confirmDefinitionStatus.name}”`}
+      description={confirmDefinitionStatus.sdParamStatus === 'ACTIVE'
         ? '停用后该参数不能继续维护当前值，已有定义、当前值和变更记录仍会保留。'
         : '启用后该参数可重新维护和解析当前值。'}
-      onClose={() => setConfirmDefinitionStatus(false)} closeOnBackdrop={false}
-      footer={<><Button variant="secondary" onClick={() => setConfirmDefinitionStatus(false)}>取消</Button>
-        <Button variant={selected.sdParamStatus === 'ACTIVE' ? 'danger' : 'primary'} busy={definitionStatus.isPending}
-          onClick={() => { definitionStatus.mutate(selected.sdParamStatus !== 'ACTIVE'); setConfirmDefinitionStatus(false) }}>
-          确认{selected.sdParamStatus === 'ACTIVE' ? '停用' : '启用'}</Button></>}>
+      onClose={() => { if (!definitionWrite.isPending) { definitionSession.current += 1; setConfirmDefinitionStatus(undefined) } }} closeOnBackdrop={false}
+      footer={<><Button variant="secondary" disabled={definitionWrite.isPending} onClick={() => { definitionSession.current += 1; setConfirmDefinitionStatus(undefined) }}>取消</Button>
+        <Button variant={confirmDefinitionStatus.sdParamStatus === 'ACTIVE' ? 'danger' : 'primary'} busy={definitionWrite.isPending} disabled={!detailReady}
+          onClick={() => definitionWrite.mutate({ kind: 'status', before: confirmDefinitionStatus, enabled: confirmDefinitionStatus.sdParamStatus !== 'ACTIVE' })}>
+          确认{confirmDefinitionStatus.sdParamStatus === 'ACTIVE' ? '停用' : '启用'}</Button></>}>
+      {!detailReady && <ParameterVerificationNotice onRefresh={refreshParameterFacts} />}
+      {definitionSaveError && <p role="alert">{definitionSaveError}</p>}
       <p className="master-confirm-note">请确认当前业务状态后再继续。</p>
     </Dialog>}
     {categoryDialog && <ParameterCategoryDialog
-      state={categoryDialog} categories={categories.data ?? []}
+      state={categoryDialog} categories={categories.data ?? []} available={categoriesReady} onRefresh={refreshParameterFacts}
+      saveError={categorySaveError ? `分类操作未确认：${errorMessage(categorySaveError)}。请重新加载核实。` : undefined}
       busy={createCategory.isPending || updateCategory.isPending || reorderCategories.isPending}
-      onClose={() => setCategoryDialog(undefined)} onMove={async (move) => {
+      onClose={() => { categorySession.current += 1; setCategoryDialog(undefined) }} onMove={async (move) => {
+        if (!categoriesReady) throw new Error('参数分类尚未确认，请重新加载')
         const plan = planCategoryMove(categories.data ?? [], move)
-        if (plan.orders.length) await reorderCategories.mutateAsync(plan)
+        if (!plan.orders.length) return false
+        await reorderCategories.mutateAsync(plan)
+        return true
       }} onSave={async (mode, category, input) => {
+        if (!categoriesReady) throw new Error('参数分类尚未确认，请重新加载')
         if (mode === 'create') return createCategory.mutateAsync({
           parentId: input.parentId, code: input.code, name: input.name,
           description: input.description, sortOrder: input.sortOrder,
@@ -421,13 +599,18 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
       }} />}
     {editingValue !== undefined && selected && <ParameterValueDialog definition={selected} value={editingValue}
       context={context} systemEnums={systemEnums.data} api={api} busy={saveValue.isPending}
+      saveError={saveValue.context === valueContextKey && saveValue.error ? errorMessage(saveValue.error) : undefined}
+      available={detailReady && enumsReady} onRefresh={refreshParameterFacts}
       onClose={() => setEditingValue(undefined)} onSave={(input) => saveValue.mutateAsync(input)} />}
-    {showChanges && selected && <ParameterChangesDialog definition={selected} changes={changes.data ?? []}
-      loading={changes.isPending} error={changes.error ? errorMessage(changes.error) : ''} busy={rollback.isPending}
-      onClose={() => setShowChanges(false)} onRollback={(changeId, valueId) => {
-        const value = selected.values.find((item) => item.id === valueId)
-        if (!value) { setOperationError('该历史记录对应的当前值不可见，无法恢复'); return }
-        rollback.mutate({ changeId, revision: value.revision })
+    {showChanges && selected && <ParameterChangesDialog definition={selected} changes={changes.isSuccess && !changes.isFetching ? changes.data : []}
+      loading={changes.isFetching} error={changes.error ? errorMessage(changes.error) : ''} busy={valueAction.isPending}
+      operationError={valueAction.variables?.kind === 'rollback' ? valueActionError : undefined}
+      onRetry={() => valueAction.variables && valueAction.mutate(valueAction.variables)}
+      available={detailReady && changes.isSuccess && !changes.isFetching} onRefresh={refreshParameterFacts}
+      onClose={() => { if (valueAction.variables?.kind === 'rollback') valueActionSession.current += 1; setShowChanges(false) }} onRollback={(change) => {
+        if (!detailReady || !changes.isSuccess || changes.isFetching) return
+        try { valueAction.mutate(prepareParameterRollback(selected, change)) }
+        catch (error) { setOperationError(errorMessage(error)) }
       }} />}
   </>
 }
@@ -446,21 +629,22 @@ function ParameterCard({ definition, selected, tabIndex, buttonRef, onKeyDown, o
           {definition.sdParamStatusText}</StatusBadge></span><code>{definition.key}</code>
       <small>{definition.categoryName} · {definition.sdParamConfigTypeText} · {definition.valueCount} 条当前值</small>
       {definition.dependsOnKey && (
-        <span className={`parameter-card__dependency ${definition.dependencySatisfied ? 'is-satisfied' : 'is-unsatisfied'}`}>
+        <span className={`parameter-card__dependency ${definition.dependencySatisfied === true ? 'is-satisfied' : 'is-unsatisfied'}`}>
           <Icon name="roadmap" />
           <span>依赖: {definition.dependsOnName || definition.dependsOnKey}</span>
-          {!definition.dependencySatisfied && <span className="dependency-tag">抑制中</span>}
+          <span className="dependency-tag">{parameterDependencyPresentation(definition.dependencySatisfied).label}</span>
         </span>
       )}
     </span><Icon name="chevron-right" />
   </button>
 }
 
-function ParameterDefinitionDialog({ mode, definition, initialCategoryId, categories, allDefinitions, systemEnums, busy, onClose, onSave, fixedConfigType }: {
+function ParameterDefinitionDialog({ mode, definition, initialCategoryId, categories, allDefinitions, systemEnums, busy, available, saveError, onRefresh, onClose, onSave, fixedConfigType }: {
   mode: 'create' | 'edit'; definition?: ParameterDefinition; initialCategoryId?: string
   categories: CategoryOption[]; allDefinitions?: ParameterDefinitionSummary[]; systemEnums?: SystemEnumDefinition[]; busy: boolean; onClose: () => void
   onSave: (input: ParameterDefinitionInput) => Promise<void>
   fixedConfigType?: 'BUSINESS' | 'SYSTEM'
+  available: boolean; saveError?: string; onRefresh: () => Promise<void>
 }) {
   const [categoryId, setCategoryId] = useState(
     definition?.categoryId ?? initialCategoryId ?? categories[0]?.category.id ?? '',
@@ -473,11 +657,29 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
   const [validation, setValidation] = useState(() => readValidationRules(
     definition?.jsonSchema, definition?.sdParamValueType ?? 'STRING',
   ))
-  const [nullDefault, setNullDefault] = useState(definition?.defaultValueJson?.trim() === 'null')
-  const [defaultValue, setDefaultValue] = useState(definition?.defaultValueJson?.trim() === 'null'
-    ? '' : readRawValue(definition?.defaultValueJson))
+  const [validationEdited, setValidationEdited] = useState(false)
+  const [rawSchema, setRawSchema] = useState(definition?.jsonSchema ?? '')
+  const [rawSchemaMode, setRawSchemaMode] = useState(Boolean(validation.sourceIssue))
+  const [defaultDraft, setDefaultDraft] = useState<{ text: string; kind: 'VALUE' | 'NULL' | 'EMPTY_STRING' }>()
+  const defaultState = defaultDraft ?? {
+    text: definition?.defaultValueJson?.trim() === 'null' ? '' : readRawValue(definition?.defaultValueJson, definition?.sdParamValueType ?? 'STRING'),
+    kind: definition?.defaultValueJson?.trim() === 'null' ? 'NULL'
+      : definition?.sdParamValueType === 'STRING' && definition.defaultValueJson?.trim() === '""' ? 'EMPTY_STRING' : 'VALUE',
+  }
+  const defaultValue = defaultState.text
+  const nullDefault = defaultState.kind === 'NULL'
+  const emptyStringDefault = defaultState.kind === 'EMPTY_STRING'
+  const defaultEdited = defaultDraft !== undefined
+  const setDefaultValue = (text: string) => setDefaultDraft({ text, kind: 'VALUE' })
+  const setNullDefault = (checked: boolean) => setDefaultDraft({ text: defaultValue, kind: checked ? 'NULL' : 'VALUE' })
+  const setEmptyStringDefault = (checked: boolean) => setDefaultDraft({ text: defaultValue, kind: checked ? 'EMPTY_STRING' : 'VALUE' })
+  const [unitDraft, setUnit] = useState<string>()
+  const unit = unitDraft ?? definition?.unit ?? ''
+  const [exampleDraft, setExampleJson] = useState<string>()
+  const exampleJson = exampleDraft ?? definition?.exampleValueJson ?? ''
+  const exampleEdited = exampleDraft !== undefined
   const [dictionaryCode, setDictionaryCode] = useState(definition?.dictionaryCode ?? '')
-  const [scopeLevel, setScopeLevel] = useState<ParameterScope>(definition?.allowedScopes[0] ?? 'TENANT')
+  const [scopeLevels, setScopeLevels] = useState<ParameterScope[]>(definition ? definition.allowedScopes ?? [] : ['TENANT'])
   const [configType, setConfigType] = useState<ParameterConfigType>(definition?.sdParamConfigType ?? fixedConfigType ?? 'BUSINESS')
   const [inheritanceEnabled, setInheritanceEnabled] = useState(definition?.inheritanceEnabled ?? true)
   const [cacheEnabled, setCacheEnabled] = useState(definition?.cacheEnabled ?? true)
@@ -498,15 +700,28 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
   const keyError = !key.trim() ? '请输入参数键'
     : !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+){1,15}$/.test(key.trim().toLowerCase())
       ? '请使用小写分段命名，例如 outpatient.queue.max-size' : ''
-  const jsonSchema = writeValidationSchema(valueType, validation)
-  const validationError = validationRulesError(valueType, validation)
+  const jsonSchema = rawSchemaMode ? rawSchema : validationEdited
+    ? writeValidationSchema(valueType, validation) : definition?.jsonSchema ?? ''
+  const validationError = rawSchemaMode ? readValidationRules(rawSchema, valueType).sourceIssue ?? ''
+    : validationEdited ? validationRulesError(valueType, validation) : validation.sourceIssue ?? ''
   const defaultValueAllowed = sensitivity !== 'SECRET' && controlType !== 'SECRET_REFERENCE'
   const hasNullDefault = defaultValueAllowed && nullableValue && nullDefault
-  const hasDefaultValue = defaultValueAllowed
-    && (valueType === 'STRING' ? defaultValue.length > 0 : Boolean(defaultValue.trim()))
-  const defaultValueError = hasDefaultValue && !hasNullDefault
-    ? valueType === 'JSON' ? jsonFieldError(defaultValue, '默认值') : parameterValueError(valueType, defaultValue)
-    : ''
+  const hasEmptyStringDefault = defaultValueAllowed && valueType === 'STRING' && emptyStringDefault && !hasNullDefault
+  const hasDefaultValue = defaultValueAllowed && (hasEmptyStringDefault
+    || (valueType === 'STRING' ? defaultValue.length > 0 : Boolean(defaultValue.trim())))
+  const protectedSource = definition && (definition.sdParamSensitivity !== 'NORMAL' || definition.sdParamDisplayPolicy !== 'PLAIN')
+  const missingDefault = definition?.hasDefaultValue && definition.defaultValueJson == null
+  const missingExample = definition?.hasExampleValue && definition.exampleValueJson == null
+  const sourceFieldsUnconfirmed = missingDefault && !protectedSource && !defaultEdited || missingExample && !protectedSource && !exampleEdited
+  const defaultValueError = defaultValueAllowed && nullDefault && !nullableValue ? '默认值为空时必须允许空值，请修改默认值或开启允许空值。'
+    : missingDefault && !protectedSource && !defaultEdited
+    ? '原默认值未返回，请重新确认配置或明确填写替代值。'
+    : hasDefaultValue && !hasNullDefault && valueType !== 'STRING'
+      ? valueType === 'JSON' ? jsonFieldError(defaultValue, '默认值') : parameterValueError(valueType, defaultValue)
+      : ''
+  const exampleError = missingExample && !protectedSource && !exampleEdited
+    ? '原示例值未返回，请重新确认配置或明确填写替代值。'
+    : exampleJson.trim() ? parameterJsonValueError(valueType, exampleJson, '示例值') : ''
 
   useEffect(() => {
     if (!compatibleControls.includes(controlType)) {
@@ -522,13 +737,14 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
   async function submit(event: FormEvent) {
     event.preventDefault(); setSubmitted(true)
     if (validationError) setValidationExpanded(true)
-    if (!categoryId || keyError || !name.trim() || validationError || defaultValueError) return
+    if (!available || busy || !categoryId || keyError || !name.trim() || !scopeLevels.length || validationError || defaultValueError || exampleError) return
     try {
       await onSave({ categoryId, key: key.trim().toLowerCase(), name: name.trim(),
         description: optional(description), valueType, controlType, jsonSchema: optional(jsonSchema),
-        defaultValueJson: hasNullDefault ? 'null' : hasDefaultValue ? writeJsonValue(valueType, defaultValue) : undefined,
+        defaultValueJson: hasNullDefault ? 'null' : hasEmptyStringDefault ? '""' : hasDefaultValue ? writeJsonValue(valueType, defaultValue) : undefined,
+        unit: optional(unit), exampleValueJson: optional(exampleJson),
         dictionaryCode: controlType === 'SELECT' ? optional(dictionaryCode)?.toUpperCase() : undefined,
-        allowedScopes: [scopeLevel], category: configType, inheritanceEnabled, cacheEnabled, nullableValue,
+        allowedScopes: scopeLevels, category: configType, inheritanceEnabled, cacheEnabled, nullableValue,
         sensitivity, displayPolicy,
         dependsOnKey: optional(dependsOnKey),
         dependsOnValue: dependsOnKey ? optional(dependsOnValue) : undefined,
@@ -538,9 +754,11 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
 
   return <Dialog title={mode === 'create' ? '新建参数' : '编辑参数定义'} eyebrow="参数定义"
     description="参数键创建后不可修改；已有当前值时不能修改值类型。系统会根据值类型自动保存和校验默认值。"
-    onClose={onClose} closeOnBackdrop={false} size="xwide" footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
-      <Button type="submit" form="parameter-definition-form" busy={busy}>{mode === 'create' ? '创建参数' : '保存定义'}</Button></>}>
-    <form id="parameter-definition-form" className="parameter-form" onSubmit={submit} noValidate>
+    onClose={() => { if (!busy) onClose() }} closeOnBackdrop={false} size="xwide" footer={<><Button variant="secondary" disabled={busy} onClick={onClose}>取消</Button>
+      <Button type="submit" form="parameter-definition-form" busy={busy} disabled={!available || Boolean(sourceFieldsUnconfirmed)}>{mode === 'create' ? '创建参数' : '保存定义'}</Button></>}>
+    {(!available || sourceFieldsUnconfirmed) && <ParameterVerificationNotice onRefresh={onRefresh} />}
+    {saveError && <p role="alert">{saveError}</p>}
+    <form id="parameter-definition-form" className="parameter-form" onSubmit={submit} inert={busy} noValidate>
       <section className="parameter-form__group" aria-labelledby="parameter-basic-title">
         <header className="parameter-form__group-head"><div><h3 id="parameter-basic-title">基础信息</h3>
           <p>定义参数身份、用途和使用方式。</p></div></header>
@@ -562,6 +780,7 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
             onChange={(value) => {
               const nextType = value as ParameterValueType
               setValueType(nextType); setDefaultValue(''); setValidation(readValidationRules(undefined, nextType))
+              setValidationEdited(true); setRawSchema(''); setRawSchemaMode(false)
             }} options={enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.valueType).map(selectOption)} /></FormField>
           <FormField className="parameter-grid__span-3" label="界面控件" required><Select value={controlType}
             showValue clearable={false}
@@ -587,10 +806,23 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
           : sensitivity !== 'SECRET' && <div
             className={valueType === 'JSON' ? 'parameter-grid__span-12' : 'parameter-grid__span-3'}><FormField label="默认值"
             error={submitted ? defaultValueError || undefined : undefined}
-            hint={hasNullDefault ? '未配置当前值时返回空值，不是文本 null' : defaultValueHint(valueType)}>
-            {hasNullDefault ? <input value="空值" readOnly /> : defaultValueControl(valueType, defaultValue, setDefaultValue)}
-          </FormField>{nullableValue && <Toggle checked={nullDefault} onChange={setNullDefault}
-            title="默认值为空" copy="使用空值作为默认值" />}</div>}
+            hint={hasNullDefault ? '未配置当前值时返回空值，不是文本 null'
+              : hasEmptyStringDefault ? missingDefault && protectedSource
+                ? '默认值将替换为空字符串；关闭此选项并留空会保留原受保护默认值。'
+                : '默认值为长度 0 的字符串；关闭此选项并留空可取消默认值。'
+                : missingDefault && protectedSource ? '已有默认值受保护；留空保留原值，填写新值替换。' : defaultValueHint(valueType)}>
+            {hasNullDefault ? <input value="空值" readOnly /> : hasEmptyStringDefault ? <input value="" placeholder="空字符串（长度 0）" readOnly />
+              : defaultValueControl(valueType, defaultValue, setDefaultValue)}
+          </FormField>{valueType === 'STRING' && <Toggle checked={emptyStringDefault} onChange={setEmptyStringDefault} title="使用空字符串默认值" copy={'保存为 ""，不等于未配置'} />}
+          {nullableValue && <Toggle checked={nullDefault} onChange={setNullDefault} title="默认值为空" copy="使用空值作为默认值" />}</div>}
+          <FormField className="parameter-grid__span-3" label="计量单位" hint="无单位可留空">
+            <input value={unit} maxLength={32} onChange={event => setUnit(event.target.value)} /></FormField>
+          <FormField className="parameter-grid__span-6" label="示例值（JSON）"
+            error={submitted ? exampleError || undefined : undefined}
+            hint={missingExample && protectedSource ? '已有示例值受保护；留空保留原值，填写新值替换。'
+              : '按参数类型填写 JSON，例如字符串使用双引号；留空表示不配置示例。'}>
+            <textarea rows={2} value={exampleJson} maxLength={10000}
+              onChange={event => setExampleJson(event.target.value)} /></FormField>
           {controlType === 'SELECT' && <FormField className="parameter-grid__span-6" label="绑定字典编码"
             hint="可绑定系统枚举或当前租户的普通枚举字典">
             <input value={dictionaryCode} maxLength={64} onChange={(event) => setDictionaryCode(event.target.value)} /></FormField>}
@@ -602,20 +834,29 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
 
       <section className="parameter-form__group" aria-labelledby="parameter-validation-title">
         <header className="parameter-form__group-head"><div><h3 id="parameter-validation-title">校验规则</h3>
-          <p>按值类型配置可理解、可直接校验的业务约束，无需编写 JSON Schema。</p></div>
-          <Button size="sm" variant="text" aria-expanded={validationExpanded}
+          <p>未编辑的规则保持原样；复杂约束可通过原始 JSON 编辑。</p></div>
+          {!rawSchemaMode && <Button size="sm" variant="text" aria-expanded={validationExpanded}
             aria-controls="parameter-validation-content"
             onClick={() => setValidationExpanded((current) => !current)}>
             {validationExpanded ? '收起配置' : '展开配置'}
-          </Button></header>
+          </Button>}</header>
         <div id="parameter-validation-content">
+          {rawSchemaMode ? <FormField label="原始校验规则（JSON）"
+            error={validationError || undefined} hint="留空表示不配置附加规则；保存时由服务端校验规则。">
+            <textarea value={rawSchema} rows={6} onChange={(event) => setRawSchema(event.target.value)} />
+          </FormField> : <>
           {!validationExpanded && <div className="parameter-validation-summary">
             <div><strong>{validationTypeLabel(valueType, validation.schemaType)}</strong>
               <span>{validationSummary(valueType, validation)}</span></div>
             <small>展开后可调整规则</small>
           </div>}
           {validationExpanded && <ParameterValidationEditor valueType={valueType} value={validation}
-            onChange={setValidation} error={submitted ? validationError || undefined : undefined} />}
+            onChange={(next) => { setValidation(next); setValidationEdited(true) }}
+            error={submitted ? validationError || undefined : undefined} />}
+          <Button size="sm" variant="text" onClick={() => {
+            setRawSchema(jsonSchema); setRawSchemaMode(true)
+          }}>查看或编辑原始规则</Button>
+          </>}
         </div>
       </section>
 
@@ -624,8 +865,10 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
           <p>控制可维护范围、展示方式和解析行为。</p></div></header>
         <div className="parameter-form__grid parameter-form__grid--policy">
           <div className="parameter-policy-fields parameter-policy-fields--three parameter-grid__span-12">
-            <FormField label="参数级别" required><Select value={scopeLevel}
-              showValue clearable={false} onChange={(value) => setScopeLevel(value as ParameterScope)}
+            <FormField label="参数级别" required hint="可多选，至少保留一个允许维护的作用域"
+              error={submitted && !scopeLevels.length ? '至少选择一个参数级别' : undefined}>
+              <Select multiple value={scopeLevels}
+              showValue clearable={false} onChange={(values) => setScopeLevels(values as ParameterScope[])}
               options={enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.scopeType).map(selectOption)} /></FormField>
             <FormField label="敏感级别" required><Select value={sensitivity}
               showValue clearable={false} onChange={(value) => {
@@ -701,7 +944,7 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
 }
 
 
-type ValidationSchemaType = 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array'
+type ValidationSchemaType = 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'any'
 
 interface ParameterValidationRules {
   schemaType: ValidationSchemaType
@@ -713,6 +956,8 @@ interface ParameterValidationRules {
   enumValues: string
   requiredFields: string
   extraSchema: Record<string, unknown>
+  sourceSchema: Record<string, unknown>
+  sourceIssue?: string
 }
 
 function ParameterValidationEditor({ valueType, value, onChange, error }: {
@@ -723,6 +968,11 @@ function ParameterValidationEditor({ valueType, value, onChange, error }: {
 }) {
   const update = (key: keyof ParameterValidationRules, next: string) => onChange({ ...value, [key]: next })
   const advancedCount = Object.keys(value.extraSchema).length
+  const rawEnumRequired = Array.isArray(value.sourceSchema.enum) && value.sourceSchema.enum.some((item) =>
+    valueType === 'STRING' ? typeof item !== 'string' || !item.length || item.trim() !== item || /[\n\r,，]/.test(item)
+      : !isParameterJsonNumber(item))
+  const rawRequiredFields = Array.isArray(value.sourceSchema.required) && value.sourceSchema.required.some((item) =>
+    typeof item === 'string' && (item.trim() !== item || /[\n\r,，]/.test(item)))
 
   return <div className="parameter-validation-editor">
     <div className="parameter-validation-summary">
@@ -740,13 +990,16 @@ function ParameterValidationEditor({ valueType, value, onChange, error }: {
           <input type="number" min="0" step="1" inputMode="numeric" value={value.maxLength}
             placeholder="不限" onChange={(event) => update('maxLength', event.target.value)} /></FormField>
         <FormField className="parameter-validation-grid__span-2" label="格式规则（正则表达式）"
-          hint="填写后，参数值必须完整匹配该规则">
+          hint="使用 Java 正则语法；保存时由服务端校验，参数值必须完整匹配">
           <input value={value.pattern} placeholder="例如 ^[A-Z][A-Z0-9_]*$"
             onChange={(event) => update('pattern', event.target.value)} /></FormField>
-        <FormField className="parameter-validation-grid__span-2" label="限定可选值"
+        {rawEnumRequired ? <FormField className="parameter-validation-grid__span-2" label="限定可选值（原始数组）"
+          hint="此数组不能无损转换为逗号分隔的文本，请通过原始规则编辑。">
+          <textarea readOnly value={stringifyParameterJson(value.sourceSchema.enum)} rows={2} /></FormField>
+        : <FormField className="parameter-validation-grid__span-2" label="限定可选值"
           hint="可选；多个值使用逗号分隔">
           <input value={value.enumValues} placeholder="例如 启用, 停用"
-            onChange={(event) => update('enumValues', event.target.value)} /></FormField>
+            onChange={(event) => update('enumValues', event.target.value)} /></FormField>}
       </>}
       {valueType === 'NUMBER' && <>
         <FormField label="数值形式" required><Select value={value.schemaType} clearable={false} showValue
@@ -754,60 +1007,91 @@ function ParameterValidationEditor({ valueType, value, onChange, error }: {
             { value: 'number', label: '小数或整数' }, { value: 'integer', label: '仅整数' },
           ]} /></FormField>
         <FormField label="最小值" hint="留空表示不限制">
-          <input type="number" step="any" value={value.minimum} placeholder="不限"
+          <input inputMode="decimal" value={value.minimum} placeholder="不限"
             onChange={(event) => update('minimum', event.target.value)} /></FormField>
         <FormField label="最大值" hint="留空表示不限制">
-          <input type="number" step="any" value={value.maximum} placeholder="不限"
+          <input inputMode="decimal" value={value.maximum} placeholder="不限"
             onChange={(event) => update('maximum', event.target.value)} /></FormField>
-        <FormField label="限定可选值" hint="可选；多个数值使用逗号分隔">
+        {rawEnumRequired ? <FormField label="限定可选值（原始数组）" hint="请通过原始规则编辑此数组。">
+          <textarea readOnly value={stringifyParameterJson(value.sourceSchema.enum)} rows={2} /></FormField>
+        : <FormField label="限定可选值" hint="可选；多个数值使用逗号分隔">
           <input value={value.enumValues} placeholder="例如 5, 10, 15"
-            onChange={(event) => update('enumValues', event.target.value)} /></FormField>
+            onChange={(event) => update('enumValues', event.target.value)} /></FormField>}
       </>}
       {valueType === 'BOOLEAN' && <div className="parameter-validation-empty">
-        <strong>布尔值仅允许“是”或“否”</strong><span>系统已自动完成类型校验，无需配置额外规则。</span>
+        <strong>布尔值仅允许“是”或“否”</strong><span>已有附加规则继续保留，可查看原始规则。</span>
       </div>}
       {valueType === 'JSON' && <>
         <FormField label="数据结构" required><Select value={value.schemaType} clearable={false} showValue
           onChange={(next) => update('schemaType', next)} options={[
+            { value: 'any', label: '对象或数组（未限定）' },
             { value: 'object', label: '对象' }, { value: 'array', label: '数组' },
           ]} /></FormField>
-        {value.schemaType === 'object' && <FormField className="parameter-validation-grid__span-3" label="必填属性"
+        {value.schemaType === 'object' && (rawRequiredFields
+          ? <FormField className="parameter-validation-grid__span-3" label="必填属性（原始数组）"
+            hint="此字段名数组包含分隔符或首尾空格，请通过原始规则编辑。">
+            <textarea readOnly value={stringifyParameterJson(value.sourceSchema.required)} rows={2} /></FormField>
+          : <FormField className="parameter-validation-grid__span-3" label="必填属性"
           hint="可选；多个属性名使用逗号分隔">
           <input value={value.requiredFields} placeholder="例如 enabled, mode"
-            onChange={(event) => update('requiredFields', event.target.value)} /></FormField>}
+            onChange={(event) => update('requiredFields', event.target.value)} /></FormField>)}
         {value.schemaType === 'array' && <div className="parameter-validation-empty parameter-validation-grid__span-3">
-          <strong>数组结构已限定</strong><span>数组元素的详细结构由业务接口负责校验。</span>
+          <strong>数组结构已限定</strong><span>附加约束请查看原始规则，实际校验以服务端支持的规则为准。</span>
         </div>}
       </>}
     </div>
   </div>
 }
 
-function ParameterValueDialog({ definition, value, context, systemEnums, api, busy, onClose, onSave }: {
+function ParameterValueDialog({ definition, value, context, systemEnums, api, busy, available, saveError, onRefresh, onClose, onSave }: {
   definition: ParameterDefinition; value: ParameterValue | null; context: ParameterContext
   systemEnums?: SystemEnumDefinition[]; api: RhnApi; busy: boolean; onClose: () => void
+  available: boolean; saveError?: string; onRefresh: () => Promise<void>
   onSave: (input: ParameterValueInput) => Promise<unknown>
 }) {
   const [scopeType, setScopeType] = useState<ParameterScope>(value?.sdParamScopeType ?? definition.allowedScopes[0])
   const [scopeId, setScopeId] = useState(value?.scopeId ?? suggestedScopeId(
     value?.sdParamScopeType ?? definition.allowedScopes[0], context,
   ))
-  const [organizationId, setOrganizationId] = useState(context.organization.id)
+  const [selectedOrganizationId, setOrganizationId] = useState(context.organization.id)
   const [scopeReference, setScopeReference] = useState(value?.scopeReference ?? '')
   const [valueMode, setValueMode] = useState<ParameterValueMode>(value?.sdParamValueMode ?? 'OVERRIDE')
-  const [rawValue, setRawValue] = useState(readRawValue(value?.valueJson))
+  const [rawValue, setRawValue] = useState(readRawValue(value?.valueJson, definition.sdParamValueType))
   const [secretRef, setSecretRef] = useState('')
   const [reason, setReason] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const needsExistingDepartment = value?.sdParamScopeType === 'DEPARTMENT'
   const existingDepartment = useQuery({
-    queryKey: ['parameter-value-department', value?.scopeId],
-    queryFn: () => api.organization.department(value!.scopeId!),
-    enabled: Boolean(value?.sdParamScopeType === 'DEPARTMENT' && value.scopeId),
+    queryKey: ['parameter-value-department', context.tenantId, value?.scopeId],
+    queryFn: async () => {
+      if (!value?.scopeId) throw new Error('当前科室参数缺少科室标识')
+      const result = await api.organization.department(value.scopeId)
+      if (result?.department?.id !== value.scopeId || typeof result.department.organizationId !== 'string'
+        || !result.department.organizationId.trim()) throw new Error('科室归属响应不完整或与当前科室不符')
+      return result
+    },
+    enabled: needsExistingDepartment,
   })
-  useEffect(() => {
-    const parentId = existingDepartment.data?.department.organizationId
-    if (parentId) setOrganizationId(parentId)
-  }, [existingDepartment.data])
+  const departmentReady = !needsExistingDepartment || existingDepartment.isSuccess && !existingDepartment.isFetching
+  const organizationId = needsExistingDepartment
+    ? departmentReady ? existingDepartment.data!.department.organizationId : ''
+    : scopeType === 'ORGANIZATION' ? scopeId : selectedOrganizationId
+  const scopeVerification = useConfigurationScopeTarget({ api, scopeType, tenantId: context.tenantId,
+    organizationId, departmentId: scopeType === 'DEPARTMENT' ? scopeId : '', enabled: departmentReady })
+  const isDirectVisitService = definition.key === 'outpatient.direct-visit.catalog-item-id' && definition.sdParamSensitivity !== 'SECRET'
+  const needsService = isDirectVisitService && valueMode === 'OVERRIDE'
+  const services = useQuery({
+    queryKey: ['direct-visit-service-options', context.tenantId, organizationId],
+    queryFn: async () => requireDirectVisitServices(await api.masterData.services('', '', 'ACTIVE', organizationId)),
+    enabled: needsService && scopeVerification.ready && Boolean(organizationId),
+  })
+  const servicesReady = scopeVerification.ready && Boolean(organizationId) && services.isSuccess && !services.isFetching
+  const serviceOptions = servicesReady ? services.data! : []
+  const serviceError = needsService
+    ? !servicesReady ? '门诊服务目录尚未确认，不能保存覆盖值。'
+      : !rawValue ? '请选择门诊服务；如不收费，请明确选择“不配置门诊服务费”。'
+        : !serviceOptions.some(item => item.id === rawValue) ? `原门诊服务（${rawValue}）不在当前机构可选目录中，请重新选择或明确不配置。` : ''
+    : ''
   const scopeOptions = enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.scopeType)
     .filter((item) => definition.allowedScopes.includes(item.code as ParameterScope))
   const modeOptions = enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.valueMode).filter((item) => {
@@ -826,32 +1110,38 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
   const currentValueError = valueMode === 'OVERRIDE'
     ? definition.sdParamSensitivity === 'SECRET'
       ? !secretRef.trim() ? '请输入密钥引用' : ''
-      : definition.key === 'outpatient.direct-visit.catalog-item-id' && !rawValue.trim() ? ''
+      : isDirectVisitService ? serviceError
         : parameterValueError(definition.sdParamValueType, rawValue)
     : ''
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setSubmitted(true)
-    if (missingTarget || referenceError || currentValueError) return
-    const effectiveValueMode = definition.key === 'outpatient.direct-visit.catalog-item-id'
-      && valueMode === 'OVERRIDE' && !rawValue.trim() ? 'EXPLICIT_NULL' : valueMode
+    if (!available || busy || !departmentReady || !scopeVerification.ready || missingTarget || referenceError || currentValueError) return
     try {
       await onSave({ expectedRevision: value?.revision, scopeType, scopeId: target.scopeId,
         organizationId: scopeType === 'DEPARTMENT' ? organizationId.trim() : undefined,
         scopeReference: target.requiresReference ? scopeReference.trim() : undefined,
-        valueMode: effectiveValueMode,
-        valueJson: effectiveValueMode === 'OVERRIDE' && definition.sdParamSensitivity !== 'SECRET'
+        valueMode,
+        valueJson: valueMode === 'OVERRIDE' && definition.sdParamSensitivity !== 'SECRET'
           ? writeJsonValue(definition.sdParamValueType, rawValue) : undefined,
-        secretRef: effectiveValueMode === 'OVERRIDE' && definition.sdParamSensitivity === 'SECRET' ? secretRef.trim() : undefined,
+        secretRef: valueMode === 'OVERRIDE' && definition.sdParamSensitivity === 'SECRET' ? secretRef.trim() : undefined,
         reason: optional(reason) })
     } catch { /* The page-level mutation error keeps this dialog open for correction. */ }
   }
 
   return <Dialog title={value ? '编辑当前值' : '维护当前值'} eyebrow={definition.name}
     description="作用域由系统根据上下文生成规范编码，不能手工输入。覆盖值会按参数定义的数据类型和校验规则验证。"
-    onClose={onClose} closeOnBackdrop={false} size="wide" footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
-      <Button type="submit" form="parameter-value-form" busy={busy}>保存当前值</Button></>}>
-    <form id="parameter-value-form" className="parameter-value-form" onSubmit={submit} noValidate>
+    onClose={() => { if (!busy) onClose() }} closeOnBackdrop={false} size="wide" footer={<><Button variant="secondary" disabled={busy} onClick={onClose}>取消</Button>
+      <Button type="submit" form="parameter-value-form" busy={busy} disabled={!available || !departmentReady || !scopeVerification.ready || Boolean(serviceError)}>保存当前值</Button></>}>
+    {!available && <ParameterVerificationNotice onRefresh={onRefresh} />}
+    {saveError && <p role="alert">{saveError}</p>}
+    {!departmentReady && <div role="alert">
+      <p>{existingDepartment.isFetching ? '正在核实当前科室的所属机构…' : '科室归属未确认，无法保存当前值。'}</p>
+      {existingDepartment.isError && <p>{errorMessage(existingDepartment.error)}</p>}
+      <Button variant="secondary" disabled={existingDepartment.isFetching}
+        onClick={() => void existingDepartment.refetch()}>重新确认科室归属</Button>
+    </div>}
+    <form id="parameter-value-form" className="parameter-value-form" inert={busy} onSubmit={submit} noValidate>
       <FormField label="作用域" required><Select value={scopeType} disabled={Boolean(value)} showValue clearable={false}
         onChange={(selectedValue) => {
           const next = selectedValue as ParameterScope
@@ -862,8 +1152,8 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
         onChange={(selectedValue) => setValueMode(selectedValue as ParameterValueMode)}
         options={modeOptions.map(selectOption)} /></FormField>
       <Alert tone="info" className="parameter-form__span-2">当前目标：{scopeTargetLabel(scopeType, context, value, scopeId)}</Alert>
-      {(['PLATFORM', 'TENANT', 'ORGANIZATION', 'DEPARTMENT'] as ParameterScope[]).includes(scopeType)
-        && <ConfigurationScopeTarget api={api} scopeType={scopeType as 'PLATFORM' | 'TENANT' | 'ORGANIZATION' | 'DEPARTMENT'}
+      {departmentReady && (['PLATFORM', 'TENANT', 'ORGANIZATION', 'DEPARTMENT'] as ParameterScope[]).includes(scopeType)
+        && <ConfigurationScopeTarget verification={scopeVerification} scopeType={scopeType as 'PLATFORM' | 'TENANT' | 'ORGANIZATION' | 'DEPARTMENT'}
           tenantId={context.tenantId}
           organizationId={scopeType === 'ORGANIZATION' ? scopeId : organizationId}
           departmentId={scopeType === 'DEPARTMENT' ? scopeId : ''}
@@ -883,9 +1173,13 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
         error={submitted ? currentValueError || undefined : undefined}
         hint="只保存密钥管理系统中的引用标识，不保存密钥明文">
         <input value={secretRef} maxLength={500} onChange={(event) => setSecretRef(event.target.value)} /></FormField>}
-      {valueMode === 'OVERRIDE' && definition.sdParamSensitivity !== 'SECRET' && <ValueControl definition={definition}
+      {needsService && <DirectVisitServiceValue value={rawValue} options={serviceOptions} ready={servicesReady}
+        loading={services.isFetching} error={serviceError} queryError={services.error}
+        nullable={definition.nullableValue} canRefresh={scopeVerification.ready && Boolean(organizationId)}
+        onRefresh={() => { if (scopeVerification.ready && organizationId) void services.refetch() }}
+        onChange={(next) => { setRawValue(next); if (!next && definition.nullableValue) setValueMode('EXPLICIT_NULL') }} />}
+      {valueMode === 'OVERRIDE' && !isDirectVisitService && definition.sdParamSensitivity !== 'SECRET' && <ValueControl definition={definition}
         rawValue={rawValue} onChange={setRawValue} systemEnums={systemEnums} api={api}
-        organizationId={organizationId}
         required error={submitted ? currentValueError || undefined : undefined} />}
       <FormField className="parameter-form__span-2" label="变更原因"><textarea rows={3} value={reason} maxLength={1000}
         onChange={(event) => setReason(event.target.value)} /></FormField>
@@ -893,13 +1187,10 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
   </Dialog>
 }
 
-function ValueControl({ definition, rawValue, onChange, systemEnums, api, error, required = false, organizationId }: {
+function ValueControl({ definition, rawValue, onChange, systemEnums, api, error, required = false }: {
   definition: ParameterDefinition; rawValue: string; onChange: (value: string) => void
-  systemEnums?: SystemEnumDefinition[]; api: RhnApi; error?: string; required?: boolean; organizationId?: string
+  systemEnums?: SystemEnumDefinition[]; api: RhnApi; error?: string; required?: boolean
 }) {
-  if (definition.key === 'outpatient.direct-visit.catalog-item-id') {
-    return <DirectVisitServiceValue api={api} organizationId={organizationId} value={rawValue} onChange={onChange} error={error} />
-  }
   if (definition.sdParamControlType === 'SELECT' && definition.dictionaryCode) {
     const systemOptions = enumOptions(systemEnums, definition.dictionaryCode)
     return <FormField label="参数值" required={required} error={error}>{systemOptions.length
@@ -917,23 +1208,40 @@ function ValueControl({ definition, rawValue, onChange, systemEnums, api, error,
       <textarea className={definition.sdParamValueType === 'JSON' ? 'parameter-code-input' : ''} value={rawValue}
         maxLength={20000} onChange={(event) => onChange(event.target.value)} /></FormField>
   }
-  return <FormField label="参数值" required={required} error={error}><input type={definition.sdParamValueType === 'NUMBER' ? 'number' : 'text'}
+  return <FormField label="参数值" required={required} error={error}><input inputMode={definition.sdParamValueType === 'NUMBER' ? 'decimal' : undefined}
     value={rawValue} onChange={(event) => onChange(event.target.value)} /></FormField>
 }
 
-function DirectVisitServiceValue({ api, organizationId, value, onChange, error }: {
-  api: RhnApi; organizationId?: string; value: string; onChange: (value: string) => void; error?: string
+function requireDirectVisitServices(items: ServiceCatalogItem[]): ServiceCatalogItem[] {
+  if (!Array.isArray(items) || items.some(item => !item || typeof item.id !== 'string' || !item.id.trim()
+    || typeof item.name !== 'string' || !item.name.trim() || typeof item.code !== 'string' || !item.code.trim()
+    || typeof item.orderable !== 'boolean' || typeof item.sdStatus !== 'string' || typeof item.sdUsageType !== 'string'
+    || (item.organizationAdoption != null && (item.organizationAdoption.catalogItemId !== item.id
+      || typeof item.organizationAdoption.sdStatus !== 'string'
+      || typeof item.organizationAdoption.orderable !== 'boolean' || typeof item.organizationAdoption.executable !== 'boolean')))) {
+    throw new Error('门诊服务目录响应不完整，请重新加载。')
+  }
+  return items.filter(item => item.sdStatus === 'ACTIVE' && item.orderable && item.sdUsageType === 'OUTPATIENT'
+    && item.serviceSubtype === 'OUTPATIENT_VISIT' && item.accountingCategory === 'REGISTRATION'
+    && item.organizationAdoption?.sdStatus === 'ACTIVE' && item.organizationAdoption.orderable && item.organizationAdoption.executable)
+}
+
+function DirectVisitServiceValue({ value, onChange, options, ready, loading, error, queryError, nullable, canRefresh, onRefresh }: {
+  value: string; onChange: (value: string) => void; options: ServiceCatalogItem[]; ready: boolean; loading: boolean
+  error: string; queryError: unknown; nullable: boolean; canRefresh: boolean; onRefresh: () => void
 }) {
-  const services = useQuery({ queryKey: ['direct-visit-service-options', organizationId],
-    queryFn: () => api.masterData.services('', '', 'ACTIVE', organizationId), enabled: Boolean(organizationId) })
-  return <FormField label="直接接诊门诊服务（选填）" error={error || (services.error ? errorMessage(services.error) : undefined)}
-    hint="留空不收门诊服务费；配置后按机构有效价格记入本次就诊费用，结算时一起收取。">
-    <Select value={value} onChange={onChange} loading={services.isPending && Boolean(organizationId)}
-      placeholder="不配置门诊服务费" showValue options={(services.data ?? []).filter(item =>
-        item.orderable && item.sdUsageType === 'OUTPATIENT' && item.serviceSubtype === 'OUTPATIENT_VISIT'
-        && item.accountingCategory === 'REGISTRATION' && item.organizationAdoption?.sdStatus === 'ACTIVE')
-        .map(item => ({ value: item.id, label: item.name, secondaryText: item.code }))} />
-  </FormField>
+  return <div>
+    <FormField label="直接接诊门诊服务" error={error || undefined}
+      hint="配置后按机构有效价格记入本次就诊费用，接诊时由服务端校验服务有效期和价格。">
+      <Select value={value} onChange={onChange} loading={loading} disabled={!ready}
+        clearable={nullable} placeholder={ready ? '请选择门诊服务' : '门诊服务目录待确认'} showValue
+        options={options.map(item => ({ value: item.id, label: item.name, secondaryText: item.code }))} />
+    </FormField>
+    {queryError != null && <p role="alert">{errorMessage(queryError)}</p>}
+    {ready && options.length === 0 && <p>当前机构没有可选门诊服务，请维护服务目录或明确不配置门诊服务费。</p>}
+    <Button variant="secondary" disabled={loading || !canRefresh} onClick={onRefresh}>重新加载门诊服务</Button>
+    {nullable && <Button variant="secondary" onClick={() => onChange('')}>不配置门诊服务费</Button>}
+  </div>
 }
 
 function defaultValueControl(valueType: ParameterValueType, value: string, onChange: (value: string) => void) {
@@ -945,7 +1253,7 @@ function defaultValueControl(valueType: ParameterValueType, value: string, onCha
     return <textarea className="parameter-code-input" value={value} maxLength={10000}
       placeholder={'例如 {"enabled": true}'} onChange={(event) => onChange(event.target.value)} />
   }
-  return <input type={valueType === 'NUMBER' ? 'number' : 'text'} step={valueType === 'NUMBER' ? 'any' : undefined}
+  return <input inputMode={valueType === 'NUMBER' ? 'decimal' : undefined}
     value={value} placeholder={valueType === 'NUMBER' ? '例如 30 或 0.5' : '请输入默认内容'}
     onChange={(event) => onChange(event.target.value)} />
 }
@@ -957,9 +1265,10 @@ function defaultValueHint(valueType: ParameterValueType) {
   return '直接填写文本，系统会按字符串保存'
 }
 
-function ParameterCategoryDialog({ state, categories, busy, onClose, onMove, onSave }: {
+function ParameterCategoryDialog({ state, categories, busy, available, saveError, onRefresh, onClose, onMove, onSave }: {
   state: CategoryDialogState; categories: ParameterCategory[]; busy: boolean; onClose: () => void
-  onMove: (move: TreePanelMove) => Promise<void>
+  available: boolean; saveError?: string; onRefresh: () => Promise<void>
+  onMove: (move: TreePanelMove) => Promise<boolean>
   onSave: (mode: 'create' | 'edit', category: ParameterCategory | undefined,
     input: CategoryEditorInput) => Promise<ParameterCategory>
 }) {
@@ -968,9 +1277,11 @@ function ParameterCategoryDialog({ state, categories, busy, onClose, onMove, onS
     ? { mode: 'edit', categoryId: state.category.id }
     : { mode: 'create', parentId: state.parentId })
   const [savedMessage, setSavedMessage] = useState('')
+  const [moveError, setMoveError] = useState('')
+  const [editorVersion, setEditorVersion] = useState(0)
   const selectedCategory = categories.find((item) => item.id === selectedId)
   const editingCategory = editor.mode === 'edit' ? categories.find((item) => item.id === editor.categoryId) : undefined
-  const treeNodes = categories.map((category) => ({
+  const treeNodes = flattenCategories(categories).map(({ category }) => ({
     id: category.id,
     parentId: category.parentId,
     label: category.name,
@@ -979,21 +1290,28 @@ function ParameterCategoryDialog({ state, categories, busy, onClose, onMove, onS
     inactive: category.sdParamStatus === 'INACTIVE',
   }))
   const editorKey = editor.mode === 'edit'
-    ? `edit-${editingCategory?.id ?? 'missing'}-${editingCategory?.revision ?? 0}`
+    ? `edit-${editingCategory?.id ?? 'missing'}-${editorVersion}`
     : `create-${editor.parentId ?? 'root'}`
 
   return <Dialog title="参数分类管理" eyebrow="分类树"
     description="通过树面板维护分类层级；分类编码创建后不可修改，拖拽排序会一次性保存并自动阻止循环。"
-    onClose={onClose} closeOnBackdrop={false} size="xwide" footer={<><Button variant="secondary" onClick={onClose}>完成</Button>
-      <Button type="submit" form="parameter-category-form" busy={busy}>
+    onClose={() => { if (!busy) onClose() }} closeOnBackdrop={false} size="xwide" footer={<><Button variant="secondary" disabled={busy} onClick={onClose}>完成</Button>
+      <Button type="submit" form="parameter-category-form" busy={busy} disabled={!available}>
         {editor.mode === 'create' ? '创建分类' : '保存分类'}</Button></>}>
+    {!available && <ParameterVerificationNotice onRefresh={onRefresh} />}
+    {(saveError || moveError) && <p role="alert">{saveError || moveError}</p>}
+    {available && (saveError || moveError) && <Button variant="secondary" disabled={busy} onClick={() => void onRefresh()}>重新确认配置</Button>}
     {savedMessage && <Alert tone="success" className="parameter-category-feedback">{savedMessage}</Alert>}
     <div className="parameter-category-workspace">
       <TreePanel title="参数目录" rootLabel="全部分类" nodes={treeNodes} selectedId={selectedId}
-        searchPlaceholder="搜索分类名称或编码" busy={busy} onSelect={(id) => { setSelectedId(id); setSavedMessage('') }}
+        searchPlaceholder="搜索分类名称或编码" busy={busy || !available} onSelect={(id) => { setSelectedId(id); setSavedMessage('') }}
         onAdd={(parentId) => { setEditor({ mode: 'create', parentId }); setSelectedId(parentId); setSavedMessage('') }}
-        onEdit={(id) => { setSelectedId(id); setEditor({ mode: 'edit', categoryId: id }); setSavedMessage('') }}
-        onMove={async (move) => { await onMove(move); setSavedMessage('分类层级与顺序已保存') }} />
+        onEdit={(id) => { setSelectedId(id); setEditorVersion(version => version + 1); setEditor({ mode: 'edit', categoryId: id }); setSavedMessage('') }}
+        onMove={async (move) => {
+          setSavedMessage(''); setMoveError('')
+          try { if (await onMove(move)) setSavedMessage('分类层级与顺序已保存') }
+          catch (error) { setMoveError(errorMessage(error)) }
+        }} />
       <section className="parameter-category-editor" aria-label={editor.mode === 'create' ? '新建分类' : '编辑分类'}>
         <header className="parameter-category-editor__head">
           <div><span>{editor.mode === 'create' ? '新建分类' : '编辑分类'}</span>
@@ -1004,8 +1322,10 @@ function ParameterCategoryDialog({ state, categories, busy, onClose, onMove, onS
           ? <EmptyState icon="settings" title="分类不存在" copy="该分类可能已被其他操作更新，请重新选择。" />
           : <ParameterCategoryEditor key={editorKey} mode={editor.mode} category={editingCategory}
             categories={categories} defaultParentId={editor.mode === 'create' ? editor.parentId : undefined}
-            busy={busy} onSave={async (input) => {
-              const saved = await onSave(editor.mode, editingCategory, input)
+            busy={busy} onSave={async (input, original) => {
+              setSavedMessage(''); setMoveError('')
+              const saved = await onSave(editor.mode, original, input)
+              setEditorVersion(version => version + 1)
               setSelectedId(saved.id); setEditor({ mode: 'edit', categoryId: saved.id })
               setSavedMessage(editor.mode === 'create' ? `已创建分类“${saved.name}”` : `已保存分类“${saved.name}”`)
             }} />}
@@ -1026,19 +1346,20 @@ interface CategoryEditorInput {
 
 function ParameterCategoryEditor({ mode, category, categories, defaultParentId, busy, onSave }: {
   mode: 'create' | 'edit'; category?: ParameterCategory; categories: ParameterCategory[]
-  defaultParentId?: string; busy: boolean; onSave: (input: CategoryEditorInput) => Promise<void>
+  defaultParentId?: string; busy: boolean; onSave: (input: CategoryEditorInput, original?: ParameterCategory) => Promise<void>
 }) {
+  const [original] = useState(category)
   const [code, setCode] = useState(category?.code ?? '')
   const [name, setName] = useState(category?.name ?? '')
   const [description, setDescription] = useState(category?.description ?? '')
   const [parentId, setParentId] = useState(category?.parentId ?? defaultParentId ?? '')
-  const [active, setActive] = useState(category?.sdParamStatus !== 'INACTIVE')
+  const [active, setActive] = useState(mode === 'create' || category?.sdParamStatus === 'ACTIVE')
   const [submitted, setSubmitted] = useState(false)
   const descendants = category ? descendantCategoryIds(categories, category.id) : new Set<string>()
   const options = flattenCategories(categories).filter((item) => item.category.sdParamStatus === 'ACTIVE'
     && item.category.id !== category?.id && !descendants.has(item.category.id))
   const siblingOrders = categories.filter((item) => (item.parentId ?? '') === parentId).map((item) => item.sortOrder)
-  const sortOrder = category?.sortOrder ?? (Math.max(0, ...siblingOrders) + 10)
+  const sortOrder = original?.sortOrder ?? (Math.max(0, ...siblingOrders) + 10)
   const codeError = !code.trim() ? '请输入分类编码'
     : !/^[A-Z][A-Z0-9_]{0,63}$/.test(code.trim().toUpperCase())
       ? '必须以字母开头，只能使用大写字母、数字和下划线' : ''
@@ -1048,11 +1369,11 @@ function ParameterCategoryEditor({ mode, category, categories, defaultParentId, 
     if (busy || codeError || !name.trim()) return
     try {
       await onSave({ parentId: parentId || undefined, code: code.trim().toUpperCase(), name: name.trim(),
-        description: optional(description), sortOrder, active })
+        description: optional(description), sortOrder, active }, original)
     } catch { /* Keep open for correction. */ }
   }
 
-  return <form id="parameter-category-form" className="parameter-category-form" onSubmit={submit} noValidate>
+  return <form id="parameter-category-form" className="parameter-category-form" onSubmit={submit} inert={busy} noValidate>
     <FormField label="分类名称" required error={submitted && !name.trim() ? '请输入分类名称' : undefined}>
       <input value={name} maxLength={200} onChange={(event) => setName(event.target.value)} autoFocus /></FormField>
     <FormField label="分类编码" required hint="创建后不可修改，建议使用大写字母和下划线"
@@ -1068,24 +1389,32 @@ function ParameterCategoryEditor({ mode, category, categories, defaultParentId, 
   </form>
 }
 
-function ParameterChangesDialog({ definition, changes, loading, error, busy, onClose, onRollback }: {
+function ParameterChangesDialog({ definition, changes, loading, error, operationError, busy, available, onRefresh, onClose, onRollback, onRetry }: {
   definition: ParameterDefinition; changes: Awaited<ReturnType<RhnApi['configuration']['changes']>>
   loading: boolean; error: string; busy: boolean; onClose: () => void
-  onRollback: (changeId: string, valueId: string) => void
+  available: boolean; onRefresh: () => Promise<void>
+  operationError?: string; onRetry: () => void; onRollback: (change: ParameterChange) => void
 }) {
-  return <Dialog title="参数变更记录" eyebrow={definition.name} onClose={onClose}
+  return <Dialog title="参数变更记录" eyebrow={definition.name} onClose={() => { if (!busy) onClose() }}
     description="变更日志只追加不覆盖。恢复历史值会形成一次新的 ROLLBACK 变更，不会删除后续记录。"
-    footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
+    footer={<Button variant="secondary" disabled={busy} onClick={onClose}>关闭</Button>}>
+    {!available && <ParameterVerificationNotice onRefresh={onRefresh} />}
     {loading && <LoadingState label="正在加载变更记录…" />}{error && <Alert>{error}</Alert>}
+    {operationError && <div role="alert"><p>{operationError}</p><Button variant="secondary" busy={busy} disabled={!available} onClick={onRetry}>重试本次操作</Button></div>}
     {!loading && !error && changes.length === 0 && <EmptyState icon="tasks" title="暂无变更记录" copy="该参数尚未产生变更。" />}
-    <ol className="parameter-change-list">{changes.map((change) => <li key={change.id}>
+    <ol className="parameter-change-list">{changes.map((change) => {
+      const issue = change.sdParamChangeTargetType === 'VALUE' ? parameterRollbackIssue(definition, change) : undefined
+      return <li key={change.id}>
       <div><div><strong>{change.sdParamChangeTypeText}</strong><StatusBadge>{change.sdParamChangeTargetTypeText}</StatusBadge></div>
-        {change.sdParamChangeTargetType === 'VALUE' && change.valueId && <Button size="sm" variant="text" busy={busy}
-          onClick={() => onRollback(change.id, change.valueId!)}>恢复此快照</Button>}</div>
+        {change.sdParamChangeTargetType === 'VALUE' && change.valueId && <Button size="sm" variant="text" busy={busy} disabled={!available || Boolean(issue)}
+          onClick={() => onRollback(change)}>恢复此快照</Button>}</div>
+      {issue && <p>无法恢复：{issue}</p>}
       <p>{change.reason || '未填写变更原因'}</p>
       <small>{formatDate(change.changedAt)} · 操作用户 {change.changedBy} · 请求 {change.requestCode}</small>
-      <details><summary>查看前后快照</summary><pre>{JSON.stringify({ before: change.before ?? null, after: change.after ?? null }, null, 2)}</pre></details>
-    </li>)}</ol>
+      <details><summary>查看前后快照</summary>
+        {change.before === undefined && <p>前快照未返回</p>}{change.after === undefined && <p>后快照未返回</p>}
+        <pre>{JSON.stringify({ before: change.before, after: change.after }, null, 2)}</pre></details>
+    </li>})}</ol>
   </Dialog>
 }
 
@@ -1134,7 +1463,10 @@ function descendantCategoryIds(categories: ParameterCategory[], categoryId: stri
 function planCategoryMove(categories: ParameterCategory[], move: TreePanelMove) {
   const moved = categories.find((item) => item.id === move.nodeId)
   if (!moved || move.parentId === moved.id || descendantCategoryIds(categories, moved.id).has(move.parentId ?? '')) {
-    return { next: categories, orders: [] }
+    throw new Error('分类移动目标无效或会形成循环，请重新选择')
+  }
+  if (move.parentId && !categories.some(category => category.id === move.parentId && category.sdParamStatus === 'ACTIVE')) {
+    throw new Error('上级分类不存在或已停用，请重新选择')
   }
   const byParent = new Map<string, ParameterCategory[]>()
   for (const category of categories) {
@@ -1190,94 +1522,139 @@ function selectOption(item: SystemEnumItem) { return { value: item.code, label: 
 function readValidationRules(schemaJson: string | undefined, valueType: ParameterValueType): ParameterValidationRules {
   const fallback: ParameterValidationRules = {
     schemaType: defaultSchemaType(valueType), minimum: '', maximum: '', minLength: '', maxLength: '',
-    pattern: '', enumValues: '', requiredFields: '', extraSchema: {},
+    pattern: '', enumValues: '', requiredFields: '', extraSchema: {}, sourceSchema: {},
   }
   if (!schemaJson?.trim()) return fallback
   try {
-    const parsed = JSON.parse(schemaJson) as Record<string, unknown>
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') return fallback
+    const parsed = parseParameterJson(schemaJson) as Record<string, unknown>
+    if (!parsed || Array.isArray(parsed) || isParameterJsonNumber(parsed) || typeof parsed !== 'object') {
+      return { ...fallback, sourceIssue: '校验规则必须是 JSON 对象，请修复原始规则' }
+    }
+    const sourceIssue = schemaSourceIssue(parsed, valueType)
     const schemaType = typeof parsed.type === 'string' && schemaTypeMatchesValueType(parsed.type, valueType)
       ? parsed.type as ValidationSchemaType : fallback.schemaType
     const enumValues = Array.isArray(parsed.enum) && parsed.enum.every((item) => {
       if (valueType === 'STRING') return typeof item === 'string'
-      if (valueType === 'NUMBER') return typeof item === 'number'
+      if (valueType === 'NUMBER') return isParameterJsonNumber(item)
       return false
-    }) ? parsed.enum.map(String).join('\n') : ''
+    }) ? parsed.enum.map(String).join(', ') : ''
     const requiredFields = Array.isArray(parsed.required) && parsed.required.every((item) => typeof item === 'string')
-      ? parsed.required.join('\n') : ''
-    const managed = new Set(['type', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'required'])
+      ? parsed.required.join(', ') : ''
+    const managed = new Set(['type', ...(valueType === 'STRING' ? ['minLength', 'maxLength', 'pattern']
+      : valueType === 'NUMBER' ? ['minimum', 'maximum'] : valueType === 'JSON' && schemaType === 'object' ? ['required'] : [])])
     if (enumValues) managed.add('enum')
     const extraSchema = Object.fromEntries(Object.entries(parsed).filter(([key]) => !managed.has(key)))
     return {
       schemaType,
-      minimum: typeof parsed.minimum === 'number' ? String(parsed.minimum) : '',
-      maximum: typeof parsed.maximum === 'number' ? String(parsed.maximum) : '',
-      minLength: typeof parsed.minLength === 'number' ? String(parsed.minLength) : '',
-      maxLength: typeof parsed.maxLength === 'number' ? String(parsed.maxLength) : '',
+      minimum: isParameterJsonNumber(parsed.minimum) ? String(parsed.minimum) : '',
+      maximum: isParameterJsonNumber(parsed.maximum) ? String(parsed.maximum) : '',
+      minLength: isParameterJsonNumber(parsed.minLength) ? String(parsed.minLength) : '',
+      maxLength: isParameterJsonNumber(parsed.maxLength) ? String(parsed.maxLength) : '',
       pattern: typeof parsed.pattern === 'string' ? parsed.pattern : '',
       enumValues,
       requiredFields,
-      extraSchema,
+      extraSchema, sourceSchema: parsed, sourceIssue,
     }
-  } catch { return fallback }
+  } catch { return { ...fallback, sourceIssue: '校验规则不是有效的 JSON，请修复原始规则' } }
+}
+
+function schemaSourceIssue(schema: Record<string, unknown>, valueType: ParameterValueType) {
+  if ('type' in schema && (typeof schema.type !== 'string' || !schemaTypeMatchesValueType(schema.type, valueType))) {
+    return '原始规则的 type 与参数值类型不匹配，请核查原始规则'
+  }
+  for (const key of ['minimum', 'maximum']) {
+    if (key in schema && !isParameterJsonNumber(schema[key])) return `${key} 必须是有效数值`
+  }
+  for (const key of ['minLength', 'maxLength']) {
+    if (key in schema && (!isParameterJsonNumber(schema[key]) || nonNegativeInteger(String(schema[key])) === undefined)) {
+      return `${key} 必须是非负整数`
+    }
+  }
+  if (isParameterJsonNumber(schema.minimum) && isParameterJsonNumber(schema.maximum) && compareParameterNumbers(schema.minimum, schema.maximum) > 0) {
+    return 'minimum 不能大于 maximum'
+  }
+  if (isParameterJsonNumber(schema.minLength) && isParameterJsonNumber(schema.maxLength) && compareParameterNumbers(schema.minLength, schema.maxLength) > 0) {
+    return 'minLength 不能大于 maxLength'
+  }
+  if ('pattern' in schema && typeof schema.pattern !== 'string') return 'pattern 必须是字符串'
+  if ('enum' in schema && !Array.isArray(schema.enum)) return 'enum 必须是数组'
+  if ('required' in schema && (!Array.isArray(schema.required)
+    || schema.required.some((item) => typeof item !== 'string' || !item.trim()))) return 'required 必须是非空字段名数组'
+  return undefined
 }
 
 function writeValidationSchema(valueType: ParameterValueType, rules: ParameterValidationRules) {
-  const schema: Record<string, unknown> = { ...rules.extraSchema, type: rules.schemaType }
+  // Patch only edited fields: converting untouched arrays or patterns through text inputs is lossy.
+  const schema = { ...rules.sourceSchema }
+  const original = readValidationRules(stringifyParameterJson(rules.sourceSchema), valueType)
+  if (rules.schemaType !== original.schemaType) {
+    if (rules.schemaType === 'any') delete schema.type
+    else schema.type = rules.schemaType
+  }
+  const updateNumber = (key: 'minLength' | 'maxLength' | 'minimum' | 'maximum') => {
+    if (rules[key] === original[key]) return
+    delete schema[key]
+    assignNumberRule(schema, key, rules[key])
+  }
   if (valueType === 'STRING') {
-    assignNumberRule(schema, 'minLength', rules.minLength)
-    assignNumberRule(schema, 'maxLength', rules.maxLength)
-    if (rules.pattern.trim()) schema.pattern = rules.pattern.trim()
-    const options = splitRuleValues(rules.enumValues)
-    if (options.length) schema.enum = options
+    updateNumber('minLength'); updateNumber('maxLength')
+    if (rules.pattern !== original.pattern) {
+      delete schema.pattern
+      if (rules.pattern.length) schema.pattern = rules.pattern
+    }
   }
   if (valueType === 'NUMBER') {
-    assignNumberRule(schema, 'minimum', rules.minimum)
-    assignNumberRule(schema, 'maximum', rules.maximum)
-    const options = splitRuleValues(rules.enumValues)
-    if (options.length && options.every((item) => Number.isFinite(Number(item)))) schema.enum = options.map(Number)
+    updateNumber('minimum'); updateNumber('maximum')
   }
-  if (valueType === 'JSON' && rules.schemaType === 'object') {
+  if ((valueType === 'STRING' || valueType === 'NUMBER') && rules.enumValues !== original.enumValues) {
+    const options = splitRuleValues(rules.enumValues)
+    delete schema.enum
+    if (options.length) schema.enum = valueType === 'NUMBER' ? options.map(item => isParameterNumberText(item) ? new ParameterJsonNumber(item) : item) : options
+  }
+  if (valueType === 'JSON' && rules.requiredFields !== original.requiredFields) {
     const required = splitRuleValues(rules.requiredFields)
+    delete schema.required
     if (required.length) schema.required = required
   }
-  return JSON.stringify(schema)
+  return stringifyParameterJson(schema)
 }
 
 function validationRulesError(valueType: ParameterValueType, rules: ParameterValidationRules) {
   if (valueType === 'NUMBER') {
-    const minimum = rules.minimum.trim() ? Number(rules.minimum) : undefined
-    const maximum = rules.maximum.trim() ? Number(rules.maximum) : undefined
-    if (minimum !== undefined && !Number.isFinite(minimum)) return '最小值必须是有效数值'
-    if (maximum !== undefined && !Number.isFinite(maximum)) return '最大值必须是有效数值'
-    if (minimum !== undefined && maximum !== undefined && minimum > maximum) return '最小值不能大于最大值'
-    if (splitRuleValues(rules.enumValues).some((item) => !Number.isFinite(Number(item)))) return '限定可选值必须全部为有效数值'
+    if (rules.minimum.trim() && !isParameterNumberText(rules.minimum)) return '最小值必须是有效数值'
+    if (rules.maximum.trim() && !isParameterNumberText(rules.maximum)) return '最大值必须是有效数值'
+    if (rules.minimum.trim() && rules.maximum.trim()
+      && compareParameterNumbers(new ParameterJsonNumber(rules.minimum), new ParameterJsonNumber(rules.maximum)) > 0) return '最小值不能大于最大值'
+    if (splitRuleValues(rules.enumValues).some(item => !isParameterNumberText(item))) return '限定可选值必须全部为有效数值'
   }
   if (valueType === 'STRING') {
     const minimum = nonNegativeInteger(rules.minLength)
     const maximum = nonNegativeInteger(rules.maxLength)
     if (rules.minLength.trim() && minimum === undefined) return '最小长度必须是非负整数'
     if (rules.maxLength.trim() && maximum === undefined) return '最大长度必须是非负整数'
-    if (minimum !== undefined && maximum !== undefined && minimum > maximum) return '最小长度不能大于最大长度'
-    if (rules.pattern.trim()) {
-      try { new RegExp(rules.pattern) } catch { return '格式规则不是有效的正则表达式' }
-    }
+    if (minimum !== undefined && maximum !== undefined && compareParameterNumbers(minimum, maximum) > 0) return '最小长度不能大于最大长度'
   }
   return ''
 }
 
 function validationSummary(valueType: ParameterValueType, rules: ParameterValidationRules) {
-  if (valueType === 'BOOLEAN') return '类型约束由系统自动完成'
   const parts: string[] = []
+  const extraCount = Object.keys(rules.extraSchema).length
+  if (extraCount) parts.push(`${extraCount} 项附加规则（查看原始规则）`)
   if (valueType === 'STRING') {
     if (rules.minLength || rules.maxLength) parts.push(`长度 ${rules.minLength || '0'}～${rules.maxLength || '不限'}`)
-    if (rules.pattern.trim()) parts.push('已配置格式规则')
+    if (rules.pattern.length) parts.push('已配置格式规则')
   }
   if (valueType === 'NUMBER') {
     if (rules.minimum || rules.maximum) parts.push(`范围 ${rules.minimum || '不限'}～${rules.maximum || '不限'}`)
   }
   if (valueType === 'JSON' && rules.schemaType === 'object' && rules.requiredFields.trim()) parts.push('已配置必填属性')
-  if (rules.enumValues.trim()) parts.push(`${splitRuleValues(rules.enumValues).length} 个可选值`)
+  if (rules.enumValues.trim()) {
+    const original = readValidationRules(stringifyParameterJson(rules.sourceSchema), valueType)
+    const count = rules.enumValues === original.enumValues && Array.isArray(rules.sourceSchema.enum)
+      ? rules.sourceSchema.enum.length : splitRuleValues(rules.enumValues).length
+    parts.push(`${count} 个可选值`)
+  }
   return parts.length ? parts.join(' · ') : '当前仅校验值类型，可按需补充业务约束'
 }
 
@@ -1285,14 +1662,14 @@ function validationTypeLabel(valueType: ParameterValueType, schemaType: Validati
   if (valueType === 'STRING') return '字符串规则'
   if (valueType === 'NUMBER') return schemaType === 'integer' ? '整数规则' : '数值规则'
   if (valueType === 'BOOLEAN') return '布尔值规则'
-  return schemaType === 'array' ? 'JSON 数组规则' : 'JSON 对象规则'
+  return schemaType === 'any' ? 'JSON 对象或数组规则' : schemaType === 'array' ? 'JSON 数组规则' : 'JSON 对象规则'
 }
 
 function defaultSchemaType(valueType: ParameterValueType): ValidationSchemaType {
   if (valueType === 'STRING') return 'string'
   if (valueType === 'NUMBER') return 'number'
   if (valueType === 'BOOLEAN') return 'boolean'
-  return 'object'
+  return 'any'
 }
 
 function schemaTypeMatchesValueType(schemaType: string, valueType: ParameterValueType) {
@@ -1307,20 +1684,12 @@ function splitRuleValues(value: string) {
 }
 
 function assignNumberRule(schema: Record<string, unknown>, key: string, value: string) {
-  if (value.trim() && Number.isFinite(Number(value))) schema[key] = Number(value)
+  if (value.trim()) schema[key] = isParameterNumberText(value) ? new ParameterJsonNumber(value) : value
 }
 
 function nonNegativeInteger(value: string) {
   if (!value.trim()) return undefined
-  const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined
-}
-
-function controlsFor(valueType: ParameterValueType): ParameterControlType[] {
-  if (valueType === 'STRING') return ['TEXT', 'TEXTAREA', 'SELECT', 'SECRET_REFERENCE']
-  if (valueType === 'NUMBER') return ['NUMBER', 'SELECT']
-  if (valueType === 'BOOLEAN') return ['SWITCH', 'SELECT']
-  return ['JSON_EDITOR']
+  return /^(0|[1-9]\d*)$/.test(value.trim()) ? new ParameterJsonNumber(value) : undefined
 }
 
 function scopeTarget(scope: ParameterScope, value: ParameterValue | null, scopeId: string) {
@@ -1355,26 +1724,37 @@ function displayValue(value: ParameterValue) {
   return value.displayValue ?? value.valueJson ?? '—'
 }
 
-function readRawValue(valueJson?: string) {
+function readRawValue(valueJson: string | undefined, type: ParameterValueType) {
   if (!valueJson) return ''
-  try { const value = JSON.parse(valueJson); return typeof value === 'string' ? value : JSON.stringify(value, null, 2) } catch { return valueJson }
+  if (type !== 'STRING') return valueJson
+  try { const value = JSON.parse(valueJson); return typeof value === 'string' ? value : valueJson } catch { return valueJson }
 }
 
 function writeJsonValue(type: ParameterValueType, rawValue: string) {
-  if (type === 'STRING') return JSON.stringify(rawValue)
-  if (type === 'NUMBER') return JSON.stringify(Number(rawValue))
-  if (type === 'BOOLEAN') return rawValue
-  return JSON.stringify(JSON.parse(rawValue))
+  return type === 'STRING' ? JSON.stringify(rawValue) : rawValue.trim()
 }
 
 function jsonFieldError(value: string, label: string) {
   if (!value.trim()) return ''
-  try { JSON.parse(value); return '' } catch { return `${label}必须是合法 JSON` }
+  try {
+    const parsed = parseParameterJson(value)
+    return parsed !== null && typeof parsed === 'object' && !isParameterJsonNumber(parsed)
+      ? '' : `${label}必须是 JSON 对象或数组`
+  } catch (error) { return `${label}必须是合法且属性不重复的 JSON：${errorMessage(error)}` }
+}
+
+function parameterJsonValueError(type: ParameterValueType, value: string, label: string) {
+  try {
+    const parsed = parseParameterJson(value)
+    const matches = type === 'STRING' ? typeof parsed === 'string' : type === 'NUMBER' ? isParameterJsonNumber(parsed)
+      : type === 'BOOLEAN' ? typeof parsed === 'boolean' : parsed !== null && typeof parsed === 'object' && !isParameterJsonNumber(parsed)
+    return matches ? '' : `${label}与参数类型不匹配`
+  } catch (error) { return `${label}必须是合法且属性不重复的 JSON：${errorMessage(error)}` }
 }
 
 function parameterValueError(type: ParameterValueType, value: string) {
   if (!value.trim()) return '请输入参数值'
-  if (type === 'NUMBER' && !Number.isFinite(Number(value))) return '请输入有效数值'
+  if (type === 'NUMBER' && !isParameterNumberText(value)) return '请输入有效的十进制数值（可使用科学计数法）'
   if (type === 'BOOLEAN' && !['true', 'false'].includes(value)) return '请选择是或否'
   if (type === 'JSON') return jsonFieldError(value, '参数值')
   return ''
@@ -1384,4 +1764,23 @@ function optional(value: string) { return value.trim() || undefined }
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+}
+
+function requireParameterList<T>(value: T[], label: string): T[] {
+  if (!Array.isArray(value)) throw new Error(`${label}返回数据不完整，请重新加载`)
+  return value
+}
+
+function ParameterVerificationNotice({ onRefresh }: { onRefresh: () => Promise<void> }) {
+  return <div role="alert"><p>当前配置尚未确认，重新加载成功后才能保存或恢复。</p>
+    <Button variant="secondary" onClick={() => void onRefresh()}>重新确认配置</Button>
+  </div>
+}
+
+function parameterDependencyPresentation(value: boolean | null | undefined): {
+  label: string; tone: 'success' | 'warning' | 'neutral'; copy: string
+} {
+  if (value === true) return { label: '预览条件满足', tone: 'success', copy: '当前预览范围内的前置条件已满足。' }
+  if (value === false) return { label: '预览条件未满足', tone: 'warning', copy: '当前预览范围内的前置条件未满足。' }
+  return { label: '依赖状态待确认', tone: 'neutral', copy: '未取得可用的依赖判断结果，请核查前置参数或重新加载。' }
 }

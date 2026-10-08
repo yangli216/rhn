@@ -10,6 +10,7 @@ import {
   SearchField, StatusBadge, type DateRange, type StatusTone,
 } from '../../shared/ui'
 import '../../styles/features/diagnostic-execution.css'
+import { requireOutpatientFlowBoard } from './outpatientFlowTruth'
 
 type FlowFilter = 'ACTIVE' | 'DOWNSTREAM' | 'EXCEPTION' | 'COMPLETED' | 'ALL'
 
@@ -62,22 +63,24 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
 
   useEffect(() => {
     setPage(0)
-  }, [filter, dateRange, query])
+  }, [filter, dateRange, query, clinicalContext.organization.id, clinicalContext.department.id])
 
   const board = useQuery({
-    queryKey: ['outpatient-flow', dateRange.from, dateRange.to, query],
-    queryFn: () => api.outpatientFlow.board(dateRange.from, dateRange.to, undefined, query),
+    queryKey: ['outpatient-flow', clinicalContext.organization.id, clinicalContext.department.id, dateRange.from, dateRange.to, query],
+    queryFn: async () => requireOutpatientFlowBoard(
+      await api.outpatientFlow.board(dateRange.from, dateRange.to, undefined, query), dateRange.from),
     refetchInterval: 20_000,
   })
-  const values = useMemo(() => (board.data?.visits ?? []).filter((value) => {
+  const available = board.isSuccess && !board.isFetching && !!board.data
+  const values = useMemo(() => (available ? board.data!.visits : []).filter((value) => {
     if (filter === 'ALL') return true
     if (filter === 'ACTIVE') return activeStatuses.includes(value.flowStatus)
     if (filter === 'DOWNSTREAM') return downstreamStatuses.includes(value.flowStatus)
     if (filter === 'EXCEPTION') return value.flowStatus === 'EXCEPTION'
     return value.flowStatus === 'COMPLETED' || value.flowStatus === 'TRANSFERRED'
       || value.flowStatus === 'TERMINATED' || value.flowStatus === 'CANCELLED'
-  }), [board.data?.visits, filter])
-  const summary = board.data?.summary
+  }), [available, board.data, filter])
+  const summary = available ? board.data!.summary : undefined
 
   const totalPages = Math.max(1, Math.ceil(values.length / pageSize))
   const safePage = Math.min(page, totalPages - 1)
@@ -89,22 +92,22 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
   return <>
     <PageHeader compact eyebrow="门诊医疗 · 全程协同" title="门诊流转看板"
       description="诊毕不等于流程完成；统一查看患者当前去向和待办环节，基层机构无需在多个页面之间逐一核对。"
-      actions={<Button variant="secondary" onClick={() => void board.refetch()}>刷新</Button>} />
-    {board.error && <Alert>{errorMessage(board.error)}</Alert>}
-    <section className="outpatient-flow-metrics" aria-label="门诊流转摘要">
+      actions={<Button variant="secondary" busy={board.isFetching} busyLabel="刷新中" onClick={() => void board.refetch()}>刷新</Button>} />
+    {board.error && <Alert duration={null}>{errorMessage(board.error)}</Alert>}
+    {available && <section className="outpatient-flow-metrics" aria-label="门诊流转摘要">
       <button type="button" className={filter === 'ACTIVE' ? 'is-active' : ''} onClick={() => setFilter('ACTIVE')}>
         <span>候诊 / 接诊</span><strong>{(summary?.waitingConsultationCount ?? 0) + (summary?.inConsultationCount ?? 0)}</strong>
-        <small>{summary?.waitingConsultationCount ?? 0} 人候诊</small></button>
+        <small>{summary?.waitingConsultationCount ?? 0} 人待接诊或协同</small></button>
       <button type="button" className={filter === 'DOWNSTREAM' ? 'is-active' : ''} onClick={() => setFilter('DOWNSTREAM')}>
         <span>诊后待办</span><strong>{summary?.downstreamPendingCount ?? 0}</strong><small>收费、取药、医技或治疗</small></button>
       <button type="button" className={filter === 'EXCEPTION' ? 'is-active' : ''} onClick={() => setFilter('EXCEPTION')}>
         <span>异常关注</span><strong>{summary?.exceptionCount ?? 0}</strong><small>需要人工协调</small></button>
       <button type="button" className={filter === 'COMPLETED' ? 'is-active' : ''} onClick={() => setFilter('COMPLETED')}>
         <span>流程完成</span><strong>{summary?.completedCount ?? 0}</strong><small>完成、转科、终止或取消</small></button>
-    </section>
+    </section>}
     <Panel className="outpatient-flow-board">
       <header className="outpatient-flow-toolbar">
-        <div><h2>患者去向</h2><span>{clinicalContext.department.name} · {values.length} 人</span></div>
+        <div><h2>患者去向</h2><span>{clinicalContext.department.name} · {available ? `${values.length} 人` : '人数待确认'}</span></div>
         <nav aria-label="流转状态筛选">{([
           ['ACTIVE', '诊前诊中'], ['DOWNSTREAM', '诊后待办'], ['EXCEPTION', '异常'], ['COMPLETED', '已完成'], ['ALL', '全部'],
         ] as [FlowFilter, string][]).map(([value, label]) => <button type="button" key={value}
@@ -122,8 +125,11 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
           <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
         </div>
       </header>
-      {board.isPending && <LoadingState label="正在汇总门诊各环节状态…" />}
-      {!board.isPending && values.length === 0 && <EmptyState icon="clinical" title="当前筛选下暂无患者"
+      {(board.isPending || board.isFetching) && <LoadingState label="正在汇总门诊各环节状态…" />}
+      {board.isError && !board.isFetching && <EmptyState icon="clinical" title="门诊流转资料暂不可用"
+        copy="当前人数、完成状态和患者去向尚未确认，请重新加载。"
+        action={<Button variant="secondary" onClick={() => void board.refetch()}>重新加载</Button>} />}
+      {available && values.length === 0 && <EmptyState icon="clinical" title="当前筛选下暂无患者"
         copy="完成挂号后，患者会自动进入流转看板。" />}
       {values.length > 0 && <>
         <div className="outpatient-flow-list" role="table" aria-label="门诊患者流转列表">

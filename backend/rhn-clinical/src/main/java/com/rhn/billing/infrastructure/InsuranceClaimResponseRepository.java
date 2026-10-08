@@ -8,5 +8,6 @@ import java.util.Optional;
 
 public interface InsuranceClaimResponseRepository extends JpaRepository<InsuranceClaimResponse, Long> {
     Optional<InsuranceClaimResponse> findByTenantIdAndClaimIdAndCommandCode(Long tenantId, Long claimId, String commandCode);
+    Optional<InsuranceClaimResponse> findByTenantIdAndClaimIdAndResponseNo(Long tenantId, Long claimId, String responseNo);
     List<InsuranceClaimResponse> findByTenantIdAndClaimIdOrderByRespondedAtAscIdAsc(Long tenantId, Long claimId);
 }

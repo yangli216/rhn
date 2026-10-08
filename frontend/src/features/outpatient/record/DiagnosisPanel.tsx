@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react'
+import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react'
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
 import type { DiseaseConcept } from '../../../shared/api/masterDataApi'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, ClinicalResourceSearch, Icon, Panel, PanelHead, Popconfirm, Select, type ClinicalResourceOption } from '../../../shared/ui'
 import { diagnosisKey, moveDiagnosis, normalizeDiagnosisOrder } from './clinicalRecordDraft'
+import { diagnosisDomainLabel } from '../../../shared/presentation'
+import { diagnosisManagementFromCatalog, hasConfirmedDiagnosisManagement } from './diagnosisManagementEvidence'
 
 export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, editing, signed,
   actions, aiSuggestionSurfaceRef }: {
@@ -18,6 +20,8 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
 }) {
   const [diagnosisSearch, setDiagnosisSearch] = useState<ClinicalResourceOption<DiseaseConcept>>()
   const [diagnosisDomainFilter, setDiagnosisDomainFilter] = useState('')
+  const filterDiagnosis = useCallback((item: DiseaseConcept) =>
+    !diagnosisDomainFilter || item.sdDiagnosisDomain === diagnosisDomainFilter, [diagnosisDomainFilter])
   const [diagnosisComposerOpen, setDiagnosisComposerOpen] = useState(false)
   const diagnosisComposerRef = useRef<HTMLDivElement>(null)
   const [draggedDiagnosisKey, setDraggedDiagnosisKey] = useState<string>()
@@ -48,19 +52,16 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
   const addDiagnosis = (candidate?: ClinicalResourceOption<DiseaseConcept>) => {
     const selected = candidate?.raw ?? diagnosisSearch?.raw
     if (!selected) { setDiagnosisError('请先检索并选择诊断'); return }
-    if (diagnoses.some((item) => item.conceptId === selected.id
-      || (item.diagnosisDomain === selected.sdDiagnosisDomain && item.code === selected.code))) {
+    if (diagnoses.some((item) => item.conceptId === selected.id)) {
       setDiagnosisError('该诊断已经录入'); return
     }
-    const diagnosisGroupId = selected.sdDiagnosisDomain === 'WESTERN_MEDICINE'
-      ? undefined : `TCM-${encounterId}`
+    const diagnosisGroupId = selected.sdDiagnosisDomain === 'TCM_DISEASE' || selected.sdDiagnosisDomain === 'TCM_SYNDROME'
+      ? `TCM-${encounterId}` : undefined
     setDiagnoses((current) => normalizeDiagnosisOrder([
       ...current,
-      { conceptId: selected.id, diagnosisDomain: selected.sdDiagnosisDomain, diagnosisGroupId,
+      { conceptId: selected.id, codeSystem: selected.systemCode, diagnosisDomain: selected.sdDiagnosisDomain, diagnosisGroupId,
         code: selected.code, display: selected.display, type: 'SECONDARY',
-        managementPrograms: (selected.managementPrograms ?? []).map((program) => ({ id: program.id, code: program.code,
-          name: program.name, managementType: program.sdManagementType, triggerAction: program.sdTriggerAction,
-          reportCardType: program.reportCardType, reportDeadlineHours: program.reportDeadlineHours })) },
+        ...diagnosisManagementFromCatalog(selected.managementPrograms) },
     ]))
     setDiagnosisSearch(undefined)
     setDiagnosisError('')
@@ -103,7 +104,7 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
           )}
 
           {diagnoses.map((item, index) => {
-            const key = item.conceptId || `${item.diagnosisDomain}|${item.code}`
+            const key = diagnosisKey(item)
             const isPrimary = item.type === 'PRIMARY'
             return <div key={key} className={`doctor-diagnosis-row ${isPrimary ? 'is-primary' : ''}${draggedDiagnosisKey === key ? ' is-dragging' : ''}`}
               role="row"
@@ -136,9 +137,8 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
                     <Icon name="drag" />
                   </span>
                 )}
-                <span className={`doctor-diag-domain-pill is-${(item.diagnosisDomain ?? 'WESTERN_MEDICINE').toLowerCase()}`}>
-                  {item.diagnosisDomain === 'TCM_DISEASE' ? '中医病名'
-                    : item.diagnosisDomain === 'TCM_SYNDROME' ? '中医证候' : '西医诊断'}
+                <span className={`doctor-diag-domain-pill is-${(item.diagnosisDomain ?? 'unknown').toLowerCase()}`}>
+                  {diagnosisDomainLabel(item.diagnosisDomain)}
                 </span>
               </span>
               <span className="doctor-diag-col-main">
@@ -153,7 +153,7 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
                 </span>
               </span>
               <span className="doctor-diag-col-management">
-                {item.managementPrograms?.length ? (
+                {!hasConfirmedDiagnosisManagement(item) ? <span title="诊断管理规则尚未核实，请重新检索并选择有效目录诊断后保存。">待核对</span> : item.managementPrograms?.length ? (
                   <div className="doctor-diag-management-flow">
                     {item.managementPrograms.map((program) => (
                       <span key={program.id} className="doctor-diag-management-chip" title={program.name}>
@@ -233,7 +233,7 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
                 <div className="doctor-diag-composer-search">
                   <ClinicalResourceSearch<DiseaseConcept> id="doctor-diagnosis-composer-search" api={api}
                     resource="diagnosis" value={diagnosisSearch}
-                    filterResult={(item) => !diagnosisDomainFilter || item.sdDiagnosisDomain === diagnosisDomainFilter}
+                    filterResult={filterDiagnosis}
                     disabled={signed}
                     placeholder={diagnoses.length === 0 ? "检索并选择主要诊断 (拼音/编码/名称，回车连续录入)" : "检索并选择次要诊断 (支持拼音/编码/名称，回车连续录入)"}
                     onChange={(option) => {
@@ -280,10 +280,10 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
         )}
       </div>
       {editing && diagnosisError && <small className="ui-field__message ui-field__error">{diagnosisError}</small>}
-      {diagnoses.some((item) => item.managementPrograms?.length) && <Alert tone="warning"
+      {diagnoses.some((item) => hasConfirmedDiagnosisManagement(item) && item.managementPrograms?.length) && <Alert tone="warning"
         className="doctor-diagnosis-management-alert">
         <strong>公共卫生管理提示</strong>
-        <span>{Array.from(new Set(diagnoses.flatMap((item) => item.managementPrograms?.map((program) =>
+        <span>{Array.from(new Set(diagnoses.filter(hasConfirmedDiagnosisManagement).flatMap((item) => item.managementPrograms?.map((program) =>
           `${item.display}：${program.name}${program.managementType === 'DISEASE_REPORT' ? '（需生成报卡草稿）' : '（需确认是否纳入管理）'}`) ?? []))).join('；')}</span>
       </Alert>}
     </div>

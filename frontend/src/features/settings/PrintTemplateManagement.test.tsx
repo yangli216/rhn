@@ -40,7 +40,7 @@ const publishedTemplate: PublishedPrintTemplate = {
   layoutSchema: 'RHN_PRINT_CANVAS_V1',
 }
 
-function renderManagement(initial = draft(), published: PublishedPrintTemplate[] = []) {
+function renderManagement(initial = draft(), published: PublishedPrintTemplate[] = [], availableCatalog = catalog) {
   let current = initial
   const updateTemplateDraft = vi.fn(async (_id: string, value: Omit<SavePrintDraft, 'templateCode'> & { expectedRevision: number }) => {
     current = { ...current, revision: current.revision + 1, templateName: value.templateName, configJson: value.configJson }
@@ -59,7 +59,7 @@ function renderManagement(initial = draft(), published: PublishedPrintTemplate[]
   }))
   const previewPublishedTemplate = vi.fn(async () => new Blob(['%PDF-preview'], { type: 'application/pdf' }))
   const api = { printing: {
-    administrationCatalog: vi.fn().mockResolvedValue(catalog),
+    administrationCatalog: vi.fn().mockResolvedValue(availableCatalog),
     templateDrafts: vi.fn(async () => [current]), templates: vi.fn().mockResolvedValue(published),
     createTemplateDraft: vi.fn(), updateTemplateDraft, transitionTemplateDraft,
     clonePublishedTemplate: vi.fn(), previewTemplateDraft: vi.fn(), previewPublishedTemplate,
@@ -72,6 +72,29 @@ function renderManagement(initial = draft(), published: PublishedPrintTemplate[]
 }
 
 describe('PrintTemplateManagement', () => {
+  it('gives a registration ticket enough continuous paper and preserves its length when changing rolls', async () => {
+    const user = userEvent.setup()
+    const ticketDefinition = { ...definition, id: 'definition-ticket', documentType: 'OUTPATIENT_REGISTRATION_TICKET', documentName: '门诊挂号凭条' }
+    const narrowMedia = { ...media, id: 'media-58', mediaCode: 'THERMAL_58_CONTINUOUS', mediaName: '58mm 热敏连续纸', widthMm: 58 }
+    const { updateTemplateDraft } = renderManagement(draft(), [], {
+      documentDefinitions: [definition, ticketDefinition], mediaProfiles: [media, narrowMedia],
+    })
+    await user.click(await screen.findByRole('combobox', { name: '单据类型' }))
+    await user.click(await screen.findByRole('option', { name: /门诊挂号凭条/ }))
+    const layout = () => JSON.parse((screen.getByLabelText('高级布局配置 JSON') as HTMLTextAreaElement).value)
+    expect(layout().paper).toMatchObject({ widthMm: 80, heightMm: 140 })
+    expect(layout().elements.every((item: { yMm: number; heightMm: number }) => item.yMm + item.heightMm <= 140)).toBe(true)
+    await user.click(screen.getByRole('combobox', { name: '纸张 / 标签' }))
+    await user.click(await screen.findByRole('option', { name: /58mm 热敏连续纸/ }))
+    expect(layout().paper).toMatchObject({ widthMm: 58, heightMm: 140 })
+    // Return to the matching width before saving; a roll change must not shrink the canvas to 55mm.
+    await user.click(screen.getByRole('combobox', { name: '纸张 / 标签' }))
+    await user.click(await screen.findByRole('option', { name: /80mm 热敏连续纸/ }))
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(updateTemplateDraft).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(updateTemplateDraft.mock.calls[0][1].configJson).paper.heightMm).toBe(140)
+  })
+
   it('edits a canvas element, saves the validated layout, and submits the saved revision', async () => {
     const user = userEvent.setup()
     const { updateTemplateDraft, transitionTemplateDraft } = renderManagement()

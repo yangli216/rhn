@@ -23,7 +23,12 @@ public interface EncounterDiagnosisDirectory {
         }
     }
 
-    record DiagnosisInput(String code, String display, String diagnosisType, String verificationStatus) {
+    record DiagnosisInput(String code, String display, String diagnosisType, String verificationStatus,
+                          @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) Long conceptId,
+                          @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String diagnosisDomain) {
+        public DiagnosisInput(String code, String display, String diagnosisType, String verificationStatus) {
+            this(code, display, diagnosisType, verificationStatus, null, null);
+        }
         public DiagnosisInput(String code, String display, String diagnosisType) {
             this(code, display, diagnosisType, "CONFIRMED");
         }
@@ -31,6 +36,10 @@ public interface EncounterDiagnosisDirectory {
 
     record DiagnosisSnapshot(
             Long id, Long encounterId, String diagnosisStage, String code, String display, String diagnosisType,
-            String verificationStatus, String diagnosisStatus) {
+            String verificationStatus, String diagnosisStatus, Long conceptId, String diagnosisDomain) {
+        public DiagnosisSnapshot(Long id, Long encounterId, String diagnosisStage, String code, String display,
+                                 String diagnosisType, String verificationStatus, String diagnosisStatus) {
+            this(id, encounterId, diagnosisStage, code, display, diagnosisType, verificationStatus, diagnosisStatus, null, null);
+        }
     }
 }

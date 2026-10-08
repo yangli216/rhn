@@ -55,7 +55,7 @@ public interface OutpatientPlanTemplateDirectory {
                              @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") String diagnosisDomain,
                              String code, String display, String type) {
         public DiagnosisSnapshot(String code, String display, String type) {
-            this("WHO.BD.CS.ICD10", "WESTERN_MEDICINE", code, display, type);
+            this(null, null, code, display, type);
         }
     }
 

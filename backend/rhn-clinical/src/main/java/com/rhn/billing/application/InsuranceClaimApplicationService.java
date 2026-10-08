@@ -19,11 +19,11 @@ import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.idempotency.CommandCodes;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -58,20 +58,15 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
     public InsuranceSettlementView quickPreSettle(Long settlementId, Long coverageId, String insuranceTypeCode,
                                                  String regionCode, String idempotencyKey) {
         ExecutionContext context = contextProvider.requireCurrent();
-        String typeCode = insuranceTypeCode == null || insuranceTypeCode.isBlank() ? "01" : insuranceTypeCode.trim();
-        String region = regionCode == null || regionCode.isBlank() ? "360100" : regionCode.trim();
-        var quick = transactions.quickPreSettleContext(settlementId, coverageId, typeCode, region);
-        String organizationCode = context.hasWorkContext() ? "ORG-" + context.organizationId() : "ORG-DEFAULT";
-        String departmentCode = "DEPT-" + quick.account().departmentId();
-        String practitionerCode = context.hasWorkContext() ? "DR-" + context.subjectId() : "DR-DEFAULT";
-        String digest = "MD5-" + quick.settlement().settlementNo();
-        String key = idempotencyKey == null || idempotencyKey.isBlank()
-                ? "PRE-CHS-" + quick.settlement().settlementNo() + "-" + System.currentTimeMillis()
-                : idempotencyKey.trim();
-        return preSettle(new PreSettleCommand(settlementId, quick.coverage().id(), key, region,
-                quick.coverage().coverageTypeCode(), organizationCode, departmentCode, practitionerCode, digest,
-                Instant.now(), null, context.correlationId(),
-                quick.lines().stream().map(line -> new LineMapping(line.settlementLineId(),
+        if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.trim().length() > 128) {
+            throw badRequest("INSURANCE_COMMAND_REQUIRED", "医保预结算必须提供有效的幂等编码，请沿用原请求编号重试");
+        }
+        var quick = transactions.quickPreSettleContext(settlementId, coverageId, insuranceTypeCode, regionCode);
+        var submission = quick.submission();
+        return preSettle(new PreSettleCommand(settlementId, quick.coverage().id(), idempotencyKey.trim(), submission.regionCode(),
+                quick.coverage().coverageTypeCode(), submission.organizationCode(), submission.departmentCode(),
+                submission.practitionerCode(), submission.diagnosisDigest(), quick.visit().startedAt(), quick.visit().completedAt(),
+                context.correlationId(), quick.lines().stream().map(line -> new LineMapping(line.settlementLineId(),
                         line.insuranceItemCode(), line.traceAttributes())).toList()));
     }
 
@@ -99,8 +94,8 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
             try { result = adapter.preSettle(instruction); }
             catch (RuntimeException exception) { result = uncertain(exception); }
         }
-        transactions.apply(claim.id(), "PRE_SETTLE", result, command, messageId, false);
-        return transactions.view(claim.id(), false);
+        var applied = transactions.apply(claim.id(), "PRE_SETTLE", result, command, messageId, false);
+        return transactions.view(claim.id(), applied.duplicate());
     }
 
     public InsuranceSettlementView settle(Long claimId, String commandCode) {
@@ -122,8 +117,8 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
             try { result = adapter.settle(instruction, transactions.view(claimId, false).externalPreSettlementNo()); }
             catch (RuntimeException exception) { result = uncertain(exception); }
         }
-        transactions.apply(claimId, "SETTLE", result, command, messageId, false);
-        return transactions.view(claimId, false);
+        var applied = transactions.apply(claimId, "SETTLE", result, command, messageId, false);
+        return transactions.view(claimId, applied.duplicate());
     }
 
     public InsuranceSettlementView query(Long claimId, String commandCode) {
@@ -136,10 +131,11 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
             return transactions.view(claimId, false);
         }
         InsuranceResult result;
-        try { result = adapter.query(transactions.queryInstruction(claimId)); }
+        InsuranceQuery query = transactions.queryInstruction(claimId);
+        try { result = adapter.query(query); }
         catch (RuntimeException exception) { result = uncertain(exception); }
-        transactions.apply(claimId, "QUERY", result, command, null, false);
-        return transactions.view(claimId, false);
+        var applied = transactions.apply(claimId, query.operation(), result, command, null, false);
+        return transactions.view(claimId, applied.duplicate());
     }
 
     public InsuranceSettlementView reverse(Long claimId, String commandCode, String reason) {
@@ -171,8 +167,8 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
             try { result = adapter.reverse(reversal); }
             catch (RuntimeException exception) { result = uncertain(exception); }
         }
-        transactions.apply(claimId, "REVERSE", result, command, messageId, false);
-        return transactions.view(claimId, false);
+        var applied = transactions.apply(claimId, "REVERSE", result, command, messageId, false);
+        return transactions.view(claimId, applied.duplicate());
     }
 
     public InsuranceSettlementView get(Long claimId) { return transactions.view(claimId, false); }
@@ -196,23 +192,35 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
 
     @Override
     public InsuranceSettlementView accept(VerifiedInsuranceResult input) {
-        if (input.operation() == null || input.status() == null) {
+        if (input == null || input.operation() == null || input.status() == null) {
             throw badRequest("INSURANCE_RESULT_TYPE_REQUIRED", "医保回调必须包含操作和结果状态");
         }
         InsuranceClaim claim = transactions.requireBySettlementNo(input.settlementNo());
         if (!claim.regionCode().equals(normalize(input.regionCode()))) {
             throw conflict("INSURANCE_CALLBACK_REGION_MISMATCH", "医保回调统筹区与原申请不一致");
         }
+        String command = required(input.commandCode());
+        String messageId = required(input.externalMessageBusinessId());
+        String currency = normalize(input.currencyCode());
+        if (input.status() == VerifiedInsuranceResult.ResultStatus.SUCCEEDED && currency == null) {
+            throw badRequest("INSURANCE_CALLBACK_CURRENCY_REQUIRED", "医保成功回调必须明确提供币种");
+        }
+        if (currency != null && !currency.equals(claim.currencyCode())) {
+            throw conflict("INSURANCE_CALLBACK_CURRENCY_MISMATCH", "医保回调币种与原申请不一致");
+        }
         ExecutionContext context = contextProvider.requireCurrent();
-        var inbound = messages.receiveInbound(new ExternalMessageService.InboundMessage(
-                endpoint(claim.regionCode()), "INSURANCE_RESULT", input.externalMessageBusinessId(),
-                claim.correlationId(), context.organizationId(), context.departmentId(), input.sanitizedPayload()));
-        InsuranceResult result = result(input, claim.currencyCode());
-        transactions.apply(claim.id(), input.operation().name(), result, required(input.commandCode()),
-                inbound.id(), inbound.duplicate());
-        InsuranceSettlementView view = transactions.view(claim.id(), inbound.duplicate());
-        messages.markProcessed(inbound.id(), "InsuranceClaim", claim.id(), view.revision());
-        return view;
+        InsuranceResult result = result(input, currency);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("claimId", claim.id()); payload.put("settlementNo", input.settlementNo().trim());
+        payload.put("regionCode", normalize(input.regionCode())); payload.put("operation", input.operation().name());
+        payload.put("status", input.status().name()); payload.put("externalSettlementNo", input.externalSettlementNo());
+        payload.put("insuranceFundAmount", input.insuranceFundAmount()); payload.put("personalAccountAmount", input.personalAccountAmount());
+        payload.put("patientCashAmount", input.patientCashAmount()); payload.put("otherFundAmount", input.otherFundAmount());
+        payload.put("currencyCode", currency); payload.put("errorCode", input.errorCode()); payload.put("errorMessage", input.errorMessage());
+        payload.put("sanitizedPayload", input.sanitizedPayload());
+        return transactions.applyInbound(claim.id(), input.operation().name(), result, command,
+                new ExternalMessageService.InboundMessage(endpoint(claim.regionCode()), "INSURANCE_RESULT", messageId,
+                        claim.correlationId(), context.organizationId(), context.departmentId(), payload));
     }
 
     private InsuranceSettlementAdapter adapter(InsuranceInstruction input) {
@@ -250,6 +258,11 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         payload.put("insuranceTypeCode", input.insuranceTypeCode());
         payload.put("originalExternalSettlementNo", input.originalExternalSettlementNo());
         payload.put("amount", input.amount()); payload.put("reason", input.reason());
+        payload.put("residentId", input.residentId()); payload.put("coverageId", input.coverageId());
+        payload.put("practitionerCode", input.practitionerCode()); payload.put("currencyCode", input.currencyCode());
+        payload.put("insuranceFundAmount", input.insuranceFundAmount());
+        payload.put("personalAccountAmount", input.personalAccountAmount());
+        payload.put("patientCashAmount", input.patientCashAmount()); payload.put("otherFundAmount", input.otherFundAmount());
         return messages.enqueueOutbound(new ExternalMessageService.OutboundMessage(
                 endpoint(input.regionCode()), "INSURANCE_REVERSAL", businessMessageId, input.correlationId(),
                 context.organizationId(), context.departmentId(), payload,
@@ -266,16 +279,15 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
                 input.otherFundAmount(), currency, input.errorCode(), input.errorMessage(), input.sanitizedPayload());
     }
     private InsuranceResult pending(String code, String message) {
-        return new InsuranceResult(InsuranceResult.Outcome.PENDING, null, null, zero(), zero(), zero(), zero(),
-                "CNY", code, message, null);
+        return new InsuranceResult(InsuranceResult.Outcome.PENDING, null, null, null, null, null, null,
+                null, code, message, null);
     }
     private InsuranceResult uncertain(RuntimeException exception) {
-        return new InsuranceResult(InsuranceResult.Outcome.PENDING, null, null, zero(), zero(), zero(), zero(),
-                "CNY", "INSURANCE_CHANNEL_UNCERTAIN", exception.getMessage(), null);
+        return new InsuranceResult(InsuranceResult.Outcome.PENDING, null, null, null, null, null, null,
+                null, "INSURANCE_CHANNEL_UNCERTAIN", exception.getMessage(), null);
     }
-    private BigDecimal zero() { return BigDecimal.ZERO.setScale(6); }
     private String endpoint(String region) { return "INSURANCE_" + region; }
-    private String normalize(String value) { return value == null ? null : value.trim().toUpperCase(); }
+    private String normalize(String value) { return value == null || value.isBlank() ? null : value.trim().toUpperCase(Locale.ROOT); }
     private String required(String value) {
         if (value == null || value.isBlank() || value.trim().length() > 128) throw badRequest(
                 "INSURANCE_COMMAND_REQUIRED", "医保操作必须提供不超过 128 字符的幂等编码");

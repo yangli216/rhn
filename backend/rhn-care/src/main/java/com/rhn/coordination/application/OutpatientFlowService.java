@@ -42,6 +42,8 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 
 @Service
 public class OutpatientFlowService {
+    // Bounds fact-query IN lists, not the number of encounters returned by the board.
+    private static final int FACT_BATCH_SIZE = 200;
     private static final BigDecimal ZERO = new BigDecimal("0.00");
 
     private final EncounterFlowDirectory encounters;
@@ -158,30 +160,34 @@ public class OutpatientFlowService {
         }
         Instant from = start.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant to = end.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
-        List<EncounterFlowSnapshot> encounterValues = encounters.findRecent(context.tenantId(),
-                context.organizationId(), context.departmentId(), from, to, 200);
-        List<Long> encounterIds = encounterValues.stream().map(EncounterFlowSnapshot::encounterId).toList();
-        Map<Long, BillingFlowSnapshot> billingFacts = billing.summarize(context.tenantId(), encounterIds);
-        Map<Long, PharmacyFlowSnapshot> pharmacyFacts = pharmacy.summarize(
-                context.tenantId(), context.organizationId(), encounterIds);
-        Map<Long, DiagnosticFlowSnapshot> diagnosticFacts = diagnostics.summarize(context.tenantId(), encounterIds);
-        Map<Long, TreatmentFlowSnapshot> treatmentFacts = treatments.summarize(context.tenantId(), encounterIds);
-        Map<Long, ReferralFlowSnapshot> referralFacts = referrals.summarize(context.tenantId(), encounterIds);
+        List<EncounterFlowSnapshot> encounterValues = encounters.findInRange(context.tenantId(),
+                context.organizationId(), context.departmentId(), from, to);
         Map<Long, ResidentDirectory.ResidentSnapshot> residentFacts = new LinkedHashMap<>();
-
         String statusFilter = upper(flowStatus);
         String term = upper(keyword);
         Instant refreshedAt = Instant.now();
-        List<VisitView> visits = encounterValues.stream().map(encounter -> {
-            ResidentDirectory.ResidentSnapshot resident = residentFacts.computeIfAbsent(
-                    encounter.residentId(), residents::requireSnapshot);
-            return visit(encounter, resident, billingFacts.get(encounter.encounterId()),
-                    pharmacyFacts.get(encounter.encounterId()), diagnosticFacts.get(encounter.encounterId()),
-                    treatmentFacts.get(encounter.encounterId()), referralFacts.get(encounter.encounterId()), refreshedAt);
-        }).filter(value -> statusFilter == null || statusFilter.equals(value.flowStatus()))
-                .filter(value -> term == null || searchable(value).contains(term))
-                .sorted(this::compareForClosure)
-                .toList();
+        List<VisitView> visits = new ArrayList<>();
+        for (int offset = 0; offset < encounterValues.size(); offset += FACT_BATCH_SIZE) {
+            List<EncounterFlowSnapshot> batch = encounterValues.subList(offset,
+                    Math.min(offset + FACT_BATCH_SIZE, encounterValues.size()));
+            List<Long> encounterIds = batch.stream().map(EncounterFlowSnapshot::encounterId).toList();
+            Map<Long, BillingFlowSnapshot> billingFacts = billing.summarize(context.tenantId(), encounterIds);
+            Map<Long, PharmacyFlowSnapshot> pharmacyFacts = pharmacy.summarize(
+                    context.tenantId(), context.organizationId(), encounterIds);
+            Map<Long, DiagnosticFlowSnapshot> diagnosticFacts = diagnostics.summarize(context.tenantId(), encounterIds);
+            Map<Long, TreatmentFlowSnapshot> treatmentFacts = treatments.summarize(context.tenantId(), encounterIds);
+            Map<Long, ReferralFlowSnapshot> referralFacts = referrals.summarize(context.tenantId(), encounterIds);
+            batch.stream().map(encounter -> {
+                ResidentDirectory.ResidentSnapshot resident = residentFacts.computeIfAbsent(
+                        encounter.residentId(), residents::requireSnapshot);
+                return visit(encounter, resident, billingFacts.get(encounter.encounterId()),
+                        pharmacyFacts.get(encounter.encounterId()), diagnosticFacts.get(encounter.encounterId()),
+                        treatmentFacts.get(encounter.encounterId()), referralFacts.get(encounter.encounterId()), refreshedAt);
+            }).filter(value -> statusFilter == null || statusFilter.equals(value.flowStatus()))
+                    .filter(value -> term == null || searchable(value).contains(term))
+                    .forEach(visits::add);
+        }
+        visits.sort(this::compareForClosure);
         return new BoardView(start, refreshedAt, summary(visits), visits);
     }
 
@@ -308,7 +314,8 @@ public class OutpatientFlowService {
                     treatment.waitingCount() + " 项治疗待执行", "去治疗");
         }
         return destination("COMPLETED", "流程完成", "可以离院", null,
-                "接诊及诊后环节均已完成", null);
+                pharmacy != null && (pharmacy.returnedCount() > 0 || pharmacy.partiallyReturnedCount() > 0)
+                        ? "接诊及诊后环节已结束，含退药记录" : "接诊及诊后环节均已完成", null);
     }
 
     private Destination destination(String status, String statusText, String name, String route,
@@ -355,6 +362,12 @@ public class OutpatientFlowService {
                 value.totalCount(), value.inProgressCount() + value.waitingCount(), "/pharmacy?encounterId=" + encounterId);
         if (value.waitingCount() > 0) return stage("PHARMACY", "取药", "WAITING", "待取药",
                 value.totalCount(), value.waitingCount(), "/pharmacy?encounterId=" + encounterId);
+        if (value.partiallyReturnedCount() > 0 || value.returnedCount() > 0 && value.completedCount() > 0) {
+            return stage("PHARMACY", "取药", "PARTIALLY_RETURNED", "含部分退药", value.totalCount(), 0,
+                    "/pharmacy?encounterId=" + encounterId);
+        }
+        if (value.returnedCount() > 0) return stage("PHARMACY", "取药", "RETURNED", "已退药", value.totalCount(), 0,
+                "/pharmacy?encounterId=" + encounterId);
         return stage("PHARMACY", "取药", "COMPLETED", "已完成", value.totalCount(), 0,
                 "/pharmacy?encounterId=" + encounterId);
     }

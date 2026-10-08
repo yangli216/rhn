@@ -33,19 +33,23 @@ export function syncMedicationDraftGroup(
 
       const oldFreq = resolveFrequencyTimesPerDay(frequencyList, d.request.frequencyCode)
       const newFreq = resolveFrequencyTimesPerDay(frequencyList, nextFrequencyCode)
-      const oldDays = Number(d.request.durationValue) || 1
-      const newDays = Number(nextDurationValue) || 1
-      const ratio = oldFreq !== null && newFreq !== null ? (newFreq * newDays) / (oldFreq * oldDays) : 1
+      const oldDays = Number(d.request.durationValue)
+      const newDays = Number(nextDurationValue)
+      const validDays = Number.isFinite(oldDays) && oldDays > 0 && Number.isFinite(newDays) && newDays > 0
+        && ['d', 'D', '天'].includes(d.request.durationUnit ?? '') && ['d', 'D', '天'].includes(nextDurationUnit ?? '')
+      const ratio = oldFreq !== null && newFreq !== null && validDays ? (newFreq * newDays) / (oldFreq * oldDays) : 1
       let recalculatedQuantity = d.request.quantity
       if (!d.quantityManuallySet && ratio > 0 && Math.abs(ratio - 1) > 0.001) {
         recalculatedQuantity = Math.max(1, Math.round(d.request.quantity * ratio))
       }
 
       // 如果提供了匹配的药品知识库与包装，执行精确规格折算
-      if (!d.quantityManuallySet && medicationsList && medicationsList.length > 0) {
+      if (!d.quantityManuallySet && medicationsList && medicationsList.length > 0
+        && ['d', 'D', '天'].includes(nextDurationUnit ?? '')) {
         const medKnowledge = medicationsList.find((m) => m.id === d.request.medicationId)
         const options = medKnowledge ? resolveDispensableOptions(medKnowledge, String(orgId || '')) : []
-        const pkg = options.find((opt) => opt.itemPackage?.id === d.request.packageId) ?? options[0]
+        const pkg = options.find((opt) => opt.product.id === d.request.catalogItemId
+          && opt.itemPackage?.id === d.request.packageId)
         if (medKnowledge && pkg) {
           const calc = calculatePackageQuantity({
             medication: medKnowledge,

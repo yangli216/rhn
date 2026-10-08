@@ -273,7 +273,7 @@ function paymentLabel(value?: InpatientEpisode['paymentMethodCode']) {
   const labels: Record<NonNullable<InpatientEpisode['paymentMethodCode']>, string> = {
     SELF_PAY: '自费', BASIC_MEDICAL_INSURANCE: '基本医保', COMMERCIAL_INSURANCE: '商业保险', OTHER: '其他支付',
   }
-  return labels[value ?? 'SELF_PAY']
+  return value ? labels[value] ?? value : '付费方式未登记'
 }
 
 function formatDate(value: string) {

@@ -123,7 +123,6 @@ function PrescriptionEditorSection({
   const dispensableOptions = currentMedication
     ? resolveDispensableOptions(currentMedication, encounter.organizationId) : []
   const selectedProduct = dispensableOptions.find((value) => value.key === line.dispenseOptionKey)
-    ?? dispensableOptions[0]
   const drugAllergies = allergies.filter((item) => item.assertionType === 'ALLERGY' && item.categoryCode === 'DRUG')
   const allergyReviewRecorded = allergies.some((item) => item.assertionType === 'NO_KNOWN_ALLERGY'
     || item.assertionType === 'NO_KNOWN_DRUG_ALLERGY') || drugAllergies.length > 0
@@ -173,8 +172,7 @@ function PrescriptionEditorSection({
     if (!medication) { setValidationError('请先选择药品'); return }
     const product = resolveDispensableOptions(medication, encounter.organizationId)
       .find((value) => value.key === line.dispenseOptionKey)
-      ?? resolveDispensableOptions(medication, encounter.organizationId)[0]
-    if (!product) { setValidationError('所选药品尚未配置当前机构可发药的产品、包装或有效价格'); return }
+    if (!product) { setValidationError('所选发药产品、包装或有效价格尚未确认，请核实目录后重新选择'); return }
     if (!isLineComplete(line, mode)) { setValidationError('请完整填写当前医嘱行'); return }
     if (mode === 'herbal' && (!herbalMethod.trim() || !herbalFrequency.trim())) {
       setValidationError('请填写草药服法和频次'); return

@@ -10,6 +10,8 @@ import jakarta.persistence.Version;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 
 @Entity
 @Table(name = "RHN_BIL_RCPT")
@@ -66,12 +68,14 @@ public class Receipt {
     }
 
     public String applyIssueResult(ReceiptResult result) {
+        requireResult(result);
+        if (reversesReceiptId != null) throw new IllegalStateException("红冲票据不能接收普通开具结果");
         String previous = status;
         if ("VOIDED".equals(status) || "RED_FLUSHED".equals(status)) {
             throw new IllegalStateException("终态票据不能再接收开具结果");
         }
         if ("ISSUED".equals(status)) {
-            if (result.outcome() != ReceiptResult.Outcome.ISSUED) return previous;
+            if (result.outcome() != ReceiptResult.Outcome.ISSUED) throw new IllegalStateException("已开具票据不能接收不同状态的开具结果");
             requireSameFiscalIdentity(result);
             return previous;
         }
@@ -82,9 +86,9 @@ public class Receipt {
         mergeExternalReceiptNo(result.externalReceiptNo());
         switch (result.outcome()) {
             case ISSUED -> {
-                status = "ISSUED"; fiscalCode = result.fiscalCode(); fiscalNumber = result.fiscalNumber();
-                verificationCode = result.verificationCode(); controlledObjectReference = result.controlledObjectReference();
-                issuedAt = result.issuedAt() == null ? Instant.now() : result.issuedAt(); errorCode = null; errorMessage = null;
+                status = "ISSUED"; fiscalCode = text(result.fiscalCode()); fiscalNumber = text(result.fiscalNumber());
+                verificationCode = text(result.verificationCode()); controlledObjectReference = text(result.controlledObjectReference());
+                issuedAt = result.issuedAt().truncatedTo(ChronoUnit.MICROS); errorCode = null; errorMessage = null;
             }
             case FAILED -> { status = "FAILED"; errorCode = result.errorCode(); errorMessage = result.errorMessage(); }
             case PENDING -> { status = "REQUESTED"; errorCode = result.errorCode(); errorMessage = result.errorMessage(); }
@@ -95,12 +99,19 @@ public class Receipt {
     }
 
     public String applyVoidResult(ReceiptResult result) {
+        requireResult(result);
         String previous = status;
         if ("VOIDED".equals(status)) {
-            if (result.outcome() == ReceiptResult.Outcome.VOIDED) return previous;
+            if (result.outcome() == ReceiptResult.Outcome.VOIDED) {
+                requireSameExternalReceipt(result);
+                return previous;
+            }
             throw new IllegalStateException("已作废票据不能迁移到其他状态");
         }
         if (!"ISSUED".equals(status)) throw new IllegalStateException("只有已开具票据可以作废");
+        if (result.outcome() != ReceiptResult.Outcome.VOIDED && result.outcome() != ReceiptResult.Outcome.PENDING
+                && result.outcome() != ReceiptResult.Outcome.FAILED) throw new IllegalStateException("作废流程收到不兼容的票据结果");
+        if (result.outcome() == ReceiptResult.Outcome.VOIDED) requireSameExternalReceipt(result);
         mergeExternalReceiptNo(result.externalReceiptNo());
         if (result.outcome() == ReceiptResult.Outcome.VOIDED) {
             status = "VOIDED"; errorCode = null; errorMessage = null; updatedAt = Instant.now();
@@ -113,21 +124,27 @@ public class Receipt {
     }
 
     public String applyRedFlushResult(ReceiptResult result) {
+        requireResult(result);
         String previous = status;
         if (reversesReceiptId == null) throw new IllegalStateException("当前票据不是红冲票据");
         if ("RED_FLUSHED".equals(status)) {
-            if (result.outcome() == ReceiptResult.Outcome.RED_FLUSHED) return previous;
+            if (result.outcome() == ReceiptResult.Outcome.RED_FLUSHED) {
+                requireSameFiscalIdentity(result);
+                return previous;
+            }
             throw new IllegalStateException("已红冲票据不能迁移到其他状态");
         }
         if (!"REQUESTED".equals(status) && !"FAILED".equals(status)) {
             throw new IllegalStateException("当前红冲票据状态不能接收红冲结果");
         }
+        if (result.outcome() != ReceiptResult.Outcome.RED_FLUSHED && result.outcome() != ReceiptResult.Outcome.PENDING
+                && result.outcome() != ReceiptResult.Outcome.FAILED) throw new IllegalStateException("红冲流程收到不兼容的票据结果");
         mergeExternalReceiptNo(result.externalReceiptNo());
         switch (result.outcome()) {
             case RED_FLUSHED -> {
-                status = "RED_FLUSHED"; fiscalCode = result.fiscalCode(); fiscalNumber = result.fiscalNumber();
-                verificationCode = result.verificationCode(); controlledObjectReference = result.controlledObjectReference();
-                issuedAt = result.issuedAt() == null ? Instant.now() : result.issuedAt(); errorCode = null; errorMessage = null;
+                status = "RED_FLUSHED"; fiscalCode = text(result.fiscalCode()); fiscalNumber = text(result.fiscalNumber());
+                verificationCode = text(result.verificationCode()); controlledObjectReference = text(result.controlledObjectReference());
+                issuedAt = result.issuedAt().truncatedTo(ChronoUnit.MICROS); errorCode = null; errorMessage = null;
             }
             case FAILED -> { status = "FAILED"; errorCode = result.errorCode(); errorMessage = result.errorMessage(); }
             case PENDING -> { status = "REQUESTED"; errorCode = result.errorCode(); errorMessage = result.errorMessage(); }
@@ -147,14 +164,35 @@ public class Receipt {
     }
 
     private void requireSameFiscalIdentity(ReceiptResult result) {
-        mergeExternalReceiptNo(result.externalReceiptNo());
-        if (fiscalCode != null && result.fiscalCode() != null && !fiscalCode.equals(result.fiscalCode())) {
-            throw new IllegalStateException("财政票据代码与既有开具结果不一致");
-        }
-        if (fiscalNumber != null && result.fiscalNumber() != null && !fiscalNumber.equals(result.fiscalNumber())) {
-            throw new IllegalStateException("财政票据号码与既有开具结果不一致");
+        requireSameExternalReceipt(result);
+        if (!Objects.equals(fiscalCode, text(result.fiscalCode())) || !Objects.equals(fiscalNumber, text(result.fiscalNumber()))
+                || !Objects.equals(verificationCode, text(result.verificationCode()))
+                || !Objects.equals(controlledObjectReference, text(result.controlledObjectReference()))
+                || !Objects.equals(issuedAt, result.issuedAt().truncatedTo(ChronoUnit.MICROS))) {
+            throw new IllegalStateException("财政票据身份、凭证或开具时间与原结果不一致");
         }
     }
+
+    private void requireSameExternalReceipt(ReceiptResult result) {
+        if (externalReceiptNo == null || !externalReceiptNo.equals(text(result.externalReceiptNo()))) {
+            throw new IllegalStateException("外部票据号与原票据不一致或原票据来源待核实");
+        }
+    }
+
+    private void requireResult(ReceiptResult result) {
+        if (result == null || result.outcome() == null) throw new IllegalStateException("票据回执及结果状态不能为空");
+        if (result.outcome() == ReceiptResult.Outcome.ISSUED || result.outcome() == ReceiptResult.Outcome.RED_FLUSHED
+                || result.outcome() == ReceiptResult.Outcome.VOIDED) {
+            if (text(result.externalReceiptNo()) == null || result.issuedAt() == null) {
+                throw new IllegalStateException("成功票据回执必须明确返回票据号及业务发生时间");
+            }
+            if (text(result.errorCode()) != null) throw new IllegalStateException("成功票据回执不能同时携带错误码");
+            if (result.outcome() != ReceiptResult.Outcome.VOIDED && (text(result.fiscalCode()) == null || text(result.fiscalNumber()) == null)) {
+                throw new IllegalStateException("出票或红冲成功回执必须明确返回票据代码和号码");
+            }
+        }
+    }
+    private String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 
     public Long id() { return id; }
     public long revision() { return revision; }

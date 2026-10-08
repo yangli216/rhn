@@ -70,8 +70,11 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   const session = context.encounterId
   const [diagnosisSelection, setDiagnosisSelection] = useState<{ session: string; excluded: string[] }>({ session: '', excluded: [] })
   const excludedDiagnoses = diagnosisSelection.session === session ? diagnosisSelection.excluded : []
+  const alreadyEntered = (code: string) => context.diagnoses.some(diagnosis =>
+    diagnosis.codeSystem === 'WHO.BD.CS.ICD10' && diagnosis.diagnosisDomain === 'WESTERN_MEDICINE'
+    && diagnosis.code.trim().toUpperCase() === code.trim().toUpperCase())
   const diagnoses = (suggestion?.diagnosisCandidates ?? []).filter((item) =>
-    !context.diagnoses.some((diagnosis) => diagnosis.code.toUpperCase() === item.code.toUpperCase()))
+    !alreadyEntered(item.code))
   const selectedDiagnoses = diagnoses.filter((item) => !excludedDiagnoses.includes(item.code))
   const diagnosisFeature = capability.features.includes('TERMINOLOGY_VALIDATION')
   const planFeature = capability.features.includes('PLAN_RECOMMENDATIONS')
@@ -116,11 +119,10 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
       'copilot-hub'
     )}
 
-    {current && diagnosisFeature && Boolean(suggestion?.diagnosisCandidates.some((item) =>
-      !context.diagnoses.some((diagnosis) => diagnosis.code.toUpperCase() === item.code.toUpperCase()))) && portal(
+    {current && diagnosisFeature && diagnoses.length > 0 && portal(
       <div className="doctor-ai-diagnosis-suggestions" aria-label="AI 诊断待确认">
         {suggestion!.diagnosisCandidates.map((item) => {
-          const exists = context.diagnoses.some((diagnosis) => diagnosis.code.toUpperCase() === item.code.toUpperCase())
+          const exists = alreadyEntered(item.code)
           if (exists) return null
           return <div className="doctor-diagnosis-row is-ai-suggestion" role="row" key={item.code}>
             <span className="doctor-diag-col-type"><label className="doctor-ai-order-select">

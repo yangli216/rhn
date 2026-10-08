@@ -40,8 +40,9 @@ class ClinicalPdfRenderer {
             .withZone(ZoneId.of("Asia/Shanghai"));
     private final BaseFont cjk;
     private final ConfigurablePdfRenderer configurableRenderer;
+    private final OutpatientDocumentPdfRenderer outpatientRenderer;
 
-    ClinicalPdfRenderer(ConfigurablePdfRenderer configurableRenderer) {
+    ClinicalPdfRenderer(ConfigurablePdfRenderer configurableRenderer, com.rhn.shared.json.JsonCodec jsonCodec) {
         this.configurableRenderer = configurableRenderer;
         try {
             try (var stream = ClinicalPdfRenderer.class.getClassLoader()
@@ -53,9 +54,13 @@ class ClinicalPdfRenderer {
         } catch (Exception exception) {
             throw new IllegalStateException("Cannot initialize Simplified Chinese PDF font", exception);
         }
+        this.outpatientRenderer = new OutpatientDocumentPdfRenderer(cjk, jsonCodec);
     }
 
     byte[] render(String documentType, String layoutSchema, String configJson, Map<String, Object> snapshot) {
+        if (OutpatientDocumentPdfRenderer.SCHEMA.equals(layoutSchema)) {
+            return outpatientRenderer.render(documentType, configJson, snapshot);
+        }
         if (configurableRenderer.supports(layoutSchema)) {
             return configurableRenderer.render(layoutSchema, configJson, snapshot);
         }
@@ -253,9 +258,9 @@ class ClinicalPdfRenderer {
             String dose = item.get("doseValue") == null ? "-" : number(item.get("doseValue")) + " " + text(item, "doseUnit", "");
             medications.addCell(bodyCell("每次 " + dose, Element.ALIGN_LEFT));
 
-            String route = text(item, "routeCode", "");
-            String freq = text(item, "frequencyCode", "");
-            String usage = (route.isBlank() ? "口服" : route) + " · " + (freq.isBlank() ? "遵医嘱" : freq);
+            String route = text(item, "routeName", text(item, "routeCode", ""));
+            String freq = text(item, "frequencyName", text(item, "frequencyCode", ""));
+            String usage = (route.isBlank() ? "途径未记录" : route) + " · " + (freq.isBlank() ? "频次未记录" : freq);
             String instruction = text(item, "instruction", "");
             medications.addCell(bodyCell(usage + (instruction.isBlank() ? "" : "\n" + instruction), Element.ALIGN_LEFT));
 
@@ -340,7 +345,7 @@ class ClinicalPdfRenderer {
         PdfPCell treatLabel = cell("治法治则", font(8, Font.NORMAL, MUTED));
         treatLabel.setBackgroundColor(SOFT); treatLabel.setPadding(4.5f); treatLabel.setBorderColor(BORDER);
         diagTable.addCell(treatLabel);
-        PdfPCell treatValue = cell(text(snapshot, "treatmentPrinciple", "辨证施治，理气和营"), font(8.5f, Font.NORMAL, TEXT_DARK));
+        PdfPCell treatValue = cell(text(snapshot, "treatmentPrinciple", "未记录"), font(8.5f, Font.NORMAL, TEXT_DARK));
         treatValue.setPadding(4.5f); treatValue.setBorderColor(BORDER);
         diagTable.addCell(treatValue);
         document.add(diagTable);
@@ -356,29 +361,24 @@ class ClinicalPdfRenderer {
         matrix.setWidthPercentage(100);
 
         int count = 0;
-        int totalDoses = 7; // 默认7剂
-        String method = "水煎服";
-        String freqText = "分早晚温服";
+        String totalDoses = commonHerbalDoseCount(items);
 
         for (Object value : items) {
             Map<String, Object> item = map(value);
             String name = text(item, "medicationName", "-");
-            String dose = item.get("doseValue") == null ? "" : number(item.get("doseValue")) + text(item, "doseUnit", "g");
+            String dose = item.get("doseValue") == null ? "" : number(item.get("doseValue")) + text(item, "doseUnit", "（单位未记录）");
             String instruction = text(item, "instruction", "");
 
-            if (item.get("durationValue") != null) {
-                try {
-                    int d = new BigDecimal(item.get("durationValue").toString()).intValue();
-                    if (d > 0) totalDoses = d;
-                } catch (Exception ignored) {}
+            // Preserve each saved direction verbatim; one herb's instructions must not become the whole formula's.
+            String frequency = text(item, "frequencyName", text(item, "frequencyCode", ""));
+            String route = text(item, "routeName", text(item, "routeCode", ""));
+            String displayCellText = name + "  " + dose
+                    + (route.isBlank() ? "" : "\n途径：" + route)
+                    + (frequency.isBlank() ? "" : "\n频次：" + frequency)
+                    + (instruction.isBlank() ? "" : "\n" + instruction);
+            if (totalDoses == null && item.get("durationValue") != null) {
+                displayCellText += "\n疗程：" + number(item.get("durationValue")) + text(item, "durationUnit", "（单位未记录）");
             }
-            if (!instruction.isBlank() && instruction.contains("煎")) {
-                method = instruction;
-            }
-
-            // 检查是否有特殊煎服法标记（如先煎、后下、包煎、另煎等）
-            String decoctNotice = extractDecoctionNotice(name, instruction);
-            String displayCellText = name + "  " + dose + (decoctNotice.isBlank() ? "" : " (" + decoctNotice + ")");
 
             PdfPCell cell = cell(displayCellText, font(9, Font.BOLD, TEXT_BLACK));
             cell.setPadding(6f);
@@ -408,7 +408,7 @@ class ClinicalPdfRenderer {
         PdfPTable banner = new PdfPTable(1);
         banner.setWidthPercentage(100);
         banner.setSpacingBefore(5); banner.setSpacingAfter(4);
-        String bannerText = String.format("【 共 %d 剂，每日 1 剂，%s，%s 】", totalDoses, method, freqText);
+        String bannerText = (totalDoses == null ? "剂数未统一记录" : "共 " + totalDoses + " 剂") + " · 用法见各药品明细";
         PdfPCell bannerCell = cell(bannerText, font(10, Font.BOLD, BRAND));
         bannerCell.setBackgroundColor(BRAND_LIGHT);
         bannerCell.setBorderColor(BRAND);
@@ -433,22 +433,24 @@ class ClinicalPdfRenderer {
         infoBar.setSpacingBefore(3);
         addLabelValue(infoBar, "处方编号", text(snapshot, "prescriptionNo", "-"));
         addLabelValue(infoBar, "饮片味数", items.size() + " 味");
-        addLabelValue(infoBar, "总剂数", totalDoses + " 剂");
+        addLabelValue(infoBar, "总剂数", totalDoses == null ? "见明细" : totalDoses + " 剂");
         addLabelValue(infoBar, "处方效期", "开具当日有效");
         document.add(infoBar);
 
-        addEvidence(document, snapshot, "煎药须知：1. 处方开具当日有效；2. 请遵医嘱煎煮及温服；3. 特殊饮片请严格按照先煎、后下、包煎等方法处理。");
+        addEvidence(document, snapshot, "用药须知：请严格按处方记录的用法、频次及各药品嘱托执行。");
     }
 
-    private String extractDecoctionNotice(String name, String instruction) {
-        String combined = name + " " + instruction;
-        if (combined.contains("先煎")) return "先煎";
-        if (combined.contains("后下")) return "后下";
-        if (combined.contains("包煎")) return "包煎";
-        if (combined.contains("另煎") || combined.contains("另炖")) return "另煎";
-        if (combined.contains("烊化") || combined.contains("溶化")) return "烊化";
-        if (combined.contains("冲服")) return "冲服";
-        return "";
+    private String commonHerbalDoseCount(List<?> items) {
+        String common = null;
+        for (Object value : items) {
+            Map<String, Object> item = map(value);
+            String unit = text(item, "durationUnit", "");
+            if (item.get("durationValue") == null || !("剂".equals(unit) || "DOSE".equalsIgnoreCase(unit))) return null;
+            String count = number(item.get("durationValue"));
+            if (common != null && !common.equals(count)) return null;
+            common = count;
+        }
+        return common;
     }
 
     private String resolvePrescriptionDiagnosis(Map<String, Object> snapshot) {
@@ -476,7 +478,7 @@ class ClinicalPdfRenderer {
                 }
             }
         }
-        return "普通门诊（遵医嘱）";
+        return "临床诊断未记录";
     }
 
     private void addHeader(Document document, Map<String, Object> snapshot, String title, String badgeText) throws Exception {

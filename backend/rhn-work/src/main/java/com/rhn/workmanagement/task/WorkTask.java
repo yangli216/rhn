@@ -84,6 +84,21 @@ public class WorkTask {
         return task;
     }
 
+    /** Apply an urgent source update without losing an existing claim or relaxing the deadline. */
+    public boolean raiseCareUrgency(String sourceTitle, String sourceSummary, Instant requiredAt) {
+        if (!"CONTINUOUS_CARE".equals(taskType) || status == TaskStatus.COMPLETED || status == TaskStatus.CANCELLED) {
+            return false;
+        }
+        boolean earlier = requiredAt != null && (dueAt == null || requiredAt.isBefore(dueAt));
+        if (priority == TaskPriority.URGENT && !earlier) return false;
+        priority = TaskPriority.URGENT;
+        title = sourceTitle;
+        summary = sourceSummary;
+        if (earlier) dueAt = requiredAt;
+        updatedAt = Instant.now();
+        return true;
+    }
+
     public TaskStatus claim(Long actorId) {
         if (status == TaskStatus.COMPLETED || status == TaskStatus.CANCELLED) {
             throw BusinessErrors.conflict("TASK_STATE_INVALID", "已结束任务不能认领");
@@ -100,21 +115,50 @@ public class WorkTask {
     }
 
     public TaskStatus complete(Long actorId) {
+        return completeAt(actorId, Instant.now());
+    }
+
+    public TaskStatus completeAt(Long actorId, Instant occurredAt) {
         if (status == TaskStatus.COMPLETED) return TaskStatus.COMPLETED;
         if (status == TaskStatus.CANCELLED) throw BusinessErrors.conflict("TASK_STATE_INVALID", "已取消任务不能完成");
+        return recordCompletion(actorId, occurredAt);
+    }
+
+    public TaskStatus recordSignatureCompletion(Long actorId, Instant signedAt) {
+        if (!"CLINICAL_DOCUMENT_SIGN".equals(taskType)) throw new IllegalStateException("Not a signature task");
+        if (status == TaskStatus.COMPLETED) return TaskStatus.COMPLETED;
+        // A delayed signature receipt is stronger evidence than an earlier projection's supersession.
+        return recordCompletion(actorId, signedAt);
+    }
+
+    private TaskStatus recordCompletion(Long actorId, Instant occurredAt) {
         TaskStatus before = status;
         completedBy = actorId;
-        completedAt = Instant.now();
+        completedAt = java.util.Objects.requireNonNull(occurredAt, "Completion time is required");
         status = TaskStatus.COMPLETED;
         updatedAt = completedAt;
         return before;
     }
 
+    public int signatureDocumentVersion() {
+        String prefix = "CLINICAL_DOCUMENT_SIGN:" + sourceId + ":";
+        if (!"CLINICAL_DOCUMENT_SIGN".equals(taskType) || dedupKey == null || !dedupKey.startsWith(prefix)) {
+            throw new IllegalStateException("Signature task has no valid source version");
+        }
+        int version = Integer.parseInt(dedupKey.substring(prefix.length()));
+        if (version < 1) throw new IllegalStateException("Signature task version must be positive");
+        return version;
+    }
+
     public TaskStatus cancel() {
+        return cancelAt(Instant.now());
+    }
+
+    public TaskStatus cancelAt(Instant occurredAt) {
         if (status == TaskStatus.COMPLETED) throw BusinessErrors.conflict("TASK_STATE_INVALID", "已完成任务不能取消");
         TaskStatus before = status;
         status = TaskStatus.CANCELLED;
-        updatedAt = Instant.now();
+        updatedAt = java.util.Objects.requireNonNull(occurredAt, "Cancellation time is required");
         return before;
     }
 
@@ -137,6 +181,7 @@ public class WorkTask {
     public Instant dueAt() { return dueAt; }
     public Long claimedBy() { return claimedBy; }
     public Instant claimedAt() { return claimedAt; }
+    public Long completedBy() { return completedBy; }
     public Instant completedAt() { return completedAt; }
     public Instant createdAt() { return createdAt; }
     public long revision() { return revision; }

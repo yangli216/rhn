@@ -98,7 +98,7 @@ public class InpatientController {
         return service.recordAdmissionDiagnoses(episodeId, new RecordAdmissionDiagnosesCommand(
                 input.expectedEpisodeRevision(), input.diagnoses().stream()
                         .map(value -> new DiagnosisCommand(value.code(), value.display(), value.diagnosisType(),
-                                value.verificationStatus()))
+                                value.verificationStatus(), value.conceptId(), value.diagnosisDomain()))
                         .toList(), input.commandCode()));
     }
 
@@ -113,7 +113,7 @@ public class InpatientController {
         return service.recordDischargeDiagnoses(episodeId, new RecordDischargeDiagnosesCommand(
                 input.expectedEpisodeRevision(), input.diagnoses().stream()
                         .map(value -> new DiagnosisCommand(value.code(), value.display(), value.diagnosisType(),
-                                "CONFIRMED"))
+                                "CONFIRMED", value.conceptId(), value.diagnosisDomain()))
                         .toList(), input.commandCode()));
     }
 
@@ -179,13 +179,19 @@ public class InpatientController {
             @NotBlank @Size(max = 64) String code,
             @NotBlank @Size(max = 200) String display,
             @NotBlank @Pattern(regexp = "PRIMARY|SECONDARY") String diagnosisType,
-            @NotBlank @Pattern(regexp = "CONFIRMED|PROVISIONAL") String verificationStatus) {
+            @NotBlank @Pattern(regexp = "CONFIRMED|PROVISIONAL") String verificationStatus,
+            @jakarta.validation.constraints.Positive @io.swagger.v3.oas.annotations.media.Schema(nullable = true) Long conceptId,
+            @Pattern(regexp = "WESTERN_MEDICINE|TCM_DISEASE|TCM_SYNDROME")
+            @io.swagger.v3.oas.annotations.media.Schema(nullable = true) String diagnosisDomain) {
     }
 
     public record DiagnosisRequest(
             @NotBlank @Size(max = 64) String code,
             @NotBlank @Size(max = 200) String display,
-            @NotBlank @Pattern(regexp = "PRIMARY|SECONDARY") String diagnosisType) {
+            @NotBlank @Pattern(regexp = "PRIMARY|SECONDARY") String diagnosisType,
+            @jakarta.validation.constraints.Positive @io.swagger.v3.oas.annotations.media.Schema(nullable = true) Long conceptId,
+            @Pattern(regexp = "WESTERN_MEDICINE|TCM_DISEASE|TCM_SYNDROME")
+            @io.swagger.v3.oas.annotations.media.Schema(nullable = true) String diagnosisDomain) {
     }
 
     public record BedStatusRequest(

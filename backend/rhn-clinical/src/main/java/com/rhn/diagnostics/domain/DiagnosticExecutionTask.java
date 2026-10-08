@@ -12,6 +12,8 @@ import jakarta.persistence.Version;
 import org.springframework.http.HttpStatus;
 
 import java.time.Instant;
+import java.util.Objects;
+import java.util.Set;
 
 @Entity
 @Table(name = "RHN_EX_DIAG_EXEC_TASK")
@@ -97,17 +99,41 @@ public class DiagnosticExecutionTask {
         status = DiagnosticExecutionTaskStatus.IN_PROGRESS; startedBy = actor; startedAt = occurredAt;
     }
 
-    public void recordReport(Long value, String reportStatus, Long actor, String note, Instant occurredAt) {
-        reportId = value;
-        if ("CANCELLED".equals(reportStatus)) {
-            status = DiagnosticExecutionTaskStatus.EXCEPTION; exceptionNote = "报告已取消，请重新执行或撤销申请"; return;
+    public void recordReport(DiagnosticReport report) {
+        if (report == null || report.id() == null || report.receivedAt() == null || report.createdBy() == null) {
+            invalid("DIAGNOSTIC_REPORT_EVIDENCE_REQUIRED", "任务状态必须依据已保存的报告更新");
         }
-        if ("PRELIMINARY".equals(reportStatus)) {
-            if (status != DiagnosticExecutionTaskStatus.COMPLETED) status = DiagnosticExecutionTaskStatus.IN_PROGRESS;
+        if (!matchesReportIdentity(report)) {
+            invalid("DIAGNOSTIC_REPORT_REQUEST_MISMATCH", "报告与当前任务的患者、就诊或申请信息不一致");
+        }
+        String reportStatus = report.status();
+        if (reportStatus == null || !Set.of("PRELIMINARY", "FINAL", "CORRECTED", "CANCELLED").contains(reportStatus)) {
+            invalid("DIAGNOSTIC_REPORT_STATUS_INVALID", "报告状态不受支持，不能推定执行完成");
+        }
+        reportId = report.id();
+        if ("CANCELLED".equals(reportStatus) || "PRELIMINARY".equals(reportStatus)) {
+            completedBy = null; completedAt = null; completionNote = null;
+            status = "CANCELLED".equals(reportStatus)
+                    ? DiagnosticExecutionTaskStatus.EXCEPTION : DiagnosticExecutionTaskStatus.IN_PROGRESS;
+            exceptionNote = "CANCELLED".equals(reportStatus) ? "报告已取消，请重新执行或撤销申请" : null;
             return;
         }
-        status = DiagnosticExecutionTaskStatus.COMPLETED; completedBy = actor; completedAt = occurredAt;
-        completionNote = note; exceptionNote = null;
+        status = DiagnosticExecutionTaskStatus.COMPLETED;
+        completedBy = report.createdBy(); completedAt = report.receivedAt();
+        completionNote = report.reportName(); exceptionNote = null;
+    }
+
+    public boolean hasCompletedReport(DiagnosticReport report) {
+        return status == DiagnosticExecutionTaskStatus.COMPLETED && report != null
+                && reportId != null && reportId.equals(report.id()) && matchesReportIdentity(report)
+                && ("FINAL".equals(report.status()) || "CORRECTED".equals(report.status()));
+    }
+
+    private boolean matchesReportIdentity(DiagnosticReport report) {
+        return Objects.equals(tenantId, report.tenantId()) && Objects.equals(requestId, report.requestId())
+                && Objects.equals(residentId, report.residentId()) && Objects.equals(encounterId, report.encounterId())
+                && Objects.equals(organizationId, report.organizationId()) && Objects.equals(departmentId, report.departmentId())
+                && Objects.equals("EXAMINATION".equals(requestType) ? "IMAGING" : requestType, report.reportType());
     }
 
     public void cancel(Instant occurredAt) {

@@ -7,7 +7,6 @@ import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptResult;
 import com.rhn.billing.api.FiscalReceiptResultDirectory;
 import com.rhn.billing.api.FiscalReceiptResultDirectory.VerifiedReceiptResult;
 import com.rhn.billing.api.ReceiptViews.ReceiptView;
-import com.rhn.billing.domain.Receipt;
 import com.rhn.platform.integration.api.ExternalMessageService;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -65,15 +64,15 @@ public class ReceiptApplicationService implements FiscalReceiptResultDirectory {
         }
         String command = operationCommand("QUERY-", commandCode);
         if (transactions.eventApplied(receiptId, command)) return transactions.get(receiptId, true);
-        ReceiptInstruction instruction = transactions.instruction(receiptId);
-        FiscalReceiptAdapter adapter = adapter(instruction);
+        FiscalReceiptAdapter adapter = adapters.stream().filter(candidate -> candidate.supports(
+                value.fiscalAuthorityCode(), value.receiptType())).findFirst().orElse(null);
         if (adapter == null) {
-            enqueueQuery(instruction, command);
+            enqueueQuery(value, command);
             return transactions.get(receiptId, false);
         }
         ReceiptResult result;
         try {
-            result = adapter.query(instruction.receiptRequestNo(), instruction.externalReceiptNo(), instruction.correlationId());
+            result = adapter.query(value.receiptNo(), value.externalReceiptNo(), value.correlationId());
         } catch (RuntimeException exception) {
             result = pending(exception);
         }
@@ -139,27 +138,7 @@ public class ReceiptApplicationService implements FiscalReceiptResultDirectory {
 
     @Override
     public ReceiptView accept(VerifiedReceiptResult input) {
-        if (input.operation() == null) throw com.rhn.shared.api.BusinessErrors.badRequest(
-                "RECEIPT_RESULT_OPERATION_REQUIRED", "票据回调必须标明操作类型");
-        Receipt receipt = transactions.requireByReceiptNo(input.receiptRequestNo());
-        if (!receipt.fiscalAuthorityCode().equals(normalize(input.fiscalAuthorityCode()))) {
-            throw conflict("RECEIPT_CALLBACK_AUTHORITY_MISMATCH", "票据回调平台与原申请不一致");
-        }
-        ExecutionContext context = contextProvider.requireCurrent();
-        var inbound = messages.receiveInbound(new ExternalMessageService.InboundMessage(
-                "FISCAL_" + receipt.fiscalAuthorityCode(), "RECEIPT_RESULT", input.externalMessageBusinessId(),
-                receipt.correlationId(), context.organizationId(), context.departmentId(), input.sanitizedPayload()));
-        ReceiptResult result = new ReceiptResult(input.outcome(), input.externalReceiptNo(), input.fiscalCode(),
-                input.fiscalNumber(), input.verificationCode(), input.controlledObjectReference(), input.issuedAt(),
-                input.errorCode(), input.errorMessage(), input.sanitizedPayload());
-        switch (input.operation()) {
-            case VOID -> transactions.applyVoidResult(receipt.id(), result, required(input.commandCode()), inbound.id(), input.actionReason());
-            case RED_FLUSH -> transactions.applyRedFlushResult(receipt.id(), result, required(input.commandCode()), inbound.id(), input.actionReason());
-            case ISSUE -> transactions.applyIssueResult(receipt.id(), result, required(input.commandCode()), inbound.id());
-        }
-        ReceiptView view = transactions.get(receipt.id(), inbound.duplicate());
-        messages.markProcessed(inbound.id(), "Receipt", receipt.id(), view.revision());
-        return view;
+        return transactions.accept(input);
     }
 
     private void dispatchIssue(Long receiptId, String commandCode) {
@@ -205,6 +184,8 @@ public class ReceiptApplicationService implements FiscalReceiptResultDirectory {
         payload.put("payerName", instruction.payerName()); payload.put("payerIdentityDigest", instruction.payerIdentityDigest());
         payload.put("currencyCode", instruction.currencyCode()); payload.put("insuranceAmount", instruction.insuranceAmount());
         payload.put("personalAccountAmount", instruction.personalAccountAmount()); payload.put("patientAmount", instruction.patientAmount());
+        payload.put("otherFundAmount", instruction.otherFundAmount());
+        payload.put("roundingAmount", instruction.roundingAmount());
         payload.put("lines", instruction.lines());
         var message = messages.enqueueOutbound(new ExternalMessageService.OutboundMessage(
                 "FISCAL_" + instruction.fiscalAuthorityCode(), messageType, businessMessageId,
@@ -213,16 +194,16 @@ public class ReceiptApplicationService implements FiscalReceiptResultDirectory {
         transactions.recordQueued(instruction.receiptId(), message.id());
     }
 
-    private void enqueueQuery(ReceiptInstruction instruction, String businessMessageId) {
+    private void enqueueQuery(ReceiptView instruction, String businessMessageId) {
         ExecutionContext context = contextProvider.requireCurrent();
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("receiptId", instruction.receiptId()); payload.put("receiptRequestNo", instruction.receiptRequestNo());
+        payload.put("receiptId", instruction.id()); payload.put("receiptRequestNo", instruction.receiptNo());
         payload.put("externalReceiptNo", instruction.externalReceiptNo());
         var message = messages.enqueueOutbound(new ExternalMessageService.OutboundMessage(
                 "FISCAL_" + instruction.fiscalAuthorityCode(), "RECEIPT_QUERY", businessMessageId,
                 instruction.correlationId(), context.organizationId(), context.departmentId(), payload,
-                "Receipt", instruction.receiptId(), 0L));
-        transactions.recordQueued(instruction.receiptId(), message.id());
+                "Receipt", instruction.id(), instruction.revision()));
+        transactions.recordQueued(instruction.id(), message.id());
     }
 
     private void enqueueAction(ReceiptView receipt, ReceiptAction instruction, String messageType) {

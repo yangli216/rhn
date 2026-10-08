@@ -47,10 +47,15 @@ public class ClinicalTreatmentRecommendationService {
             var intentCandidates = new ArrayList<TreatmentRecommendation>();
             try {
                 if ("MEDICATION".equals(intent.type())) {
-                    for (var medication : inventory.findOrderableMedications(context.tenantId(), context.organizationId(),
-                            context.departmentId(), name).stream().limit(8).toList()) {
+                    boolean specificationUnconfirmed = false;
+                    for (var medication : inventory.findOrderableMedicationCandidates(context.tenantId(), context.organizationId(),
+                            context.departmentId(), name)) {
                         if (!"ACTIVE".equals(medication.sdStatus()) || medication.availablePackageQuantity() == null
                                 || medication.availablePackageQuantity().signum() <= 0) continue;
+                        if (MedicationSpecificationEvidence.reviewExplicitSpecification(intent.specification(), medication.preparationSpec()) != null) {
+                            specificationUnconfirmed = true;
+                            continue;
+                        }
                         for (var product : medication.products()) {
                             if (!product.orderable() || !"ACTIVE".equals(product.sdStatus())
                                     || product.organizationAdoption() == null || !product.organizationAdoption().orderable()
@@ -65,6 +70,8 @@ public class ClinicalTreatmentRecommendationService {
                             intentCandidates.add(item);
                         }
                     }
+                    if (specificationUnconfirmed) alerts.add(new SafetyAlert("WARNING", "药品规格待核对",
+                            name + "的部分目录候选与要求的规格尚未确认一致，未作为推荐，请核对。"));
                 } else {
                     for (var service : services.searchOrderableServices(name, intent.type(), context.organizationId(), LocalDate.now())) {
                         var item = new TreatmentRecommendation(intent.type(), service.id(), null, service.code(),
@@ -96,7 +103,11 @@ public class ClinicalTreatmentRecommendationService {
         if (deterministic.size() >= 8 || ambiguous.isEmpty()) {
             return new Result(deterministic.values().stream().limit(8).toList(), alerts);
         }
-        var candidates = ambiguous.values().stream().limit(64).toList();
+        if (ambiguous.size() > 64) {
+            alerts.add(new SafetyAlert("WARNING", "目录候选过多", "候选数量超过模型匹配上限，未截取部分候选代替完整结果，请在医嘱区缩小范围后核对。"));
+            return new Result(deterministic.values().stream().limit(8).toList(), alerts);
+        }
+        var candidates = List.copyOf(ambiguous.values());
         var allowedKeys = candidates.stream().map(ClinicalTreatmentRecommendationService::key).collect(java.util.stream.Collectors.toSet());
         var decision = decisions.match(decisionGroups, context);
         alerts.addAll(decision.alerts());

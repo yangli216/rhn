@@ -12,6 +12,8 @@ import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.time.Instant;
 import java.math.BigDecimal;
 import java.util.*;
@@ -44,6 +46,8 @@ class MedicationWorkbenchShadowTest {
         assertEquals(20L,preview.prescriptionId());
         assertEquals(1,preview.items().size());
         assertEquals("历史药品",preview.items().getFirst().medicationName());
+        assertTrue(preview.items().getFirst().historicalSnapshotAvailable());
+        assertNull(preview.patientContext());
         assertEquals(new BigDecimal("5"),preview.items().getFirst().durationDays());
         var run=service.shadow(10L,new ShadowRequest(30L,20L));
         assertEquals("HIS_SHADOW",run.mode());assertEquals("WARN",run.cases().getFirst().actual());
@@ -51,6 +55,35 @@ class MedicationWorkbenchShadowTest {
         verifyNoInteractions(ai,knowledge);verify(store).appendRun(eq(1L),eq(2L),eq(run),eq("serialized historical prescription"));
         when(json.read("historical",MedicationSnapshot.class)).thenThrow(new IllegalArgumentException("legacy"));
         assertEquals("UNAVAILABLE",service.shadow(10L,new ShadowRequest(30L,20L)).cases().getFirst().actual());
+    }
+    @ParameterizedTest
+    @ValueSource(strings={"absent", "blank", "malformed", "decoded-null", "wrong-id", "missing-name", "blank-name"})
+    void preview_marks_unavailable_history_without_reading_current_master_data(String defect) {
+        var ai=mock(MedicationRuleAuthoringAi.class);var knowledge=mock(MedicationKnowledgeDirectory.class);
+        var directory=mock(PrescriptionSafetySnapshotDirectory.class);var contexts=mock(ExecutionContextProvider.class);
+        var store=mock(MedicationWorkbenchStore.class);var json=mock(JsonCodec.class);
+        when(contexts.requireCurrent()).thenReturn(new ExecutionContext(1L,2L,"doctor","test",Set.of("MASTER_DATA.MANAGE")));
+        String source=switch(defect) { case "absent" -> null; case "blank" -> " "; default -> "historical"; };
+        if("malformed".equals(defect)) when(json.read(source,MedicationSnapshot.class)).thenThrow(new IllegalArgumentException("invalid JSON"));
+        else if(Set.of("wrong-id","missing-name","blank-name").contains(defect)) {
+            var saved=medication(3);
+            if("wrong-id".equals(defect)) when(saved.id()).thenReturn(91L);
+            else when(saved.name()).thenReturn("missing-name".equals(defect)?null:" ");
+            when(json.read(source,MedicationSnapshot.class)).thenReturn(saved);
+        }
+        var row=new PrescriptionSafetySnapshot.MedicationItem(11L,0,90L,101L,null,"DRAFT","LEGACY",
+                BigDecimal.ONE,"mg",null,null,null,null,null,null,null,BigDecimal.ONE,"WEEK",source,"{}","{}");
+        var snapshot=new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION,1L,20L,0,30L,40L,50L,60L,"DRAFT",List.of(row));
+        when(directory.requireSnapshot(30L,20L)).thenReturn(snapshot);
+        var preview=new MedicationWorkbenchService(ai,knowledge,directory,contexts,store,json)
+                .prescriptionPreview(new ShadowRequest(30L,20L));
+        var item=preview.items().getFirst();
+        assertFalse(item.historicalSnapshotAvailable());
+        assertEquals(90L,item.medicationId());
+        assertNull(item.medicationName());assertNull(item.preparationSpec());
+        assertNull(item.routeCode());assertNull(item.frequencyCode());assertNull(item.durationDays());
+        assertNull(preview.patientContext());
+        verifyNoInteractions(knowledge,ai,store);
     }
     private MedicationSnapshot medication(int limit) {
         var value=mock(MedicationSnapshot.class);when(value.id()).thenReturn(90L);when(value.name()).thenReturn("历史药品");

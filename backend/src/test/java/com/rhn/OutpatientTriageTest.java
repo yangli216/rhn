@@ -2,12 +2,15 @@ package com.rhn;
 
 import com.rhn.outpatient.triage.TriageContracts.CreateTriageRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,10 +18,39 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class OutpatientTriageTest extends RhnIntegrationTestSupport {
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void shouldPreserveUnassessedConsciousnessAndPainAsUnknown() throws Exception {
+        String response = mockMvc.perform(post("/api/outpatient/triage")
+                        .with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"patientName":"待评估患者","gender":"MALE",
+                                 "fever":false,"triageLevel":"LEVEL_4_NON_URGENT"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.consciousness").doesNotExist())
+                .andExpect(jsonPath("$.painScore").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        String id = com.jayway.jsonpath.JsonPath.read(response, "$.id");
+        mockMvc.perform(get("/api/outpatient/triage/" + id).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.consciousness").doesNotExist())
+                .andExpect(jsonPath("$.painScore").doesNotExist());
+        assertNull(jdbcTemplate.queryForObject(
+                "select SD_CNSC from RHN_OP_TRIAGE_REC where ID_TRIAGE_REC = ?", String.class, id));
+        assertNull(jdbcTemplate.queryForObject("""
+                select COLUMN_DEFAULT from INFORMATION_SCHEMA.COLUMNS
+                where upper(TABLE_NAME) = 'RHN_OP_TRIAGE_REC' and upper(COLUMN_NAME) = 'SD_CNSC'
+                """, String.class));
+    }
+
     @Test
     void shouldCreateAndRetrieveTriageRecord() throws Exception {
         CreateTriageRequest request = new CreateTriageRequest(
-                362387869790210L,
+                null,
                 null,
                 null,
                 null,
@@ -63,14 +95,24 @@ class OutpatientTriageTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.organizationId").value(ORGANIZATION))
                 .andExpect(jsonPath("$.patientName").value("张建国"))
                 .andExpect(jsonPath("$.triageLevel").value("LEVEL_1_CRITICAL"))
                 .andExpect(jsonPath("$.greenChannel").value("CHEST_PAIN"))
                 .andExpect(jsonPath("$.triageNo").isNotEmpty())
                 .andExpect(jsonPath("$.temperature").value(37.0))
+                .andExpect(jsonPath("$.consciousness").value("ALERT"))
+                .andExpect(jsonPath("$.painScore").value(7))
                 .andExpect(jsonPath("$.systolic").value(185))
                 .andExpect(jsonPath("$.diastolic").value(112))
                 .andReturn().getResponse().getContentAsString();
+
+        var unauthorizedRequest = objectMapper.valueToTree(request);
+        ((tools.jackson.databind.node.ObjectNode) unauthorizedRequest).put("organizationId", 999999L);
+        mockMvc.perform(post("/api/outpatient/triage")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(unauthorizedRequest)))
+                .andExpect(status().isForbidden());
 
         String id = com.jayway.jsonpath.JsonPath.read(responseContent, "$.id");
 

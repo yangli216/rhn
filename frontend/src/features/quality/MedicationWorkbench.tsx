@@ -357,18 +357,18 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
     setPrescription(preview.prescriptionId)
     setImportedPrescription(preview)
     setSimPatientName(`患者 ${preview.residentId}`)
-    setSimPatientAge(context.patientAgeYears ?? '')
-    if (context.gender) setSimPatientGender(context.gender)
+    setSimPatientAge(context?.patientAgeYears ?? '')
+    setSimPatientGender(context?.gender ?? '')
     setSimDepartment(`科室 ${preview.departmentId}`)
-    setSimAllergy(context.activeAllergies?.length ? context.activeAllergies.join('、') : '无已知药物过敏')
+    setSimAllergy(context?.activeAllergies?.join('、') ?? '')
     setItems(preview.items.map(item => ({
       medicationId: item.medicationId,
       status: item.status,
       durationDays: item.durationDays,
       routeCode: item.routeCode,
       frequencyCode: item.frequencyCode,
-      name: item.medicationName,
-      spec: item.preparationSpec ?? undefined
+      name: item.historicalSnapshotAvailable ? item.medicationName ?? '历史药品名称缺失' : '历史药品快照不可用',
+      spec: item.historicalSnapshotAvailable ? item.preparationSpec ?? undefined : undefined
     })))
     setRun(null)
     setShowHisModal(false)
@@ -1308,7 +1308,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                         </FormField>
                         <FormField label="药物过敏史" className="qmed-inline-field qmed-allergy-field">
                           <input value={simAllergy} onChange={e => { setSimAllergy(e.target.value); setRun(null) }}
-                            placeholder="如无已知药物过敏" />
+                            placeholder={importedPrescription ? '未提供过敏史说明，不能据此认定无过敏' : '如无已知药物过敏'} />
                         </FormField>
                       </div>
                     </div>
@@ -1375,9 +1375,8 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                       </div>
 
                       {items.map((item, i) => {
-                        const targetMed = meds.find(m => m.medication.id === item.medicationId)
                         const inRuleScope = !!item.medicationId && candidate.medications.some(m => m.medication.id === item.medicationId)
-                        const medicationOptions = meds.map(m => ({
+                        const medicationOptions = meds.filter(m => !item.name || m.medication.id !== item.medicationId).map(m => ({
                           value: m.medication.id,
                           label: m.medication.name,
                           secondaryText: m.medication.preparationSpec || m.medication.doseForm || '规格待维护',
@@ -1386,33 +1385,35 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                           searchKeywords: [m.medication.code, m.classifications?.[0]?.display || '']
                         }))
                         if (item.medicationId && !medicationOptions.some(option => option.value === item.medicationId)) {
-                          medicationOptions.unshift({ value: item.medicationId, label: item.name || '历史药品', secondaryText: item.spec || '历史快照', description: '仅存在于历史处方', trailingText: '', searchKeywords: [] })
+                          medicationOptions.unshift({ value: item.medicationId, label: item.name || '药品名称缺失', secondaryText: item.spec || '规格未提供', description: '', trailingText: '', searchKeywords: [] })
                         }
                         return (
                           <div className="qmed-trial-row" key={i}>
                             <span className="row-num">{i + 1}</span>
                             <div className="qmed-med-picker-col">
                               <Select aria-label={`第${i + 1}行药品`} value={item.medicationId || ''}
-                                options={medicationOptions} placeholder="录入药品名称/拼音/编码搜索..." clearable
+                                options={medicationOptions} placeholder="录入药品名称/拼音/编码搜索..." clearable showValue
                                 onChange={value => {
                                   const selected = meds.find(m => m.medication.id === value)
                                   updateItem(i, selected ? {
                                     medicationId: selected.medication.id,
-                                    routeCode: selected.medication.defaultRoute || item.routeCode || 'ORAL',
-                                    frequencyCode: selected.medication.defaultFrequency || item.frequencyCode || 'TID',
+                                    routeCode: selected.medication.defaultRoute || null,
+                                    frequencyCode: selected.medication.defaultFrequency || null,
                                     name: selected.medication.name,
                                     spec: selected.medication.preparationSpec || undefined
-                                  } : { medicationId: value || null })
+                                  } : { medicationId: value || null, name: undefined, spec: undefined, routeCode: null, frequencyCode: null })
                                 }} />
                             </div>
                             <span className={`qmed-row-tag ${inRuleScope ? 'is-in-scope' : 'is-out-of-scope'}`} title={inRuleScope ? '该药已绑定到候选规则适用范围' : '该药不在候选规则适用范围，原始处方旁路核对时不会参与此规则判定'}>
-                              {inRuleScope ? (targetMed?.classifications?.[0]?.display || '规则范围内') : '不在规则范围'}
+                              {inRuleScope ? '规则范围内' : '不在规则范围'}
                             </span>
                             <Select className="qmed-select-route" aria-label={`第${i + 1}行给药途径`}
-                              value={item.routeCode || 'ORAL'} options={routeOptions} placeholder="选择给药途径" clearable={false}
+                              value={item.routeCode || ''} options={item.routeCode && !routeOptions.some(option => option.value === item.routeCode)
+                                ? [{ value: item.routeCode, label: `${item.routeCode}（未在当前目录中找到）` }, ...routeOptions] : routeOptions} placeholder="选择给药途径" clearable={false}
                               onChange={value => updateItem(i, { routeCode: value })} />
                             <Select className="qmed-select-freq" aria-label={`第${i + 1}行给药频次`}
-                              value={item.frequencyCode || 'TID'} options={frequencyOptions} placeholder="选择频次" clearable={false}
+                              value={item.frequencyCode || ''} options={item.frequencyCode && !frequencyOptions.some(option => option.value === item.frequencyCode)
+                                ? [{ value: item.frequencyCode, label: `${item.frequencyCode}（未在当前目录中找到）` }, ...frequencyOptions] : frequencyOptions} placeholder="选择频次" clearable={false}
                               onChange={value => updateItem(i, { frequencyCode: value })} />
                             <div className="qmed-days-input-wrap">
                               <input
@@ -1487,7 +1488,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                       )}
                       <span className="qmed-meta-text">
                         {importedPrescription
-                          ? `已调入 HIS 处方 ${importedPrescription.prescriptionId}；当前表单可用于调整后模拟，原始旁路核对不采用表单修改。`
+                          ? `已调入 HIS 处方 ${importedPrescription.prescriptionId}；${importedPrescription.items.some(item => !item.historicalSnapshotAvailable) ? '部分历史药品快照不可用，请核对缺失信息。' : ''}当前表单可用于调整后模拟，模拟采用当前药品知识；原始旁路核对仅采用历史快照，不采用表单修改。`
                           : items.length > 0
                           ? `患者【${simPatientName} (${simPatientAge === '' ? '年龄未知' : `${simPatientAge}岁`})】已就诊，开具 ${items.length} 种药品，可随时触发就诊级审查`
                           : '请至少添加 1 种处方药品进行模拟审查'}

@@ -13,7 +13,7 @@ describe('medication quantity from structured frequency', () => {
   })
   const input = {
     medication: { preparationUnit: '片', strengthValue: 10, strengthUnit: 'mg' } as MedicationKnowledge,
-    selectedPackage: { packageFactor: 10, unitName: '盒' } as DispensableProductOption,
+    selectedPackage: { packageFactor: 10, unitName: '盒', product: { unitCode: '片' } } as DispensableProductOption,
     doseValue: 20, doseUnit: 'mg', frequencyCode: 'MISLEADING-QD', durationValue: 7,
   }
 
@@ -33,6 +33,35 @@ describe('medication quantity from structured frequency', () => {
 
   it('does not use a hardcoded QD fallback while frequency data is unavailable', () => {
     expect(calculatePackageQuantity({ ...input, frequencyCode: 'QD' })).toBeNull()
+  })
+
+  it.each([undefined, '', 0, -1, Infinity, NaN])('does not assume a one-day course for %s', durationValue => {
+    expect(calculatePackageQuantity({ ...input, durationValue, frequencies: [frequency('TIMES_PER_PERIOD')] })).toBeNull()
+  })
+  it.each([0, -1, NaN, Infinity])('does not assume one base unit per invalid package %s', packageFactor => {
+    expect(calculatePackageQuantity({ ...input, selectedPackage: { ...input.selectedPackage, packageFactor },
+      frequencies: [frequency('TIMES_PER_PERIOD')] })).toBeNull()
+  })
+  it.each(['', 'ml', 'IU'])('does not equate an incompatible dose unit %s to mg', doseUnit => {
+    expect(calculatePackageQuantity({ ...input, doseUnit, frequencies: [frequency('TIMES_PER_PERIOD')] })).toBeNull()
+  })
+  it('does not infer structured strength from free-text compound or concentration specifications', () => {
+    for (const preparationSpec of ['10mg', '10mg/2ml', '10mg+5mg']) {
+      expect(calculatePackageQuantity({ ...input,
+        medication: { preparationUnit: '片', preparationSpec } as MedicationKnowledge,
+        frequencies: [frequency('TIMES_PER_PERIOD')] })).toBeNull()
+    }
+  })
+  it('requires matching product base and preparation units for strength conversion', () => {
+    expect(calculatePackageQuantity({ ...input,
+      selectedPackage: { ...input.selectedPackage, product: { unitCode: '瓶' } } as DispensableProductOption,
+      frequencies: [frequency('TIMES_PER_PERIOD')] })).toBeNull()
+  })
+  it('clearly converts compatible mass units and rejects non-finite inputs', () => {
+    expect(calculatePackageQuantity({ ...input, doseValue: 0.02, doseUnit: 'g',
+      frequencies: [frequency('TIMES_PER_PERIOD')] })).toMatchObject({ totalBaseUnits: 14, quantity: 2 })
+    expect(calculatePackageQuantity({ ...input, doseValue: Infinity,
+      frequencies: [frequency('TIMES_PER_PERIOD')] })).toBeNull()
   })
 
   const draft = (id: string, code: string, manual = false): MedicationPlanDraft => ({
@@ -62,4 +91,17 @@ describe('medication quantity from structured frequency', () => {
       expect(result[1].request).toMatchObject({ frequencyCode: after, quantity: 7 })
     }
   })
+  it.each([undefined, 0, NaN])('does not invent a day when synchronizing a group with missing course %s', durationValue => {
+    const head = draft('head', 'QD'), other = draft('other', 'QD')
+    other.request.durationValue = durationValue
+    const result = syncMedicationDraftGroup([head, other], draft('head', 'BID'), frequencies)
+    expect(result[1].request.quantity).toBe(7)
+  })
+  it('does not treat weeks as days during group rescaling', () => {
+    const other = draft('other', 'QD')
+    other.request.durationUnit = '周'
+    const result = syncMedicationDraftGroup([draft('head', 'QD'), other], draft('head', 'BID'), frequencies)
+    expect(result[1].request.quantity).toBe(7)
+  })
+
 })

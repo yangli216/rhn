@@ -7,6 +7,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ClinicalPlanRetrievalServiceTest {
     private final ClinicalPlanRetrievalService service = new ClinicalPlanRetrievalService();
@@ -63,6 +65,54 @@ class ClinicalPlanRetrievalServiceTest {
                         plan(3L, "感冒复诊", 0, "J00", "感冒")),
                 new ClinicalPlanRetrievalService.Query("感冒复诊", "PERSONAL"), 20);
         assertEquals(List.of(3L, 9L), firstRun.stream().map(match -> match.plan().id()).toList());
+    }
+
+    static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> incompleteIdentities() {
+        return java.util.stream.Stream.of(
+                org.junit.jupiter.params.provider.Arguments.of(null, null, "I10"),
+                org.junit.jupiter.params.provider.Arguments.of(null, "WESTERN_MEDICINE", "I10"),
+                org.junit.jupiter.params.provider.Arguments.of("WHO.BD.CS.ICD10", null, "I10"),
+                org.junit.jupiter.params.provider.Arguments.of(" ", "WESTERN_MEDICINE", "I10"),
+                org.junit.jupiter.params.provider.Arguments.of("WHO.BD.CS.ICD10", " ", "I10"),
+                org.junit.jupiter.params.provider.Arguments.of("WHO.BD.CS.ICD10", "UNKNOWN", "I10"),
+                org.junit.jupiter.params.provider.Arguments.of("WHO.BD.CS.ICD10", "WESTERN_MEDICINE", " "));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest @org.junit.jupiter.params.provider.MethodSource("incompleteIdentities")
+    void incompleteQueryIdentityCannotClaimExactCodeButCanStillMatchRealText(String system, String domain, String code) {
+        var plan = plan(1L, "方案", 0, "I10", "原发性高血压");
+        var identity = new ClinicalPlanRetrievalService.DiagnosisIdentity(system, domain, code);
+        assertTrue(service.retrieve(List.of(plan), new ClinicalPlanRetrievalService.Query("", List.of(identity), null), 20).isEmpty());
+        var textOnly = service.retrieve(List.of(plan), new ClinicalPlanRetrievalService.Query("原发性高血压", List.of(identity), null), 20).getFirst();
+        assertEquals(35, textOnly.clinicalScore());
+        assertTrue(textOnly.evidence().contains("DIAGNOSIS_TEXT:原发性高血压"));
+        assertTrue(textOnly.evidence().stream().noneMatch(value -> value.startsWith("DIAGNOSIS_CODE:")));
+    }
+
+    @Test void twoUnknownIdentitiesAreNotAnExactMatchAndLegacyPlanSnapshotsRemainUnknown() {
+        var diagnosis = new OutpatientPlanTemplateDirectory.DiagnosisSnapshot("I10", "诊断", "PRIMARY");
+        assertNull(diagnosis.codeSystem()); assertNull(diagnosis.diagnosisDomain());
+        var plan = new OutpatientPlanTemplateDirectory.PlanTemplateSnapshot(1L, 0, "PERSONAL", "MANUAL", null,
+                "方案", null, 0, List.of(diagnosis), List.of(), List.of(), List.of());
+        var query = new ClinicalPlanRetrievalService.Query("", List.of(new ClinicalPlanRetrievalService.DiagnosisIdentity(null, null, "I10")), null);
+        assertTrue(service.retrieve(List.of(plan), query, 20).isEmpty());
+    }
+
+    @Test void identicalCodesInDifferentSystemsAndDomainsDoNotCrossMatch() {
+        var western = plan(1L, "西医方案", 0, "I10", "西医名称");
+        var tcm = new OutpatientPlanTemplateDirectory.PlanTemplateSnapshot(2L, 0, "PERSONAL", "MANUAL", null,
+                "中医方案", null, 0, List.of(new OutpatientPlanTemplateDirectory.DiagnosisSnapshot(
+                "RHN.BD.CS.TCM_DISEASE", "TCM_DISEASE", "I10", "中医名称", "PRIMARY")), List.of(), List.of(), List.of());
+        var query = new ClinicalPlanRetrievalService.Query("", List.of(new ClinicalPlanRetrievalService.DiagnosisIdentity(
+                " RHN.BD.CS.TCM_DISEASE ", "TCM_DISEASE", "i10")), null);
+        var matches = service.retrieve(List.of(western, tcm), query, 20);
+        assertEquals(List.of(2L), matches.stream().map(value -> value.plan().id()).toList());
+        assertTrue(matches.getFirst().evidence().contains("DIAGNOSIS_CODE:RHN.BD.CS.TCM_DISEASE|TCM_DISEASE|I10"));
+        assertTrue(matches.getFirst().evidence().contains("SCOPE:PERSONAL"));
+    }
+
+    @Test void unavailablePlanDirectoryCannotBeReportedAsNoMatchingPlans() {
+        assertThrows(NullPointerException.class, () -> service.retrieve(null, new ClinicalPlanRetrievalService.Query("", null), 20));
     }
 
     private OutpatientPlanTemplateDirectory.PlanTemplateSnapshot plan(Long id, String name, long useCount,

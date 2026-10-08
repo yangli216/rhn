@@ -44,16 +44,17 @@ export interface Resident extends RequiredFields<Contract['ResidentResponse'], '
   identifiers: ResidentIdentifier[]
 }
 
-export interface Diagnosis extends RequiredFields<Contract['DiagnosisResponse'], 'code' | 'display' | 'type'> {
+export interface Diagnosis extends Omit<RequiredFields<Contract['DiagnosisResponse'], 'code' | 'display' | 'type'>, 'managementPrograms' | 'managementResolutionStatus'> {
   conceptId?: string
   systemCode?: string
   systemVersion?: string
-  diagnosisDomain?: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME'
+  diagnosisDomain?: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME' | null
   diagnosisGroupId?: string
   code: string
   display: string
   type: 'PRIMARY' | 'SECONDARY'
   sortOrder?: number
+  managementResolutionStatus?: 'CONFIRMED' | 'UNCONFIRMED'
   managementPrograms?: Array<{
     id: string
     code: string
@@ -62,10 +63,10 @@ export interface Diagnosis extends RequiredFields<Contract['DiagnosisResponse'],
     triggerAction: 'PROMPT_CONFIRMATION' | 'CREATE_FOLLOW_UP_TASK' | 'CREATE_REPORT_DRAFT'
     reportCardType?: string
     reportDeadlineHours?: number
-  }>
+  }> | null
 }
 
-export interface Encounter extends Omit<RequiredFields<Contract['EncounterResponse'], 'id' | 'residentId' | 'encounterNo' | 'organizationId' | 'departmentId' | 'status' | 'diagnoses' | 'registeredAt'>, 'status'> {
+export interface Encounter extends Omit<RequiredFields<Contract['EncounterResponse'], 'id' | 'residentId' | 'encounterNo' | 'organizationId' | 'departmentId' | 'status' | 'diagnoses' | 'registeredAt'>, 'status' | 'diagnoses'> {
   id: string
   residentId: string
   encounterNo: string

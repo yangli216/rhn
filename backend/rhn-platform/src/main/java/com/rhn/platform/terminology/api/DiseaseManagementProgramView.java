@@ -20,6 +20,11 @@ public record DiseaseManagementProgramView(
                            @DictionaryBinding("BD_CONCEPT_TYPE") String sdConceptType,
                            String chapterCode, String codeFrom, String codeTo, String note) {}
 
-    public record MemberView(Long conceptId, String inclusionMode, String code, String display, String systemName,
-                             @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") String sdDiagnosisDomain) {}
+    public record MemberView(Long conceptId, String inclusionMode,
+                             @io.swagger.v3.oas.annotations.media.Schema(nullable = true) String code,
+                             String display, String systemName,
+                             @DictionaryBinding("BD_DIAGNOSIS_DOMAIN")
+                             @io.swagger.v3.oas.annotations.media.Schema(nullable = true) String sdDiagnosisDomain,
+                             @io.swagger.v3.oas.annotations.media.Schema(nullable = true,
+                                     requiredMode = io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED) String note) {}
 }

@@ -77,8 +77,12 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     @Transactional(readOnly = true)
     public List<SkinTestWorkItemView> validRecentNegativeSkinTests(Long residentId, Long medicationId, Integer validityHours) {
         ExecutionContext context = requireWorkContext();
-        int hours = validityHours != null && validityHours > 0 ? validityHours : 72;
-        Instant threshold = Instant.now().minus(java.time.Duration.ofHours(hours));
+        if (validityHours == null || validityHours < 1 || validityHours > 8760) {
+            throw conflict("SKIN_TEST_VALIDITY_REQUIRED", "查询有效阴性结果前必须提供已维护的皮试结果有效期（1 至 8760 小时）");
+        }
+        int hours = validityHours;
+        Instant now = Instant.now();
+        Instant threshold = now.minus(java.time.Duration.ofHours(hours));
         List<SkinTestEvent> history = events.findByTenantIdAndResidentIdAndMedicationIdAndResultOrderByCompletedAtDesc(
                 context.tenantId(), residentId, medicationId, "NEGATIVE");
         return history.stream()
@@ -87,6 +91,8 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                     MedicationRequestSnapshot req = medicationRequests.requireForRouting(event.tenantId(), event.medicationRequestId());
                     return view(req, snapshot(event));
                 })
+                .filter(item -> item.resultValidityHours() != null && item.resultValidityHours() > 0 && item.resultValidityHours() <= 8760
+                        && item.completedAt().plus(java.time.Duration.ofHours(item.resultValidityHours())).isAfter(now))
                 .toList();
     }
 
@@ -110,6 +116,8 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         if (!identityVerified) throw conflict(
                 "SKIN_TEST_IDENTITY_VERIFICATION_REQUIRED", "开始皮试前必须完成患者身份核对");
         SkinTestConfiguration configuration = configuration(request);
+        if (!configuration.valid()) throw conflict("SKIN_TEST_CONFIGURATION_REQUIRED",
+                "医嘱皮试配置缺失或无效，请完善药品主数据并重新开立医嘱后执行");
         if (!Objects.equals(configuration.testMethod(), Strings.trimToNull(testMethod))
                 || configuration.originalSolution() != originalSolution
                 || configuration.observationMinutes() != observationMinutes) {
@@ -189,7 +197,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         SkinTestConfiguration configuration = configuration(request);
         Gate gate = gate(request);
         String status = derivedStatus(event, gate);
-        String gateMessage = Set.of("WAITING_SETTLEMENT", "WAITING_DISPENSE").contains(status)
+        String gateMessage = Set.of("WAITING_SETTLEMENT", "WAITING_DISPENSE", "CONFIGURATION_REQUIRED").contains(status)
                 ? gate.message() : null;
         return new SkinTestWorkItemView(request.id(), request.revision(), request.requestNo(), request.residentId(),
                 resident.fullName(), resident.healthRecordNo(), resident.gender(), resident.birthDate(), request.encounterId(),
@@ -222,6 +230,10 @@ public class SkinTestApplicationService implements SkinTestDirectory {
 
     private Gate gate(MedicationRequestSnapshot request) {
         SkinTestConfiguration configuration = configuration(request);
+        if (!configuration.valid()) {
+            return new Gate(false, "CONFIGURATION_REQUIRED", "SKIN_TEST_CONFIGURATION_REQUIRED",
+                    "医嘱皮试配置缺失或无效，请完善药品主数据并重新开立医嘱后执行");
+        }
         if (settlementRequiredBeforeStart(request, configuration)
                 && settlements.finalizedSettlementForRequest(request.tenantId(), request.id(),
                 "MEDICATION_REQUEST").isEmpty()) {
@@ -299,17 +311,17 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         String value = Strings.trimToNull(request.medicationSnapshot().path(field).asString());
         return value == null ? fallback : value;
     }
-    private int snapshotInt(MedicationRequestSnapshot request, String field, int fallback) {
-        if (request.medicationSnapshot() == null) return fallback;
-        int value = request.medicationSnapshot().path(field).asInt(fallback);
-        return value > 0 ? value : fallback;
+    private Integer snapshotInt(MedicationRequestSnapshot request, String field) {
+        if (request.medicationSnapshot() == null) return null;
+        var value = request.medicationSnapshot().path(field);
+        return value.isIntegralNumber() && value.canConvertToInt() ? value.intValue() : null;
     }
     private SkinTestConfiguration configuration(MedicationRequestSnapshot request) {
         String solutionMode = resolvedAttributeText(request, "MED.SKIN_TEST.SOLUTION_MODE");
-        if (solutionMode == null) solutionMode = snapshotText(request, "skinTestSolutionMode", "DILUTED_SOLUTION");
-        return new SkinTestConfiguration(snapshotText(request, "skinTestMethod", "INTRADERMAL"), solutionMode,
-                snapshotInt(request, "skinTestObservationMinutes", 20),
-                snapshotInt(request, "skinTestResultValidityHours", 24),
+        if (solutionMode == null) solutionMode = snapshotText(request, "skinTestSolutionMode", null);
+        return new SkinTestConfiguration(snapshotText(request, "skinTestMethod", null), solutionMode,
+                snapshotInt(request, "skinTestObservationMinutes"),
+                snapshotInt(request, "skinTestResultValidityHours"),
                 snapshotText(request, "skinTestInstructions", null));
     }
     private String resolvedAttributeText(MedicationRequestSnapshot request, String code) {
@@ -332,8 +344,14 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     private String upper(String value) { String result = Strings.trimToNull(value); return result == null ? null : result.toUpperCase(Locale.ROOT); }
 
     private record Gate(boolean ready, String status, String code, String message) {}
-    private record SkinTestConfiguration(String testMethod, String solutionMode, int observationMinutes,
-                                         int resultValidityHours, String instructions) {
+    private record SkinTestConfiguration(String testMethod, String solutionMode, Integer observationMinutes,
+                                         Integer resultValidityHours, String instructions) {
+        private boolean valid() {
+            return testMethod != null && Set.of("INTRADERMAL", "PRICK", "OTHER").contains(testMethod)
+                    && solutionMode != null && Set.of("ORIGINAL_SOLUTION", "DILUTED_SOLUTION").contains(solutionMode)
+                    && observationMinutes != null && observationMinutes >= 1 && observationMinutes <= 120
+                    && resultValidityHours != null && resultValidityHours >= 1 && resultValidityHours <= 8760;
+        }
         private boolean originalSolution() { return "ORIGINAL_SOLUTION".equals(solutionMode); }
     }
 }

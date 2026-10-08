@@ -25,7 +25,7 @@ class ClinicalPdfRendererTest {
     @BeforeEach
     void setUp() {
         ConfigurablePdfRenderer configurableRenderer = new ConfigurablePdfRenderer(new DummyJsonCodec());
-        renderer = new ClinicalPdfRenderer(configurableRenderer);
+        renderer = new ClinicalPdfRenderer(configurableRenderer, new DummyJsonCodec());
     }
 
     @Test
@@ -174,14 +174,14 @@ class ClinicalPdfRendererTest {
 
         // 8 味经典中药饮片
         snapshot.put("medications", List.of(
-                Map.of("medicationName", "柴胡", "doseValue", 10, "doseUnit", "g", "durationValue", 7, "instruction", "水煎服"),
-                Map.of("medicationName", "炒白芍", "doseValue", 12, "doseUnit", "g", "durationValue", 7, "instruction", "水煎服"),
-                Map.of("medicationName", "当归", "doseValue", 10, "doseUnit", "g", "durationValue", 7, "instruction", "水煎服"),
-                Map.of("medicationName", "炒白术", "doseValue", 12, "doseUnit", "g", "durationValue", 7, "instruction", "水煎服"),
-                Map.of("medicationName", "茯苓", "doseValue", 15, "doseUnit", "g", "durationValue", 7, "instruction", "水煎服"),
-                Map.of("medicationName", "炙甘草", "doseValue", 6, "doseUnit", "g", "durationValue", 7, "instruction", "水煎服"),
-                Map.of("medicationName", "生姜", "doseValue", 3, "doseUnit", "片", "durationValue", 7, "instruction", "水煎服"),
-                Map.of("medicationName", "薄荷", "doseValue", 6, "doseUnit", "g", "durationValue", 7, "instruction", "后下")
+                Map.of("medicationName", "柴胡", "doseValue", 10, "doseUnit", "g", "durationValue", 7, "durationUnit", "剂", "instruction", "水煎服"),
+                Map.of("medicationName", "炒白芍", "doseValue", 12, "doseUnit", "g", "durationValue", 7, "durationUnit", "剂", "instruction", "水煎服"),
+                Map.of("medicationName", "当归", "doseValue", 10, "doseUnit", "g", "durationValue", 7, "durationUnit", "剂", "instruction", "水煎服"),
+                Map.of("medicationName", "炒白术", "doseValue", 12, "doseUnit", "g", "durationValue", 7, "durationUnit", "剂", "instruction", "水煎服"),
+                Map.of("medicationName", "茯苓", "doseValue", 15, "doseUnit", "g", "durationValue", 7, "durationUnit", "剂", "instruction", "水煎服"),
+                Map.of("medicationName", "炙甘草", "doseValue", 6, "doseUnit", "g", "durationValue", 7, "durationUnit", "剂", "instruction", "水煎服"),
+                Map.of("medicationName", "生姜", "doseValue", 3, "doseUnit", "片", "durationValue", 7, "durationUnit", "剂", "instruction", "水煎服"),
+                Map.of("medicationName", "薄荷", "doseValue", 6, "doseUnit", "g", "durationValue", 7, "durationUnit", "剂", "instruction", "后下")
         ));
 
         byte[] pdf = renderer.render("OUTPATIENT_PRESCRIPTION", null, null, snapshot);
@@ -202,6 +202,64 @@ class ClinicalPdfRendererTest {
         assertTrue(text.contains("赵国医"));
         assertTrue(text.contains("中药审方"));
         reader.close();
+    }
+
+    @Test
+    void herbal_print_preserves_saved_frequency_and_non_decoction_instructions() throws Exception {
+        String text = prescriptionText(List.of(Map.of(
+                "medicationName", "测试饮片", "doseValue", 10, "doseUnit", "g",
+                "durationValue", 3, "durationUnit", "剂", "frequencyCode", "TID",
+                "frequencyName", "每日三次", "instruction", "颗粒冲服")));
+        assertTrue(text.contains("颗粒冲服"));
+        assertTrue(text.contains("每日三次"));
+        assertTrue(text.contains("共 3 剂"));
+        assertFalse(text.contains("水煎服"));
+        assertFalse(text.contains("分早晚温服"));
+        assertFalse(text.contains("每日 1 剂"));
+        assertFalse(text.contains("理气和营"));
+    }
+
+    @Test
+    void missing_or_inconsistent_directions_are_not_replaced_by_formula_defaults() throws Exception {
+        String empty = prescriptionText(List.of(Map.of("medicationName", "缺失用法饮片", "doseValue", 10)));
+        assertFalse(empty.contains("共 7 剂"));
+        assertFalse(empty.contains("10g"));
+        assertTrue(empty.contains("单位未记录"));
+        assertFalse(empty.contains("水煎服"));
+        assertTrue(empty.contains("临床诊断未记录"));
+        String mixed = prescriptionText(List.of(
+                Map.of("medicationName", "甲药", "durationValue", 3, "durationUnit", "剂", "frequencyCode", "QD", "instruction", "先煎30分钟；外洗"),
+                Map.of("medicationName", "乙药", "durationValue", 5, "durationUnit", "天", "frequencyCode", "TID", "instruction", "颗粒冲服；分三次")));
+        assertTrue(mixed.contains("先煎30分钟；外洗"));
+        assertTrue(mixed.contains("颗粒冲服；分三次"));
+        assertTrue(mixed.contains("QD"));
+        assertTrue(mixed.contains("TID"));
+        assertFalse(mixed.contains("共 5 剂"));
+        assertFalse(mixed.contains("共 3 剂"));
+    }
+
+    @Test
+    void western_print_never_assumes_oral_route_and_prefers_saved_frequency_name() throws Exception {
+        byte[] pdf = renderer.render("OUTPATIENT_PRESCRIPTION", Map.of("categoryCode", "WESTERN",
+                "medications", List.of(Map.of("medicationName", "测试药品", "frequencyCode", "X1", "frequencyName", "每周一次"))));
+        String text = pdfText(pdf);
+        assertTrue(text.contains("每周一次"));
+        assertTrue(text.contains("途径未记录"));
+        assertFalse(text.contains("口服"));
+    }
+
+    private String prescriptionText(List<Map<String, Object>> medications) throws Exception {
+        return pdfText(renderer.render("OUTPATIENT_PRESCRIPTION", Map.of("categoryCode", "HERBAL", "medications", medications)));
+    }
+
+    private String pdfText(byte[] pdf) throws Exception {
+        PdfReader reader = new PdfReader(pdf);
+        try {
+            var text = new StringBuilder();
+            var extractor = new PdfTextExtractor(reader);
+            for (int page = 1; page <= reader.getNumberOfPages(); page++) text.append(extractor.getTextFromPage(page));
+            return text.toString();
+        } finally { reader.close(); }
     }
 
     private static final class DummyJsonCodec implements JsonCodec {

@@ -56,7 +56,37 @@ class PlanInvestigationDecisionServiceTest {
     }
     @Test void exactUniqueMatchDoesNotCallJev() {
         var exact = new PlanInvestigationDecisionService.Intent("LABORATORY", "血常规");
-        assertSame(candidate, service.resolve(List.of(exact), context, today).get(exact.key()).item());
+        var resolution = service.resolve(List.of(exact), context, today).get(exact.key());
+        assertSame(candidate, resolution.item());
+        assertNull(resolution.items().getFirst().quantity());
+        verifyNoInteractions(gateway);
+    }
+
+    @Test void chargeabilityIsResolvedFromTheMatchingInstitutionAdoption() {
+        var adoption = mock(com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView.class);
+        when(candidate.organizationAdoption()).thenReturn(adoption);
+        when(candidate.chargeable()).thenReturn(true);
+        when(adoption.chargeable()).thenReturn(true);
+        when(adoption.catalogItemId()).thenReturn(101L);
+        when(adoption.organizationId()).thenReturn(3L);
+        var exact = new PlanInvestigationDecisionService.Intent("LABORATORY", "血常规");
+        assertEquals(Boolean.TRUE, service.resolve(List.of(exact), context, today).get(exact.key()).items().getFirst().chargeable());
+        when(adoption.chargeable()).thenReturn(false);
+        assertEquals(Boolean.FALSE, service.resolve(List.of(exact), context, today).get(exact.key()).items().getFirst().chargeable());
+        when(adoption.organizationId()).thenReturn(99L);
+        assertNull(service.resolve(List.of(exact), context, today).get(exact.key()).items().getFirst().chargeable());
+    }
+
+    @Test void incompleteOptionalMembershipCannotBeSilentlyDroppedDuringMatching() {
+        var aliases = mock(ItemAliasDirectory.class);
+        var groups = mock(ItemGroupDirectory.class);
+        when(groups.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today)).thenReturn(List.of(
+                new ItemGroupDirectory.ItemGroupSnapshot(901L, 0L, "RENAL", "肾功能", "LIS", List.of(), List.of(13L))));
+        var result = new PlanInvestigationDecisionService(catalog, decisions, aliases, groups)
+                .resolve(List.of(new PlanInvestigationDecisionService.Intent("LABORATORY", "肾功能")), context, today)
+                .get("LABORATORY|肾功能");
+        assertTrue(result.requiresReview());
+        assertTrue(result.items().isEmpty());
         verifyNoInteractions(gateway);
     }
     @Test void fuzzyMatchUsesOnlyRecalledCatalogIds() {
@@ -127,6 +157,7 @@ class PlanInvestigationDecisionServiceTest {
         ItemGroupDirectory groups = mock(ItemGroupDirectory.class);
         when(catalog.searchOrderableServices("空腹血糖", "LABORATORY", 3L, today)).thenReturn(List.of(candidate));
         when(aliases.findActiveServiceIdsByAlias(1L, "空腹血糖")).thenReturn(Set.of(101L));
+        when(catalog.findOrderableServicesByIds(Set.of(101L), 3L, today)).thenReturn(List.of(candidate));
         var value = new PlanInvestigationDecisionService(catalog, decisions, aliases, groups)
                 .resolve(List.of(new PlanInvestigationDecisionService.Intent("LABORATORY", "空腹血糖")), context, today)
                 .get("LABORATORY|空腹血糖");
@@ -136,15 +167,81 @@ class PlanInvestigationDecisionServiceTest {
         verifyNoInteractions(gateway);
     }
 
+    @Test void aliasUniquenessChecksEveryConfiguredTargetEvenWhenSearchFoundOne() {
+        var aliases = mock(ItemAliasDirectory.class);
+        var groups = mock(ItemGroupDirectory.class);
+        when(aliases.findActiveServiceIdsByAlias(1L, "空腹血糖")).thenReturn(Set.of(101L, 102L));
+        when(catalog.searchOrderableServices("空腹血糖", "LABORATORY", 3L, today)).thenReturn(List.of(candidate));
+        var other = item(102L, "另一项目", "LABORATORY");
+        when(catalog.findOrderableServicesByIds(Set.of(101L, 102L), 3L, today))
+                .thenReturn(List.of(candidate, other));
+        var result = new PlanInvestigationDecisionService(catalog, decisions, aliases, groups)
+                .resolve(List.of(new PlanInvestigationDecisionService.Intent("LABORATORY", "空腹血糖")), context, today)
+                .get("LABORATORY|空腹血糖");
+        assertTrue(result.requiresReview());
+        assertTrue(result.items().isEmpty());
+        verifyNoInteractions(groups, gateway);
+    }
+
+    @Test void wrongTypeAliasTargetsCannotBecomeExecutableMatchesOrTriggerFallbackSelection() {
+        var aliases = mock(ItemAliasDirectory.class);
+        var groups = mock(ItemGroupDirectory.class);
+        when(aliases.findActiveServiceIdsByAlias(1L, "空腹血糖")).thenReturn(Set.of(102L));
+        var other = item(102L, "其他类型", "EXAMINATION");
+        when(catalog.findOrderableServicesByIds(Set.of(102L), 3L, today))
+                .thenReturn(List.of(other));
+        var result = new PlanInvestigationDecisionService(catalog, decisions, aliases, groups)
+                .resolve(List.of(new PlanInvestigationDecisionService.Intent("LABORATORY", "空腹血糖")), context, today)
+                .get("LABORATORY|空腹血糖");
+        assertTrue(result.requiresReview());
+        verifyNoInteractions(groups, gateway);
+    }
+
+    @Test void ambiguousOrOnlyFuzzyGroupsCannotFallThroughToSingleServiceSelection() {
+        var aliases = mock(ItemAliasDirectory.class);
+        var groups = mock(ItemGroupDirectory.class);
+        var first = new ItemGroupDirectory.ItemGroupSnapshot(901L, 0L, "RENAL-A", "肾功能", "LIS", List.of(), List.of());
+        var second = new ItemGroupDirectory.ItemGroupSnapshot(902L, 0L, "RENAL-B", "肾功能", "LIS", List.of(), List.of());
+        var fuzzy = new ItemGroupDirectory.ItemGroupSnapshot(903L, 0L, "RENAL-C", "肾功能扩展组套", "LIS", List.of(), List.of());
+        for (var candidates : List.of(List.of(first, second), List.of(fuzzy))) {
+            when(groups.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today)).thenReturn(candidates);
+            var result = new PlanInvestigationDecisionService(catalog, decisions, aliases, groups)
+                    .resolve(List.of(new PlanInvestigationDecisionService.Intent("LABORATORY", "肾功能")), context, today)
+                    .get("LABORATORY|肾功能");
+            assertTrue(result.requiresReview());
+            assertTrue(result.items().isEmpty());
+        }
+        verifyNoInteractions(gateway);
+    }
+
+    @Test void expandedRecallDoesNotTurnMultipleExactNamesIntoAModelChoice() {
+        var rows = List.of(item(201L, "C反应蛋白测定", "LABORATORY"), item(202L, "C反应蛋白测定", "LABORATORY"));
+        when(catalog.searchOrderableServices("C反应蛋白测定", "LABORATORY", 3L, today)).thenReturn(rows);
+        var result = service.resolve(List.of(new PlanInvestigationDecisionService.Intent("LABORATORY", "C反应蛋白")), context, today)
+                .get("LABORATORY|C反应蛋白");
+        assertTrue(result.requiresReview());
+        assertEquals(2, result.exactCount());
+        verifyNoInteractions(gateway);
+    }
+
+    @Test void excessiveCandidatesAreReportedAsUnresolvedInsteadOfAbsent() {
+        var rows = java.util.stream.LongStream.range(100, 165).mapToObj(id -> item(id, "血常规项目" + id, "LABORATORY")).toList();
+        when(catalog.searchOrderableServices("血常规检查", "LABORATORY", 3L, today)).thenReturn(rows);
+        var result = service.resolve(List.of(intent), context, today).get(intent.key());
+        assertTrue(result.requiresReview());
+        assertTrue(result.items().isEmpty());
+        verifyNoInteractions(gateway);
+    }
+
     @Test void groupMatchExpandsMembersWhenCompositeNameIncludesHints() {
         ItemAliasDirectory aliases = mock(ItemAliasDirectory.class);
         ItemGroupDirectory groups = mock(ItemGroupDirectory.class);
         when(catalog.searchOrderableServices("肾功能（含肌酐、尿素氮、血尿酸）", "LABORATORY", 3L, today))
                 .thenReturn(List.of());
         var group = new ItemGroupDirectory.ItemGroupSnapshot(901L, 0L, "RENAL", "肾功能", "LIS", List.of(
-                new ItemGroupDirectory.MemberSnapshot(11L, "CRE", "肌酐测定", "LABORATORY", java.math.BigDecimal.ONE, "项", null, true),
-                new ItemGroupDirectory.MemberSnapshot(12L, "BUN", "尿素氮测定", "LABORATORY", java.math.BigDecimal.ONE, "项", null, true),
-                new ItemGroupDirectory.MemberSnapshot(13L, "UA", "血清尿酸测定", "LABORATORY", java.math.BigDecimal.ONE, "项", null, true)));
+                new ItemGroupDirectory.MemberSnapshot(11L, "CRE", "肌酐测定", "LABORATORY", java.math.BigDecimal.ONE, "项", "采血后及时送检", true, "项", true),
+                new ItemGroupDirectory.MemberSnapshot(12L, "BUN", "尿素氮测定", "LABORATORY", java.math.BigDecimal.ONE, "项", "采血后及时送检", true, "项", true),
+                new ItemGroupDirectory.MemberSnapshot(13L, "UA", "血清尿酸测定", "LABORATORY", java.math.BigDecimal.ONE, "项", "采血后及时送检", true, "项", true)), List.of());
         when(groups.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today)).thenReturn(List.of(group));
         var value = new PlanInvestigationDecisionService(catalog, decisions, aliases, groups)
                 .resolve(List.of(new PlanInvestigationDecisionService.Intent(
@@ -153,6 +250,9 @@ class PlanInvestigationDecisionServiceTest {
         assertTrue(value.groupMatch());
         assertNull(value.item());
         assertEquals(3, value.items().size());
+        assertEquals("采血后及时送检", value.items().getFirst().memberDescription());
+        assertEquals(Boolean.TRUE, value.items().getFirst().chargeable());
+        assertTrue(value.items().getFirst().requiredMember());
         assertTrue(value.detail().contains("组套"));
     }
 

@@ -1,24 +1,34 @@
+import { aiServiceValidation, serviceCandidateDraft } from './aiPlanServiceFacts'
+import { AiPlanMedicationFields } from './AiPlanMedicationFields'
+import { aiMedicationValidation, medicationCandidateDraft } from './aiPlanMedicationFacts'
+import { requireEditorStandards } from './templateEditorFacts'
+import { confirmConvertedPlan } from './convertedPlanFacts'
 import { planNoteContent } from './planNoteContent'
-import { anchorAnnotations } from '../record/recordAnnotations'
 import { WorkspacePane } from '../../../shared/ui/templates/PageTemplates'
 import { NoteWritingTemplateEditor } from './NoteWritingTemplateEditor'
-import { noteTemplateFields } from '../record/NoteTemplateBar'
 import type { OutpatientNoteTemplateContent } from '../../../shared/api/outpatientNoteTemplatesApi'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import '../../../styles/features/outpatient-doctor.css'
 import type { RhnApi } from '../../../shared/api'
 import { planTextStreamPreview, type OutpatientPlanTemplate, type OutpatientPlanTemplateScope,
-  type OutpatientPlanTask, type PlanTextDraft, type PlanTextReviewItem, type SaveOutpatientPlanTemplateInput,
+  type PlanTextDraft, type PlanTextReviewItem, type SaveOutpatientPlanTemplateInput,
   type CompiledPlanMedicationItem, type CompiledPlanServiceItem } from '../../../shared/api/outpatientPlanTemplatesApi'
-import { Alert, Button, Dialog, FormField, Icon, PanelHead, StatusBadge, Tooltip, type IconName } from '../../../shared/ui'
+import { Alert, Button, Dialog, FormField, Icon, PanelHead, StatusBadge, Tooltip, UnitNumberInput, type IconName } from '../../../shared/ui'
 import { errorMessage } from '../../../shared/api/httpClient'
 import { safeRandomUUID } from '../../../shared/utils/uuid'
 import { formatRouteName, medicationSingleDoseLabel } from './planMedicationPresentation'
+import { requireNoteTemplateList, templateApiScope } from './templateApplicationReceipt'
+import { saveAiMaintainedPlan, type NoteSaveCheckpoint } from './maintainedTemplateSave'
+import { useTemplateApplication } from './useTemplateApplication'
+import { searchTemplateDiagnoses, searchTemplateMedications, searchTemplateServices,
+  type TemplateDiagnosisCandidate, type TemplateMedicationCandidate, type TemplateServiceCandidate } from './templateCatalogSearch'
+import { TemplateCatalogSearchStatus, useTemplateCatalogSearch } from './useTemplateCatalogSearch'
 
 
 interface AiPlanTemplateDraftModalProps {
   api: RhnApi
+  organizationId?: string
   initialScope?: OutpatientPlanTemplateScope
   editingTemplate?: OutpatientPlanTemplate | null
   onClose: () => void
@@ -46,29 +56,6 @@ function parseMedicationSpecification(text?: string, details?: string): string |
   }
   const perUnit = /[0-9]+(?:\.[0-9]+)?\s*(?:mg|μg|ug|g|mL|ml)\s*[/／]\s*(?:粒|片|支|袋|包)/i.exec(source)
   return perUnit?.[0] ?? null
-}
-
-function parseMedicationUsageHint(text?: string, details?: string): string | null {
-  const source = `${text || ''} ${details || ''}`
-  const matchExplicit = /常规用法[：:]\s*([^\n；;，,。]+)/.exec(source)
-  if (matchExplicit) {
-    // 历史方案的常规用法以剂量开头，明确标为每次；规格单独展示。
-    return matchExplicit[1].trim().replace(
-      /^([0-9]+(?:\.[0-9]+)?\s*(?:mg|μg|ug|g|mL|ml|片|粒|支|包|袋))(?!\s*[/／])/i,
-      '每次 $1',
-    )
-  }
-  const parts: string[] = []
-  // 只接受明确的单次剂量标记，不能将规格或其他数字当成剂量。
-  const doseMatch = /(?:单次剂量|每次|一次)[：:]?\s*([0-9]+(?:\.[0-9]+)?\s*(?:mg|μg|ug|g|mL|ml|片|粒|支|包|袋))/i.exec(source)
-  if (doseMatch) parts.push(`每次 ${doseMatch[1]}`)
-  const routeMatch = /(口服|外用|静脉滴注|肌肉注射|皮下注射|雾化吸入)/.exec(source)
-  if (routeMatch) parts.push(routeMatch[1])
-  const freqMatch = /(?:每日|一日)(?:一|两|三|四)次|\b(?:qd|bid|tid|qid|prn|qn)\b/i.exec(source)
-  if (freqMatch) parts.push(freqMatch[0])
-  const durMatch = /([0-9]+(?:\s*[-–~至]\s*[0-9]+)?\s*(?:天|日))/.exec(source)
-  if (durMatch) parts.push(durMatch[1])
-  return parts.length ? parts.join(' · ') : null
 }
 
 function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdateItem }: {
@@ -100,7 +87,7 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
             <div className="ai-plan-review-items">
               {values.map(({ item, index }) => {
                 const isTextItem = item.kind === 'EDUCATION' || item.kind === 'FOLLOW_UP'
-                const usageHint = item.kind === 'MEDICATION' ? parseMedicationUsageHint(item.text, item.details) : null
+                const usageHint = item.kind === 'MEDICATION' ? item.details?.trim() : null
                 const specification = item.kind === 'MEDICATION' ? parseMedicationSpecification(item.text, item.details) : null
                 return (
                   <article
@@ -115,9 +102,8 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
                             {specification ? `建议规格：${specification}` : '规格待确认'}
                           </StatusBadge>
                         )}
-                        {usageHint && <StatusBadge tone="neutral">用法：{usageHint}</StatusBadge>}
                         {item.kind === 'DIAGNOSIS' && hasIcd10Code(item.text) && (
-                          <StatusBadge tone="info">ICD-10 标准诊断</StatusBadge>
+                          <StatusBadge tone="warning">诊断编码待目录核对</StatusBadge>
                         )}
                         {item.kind === 'CONDITION' && item.details?.includes('尚未匹配院内 ICD-10 术语') && (
                           <StatusBadge tone="warning">待对齐诊断</StatusBadge>
@@ -134,6 +120,7 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
                           <StatusBadge tone="warning">待医生确认</StatusBadge>
                         )}
                       </div>
+                      {usageHint && <small>原始说明：{usageHint}</small>}
                       {isTextItem && (
                         <div className="ai-plan-text-item-body">
                           {onUpdateItem ? (
@@ -169,30 +156,6 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
   )
 }
 
-function mergeOriginalRecords(
-  reviewItems: PlanTextReviewItem[],
-  result: SaveOutpatientPlanTemplateInput,
-) {
-  const existing = result.tasks ?? []
-  const matchStatus = (item: PlanTextReviewItem): OutpatientPlanTask['status'] => {
-    if (item.kind === 'DIAGNOSIS' && result.diagnoses.some((diagnosis) =>
-      item.text.includes(diagnosis.display) || item.text.includes(diagnosis.code))) return 'MATCHED'
-    if (item.kind === 'MEDICATION' && result.medications.some((medication) =>
-      medication.medicationName && item.text.includes(medication.medicationName))) return 'MATCHED'
-    if ((item.kind === 'LABORATORY' || item.kind === 'EXAMINATION') && result.services.some((service) =>
-      service.itemName && item.text.includes(service.itemName))) return 'MATCHED'
-    return item.kind === 'CONDITION' || item.kind === 'EDUCATION' || item.kind === 'FOLLOW_UP'
-      ? 'NEEDS_REVIEW' : 'UNMATCHED'
-  }
-  const records = reviewItems.map((item) => {
-    const matched = existing.find((task) => task.kind === item.kind && task.text === item.text)
-    return matched ? { ...matched, details: item.details ?? matched.details } : { ...item, status: matchStatus(item) }
-  })
-  const known = new Set(records.map((task) => `${task.kind}:${task.text}`))
-  return [...records, ...existing.filter((task) => !known.has(`${task.kind}:${task.text}`))]
-}
-
-
 interface ChatMessage {
   id: string
   role: 'assistant' | 'user'
@@ -207,6 +170,7 @@ const quickRevisionChips = ['删除检验检查', '诊断对齐ICD-10', '补充3
 
 export function AiPlanTemplateDraftModal({
   api,
+  organizationId,
   initialScope = 'PERSONAL',
   editingTemplate,
   onClose,
@@ -217,11 +181,12 @@ export function AiPlanTemplateDraftModal({
   const [scope, setScope] = useState<OutpatientPlanTemplateScope>(editingTemplate?.scopeType || initialScope)
   const queryClient = useQueryClient()
   const [textDraft, setTextDraft] = useState<PlanTextDraft | null>(null)
-  const [noteContent, setNoteContent] = useState<OutpatientNoteTemplateContent>(() => planNoteContent({}, editingTemplate?.tasks))
+  const [noteContent, setNoteContent] = useState<OutpatientNoteTemplateContent>(() => planNoteContent({}, editingTemplate?.tasks ?? []))
   const loadedNoteId = useRef<string | null>(null)
-  const savedNote = useRef<{ fingerprint: string; id: string } | null>(null)
-  const linkedNotes = useQuery({ queryKey: ['outpatient-note-templates', 'GENERAL_PRACTICE'],
-    queryFn: () => api.outpatientNoteTemplates.list('', 'GENERAL_PRACTICE'),
+  const savedNote = useRef<NoteSaveCheckpoint | null>(null)
+  const linkedNotes = useQuery({ queryKey: ['outpatient-note-templates', 'GENERAL_PRACTICE', templateApiScope(api)],
+    queryFn: async () => requireNoteTemplateList(await api.outpatientNoteTemplates.list('', 'GENERAL_PRACTICE'), 'GENERAL_PRACTICE'),
+    retry: false,
     enabled: Boolean(editingTemplate?.noteTemplateId),
   })
   useEffect(() => {
@@ -244,8 +209,8 @@ export function AiPlanTemplateDraftModal({
       guidelineReference: editingTemplate.guidelineReference,
       sortOrder: editingTemplate.sortOrder,
       noteTemplateId: editingTemplate.noteTemplateId,
-      diagnoses: [...editingTemplate.diagnoses],
-      medications: editingTemplate.medications.map((m) => ({
+      diagnoses: [...(editingTemplate.diagnoses ?? [])],
+      medications: (editingTemplate.medications ?? []).map((m) => ({
         medicationId: m.medicationId,
         catalogItemId: m.catalogItemId,
         packageId: m.packageId,
@@ -266,7 +231,7 @@ export function AiPlanTemplateDraftModal({
         pricingRequired: m.pricingRequired,
         reason: m.reason,
       })),
-      services: editingTemplate.services.map((s) => ({
+      services: (editingTemplate.services ?? []).map((s) => ({
         catalogItemId: s.catalogItemId,
         itemCode: s.itemCode,
         itemName: s.itemName,
@@ -282,14 +247,21 @@ export function AiPlanTemplateDraftModal({
     }
   })
   const [compiling, setCompiling] = useState(false)
-  const [converting, setConverting] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const saveOperation = useTemplateApplication(JSON.stringify([templateApiScope(api), organizationId, editingTemplate?.id, editingTemplate?.revision]), false,
+    () => JSON.stringify([compiledDraft, noteContent, scope]),
+    '当前会话或方案内容已变化，本次未确认保存；远端可能已完成部分保存，请先查询核实。')
+  const saving = saveOperation.pending
   const [error, setError] = useState<string | null>(null)
   const [streamSource, setStreamSource] = useState('')
   const [chatInput, setChatInput] = useState('')
   const [initialIntent, setInitialIntent] = useState('')
   const [revisionCount, setRevisionCount] = useState(0)
   const [revisionRunning, setRevisionRunning] = useState(false)
+  const conversion = useTemplateApplication(JSON.stringify([templateApiScope(api), organizationId, editingTemplate?.id, editingTemplate?.revision]), compiling || saving,
+    () => JSON.stringify([textDraft, scope, initialIntent, naturalInput]),
+    '当前会话或文字方案已变化，本次目录转换结果未带入，请重新核对并匹配。')
+  const converting = conversion.pending
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     if (editingTemplate) {
       return [
@@ -331,29 +303,71 @@ export function AiPlanTemplateDraftModal({
 
   const [activeMedSearchTaskIndex, setActiveMedSearchTaskIndex] = useState<number | null>(null)
   const [medSearchKeyword, setMedSearchKeyword] = useState('')
-  const [medSearchResults, setMedSearchResults] = useState<any[]>([])
 
   const [activeServiceSearchTaskIndex, setActiveServiceSearchTaskIndex] = useState<number | null>(null)
   const [serviceSearchKeyword, setServiceSearchKeyword] = useState('')
-  const [serviceSearchResults, setServiceSearchResults] = useState<any[]>([])
 
   // 诊断微调状态
   const [activeDiagSearchTaskIndex, setActiveDiagSearchTaskIndex] = useState<number | null>(null)
   const [isAddingDiagnosis, setIsAddingDiagnosis] = useState(false)
   const [diagSearchKeyword, setDiagSearchKeyword] = useState('')
-  const [diagSearchResults, setDiagSearchResults] = useState<any[]>([])
 
   // 药品微调状态
   const [editingMedIndex, setEditingMedIndex] = useState<number | null>(null)
   const [isAddingMed, setIsAddingMed] = useState(false)
   const [newMedSearchKeyword, setNewMedSearchKeyword] = useState('')
-  const [newMedSearchResults, setNewMedSearchResults] = useState<any[]>([])
+
+  const [pendingMedication, setPendingMedication] = useState<{
+    api: RhnApi; context: string; taskIndex?: number; item: CompiledPlanMedicationItem; source?: string
+  } | null>(null)
+  const medicationContext = JSON.stringify([templateApiScope(api), organizationId, editingTemplate?.id, editingTemplate?.revision, scope, compiledDraft])
+  const medicationStandards = useQuery({
+    queryKey: ['ai-plan-medication-standards', templateApiScope(api), organizationId, scope],
+    queryFn: async () => requireEditorStandards(await api.masterData.clinicalMedicationStandards()),
+    retry: false, enabled: stage === 'STRUCTURED_REVIEW' && Boolean(compiledDraft?.medications.length || pendingMedication),
+  })
+  const standards = medicationStandards.isSuccess && !medicationStandards.isFetching ? medicationStandards.data : undefined
+  const medicationValidation = compiledDraft?.medications.map(item => aiMedicationValidation(item, standards)).find(Boolean) ?? ''
+  const pendingContextChanged = !!pendingMedication && (pendingMedication.api !== api || pendingMedication.context !== medicationContext)
+  const pendingMedicationValidation = pendingMedication
+    ? pendingContextChanged ? '当前会话或方案已变化，请取消后重新选择药品。'
+      : aiMedicationValidation(pendingMedication.item, standards, pendingMedication.taskIndex !== undefined) : ''
 
   // 检验检查微调状态
   const [editingServiceIndex, setEditingServiceIndex] = useState<number | null>(null)
   const [isAddingService, setIsAddingService] = useState(false)
   const [newServiceSearchKeyword, setNewServiceSearchKeyword] = useState('')
-  const [newServiceSearchResults, setNewServiceSearchResults] = useState<any[]>([])
+
+  const [pendingService, setPendingService] = useState<{
+    api: RhnApi; context: string; item: CompiledPlanServiceItem; taskIndex?: number; source?: string
+  } | null>(null)
+  const serviceValidation = compiledDraft?.services.map(aiServiceValidation).find(Boolean) ?? ''
+  const serviceContextChanged = !!pendingService && (pendingService.api !== api || pendingService.context !== medicationContext)
+  const pendingServiceValidation = pendingService
+    ? serviceContextChanged ? '当前机构、会话或方案已变化，请取消后重新选择项目。' : aiServiceValidation(pendingService.item) : ''
+
+  const searchContext = JSON.stringify([templateApiScope(api), organizationId, editingTemplate?.id, editingTemplate?.revision, scope, compiledDraft?.tasks])
+  const canSearch = !saving && !compiling && !converting
+  const medSearch = useTemplateCatalogSearch(`${searchContext}:${activeMedSearchTaskIndex}`, medSearchKeyword,
+    canSearch && activeMedSearchTaskIndex !== null, query => searchTemplateMedications(api, query))
+  const serviceSearch = useTemplateCatalogSearch(`${searchContext}:${activeServiceSearchTaskIndex}`, serviceSearchKeyword,
+    canSearch && activeServiceSearchTaskIndex !== null, query => searchTemplateServices(api, query, organizationId))
+  const diagSearch = useTemplateCatalogSearch(`${searchContext}:${activeDiagSearchTaskIndex}:${isAddingDiagnosis}`, diagSearchKeyword,
+    canSearch && (activeDiagSearchTaskIndex !== null || isAddingDiagnosis), query => searchTemplateDiagnoses(api, query))
+  const newMedSearch = useTemplateCatalogSearch(searchContext, newMedSearchKeyword,
+    canSearch && isAddingMed, query => searchTemplateMedications(api, query))
+  const newServiceSearch = useTemplateCatalogSearch(searchContext, newServiceSearchKeyword,
+    canSearch && isAddingService, query => searchTemplateServices(api, query, organizationId))
+  const medSearchResults = medSearch.rows, serviceSearchResults = serviceSearch.rows, diagSearchResults = diagSearch.rows
+  const newMedSearchResults = newMedSearch.rows, newServiceSearchResults = newServiceSearch.rows
+  const handleSearchMed = (_keyword: string) => medSearch.search()
+  const handleSearchService = (_keyword: string) => serviceSearch.search()
+  const handleSearchDiagnosis = (_keyword: string) => diagSearch.search()
+  const handleSearchNewMed = (_keyword: string) => newMedSearch.search()
+  const handleSearchNewService = (_keyword: string) => newServiceSearch.search()
+  useEffect(() => { if (activeMedSearchTaskIndex !== null) void medSearch.search() }, [activeMedSearchTaskIndex])
+  useEffect(() => { if (activeServiceSearchTaskIndex !== null) void serviceSearch.search() }, [activeServiceSearchTaskIndex])
+  useEffect(() => { if (activeDiagSearchTaskIndex !== null) void diagSearch.search() }, [activeDiagSearchTaskIndex])
 
   // 其他安排（宣教/随访）微调状态
 
@@ -623,90 +637,34 @@ export function AiPlanTemplateDraftModal({
     }
   }
 
-  const handleConvert = async () => {
+  const handleConvert = () => {
     if (!textDraft) return
     setError(null)
-    setConverting(true)
-    try {
-      const sourceText = initialIntent || naturalInput.trim()
+    const source = structuredClone(textDraft)
+    const requestedScope = scope
+    void conversion.run(async () => {
       const result = await api.outpatientPlanTemplates.convertDraft(
-        sourceText,
-        textDraft.narrative.trim(),
-        textDraft.name,
-        textDraft.reviewItems,
-        scope,
+        initialIntent || naturalInput.trim(), source.narrative.trim(), source.name, source.reviewItems, requestedScope,
       )
-      // 目录匹配只补充原记录的状态，不用一批新记录替换医生刚刚确认的内容。
-      setCompiledDraft({
-        ...result,
-        tasks: mergeOriginalRecords(textDraft.reviewItems, result),
-      })
+      return confirmConvertedPlan(result, source.reviewItems, source.name, requestedScope)
+    }, result => {
+      setCompiledDraft(result)
       setStage('STRUCTURED_REVIEW')
-    } catch (e: any) {
-      setError(errorMessage(e) || '转换系统方案失败，请检查文字方案后重试')
-    } finally {
-      setConverting(false)
-    }
+    })
   }
 
-  const handleSave = async () => {
-    if (!compiledDraft) return
+  const handleSave = () => {
+    if (!compiledDraft || pendingMedication || medicationValidation || pendingService || serviceValidation) return
     setError(null)
-    setSaving(true)
-    try {
-      // 文书模板只保存书写字段；结构化诊断和医嘱继续保存到方案。
-      const content: OutpatientNoteTemplateContent = Object.fromEntries(noteTemplateFields
-        .map(({ key }) => [key, noteContent[key]?.trim() || undefined]).filter(([, value]) => value))
-      content.annotations = anchorAnnotations(content, noteContent.annotations)
-      let noteTemplateId = scope === 'HOSPITAL' ? undefined : compiledDraft.noteTemplateId
-      if (scope !== 'HOSPITAL' && Object.values(content).some(Boolean)) {
-        const fingerprint = JSON.stringify({ content, name: compiledDraft.name, scope })
-        if (savedNote.current?.fingerprint !== fingerprint) {
-          const linked = linkedNotes.data?.find((value) => value.id === editingTemplate?.noteTemplateId)
-          const noteInput = { scopeType: scope === 'PERSONAL' ? 'PERSONAL' as const : 'DEPARTMENT' as const,
-            name: linked?.name || `${compiledDraft.name}·病历`.slice(0, 100), content }
-          const note = linked
-            ? await api.outpatientNoteTemplates.update(linked.id, { ...noteInput, expectedRevision: linked.revision })
-            : await api.outpatientNoteTemplates.create(noteInput)
-          savedNote.current = { fingerprint, id: note.id }
-          void queryClient.invalidateQueries({ queryKey: ['outpatient-note-templates'] })
-        }
-        noteTemplateId = savedNote.current!.id
+    void saveOperation.run(async isCurrent => {
+      if (editingTemplate?.noteTemplateId && (linkedNotes.isFetching || linkedNotes.isError)) {
+        throw new Error('配套病历模板尚未确认，请重新加载核对。')
       }
-      const normalizedMedications = (compiledDraft.medications || []).map((m) => ({
-        ...m,
-        quantity: m.quantity || 1,
-      }))
-      if (isEditing && editingTemplate) {
-        const updated = await api.outpatientPlanTemplates.update(editingTemplate.id, {
-          expectedRevision: editingTemplate.revision,
-          scopeType: scope,
-          name: compiledDraft.name,
-          description: compiledDraft.description,
-          guidelineReference: compiledDraft.guidelineReference,
-          sortOrder: compiledDraft.sortOrder,
-          noteTemplateId,
-          diagnoses: compiledDraft.diagnoses,
-          medications: normalizedMedications,
-          services: compiledDraft.services,
-          tasks: compiledDraft.tasks,
-        })
-        onSaved(updated)
-      } else {
-        const saved = await api.outpatientPlanTemplates.create({
-          ...compiledDraft,
-          medications: normalizedMedications,
-          noteTemplateId,
-          scopeType: scope,
-        })
-        onSaved(saved)
-      }
-
-    } catch (e: any) {
-      setError(errorMessage(e) || (isEditing ? '调整方案失败，请重试' : '保存方案失败，请检查名称或目录完整性'))
-    } finally {
-      setSaving(false)
-    }
+      const saved = await saveAiMaintainedPlan(api, { ...compiledDraft, scopeType: scope }, structuredClone(noteContent),
+        editingTemplate, linkedNotes.data?.find(note => note.id === editingTemplate?.noteTemplateId), savedNote, isCurrent)
+      void queryClient.invalidateQueries({ queryKey: ['outpatient-note-templates'] })
+      return saved
+    }, onSaved)
   }
 
   const removeDiagnosis = (idx: number) => {
@@ -720,7 +678,9 @@ export function AiPlanTemplateDraftModal({
   const removeMedication = (idx: number) => {
     if (!compiledDraft) return
     const next = compiledDraft.medications.filter((_, i) => i !== idx)
-    setCompiledDraft({ ...compiledDraft, medications: next })
+    setCompiledDraft({ ...compiledDraft, medications: next,
+      tasks: compiledDraft.tasks?.map(task => task.kind === 'MEDICATION' && task.status === 'MATCHED'
+        ? { ...task, status: 'NEEDS_REVIEW' as const } : task) })
   }
 
   const removeService = (idx: number) => {
@@ -741,130 +701,64 @@ export function AiPlanTemplateDraftModal({
     })
   }
 
-  const handleSearchMed = async (keyword: string) => {
-    if (!keyword.trim()) return
-    try {
-      let items: any[] = []
-      if (api.masterData?.searchMedicationProducts) {
-        const res = await api.masterData.searchMedicationProducts(keyword.trim(), '', 'ACTIVE', '', 0, 8)
-        if (res?.content?.length) {
-          items = res.content.map((entry: any) => {
-            const prod = entry.product || entry
-            const med = entry.medication
-            return {
-              id: prod.id,
-              medicationId: med?.id || prod.medicationId,
-              name: prod.name || med?.name,
-              tradeName: prod.tradeName,
-              preparationSpec: prod.preparationSpec || med?.preparationSpec,
-              packages: prod.packages,
-              doseUnit: med?.defaultDoseUnit || prod.doseUnit,
-              defaultDose: med?.defaultDose,
-              defaultRoute: med?.defaultRoute,
-              defaultFrequency: med?.defaultFrequency,
-              packageUnit: prod.packages?.[0]?.unitName || prod.packageUnit,
-              isGenericOnly: false,
-            }
-          })
-        }
-      }
-      if (api.masterData?.searchMedications) {
-        const medRes = await api.masterData.searchMedications(keyword.trim(), '', 'ACTIVE', '', 0, 8)
-        if (medRes?.content?.length) {
-          const genericItems = medRes.content
-            .filter((m: any) => !items.some((existing) => String(existing.medicationId) === String(m.id)))
-            .map((m: any) => ({
-              id: m.id,
-              medicationId: m.id,
-              name: m.name,
-              tradeName: m.aliasName,
-              preparationSpec: m.preparationSpec,
-              doseUnit: m.defaultDoseUnit,
-              defaultDose: m.defaultDose,
-              defaultRoute: m.defaultRoute,
-              defaultFrequency: m.defaultFrequency,
-              preparationUnit: m.preparationUnit,
-              isGenericOnly: true,
-            }))
-          items = [...items, ...genericItems]
-        }
-      }
-      setMedSearchResults(items)
-    } catch {
-      setMedSearchResults([])
-    }
+
+  const handleSelectMedProduct = (taskIndex: number, prod: TemplateMedicationCandidate) => {
+    if (!compiledDraft || taskIndex !== activeMedSearchTaskIndex || !medSearch.canSelect(prod)) return
+    beginMedicationConfirmation(prod, taskIndex)
   }
 
-  const handleSelectMedProduct = (taskIndex: number, prod: any) => {
+  const beginMedicationConfirmation = (prod: TemplateMedicationCandidate, taskIndex?: number) => {
     if (!compiledDraft) return
-    const isGeneric = Boolean(prod.isGenericOnly)
-    const task = compiledDraft.tasks?.[taskIndex]
-    const requestedUsage = parseMedicationUsageHint(task?.text, task?.details) || ''
-    const requestedDose = /每次\s*([0-9]+(?:\.[0-9]+)?)\s*(mg|μg|ug|g|mL|ml|片|粒|支|包|袋)/i.exec(requestedUsage)
-    const requestedFrequency = /\b(qid|tid|bid|qd|qn|prn)\b/i.exec(requestedUsage)
-    const requestedRoute = /口服/.test(requestedUsage) ? 'ORAL' : undefined
-    const newMedication: CompiledPlanMedicationItem = {
-      medicationId: String(prod.medicationId || prod.id),
-      catalogItemId: isGeneric ? undefined : String(prod.id),
-      packageId: isGeneric ? undefined : String(prod.packages?.[0]?.id || prod.packageId || prod.id),
-      medicationName: prod.name,
-      preparationSpec: prod.preparationSpec,
-      doseValue: requestedDose ? Number(requestedDose[1]) : prod.defaultDose,
-      doseUnit: requestedDose?.[2] || prod.doseUnit || prod.defaultDoseUnit,
-      routeCode: requestedRoute || prod.defaultRoute,
-      frequencyCode: requestedFrequency?.[1].toUpperCase() || prod.defaultFrequency,
-      quantity: 1,
-      quantityUnit: prod.packageUnit || prod.preparationUnit || '盒',
-      substitutionAllowed: true,
-      selfProvided: false,
+    if (compiledDraft.medications.some(item => item.medicationId === prod.medicationId)) {
+      setError('方案中已有该药品，请核对现有明细，未自动重复添加。')
+      return
     }
-    const nextMedications = [...compiledDraft.medications, newMedication]
-    const nextTasks = (compiledDraft.tasks ?? []).map((t, i) =>
-      i === taskIndex ? { ...t, status: 'MATCHED' as const } : t
-    )
-    setCompiledDraft({
-      ...compiledDraft,
-      medications: nextMedications,
-      tasks: nextTasks,
-    })
+    const task = taskIndex === undefined ? undefined : compiledDraft.tasks?.[taskIndex]
+    if (taskIndex !== undefined && !task) return
+    setPendingMedication({ api, context: medicationContext, taskIndex, item: medicationCandidateDraft(prod),
+      source: task ? [...new Set([task.text, task.sourceQuote, task.details].filter(Boolean))].join('\n') : undefined })
+  }
+
+  const confirmMedication = () => {
+    if (!compiledDraft || !pendingMedication || pendingMedicationValidation || saving || compiling) return
+    const { item, taskIndex } = pendingMedication
+    setCompiledDraft({ ...compiledDraft, medications: [...compiledDraft.medications, item],
+      tasks: compiledDraft.tasks?.map((task, index) => index === taskIndex ? { ...task, status: 'MATCHED' as const } : task) })
+    setPendingMedication(null)
     setActiveMedSearchTaskIndex(null)
-    setMedSearchResults([])
+    setIsAddingMed(false)
+    setNewMedSearchKeyword('')
   }
 
-  const handleSearchService = async (keyword: string) => {
-    if (!keyword.trim() || !api.masterData?.searchServices) return
-    try {
-      const res = await api.masterData.searchServices(keyword.trim(), '', 'ACTIVE', '', 0, 8)
-      setServiceSearchResults(res.content || [])
-    } catch {
-      setServiceSearchResults([])
-    }
+
+  const handleSelectServiceItem = (taskIndex: number, srv: TemplateServiceCandidate) => {
+    if (!compiledDraft || taskIndex !== activeServiceSearchTaskIndex || !serviceSearch.canSelect(srv)) return
+    beginServiceConfirmation(srv, taskIndex)
   }
 
-  const handleSelectServiceItem = (taskIndex: number, srv: any) => {
-    if (!compiledDraft) return
-    const newService: CompiledPlanServiceItem = {
-      catalogItemId: String(srv.id),
-      itemCode: srv.code,
-      itemName: srv.name,
-      serviceType: srv.serviceType || 'LABORATORY',
-      quantity: 1,
-      unitCode: srv.unitCode || '次',
-      priceType: 'SALE',
-      pricingRequired: true,
+  const beginServiceConfirmation = (srv: TemplateServiceCandidate, taskIndex?: number) => {
+    if (!compiledDraft || !organizationId || srv.organizationId !== organizationId) return
+    if (compiledDraft.services.some(item => item.catalogItemId === srv.id)) {
+      setError('方案中已有该项目，请核对现有数量，未自动重复添加。')
+      return
     }
-    const nextServices = [...compiledDraft.services, newService]
-    const nextTasks = (compiledDraft.tasks ?? []).map((t, i) =>
-      i === taskIndex ? { ...t, status: 'MATCHED' as const } : t
-    )
-    setCompiledDraft({
-      ...compiledDraft,
-      services: nextServices,
-      tasks: nextTasks,
-    })
+    const task = taskIndex === undefined ? undefined : compiledDraft.tasks?.[taskIndex]
+    if (taskIndex !== undefined && !task) return
+    setPendingService({ api, context: medicationContext, taskIndex, item: serviceCandidateDraft(srv),
+      source: task ? [...new Set([task.text, task.sourceQuote, task.details].filter(Boolean))].join('\n') : undefined })
+  }
+
+  const confirmService = () => {
+    if (!compiledDraft || !pendingService || pendingServiceValidation || saving || compiling) return
+    const { item, taskIndex } = pendingService
+    setCompiledDraft({ ...compiledDraft, services: [...compiledDraft.services, item],
+      tasks: compiledDraft.tasks?.map((task, index) => index === taskIndex ? { ...task, status: 'MATCHED' as const } : task) })
+    setPendingService(null)
     setActiveServiceSearchTaskIndex(null)
-    setServiceSearchResults([])
+    setIsAddingService(false)
+    setNewServiceSearchKeyword('')
   }
+
 
   const makePrimaryDiagnosis = (idx: number) => {
     if (!compiledDraft) return
@@ -879,46 +773,18 @@ export function AiPlanTemplateDraftModal({
     setCompiledDraft({ ...compiledDraft, diagnoses: nextDiagnoses })
   }
 
-  const handleSearchDiagnosis = async (keyword: string) => {
-    if (!keyword.trim()) return
-    try {
-      let items: any[] = []
-      if (typeof api.masterData?.searchDiseases === 'function') {
-        const res = await api.masterData.searchDiseases(keyword.trim(), '', 'ACTIVE', '', 0, 8)
-        if (res?.content?.length) {
-          items = res.content.map((d: any) => ({
-            id: d.id,
-            code: d.code,
-            display: d.display || d.name,
-            diagnosisDomain: d.sdDiagnosisDomain || 'WESTERN_MEDICINE',
-          }))
-        }
-      } else if (typeof api.masterData?.diseases === 'function') {
-        const list = await api.masterData.diseases(keyword.trim(), '', 'ACTIVE')
-        items = (list || []).slice(0, 8).map((d: any) => ({
-          id: d.id,
-          code: d.code,
-          display: d.display || d.name,
-          diagnosisDomain: d.sdDiagnosisDomain || 'WESTERN_MEDICINE',
-        }))
-      }
-      setDiagSearchResults(items)
-    } catch {
-      setDiagSearchResults([])
-    }
-  }
 
-  const handleSelectDiagnosis = (diag: any) => {
-    if (!compiledDraft) return
-    if (compiledDraft.diagnoses.some((d) => d.code === diag.code || d.display === diag.display)) {
+  const handleSelectDiagnosis = (diag: TemplateDiagnosisCandidate) => {
+    if (!compiledDraft || !isAddingDiagnosis || !diagSearch.canSelect(diag)) return
+    if (compiledDraft.diagnoses.some((d) => d.conceptId === diag.id || d.codeSystem === diag.codeSystem && d.code === diag.code && d.diagnosisDomain === diag.diagnosisDomain)) {
       setError('该诊断已在方案中')
       return
     }
     setError(null)
     const isFirst = compiledDraft.diagnoses.length === 0
     const newDiag = {
-      conceptId: String(diag.id || diag.code),
-      diagnosisDomain: diag.diagnosisDomain || 'WESTERN_MEDICINE',
+      conceptId: diag.id, codeSystem: diag.codeSystem,
+      diagnosisDomain: diag.diagnosisDomain,
       code: diag.code,
       display: diag.display,
       type: (isFirst ? 'PRIMARY' : 'SECONDARY') as 'PRIMARY' | 'SECONDARY',
@@ -928,16 +794,16 @@ export function AiPlanTemplateDraftModal({
       diagnoses: [...compiledDraft.diagnoses, newDiag],
     })
     setIsAddingDiagnosis(false)
-    setDiagSearchResults([])
+
     setDiagSearchKeyword('')
   }
 
-  const handleAlignDiagnosisTask = (taskIndex: number, diag: any) => {
-    if (!compiledDraft) return
+  const handleAlignDiagnosisTask = (taskIndex: number, diag: TemplateDiagnosisCandidate) => {
+    if (!compiledDraft || taskIndex !== activeDiagSearchTaskIndex || !diagSearch.canSelect(diag)) return
     const isFirst = compiledDraft.diagnoses.length === 0
     const newDiag = {
-      conceptId: String(diag.id || diag.code),
-      diagnosisDomain: diag.diagnosisDomain || 'WESTERN_MEDICINE',
+      conceptId: diag.id, codeSystem: diag.codeSystem,
+      diagnosisDomain: diag.diagnosisDomain,
       code: diag.code,
       display: diag.display,
       type: (isFirst ? 'PRIMARY' : 'SECONDARY') as 'PRIMARY' | 'SECONDARY',
@@ -951,7 +817,7 @@ export function AiPlanTemplateDraftModal({
       tasks: nextTasks,
     })
     setActiveDiagSearchTaskIndex(null)
-    setDiagSearchResults([])
+
     setDiagSearchKeyword('')
   }
 
@@ -963,88 +829,12 @@ export function AiPlanTemplateDraftModal({
     setCompiledDraft({ ...compiledDraft, medications: nextMedications })
   }
 
-  const handleSearchNewMed = async (keyword: string) => {
-    if (!keyword.trim()) return
-    try {
-      let items: any[] = []
-      if (api.masterData?.searchMedicationProducts) {
-        const res = await api.masterData.searchMedicationProducts(keyword.trim(), '', 'ACTIVE', '', 0, 8)
-        if (res?.content?.length) {
-          items = res.content.map((entry: any) => {
-            const prod = entry.product || entry
-            const med = entry.medication
-            return {
-              id: prod.id,
-              medicationId: med?.id || prod.medicationId,
-              name: prod.name || med?.name,
-              tradeName: prod.tradeName,
-              preparationSpec: prod.preparationSpec || med?.preparationSpec,
-              packages: prod.packages,
-              doseUnit: med?.defaultDoseUnit || prod.doseUnit,
-              defaultDose: med?.defaultDose,
-              defaultRoute: med?.defaultRoute,
-              defaultFrequency: med?.defaultFrequency,
-              packageUnit: prod.packages?.[0]?.unitName || prod.packageUnit,
-              isGenericOnly: false,
-            }
-          })
-        }
-      }
-      if (api.masterData?.searchMedications) {
-        const medRes = await api.masterData.searchMedications(keyword.trim(), '', 'ACTIVE', '', 0, 8)
-        if (medRes?.content?.length) {
-          const genericItems = medRes.content
-            .filter((m: any) => !items.some((existing) => String(existing.medicationId) === String(m.id)))
-            .map((m: any) => ({
-              id: m.id,
-              medicationId: m.id,
-              name: m.name,
-              tradeName: m.aliasName,
-              preparationSpec: m.preparationSpec,
-              doseUnit: m.defaultDoseUnit,
-              defaultDose: m.defaultDose,
-              defaultRoute: m.defaultRoute,
-              defaultFrequency: m.defaultFrequency,
-              preparationUnit: m.preparationUnit,
-              isGenericOnly: true,
-            }))
-          items = [...items, ...genericItems]
-        }
-      }
-      setNewMedSearchResults(items)
-    } catch {
-      setNewMedSearchResults([])
-    }
+
+  const handleAddMedProduct = (prod: TemplateMedicationCandidate) => {
+    if (!compiledDraft || !newMedSearch.canSelect(prod)) return
+    beginMedicationConfirmation(prod)
   }
 
-  const handleAddMedProduct = (prod: any) => {
-    if (!compiledDraft) return
-    const isGeneric = Boolean(prod.isGenericOnly)
-    const newMedication: CompiledPlanMedicationItem = {
-      medicationId: String(prod.medicationId || prod.id),
-      catalogItemId: isGeneric ? undefined : String(prod.id),
-      packageId: isGeneric ? undefined : String(prod.packages?.[0]?.id || prod.packageId || prod.id),
-      medicationName: prod.name,
-      preparationSpec: prod.preparationSpec,
-      doseValue: prod.defaultDose || 1,
-      doseUnit: prod.doseUnit || prod.defaultDoseUnit || '片',
-      routeCode: prod.defaultRoute || 'ORAL',
-      frequencyCode: prod.defaultFrequency || 'TID',
-      durationValue: 3,
-      durationUnit: 'd',
-      quantity: 1,
-      quantityUnit: prod.packageUnit || prod.preparationUnit || '盒',
-      substitutionAllowed: true,
-      selfProvided: false,
-    }
-    setCompiledDraft({
-      ...compiledDraft,
-      medications: [...compiledDraft.medications, newMedication],
-    })
-    setIsAddingMed(false)
-    setNewMedSearchResults([])
-    setNewMedSearchKeyword('')
-  }
 
   const updateService = (idx: number, patch: Partial<CompiledPlanServiceItem>) => {
     if (!compiledDraft) return
@@ -1054,39 +844,15 @@ export function AiPlanTemplateDraftModal({
     setCompiledDraft({ ...compiledDraft, services: nextServices })
   }
 
-  const handleSearchNewService = async (keyword: string) => {
-    if (!keyword.trim() || !api.masterData?.searchServices) return
-    try {
-      const res = await api.masterData.searchServices(keyword.trim(), '', 'ACTIVE', '', 0, 8)
-      setNewServiceSearchResults(res.content || [])
-    } catch {
-      setNewServiceSearchResults([])
-    }
-  }
 
-  const handleAddServiceItem = (srv: any) => {
-    if (!compiledDraft) return
-    const newService: CompiledPlanServiceItem = {
-      catalogItemId: String(srv.id),
-      itemCode: srv.code,
-      itemName: srv.name,
-      serviceType: srv.serviceType || 'LABORATORY',
-      quantity: 1,
-      unitCode: srv.unitCode || '次',
-      priceType: 'SALE',
-      pricingRequired: true,
-    }
-    setCompiledDraft({
-      ...compiledDraft,
-      services: [...compiledDraft.services, newService],
-    })
-    setIsAddingService(false)
-    setNewServiceSearchResults([])
-    setNewServiceSearchKeyword('')
+  const handleAddServiceItem = (srv: TemplateServiceCandidate) => {
+    if (!compiledDraft || !newServiceSearch.canSelect(srv)) return
+    beginServiceConfirmation(srv)
   }
 
 
   return (
+    <>
     <Dialog
       title={isEditing ? '方案调整与明细微调' : '智能方案构建'}
       size="xwide"
@@ -1125,10 +891,10 @@ export function AiPlanTemplateDraftModal({
               size="sm"
               busy={saving}
               disabled={saving || compiling || (Boolean(editingTemplate?.noteTemplateId) && (linkedNotes.isPending || linkedNotes.isError)) || !compiledDraft.name.trim()
-                || missingStandardDiagnosis
+                || missingStandardDiagnosis || Boolean(pendingMedication) || Boolean(medicationValidation) || Boolean(pendingService) || Boolean(serviceValidation)
                 || unresolvedCatalogTasks.length > 0
-                || !(compiledDraft.diagnoses.length || compiledDraft.medications.length
-                  || compiledDraft.services.length || compiledDraft.tasks?.length)}
+                || !(compiledDraft.diagnoses?.length || compiledDraft.medications?.length
+                  || compiledDraft.services?.length || compiledDraft.tasks?.length)}
               onClick={handleSave}
             >
               {isEditing ? '确认保存调整' : '确认存入方案池'}
@@ -1138,9 +904,17 @@ export function AiPlanTemplateDraftModal({
       }
     >
       <div className="ai-plan-modal-body">
-        {error && <Alert>{error}</Alert>}
+        {serviceValidation && !pendingService && <div role="alert" className="doctor-plan-pool-notice">{serviceValidation}</div>}
+        {medicationValidation && !pendingMedication && <div role="alert" className="doctor-plan-pool-notice">{medicationValidation}</div>}
+        {medicationStandards.isError && !pendingMedication && <div role="alert" className="doctor-plan-pool-notice">用法字典加载失败：{errorMessage(medicationStandards.error)}
+          <Button variant="text" onClick={() => void medicationStandards.refetch()}>重新加载用法字典</Button></div>}
+        {(error || saveOperation.error || conversion.error) && <div role="alert" className="doctor-plan-pool-notice">{error || saveOperation.error || conversion.error}</div>}
+        {linkedNotes.error && <div role="alert" className="doctor-plan-pool-notice">配套病历模板加载失败：{errorMessage(linkedNotes.error)}
+          <Button variant="text" onClick={() => void linkedNotes.refetch()}>重新加载病历模板</Button></div>}
+        {editingTemplate?.noteTemplateId && linkedNotes.isSuccess && !linkedNotes.data?.some(note => note.id === editingTemplate.noteTemplateId)
+          && <div role="alert" className="doctor-plan-pool-notice">配套病历模板已不可用，不能将未加载的正文当作空模板保存。</div>}
 
-        <div className="ai-plan-modal-grid">
+        <div className="ai-plan-modal-grid" inert={saving || converting}>
           <div className="ai-plan-modal-left">
             {capabilities.data && !modelReady && <Alert tone="warning">当前未启用真实模型方案编译：{capabilities.data.message}</Alert>}
             {capabilities.isError && <Alert tone="warning">暂时无法读取模型状态，请稍后重试。</Alert>}
@@ -1568,19 +1342,20 @@ export function AiPlanTemplateDraftModal({
                                       value={diagSearchKeyword}
                                       onChange={(e) => setDiagSearchKeyword(e.target.value)}
                                       onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchDiagnosis(diagSearchKeyword) }}
-                                      placeholder="输入疾病名称、编码或拼音搜索 ICD-10 标准诊断..."
+                                      placeholder="输入疾病名称、编码或拼音搜索标准诊断..."
                                       autoFocus
                                     />
                                     <Button size="sm" variant="secondary" onClick={() => void handleSearchDiagnosis(diagSearchKeyword)}>搜索</Button>
                                     <Button size="sm" variant="text" onClick={() => setActiveDiagSearchTaskIndex(null)}>取消</Button>
                                   </div>
-                                  {diagSearchResults.length > 0 && (
+                                  <TemplateCatalogSearchStatus search={diagSearch} />
+                        {diagSearchResults.length > 0 && (
                                     <div className="ai-plan-inline-search__list">
-                                      {diagSearchResults.map((diag: any) => (
-                                        <div key={diag.id || diag.code} className="ai-plan-inline-search__item" onClick={() => handleAlignDiagnosisTask(index, diag)}>
+                                      {diagSearchResults.map((diag) => (
+                                        <div key={diag.id} className="ai-plan-inline-search__item" onClick={() => handleAlignDiagnosisTask(index, diag)}>
                                           <div>
                                             <strong>{diag.display}</strong>
-                                            <small>编码: {diag.code}</small>
+                                            <small>{diag.codeSystem} · {diag.code}</small>
                                           </div>
                                           <Button size="sm" variant="secondary">选用</Button>
                                         </div>
@@ -1593,9 +1368,8 @@ export function AiPlanTemplateDraftModal({
                             <div className="ai-plan-modal-actions">
                               {activeDiagSearchTaskIndex !== index && (
                                 <Button size="sm" variant="secondary" onClick={() => {
-                                  setActiveDiagSearchTaskIndex(index)
+                                  setIsAddingDiagnosis(false); setActiveDiagSearchTaskIndex(index)
                                   setDiagSearchKeyword(task.text)
-                                  void handleSearchDiagnosis(task.text)
                                 }}>
                                   <Icon name="search" /> 对齐标准诊断
                                 </Button>
@@ -1619,19 +1393,20 @@ export function AiPlanTemplateDraftModal({
                             value={diagSearchKeyword}
                             onChange={(e) => setDiagSearchKeyword(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchDiagnosis(diagSearchKeyword) }}
-                            placeholder="输入疾病名称、编码或拼音搜索 ICD-10 标准诊断..."
+                            placeholder="输入疾病名称、编码或拼音搜索标准诊断..."
                             autoFocus
                           />
                           <Button size="sm" variant="secondary" onClick={() => void handleSearchDiagnosis(diagSearchKeyword)}>搜索</Button>
-                          <Button size="sm" variant="text" onClick={() => { setIsAddingDiagnosis(false); setDiagSearchResults([]) }}>取消</Button>
+                          <Button size="sm" variant="text" onClick={() => { setIsAddingDiagnosis(false) }}>取消</Button>
                         </div>
+                        <TemplateCatalogSearchStatus search={diagSearch} />
                         {diagSearchResults.length > 0 && (
                           <div className="ai-plan-inline-search__list">
-                            {diagSearchResults.map((diag: any) => (
-                              <div key={diag.id || diag.code} className="ai-plan-inline-search__item" onClick={() => handleSelectDiagnosis(diag)}>
+                            {diagSearchResults.map((diag) => (
+                              <div key={diag.id} className="ai-plan-inline-search__item" onClick={() => handleSelectDiagnosis(diag)}>
                                 <div>
                                   <strong>{diag.display}</strong>
-                                  <small>编码: {diag.code}</small>
+                                  <small>{diag.codeSystem} · {diag.code}</small>
                                 </div>
                                 <Button size="sm" variant="secondary">选用</Button>
                               </div>
@@ -1640,7 +1415,7 @@ export function AiPlanTemplateDraftModal({
                         )}
                       </div>
                     ) : (
-                      <Button size="sm" variant="secondary" onClick={() => { setIsAddingDiagnosis(true); setDiagSearchKeyword('') }}>
+                      <Button size="sm" variant="secondary" onClick={() => { setActiveDiagSearchTaskIndex(null); setIsAddingDiagnosis(true); setDiagSearchKeyword('') }}>
                         <Icon name="add" /> 添加标准诊断
                       </Button>
                     )}
@@ -1669,79 +1444,26 @@ export function AiPlanTemplateDraftModal({
                           <article key={`med-${idx}`} className="ai-plan-review-item ai-plan-match-result-row">
                             <div className="ai-plan-review-item__main">
                               <div className="ai-plan-review-item__title-row">
-                                <strong className="ai-plan-review-item__name">{m.medicationName || `在库药品 #${m.medicationId}`}</strong>
+                                <strong className="ai-plan-review-item__name">{m.medicationName || `目录药品 #${m.medicationId}`}</strong>
                                 <StatusBadge tone={m.preparationSpec ? 'neutral' : 'warning'}>
                                   {m.preparationSpec || '规格待确认'}
                                 </StatusBadge>
-                                <StatusBadge tone="success">{m.catalogItemId ? '在库已对齐' : '已对齐'}</StatusBadge>
+                                <StatusBadge tone="success">{m.catalogItemId ? '产品已对齐' : '已对齐'}</StatusBadge>
                               </div>
                               {editingMedIndex === idx ? (
-                                <div className="ai-plan-med-edit-form">
-                                  <label className="ai-plan-med-edit-field">
-                                    单次用量:
-                                    <input
-                                      type="number"
-                                      step="any"
-                                      min="0"
-                                      className="ai-plan-mini-input"
-                                      style={{ width: '4.5rem' }}
-                                      value={m.doseValue ?? ''}
-                                      onChange={(e) => updateMedication(idx, { doseValue: e.target.value === '' ? undefined : Number(e.target.value) })}
-                                    />
-                                    <input
-                                      type="text"
-                                      className="ai-plan-mini-input"
-                                      style={{ width: '3.5rem' }}
-                                      value={m.doseUnit || ''}
-                                      placeholder="单位"
-                                      onChange={(e) => updateMedication(idx, { doseUnit: e.target.value })}
-                                    />
-                                  </label>
-                                  <label className="ai-plan-med-edit-field">
-                                    途径:
-                                    <input
-                                      type="text"
-                                      className="ai-plan-mini-input"
-                                      style={{ width: '4.5rem' }}
-                                      value={m.routeCode || ''}
-                                      placeholder="如 口服"
-                                      onChange={(e) => updateMedication(idx, { routeCode: e.target.value })}
-                                    />
-                                  </label>
-                                  <label className="ai-plan-med-edit-field">
-                                    频次:
-                                    <input
-                                      type="text"
-                                      className="ai-plan-mini-input"
-                                      style={{ width: '4.5rem' }}
-                                      value={m.frequencyCode || ''}
-                                      placeholder="如 TID"
-                                      onChange={(e) => updateMedication(idx, { frequencyCode: e.target.value })}
-                                    />
-                                  </label>
-                                  <label className="ai-plan-med-edit-field">
-                                    疗程:
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      className="ai-plan-mini-input"
-                                      style={{ width: '3.5rem' }}
-                                      value={m.durationValue ?? ''}
-                                      onChange={(e) => updateMedication(idx, {
-                                        durationValue: e.target.value === '' ? undefined : Number(e.target.value),
-                                        durationUnit: m.durationUnit || '天',
-                                      })}
-                                    />
-                                    天
-                                  </label>
-                                  <Button size="sm" variant="secondary" onClick={() => setEditingMedIndex(null)}>完成</Button>
+                                <div>
+                                  <AiPlanMedicationFields item={m} standards={standards} disabled={saving}
+                                    onChange={patch => updateMedication(idx, patch)} />
+                                  <Button size="sm" variant="secondary" disabled={Boolean(aiMedicationValidation(m, standards))}
+                                    onClick={() => setEditingMedIndex(null)}>完成</Button>
                                 </div>
                               ) : (
                                 <small className="ai-plan-modal-row-sub">用法: {[
-                                  formatRouteName(m.routeCode),
-                                  m.frequencyCode,
+                                  formatRouteName(m.routeCode, standards?.routes),
+                                  standards?.frequencies?.find(frequency => frequency.code === m.frequencyCode)?.name || (m.frequencyCode ? `${m.frequencyCode}（待字典核对）` : '频次待确认'),
                                   medicationSingleDoseLabel(m),
-                                  m.durationValue ? `${m.durationValue}${m.durationUnit || '天'}` : '疗程待开立时确认',
+                                  m.durationValue != null ? `${m.durationValue}${m.durationUnit || '（单位待确认）'}` : '疗程待开立时确认',
+                                  Number.isFinite(m.quantity) && m.quantity > 0 ? `数量 ${m.quantity}${m.quantityUnit || '（单位待确认）'}` : '数量待确认',
                                 ].filter(Boolean).join(' · ')}</small>
                               )}
                             </div>
@@ -1764,7 +1486,7 @@ export function AiPlanTemplateDraftModal({
                           </article>
                         ))}
                         {unmatchedMedicationTasks.map(({ task, index }) => {
-                          const usageHint = parseMedicationUsageHint(task.text, task.details)
+                          const usageHint = task.details?.trim()
                           const specification = parseMedicationSpecification(task.text, task.details)
                           return (
                             <article key={`med-task-${index}`} className="ai-plan-review-item ai-plan-row-unmatched">
@@ -1774,7 +1496,6 @@ export function AiPlanTemplateDraftModal({
                                   <StatusBadge tone={specification ? 'neutral' : 'warning'}>
                                     {specification ? `建议规格：${specification}` : '规格待确认'}
                                   </StatusBadge>
-                                  {usageHint && <StatusBadge tone="neutral">用法：{usageHint}</StatusBadge>}
                                   {task.details && (
                                     <Tooltip content={<div className="ai-plan-tooltip-details">{task.details}</div>}>
                                       <Button variant="text" size="sm" type="button" className="ai-plan-info-btn" aria-label={`查看 ${task.text} 依据`}>
@@ -1783,6 +1504,7 @@ export function AiPlanTemplateDraftModal({
                                     </Tooltip>
                                   )}
                                 </div>
+                                {usageHint && <small>原始说明：{usageHint}</small>}
                                 {activeMedSearchTaskIndex === index ? (
                                   <div className="ai-plan-inline-search">
                                     <div className="ai-plan-inline-search__bar">
@@ -1792,16 +1514,17 @@ export function AiPlanTemplateDraftModal({
                                         value={medSearchKeyword}
                                         onChange={(e) => setMedSearchKeyword(e.target.value)}
                                         onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchMed(medSearchKeyword) }}
-                                        placeholder="输入药品名称搜索在库产品或通用主档..."
+                                        placeholder="输入药品名称搜索目录产品或通用主档..."
                                         autoFocus
                                       />
                                       <Button size="sm" variant="secondary" onClick={() => void handleSearchMed(medSearchKeyword)}>搜索</Button>
                                       <Button size="sm" variant="text" onClick={() => setActiveMedSearchTaskIndex(null)}>取消</Button>
                                     </div>
-                                    {medSearchResults.length > 0 && (
+                                    <TemplateCatalogSearchStatus search={medSearch} />
+                        {medSearchResults.length > 0 && (
                                       <div className="ai-plan-inline-search__list">
-                                        {medSearchResults.map((prod: any) => (
-                                          <div key={prod.id} className="ai-plan-inline-search__item" onClick={() => handleSelectMedProduct(index, prod)}>
+                                        {medSearchResults.map((prod) => (
+                                          <div key={prod.key} className="ai-plan-inline-search__item" onClick={() => handleSelectMedProduct(index, prod)}>
                                             <div>
                                               <strong>{prod.name}</strong>
                                               <small>{prod.preparationSpec || ''} {prod.tradeName ? `(${prod.tradeName})` : ''}</small>
@@ -1820,12 +1543,11 @@ export function AiPlanTemplateDraftModal({
                                   <Button size="sm" variant="secondary" onClick={() => {
                                     setActiveMedSearchTaskIndex(index)
                                     setMedSearchKeyword(task.text)
-                                    void handleSearchMed(task.text)
                                   }}>
-                                    <Icon name="search" /> 对齐在库药品
+                                    <Icon name="search" /> 对齐目录药品
                                   </Button>
                                 )}
-                                <StatusBadge tone="danger">未在库 / 待对齐</StatusBadge>
+                                <StatusBadge tone="danger">待匹配目录</StatusBadge>
                                 <Button size="sm" variant="text" aria-label={`移除任务 ${task.text}`}
                                   title="移除" onClick={() => removeTask(index)}><Icon name="close" /></Button>
                               </div>
@@ -1845,16 +1567,17 @@ export function AiPlanTemplateDraftModal({
                             value={newMedSearchKeyword}
                             onChange={(e) => setNewMedSearchKeyword(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchNewMed(newMedSearchKeyword) }}
-                            placeholder="输入药品名称搜索在库产品或通用主档..."
+                            placeholder="输入药品名称搜索目录产品或通用主档..."
                             autoFocus
                           />
                           <Button size="sm" variant="secondary" onClick={() => void handleSearchNewMed(newMedSearchKeyword)}>搜索</Button>
-                          <Button size="sm" variant="text" onClick={() => { setIsAddingMed(false); setNewMedSearchResults([]) }}>取消</Button>
+                          <Button size="sm" variant="text" onClick={() => { setIsAddingMed(false) }}>取消</Button>
                         </div>
+                        <TemplateCatalogSearchStatus search={newMedSearch} />
                         {newMedSearchResults.length > 0 && (
                           <div className="ai-plan-inline-search__list">
-                            {newMedSearchResults.map((prod: any) => (
-                              <div key={prod.id} className="ai-plan-inline-search__item" onClick={() => handleAddMedProduct(prod)}>
+                            {newMedSearchResults.map((prod) => (
+                              <div key={prod.key} className="ai-plan-inline-search__item" onClick={() => handleAddMedProduct(prod)}>
                                 <div>
                                   <strong>{prod.name}</strong>
                                   <small>{prod.preparationSpec || ''} {prod.tradeName ? `(${prod.tradeName})` : ''}</small>
@@ -1868,7 +1591,7 @@ export function AiPlanTemplateDraftModal({
                       </div>
                     ) : (
                       <Button size="sm" variant="secondary" onClick={() => { setIsAddingMed(true); setNewMedSearchKeyword('') }}>
-                        <Icon name="add" /> 添加在库药品
+                        <Icon name="add" /> 添加目录药品
                       </Button>
                     )}
                   </footer>
@@ -1907,20 +1630,17 @@ export function AiPlanTemplateDraftModal({
                             <div className="ai-plan-modal-actions">
                               {editingServiceIndex === idx ? (
                                 <div className="ai-plan-service-qty-edit">
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    className="ai-plan-mini-input"
-                                    style={{ width: '3.5rem' }}
-                                    value={s.quantity ?? ''}
-                                    onChange={(e) => updateService(idx, { quantity: e.target.value === '' ? undefined : Number(e.target.value) })}
-                                  />
-                                  <span>{s.unitCode}</span>
-                                  <Button size="sm" variant="secondary" onClick={() => setEditingServiceIndex(null)}>完成</Button>
+                                  <FormField label="项目数量" required>
+                                    <UnitNumberInput aria-label="项目数量" value={Number.isFinite(s.quantity) ? s.quantity : ''}
+                                      unit={s.unitCode ?? ''} unitReadOnly min="0" step="any"
+                                      onValueChange={value => updateService(idx, { quantity: value === '' ? Number.NaN : Number(value) })} />
+                                  </FormField>
+                                  <Button size="sm" variant="secondary" disabled={Boolean(aiServiceValidation(s))}
+                                    onClick={() => setEditingServiceIndex(null)}>完成</Button>
                                 </div>
                                 ) : (
                                   <>
-                                    <span className="ai-plan-modal-row-sub">{s.quantity || 1} {s.unitCode}</span>
+                                    <span className="ai-plan-modal-row-sub">{Number.isFinite(s.quantity) && s.quantity > 0 ? s.quantity : '数量待确认'} {s.unitCode}</span>
                                   <Button size="sm" variant="text" onClick={() => setEditingServiceIndex(idx)} title="修改数量">
                                     调量
                                   </Button>
@@ -1966,9 +1686,10 @@ export function AiPlanTemplateDraftModal({
                                     <Button size="sm" variant="secondary" onClick={() => void handleSearchService(serviceSearchKeyword)}>搜索</Button>
                                     <Button size="sm" variant="text" onClick={() => setActiveServiceSearchTaskIndex(null)}>取消</Button>
                                   </div>
-                                  {serviceSearchResults.length > 0 && (
+                                  <TemplateCatalogSearchStatus search={serviceSearch} />
+                        {serviceSearchResults.length > 0 && (
                                     <div className="ai-plan-inline-search__list">
-                                      {serviceSearchResults.map((srv: any) => (
+                                      {serviceSearchResults.map((srv) => (
                                         <div key={srv.id} className="ai-plan-inline-search__item" onClick={() => handleSelectServiceItem(index, srv)}>
                                           <div>
                                             <strong>{srv.name}</strong>
@@ -1987,7 +1708,6 @@ export function AiPlanTemplateDraftModal({
                                 <Button size="sm" variant="secondary" onClick={() => {
                                   setActiveServiceSearchTaskIndex(index)
                                   setServiceSearchKeyword(task.text)
-                                  void handleSearchService(task.text)
                                 }}>
                                   <Icon name="search" /> 对齐院内项目
                                 </Button>
@@ -2015,11 +1735,12 @@ export function AiPlanTemplateDraftModal({
                             autoFocus
                           />
                           <Button size="sm" variant="secondary" onClick={() => void handleSearchNewService(newServiceSearchKeyword)}>搜索</Button>
-                          <Button size="sm" variant="text" onClick={() => { setIsAddingService(false); setNewServiceSearchResults([]) }}>取消</Button>
+                          <Button size="sm" variant="text" onClick={() => { setIsAddingService(false) }}>取消</Button>
                         </div>
+                        <TemplateCatalogSearchStatus search={newServiceSearch} />
                         {newServiceSearchResults.length > 0 && (
                           <div className="ai-plan-inline-search__list">
-                            {newServiceSearchResults.map((srv: any) => (
+                            {newServiceSearchResults.map((srv) => (
                               <div key={srv.id} className="ai-plan-inline-search__item" onClick={() => handleAddServiceItem(srv)}>
                                 <div>
                                   <strong>{srv.name}</strong>
@@ -2055,5 +1776,40 @@ export function AiPlanTemplateDraftModal({
         </div>
       </div>
     </Dialog>
+    {pendingMedication && <Dialog title="确认药品用法与数量" size="wide" onClose={() => setPendingMedication(null)}
+      closeOnBackdrop={false} actions={<>
+        <Button variant="secondary" onClick={() => setPendingMedication(null)}>取消选药</Button>
+        <Button disabled={saving || compiling || Boolean(pendingMedicationValidation)} onClick={confirmMedication}>确认加入方案</Button>
+      </>}>
+      <p><strong>{pendingMedication.item.medicationName}</strong> · {pendingMedication.item.preparationSpec || '规格未维护'}</p>
+      {pendingMedication.source && <section aria-label="原始用药建议"><strong>原始用药建议</strong><p>{pendingMedication.source}</p></section>}
+      <p>请核对原始建议后填写用法与数量。未填写的可选信息保留为空，开立时确认。</p>
+      {pendingMedicationValidation && <div role="alert" className="doctor-plan-pool-notice">{pendingMedicationValidation}</div>}
+      {medicationStandards.isError && <div role="alert" className="doctor-plan-pool-notice">用法字典加载失败：{errorMessage(medicationStandards.error)}
+        <Button variant="text" onClick={() => void medicationStandards.refetch()}>重新加载用法字典</Button></div>}
+      <AiPlanMedicationFields item={pendingMedication.item} standards={standards} requireDirections={pendingMedication.taskIndex !== undefined} disabled={saving || compiling || pendingContextChanged}
+        onChange={patch => setPendingMedication(current => current ? { ...current, item: { ...current.item, ...patch } } : current)} />
+    </Dialog>}
+    {pendingService && <Dialog title="确认项目数量与说明" size="wide" onClose={() => setPendingService(null)} closeOnBackdrop={false}
+      actions={<>
+        <Button variant="secondary" onClick={() => setPendingService(null)}>取消选择项目</Button>
+        <Button disabled={saving || compiling || Boolean(pendingServiceValidation)} onClick={confirmService}>确认项目加入方案</Button>
+      </>}>
+      <p><strong>{pendingService.item.itemName}</strong> · {pendingService.item.itemCode}</p>
+      <p>{pendingService.item.pricingRequired ? '按目录计价，实际价格在开立时核对。' : '当前机构目录不支持计价，确认后作为不计价项目加入。'}</p>
+      {pendingService.source && <section aria-label="原始项目建议"><strong>原始项目建议</strong><p>{pendingService.source}</p></section>}
+      {pendingServiceValidation && <div role="alert" className="doctor-plan-pool-notice">{pendingServiceValidation}</div>}
+      <FormField label="项目数量" required>
+        <UnitNumberInput aria-label="项目数量" value={Number.isFinite(pendingService.item.quantity) ? pendingService.item.quantity : ''}
+          unit={pendingService.item.unitCode ?? ''} unitReadOnly min="0" step="any" disabled={saving || compiling || serviceContextChanged}
+          onValueChange={value => setPendingService(current => current ? { ...current, item: { ...current.item, quantity: value === '' ? Number.NaN : Number(value) } } : current)} />
+      </FormField>
+      <FormField label="检查检验说明">
+        <textarea aria-label="检查检验说明" className="ui-field__control" rows={3} value={pendingService.item.clinicalDescription ?? ''}
+          disabled={saving || compiling || serviceContextChanged} onChange={event => setPendingService(current => current
+            ? { ...current, item: { ...current.item, clinicalDescription: event.target.value } } : current)} />
+      </FormField>
+    </Dialog>}
+    </>
   )
 }

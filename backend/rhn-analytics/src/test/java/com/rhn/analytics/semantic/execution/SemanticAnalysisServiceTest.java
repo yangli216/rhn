@@ -105,7 +105,7 @@ class SemanticAnalysisServiceTest {
             List.of(new MetricIntent("药品费用")),
             List.of(new DimensionIntent("科室")),
             List.of(),
-            TimeIntent.monthToDate(),
+            TimeIntent.fixed("2026-09-01", "2026-09-30"),
             ScopeIntent.AUTHORIZED,
             null,
             null
@@ -179,7 +179,7 @@ class SemanticAnalysisServiceTest {
             List.of(new MetricIntent("药品费用")),
             List.of(new DimensionIntent("科室")),
             List.of(),
-            TimeIntent.monthToDate(),
+            TimeIntent.fixed("2026-09-01", "2026-09-30"),
             ScopeIntent.AUTHORIZED,
             null,
             null
@@ -194,7 +194,7 @@ class SemanticAnalysisServiceTest {
             Map.of(101L, "心血管内科")
         );
 
-        ExecutionResult result = service.executeNaturalLanguage("查看本月各科室药品费用", scope);
+        ExecutionResult result = service.executeNaturalLanguage("查看2026年9月各科室药品费用", scope);
 
         assertEquals(ResolutionStatus.READY, result.status());
         assertEquals(1, result.totalRows());

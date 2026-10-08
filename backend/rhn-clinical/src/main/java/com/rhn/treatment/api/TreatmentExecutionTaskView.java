@@ -11,7 +11,7 @@ public record TreatmentExecutionTaskView(
         Instant createdAt, Instant startedAt, Long startedBy,
         String verificationMethod, String executionSite, String startNote,
         Instant completedAt, Long completedBy, String resultCode, String completionNote,
-        boolean adverseReaction, String adverseReactionDetail, String exceptionNote,
+        @io.swagger.v3.oas.annotations.media.Schema(types = {"boolean", "null"}) Boolean adverseReaction, String adverseReactionDetail, String exceptionNote,
         List<TreatmentExecutionItemView> items) {
 
     public record TreatmentExecutionItemView(

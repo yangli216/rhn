@@ -42,13 +42,17 @@ export function AnnotatedTextarea({ value, onValueChange, annotations, showAnnot
       if (event.key === 'Escape') { event.stopPropagation(); setActive(null); trigger.current?.focus() }
     }
     const moved = () => setActive(null)
+    const scrolled = (event: Event) => {
+      if (event.target instanceof Node && popup.current?.contains(event.target)) return
+      moved()
+    }
     document.addEventListener('mousedown', dismiss)
     document.addEventListener('keydown', key)
     window.addEventListener('resize', moved)
-    window.addEventListener('scroll', moved, true)
+    window.addEventListener('scroll', scrolled, true)
     return () => {
       document.removeEventListener('mousedown', dismiss); document.removeEventListener('keydown', key)
-      window.removeEventListener('resize', moved); window.removeEventListener('scroll', moved, true)
+      window.removeEventListener('resize', moved); window.removeEventListener('scroll', scrolled, true)
     }
   }, [active])
   const editAll = () => {

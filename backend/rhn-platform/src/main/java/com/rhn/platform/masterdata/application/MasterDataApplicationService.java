@@ -186,11 +186,18 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 .findByTenantIdAndItemTypeOrderByName(context.tenantId(), "SERVICE").stream()
                 .filter(value -> blank(serviceType) || serviceType.equals(value.serviceType()))
                 .filter(value -> blank(status) || status.equals(value.status()))
-                .limit(500).toList();
-        return serviceViews(context.tenantId(), items, organizationId).stream()
-                .filter(value -> matchesServiceView(query, value) || searchIds.contains(value.id()))
-                .limit(500)
                 .toList();
+        int resultLimit = 500;
+        List<ServiceView> matches = new java.util.ArrayList<>();
+        // Enrich bounded batches, but apply the response limit only after matching.
+        // A matching service may appear anywhere in the tenant's sorted catalog.
+        for (int offset = 0; offset < items.size() && matches.size() < resultLimit; offset += resultLimit) {
+            List<ServiceCatalogItem> batch = items.subList(offset, Math.min(offset + resultLimit, items.size()));
+            serviceViews(context.tenantId(), batch, organizationId).stream()
+                    .filter(value -> matchesServiceView(query, value) || searchIds.contains(value.id()))
+                    .limit(resultLimit - matches.size()).forEach(matches::add);
+        }
+        return List.copyOf(matches);
     }
 
     @Transactional(readOnly = true)
@@ -211,38 +218,54 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional(readOnly = true)
     public List<ServiceView> searchOrderableServices(String query, String serviceType, Long organizationId, LocalDate date) {
         if (!java.util.Set.of("LABORATORY", "EXAMINATION").contains(serviceType)) return List.of();
-        return searchServices(query, serviceType, "ACTIVE", organizationId, 0, 100).content().stream()
-                .filter(value -> value.orderable() && java.util.Set.of("OUTPATIENT", "COMMON").contains(value.sdUsageType()))
-                .filter(value -> value.validFrom() == null || !value.validFrom().isAfter(date))
-                .filter(value -> value.validTo() == null || !value.validTo().isBefore(date))
-                .filter(value -> value.organizationAdoption() != null
-                        && organizationId.equals(value.organizationAdoption().organizationId())
-                        && "ACTIVE".equals(value.organizationAdoption().sdStatus())
-                        && value.organizationAdoption().orderable() && value.organizationAdoption().executable()
-                        && (value.organizationAdoption().validFrom() == null || !value.organizationAdoption().validFrom().isAfter(date))
-                        && (value.organizationAdoption().validTo() == null || !value.organizationAdoption().validTo().isBefore(date)))
-                .limit(8).toList();
+        requireClinicalCatalogContext(organizationId, date);
+        ExecutionContext context = current();
+        Collection<Long> searchIds = queryIds("CATALOG_ITEM", query, organizationId, context);
+        var candidates = serviceRepository.searchClinicalCandidates(context.tenantId(), query, searchIds, serviceType, organizationId);
+        var result = new java.util.ArrayList<ServiceView>();
+        // Batch enrichment bounds IN clauses and related reads; it is not a result limit.
+        int batchSize = 100;
+        for (int offset = 0; offset < candidates.size(); offset += batchSize) {
+            var batch = candidates.subList(offset, Math.min(offset + batchSize, candidates.size()));
+            serviceViews(context.tenantId(), batch, organizationId, date).stream()
+                    .filter(value -> matchesServiceView(query, value) || searchIds.contains(value.id()))
+                    .filter(value -> orderableService(value, organizationId, date)).forEach(result::add);
+        }
+        return List.copyOf(result);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ServiceView> findOrderableServicesByIds(Collection<Long> serviceIds, Long organizationId, LocalDate date) {
         if (serviceIds == null || serviceIds.isEmpty()) return List.of();
+        requireClinicalCatalogContext(organizationId, date);
         ExecutionContext context = current();
-        List<ServiceCatalogItem> items = serviceRepository.findAllById(serviceIds).stream()
-                .filter(item -> context.tenantId().equals(item.tenantId()) && "ACTIVE".equals(item.status()))
+        List<ServiceCatalogItem> items = serviceRepository.findByTenantIdAndItemTypeAndIdIn(context.tenantId(), "SERVICE", serviceIds).stream()
+                .filter(item -> "ACTIVE".equals(item.status()))
                 .toList();
-        return serviceViews(context.tenantId(), items, organizationId).stream()
-                .filter(value -> value.orderable() && java.util.Set.of("OUTPATIENT", "COMMON").contains(value.sdUsageType()))
-                .filter(value -> value.validFrom() == null || !value.validFrom().isAfter(date))
-                .filter(value -> value.validTo() == null || !value.validTo().isBefore(date))
-                .filter(value -> value.organizationAdoption() != null
-                        && organizationId.equals(value.organizationAdoption().organizationId())
-                        && "ACTIVE".equals(value.organizationAdoption().sdStatus())
-                        && value.organizationAdoption().orderable() && value.organizationAdoption().executable()
-                        && (value.organizationAdoption().validFrom() == null || !value.organizationAdoption().validFrom().isAfter(date))
-                        && (value.organizationAdoption().validTo() == null || !value.organizationAdoption().validTo().isBefore(date)))
-                .toList();
+        var result = new java.util.ArrayList<ServiceView>();
+        for (int offset = 0; offset < items.size(); offset += 100) {
+            serviceViews(context.tenantId(), items.subList(offset, Math.min(offset + 100, items.size())), organizationId, date)
+                    .stream().filter(value -> orderableService(value, organizationId, date)).forEach(result::add);
+        }
+        return List.copyOf(result);
+    }
+
+    private void requireClinicalCatalogContext(Long organizationId, LocalDate date) {
+        if (organizationId == null || date == null) throw badRequest("CLINICAL_CATALOG_CONTEXT_REQUIRED", "检索可开立目录必须明确机构和业务日期");
+    }
+
+    private boolean orderableService(ServiceView value, Long organizationId, LocalDate date) {
+        var adoption = value.organizationAdoption();
+        return value.orderable() && "ACTIVE".equals(value.sdStatus())
+                && ("OUTPATIENT".equals(value.sdUsageType()) || "COMMON".equals(value.sdUsageType()))
+                && value.validFrom() != null && !value.validFrom().isAfter(date)
+                && (value.validTo() == null || !value.validTo().isBefore(date))
+                && adoption != null && organizationId.equals(adoption.organizationId())
+                && value.id().equals(adoption.catalogItemId()) && "ACTIVE".equals(adoption.sdStatus())
+                && adoption.orderable() && adoption.executable()
+                && adoption.validFrom() != null && !adoption.validFrom().isAfter(date)
+                && (adoption.validTo() == null || !adoption.validTo().isBefore(date));
     }
 
     @Override
@@ -774,8 +797,12 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     }
 
     private List<ServiceView> serviceViews(Long tenantId, List<ServiceCatalogItem> items, Long organizationId) {
+        return serviceViews(tenantId, items, organizationId, LocalDate.now());
+    }
+
+    private List<ServiceView> serviceViews(Long tenantId, List<ServiceCatalogItem> items, Long organizationId, LocalDate at) {
         List<Long> ids = items.stream().map(ServiceCatalogItem::id).toList();
-        Map<Long, OrganizationCatalogItem> adoptions = adoptionMap(tenantId, organizationId, ids);
+        Map<Long, OrganizationCatalogItem> adoptions = adoptionMap(tenantId, organizationId, ids, at);
         Map<Long, List<CatalogPrice>> prices = priceMap(tenantId, ids);
         Map<Long, LaboratoryService> laboratories = laboratoryServiceRepository
                 .findByTenantIdAndCatalogItemIdIn(tenantId, ids).stream()
@@ -901,8 +928,11 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     }
 
     private Map<Long, OrganizationCatalogItem> adoptionMap(Long tenantId, Long organizationId, Collection<Long> itemIds) {
+        return adoptionMap(tenantId, organizationId, itemIds, LocalDate.now());
+    }
+
+    private Map<Long, OrganizationCatalogItem> adoptionMap(Long tenantId, Long organizationId, Collection<Long> itemIds, LocalDate today) {
         if (organizationId == null || itemIds.isEmpty()) return Map.of();
-        java.time.LocalDate today = java.time.LocalDate.now();
         Map<Long, OrganizationCatalogItem> localRules = adoptionRepository
                 .findByTenantIdAndOrganizationIdAndCatalogItemIdIn(tenantId, organizationId, itemIds).stream()
                 .filter(value -> value.overlaps(today, today))
@@ -1018,6 +1048,10 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
             }
         }
         if (command.skinTestRequired()) {
+            if (blank(command.skinTestMethod()) || blank(command.skinTestSolutionMode())
+                    || command.skinTestObservationMinutes() == null || command.skinTestResultValidityHours() == null) {
+                throw badRequest("MEDICATION_SKIN_TEST_CONFIGURATION_REQUIRED", "需皮试药品必须明确维护皮试方式、试液方式、观察时长和结果有效期");
+            }
             if (!Set.of("INTRADERMAL", "PRICK", "OTHER").contains(skinTestMethod(command))) {
                 throw badRequest("MEDICATION_SKIN_TEST_METHOD_INVALID", "皮试方式不正确");
             }
@@ -1068,21 +1102,21 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     }
 
     private String skinTestMethod(MedicationCommand command) {
-        return command.skinTestRequired() ? defaultIfBlank(command.skinTestMethod(), "INTRADERMAL") : null;
+        return command.skinTestRequired() ? defaultIfBlank(command.skinTestMethod(), null) : null;
     }
 
     private String skinTestSolutionMode(MedicationCommand command) {
-        return command.skinTestRequired() ? defaultIfBlank(command.skinTestSolutionMode(), "DILUTED_SOLUTION") : null;
+        return command.skinTestRequired() ? defaultIfBlank(command.skinTestSolutionMode(), null) : null;
     }
 
     private Integer skinTestObservationMinutes(MedicationCommand command) {
         return command.skinTestRequired()
-                ? (command.skinTestObservationMinutes() == null ? 20 : command.skinTestObservationMinutes()) : null;
+                ? command.skinTestObservationMinutes() : null;
     }
 
     private Integer skinTestResultValidityHours(MedicationCommand command) {
         return command.skinTestRequired()
-                ? (command.skinTestResultValidityHours() == null ? 24 : command.skinTestResultValidityHours()) : null;
+                ? command.skinTestResultValidityHours() : null;
     }
 
     private String skinTestInstructions(MedicationCommand command) {

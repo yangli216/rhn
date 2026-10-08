@@ -10662,6 +10662,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/cashier-closes/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["previewCashierClose"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/practitioners/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["onboardStaff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/{encounterId}/order-drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["saveOutpatientOrderDrafts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -11021,10 +11069,11 @@ export interface components {
             /** @example 824633720832983041 */
             conceptId?: string;
             inclusionMode?: string;
-            code?: string;
+            code?: string | null;
             display?: string;
             systemName?: string;
-            sdDiagnosisDomain?: string;
+            sdDiagnosisDomain?: string | null;
+            note: string | null;
             /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
             readonly sdDiagnosisDomainText?: string;
         };
@@ -13324,11 +13373,17 @@ export interface components {
             readonly sdSlotModeText?: string;
         };
         DiagnosisInput: {
-            codeSystem?: string;
-            diagnosisDomain?: string;
+            /** @example 824633720832983041 */
+            conceptId?: string;
+            diagnosisDomain?: string | null;
             code: string;
             display: string;
-            type: string;
+            /** @enum {string} */
+            type: "PRIMARY" | "SECONDARY";
+            diagnosisGroupId?: string;
+            codeSystem?: string | null;
+            /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
+            readonly diagnosisDomainText?: string;
         };
         MedicationInput: {
             /** @example 824633720832983041 */
@@ -13430,6 +13485,9 @@ export interface components {
             code: string;
             display: string;
             diagnosisType: string;
+            /** @example 824633720832983041 */
+            conceptId?: string | null;
+            diagnosisDomain?: string | null;
         };
         DischargeDiagnosesRequest: {
             /** @example 824633720832983041 */
@@ -13453,6 +13511,11 @@ export interface components {
             diagnosisType?: string;
             verificationStatus?: string;
             diagnosisStatus?: string;
+            /** @example 824633720832983041 */
+            conceptId?: string | null;
+            diagnosisDomain?: string | null;
+            /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
+            readonly diagnosisDomainText?: string;
         };
         AdmissionDiagnosesRequest: {
             /** @example 824633720832983041 */
@@ -13465,6 +13528,9 @@ export interface components {
             display: string;
             diagnosisType: string;
             verificationStatus: string;
+            /** @example 824633720832983041 */
+            conceptId?: string | null;
+            diagnosisDomain?: string | null;
         };
         AdmissionDiagnosisListView: {
             /** @example 824633720832983041 */
@@ -13482,6 +13548,11 @@ export interface components {
             diagnosisType?: string;
             verificationStatus?: string;
             diagnosisStatus?: string;
+            /** @example 824633720832983041 */
+            conceptId?: string | null;
+            diagnosisDomain?: string | null;
+            /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
+            readonly diagnosisDomainText?: string;
         };
         DiagnosisLink: {
             code: string;
@@ -13782,14 +13853,18 @@ export interface components {
             conceptId?: string;
             systemCode?: string;
             systemVersion?: string;
-            diagnosisDomain?: string;
+            diagnosisDomain?: string | null;
             diagnosisGroupId?: string;
             code?: string;
             display?: string;
             type?: string;
             /** Format: int32 */
             sortOrder?: number;
-            managementPrograms?: components["schemas"]["ManagementProgramResponse"][];
+            /** @enum {string} */
+            managementResolutionStatus: "CONFIRMED" | "UNCONFIRMED";
+            managementPrograms?: components["schemas"]["ManagementProgramResponse"][] | null;
+            /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
+            readonly diagnosisDomainText?: string;
         };
         EncounterResponse: {
             /** @example 824633720832983041 */
@@ -14008,7 +14083,7 @@ export interface components {
             /** @example 824633720832983041 */
             expectedRevision: string;
             identityVerified: boolean;
-            verificationMethod?: string;
+            verificationMethod: string;
             executionSite?: string;
             note?: string;
         };
@@ -14085,7 +14160,7 @@ export interface components {
             completedBy?: string;
             resultCode?: string;
             completionNote?: string;
-            adverseReaction?: boolean;
+            adverseReaction?: boolean | null;
             adverseReactionDetail?: string;
             exceptionNote?: string;
             items?: components["schemas"]["TreatmentExecutionItemView"][];
@@ -14093,9 +14168,9 @@ export interface components {
         CompleteRequest: {
             /** @example 824633720832983041 */
             expectedRevision: string;
-            resultCode?: string;
+            resultCode: string;
             note?: string;
-            adverseReaction?: boolean;
+            adverseReaction: boolean;
             adverseReactionDetail?: string;
         };
         StartSkinTestRequest: {
@@ -15359,6 +15434,7 @@ export interface components {
             canonicalUri?: string;
             version: string;
             systemType?: string;
+            /** @description systemType 为 DISEASE 时必须明确指定；不根据编码或名称推定诊断体系 */
             sdDiagnosisDomain?: string;
             publisher?: string;
             description?: string;
@@ -20495,7 +20571,7 @@ export interface components {
             coverageId?: string;
             insuranceTypeCode?: string;
             regionCode?: string;
-            idempotencyKey?: string;
+            idempotencyKey: string;
         };
         InsuranceClaimLineView: {
             /** @example 824633720832983041 */
@@ -20524,14 +20600,16 @@ export interface components {
             operation?: string;
             status?: string;
             externalSettlementNo?: string;
-            insuranceFundAmount?: number;
-            personalAccountAmount?: number;
-            patientCashAmount?: number;
-            otherFundAmount?: number;
+            insuranceFundAmount?: number | null;
+            personalAccountAmount?: number | null;
+            patientCashAmount?: number | null;
+            otherFundAmount?: number | null;
             errorCode?: string;
             errorMessage?: string;
             /** Format: date-time */
             respondedAt?: string;
+            /** @enum {string} */
+            amountSource: "REPORTED" | "LEGACY_UNVERIFIED";
         };
         InsuranceSettlementView: {
             /** @example 824633720832983041 */
@@ -20586,7 +20664,7 @@ export interface components {
             practitionerCode: string;
             diagnosisPayloadDigest: string;
             /** Format: date-time */
-            serviceStartedAt?: string;
+            serviceStartedAt: string;
             /** Format: date-time */
             serviceEndedAt?: string;
             correlationId?: string;
@@ -24152,10 +24230,12 @@ export interface components {
             sourceEncounterTime?: string;
             conditionTitle?: string;
             summary?: string;
-            diagnoses?: components["schemas"]["DiagnosisInput"][];
-            medications?: components["schemas"]["MedicationInput"][];
-            services?: components["schemas"]["ServiceInput"][];
+            diagnoses?: components["schemas"]["OutpatientPlanTemplateDiagnosisInput"][];
+            medications?: components["schemas"]["OutpatientPlanTemplateMedicationInput"][];
+            services?: components["schemas"]["OutpatientPlanTemplateServiceInput"][];
             guidanceNotes?: string[];
+            reviewItems: components["schemas"]["HistoricalPlanReviewItem"][];
+            assessedCategories: string[];
         };
         DiagnosisSnapshot: {
             codeSystem?: string;
@@ -24312,7 +24392,7 @@ export interface components {
             oxygenSaturation?: number;
             heightCm?: number;
             weightKg?: number;
-            diagnoses?: components["schemas"]["DiagnosisInput"][];
+            diagnoses?: components["schemas"]["ClinicalAssistantDiagnosisInput"][];
             allergyHistory?: string;
             medicationHistory?: string;
             auxiliaryExaminations?: string;
@@ -24521,6 +24601,66 @@ export interface components {
             origin: string;
             status: string;
             details?: string;
+        };
+        CashierClosePreview: {
+            currencyCode?: string;
+            /** Format: int32 */
+            transactionCount?: number;
+            lines?: components["schemas"]["CashierClosePreviewLine"][];
+        };
+        CashierClosePreviewLine: {
+            paymentMethodCode?: string;
+            paymentType?: string;
+            /** Format: int32 */
+            transactionCount?: number;
+            expectedAmount?: number;
+        };
+        OnboardStaffRequest: {
+            code: string;
+            fullName: string;
+            /** @enum {string} */
+            sdPractGender: "MALE" | "FEMALE" | "UNKNOWN";
+            /** @example 824633720832983041 */
+            organizationId: string;
+            /** @example 824633720832983041 */
+            departmentId: string;
+            /** @example 824633720832983041 */
+            positionId: string;
+            /** Format: date */
+            hireDate: string;
+        };
+        OrderDraftSaveRequest: {
+            commandCode: string;
+            medicationItems: components["schemas"]["BatchOrderMedicationItem"][];
+            serviceItems: components["schemas"]["CreateServiceRequest"][];
+        };
+        OrderDraftSaveResponse: {
+            commandCode?: string;
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            prescriptions?: components["schemas"]["PrescriptionResponse"][];
+            services?: components["schemas"]["ServiceRequestResponse"][];
+        };
+        HistoricalPlanReviewItem: {
+            category?: string;
+            /** @example 824633720832983041 */
+            sourceId?: string;
+            /** @example 824633720832983041 */
+            medicationId?: string;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            code?: string;
+            display?: string;
+            reason?: string;
+        };
+        ClinicalAssistantDiagnosisInput: {
+            code: string;
+            display: string;
+            type: string;
+            /** @example 824633720832983041 */
+            conceptId?: string | null;
+            codeSystem?: string | null;
+            diagnosisDomain?: string | null;
         };
     };
     responses: never;
@@ -41054,7 +41194,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
                 "application/json": components["schemas"]["QuickPreSettleRequest"];
             };
@@ -49947,6 +50087,107 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    previewCashierClose: {
+        parameters: {
+            query: {
+                terminalCode: string;
+                rangeFrom: string;
+                rangeTo: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CashierClosePreview"];
+                };
+            };
+        };
+    };
+    onboardStaff: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardStaffRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StaffDetailView"];
+                };
+            };
+        };
+    };
+    saveOutpatientOrderDrafts: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderDraftSaveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OrderDraftSaveResponse"];
+                };
             };
         };
     };

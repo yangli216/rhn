@@ -58,9 +58,9 @@ export interface PrescriptionPreview {
   residentId: string
   departmentId: string
   prescriptionStatus: string
-  patientContext: PatientSimulationContext
+  patientContext: PatientSimulationContext | null
   items: Array<MedicationTrialItem & {
-    medicationName: string
+    medicationName: string | null
     preparationSpec: string | null
     historicalSnapshotAvailable: boolean
   }>

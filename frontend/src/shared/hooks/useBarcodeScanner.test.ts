@@ -66,4 +66,31 @@ describe('useBarcodeScanner', () => {
 
     expect(onScan).not.toHaveBeenCalled()
   })
+
+  it.each(['ctrlKey', 'metaKey', 'altKey'])('does not consume %s+Enter after rapid typing', (modifier) => {
+    const onScan = vi.fn()
+    renderHook(() => useBarcodeScanner({ onScan }))
+    for (const key of '28.6') window.dispatchEvent(new KeyboardEvent('keydown', { key }))
+    const event = new KeyboardEvent('keydown', { key: 'Enter', [modifier]: true, cancelable: true })
+    window.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(onScan).not.toHaveBeenCalled()
+  })
+
+  it('does not scan cash input or leave cash digits in the next scan buffer', () => {
+    const onScan = vi.fn()
+    renderHook(() => useBarcodeScanner({ onScan }))
+    const input = document.createElement('input')
+    input.dataset.barcodeScan = 'ignore'
+    document.body.appendChild(input)
+    try {
+      for (const key of ['2', '8', '.', '6', 'Enter']) {
+        input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+      }
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+      expect(onScan).not.toHaveBeenCalled()
+    } finally {
+      input.remove()
+    }
+  })
 })

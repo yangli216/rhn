@@ -64,8 +64,11 @@ public class ItemTermMapping {
         if ("RETIRED".equals(status) && validTo == null) {
             throw new IllegalArgumentException("停用映射必须指定失效日期");
         }
+        if (!"RETIRED".equals(status) && validTo != null && !validTo.equals(this.validTo)) {
+            throw new IllegalArgumentException("暂停或恢复映射不能修改失效日期");
+        }
         this.status = status;
-        this.validTo = validTo;
+        if ("RETIRED".equals(status)) this.validTo = validTo;
         this.updatedAt = Instant.now();
         this.updatedBy = actorId;
     }

@@ -64,6 +64,7 @@ class ItemGroupDirectoryServiceTest {
         assertEquals(1, result.size());
         assertEquals(new BigDecimal("2.5"), result.getFirst().members().getFirst().quantity());
         assertEquals("EA", result.getFirst().members().getFirst().unitCode());
+        assertEquals("ML", result.getFirst().members().getFirst().catalogUnitCode());
         when(member.unitCode()).thenReturn(null);
         assertEquals("ML", directory.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today)
                 .getFirst().members().getFirst().unitCode());
@@ -83,14 +84,51 @@ class ItemGroupDirectoryServiceTest {
         assertTrue(directory.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today).isEmpty());
     }
 
-    @Test void skipsUnavailableOptionalMemberButRejectsUnavailableRequiredMember() {
+    @Test void reportsUnavailableOptionalMemberRatherThanPresentingAPartialGroupAsComplete() {
         ItemGroupMember optional = mock(ItemGroupMember.class);
         when(optional.catalogItemId()).thenReturn(21L);
         when(members.findByTenantIdAndItemGroupIdOrderBySortOrder(1L, 10L)).thenReturn(List.of(member, optional));
-        assertEquals(1, directory.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today)
-                .getFirst().members().size());
+        var snapshot = directory.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today).getFirst();
+        assertEquals(1, snapshot.members().size());
+        assertEquals(List.of(21L), snapshot.unavailableOptionalMemberIds());
         when(optional.requiredMember()).thenReturn(true);
         assertTrue(directory.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today).isEmpty());
+    }
+
+    @Test void retainsAvailabilityGapEvenWhenNoOptionalMemberIsCurrentlyOrderable() {
+        when(member.requiredMember()).thenReturn(false);
+        when(adoption.executable()).thenReturn(false);
+        var snapshot = directory.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today).getFirst();
+        assertTrue(snapshot.members().isEmpty());
+        assertEquals(List.of(20L), snapshot.unavailableOptionalMemberIds());
+    }
+
+    @Test void chargeabilityRequiresBothCatalogAndCurrentInstitutionCapability() {
+        when(item.chargeable()).thenReturn(true);
+        when(adoption.chargeable()).thenReturn(true);
+        assertTrue(directory.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today).getFirst().members().getFirst().chargeable());
+        when(adoption.chargeable()).thenReturn(false);
+        assertFalse(directory.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today).getFirst().members().getFirst().chargeable());
+        when(adoption.chargeable()).thenReturn(true);
+        when(item.chargeable()).thenReturn(false);
+        assertFalse(directory.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today).getFirst().members().getFirst().chargeable());
+    }
+
+    @Test void doesNotHideGroupsBeyondTheFirstTwentyMatches() {
+        var candidates = new java.util.ArrayList<ItemGroup>();
+        for (long id = 100; id < 121; id++) {
+            var value = mock(ItemGroup.class);
+            when(value.id()).thenReturn(id);
+            when(value.organizationId()).thenReturn(null);
+            when(value.name()).thenReturn("肾功能" + id);
+            when(value.groupType()).thenReturn("LIS");
+            when(value.status()).thenReturn("ACTIVE");
+            when(value.validFrom()).thenReturn(today);
+            when(members.findByTenantIdAndItemGroupIdOrderBySortOrder(1L, id)).thenReturn(List.of(member));
+            candidates.add(value);
+        }
+        when(groups.findByTenantIdOrderByName(1L)).thenReturn(candidates);
+        assertEquals(21, directory.searchOrderableGroups(1L, 3L, "LABORATORY", "肾功能", today).size());
     }
 
     @Test void respectsGroupScopeAndUsageAndAdoptionAvailability() {

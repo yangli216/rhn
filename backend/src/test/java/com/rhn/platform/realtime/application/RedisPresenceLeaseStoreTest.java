@@ -2,6 +2,8 @@ package com.rhn.platform.realtime.application;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.ZSetOperations;
@@ -17,12 +19,15 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 class RedisPresenceLeaseStoreTest {
     private final StringRedisTemplate redis = mock(StringRedisTemplate.class);
@@ -109,6 +114,71 @@ class RedisPresenceLeaseStoreTest {
 
     private RedisPresenceLeaseStore store() {
         return new RedisPresenceLeaseStore(redis, jsonCodec, Duration.ofSeconds(75), "rhn:presence:");
+    }
+
+    @Test
+    void an_empty_index_is_a_real_empty_result_but_a_missing_index_response_is_not() {
+        assertThat(store().findByTenant(1L)).isEmpty();
+        when(sortedSets.rangeByScore(anyString(), anyDouble(), anyDouble())).thenReturn(null);
+        assertThatThrownBy(() -> store().findByTenant(1L)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> store().activeTenants()).isInstanceOf(IllegalStateException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"null", "short", "long"})
+    void incomplete_bulk_responses_cannot_masquerade_as_no_online_users(String response) {
+        var store = store();
+        store.upsert(snapshot("connection-a", 1L, 2L, "doctor", Instant.now()));
+        when(values.multiGet(any(Collection.class))).thenReturn(switch (response) {
+            case "null" -> null;
+            case "short" -> List.of();
+            default -> List.of("{}", "{}");
+        });
+        assertThatThrownBy(() -> store.findByTenant(1L)).isInstanceOf(IllegalStateException.class);
+        assertThat(payloads).hasSize(1);
+        assertThat(indexes.get(store.indexKey(1L))).hasSize(1);
+        verify(redis, never()).delete(anyString());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"malformed", "null", "tenantId", "connectionId", "connectedAt", "lastSeenAt", "lastActivityAt", "userId", "instanceId", "username"})
+    void corrupt_leases_are_not_silently_deleted_or_omitted(String field) {
+        var store = store();
+        store.upsert(snapshot("connection-a", 1L, 2L, "doctor", Instant.now()));
+        store.upsert(snapshot("connection-b", 1L, 3L, "nurse", Instant.now()));
+        String key = store.leaseKey(1L, "connection-a");
+        String corrupt;
+        if (field.equals("malformed")) corrupt = "broken-json";
+        else if (field.equals("null")) corrupt = "null";
+        else {
+            Map<String, Object> value = jsonCodec.readObject(payloads.get(key));
+            value.put(field, field.equals("tenantId") ? 99L : field.equals("connectionId") ? "wrong-connection" : null);
+            corrupt = jsonCodec.write(value);
+        }
+        payloads.put(key, corrupt);
+        assertThatThrownBy(() -> store.findByTenant(1L)).isInstanceOf(IllegalStateException.class);
+        assertThat(payloads.get(key)).isEqualTo(corrupt);
+        assertThat(indexes.get(store.indexKey(1L))).hasSize(2);
+        verify(redis, never()).delete(anyString());
+    }
+
+    @Test
+    void a_lease_that_really_expired_between_index_and_value_reads_is_removed_from_the_index() {
+        var store = store();
+        store.upsert(snapshot("connection-a", 1L, 2L, "doctor", Instant.now()));
+        payloads.clear();
+        assertThat(store.findByTenant(1L)).isEmpty();
+        assertThat(indexes.get(store.indexKey(1L))).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"invalid", "0", "-1", "01"})
+    void corrupt_tenant_indexes_are_reported_instead_of_returning_partial_coverage(String identifier) {
+        var store = store();
+        store.upsert(snapshot("connection-a", 1L, 2L, "doctor", Instant.now()));
+        indexes.get(store.tenantIndexKey()).put(identifier, (double) Instant.now().plusSeconds(90).toEpochMilli());
+        assertThatThrownBy(store::activeTenants).isInstanceOf(IllegalStateException.class);
+        assertThat(indexes.get(store.tenantIndexKey())).containsKey(identifier);
     }
 
     private PresenceConnectionSnapshot snapshot(String connectionId, Long tenantId, Long userId,

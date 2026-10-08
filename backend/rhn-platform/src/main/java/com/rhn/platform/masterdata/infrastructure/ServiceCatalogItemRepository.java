@@ -28,7 +28,30 @@ public interface ServiceCatalogItemRepository extends JpaRepository<ServiceCatal
 
     List<ServiceCatalogItem> findByTenantIdAndItemTypeOrderByName(Long tenantId, String itemType);
     Optional<ServiceCatalogItem> findByIdAndTenantIdAndItemType(Long id, Long tenantId, String itemType);
+    List<ServiceCatalogItem> findByTenantIdAndItemTypeAndIdIn(Long tenantId, String itemType, java.util.Collection<Long> ids);
     boolean existsByTenantIdAndCode(Long tenantId, String code);
+
+    @Query("""
+            select s from ServiceCatalogItem s
+            where s.tenantId = :tenantId and s.itemType = 'SERVICE' and s.status = 'ACTIVE'
+              and s.serviceType = :serviceType
+              and (:query is null or :query = '' or lower(s.code) like lower(concat(:query, '%'))
+                   or lower(s.name) like lower(concat('%', :query, '%'))
+                   or lower(coalesce(s.serviceSubtype, '')) like lower(concat('%', :query, '%'))
+                   or lower(coalesce(s.specimenType, '')) like lower(concat('%', :query, '%'))
+                   or lower(coalesce(s.examinationType, '')) like lower(concat('%', :query, '%'))
+                   or lower(coalesce(s.accountingCategory, '')) like lower(concat('%', :query, '%'))
+                   or s.id in :searchIds
+                   or exists (select local.id from OrganizationCatalogItem local
+                       where local.tenantId = s.tenantId and local.catalogItemId = s.id
+                         and local.organizationId = :organizationId
+                         and (lower(local.localCode) like lower(concat(:query, '%'))
+                              or lower(local.localName) like lower(concat('%', :query, '%')))))
+            order by s.name, s.id
+            """)
+    List<ServiceCatalogItem> searchClinicalCandidates(@Param("tenantId") Long tenantId, @Param("query") String query,
+            @Param("searchIds") java.util.Collection<Long> searchIds, @Param("serviceType") String serviceType,
+            @Param("organizationId") Long organizationId);
 
     @Query("""
             select s from ServiceCatalogItem s

@@ -1,18 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { RhnApi } from '../rhnApi'
-import type { GridAddressLevel, GridAddressNode } from '../api/gridAddressApi'
+import { errorMessage, type RhnApi } from '../rhnApi'
+import type { GridAddressNode } from '../api/gridAddressApi'
+import { GRID_ADDRESS_LEVELS as LEVELS, gridAddressValueFromPath, inspectGridAddressPath, requireGridAddressOptions, type GridAddressValue } from '../validation/gridAddressFacts'
 import { Icon } from './Icon'
 import { pinyinInitials } from './pinyinInitials'
+import { Button } from './index'
 
-export interface GridAddressValue {
-  provinceCode?: string
-  cityCode?: string
-  districtCode?: string
-  streetCode?: string
-  communityCode?: string
-}
+export type { GridAddressValue } from '../validation/gridAddressFacts'
 
 export interface GridAddressInputProps {
   api: Pick<RhnApi['gridAddresses'], 'list'>
@@ -24,14 +20,6 @@ export interface GridAddressInputProps {
   className?: string
   placeholder?: string
 }
-
-const LEVELS: Array<{ level: GridAddressLevel; key: keyof GridAddressValue; label: string }> = [
-  { level: 'PROVINCE', key: 'provinceCode', label: '省' },
-  { level: 'CITY', key: 'cityCode', label: '市' },
-  { level: 'COUNTY', key: 'districtCode', label: '县/区' },
-  { level: 'STREET', key: 'streetCode', label: '街道/乡镇' },
-  { level: 'COMMUNITY', key: 'communityCode', label: '社区/村' },
-]
 
 interface PopoverPosition {
   top?: number
@@ -45,6 +33,7 @@ interface PopoverPosition {
 export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabled, required,
   className = '', placeholder }: GridAddressInputProps) {
   const controlId = useId()
+  const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -55,15 +44,19 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
   const [position, setPosition] = useState<PopoverPosition>()
   const queryResult = useQuery({
     queryKey: ['grid-address-options', levels],
-    queryFn: () => api.list(levels),
+    queryFn: async () => requireGridAddressOptions(await api.list(levels), levels),
     staleTime: 10 * 60 * 1000,
   })
-  const nodes = queryResult.data ?? []
+  const ready = queryResult.isSuccess && !queryResult.isFetching
+  const nodes = ready ? queryResult.data : []
   const nodeByCode = useMemo(() => new Map(nodes.map((node) => [node.code, node])), [nodes])
   const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes])
   const visibleLevels = LEVELS.slice(0, levels)
-  const selectedPath = pathFromValue(value, visibleLevels, nodeByCode)
-  const draftPath = pathFromValue(draft, visibleLevels, nodeByCode)
+  const selectedFacts = inspectGridAddressPath(value, levels, nodeByCode)
+  const selectedPath = selectedFacts.issue ? [] : selectedFacts.path
+  const draftFacts = inspectGridAddressPath(draft, levels, nodeByCode, false)
+  const draftPath = draftFacts.path
+  const hasValue = LEVELS.some(({ key }) => value[key] != null && value[key] !== '')
   const targetLevel = visibleLevels.at(-1)!.level
   const searchResults = useMemo(() => {
     const keyword = normalize(query)
@@ -71,27 +64,29 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
     return nodes.filter((node) => node.level === targetLevel && searchable(node).some((text) => normalize(text).includes(keyword)))
   }, [nodes, query, targetLevel])
   const selectedNode = selectedPath.at(-1)
-  const unavailable = disabled || queryResult.isPending || queryResult.isError
+  const unavailable = disabled || !ready
+  const selectionIssue = ready ? selectedFacts.issue : undefined
+  const valueKey = JSON.stringify(LEVELS.map(({ key }) => value[key] ?? null))
 
   useEffect(() => {
     if (!open) return
     setDraft(value)
     setQuery('')
     setActiveResult(0)
-  }, [open])
+  }, [open, valueKey, levels])
 
   useEffect(() => {
     if (!open) return
     function closeFromOutside(event: PointerEvent) {
       const target = event.target as Node
-      if (!triggerRef.current?.contains(target) && !popoverRef.current?.contains(target)) setOpen(false)
+      if (!containerRef.current?.contains(target) && !popoverRef.current?.contains(target)) setOpen(false)
     }
     document.addEventListener('pointerdown', closeFromOutside)
     return () => document.removeEventListener('pointerdown', closeFromOutside)
   }, [open])
 
   useLayoutEffect(() => {
-    if (!open) { setPosition(undefined); return }
+    if (!open || unavailable) { setPosition(undefined); return }
     function updatePosition() {
       const trigger = triggerRef.current
       if (!trigger) return
@@ -116,7 +111,7 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
       window.removeEventListener('resize', updatePosition)
       window.removeEventListener('scroll', updatePosition, true)
     }
-  }, [levels, open])
+  }, [levels, open, unavailable])
 
   useEffect(() => {
     if (open && position) searchRef.current?.focus()
@@ -125,14 +120,16 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
   useEffect(() => { setActiveResult(0) }, [query])
 
   function chooseAt(index: number, node: GridAddressNode) {
+    if (unavailable) return
     const next = { ...draft }
-    for (let cursor = index; cursor < visibleLevels.length; cursor += 1) delete next[visibleLevels[cursor].key]
+    for (let cursor = index; cursor < LEVELS.length; cursor += 1) delete next[LEVELS[cursor].key]
     next[visibleLevels[index].key] = node.code
     setDraft(next)
     if (index === visibleLevels.length - 1) commit(next)
   }
 
   function chooseSearchResult(node: GridAddressNode) {
+    if (unavailable) return
     const path: GridAddressNode[] = []
     for (let current: GridAddressNode | undefined = node; current; current = current.parentId ? nodeById.get(current.parentId) : undefined) {
       path.unshift(current)
@@ -143,35 +140,45 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
   }
 
   function commit(next: GridAddressValue) {
-    onChange(next, pathFromValue(next, visibleLevels, nodeByCode))
+    if (unavailable) return
+    const verified = inspectGridAddressPath(next, levels, nodeByCode)
+    if (verified.issue || verified.path.length !== levels) return
+    onChange(gridAddressValueFromPath(verified.path), verified.path)
     setOpen(false)
     setQuery('')
     triggerRef.current?.focus()
   }
 
   function clear() {
-    onChange({}, [])
+    if (unavailable) return
+    onChange(gridAddressValueFromPath([]), [])
     setDraft({})
     setOpen(false)
     triggerRef.current?.focus()
   }
 
-  return <div className={`ui-grid-address-input ${open ? 'is-open' : ''} ${className}`} data-levels={levels}>
+  return <div ref={containerRef} className={`ui-grid-address-input ${open ? 'is-open' : ''} ${className}`} data-levels={levels}>
     <button ref={triggerRef} id={controlId} type="button" role="combobox" className="ui-grid-address-input__trigger"
-      aria-label="网格地址" aria-expanded={open} aria-haspopup="dialog" aria-required={required}
+      aria-label="网格地址" aria-expanded={open && !unavailable} aria-haspopup="dialog" aria-required={required} aria-busy={!ready}
+      aria-invalid={Boolean(selectionIssue || queryResult.isError)} aria-describedby={selectionIssue || queryResult.isError ? `${controlId}-error` : undefined}
       disabled={unavailable} onClick={() => setOpen((current) => !current)} onKeyDown={(event) => {
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true) }
       }}>
       <span className={`ui-grid-address-input__value ${selectedPath.length ? '' : 'is-placeholder'}`}>
-        {queryResult.isPending ? '正在加载网格地址…' : queryResult.isError ? '网格地址加载失败'
+        {queryResult.isPending || queryResult.isFetching ? '正在核实网格地址…' : queryResult.isError ? '网格地址加载失败'
+          : selectionIssue ? '已有地址未确认'
           : selectedPath.length ? selectedPath.map((node) => node.name).join(' / ')
             : placeholder ?? (levels === 3 ? '请选择省 / 市 / 县区' : '请选择省 / 市 / 县区 / 街道 / 社区')}
       </span>
       {selectedNode && <code>{selectedNode.code}</code>}
-      {queryResult.isPending ? <span className="ui-spinner" aria-hidden="true" /> : <Icon name="chevron-down" />}
+      {queryResult.isFetching ? <span className="ui-spinner" aria-hidden="true" /> : <Icon name="chevron-down" />}
     </button>
+    {(queryResult.isError || selectionIssue) && <div id={`${controlId}-error`} role="alert">
+      <p>{queryResult.isError ? `网格地址加载失败：${errorMessage(queryResult.error)}` : selectionIssue}</p>
+      <Button variant="secondary" disabled={disabled || queryResult.isFetching} onClick={() => void queryResult.refetch()}>重新核实地址目录</Button>
+    </div>}
 
-    {open && position && createPortal(<div ref={popoverRef} className="ui-grid-address-input__popover"
+    {open && position && !unavailable && createPortal(<div ref={popoverRef} className="ui-grid-address-input__popover"
       role="dialog" aria-label="选择网格地址" data-placement={position.placement}
       style={{ top: position.top, bottom: position.bottom, left: position.left, width: position.width, maxHeight: position.maxHeight }}>
       <label className="ui-grid-address-input__search">
@@ -198,10 +205,10 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
       </div> : <div className="ui-grid-address-input__columns"
         style={{ gridTemplateColumns: `repeat(${visibleLevels.length}, minmax(0, 1fr))` }}>
         {visibleLevels.map((item, index) => {
-          const parentCode = index ? draft[visibleLevels[index - 1].key] : undefined
-          const parentId = parentCode ? nodeByCode.get(parentCode)?.id : undefined
+          const parent = index ? draftPath[index - 1] : undefined
+          const parentId = parent?.id
           const options = nodes.filter((node) => node.level === item.level && (index === 0 ? !node.parentId : node.parentId === parentId))
-          const enabled = index === 0 || Boolean(parentCode)
+          const enabled = index === 0 || Boolean(parent)
           const isCurrentActive = enabled && !draft[item.key]
           return <section key={item.level} aria-label={item.label} className={isCurrentActive ? 'is-active-level' : ''}>
             <header className={draft[item.key] ? 'is-completed' : isCurrentActive ? 'is-active' : ''}>
@@ -224,15 +231,10 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
         })}
       </div>}
 
-      <footer><span>{draftPath.length ? draftPath.map((node) => node.name).join(' / ') : `请选择到${levels === 3 ? '县区' : '社区村'}层级`}</span>
-        {selectedPath.length > 0 && <button type="button" onClick={clear}>清空选择</button>}</footer>
+      <footer><span>{draftFacts.issue ?? (draftPath.length ? draftPath.map((node) => node.name).join(' / ') : `请选择到${levels === 3 ? '县区' : '社区村'}层级`)}</span>
+        {hasValue && <button type="button" onClick={clear}>清空选择</button>}</footer>
     </div>, document.body)}
   </div>
-}
-
-function pathFromValue(value: GridAddressValue, levels: typeof LEVELS, nodeByCode: Map<string, GridAddressNode>) {
-  return levels.map(({ key }) => value[key] ? nodeByCode.get(value[key]!) : undefined)
-    .filter((node): node is GridAddressNode => Boolean(node))
 }
 
 function searchable(node: GridAddressNode) {

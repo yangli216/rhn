@@ -4,7 +4,7 @@ export type TreatmentTaskType = 'SERVICE' | 'MEDICATION'
 export type TreatmentTaskStatus = 'WAITING_SETTLEMENT' | 'WAITING_DISPENSE' | 'READY' | 'IN_PROGRESS'
   | 'WAITING_SKIN_TEST' | 'COMPLETED' | 'CANCELLED' | 'EXCEPTION'
 
-export type SkinTestStatus = 'WAITING_SETTLEMENT' | 'WAITING_DISPENSE' | 'PENDING' | 'IN_PROGRESS'
+export type SkinTestStatus = 'CONFIGURATION_REQUIRED' | 'WAITING_SETTLEMENT' | 'WAITING_DISPENSE' | 'PENDING' | 'IN_PROGRESS'
   | 'NEGATIVE' | 'POSITIVE' | 'UNCERTAIN' | 'INVALID'
 export type SkinTestResult = 'NEGATIVE' | 'POSITIVE' | 'UNCERTAIN' | 'INVALID'
 
@@ -62,7 +62,7 @@ export interface TreatmentExecutionTask {
   completedBy?: string
   resultCode?: 'COMPLETED' | 'INTERRUPTED' | 'NOT_COMPLETED'
   completionNote?: string
-  adverseReaction: boolean
+  adverseReaction?: boolean | null
   adverseReactionDetail?: string
   exceptionNote?: string
   items: TreatmentExecutionItem[]

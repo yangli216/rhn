@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { InsuranceSettlementView, PaymentOrder } from '../api/billingApi'
-import { Button, FormField, Select, StatusBadge } from '../ui'
+import { Alert, Button, FormField, Select, StatusBadge } from '../ui'
 import { CashPaymentCalculator } from './CashPaymentCalculator'
 import { PaymentMethodSelector, type PaymentMethodOption } from './PaymentMethodSelector'
 import { roundAmount } from './roundAmount'
@@ -33,6 +33,8 @@ export type SettlementModeCode = 'SELF_PAY' | 'MEDICAL_INSURANCE'
 export interface SettlementPaymentPanelProps {
   settlements: SettlementOption[]
   methods: PaymentMethodOption[]
+  methodsStatus?: 'ready' | 'loading' | 'error'
+  onReloadMethods?: () => void
   orders: PaymentOrder[]
   busy?: boolean
   recoveringOrderId?: string
@@ -57,7 +59,7 @@ export interface SettlementPaymentPanelProps {
 }
 
 export function SettlementPaymentPanel({
-  settlements, methods, orders, busy, recoveringOrderId,
+  settlements, methods, methodsStatus = 'ready', onReloadMethods, orders, busy, recoveringOrderId,
   sceneLabel = '收款', targetLabel = '待支付结算单', actionLabel, busyLabel,
   showSettlementMode = false, settlementModeCode, onSettlementModeChange, onSubmit, onRecoverOrder,
   onInitiateScanPay, insuranceIntegrated = false, insuranceClaimView, onPreSettleInsurance,
@@ -82,46 +84,49 @@ export function SettlementPaymentPanel({
   }, [methodCode, monetaryMethods])
 
   const settlement = settlements.find((value) => value.id === settlementId)
+  const selectedInsuranceClaim = insuranceClaimView?.settlementId === settlement?.id ? insuranceClaimView : null
   const selectedMethod = monetaryMethods.find((value) => value.code === methodCode)
   const insuranceMode = activeSettlementMode === 'MEDICAL_INSURANCE'
   const isInsuranceSupported = Boolean(insuranceIntegrated || onPreSettleInsurance)
 
   // 医保试算状态判定：已有预结算单或既有结算单已拆单，均视作已就绪
   const hasPreSettled = Boolean(
-    insuranceMode && (Boolean(insuranceClaimView) || Boolean(settlement?.insuranceReady))
+    insuranceMode && (selectedInsuranceClaim
+      ? ['PRE_SETTLED', 'SETTLED'].includes(selectedInsuranceClaim.status)
+      : Boolean(settlement?.insuranceReady))
   )
   const insurancePending = Boolean(insuranceMode && !hasPreSettled && !isInsuranceSupported)
   const insurancePreparationAllowed = Boolean(insurancePending && settlement?.insurancePreparationAllowed)
 
   // 计算医保分拆费用
-  const chsGrossAmount = insuranceClaimView ? insuranceClaimView.grossAmount
-    : ((settlement?.insuranceAmount ?? 0) + (settlement?.personalAccountAmount ?? 0) + (settlement?.outstandingAmount ?? 0))
-  const chsFundAmount = insuranceClaimView ? insuranceClaimView.insuranceFundAmount : (settlement?.insuranceAmount ?? 0)
-  const chsAcctAmount = insuranceClaimView ? insuranceClaimView.personalAccountAmount : (settlement?.personalAccountAmount ?? 0)
-  const chsCashAmount = insuranceClaimView ? insuranceClaimView.patientCashAmount : (settlement?.outstandingAmount ?? 0)
-  const chsOtherAmount = insuranceClaimView ? insuranceClaimView.otherFundAmount : (settlement?.otherFundAmount ?? 0)
+  const chsGrossAmount = selectedInsuranceClaim ? selectedInsuranceClaim.grossAmount
+    : ((settlement?.insuranceAmount ?? 0) + (settlement?.personalAccountAmount ?? 0) + (settlement?.outstandingAmount ?? 0) + (settlement?.otherFundAmount ?? 0))
+  const chsFundAmount = selectedInsuranceClaim ? selectedInsuranceClaim.insuranceFundAmount : (settlement?.insuranceAmount ?? 0)
+  const chsAcctAmount = selectedInsuranceClaim ? selectedInsuranceClaim.personalAccountAmount : (settlement?.personalAccountAmount ?? 0)
+  const chsCashAmount = selectedInsuranceClaim ? selectedInsuranceClaim.patientCashAmount : (settlement?.outstandingAmount ?? NaN)
+  const chsOtherAmount = selectedInsuranceClaim ? selectedInsuranceClaim.otherFundAmount : (settlement?.otherFundAmount ?? 0)
 
   // 待支付金额
-  const effectiveOutstanding = insuranceMode && hasPreSettled ? chsCashAmount : (settlement?.outstandingAmount ?? 0)
+  const rawOutstanding = insuranceMode && hasPreSettled ? chsCashAmount : settlement?.outstandingAmount
+  const effectiveOutstanding = typeof rawOutstanding === 'number' ? rawOutstanding : NaN
 
-  const methodPrecision = selectedMethod?.precision ?? '0.01'
-  const methodRoundingMode = selectedMethod?.roundingMode ?? 'HALF_UP'
+  const methodPrecision = selectedMethod?.precision
+  const methodRoundingMode = selectedMethod?.roundingMode
   const isAmountLocked = Boolean(selectedMethod?.precision && selectedMethod.precision !== '0.01')
-  const { rounded: autoAmount, adjustment: roundingAdjustment } = useMemo(() => {
-    return roundAmount(effectiveOutstanding, methodPrecision, methodRoundingMode)
+  const calculation = useMemo(() => {
+    try {
+      if (effectiveOutstanding === 0) return { result: { rounded: 0, adjustment: 0 }, error: null }
+      return { result: roundAmount(effectiveOutstanding, methodPrecision, methodRoundingMode), error: null }
+    } catch (error) {
+      return { result: null, error: error instanceof Error ? error.message : '支付金额计算失败' }
+    }
   }, [effectiveOutstanding, methodPrecision, methodRoundingMode])
+  const autoAmount = calculation.result?.rounded
+  const roundingAdjustment = calculation.result?.adjustment ?? 0
 
   useEffect(() => {
-    if (insuranceMode && hasPreSettled) {
-      const rounded = roundAmount(chsCashAmount, selectedMethod?.precision, selectedMethod?.roundingMode).rounded
-      setAmount(rounded > 0 ? String(rounded) : '0')
-    } else if (settlement && !insurancePending) {
-      const rounded = roundAmount(settlement.outstandingAmount, selectedMethod?.precision, selectedMethod?.roundingMode).rounded
-      setAmount(String(rounded))
-    } else {
-      setAmount('')
-    }
-  }, [insuranceMode, hasPreSettled, chsCashAmount, insurancePending, settlement?.id, settlement?.outstandingAmount, selectedMethod?.precision, selectedMethod?.roundingMode])
+    setAmount(settlement && !insurancePending && autoAmount !== undefined ? String(autoAmount) : '')
+  }, [insurancePending, settlement?.id, autoAmount, methodCode, methodPrecision, methodRoundingMode])
 
   useEffect(() => { submissionKey.current = null }, [settlementId, activeSettlementMode, methodCode, amount])
   const activeOrder = useMemo(() => orders.find((value) => value.settlementId === settlementId
@@ -137,40 +142,22 @@ export function SettlementPaymentPanel({
     }
   }, [methodCode])
 
-  const lastCashTargetRef = useRef<{ settlementId: string; amount: number } | null>(null)
-
-  useEffect(() => {
-    if (methodCode === 'CASH') {
-      const targetChanged = !lastCashTargetRef.current
-        || lastCashTargetRef.current.settlementId !== settlementId
-        || lastCashTargetRef.current.amount !== numericAmount
-
-      if (targetChanged) {
-        lastCashTargetRef.current = { settlementId, amount: numericAmount }
-        setCashTendered(numericAmount > 0 ? String(numericAmount) : '')
-      } else if (numericAmount > 0) {
-        setCashTendered((prev) => {
-          const num = Number(prev)
-          return (!prev || isNaN(num) || num < numericAmount) ? String(numericAmount) : prev
-        })
-      }
-    } else {
-      lastCashTargetRef.current = null
-    }
-  }, [methodCode, numericAmount, settlementId])
+  // 实收必须由收银员确认；更换结算对象、金额或方式后重新录入。
+  useEffect(() => { setCashTendered('') }, [methodCode, numericAmount, settlementId, activeSettlementMode, methodsStatus])
 
   const numericTendered = Number(cashTendered)
-  const isCashShort = methodCode === 'CASH' && paymentRequired && (!cashTendered || isNaN(numericTendered) || numericTendered < numericAmount)
+  const isCashShort = methodCode === 'CASH' && paymentRequired && (!cashTendered || !Number.isFinite(numericTendered) || numericTendered < numericAmount)
 
   const isAggregatedScanMethod = Boolean(onInitiateScanPay && ['WECHAT', 'ALIPAY'].includes(methodCode))
   const isMethodUnintegrated = !onInitiateScanPay && ['WECHAT', 'ALIPAY'].includes(methodCode)
 
-  const maxAllowed = isAmountLocked ? autoAmount : (effectiveOutstanding + Math.max(0, roundingAdjustment))
-  const isAmountInvalid = isAmountLocked ? numericAmount !== autoAmount : (numericAmount <= 0 || numericAmount > maxAllowed)
+  const maxAllowed = isAmountLocked ? (autoAmount ?? NaN) : (effectiveOutstanding + Math.max(0, roundingAdjustment))
+  const isAmountInvalid = !Number.isFinite(numericAmount) || (isAmountLocked ? numericAmount !== autoAmount : (numericAmount <= 0 || numericAmount > maxAllowed))
 
   const disabled = !settlement
+    || !Number.isFinite(effectiveOutstanding) || effectiveOutstanding < 0
     || (insurancePending && !insurancePreparationAllowed)
-    || (paymentRequired && (!methodCode || isAmountInvalid))
+    || (paymentRequired && (methodsStatus !== 'ready' || !selectedMethod || !calculation.result || isAmountInvalid))
     || Boolean(activeOrder)
     || isCashShort
     || (paymentRequired && isMethodUnintegrated)
@@ -188,7 +175,7 @@ export function SettlementPaymentPanel({
 
     if (disabled) return
 
-    if (isAggregatedScanMethod && onInitiateScanPay) {
+    if (paymentRequired && isAggregatedScanMethod && onInitiateScanPay) {
       onInitiateScanPay({
         settlementId: settlement.id,
         paymentMethodCode: methodCode,
@@ -226,6 +213,8 @@ export function SettlementPaymentPanel({
   })
 
   return <div className="settlement-payment-panel">
+    {settlement && calculation.error && (!Number.isFinite(effectiveOutstanding)
+      || (methodsStatus === 'ready' && selectedMethod)) && <Alert>{calculation.error}</Alert>}
     <div className="settlement-payment-panel__grid">
       {showSettlementMode && <FormField label="结算类型"><Select value={activeSettlementMode}
         searchable={false} clearable={false} onChange={(value) => {
@@ -240,7 +229,7 @@ export function SettlementPaymentPanel({
         placeholder="暂无待支付结算单" options={settlements.map((value) => ({ value: value.id,
           label: value.code, secondaryText: money(value.outstandingAmount, value.currencyCode) }))} /></FormField>}
       {paymentRequired && <FormField label={insuranceMode ? '个人自付支付方式' : '支付方式'}><PaymentMethodSelector
-        value={methodCode} onChange={setMethodCode} methods={monetaryMethods} /></FormField>}
+        value={methodCode} onChange={setMethodCode} methods={monetaryMethods} status={methodsStatus} onRetry={onReloadMethods} disabled={busy} /></FormField>}
       {paymentRequired && showAmountInput && (
         <FormField
           label={
@@ -264,7 +253,7 @@ export function SettlementPaymentPanel({
             type="number"
             min="0.01"
             step={selectedMethod?.precision === '0.1' ? '0.1' : '0.01'}
-            readOnly={isAmountLocked}
+            readOnly={isAmountLocked || !calculation.result}
             style={isAmountLocked ? { backgroundColor: 'var(--color-surface-subtle)', cursor: 'not-allowed' } : undefined}
             value={amount}
             onChange={(event) => {
@@ -301,15 +290,15 @@ export function SettlementPaymentPanel({
     )}
 
     {/* 国家医保费用分解卡片（试算完成后呈现） */}
-    {insuranceMode && isInsuranceSupported && hasPreSettled && (
+    {insuranceMode && isInsuranceSupported && selectedInsuranceClaim && hasPreSettled && (
       <div className="settlement-payment-panel__chs-card">
         <div className="settlement-payment-panel__chs-header">
           <div className="settlement-payment-panel__chs-title">
-            <StatusBadge tone="success">国家医保预结算成功</StatusBadge>
+            <StatusBadge tone="success">{selectedInsuranceClaim.status === 'SETTLED' ? '医保结算已确认' : '国家医保预结算成功'}</StatusBadge>
             <span>费用分拆透视</span>
           </div>
           <div className="settlement-payment-panel__chs-id">
-            流水号: {insuranceClaimView?.externalPreSettlementNo || (settlement?.insuranceReady ? 'CHS-READY' : 'CHS-PRE')}
+            流水号: {selectedInsuranceClaim?.externalPreSettlementNo || '未返回'}
           </div>
         </div>
         <div className="settlement-payment-panel__chs-grid">
@@ -378,13 +367,13 @@ export function SettlementPaymentPanel({
     </div>}
 
     {/* 保留既有单测识别的医保结算文本 */}
-    {insuranceMode && !insuranceClaimView && settlement?.insuranceReady && <div className="settlement-payment-panel__waived">
+    {insuranceMode && !selectedInsuranceClaim && settlement?.insuranceReady && <div className="settlement-payment-panel__waived">
       <strong>医保结算已完成</strong><span>医保基金 {money(settlement.insuranceAmount ?? 0, settlement.currencyCode)}
         {' · '}个人账户 {money(settlement.personalAccountAmount ?? 0, settlement.currencyCode)}
         {' · '}个人自付待收 {money(settlement.outstandingAmount, settlement.currencyCode)}</span>
     </div>}
 
-    {settlement && !insurancePending && !paymentRequired && !hasPreSettled && <div className="settlement-payment-panel__waived">
+    {settlement && !insurancePending && effectiveOutstanding === 0 && !hasPreSettled && <div className="settlement-payment-panel__waived">
       <strong>本次无需收款</strong><span>{insuranceMode ? '医保结算后无个人自付金额。' : '费用已冲抵，结算后直接完成记账。'}</span>
     </div>}
 

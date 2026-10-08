@@ -4,6 +4,9 @@ import type { DiagnosisInput } from '../../../shared/api/encountersApi'
 import type { ClinicalMedicationStandards, DiseaseConcept, MedicationKnowledge, ServiceCatalogItem } from '../../../shared/api/masterDataApi'
 import type { CompiledPlanMedicationItem, CompiledPlanServiceItem } from '../../../shared/api/outpatientPlanTemplatesApi'
 import type { RhnApi } from '../../../shared/rhnApi'
+import { errorMessage } from '../../../shared/api/httpClient'
+import { editorMedicationValidation, editorServiceAdopted, requireEditorDiagnosis, requireEditorMedication,
+  requireEditorPage, requireEditorService, requireEditorStandards } from './templateEditorFacts'
 import {
   Button, ClinicalResourceSearch, EditableCell, EditableRow, EditableTable, Icon, Panel, PanelHead,
   RemoteSearchSelect, Select, StatusBadge, UnitNumberInput, tableCellClass,
@@ -14,7 +17,7 @@ import { diagnosisKey, moveDiagnosis, normalizeDiagnosisOrder } from '../record/
 type OrderKind = 'MEDICATION' | 'SERVICE'
 
 export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, setDiagnoses, medications,
-  setMedications, services, setServices, onError }: {
+  setMedications, services, setServices, onError, onValidationChange }: {
   api: RhnApi
   organizationId?: string
   diagnoses: DiagnosisInput[]
@@ -24,23 +27,29 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
   services: CompiledPlanServiceItem[]
   setServices: Dispatch<SetStateAction<CompiledPlanServiceItem[]>>
   onError: (message: string) => void
+  onValidationChange: (message: string) => void
 }) {
   const [diagnosisDomain, setDiagnosisDomain] = useState('')
   const [orderKind, setOrderKind] = useState<OrderKind>('MEDICATION')
-  const [standards, setStandards] = useState<ClinicalMedicationStandards>()
+  const [directory, setDirectory] = useState<{ api: RhnApi; organizationId?: string; data?: ClinicalMedicationStandards; error?: string }>()
+  const [reload, setReload] = useState(0)
+  const currentDirectory = directory?.api === api && directory.organizationId === organizationId ? directory : undefined
+  const standards = currentDirectory?.data
+  const validation = editorMedicationValidation(medications, standards)
+  useEffect(() => { onValidationChange(validation) }, [onValidationChange, validation])
 
   useEffect(() => {
-    if (typeof api.masterData.clinicalMedicationStandards !== 'function') return
     let active = true
-    void api.masterData.clinicalMedicationStandards().then((value) => {
-      if (active) setStandards(value)
-    }).catch(() => undefined)
+    setDirectory({ api, organizationId })
+    void Promise.resolve().then(() => api.masterData.clinicalMedicationStandards()).then(requireEditorStandards).then((data) => {
+      if (active) setDirectory({ api, organizationId, data })
+    }).catch(cause => { if (active) setDirectory({ api, organizationId, error: errorMessage(cause) }) })
     return () => { active = false }
-  }, [api])
+  }, [api, organizationId, reload])
 
   const loadMedications = useCallback(async (query: string): Promise<RemoteSearchOption<MedicationKnowledge>[]> => {
     const page = await api.masterData.searchMedications(query.trim(), '', 'ACTIVE', '', 0, 30)
-    return page.content.map((item) => ({
+    return requireEditorPage(page, requireEditorMedication).map((item) => ({
       value: item.id,
       label: item.name,
       code: item.code,
@@ -48,17 +57,18 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
       tags: [item.sdMedicationTypeText],
       raw: item,
     }))
-  }, [api])
+  }, [api, organizationId])
 
   const loadServices = useCallback(async (query: string): Promise<RemoteSearchOption<ServiceCatalogItem>[]> => {
+    if (!organizationId) throw new Error('当前工作机构尚未确认，不能检索机构诊疗项目。')
     const page = await api.masterData.searchServices(query.trim(), '', 'ACTIVE', organizationId || '', 0, 30)
-    return page.content.map((item) => {
-      const adopted = Boolean(item.organizationAdoption?.catalogItemId)
+    return requireEditorPage(page, requireEditorService).map((item) => {
+      const adopted = editorServiceAdopted(item, organizationId)
       return {
         value: item.organizationAdoption?.catalogItemId || item.id,
         label: item.organizationAdoption?.localName || item.name,
         code: item.organizationAdoption?.localCode || item.code,
-        description: adopted ? `${item.sdServiceTypeText} · ${item.unitCode || '单位未维护'}` : '当前机构尚未采用',
+        description: adopted ? `${item.sdServiceTypeText} · ${item.unitCode}` : '当前机构暂无有效可开立采用',
         tags: [item.sdServiceTypeText],
         raw: item,
         disabled: !adopted,
@@ -69,8 +79,9 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
   const addDiagnosis = (option?: ClinicalResourceOption<DiseaseConcept>) => {
     const item = option?.raw
     if (!item) return
+    try { requireEditorDiagnosis(item) } catch (cause) { onError(errorMessage(cause)); return }
     if (diagnoses.some((value) => value.conceptId === item.id
-      || (value.diagnosisDomain === item.sdDiagnosisDomain && value.code === item.code))) {
+      || (value.codeSystem === item.systemCode && value.diagnosisDomain === item.sdDiagnosisDomain && value.code === item.code))) {
       onError('该诊断已经录入。')
       return
     }
@@ -78,6 +89,7 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
     setDiagnoses((current) => normalizeDiagnosisOrder([...current, {
       conceptId: item.id,
       diagnosisDomain: item.sdDiagnosisDomain,
+      codeSystem: item.systemCode,
       code: item.code,
       display: item.display,
       type: 'SECONDARY',
@@ -87,6 +99,7 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
   const addMedication = (option?: RemoteSearchOption<MedicationKnowledge>) => {
     const item = option?.raw
     if (!item) return
+    try { requireEditorMedication(item) } catch (cause) { onError(errorMessage(cause)); return }
     if (medications.some((value) => value.medicationId === item.id)) {
       onError(`药品“${item.name}”已经加入方案。`)
       return
@@ -100,18 +113,20 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
       doseUnit: item.defaultDoseUnit,
       routeCode: item.defaultRoute,
       frequencyCode: item.defaultFrequency,
-      durationValue: 3,
-      durationUnit: 'd',
       quantity: 1,
-      quantityUnit: item.preparationUnit || '盒',
+      quantityUnit: item.preparationUnit,
       substitutionAllowed: true,
       selfProvided: false,
-      pricingRequired: false,
     }])
   }
 
   const addService = (option?: RemoteSearchOption<ServiceCatalogItem>) => {
     const item = option?.raw
+    if (!item) return
+    try {
+      requireEditorService(item)
+      if (!editorServiceAdopted(item, organizationId)) throw new Error('项目在当前机构暂无有效可开立采用，不能加入方案。')
+    } catch (cause) { onError(errorMessage(cause)); return }
     const catalogItemId = item?.organizationAdoption?.catalogItemId
     if (!item || !catalogItemId) {
       if (item) onError(`项目“${item.name}”尚未匹配当前机构目录，不能加入方案。`)
@@ -126,9 +141,9 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
       catalogItemId,
       itemCode: item.organizationAdoption?.localCode || item.code,
       itemName: item.organizationAdoption?.localName || item.name,
-      serviceType: normalizeServiceType(item.sdServiceType),
+      serviceType: item.sdServiceType as CompiledPlanServiceItem['serviceType'],
       quantity: 1,
-      unitCode: item.unitCode || '次',
+      unitCode: item.unitCode,
       pricingRequired: true,
     }])
   }
@@ -169,14 +184,14 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
 
         <div className="plan-template-diagnosis-list" role="table" aria-label="方案诊断列表">
           <div className="plan-template-diagnosis-row is-head" role="row">
-            <span>类型</span><span>诊断名称与 ICD 编码</span><span>主次</span><span>操作</span>
+            <span>类型</span><span>诊断名称与标准编码</span><span>主次</span><span>操作</span>
           </div>
           {!diagnoses.length && <div className="plan-template-entry-empty">请先检索并添加至少一项主要诊断</div>}
           {diagnoses.map((item, index) => {
             const key = diagnosisKey(item)
             return <div className={`plan-template-diagnosis-row ${index === 0 ? 'is-primary' : ''}`} role="row" key={key}>
               <span className="plan-template-diagnosis-domain">{diagnosisDomainLabel(item.diagnosisDomain)}</span>
-              <span className="plan-template-entry-identity"><strong>{item.display}</strong><small>{item.code}</small></span>
+              <span className="plan-template-entry-identity"><strong>{item.display}</strong><small>{item.codeSystem || "编码体系待确认"} · {item.code}</small></span>
               <span><StatusBadge tone={index === 0 ? 'warning' : 'neutral'}>{index === 0 ? '主要诊断' : `次要 #${index}`}</StatusBadge></span>
               <span className="plan-template-row-actions">
                 <Button type="button" size="sm" variant="text" disabled={index === 0} title="上移"
@@ -203,10 +218,10 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
             options={[{ value: 'MEDICATION', label: '药品' }, { value: 'SERVICE', label: '检验 / 检查 / 治疗' }]}
             onChange={(value) => setOrderKind(value as OrderKind)} />
           {orderKind === 'MEDICATION'
-            ? <RemoteSearchSelect<MedicationKnowledge> value={undefined} loadOptions={loadMedications}
+            ? <RemoteSearchSelect<MedicationKnowledge> value={undefined} cacheResults={false} loadOptions={loadMedications}
               aria-label="模板医嘱检索" placeholder="检索模板通用药品（名称 / 编码 / 拼音）"
               searchPlaceholder="输入药品名称、编码或拼音码" onChange={addMedication} />
-            : <RemoteSearchSelect<ServiceCatalogItem> value={undefined} loadOptions={loadServices}
+            : <RemoteSearchSelect<ServiceCatalogItem> value={undefined} cacheResults={false} loadOptions={loadServices}
               aria-label="模板医嘱检索" placeholder="检索当前机构诊疗项目"
               searchPlaceholder="输入项目名称、编码或拼音码" onChange={addService} />}
         </div>
@@ -217,6 +232,11 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
             : '仅可加入当前机构已采用的检验、检查和治疗项目。'}</span>
         </div>
 
+        {!standards && <div role={currentDirectory?.error ? 'alert' : 'status'} className="doctor-plan-pool-notice">
+          {currentDirectory?.error ? `用法字典加载失败：${currentDirectory.error}` : '正在确认用法字典…'}
+          {currentDirectory?.error && <Button variant="secondary" size="sm" onClick={() => setReload(value => value + 1)}>重新加载用法字典</Button>}
+        </div>}
+        {validation && <div role="alert" className="doctor-plan-pool-notice">{validation}</div>}
         <div className="plan-template-order-list">
           {!medications.length && !services.length && <div className="plan-template-entry-empty">检索并选择医嘱后，可在列表内继续完善用法与数量</div>}
           {!!(medications.length || services.length) && <EditableTable className="plan-template-order-table" aria-label="方案医嘱列表">
@@ -244,7 +264,7 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
             </tr></thead>
             <tbody>
               {medications.map((item, index) => <MedicationTemplateRow key={`${item.medicationId || 'med'}-${index}`}
-                item={item} index={index} doseUnitOptions={doseUnitOptions}
+                item={item} index={index} standardsReady={Boolean(standards)} doseUnitOptions={doseUnitOptions}
                 routeOptions={routeOptions} frequencyOptions={frequencyOptions} setMedications={setMedications} />)}
               {services.map((item, index) => <ServiceTemplateRow key={`${item.catalogItemId}-${index}`}
                 item={item} index={index} setServices={setServices} />)}
@@ -256,9 +276,10 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
   </div>
 }
 
-function MedicationTemplateRow({ item, index, doseUnitOptions, routeOptions, frequencyOptions, setMedications }: {
+function MedicationTemplateRow({ item, index, standardsReady, doseUnitOptions, routeOptions, frequencyOptions, setMedications }: {
   item: CompiledPlanMedicationItem
   index: number
+  standardsReady: boolean
   doseUnitOptions: { value: string; label: string }[]
   routeOptions: { value: string; label: string }[]
   frequencyOptions: { value: string; label: string }[]
@@ -280,30 +301,30 @@ function MedicationTemplateRow({ item, index, doseUnitOptions, routeOptions, fre
     <td><span className="plan-template-entry-identity"><strong>{name}</strong><small>{item.preparationSpec || '规格未维护'}</small></span></td>
     <EditableCell display={numberWithUnit(item.doseValue, doseUnitLabel(doseUnitOptions, item.doseUnit))}>
       <UnitNumberInput aria-label={`${name} 单次剂量`} min="0" step="0.01" value={item.doseValue ?? ''}
-        unit={item.doseUnit || ''} units={withCurrentOption(doseUnitOptions, item.doseUnit)}
+        disabled={!standardsReady} unit={item.doseUnit || ''} units={doseUnitOptions}
         onValueChange={(value) => updateAt(setMedications, index, { doseValue: numberOrUndefined(value) })}
         onUnitChange={(value) => updateAt(setMedications, index, { doseUnit: value })} />
     </EditableCell>
     <EditableCell display={routeLabel}>
       <Select aria-label={`${name} 给药途径`} value={item.routeCode || ''}
-        options={withCurrentOption(routeOptions, item.routeCode)} placeholder="请选择"
+        disabled={!standardsReady} options={routeOptions} placeholder="请选择"
         onChange={(value) => updateAt(setMedications, index, { routeCode: value })} />
     </EditableCell>
     <EditableCell display={frequencyLabel}>
       <Select aria-label={`${name} 频次`} value={item.frequencyCode || ''}
-        options={withCurrentOption(frequencyOptions, item.frequencyCode)} placeholder="请选择"
+        disabled={!standardsReady} options={frequencyOptions} placeholder="请选择"
         onChange={(value) => updateAt(setMedications, index, { frequencyCode: value })} />
     </EditableCell>
     <EditableCell display={numberWithUnit(item.durationValue, durationUnitLabel(item.durationUnit))}>
       <UnitNumberInput aria-label={`${name} 疗程`} min="0" step="1" value={item.durationValue ?? ''}
-        unit={item.durationUnit || 'd'} units={durationUnitOptions}
+        unit={item.durationUnit || ''} units={durationUnitOptions}
         onValueChange={(value) => updateAt(setMedications, index, { durationValue: numberOrUndefined(value) })}
         onUnitChange={(value) => updateAt(setMedications, index, { durationUnit: value })} />
     </EditableCell>
     <EditableCell display={numberWithUnit(item.quantity, item.quantityUnit)}>
-      <UnitNumberInput aria-label={`${name} 数量`} min="0.01" step="1" value={item.quantity}
+      <UnitNumberInput aria-label={`${name} 数量`} min="0.01" step="1" value={Number.isFinite(item.quantity) ? item.quantity : ''}
         unit={item.quantityUnit || ''}
-        onValueChange={(value) => updateAt(setMedications, index, { quantity: positiveNumber(value) })}
+        onValueChange={(value) => updateAt(setMedications, index, { quantity: enteredNumber(value) })}
         onUnitChange={(value) => updateAt(setMedications, index, { quantityUnit: value })} />
     </EditableCell>
     <EditableCell display={item.medicationInstruction} placeholder="无">
@@ -335,9 +356,9 @@ function ServiceTemplateRow({ item, index, setServices }: {
     <td><span className="plan-template-entry-identity"><strong>{name}</strong><small>{item.itemCode || '编码未维护'}</small></span></td>
     <td>—</td><td>—</td><td>—</td><td>—</td>
     <EditableCell display={numberWithUnit(item.quantity, item.unitCode)}>
-      <UnitNumberInput aria-label={`${name} 数量`} min="0.01" step="1" value={item.quantity}
+      <UnitNumberInput aria-label={`${name} 数量`} min="0.01" step="1" value={Number.isFinite(item.quantity) ? item.quantity : ''}
         unit={item.unitCode || ''}
-        onValueChange={(value) => updateAt(setServices, index, { quantity: positiveNumber(value) })}
+        onValueChange={(value) => updateAt(setServices, index, { quantity: enteredNumber(value) })}
         onUnitChange={(value) => updateAt(setServices, index, { unitCode: value })} />
     </EditableCell>
     <EditableCell display={item.clinicalDescription} placeholder="无">
@@ -364,18 +385,12 @@ function numberOrUndefined(value: string) {
   return value === '' ? undefined : Number(value)
 }
 
-function positiveNumber(value: string) {
-  const number = Number(value)
-  return number > 0 ? number : 1
-}
-
-function withCurrentOption(options: { value: string; label: string }[], current?: string) {
-  if (!current || options.some((value) => value.value === current)) return options
-  return [{ value: current, label: current }, ...options]
+function enteredNumber(value: string) {
+  return value === '' ? Number.NaN : Number(value)
 }
 
 function optionLabel(options: { value: string; label: string }[], value?: string) {
-  return options.find((option) => option.value === value)?.label || value || ''
+  return options.find((option) => option.value === value)?.label || (value ? `待确认（${value}）` : '')
 }
 
 function doseUnitLabel(options: { value: string; label: string }[], value?: string) {
@@ -383,26 +398,22 @@ function doseUnitLabel(options: { value: string; label: string }[], value?: stri
 }
 
 function durationUnitLabel(value?: string) {
-  return optionLabel(durationUnitOptions, value || 'd')
+  return optionLabel(durationUnitOptions, value)
 }
 
 function numberWithUnit(value?: number, unit?: string) {
-  return value === undefined || value === null ? '' : `${value}${unit ? ` ${unit}` : ''}`
+  return value === undefined || value === null || !Number.isFinite(value) ? '' : `${value}${unit ? ` ${unit}` : ''}`
 }
 
-function diagnosisDomainLabel(value?: string) {
+function diagnosisDomainLabel(value?: string | null) {
   if (value === 'TCM_DISEASE') return '中医病名'
   if (value === 'TCM_SYNDROME') return '中医证候'
-  return '西医诊断'
-}
-
-function normalizeServiceType(value: string): CompiledPlanServiceItem['serviceType'] {
-  return value === 'LABORATORY' || value === 'EXAMINATION' || value === 'TREATMENT' ? value : 'OTHER'
+  return value === 'WESTERN_MEDICINE' ? '西医诊断' : '类型待确认'
 }
 
 function serviceTypeLabel(value?: CompiledPlanServiceItem['serviceType']) {
   if (value === 'LABORATORY') return '检验'
   if (value === 'EXAMINATION') return '检查'
   if (value === 'TREATMENT') return '治疗'
-  return '诊疗'
+  return value === 'OTHER' ? '其他诊疗' : '类型待确认'
 }

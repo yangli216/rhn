@@ -25,7 +25,8 @@ public class JpaTreatmentFlowDirectory implements TreatmentFlowDirectory {
         if (encounterIds == null || encounterIds.isEmpty()) return Map.of();
         Map<Long, MutableSummary> grouped = new LinkedHashMap<>();
         for (TreatmentExecutionTask task : tasks.findByTenantIdAndEncounterIdIn(tenantId, encounterIds)) {
-            grouped.computeIfAbsent(task.encounterId(), ignored -> new MutableSummary()).add(task.status());
+            if (task.status() == TreatmentExecutionTaskStatus.CANCELLED) continue;
+            grouped.computeIfAbsent(task.encounterId(), ignored -> new MutableSummary()).add(task.verifiedStatus());
         }
         Map<Long, TreatmentFlowSnapshot> result = new LinkedHashMap<>();
         grouped.forEach((encounterId, value) -> result.put(encounterId, value.snapshot()));
@@ -46,10 +47,12 @@ public class JpaTreatmentFlowDirectory implements TreatmentFlowDirectory {
             switch (status) {
                 case WAITING_SETTLEMENT -> settlementBlocked++;
                 case WAITING_DISPENSE -> dispenseBlocked++;
-                case READY -> waiting++;
+                case READY, WAITING_SKIN_TEST -> waiting++;
                 case IN_PROGRESS -> inProgress++;
                 case EXCEPTION -> exception++;
-                default -> completed++;
+                case COMPLETED -> completed++;
+                case CANCELLED -> throw new IllegalArgumentException("Cancelled tasks are excluded from execution totals");
+                default -> throw new IllegalStateException("Unsupported treatment status: " + status);
             }
         }
 

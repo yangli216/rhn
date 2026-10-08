@@ -175,6 +175,34 @@ function renderWorkspace(api: RhnApi, onNavigate = vi.fn()) {
 }
 
 describe('OutpatientTriageWorkspace', () => {
+  it('未采集体征时意识和疼痛保持未评估，不生成正常结论', async () => {
+    const api = buildMockApi()
+    renderWorkspace(api)
+    await screen.findByRole('heading', { name: '周建国', level: 3 })
+    expect(screen.getByLabelText('意识状态')).toHaveTextContent('未评估')
+    expect(screen.getByLabelText('疼痛评分')).toHaveTextContent('未评估')
+    expect(screen.getByText('尚未采集，待评估')).toBeInTheDocument()
+    expect(screen.getByText('请先采集资料并评估')).toBeInTheDocument()
+    expect(screen.queryByText('未发现危急值')).not.toBeInTheDocument()
+    expect(api.outpatientTriage.assess).not.toHaveBeenCalled()
+  })
+
+  it('仅明确录入疼痛零分也应启动评估，且不补齐意识状态', async () => {
+    const user = userEvent.setup()
+    const api = buildMockApi()
+    renderWorkspace(api)
+    await screen.findByRole('heading', { name: '周建国', level: 3 })
+    await user.click(screen.getByLabelText('疼痛评分'))
+    await user.click(screen.getByRole('option', { name: '0 分 (无痛)' }))
+    await waitFor(() => expect(api.outpatientTriage.assess).toHaveBeenCalledWith(
+      expect.objectContaining({ painScore: 0, consciousness: undefined }),
+    ))
+    await user.click(screen.getByText('保存并打印'))
+    await waitFor(() => expect(api.outpatientTriage.create).toHaveBeenCalledWith(
+      expect.objectContaining({ painScore: 0, consciousness: undefined }),
+    ))
+  })
+
   it('应当正常渲染统计看板与待分诊队列', async () => {
     const api = buildMockApi()
     renderWorkspace(api)
@@ -363,7 +391,9 @@ describe('OutpatientTriageWorkspace', () => {
 
     // 应当调用 create API
     await waitFor(() => {
-      expect(api.outpatientTriage.create).toHaveBeenCalled()
+      expect(api.outpatientTriage.create).toHaveBeenCalledWith(
+        expect.objectContaining({ painScore: undefined, consciousness: undefined }),
+      )
     })
 
     // 应当弹出小票弹窗

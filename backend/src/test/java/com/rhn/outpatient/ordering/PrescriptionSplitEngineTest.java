@@ -1,6 +1,7 @@
 package com.rhn.outpatient.ordering;
 
 import com.rhn.outpatient.api.EncounterDirectory.EncounterSnapshot;
+import com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.MedicationSnapshot;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
@@ -19,12 +20,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -36,12 +39,33 @@ class PrescriptionSplitEngineTest {
     @Mock
     private MedicationRouteDirectory routeDirectory;
 
+    @Mock private OutpatientPrescriptionInventoryDirectory inventoryDirectory;
+
     private PrescriptionSplitEngine engine;
     private EncounterSnapshot encounter;
 
     @BeforeEach
     void setUp() {
-        engine = new PrescriptionSplitEngine(catalogDirectory, routeDirectory);
+        engine = new PrescriptionSplitEngine(catalogDirectory, routeDirectory, inventoryDirectory);
+        when(catalogDirectory.resolve(eq(1L), any(), eq(3001L), any(), any(), any())).thenAnswer(call -> {
+            Long productId = call.getArgument(1);
+            var medication = catalogDirectory.requireMedication(1L, productId - 10000L);
+            var item = new CatalogLifecycleDirectory.CatalogItemSnapshot(productId, 1L, "MED_PRODUCT", productId - 10000L,
+                    "P" + productId, "实际产品", "片", true, true, true, "ACTIVE", LocalDate.of(2020, 1, 1),
+                    null, null, null, null, null, null);
+            return new CatalogLifecycleDirectory.CatalogOperationalSnapshot(productId, 3001L, call.getArgument(3),
+                    "SALE", call.getArgument(5), item, null, medication, null, null);
+        });
+        when(routeDirectory.requireActive(eq(1L), eq("PO"), eq("OUTPATIENT"), any()))
+                .thenReturn(new RouteSnapshot(98L, "PO", "口服", "STD", "1", "NONE"));
+        when(routeDirectory.requireActive(eq(1L), eq("DECOCT"), eq("OUTPATIENT"), any()))
+                .thenReturn(new RouteSnapshot(97L, "DECOCT", "煎服", "STD", "1", "NONE"));
+        when(inventoryDirectory.requireDispensingPharmacy(eq(1L), eq(3001L), eq(4001L), any(), any()))
+                .thenAnswer(call -> {
+                    String category = call.getArgument(3);
+                    long site = "HERBAL".equals(category) ? 30L : "CHINESE_PATENT".equals(category) ? 20L : 10L;
+                    return new OutpatientPrescriptionInventoryDirectory.DispensingPharmacy(site, "真实药房" + site);
+                });
         encounter = new EncounterSnapshot(
                 1001L, 1L, 2001L, 3001L, 4001L,
                 "ENC20260912001", "DOC001", "ARRIVED", 1L,
@@ -116,8 +140,8 @@ class PrescriptionSplitEngineTest {
     void shouldSplitInfusionFromOral() {
         when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "阿莫西林胶囊", "WESTERN", false));
         when(catalogDirectory.requireMedication(1L, 2L)).thenReturn(mockMedication(2L, "5%葡萄糖注射液", "WESTERN", false));
-        when(routeDirectory.resolveActive(eq(1L), eq("IV_DRIP"), eq("OUTPATIENT"), any(LocalDate.class)))
-                .thenReturn(Optional.of(new RouteSnapshot(99L, "IV_DRIP", "静脉滴注", "STD", "1", "INFUSION")));
+        when(routeDirectory.requireActive(eq(1L), eq("IV_DRIP"), eq("OUTPATIENT"), any(LocalDate.class)))
+                .thenReturn(new RouteSnapshot(99L, "IV_DRIP", "静脉滴注", "STD", "1", "INFUSION"));
 
         List<BatchOrderMedicationItem> items = List.of(
                 createItem(1L, "阿莫西林胶囊", "WESTERN", "PO", "NONE", null, 10L, "西药房"),
@@ -127,7 +151,7 @@ class PrescriptionSplitEngineTest {
         List<SplitPrescriptionPlan> plans = engine.plan(encounter, items);
 
         assertThat(plans).hasSize(2);
-        assertThat(plans.get(0).routeGroupType()).isEqualTo("ORAL");
+        assertThat(plans.get(0).routeGroupType()).isEqualTo("NON_INFUSION");
         assertThat(plans.get(0).title()).isEqualTo("门诊西药处方");
         assertThat(plans.get(1).routeGroupType()).isEqualTo("INFUSION");
         assertThat(plans.get(1).title()).isEqualTo("门诊输液处方");
@@ -164,8 +188,8 @@ class PrescriptionSplitEngineTest {
         for (long i = 1; i <= 6; i++) {
             when(catalogDirectory.requireMedication(1L, i)).thenReturn(mockMedication(i, "药品" + i, "WESTERN", false));
         }
-        when(routeDirectory.resolveActive(eq(1L), eq("IV_DRIP"), eq("OUTPATIENT"), any(LocalDate.class)))
-                .thenReturn(Optional.of(new RouteSnapshot(99L, "IV_DRIP", "静脉滴注", "STD", "1", "INFUSION")));
+        when(routeDirectory.requireActive(eq(1L), eq("IV_DRIP"), eq("OUTPATIENT"), any(LocalDate.class)))
+                .thenReturn(new RouteSnapshot(99L, "IV_DRIP", "静脉滴注", "STD", "1", "INFUSION"));
 
         List<BatchOrderMedicationItem> items = List.of(
                 createItem(1L, "口服1", "WESTERN", "PO", "NONE", null, 10L, "西药房"),
@@ -220,8 +244,8 @@ class PrescriptionSplitEngineTest {
         // 两个输液药品，均被标记为 singleOrder = true（如头孢曲松钠 + 维生素B1注射液），同属于一个输液组
         when(catalogDirectory.requireMedication(1L, 101L)).thenReturn(mockMedication(101L, "注射用头孢曲松钠", "WESTERN", true));
         when(catalogDirectory.requireMedication(1L, 102L)).thenReturn(mockMedication(102L, "维生素B1注射液", "WESTERN", true));
-        when(routeDirectory.resolveActive(eq(1L), eq("IVGTT"), eq("OUTPATIENT"), any(LocalDate.class)))
-                .thenReturn(Optional.of(new RouteSnapshot(99L, "IVGTT", "静脉滴注", "STD", "1", "INFUSION")));
+        when(routeDirectory.requireActive(eq(1L), eq("IVGTT"), eq("OUTPATIENT"), any(LocalDate.class)))
+                .thenReturn(new RouteSnapshot(99L, "IVGTT", "静脉滴注", "STD", "1", "INFUSION"));
 
         List<BatchOrderMedicationItem> items = List.of(
                 createItem(101L, "注射用头孢曲松钠", "WESTERN", "IVGTT", "INFUSION", "grp-ceftriaxone", 10L, "门诊药房"),
@@ -242,4 +266,82 @@ class PrescriptionSplitEngineTest {
         assertThat(plan.items().get(1).groupKey()).isEqualTo("grp-ceftriaxone");
         assertThat(plan.ruleReasons()).contains("同组输液原子性保护");
     }
+    @Test
+    void catalogOnlySelectionUsesRealMedicationCategoryAndPharmacy() {
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "实际药品", "WESTERN", false));
+        var input = createItem(1L, "客户端名称", null, null, null, null, null, "默认药房")
+                .withResolvedFacts(null, null, null, null, null, "默认药房");
+        var plan = engine.plan(encounter, List.of(input)).getFirst();
+        assertThat(plan.categoryCode()).isEqualTo("WESTERN");
+        assertThat(plan.stockSiteName()).isEqualTo("真实药房10");
+        assertThat(plan.items().getFirst().item().medicationId()).isEqualTo(1L);
+        assertThat(plan.items().getFirst().item().routeCode()).isEqualTo("PO");
+        assertThat(plan.items().getFirst().item().stockSiteName()).isEqualTo("真实药房10");
+    }
+
+    @Test
+    void rejectsForgedClassificationExecutionTypeProductIdentityAndPharmacy() {
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "实际药品", "WESTERN", false));
+        var original = createItem(1L, "实际药品", "WESTERN", "PO", "NONE", null, 10L, "实际药房");
+        assertThatThrownBy(() -> engine.plan(encounter, List.of(original.withResolvedFacts(1L, "HERBAL", "PO", "NONE", 10L, "实际药房"))))
+                .hasMessageContaining("分类与当前目录不一致");
+        assertThatThrownBy(() -> engine.plan(encounter, List.of(original.withResolvedFacts(1L, "WESTERN", "PO", "INFUSION", 10L, "实际药房"))))
+                .hasMessageContaining("执行类型与当前目录不一致");
+        assertThatThrownBy(() -> engine.plan(encounter, List.of(original.withResolvedFacts(2L, "WESTERN", "PO", "NONE", 10L, "实际药房"))))
+                .hasMessageContaining("不属于当前通用药品");
+        assertThatThrownBy(() -> engine.plan(encounter, List.of(original.withResolvedFacts(1L, "WESTERN", "PO", "NONE", 99L, "默认药房"))))
+                .hasMessageContaining("发药路由已变化");
+    }
+
+    @Test
+    void missingClassificationAndRouteNeverBecomeWesternOrOral() {
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "未分类药品", null, false));
+        var input = createItem(1L, "药品", null, "UNKNOWN", null, null, null, null);
+        assertThatThrownBy(() -> engine.plan(encounter, List.of(input))).hasMessageContaining("药品状态或分类尚未确认");
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "实际药品", "WESTERN", false));
+        assertThatThrownBy(() -> engine.plan(encounter, List.of(input))).hasMessageContaining("给药途径执行类型尚未确认");
+    }
+
+    @Test
+    void missingPharmacyCannotBecomeDefaultPharmacy() {
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "实际药品", "WESTERN", false));
+        when(inventoryDirectory.requireDispensingPharmacy(eq(1L), eq(3001L), eq(4001L), any(), any())).thenReturn(null);
+        assertThatThrownBy(() -> engine.plan(encounter, List.of(createItem(1L, "药品", "WESTERN", "PO", null, null, null, "默认药房"))))
+                .hasMessageContaining("发药药房尚未确认");
+    }
+
+    @Test
+    void selfProvidedMedicineHasNoFabricatedPharmacy() {
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "自备药", "WESTERN", false));
+        var input = new BatchOrderMedicationItem(1L, 10001L, null, BigDecimal.ONE, "mg", "PO", "QD",
+                BigDecimal.ONE, "DAY", BigDecimal.ONE, "片", false, true, null, true, null,
+                "SALE", false, 999L, "默认药房", null, "NONE", "WESTERN", false, null, null, null);
+        var plan = engine.plan(encounter, List.of(input)).getFirst();
+        assertThat(plan.stockSiteId()).isNull();
+        assertThat(plan.stockSiteName()).isNull();
+        assertThat(plan.items().getFirst().item().stockSiteName()).isNull();
+        org.mockito.Mockito.verifyNoInteractions(inventoryDirectory);
+    }
+
+    @Test
+    void resolvesFactsAtOrderingDateInsteadOfOldEncounterDate() {
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "实际药品", "WESTERN", false));
+        var old = new EncounterSnapshot(1001L, 1L, 2001L, 3001L, 4001L, "OLD", "DOC001", "ARRIVED", 1L,
+                "门诊", Instant.parse("2020-01-01T00:00:00Z"));
+        engine.plan(old, List.of(createItem(1L, "药品", "WESTERN", "PO", "NONE", null, 10L, null)));
+        verify(routeDirectory).requireActive(1L, "PO", "OUTPATIENT", LocalDate.now());
+        verify(inventoryDirectory).requireDispensingPharmacy(1L, 3001L, 4001L, "WESTERN", LocalDate.now());
+    }
+
+    @Test
+    void configuredRouteAliasUsesActualExecutionTypeAndPreservesInputCorrespondence() {
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "实际药品", "WESTERN", false));
+        when(routeDirectory.requireActive(eq(1L), eq("PO"), eq("OUTPATIENT"), any()))
+                .thenReturn(new RouteSnapshot(98L, "ORAL", "口服", "STD", "1", "NONE"));
+        var plan = engine.plan(encounter, List.of(createItem(1L, "药品", "WESTERN", "PO", null, null, 10L, null))).getFirst();
+        assertThat(plan.items().getFirst().item().routeCode()).isEqualTo("PO");
+        assertThat(plan.items().getFirst().item().routeExecutionType()).isEqualTo("NONE");
+        assertThat(plan.routeGroupType()).isEqualTo("NON_INFUSION");
+    }
+
 }

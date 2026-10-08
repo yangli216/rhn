@@ -24,56 +24,36 @@ export function calculatePackageQuantity({
   frequencies?: ActiveOrderFrequency[]
 }): { quantity: number; calculationText: string; totalBaseUnits: number } | null {
   if (!medication || !selectedPackage) return null
-  const numDose = Number(doseValue)
-  if (!numDose || numDose <= 0) return null
-
+  const numDose = Number(doseValue), days = Number(durationValue)
+  const factor = selectedPackage.packageFactor
+  if (!Number.isFinite(numDose) || numDose <= 0 || !Number.isFinite(days) || days <= 0
+    || typeof factor !== 'number' || !Number.isFinite(factor) || factor <= 0) return null
+  const baseUnit = selectedPackage.product?.unitCode?.trim()
+  const actualDoseUnit = doseUnit?.trim()
+  if (!baseUnit || !actualDoseUnit || !selectedPackage.unitName?.trim()) return null
   const timesPerDay = resolveFrequencyTimesPerDay(frequencies, frequencyCode)
   if (timesPerDay === null) return null
 
-  let singleDoseUnits = numDose
-  const prepUnit = medication.preparationUnit || ''
-  let strValue = medication.strengthValue
-  let strUnit = medication.strengthUnit || ''
-  const specText = (medication as unknown as { strength?: string }).strength || medication.preparationSpec
-  if ((!strValue || strValue <= 0) && specText) {
-    const match = String(specText).match(/^([\d.]+)\s*([a-zA-Z\u4e00-\u9fa5]+)/)
-    if (match) {
-      strValue = Number(match[1])
-      strUnit = strUnit || match[2]
-    }
-  }
-
-  if (doseUnit && prepUnit && doseUnit === prepUnit) {
+  let singleDoseUnits: number
+  if (actualDoseUnit === baseUnit) {
     singleDoseUnits = numDose
-  } else if (strValue && strValue > 0) {
-    const dUnit = (doseUnit || '').toLowerCase()
-    const sUnit = (strUnit || '').toLowerCase()
-    let doseInStrengthUnit = numDose
-    if (dUnit && sUnit && dUnit !== sUnit) {
-      if (dUnit === 'g' && sUnit === 'mg') doseInStrengthUnit = numDose * 1000
-      else if (dUnit === 'mg' && sUnit === 'g') doseInStrengthUnit = numDose / 1000
-      else if ((dUnit === 'mg' && (sUnit === 'ug' || sUnit === 'μg'))) doseInStrengthUnit = numDose * 1000
-      else if (((dUnit === 'ug' || dUnit === 'μg') && sUnit === 'mg')) doseInStrengthUnit = numDose / 1000
-    }
-    singleDoseUnits = doseInStrengthUnit / strValue
+  } else {
+    // Strength is per preparation unit, so it cannot convert a different product base unit.
+    const strength = medication.strengthValue
+    const strengthUnit = medication.strengthUnit?.trim()
+    if (medication.preparationUnit?.trim() !== baseUnit || typeof strength !== 'number'
+      || !Number.isFinite(strength) || strength <= 0 || !strengthUnit) return null
+    const massUnits: Record<string, number> = { g: 1, mg: 0.001, ug: 0.000001, 'μg': 0.000001, 'µg': 0.000001 }
+    let conversion: number
+    if (actualDoseUnit === strengthUnit) conversion = 1
+    else if (Object.hasOwn(massUnits, actualDoseUnit) && Object.hasOwn(massUnits, strengthUnit)) {
+      conversion = massUnits[actualDoseUnit] / massUnits[strengthUnit]
+    } else return null
+    singleDoseUnits = numDose * conversion / strength
   }
-
-  const days = Number(durationValue) > 0 ? Number(durationValue) : 1
   const totalBaseUnits = singleDoseUnits * timesPerDay * days
-  const factor = selectedPackage.packageFactor > 0 ? selectedPackage.packageFactor : 1
-  const packageQty = Math.max(1, Math.ceil(totalBaseUnits / factor))
-
-  let doseEquivalentText = ''
-  if (doseUnit && prepUnit && doseUnit === prepUnit && strValue && strValue > 0) {
-    const eqStrength = Math.round(numDose * strValue * 100) / 100
-    doseEquivalentText = `折合单次 ${eqStrength}${strUnit || ''}`
-  } else if (doseUnit && prepUnit && doseUnit !== prepUnit && singleDoseUnits > 0) {
-    const eqPrep = Math.round(singleDoseUnits * 100) / 100
-    doseEquivalentText = `折合单次 ${eqPrep}${prepUnit}`
-  }
-
-  const calculationText = `1${selectedPackage.unitName}=${factor}${prepUnit || '单位'} · ${days}天共需${Math.round(totalBaseUnits * 100) / 100}${prepUnit || ''}，合${packageQty}${selectedPackage.unitName}${doseEquivalentText ? `（${doseEquivalentText}）` : ''}`
-
+  const packageQty = Math.ceil(totalBaseUnits / factor)
+  if (!Number.isFinite(totalBaseUnits) || totalBaseUnits <= 0 || !Number.isSafeInteger(packageQty) || packageQty <= 0) return null
+  const calculationText = `1${selectedPackage.unitName}=${factor}${baseUnit} · ${days}天共需${totalBaseUnits}${baseUnit}，合${packageQty}${selectedPackage.unitName}`
   return { quantity: packageQty, calculationText, totalBaseUnits }
 }
-

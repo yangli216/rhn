@@ -23,9 +23,11 @@ public final class FiscalModels {
             String payerName,
             String payerIdentityDigest,
             BigDecimal totalAmount,
+            BigDecimal roundingAmount,
             BigDecimal insuranceAmount,
             BigDecimal personalAccountAmount,
             BigDecimal patientAmount,
+            BigDecimal otherFundAmount,
             String currencyCode,
             List<FiscalItem> items,
             String correlationId
@@ -59,6 +61,11 @@ public final class FiscalModels {
                                                   String verifyUrl, Instant issuedAt) {
             return new FiscalIssueResponse(true, "ISSUED", externalReceiptNo, fiscalCode, fiscalNumber,
                     verificationCode, verifyUrl, issuedAt, null, null);
+        }
+
+        public static FiscalIssueResponse pending(String externalReceiptNo, String errorCode, String errorMessage) {
+            return new FiscalIssueResponse(false, "PENDING", externalReceiptNo, null, null, null,
+                    null, null, errorCode, errorMessage);
         }
 
         public static FiscalIssueResponse failed(String errorCode, String errorMessage) {

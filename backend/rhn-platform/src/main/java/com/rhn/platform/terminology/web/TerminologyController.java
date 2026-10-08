@@ -234,6 +234,7 @@ public class TerminologyController {
                                    @NotBlank @Size(max = 64) String version,
                                    @Size(max = 32) String systemType,
                                    @Pattern(regexp = "WESTERN_MEDICINE|TCM_DISEASE|TCM_SYNDROME")
+                                   @io.swagger.v3.oas.annotations.media.Schema(description = "systemType 为 DISEASE 时必须明确指定；不根据编码或名称推定诊断体系")
                                    String sdDiagnosisDomain,
                                    @Size(max = 300) String publisher,
                                    @Size(max = 2000) String description,
@@ -274,8 +275,8 @@ public class TerminologyController {
 
     record DiseaseManagementScopeRequest(
             @NotNull @Min(0) BigInteger expectedRevision,
-            @NotNull @Size(max = 100) List<@Valid DiseaseManagementRuleRequest> rules,
-            @NotNull @Size(max = 1000) List<@Valid DiseaseManagementExceptionRequest> exceptions) {}
+            @NotNull @Size(max = 100) List<@NotNull @Valid DiseaseManagementRuleRequest> rules,
+            @NotNull @Size(max = 1000) List<@NotNull @Valid DiseaseManagementExceptionRequest> exceptions) {}
 
     record DiseaseManagementRuleRequest(
             @NotBlank @Pattern(regexp = "INCLUDE|EXCLUDE") String inclusionMode,

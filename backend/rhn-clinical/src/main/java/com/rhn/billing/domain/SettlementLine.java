@@ -43,6 +43,7 @@ public class SettlementLine {
     }
     private BigDecimal zero() { return BigDecimal.ZERO.setScale(6); }
     public Long id() { return id; } public Long settlementId() { return settlementId; }
+    public Long legacyInvoiceLineId() { return legacyInvoiceLineId; }
     public Long chargeItemId() { return chargeItemId; } public int lineNo() { return lineNo; }
     public BigDecimal settledQuantity() { return settledQuantity; } public BigDecimal grossAmount() { return grossAmount; }
     public BigDecimal discountAmount() { return discountAmount; } public BigDecimal insuranceAmount() { return insuranceAmount; }

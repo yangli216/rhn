@@ -8,8 +8,10 @@ import { errorMessage } from '../../shared/rhnApi'
 import { useBarcodeScanner } from '../../shared/hooks/useBarcodeScanner'
 import { SettlementPaymentPanel, type SettlementModeCode,
   type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
+import { useCashierPaymentMethods } from '../../shared/billing/useCashierPaymentMethods'
 import { CashierPanel } from '../../shared/billing/CashierPanel'
 import { AggregatedPaymentModal } from '../../shared/billing/AggregatedPaymentModal'
+import { confirmInsuranceResult, type InsuranceResultTarget } from '../../shared/billing/insuranceResult'
 import { FiscalReceiptModal } from '../../shared/billing/FiscalReceiptModal'
 import { Alert, Button, DataTable, SearchField, tableCellClass, PanelHead, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
 import { Icon } from '../../shared/ui/Icon'
@@ -101,16 +103,28 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
   })
   const [fiscalModalOpen, setFiscalModalOpen] = useState(false)
   const [activeReceipt, setActiveReceipt] = useState<ReceiptView | null>(null)
-  const [settlementReceiptsMap, setSettlementReceiptsMap] = useState<Record<string, ReceiptView[]>>({})
+  const insuranceSession = useRef({ api, encounterId, context: '', revision: 0 })
+  const insuranceContext = JSON.stringify(clinicalContext)
+  if (insuranceSession.current.api !== api || insuranceSession.current.encounterId !== encounterId
+    || insuranceSession.current.context !== insuranceContext) {
+    insuranceSession.current = { api, encounterId, context: insuranceContext, revision: insuranceSession.current.revision + 1 }
+  }
+  const renderedInsuranceSession = insuranceSession.current
+  useEffect(() => () => { insuranceSession.current.revision += 1 }, [])
+  const captureInsuranceSession = () => {
+    const revision = renderedInsuranceSession.revision
+    const isCurrent = () => insuranceSession.current === renderedInsuranceSession && insuranceSession.current.revision === revision
+    return { isCurrent, check: () => {
+      if (!isCurrent()) throw new Error('收银上下文已变化，医保结果未确认，请返回原患者核实申请。')
+    } }
+  }
+  const preSettlementKeys = useRef(new WeakMap<RhnApi, Map<string, string>>())
   const searchInputRef = useRef<HTMLInputElement>(null)
   const completedPaymentMarker = useRef('')
   const worklist = useQuery({ queryKey: ['billing-worklist'], queryFn: api.billing.worklist })
   const settlementItems = useMemo(() => (worklist.data ?? []).filter((item) => settlementStatuses.has(item.status)),
     [worklist.data])
-  const paymentMethods = useQuery({
-    queryKey: ['applicable-dictionary-items', 'PAY_METHOD', 'AVAILABLE_SCENE', 'CASHIER'],
-    queryFn: () => api.dictionaries.applicable('PAY_METHOD', 'AVAILABLE_SCENE', 'CASHIER'),
-  })
+  const paymentMethods = useCashierPaymentMethods(api, clinicalContext)
 
   const handleResetPatient = useCallback(() => {
     setIsManualSelecting(true)
@@ -141,7 +155,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
   useEffect(() => {
     setSettlementMode('SELF_PAY')
     setInsuranceClaimView(null)
-  }, [encounterId])
+    setIsPreSettlingInsurance(false)
+    setCheckoutStage('IDLE')
+  }, [api, encounterId, insuranceContext])
   const selected = worklist.data?.find((item) => item.encounterId === encounterId)
   const statement = useQuery({ queryKey: ['billing-statement', encounterId],
     queryFn: () => api.billing.statement(encounterId), enabled: Boolean(encounterId && selected?.accountId) })
@@ -173,38 +189,35 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
       queryClient.invalidateQueries({ queryKey: ['billing-worklist'] }),
       queryClient.invalidateQueries({ queryKey: ['billing-statement', encounterId] }),
       queryClient.invalidateQueries({ queryKey: ['billing-payment-orders'] }),
+      queryClient.invalidateQueries({ queryKey: ['billing-workspace-receipts', encounterId] }),
     ])
   }
 
   const settlements = useMemo(() => statement.data?.settlements ?? [], [statement.data?.settlements])
-  useEffect(() => {
-    if (!settlements.length) return
-    let isMounted = true
-    Promise.all(
-      settlements.map((s) =>
-        (typeof api.billing.settlementReceipts === 'function'
-          ? api.billing.settlementReceipts(s.id)
-          : Promise.resolve([] as ReceiptView[])
-        )
-          .then((receipts) => ({ settlementId: s.id, receipts: receipts || [] }))
-          .catch(() => ({ settlementId: s.id, receipts: [] as ReceiptView[] }))
-      )
-    ).then((results) => {
-      if (!isMounted) return
-      const map: Record<string, ReceiptView[]> = {}
-      for (const res of results) {
-        map[res.settlementId] = res.receipts
-      }
-      setSettlementReceiptsMap(map)
-    })
-    return () => { isMounted = false }
-  }, [settlements, api])
+  const receiptQueryKey = ['billing-workspace-receipts', encounterId, settlements.map((s) => s.id)]
+  const receipts = useQuery({
+    queryKey: receiptQueryKey,
+    enabled: settlements.length > 0,
+    queryFn: async () => {
+      const entries = await Promise.all(settlements.map(async (settlement) => {
+        const values = await api.billing.settlementReceipts(settlement.id)
+        if (!Array.isArray(values)) throw new Error('票据查询返回无效结果')
+        return [settlement.id, values] as const
+      }))
+      return Object.fromEntries(entries) as Record<string, ReceiptView[]>
+    },
+  })
+  const settlementReceiptsMap = useMemo(() => receipts.isError ? {} : receipts.data ?? {}, [receipts.data, receipts.isError])
 
   const allCurrentReceipts = useMemo(() => {
     return Object.values(settlementReceiptsMap).flat()
   }, [settlementReceiptsMap])
 
   const handleOpenOrIssueReceipt = async (settlementId: string) => {
+    if (!receipts.isSuccess || receipts.isFetching) {
+      setScanNotice({ tone: 'warning', text: '请先成功查询已有票据，再办理开票。' })
+      return
+    }
     const existing = settlementReceiptsMap[settlementId]
     if (existing && existing.length > 0) {
       setActiveReceipt(existing[0])
@@ -218,17 +231,19 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
         receiptType: 'MEDICAL_E_INVOICE',
         issueChannel: 'CASHIER',
         fiscalAuthorityCode: '360100',
-        payerName: selected?.residentName || '门诊患者',
+        payerName: selected?.residentName,
       })
-      setSettlementReceiptsMap((prev) => ({
+      queryClient.setQueryData<Record<string, ReceiptView[]>>(receiptQueryKey, (prev) => ({
         ...prev,
-        [settlementId]: [issued, ...(prev[settlementId] || [])],
+        [settlementId]: [issued, ...(prev?.[settlementId] ?? []).filter((value) => value.id !== issued.id)],
       }))
       setActiveReceipt(issued)
       setFiscalModalOpen(true)
       setScanNotice({
-        tone: 'success',
-        text: `财政电子票据开具成功！票据代码：${issued.fiscalCode || '3601060126'}，号码：${issued.fiscalNumber || issued.receiptNo}`,
+        tone: issued.status === 'ISSUED' ? 'success' : issued.status === 'REQUESTED' ? 'info' : 'warning',
+        text: issued.status === 'ISSUED'
+          ? `财政电子票据已开具，票据号码：${issued.fiscalNumber || '未返回'}`
+          : issued.errorMessage || (issued.status === 'REQUESTED' ? '票据开具处理中，尚未确认成功。' : '票据未开具成功，请核实处理结果。'),
       })
     } catch (err: unknown) {
       setScanNotice({
@@ -407,10 +422,34 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     })),
   ], [canInvoice, selectedChargeIds.size, selectedChargesAmount, payableSettlements, statement.data])
 
+  const insuranceTarget = (settlementId: string, current = statement.data): InsuranceResultTarget => {
+    const target = current?.settlements.find(value => value.id === settlementId)
+    if (!current || current.encounterId !== encounterId || current.accountId !== selected?.accountId
+      || current.organizationId !== clinicalContext.organization.id || current.departmentId !== clinicalContext.department.id
+      || !target || target.patientAccountId !== current.accountId || target.settlementType !== 'NORMAL'
+      || target.currencyCode !== current.currencyCode || !Number.isFinite(target.netAmount) || target.netAmount <= 0) {
+      throw new Error('医保结果未确认：当前患者的结算资料不完整或不一致，请重新加载后核实。')
+    }
+    return { settlementId, patientAccountId: current.accountId, currencyCode: current.currencyCode, grossAmount: target.netAmount }
+  }
+  const finalInsuranceTarget = (settlementId: string) => {
+    const target = insuranceTarget(settlementId)
+    if (!insuranceClaimView || insuranceClaimView.settlementId !== target.settlementId
+      || insuranceClaimView.patientAccountId !== target.patientAccountId) {
+      throw new Error('医保结果未确认：试算申请与当前结算单不一致，请重新选择对应结算单。')
+    }
+    // Patient-payment rounding can update the settlement after the claim was finalized.
+    // Retries must verify the original confirmed claim amount.
+    return { ...target, grossAmount: insuranceClaimView.grossAmount, claimId: insuranceClaimView.claimId }
+  }
+
   const handlePreSettleInsurance = async (targetSettlementId: string) => {
+    const session = captureInsuranceSession()
     let finalSettlementId = targetSettlementId
+    let currentStatement = statement.data
     setIsPreSettlingInsurance(true)
     try {
+      session.check()
       if (finalSettlementId === draftSettlementId) {
         setCheckoutStage('CREATING_SETTLEMENT')
         const idempotencySuffix = crypto.randomUUID()
@@ -420,49 +459,65 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           undefined,
           Array.from(selectedChargeIds),
         )
+        session.check()
         const updatedStatement = await api.billing.statement(encounterId)
+        session.check()
+        currentStatement = updatedStatement
         const createdSettlement = updatedStatement.settlements.find((value) =>
           value.legacyInvoiceId === invoice.id && value.settlementType === 'NORMAL')
         if (!createdSettlement) throw new Error('结算单已生成，但暂未读取到结算信息，请重试。')
         finalSettlementId = createdSettlement.id
       }
 
-      const preResult = await api.billing.quickPreSettleInsurance(finalSettlementId)
+      session.check()
+      const target = insuranceTarget(finalSettlementId, currentStatement)
+      let keys = preSettlementKeys.current.get(api)
+      if (!keys) { keys = new Map(); preSettlementKeys.current.set(api, keys) }
+      const key = keys.get(finalSettlementId) ?? `PRE-CHS-${crypto.randomUUID()}`
+      keys.set(finalSettlementId, key)
+      const receipt = await api.billing.quickPreSettleInsurance(finalSettlementId, { idempotencyKey: key })
+      const preResult = await confirmInsuranceResult(api.billing, receipt, 'PRE_SETTLED', target, session.check)
       setInsuranceClaimView(preResult)
       setScanNotice({
         tone: 'success',
-        text: `国家医保预结算试算成功（流水号 ${preResult.externalPreSettlementNo}）：统筹报销 ¥${preResult.insuranceFundAmount.toFixed(2)}，个账抵扣 ¥${preResult.personalAccountAmount.toFixed(2)}，现金自付 ¥${preResult.patientCashAmount.toFixed(2)}`,
+        text: `国家医保预结算试算成功（流水号 ${preResult.externalPreSettlementNo}）：统筹报销 ${money(preResult.insuranceFundAmount, preResult.currencyCode)}，个账抵扣 ${money(preResult.personalAccountAmount, preResult.currencyCode)}，现金自付 ${money(preResult.patientCashAmount, preResult.currencyCode)}`,
       })
       await refresh()
       return preResult
     } catch (err: unknown) {
+      if (!session.isCurrent()) return null
       setScanNotice({
         tone: 'warning',
         text: err instanceof Error ? err.message : '医保预结算失败，请重试',
       })
-      throw err
+      setInsuranceClaimView(null)
+      return null
     } finally {
-      setIsPreSettlingInsurance(false)
-      setCheckoutStage('IDLE')
+      if (session.isCurrent()) { setIsPreSettlingInsurance(false); setCheckoutStage('IDLE') }
     }
   }
 
   const checkout = useMutation({
     mutationFn: async (command: SettlementPaymentCommand) => {
+      const session = captureInsuranceSession()
+      session.check()
       let settlementId = command.settlementId
 
       // 医保模式且已试算：先执行医保正式结算 (2207)
       if (settlementMode === 'MEDICAL_INSURANCE' && insuranceClaimView) {
         setCheckoutStage('CREATING_PAYMENT')
-        const settledClaim = await api.billing.settleInsurance(
-          insuranceClaimView.claimId,
-          `CHS-SETL-${command.idempotencyKey.replace(/^PAY-/, '')}`,
-        )
-        setInsuranceClaimView(null)
+        if (!Number.isFinite(command.amount) || command.amount < 0) throw new Error('收款金额无效，请重新核实。')
+        const target = finalInsuranceTarget(command.settlementId)
+        const receipt = await api.billing.settleInsurance(insuranceClaimView.claimId, `CHS-SETL-${insuranceClaimView.claimId}`)
+        const settledClaim = await confirmInsuranceResult(api.billing, receipt, 'SETTLED', target, session.check)
+        setInsuranceClaimView(settledClaim)
+        if (!Number.isFinite(command.roundingAdjustment ?? 0) || Math.abs(command.amount - (command.roundingAdjustment ?? 0) - settledClaim.patientCashAmount) > 0.005) {
+          throw new Error('医保已结算，自付金额与试算不一致，请刷新结算余额后收款。')
+        }
 
         // 若有现金自付且选择了现金等方式支付：
-        if (insuranceClaimView.patientCashAmount > 0 && command.amount > 0 && command.paymentMethodCode) {
-          return api.billing.createPaymentOrder(insuranceClaimView.settlementId, {
+        if (settledClaim.patientCashAmount > 0 && command.amount > 0 && command.paymentMethodCode) {
+          return api.billing.createPaymentOrder(settledClaim.settlementId, {
             idempotencyKey: command.idempotencyKey,
             businessScene: 'OUTPATIENT',
             paymentSceneCode: 'CASHIER',
@@ -513,19 +568,27 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     paymentMethodName: string
     amount: number
   }) => {
+    const session = captureInsuranceSession()
     let finalSettlementId = command.settlementId
     let finalSettlementCode = settlementOptions.find((s) => s.id === command.settlementId)?.code
 
     if (settlementMode === 'MEDICAL_INSURANCE' && insuranceClaimView) {
       setCheckoutStage('CREATING_PAYMENT')
       try {
-        await api.billing.settleInsurance(
-          insuranceClaimView.claimId,
-          `CHS-SETL-${crypto.randomUUID()}`,
-        )
-        finalSettlementId = insuranceClaimView.settlementId
-        setInsuranceClaimView(null)
+        session.check()
+        if (!Number.isFinite(command.amount) || command.amount < 0) throw new Error('收款金额无效，请重新核实。')
+        const target = finalInsuranceTarget(command.settlementId)
+        const receipt = await api.billing.settleInsurance(insuranceClaimView.claimId, `CHS-SETL-${insuranceClaimView.claimId}`)
+        const settledClaim = await confirmInsuranceResult(api.billing, receipt, 'SETTLED', target, session.check)
+        finalSettlementId = settledClaim.settlementId
+        setInsuranceClaimView(settledClaim)
+        if (Math.abs(command.amount - settledClaim.patientCashAmount) > 0.005) {
+          await refresh()
+          session.check()
+          throw new Error('医保已结算，自付金额与试算不一致，请刷新结算余额后收款。')
+        }
       } catch (err: unknown) {
+        if (!session.isCurrent()) return
         setScanNotice({
           tone: 'warning',
           text: err instanceof Error ? err.message : '医保结算失败，无法发起自付收款',
@@ -543,7 +606,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           undefined,
           Array.from(selectedChargeIds),
         )
+        session.check()
         const updatedStatement = await api.billing.statement(encounterId)
+        session.check()
         const createdSettlement = updatedStatement.settlements.find((value) =>
           value.legacyInvoiceId === invoice.id && value.settlementType === 'NORMAL')
         if (!createdSettlement) throw new Error('结算单已生成，但暂未读取到支付信息，请刷新后继续。')
@@ -560,6 +625,8 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
       }
     }
 
+    if (!session.isCurrent()) return
+    setCheckoutStage('IDLE')
     setScanModalState({
       open: true,
       settlementId: finalSettlementId,
@@ -955,13 +1022,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           <>
             <div className="billing-action-form">
               <SettlementPaymentPanel key={`${encounterId}-${selected.accountId}`} settlements={settlementOptions}
-                methods={(paymentMethods.data ?? []).map((item) => ({
-                  code: item.code,
-                  name: item.name,
-                  sortOrder: item.sortOrder,
-                  precision: item.attributes?.PAYMENT_PRECISION,
-                  roundingMode: item.attributes?.ROUNDING_MODE,
-                }))}
+                methods={paymentMethods.options}
+                methodsStatus={paymentMethods.status}
+                onReloadMethods={() => { void paymentMethods.refetch() }}
                 orders={paymentOrders.data ?? []} busy={checkout.isPending || isPreSettlingInsurance} targetLabel="结算范围"
                 showSettlementMode settlementModeCode={settlementMode} onSettlementModeChange={(mode) => {
                   setSettlementMode(mode)
@@ -986,11 +1049,16 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                   <Icon name="billing" className="fiscal-receipt-entry-icon" />
                   <div>
                     <strong>财政医疗收费电子票据</strong>
-                    <p>支持开具、扫码查验、防伪校验码核对与打印</p>
+                    <p>查看平台返回的票据信息、校验码与原件链接</p>
                   </div>
                 </div>
                 <div className="fiscal-receipt-entry-banner__right">
-                  {allCurrentReceipts.length > 0 ? (
+                  {receipts.isFetching ? <LoadingState label="正在查询已有票据…" />
+                    : receipts.isError ? <div>
+                      <Alert tone="warning">票据查询失败，尚不能确认是否已开票，请重试查询。</Alert>
+                      <Button variant="secondary" onClick={() => void receipts.refetch()}>重试票据查询</Button>
+                    </div>
+                    : allCurrentReceipts.length > 0 ? (
                     <Button
                       variant="primary"
                       onClick={() => {

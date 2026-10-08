@@ -1,3 +1,4 @@
+import { savedOrderSubtotal } from './orderSubtotal'
 import { Fragment, type ReactNode } from 'react'
 import type { MedicationRequest, Prescription, ServiceRequest } from '../../../shared/api/encountersApi'
 import type { SkinTestWorkItem } from '../../../shared/api/treatmentApi'
@@ -65,7 +66,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
             const defaultTitle = groupKind === 'lab' ? '检验申请' : groupKind === 'exam' ? '检查申请' : '治疗单'
             const title = doc?.label || defaultTitle
             const docLabel = (docItems[0] && documentRows[docItems[0].value.id]?.label) || doc?.shortLabel || doc?.label || title
-            const subtotal = (svc.unitPrice || 0) * (svc.quantity || 1)
+            const subtotal = savedOrderSubtotal(docItems.map(e => e.value))
             const missingFields = doc ? documentMissing(doc) : []
             headerNode = (
               <Fragment key={`doc-group-${entryDocKey}`}>
@@ -75,7 +76,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   kind={groupKind}
                   itemCount={docItems.length}
                   itemUnit="项"
-                  dept={resolveExecutingDepartment({ kind: 'service', type: svc.serviceType, itemName: svc.itemName }, currentDept)}
+                  dept={resolveExecutingDepartment({ kind: 'service', performerDepartmentId: svc.performerDepartmentId })}
                   subtotal={subtotal}
                   missingFields={missingFields}
                   isSelected={activeDocKey === entryDocKey || Boolean(documentRows[svc.id]?.selected)}
@@ -92,7 +93,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
             const defaultTitle = isHerbal ? '中药处方' : rx?.categoryCode === 'CHINESE_PATENT' ? '中成药处方' : '西药处方'
             const title = doc?.label || defaultTitle
             const docLabel = (docItems[0] && documentRows[docItems[0].value.id]?.label) || doc?.shortLabel || doc?.label || title
-            const subtotal = docItems.reduce((sum, e) => sum + (e.value.unitPrice || 0) * (e.value.quantity || 1), 0)
+            const subtotal = savedOrderSubtotal(docItems.map(e => e.value))
             const missingFields = doc ? documentMissing(doc) : []
             const firstActive = rx?.medicationRequests.find((v) => v.status === 'ACTIVE')
             const firstMed = docItems[0]?.value as MedicationRequest | undefined
@@ -105,7 +106,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   kind={groupKind}
                   itemCount={docItems.length}
                   itemUnit={isHerbal ? '味' : '项'}
-                  dept={isHerbal ? '中药房' : rx?.categoryCode === 'CHINESE_PATENT' ? '中成药房' : '西药房'}
+                  dept={resolveExecutingDepartment({ kind: 'medication' })}
                   subtotal={subtotal}
                   missingFields={missingFields}
                   isSelected={activeDocKey === entryDocKey || docItems.some((e) => documentRows[e.value.id]?.selected)}
@@ -133,7 +134,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                         name: m.itemName || m.medicationName,
                         doseValue: m.doseValue || 0,
                         doseUnit: m.doseUnit || 'g',
-                        price: m.unitPrice,
+                        price: m.unitPrice, currencyCode: m.currencyCode,
                         specialMethod: extractSpecialMethod(m.medicationInstruction),
                         isDraft: false,
                         status: m.status,

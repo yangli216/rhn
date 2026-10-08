@@ -15,6 +15,8 @@ import com.rhn.outpatient.triage.TriageContracts.UpdateTriageRequest;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.context.ExecutionContext;
+import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -48,20 +50,33 @@ public class OutpatientTriageService {
     private final OutpatientRegistrationDirectory registrationDirectory;
     private final ClinicalValidationDirectory clinicalValidationDirectory;
     private final TriageAssessmentEngine assessmentEngine;
+    private final ExecutionContextProvider contextProvider;
 
     public OutpatientTriageService(OutpatientTriageRepository triageRepository,
                                   OutpatientRegistrationDirectory registrationDirectory,
                                   ClinicalValidationDirectory clinicalValidationDirectory,
-                                  TriageAssessmentEngine assessmentEngine) {
+                                  TriageAssessmentEngine assessmentEngine, ExecutionContextProvider contextProvider) {
         this.triageRepository = triageRepository;
         this.registrationDirectory = registrationDirectory;
         this.clinicalValidationDirectory = clinicalValidationDirectory;
         this.assessmentEngine = assessmentEngine;
+        this.contextProvider = contextProvider;
+    }
+
+    private Long requireOrganization(Long requestedId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        Long organizationId = requestedId != null ? requestedId : context.organizationId();
+        if (!context.hasWorkContext() || !context.tenantId().equals(TenantContext.requireTenantId())
+                || !context.canAccessOrganization(organizationId)) {
+            throw new BusinessException("OUTPATIENT_TRIAGE_ORGANIZATION_FORBIDDEN",
+                    "请在有权访问的机构工作上下文中办理分诊", HttpStatus.FORBIDDEN);
+        }
+        return organizationId;
     }
 
     public TriageRecordResponse createTriageRecord(CreateTriageRequest request) {
         Long tenantId = TenantContext.requireTenantId();
-        Long orgId = request.organizationId() != null ? request.organizationId() : 362387869790210L;
+        Long orgId = requireOrganization(request.organizationId());
 
         // 验证生命体征
         validateVitals(request.temperature(), request.pulseRate(), request.respiratoryRate(),
@@ -131,6 +146,7 @@ public class OutpatientTriageService {
         OutpatientTriageRecord entity = triageRepository.findByTenantIdAndId(tenantId, id)
                 .orElseThrow(() -> new BusinessException("OUTPATIENT_TRIAGE_NOT_FOUND", "未找到指定预检分诊记录", HttpStatus.NOT_FOUND));
 
+        requireOrganization(entity.getOrganizationId());
         validateVitals(request.temperature(), request.pulseRate(), request.respiratoryRate(),
                 request.systolic(), request.diastolic(), request.oxygenSaturation());
 
@@ -190,6 +206,7 @@ public class OutpatientTriageService {
         Long tenantId = TenantContext.requireTenantId();
         OutpatientTriageRecord entity = triageRepository.findByTenantIdAndId(tenantId, id)
                 .orElseThrow(() -> new BusinessException("OUTPATIENT_TRIAGE_NOT_FOUND", "未找到指定预检分诊记录", HttpStatus.NOT_FOUND));
+        requireOrganization(entity.getOrganizationId());
         return TriageRecordResponse.from(entity);
     }
 
@@ -197,7 +214,10 @@ public class OutpatientTriageService {
     public TriageRecordResponse getTriageRecordByEncounter(Long encounterId) {
         Long tenantId = TenantContext.requireTenantId();
         return triageRepository.findTopByTenantIdAndEncounterIdOrderByTriageTimeDesc(tenantId, encounterId)
-                .map(TriageRecordResponse::from)
+                .map(record -> {
+                    requireOrganization(record.getOrganizationId());
+                    return TriageRecordResponse.from(record);
+                })
                 .orElse(null);
     }
 
@@ -209,7 +229,7 @@ public class OutpatientTriageService {
         Instant fromTime = searchDate.atStartOfDay(SHANGHAI_ZONE).toInstant();
         Instant toTime = searchDate.plusDays(1).atStartOfDay(SHANGHAI_ZONE).minusNanos(1).toInstant();
 
-        Long orgId = organizationId != null ? organizationId : 362387869790210L;
+        Long orgId = requireOrganization(organizationId);
         String cleanQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : null;
         String cleanLevel = (triageLevel != null && !triageLevel.trim().isEmpty() && !"ALL".equalsIgnoreCase(triageLevel)) ? triageLevel.trim() : null;
         String cleanStatus = (status != null && !status.trim().isEmpty() && !"ALL".equalsIgnoreCase(status)) ? status.trim() : null;
@@ -231,7 +251,7 @@ public class OutpatientTriageService {
         LocalDate targetDate = date != null ? date : LocalDate.now(SHANGHAI_ZONE);
         Instant fromTime = targetDate.atStartOfDay(SHANGHAI_ZONE).toInstant();
         Instant toTime = targetDate.plusDays(1).atStartOfDay(SHANGHAI_ZONE).minusNanos(1).toInstant();
-        Long orgId = organizationId != null ? organizationId : 362387869790210L;
+        Long orgId = requireOrganization(organizationId);
 
         List<OutpatientTriageRecord> records = triageRepository.findTodayRecords(tenantId, orgId, fromTime, toTime);
 
@@ -250,6 +270,7 @@ public class OutpatientTriageService {
         Long tenantId = TenantContext.requireTenantId();
         OutpatientTriageRecord record = triageRepository.findByTenantIdAndId(tenantId, triageId)
                 .orElseThrow(() -> new BusinessException("OUTPATIENT_TRIAGE_NOT_FOUND", "未找到指定预检分诊记录", HttpStatus.NOT_FOUND));
+        requireOrganization(record.getOrganizationId());
         record.bindEncounter(encounterId, registrationId);
         return TriageRecordResponse.from(triageRepository.save(record));
     }
@@ -336,7 +357,7 @@ public class OutpatientTriageService {
             String chiefComplaint, String symptoms, BigDecimal temp, BigDecimal sbp, BigDecimal dbp,
             BigDecimal spo2, BigDecimal pulse, Integer age, String gender) {
         return assessmentEngine.assess(new BaselineInput(chiefComplaint, symptoms, temp, pulse, null, sbp, dbp,
-                        spo2, null, null, "ALERT", age, gender)).departmentRecommendations().stream()
+                        spo2, null, null, null, age, gender)).departmentRecommendations().stream()
                 .map(value -> new DepartmentRecommendationResponse(value.departmentId(), value.departmentName(),
                         value.score(), value.rationale(), value.availableSlotCount(), value.alertNotice(),
                         "LOCAL_ASSIST", value.scheduledToday()))

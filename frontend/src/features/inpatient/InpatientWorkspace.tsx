@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../app/AppShell'
 import { age, formatTime } from '../../shared/format'
 import type { InpatientBed, InpatientDischargeDiagnosis, InpatientEpisode } from '../../shared/api/inpatientApi'
+import { diagnosisDomainLabel } from '../../shared/presentation'
+import type { DiseaseConcept } from '../../shared/api/masterDataApi'
 import type { Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, DictionarySelect, EmptyState, FormField, LoadingState, PageHeader, Panel,
@@ -32,7 +34,7 @@ export function InpatientAdmissionWorkspace({ api, clinicalContext, onNavigate }
   const [completed, setCompleted] = useState<AdmissionCompletion | null>(null)
   const bootstrap = useQuery({
     queryKey: ['inpatient-bootstrap', clinicalContext.organization.id, 'admission'],
-    queryFn: () => api.inpatient.bootstrap('ACTIVE'),
+    queryFn: () => loadInpatientBootstrap(api, 'ACTIVE'),
   })
   const beds = bootstrap.data?.beds ?? []
   const available = beds.filter((value) => value.displayStatus === 'AVAILABLE').length
@@ -45,7 +47,7 @@ export function InpatientAdmissionWorkspace({ api, clinicalContext, onNavigate }
     <PageHeader eyebrow="住院医疗 · 登记窗口" title="入院登记"
       actions={<Button variant="secondary" onClick={() => onNavigate?.('/inpatient/admission-query')}>查询登记记录</Button>} />
     {bootstrap.error && <Alert>{errorMessage(bootstrap.error)}</Alert>}
-    {bootstrap.isPending ? <LoadingState label="正在加载可用床位…" /> : completed ?
+    {completed ?
       <Panel className="inpatient-admission-success"><StatusBadge tone="success">登记完成</StatusBadge>
         <h2>{completed.episode.residentName} 已成功入院</h2>
         <p>住院号 <strong>{completed.episode.episodeNo}</strong> · {completed.episode.wardName}
@@ -58,12 +60,23 @@ export function InpatientAdmissionWorkspace({ api, clinicalContext, onNavigate }
         <div className="ui-form-actions"><Button variant="secondary" onClick={() => setCompleted(null)}>继续登记</Button>
           <Button variant="secondary" onClick={() => onNavigate?.('/inpatient/deposits')}>预交金管理</Button>
           <Button onClick={() => onNavigate?.('/inpatient/admission-query')}>查看登记记录</Button></div></Panel> :
-      <AdmissionForm api={api} beds={beds} onSuccess={async (value) => {
+      bootstrap.isPending ? <LoadingState label="正在加载可用床位…" /> : bootstrap.isError ?
+        <Alert tone="warning">床位查询失败，尚不能判断是否有可分配床位。
+          <Button variant="secondary" onClick={() => void bootstrap.refetch()}>重试床位查询</Button></Alert> :
+      <AdmissionForm key={clinicalContext.organization.id} api={api} beds={beds} onSuccess={async (value) => {
         setCompleted(value)
         await queryClient.invalidateQueries({ queryKey: ['inpatient-bootstrap'] })
       }} />}
-    {!bootstrap.isPending && available === 0 && !completed && <Alert>当前没有可分配床位，请先在病区护士站完成床位释放。</Alert>}
+    {bootstrap.isSuccess && available === 0 && !completed && <Alert>当前没有可分配床位，请先在病区护士站完成床位释放。</Alert>}
   </>
+}
+
+async function loadInpatientBootstrap(api: RhnApi, status: 'ACTIVE' | 'ALL', keyword?: string) {
+  const value = await api.inpatient.bootstrap(status, keyword)
+  if (!value || !Array.isArray(value.beds) || !Array.isArray(value.episodes)) {
+    throw new Error('住院登记数据返回不完整')
+  }
+  return value
 }
 
 /** @deprecated Use the role-oriented inpatient workspaces instead. */
@@ -79,7 +92,7 @@ export function InpatientAdmissionQueryWorkspace({ api, clinicalContext }: {
   const [selectedId, setSelectedId] = useState('')
   const bootstrap = useQuery({
     queryKey: ['inpatient-bootstrap', clinicalContext.organization.id, history, submittedKeyword],
-    queryFn: () => api.inpatient.bootstrap(history ? 'ALL' : 'ACTIVE', submittedKeyword),
+    queryFn: () => loadInpatientBootstrap(api, history ? 'ALL' : 'ACTIVE', submittedKeyword),
   })
   const episodes = bootstrap.data?.episodes ?? []
   const selected = episodes.find((value) => value.id === selectedId) ?? episodes[0]
@@ -101,7 +114,9 @@ export function InpatientAdmissionQueryWorkspace({ api, clinicalContext }: {
       <nav aria-label="住院记录范围"><button type="button" className={!history ? 'is-active' : ''}
         onClick={() => setHistory(false)}>当前在院</button><button type="button" className={history ? 'is-active' : ''}
         onClick={() => setHistory(true)}>全部登记</button></nav></div>
-    {bootstrap.isPending ? <LoadingState label="正在查询入院登记…" /> : <div className="inpatient-layout inpatient-query-layout">
+    {bootstrap.isPending ? <LoadingState label="正在查询入院登记…" /> : bootstrap.isError ? <Alert tone="warning">
+      入院登记查询失败，记录尚未核验。<Button variant="secondary" onClick={() => void bootstrap.refetch()}>重试登记查询</Button>
+    </Alert> : <div className="inpatient-layout inpatient-query-layout">
       <Panel className="inpatient-patient-panel inpatient-query-list"><header className="inpatient-section-head"><div><h2>登记记录</h2>
         <span>共 {episodes.length} 条</span></div></header>
         {episodes.length === 0 ? <EmptyState icon="residents" title="没有匹配的登记记录" copy="请调整查询条件后重试。" /> :
@@ -145,7 +160,7 @@ export function BedBoard({ beds, selectedId, onSelectEpisode, onRelease, onBlock
 
 export function PatientRow({ value, active, onClick }: { value: InpatientEpisode; active: boolean; onClick: () => void }) {
   return <button type="button" className={active ? 'is-active' : ''} onClick={onClick}>
-    <span><strong>{value.bedNo ?? '已离院'}</strong><b>{value.residentName}</b></span>
+    <span><strong>{value.bedNo ?? (value.status === 'ADMITTED' ? '未分床' : '已离院')}</strong><b>{value.residentName}</b></span>
     <span>{value.genderText ?? '未知'} · {value.birthDate ? `${age(value.birthDate)}岁` : '年龄未知'} · {value.healthRecordNo}</span>
     <small>{value.episodeNo} · {formatTime(value.admittedAt)}</small>
     <StatusBadge tone={value.status === 'ADMITTED' ? 'info' : 'neutral'}>{value.status === 'ADMITTED' ? '在院' : '已出院'}</StatusBadge>
@@ -158,7 +173,7 @@ export function EpisodeDetail({ value, onTransfer, onDischarge }: {
   onDischarge?: () => void
 }) {
   return <div className="inpatient-episode-detail">
-    <header><div><span>{value.departmentName} · {value.bedNo ?? '已离院'}</span><h2>{value.residentName}</h2>
+    <header><div><span>{value.departmentName} · {value.bedNo ?? (value.status === 'ADMITTED' ? '未分床' : '已离院')}</span><h2>{value.residentName}</h2>
       <p>{value.genderText ?? '未知'} · {value.birthDate ? `${age(value.birthDate)}岁` : '年龄未知'} · 健康档案 {value.healthRecordNo}</p></div>
       <StatusBadge tone={value.status === 'ADMITTED' ? 'info' : 'neutral'}>{value.status === 'ADMITTED' ? '在院' : '已出院'}</StatusBadge></header>
     <dl><div><dt>住院号</dt><dd>{value.episodeNo}</dd></div><div><dt>入院时间</dt><dd>{formatTime(value.admittedAt)}</dd></div>
@@ -236,13 +251,13 @@ function AdmissionForm({ api, beds, onSuccess }: {
   const [resident, setResident] = useState<Resident | null>(null)
   const [bedId, setBedId] = useState(availableBeds[0]?.id ?? '')
   const [admittedAt, setAdmittedAt] = useState(localDateTimeValue)
-  const [admissionType, setAdmissionType] = useState<'GENERAL' | 'EMERGENCY' | 'TRANSFER'>('GENERAL')
-  const [source, setSource] = useState<'OUTPATIENT' | 'EMERGENCY' | 'REFERRAL' | 'DIRECT'>('OUTPATIENT')
-  const [method, setMethod] = useState<'WALKING' | 'WHEELCHAIR' | 'STRETCHER' | 'AMBULANCE'>('WALKING')
-  const [condition, setCondition] = useState<'GENERAL' | 'URGENT' | 'CRITICAL'>('GENERAL')
-  const [level, setLevel] = useState<'SPECIAL' | 'LEVEL_I' | 'LEVEL_II' | 'LEVEL_III'>('LEVEL_III')
-  const [diet, setDiet] = useState('NORMAL')
-  const [payment, setPayment] = useState<'SELF_PAY' | 'BASIC_MEDICAL_INSURANCE' | 'COMMERCIAL_INSURANCE' | 'OTHER'>('BASIC_MEDICAL_INSURANCE')
+  const [admissionType, setAdmissionType] = useState<'GENERAL' | 'EMERGENCY' | 'TRANSFER' | ''>('')
+  const [source, setSource] = useState<'OUTPATIENT' | 'EMERGENCY' | 'REFERRAL' | 'DIRECT' | ''>('')
+  const [method, setMethod] = useState<'WALKING' | 'WHEELCHAIR' | 'STRETCHER' | 'AMBULANCE' | ''>('')
+  const [condition, setCondition] = useState<'GENERAL' | 'URGENT' | 'CRITICAL' | ''>('')
+  const [level, setLevel] = useState<'SPECIAL' | 'LEVEL_I' | 'LEVEL_II' | 'LEVEL_III' | ''>('')
+  const [diet, setDiet] = useState('')
+  const [payment, setPayment] = useState<'SELF_PAY' | 'BASIC_MEDICAL_INSURANCE' | 'COMMERCIAL_INSURANCE' | 'OTHER' | ''>('')
   const [reason, setReason] = useState('')
   const [referralOrganization, setReferralOrganization] = useState('')
   const [contactName, setContactName] = useState('')
@@ -256,10 +271,13 @@ function AdmissionForm({ api, beds, onSuccess }: {
   const validDepositAmount = Number.isFinite(parsedDepositAmount) && parsedDepositAmount > 0
   const admit = useMutation({
     mutationFn: async () => {
+      if (!admissionType || !source || !method || !condition || !level || !payment) {
+        throw new Error('请明确选择入院信息、护理级别和付费方式')
+      }
       const episode = await api.inpatient.admit({
         residentId: resident!.id, bedId, admittedAt: new Date(admittedAt).toISOString(), admissionTypeCode: admissionType,
         admissionSourceCode: source, admissionReason: reason.trim() || undefined, nursingLevelCode: level,
-        dietCode: diet, admissionMethodCode: method, conditionCode: condition, paymentMethodCode: payment,
+        dietCode: diet || undefined, admissionMethodCode: method, conditionCode: condition, paymentMethodCode: payment,
         referralOrganizationName: referralOrganization.trim() || undefined,
         emergencyContactName: contactName.trim() || undefined,
         emergencyContactRelationship: contactRelationshipCode || undefined,
@@ -282,7 +300,7 @@ function AdmissionForm({ api, beds, onSuccess }: {
   })
   const contactIncomplete = Boolean(contactName || contactRelationshipCode || contactPhone) &&
     !(contactName.trim() && contactRelationshipCode && contactPhone.trim())
-  const canSubmit = Boolean(resident && bedId && admittedAt && !contactIncomplete
+  const canSubmit = Boolean(resident && bedId && admittedAt && admissionType && source && method && condition && level && payment && !contactIncomplete
     && (!depositRequested || validDepositAmount))
   const selectedBed = beds.find((value) => value.id === bedId)
   return <form className="inpatient-admission-workbench" onSubmit={(event) => {
@@ -300,7 +318,7 @@ function AdmissionForm({ api, beds, onSuccess }: {
           <PatientIdentitySearch queryKey="inpatient-admission"
             search={api.residents.search} selected={resident} autoFocus compact showInitialEmpty={false}
             onClear={() => setResident(null)}
-            onSelect={(value) => { setResident(value); if (!contactPhone && value.phone) setContactPhone(value.phone) }}
+            onSelect={setResident}
             getOptionDisabledReason={(value) => value.deceased ? '已死亡，不能办理入院'
               : value.status !== 'ACTIVE' ? '居民档案状态不可用' : undefined} />
         </div>
@@ -343,13 +361,13 @@ function AdmissionForm({ api, beds, onSuccess }: {
         <div className="inpatient-admission-section__body inpatient-form-grid">
           <FormField label="入院时间" required><input type="datetime-local" value={admittedAt} max={localDateTimeValue()}
             onChange={(event) => setAdmittedAt(event.target.value)} /></FormField>
-          <FormField label="入院类型" required><Select value={admissionType} options={admissionTypeOptions}
+          <FormField label="入院类型" required><Select aria-label="入院类型" placeholder="请选择" value={admissionType} options={admissionTypeOptions}
             searchable={false} clearable={false} onChange={(value) => setAdmissionType(value as typeof admissionType)} /></FormField>
-          <FormField label="入院来源" required><Select value={source} options={admissionSourceOptions}
+          <FormField label="入院来源" required><Select aria-label="入院来源" placeholder="请选择" value={source} options={admissionSourceOptions}
             searchable={false} clearable={false} onChange={(value) => setSource(value as typeof source)} /></FormField>
-          <FormField label="入院方式" required><Select value={method} options={admissionMethodOptions}
+          <FormField label="入院方式" required><Select aria-label="入院方式" placeholder="请选择" value={method} options={admissionMethodOptions}
             searchable={false} clearable={false} onChange={(value) => setMethod(value as typeof method)} /></FormField>
-          <FormField label="入院病情" required><Select value={condition} options={admissionConditionOptions}
+          <FormField label="入院病情" required><Select aria-label="入院病情" placeholder="请选择" value={condition} options={admissionConditionOptions}
             searchable={false} clearable={false} onChange={(value) => setCondition(value as typeof condition)} /></FormField>
           <FormField label="转诊机构" hint={source === 'REFERRAL' ? '转诊入院时建议填写' : '非转诊入院可不填'}><input value={referralOrganization}
             onChange={(event) => setReferralOrganization(event.target.value)} disabled={source !== 'REFERRAL'} /></FormField>
@@ -365,11 +383,11 @@ function AdmissionForm({ api, beds, onSuccess }: {
             options={availableBeds.map((bed) => ({ value: bed.id, label: `${bed.wardName} · ${bed.roomName} · ${bed.bedNo}` }))}
             placeholder="请选择可用床位" emptyText="暂无可用床位" clearable={false} disabled={!availableBeds.length}
             searchPlaceholder="搜索病区、房间或床号" onChange={setBedId} /></FormField>
-          <FormField label="护理级别" required><Select value={level} options={nursingLevelOptions}
+          <FormField label="护理级别" required><Select aria-label="护理级别" placeholder="请选择" value={level} options={nursingLevelOptions}
             searchable={false} clearable={false} onChange={(value) => setLevel(value as typeof level)} /></FormField>
-          <FormField label="饮食类别"><Select value={diet} options={dietOptions}
+          <FormField label="饮食类别"><Select aria-label="饮食类别" placeholder="请选择" value={diet} options={dietOptions}
             searchable={false} clearable={false} onChange={setDiet} /></FormField>
-          <FormField label="付费方式" required><Select value={payment} options={inpatientPaymentOptions}
+          <FormField label="付费方式" required><Select aria-label="付费方式" placeholder="请选择" value={payment} options={inpatientPaymentOptions}
             searchable={false} clearable={false} onChange={(value) => setPayment(value as typeof payment)} /></FormField>
           <FormField label="快捷预交金（选填）" hint="登记成功后直接收取"
             error={depositRequested && !validDepositAmount ? '请输入大于 0 的金额' : undefined}>
@@ -435,7 +453,7 @@ export function DischargeDialog({ api, episode, onClose, onSuccess }: {
   onClose: () => void
   onSuccess: (value: InpatientEpisode) => void | Promise<void>
 }) {
-  const [disposition, setDisposition] = useState<'HOME' | 'TRANSFER' | 'DEATH' | 'OTHER'>('HOME')
+  const [disposition, setDisposition] = useState<'HOME' | 'TRANSFER' | 'DEATH' | 'OTHER' | ''>('')
   const [note, setNote] = useState('')
   const [diagnosisQuery, setDiagnosisQuery] = useState('')
   const [diagnosisSearch, setDiagnosisSearch] = useState('')
@@ -459,7 +477,7 @@ export function DischargeDialog({ api, episode, onClose, onSuccess }: {
   const saveDiagnoses = useMutation({
     mutationFn: () => api.inpatient.saveDischargeDiagnoses(episode.id, {
       expectedEpisodeRevision: episode.revision,
-      diagnoses: diagnoses.map(({ code, display, diagnosisType }) => ({ code, display, diagnosisType })),
+      diagnoses: diagnoses.map(({ code, display, diagnosisType, conceptId, diagnosisDomain }) => ({ code, display, diagnosisType, conceptId, diagnosisDomain })),
       commandCode: `DISCHARGE-DIAGNOSIS-${crypto.randomUUID()}`,
     }),
     onSuccess: async (value) => {
@@ -467,16 +485,20 @@ export function DischargeDialog({ api, episode, onClose, onSuccess }: {
       await readiness.refetch()
     },
   })
-  const discharge = useMutation({ mutationFn: () => api.inpatient.discharge(episode.id, {
-    expectedRevision: episode.revision, dispositionCode: disposition, note: note.trim() || undefined,
-    commandCode: `DISCHARGE-${crypto.randomUUID()}`,
-  }), onSuccess })
+  const discharge = useMutation({ mutationFn: () => {
+    if (!disposition) throw new Error('请选择出院转归')
+    return api.inpatient.discharge(episode.id, {
+      expectedRevision: episode.revision, dispositionCode: disposition, note: note.trim() || undefined,
+      commandCode: `DISCHARGE-${crypto.randomUUID()}`,
+    })
+  }, onSuccess })
   const primaryDiagnosis = diagnoses.find((value) => value.diagnosisType === 'PRIMARY')
-  const ready = readiness.data?.ready === true
-  const addDiagnosis = (code: string, display: string) => {
+  const ready = readiness.isSuccess && !readiness.isFetching && readiness.data.ready === true
+  const addDiagnosis = (disease: DiseaseConcept) => {
+    const { code, display } = disease
     if (diagnoses.some((value) => value.code.toUpperCase() === code.toUpperCase())) return
     setDiagnoses((current) => [...current, {
-      diagnosisStage: 'DISCHARGE', code, display,
+      diagnosisStage: 'DISCHARGE', code, display, conceptId: disease.id, diagnosisDomain: disease.sdDiagnosisDomain,
       diagnosisType: current.some((value) => value.diagnosisType === 'PRIMARY') ? 'SECONDARY' : 'PRIMARY',
     }])
   }
@@ -484,11 +506,12 @@ export function DischargeDialog({ api, episode, onClose, onSuccess }: {
     closeOnBackdrop={false} onClose={onClose}
     description="先完成医嘱收口、出院记录签署和结构化出院诊断；临床条件满足后释放床位，欠费仅提示、不阻断医疗出院。"
     footer={<><Button variant="secondary" onClick={onClose}>取消</Button><Button busy={discharge.isPending}
-      disabled={!ready} title={ready ? '确认临床出院' : '请先处理出院门禁项'}
-      onClick={() => discharge.mutate()}>确认出院</Button></>}>
+      disabled={!ready || !disposition} title={!ready ? '请先处理出院门禁项' : !disposition ? '请选择出院转归' : '确认临床出院'}
+      onClick={() => { if (ready && disposition) discharge.mutate() }}>确认出院</Button></>}>
     {(readiness.error || saveDiagnoses.error || discharge.error) && <Alert>
       {errorMessage(readiness.error || saveDiagnoses.error || discharge.error)}</Alert>}
-    {readiness.isPending ? <LoadingState label="正在核对出院条件…" /> : readiness.data && <section
+    {readiness.isError && <Button variant="secondary" onClick={() => void readiness.refetch()}>重新核对出院条件</Button>}
+    {readiness.isFetching ? <LoadingState label="正在核对出院条件…" /> : readiness.isSuccess && readiness.data && <section
       className={`inpatient-discharge-readiness ${ready ? 'is-ready' : 'is-blocked'}`}>
       <header><div><span>出院门禁</span><strong>{ready ? '临床条件已满足' : `还有 ${readiness.data.blockers.length} 项待处理`}</strong></div>
         <StatusBadge tone={ready ? 'success' : 'warning'}>{ready ? '可以出院' : '暂不可出院'}</StatusBadge></header>
@@ -517,20 +540,22 @@ export function DischargeDialog({ api, episode, onClose, onSuccess }: {
           disabled={diagnosisQuery.trim().length < 2}>查询</Button>
       </form>
       {diseaseResults.data && <div className="inpatient-disease-results">{diseaseResults.data.slice(0, 8).map((disease) =>
-        <button type="button" key={disease.id} onClick={() => addDiagnosis(disease.code, disease.display)}>
-          <strong>{disease.display}</strong><small>{disease.code} · {disease.systemName}</small></button>)}</div>}
+        <Button type="button" variant="text" key={disease.id} onClick={() => addDiagnosis(disease)}>
+          <strong>{disease.display}</strong><small>{disease.code} · {disease.systemName}</small></Button>)}</div>}
       <div className="inpatient-selected-diagnoses">{diagnoses.map((diagnosis) => <article key={diagnosis.code}>
         <span><StatusBadge tone={diagnosis.diagnosisType === 'PRIMARY' ? 'info' : 'neutral'}>
           {diagnosis.diagnosisType === 'PRIMARY' ? '主要' : '次要'}</StatusBadge><strong>{diagnosis.display}</strong>
-          <small>{diagnosis.code}</small></span><div>{diagnosis.diagnosisType !== 'PRIMARY' && <Button size="sm" variant="text"
+          <small>{diagnosis.code} · {diagnosisDomainLabel(diagnosis.diagnosisDomain)}</small></span><div>{diagnosis.diagnosisType !== 'PRIMARY' && <Button size="sm" variant="text"
             onClick={() => setDiagnoses((current) => current.map((value) => ({ ...value,
               diagnosisType: value.code === diagnosis.code ? 'PRIMARY' : value.diagnosisType === 'PRIMARY' ? 'SECONDARY' : value.diagnosisType })))}>
               设为主要</Button>}<Button size="sm" variant="text" onClick={() => setDiagnoses((current) =>
                 current.filter((value) => value.code !== diagnosis.code))}>移除</Button></div></article>)}</div>
     </section>
-    <div className="inpatient-form-grid"><FormField label="出院转归"><select value={disposition}
-      onChange={(event) => setDisposition(event.target.value as typeof disposition)}><option value="HOME">回家</option>
-      <option value="TRANSFER">转院</option><option value="DEATH">死亡</option><option value="OTHER">其他</option></select></FormField>
+    <div className="inpatient-form-grid"><FormField label="出院转归" required><Select aria-label="出院转归" value={disposition}
+      placeholder="请选择出院转归" clearable={false} searchable={false}
+      options={[{ value: 'HOME', label: '回家' }, { value: 'TRANSFER', label: '转院' },
+        { value: 'DEATH', label: '死亡' }, { value: 'OTHER', label: '其他' }]}
+      onChange={(value) => setDisposition(value as typeof disposition)} /></FormField>
       <FormField label="出院说明" className="is-wide"><textarea rows={3} value={note}
         placeholder="病情、用药和随访交代" onChange={(event) => setNote(event.target.value)} /></FormField></div>
   </Dialog>

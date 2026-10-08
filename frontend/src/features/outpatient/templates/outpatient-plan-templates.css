@@ -521,15 +521,20 @@ button.doctor-plan-item-card,
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
+}
+
+.ui-page-template__pane-body > .doctor-plan-pool-detail__body {
+  padding: 0;
+  overflow-y: visible;
 }
 
 .doctor-plan-detail-hero {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
@@ -632,7 +637,20 @@ button.doctor-plan-item-card,
 
 .doctor-plan-items-table th.doctor-col--med-name,
 .doctor-plan-items-table td.doctor-col--med-name {
-  min-width: 160px;
+  min-width: 14rem;
+}
+
+.doctor-plan-med-name-cell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.doctor-plan-item-spec {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-normal);
 }
 
 .doctor-plan-items-table th.doctor-col--dose,
@@ -803,14 +821,14 @@ button.doctor-plan-item-card,
 }
 
 .doctor-plan-detail-card__header {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-3);
   background: var(--color-surface-subtle);
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  min-height: 2.5rem;
+  min-height: 2.25rem;
 }
 
 .doctor-plan-detail-card__title {
@@ -838,7 +856,7 @@ button.doctor-plan-item-card,
 }
 
 .doctor-plan-detail-card__body {
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
 }
 
 .doctor-plan-detail-card__table-wrapper {
@@ -855,9 +873,9 @@ button.doctor-plan-item-card,
 .doctor-note-sheet-row {
   display: grid;
   grid-template-columns: 5.5rem minmax(0, 1fr);
-  gap: var(--space-3);
+  gap: var(--space-2);
   align-items: baseline;
-  padding-bottom: var(--space-2);
+  padding-bottom: var(--space-1);
   border-bottom: 1px dashed var(--color-border-subtle);
 }
 

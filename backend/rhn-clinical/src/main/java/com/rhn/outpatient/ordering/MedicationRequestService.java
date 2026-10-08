@@ -428,9 +428,10 @@ class MedicationRequestService implements MedicationRequestDirectory {
         MedicationRequest value = repository.findByIdAndTenantId(requestId, encounter.tenantId())
                 .filter(request -> request.encounterId().equals(encounterId))
                 .orElseThrow(() -> notFound("MEDICATION_REQUEST_NOT_FOUND", "未找到药品请求"));
+        boolean draft = value.status() == MedicationRequestStatus.DRAFT;
         value.cancel(input.expectedRevision(), input.reason().trim(), context.subjectId());
         repository.flush();
-        publishCancellation(value, input.reason().trim(), context.subjectId());
+        publishCancellation(value, input.reason().trim(), context.subjectId(), draft, encounter);
         return response(value);
     }
 
@@ -446,8 +447,10 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     void cancelFromPrescription(MedicationRequest value, String reason, Long actorId) {
         if (value.status() == MedicationRequestStatus.CANCELLED) return;
+        boolean draft = value.status() == MedicationRequestStatus.DRAFT;
+        var encounter = encounterDirectory.requireAccessible(value.encounterId());
         value.cancelFromPrescription(reason, actorId);
-        publishCancellation(value, reason, actorId);
+        publishCancellation(value, reason, actorId, draft, encounter);
     }
 
     @Override
@@ -629,12 +632,21 @@ class MedicationRequestService implements MedicationRequestDirectory {
     private void publish(MedicationRequest value, String type, String summary, Map<String, Object> details) {
         Map<String, Object> payload = new LinkedHashMap<>(details);
         payload.put("requestNo", value.requestNo()); payload.put("summary", summary);
-        eventPublisher.publish(value.tenantId(), value.performerOrganizationId(), type, 1,
-                "MedicationRequest", value.id(), value.revision(), value.residentId(), Instant.now(), payload);
+        Instant occurredAt = switch (type) {
+            case "MEDICATION_REQUEST_AUTHORED", "MEDICATION_REQUEST_DRAFTED" -> value.authoredAt();
+            case "MEDICATION_REQUEST_CANCELLED" -> value.cancelledAt();
+            default -> Instant.now(); // Activation occurs here; this timestamp is persisted in the outbox.
+        };
+        eventPublisher.publish(value.tenantId(), value.performerOrganizationId(), type,
+                details.containsKey("billingDisposition") ? 2 : 1,
+                "MedicationRequest", value.id(), value.revision(), value.residentId(), occurredAt.truncatedTo(java.time.temporal.ChronoUnit.MICROS), payload);
     }
 
-    private void publishCancellation(MedicationRequest value, String reason, Long actorId) {
-        Map<String, Object> details = new LinkedHashMap<>();
+    private void publishCancellation(MedicationRequest value, String reason, Long actorId, boolean draft,
+                                     EncounterDirectory.EncounterSnapshot encounter) {
+        Map<String, Object> details = financialEventDetails(value, encounter);
+        details.put("billingDisposition", com.rhn.outpatient.api.ClinicalOrderBillingDisposition.fromSnapshot(
+                draft, value.selfProvided(), value.unitPrice(), value.totalAmount(), value.currencyCode()).name());
         details.put("medicationId", value.medicationId());
         details.put("reason", reason);
         details.put("cancelledBy", actorId);
@@ -644,6 +656,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
     private Map<String, Object> financialEventDetails(MedicationRequest value,
                                                        EncounterDirectory.EncounterSnapshot encounter) {
         Map<String, Object> details = new LinkedHashMap<>();
+        details.put("billingDisposition", com.rhn.outpatient.api.ClinicalOrderBillingDisposition.fromSnapshot(
+                value.status() == MedicationRequestStatus.DRAFT, value.selfProvided(),
+                value.unitPrice(), value.totalAmount(), value.currencyCode()).name());
         details.put("encounterId", encounter.id());
         details.put("residentId", encounter.residentId());
         details.put("encounterOrganizationId", encounter.organizationId());
@@ -667,7 +682,8 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 details.put("prescriptionCategory", prescriptionCategory);
             }
         }
-        details.put("accountingCategory", resolveMedicationCategory(value.medicationTypeSnapshot(), prescriptionCategory));
+        String accountingCategory = com.rhn.platform.masterdata.api.MedicationAccountingCategories.fromMedicationType(value.medicationTypeSnapshot());
+        if (accountingCategory != null) details.put("accountingCategory", accountingCategory);
         if (value.parentRequestId() != null) details.put("parentRequestId", value.parentRequestId());
         if (value.doseValue() != null) details.put("doseValue", value.doseValue());
         if (value.doseUnit() != null) details.put("doseUnit", value.doseUnit());
@@ -705,14 +721,4 @@ class MedicationRequestService implements MedicationRequestDirectory {
         return left == null ? right == null : right != null && left.compareTo(right) == 0;
     }
 
-    private String resolveMedicationCategory(String medicationType, String prescriptionCategory) {
-        String type = medicationType != null ? medicationType : prescriptionCategory;
-        if (type == null) return "WESTERN_MED";
-        return switch (type.trim().toUpperCase()) {
-            case "CHINESE_PATENT", "CHINESE_PATENT_MED" -> "CHINESE_PATENT_MED";
-            case "HERBAL", "HERBAL_MED" -> "HERBAL_MED";
-            case "WESTERN", "WESTERN_MED" -> "WESTERN_MED";
-            default -> "MEDICATION";
-        };
-    }
 }

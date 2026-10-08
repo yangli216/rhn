@@ -90,7 +90,10 @@ public final class InpatientViews {
 
     public record DischargeDiagnosisView(
             Long id, String diagnosisStage, String code, String display, String diagnosisType,
-            String verificationStatus, String diagnosisStatus) {
+            String verificationStatus, String diagnosisStatus,
+            @io.swagger.v3.oas.annotations.media.Schema(nullable = true) Long conceptId,
+            @DictionaryBinding("BD_DIAGNOSIS_DOMAIN")
+            @io.swagger.v3.oas.annotations.media.Schema(nullable = true) String diagnosisDomain) {
     }
 
     public record DischargeDiagnosisListView(
@@ -102,7 +105,10 @@ public final class InpatientViews {
 
     public record AdmissionDiagnosisView(
             Long id, String diagnosisStage, String code, String display, String diagnosisType,
-            String verificationStatus, String diagnosisStatus) {
+            String verificationStatus, String diagnosisStatus,
+            @io.swagger.v3.oas.annotations.media.Schema(nullable = true) Long conceptId,
+            @DictionaryBinding("BD_DIAGNOSIS_DOMAIN")
+            @io.swagger.v3.oas.annotations.media.Schema(nullable = true) String diagnosisDomain) {
     }
 
     public record AdmissionDiagnosisListView(

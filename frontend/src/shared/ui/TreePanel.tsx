@@ -20,6 +20,7 @@ export interface TreePanelNode {
 export interface TreePanelMove {
   nodeId: string
   parentId?: string
+  /** Insertion position in the destination siblings before removing the source node. */
   index: number
 }
 
@@ -116,7 +117,7 @@ export function TreePanel({
         event.preventDefault(); void move({ nodeId: id, parentId: node.parentId, index: siblingIndex - 1 }); return
       }
       if (event.key === 'ArrowDown' && siblingIndex < siblings.length - 1) {
-        event.preventDefault(); void move({ nodeId: id, parentId: node.parentId, index: siblingIndex + 1 }); return
+        event.preventDefault(); void move({ nodeId: id, parentId: node.parentId, index: siblingIndex + 2 }); return
       }
       if (event.key === 'ArrowRight' && siblingIndex > 0) {
         const previous = siblings[siblingIndex - 1]
@@ -204,7 +205,7 @@ export function TreePanel({
         <span className="ui-tree-panel__indent" aria-hidden="true" />
         <span className="ui-tree-panel__chevron is-open"><IconChevronRight /></span>
         <IconFolderOpen className="ui-tree-panel__node-icon" aria-hidden="true" />
-        <span className="ui-tree-panel__label"><strong>{rootLabel}</strong><small>{rootMeta ?? `${nodes.length} 项`}</small></span>
+        <span className="ui-tree-panel__label"><strong title={rootLabel}>{rootLabel}</strong><small>{rootMeta ?? `${nodes.length} 项`}</small></span>
       </div>
       {hasResults && visibleRows.map(({ node, depth }) => {
         const children = childrenByParent.get(node.id) ?? []
@@ -229,7 +230,7 @@ export function TreePanel({
             <IconChevronRight /></button> : <span className="ui-tree-panel__chevron" aria-hidden="true" />}
           {children.length ? (isExpanded ? <IconFolderOpen className="ui-tree-panel__node-icon" /> : <IconFolder className="ui-tree-panel__node-icon" />)
             : <IconFile className="ui-tree-panel__node-icon is-leaf" />}
-          <span className="ui-tree-panel__label"><strong>{node.label}</strong>{node.secondaryText && <small>{node.secondaryText}</small>}</span>
+          <span className="ui-tree-panel__label"><strong title={node.label}>{node.label}</strong>{node.secondaryText && <small title={node.secondaryText}>{node.secondaryText}</small>}</span>
           {node.inactive && <span className="ui-tree-panel__badge">已停用</span>}
           {sortMode && <span className="ui-tree-panel__grip" title="拖动排序"><IconGripVertical /></span>}
         </div>

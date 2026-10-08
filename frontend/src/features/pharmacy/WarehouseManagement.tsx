@@ -10,6 +10,7 @@ import {
 } from '../../shared/ui'
 import { WarehouseOperations, type OperationTab } from './WarehouseOperations'
 import '../../styles/features/pharmacy-warehouse.css'
+import { inventoryAverageCost, inventoryKnownTotal, knownInventoryNumber, requireInventoryBalances, requireInventoryList, requireInventoryPage } from './inventoryLedgerTruth'
 
 const TraceCodeManagement = lazy(() => import('./TraceCodeManagement')
   .then((module) => ({ default: module.TraceCodeManagement })))
@@ -71,26 +72,26 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
 
   const sites = useQuery({
-    queryKey: ['pharmacy-sites', organizationId], queryFn: () => api.pharmacy.sites(organizationId),
+    queryKey: ['pharmacy-sites', organizationId], queryFn: async () => requireInventoryList(await api.pharmacy.sites(organizationId)),
   })
   const allSites = useMemo(() => sites.data ?? [], [sites.data])
   const selectedSite = allSites.find((site) => site.active && site.departmentId === departmentId)
   const siteId = selectedSite?.id ?? ''
 
   const bins = useQuery({
-    queryKey: ['pharmacy-stock-bins', siteId], queryFn: () => api.pharmacy.stockBins(siteId), enabled: Boolean(siteId),
+    queryKey: ['pharmacy-stock-bins', siteId], queryFn: async () => requireInventoryList(await api.pharmacy.stockBins(siteId)), enabled: Boolean(siteId),
   })
   const items = useQuery({
-    queryKey: ['pharmacy-stock-items', siteId], queryFn: () => api.pharmacy.stockItems(siteId), enabled: Boolean(siteId),
+    queryKey: ['pharmacy-stock-items', siteId], queryFn: async () => requireInventoryList(await api.pharmacy.stockItems(siteId)), enabled: Boolean(siteId),
   })
   const balances = useQuery({
     queryKey: ['warehouse-balances', siteId],
-    queryFn: () => api.pharmacy.balances(siteId),
+    queryFn: async () => requireInventoryBalances(await api.pharmacy.balances(siteId)),
     enabled: Boolean(siteId),
   })
   const transactionSummary = useQuery({
     queryKey: ['warehouse-transaction-summary', siteId],
-    queryFn: () => api.pharmacy.transactionPage(siteId, { page: 0, size: 1 }),
+    queryFn: async () => requireInventoryPage(await api.pharmacy.transactionPage(siteId, { page: 0, size: 1 })),
     enabled: tab === 'inventory' && Boolean(siteId),
   })
 
@@ -143,13 +144,14 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   const selectedReceiptItem = items.data?.find((item) => item.id === receiptItemId)
   const inventoryVarietyCount = new Set((balances.data ?? []).filter(row => row.quantityOnHand !== 0)
     .map(row => row.stockItemId)).size
-  const error = sites.error || bins.error || items.error || balances.error || transactionSummary.error
+  const foundationError = bins.error || items.error || balances.error
+  const foundationLoading = bins.isPending || items.isPending || balances.isPending
+  const retryFoundation = () => { void bins.refetch(); void items.refetch(); void balances.refetch() }
 
   return <>
     <PageHeader title="库房管理" compact />
-    {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
-
-    {sites.isPending ? <LoadingState label="正在加载库存站点与配置…" /> : !allSites.length
+    {sites.isError ? <EmptyState icon="pharmacy" title="库存站点读取失败" copy={errorMessage(sites.error)}
+      action={<Button variant="secondary" onClick={() => void sites.refetch()}>重新读取站点</Button>} /> : sites.isPending ? <LoadingState label="正在加载库存站点与配置…" /> : !allSites.length
       ? <EmptyState icon="pharmacy" title="机构未配置任何库存站点"
           copy="库房不在此单独新建。请在组织与人员中维护科室类型，库存配置将随科室建立。" />
       : !selectedSite
@@ -163,23 +165,30 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
                   ['trace', '追溯码', undefined], ['accuracy', '账目校验', undefined],
                   ['price', '库存调价', undefined],
                   ['period', '库存月结', undefined],
-                  ['inventory', '库存查询', inventoryVarietyCount], ['bins', '库位', bins.data?.length ?? 0],
-                  ['items', '经营项目', items.data?.length ?? 0]] as const).map(([value, label, count]) =>
+                  ['inventory', '库存查询', balances.isSuccess ? inventoryVarietyCount : undefined], ['bins', '库位', bins.isSuccess ? bins.data.length : undefined],
+                  ['items', '经营项目', items.isSuccess ? items.data.length : undefined]] as const).map(([value, label, count]) =>
                   <button type="button" className={tab === value ? 'is-active' : ''} key={value}
                     onClick={() => setTab(value)}>{label}{count !== undefined && <span>{count}</span>}</button>)}
               </nav>
 
+              {foundationError ? <EmptyState icon="pharmacy" title="库存基础数据读取失败" copy={errorMessage(foundationError)}
+                action={<Button variant="secondary" onClick={retryFoundation}>重新读取库存数据</Button>} />
+                : foundationLoading ? <LoadingState label="正在读取库存基础数据…" /> : <>
               {tab === 'bins' && <BinSection bins={bins.data ?? []} selected={selectedBin}
                 selectedId={selectedBinId} loading={bins.isPending} onSelect={setSelectedBinId}
                 onAdd={(parentId) => setBinDialogParentId(parentId ?? null)} isOperator={true} />}
               {tab === 'items' && <ItemSection items={items.data ?? []} loading={items.isPending}
                 onAdd={() => setItemDialogOpen(true)} onInspect={(id) => { setLedgerItemId(id); setTab('inventory') }} isOperator={true} />}
-              {tab === 'inventory' && <InventorySection api={api} siteId={siteId} items={items.data ?? []}
+              {tab === 'inventory' && (transactionSummary.isError
+                ? <EmptyState icon="pharmacy" title="库存记账摘要读取失败" copy={errorMessage(transactionSummary.error)}
+                    action={<Button variant="secondary" onClick={() => void transactionSummary.refetch()}>重新读取记账摘要</Button>} />
+                : transactionSummary.isPending ? <LoadingState label="正在读取库存记账摘要…" />
+                : <InventorySection api={api} siteId={siteId} items={items.data ?? []}
                 bins={bins.data ?? []} selectedItemId={ledgerItemId} onInspect={setLedgerItemId}
                 loading={balances.isPending || transactionSummary.isPending} balances={balances.data ?? []}
                 transactionCount={transactionSummary.data?.totalElements ?? 0} onReceive={(itemId) => {
                   setReceiptItemId(itemId); setReceiptDialogOpen(true)
-                }} isOperator={true} />}
+                }} isOperator={true} />)}
               {tab === 'trace' && (
                 <Suspense fallback={<LoadingState label="正在加载追溯码管理…" />}>
                   <TraceCodeManagement api={api} siteId={siteId} items={items.data ?? []} bins={bins.data ?? []} />
@@ -203,6 +212,7 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
               {(['purchase', 'requisition', 'transfer', 'count'] as ActiveTab[]).includes(tab) && selectedSite &&
                 <WarehouseOperations tab={tab as OperationTab} api={api} site={selectedSite}
                   sites={allSites} items={items.data ?? []} bins={bins.data ?? []} onNavigate={onNavigate} isOperator={true} />}
+              </>}
             </Panel>
           </div>}
 
@@ -290,14 +300,13 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
       const expiringRows = activeRows.filter(row => row.expiryDate
         && new Date(row.expiryDate).getTime() >= now && new Date(row.expiryDate).getTime() <= expiryLimit)
       const expiryDates = activeRows.map(row => row.expiryDate).filter((value): value is string => Boolean(value)).sort()
-      const valueTotal = rows.reduce((sum, row) => sum + Number(row.quantityOnHand) * Number(row.averageUnitCost ?? 0), 0)
       const latestProjectedAt = rows.map(row => row.projectedAt).filter(Boolean).sort().at(-1)
       return {
         item, balances: rows, onHand, available, reserved, frozen,
         activeLots: new Set(activeRows.map(row => row.stockLotId)).size,
         binCount: new Set(activeRows.map(row => row.stockBinId)).size,
         expiringLots: new Set(expiringRows.map(row => row.stockLotId)).size,
-        earliestExpiry: expiryDates[0], averageUnitCost: onHand ? valueTotal / onHand : undefined,
+        earliestExpiry: expiryDates[0], averageUnitCost: inventoryAverageCost(rows),
         latestProjectedAt,
       }
     }).sort((left, right) => Number(right.onHand !== 0) - Number(left.onHand !== 0)
@@ -374,7 +383,7 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
               <small>≈ {item.packageFactor ? formatWarehousePackageQuantity(summary.onHand / item.packageFactor) : '—'} {item.packageUnitName}</small></td>
             <td className={tableCellClass('numeric')}><strong>{formatWarehouseQuantity(summary.available)} {item.baseUnitCode}</strong></td>
             <td className={tableCellClass('numeric')}><strong>{formatWarehouseQuantity(summary.reserved)} / {formatWarehouseQuantity(summary.frozen)}</strong></td>
-            <td className={tableCellClass('numeric')}>{summary.averageUnitCost === undefined ? '—' : formatWarehouseMoney(summary.averageUnitCost)}</td>
+            <td className={tableCellClass('numeric')}>{summary.averageUnitCost === undefined ? '成本未取得' : formatWarehouseMoney(summary.averageUnitCost)}</td>
             <td>{summary.latestProjectedAt ? formatWarehouseTime(summary.latestProjectedAt) : '尚未记账'}</td>
             <td className={tableCellClass('actions')}><div className="warehouse-row-actions"><Button variant="text" size="sm" onClick={() => onInspect(item.id)}>查看流水</Button>
               <Button variant="text" size="sm" disabled={!canReceive || !isOperator} title={!isOperator ? '非管辖库房，仅供查阅' : undefined} onClick={() => onReceive(item.id)}>入库</Button></div></td>
@@ -402,18 +411,18 @@ function InventoryLedgerDialog({ api, siteId, item, summary, bins, onClose }: {
   useEffect(() => { setPage(0) }, [query])
   const history = useQuery({
     queryKey: ['warehouse-item-ledger', siteId, item.id, debouncedQuery, page, pageSize],
-    queryFn: () => api.pharmacy.transactionPage(siteId, {
+    queryFn: async () => requireInventoryPage(await api.pharmacy.transactionPage(siteId, {
       stockItemId: item.id, allPeriods: true, page, size: pageSize,
       ...(debouncedQuery ? { query: debouncedQuery } : {}),
-    }),
+    })),
   })
-  const transactions = history.data?.content ?? []
+  const transactions = history.isSuccess ? history.data.content : []
   const entries = useMemo(() => {
-    let quantityAfter = Number(history.data?.firstEntryQuantityAfter ?? summary?.onHand ?? 0)
+    let quantityAfter = knownInventoryNumber(history.data?.firstEntryQuantityAfter)
     return transactions.map(transaction => {
       const lines = transaction.lines.filter(line => line.stockItemId === item.id)
       const delta = lines.reduce((sum, line) => sum + Number(line.quantityDelta), 0)
-      const before = quantityAfter - delta
+      const before: number | undefined = quantityAfter === undefined ? undefined : quantityAfter - delta
       const dimensions = lines.map(line => {
         const balance = summary?.balances.find(row => row.stockLotId === line.stockLotId
           && row.stockBinId === line.stockBinId && row.stockStatus === line.stockStatus)
@@ -422,14 +431,14 @@ function InventoryLedgerDialog({ api, siteId, item, summary, bins, onClose }: {
           bin: bin ? `${bin.name}（${bin.code}）` : balance?.stockBinCode ?? '库位未登记',
           lot: balance?.lotNo ?? '批号未登记' }
       })
-      const amount = lines.reduce((sum, line) => sum + Number(line.amountDelta ?? 0), 0)
-      const unitCosts = [...new Set(lines.map(line => line.unitCost).filter((cost): cost is number => cost !== undefined))]
+      const amount = inventoryKnownTotal(lines.map(line => line.amountDelta))
+      const unitCosts = [...new Set(lines.map(line => knownInventoryNumber(line.unitCost)))]
       const entry = { transaction, lines, delta, before, after: quantityAfter, dimensions, amount,
         unitCost: unitCosts.length === 1 ? unitCosts[0] : undefined }
-      quantityAfter = before
+      quantityAfter = debouncedQuery ? undefined : before
       return entry
     }).filter(value => value.lines.length)
-  }, [bins, history.data?.firstEntryQuantityAfter, item.id, summary, transactions])
+  }, [bins, debouncedQuery, history.data?.firstEntryQuantityAfter, item.id, summary, transactions])
   const totalElements = history.data?.totalElements ?? 0
   const totalPages = history.data?.totalPages ?? 0
   const description = [item.packageSpec || item.packageUnitName, item.manufacturerName, '全部库存期间']
@@ -437,15 +446,16 @@ function InventoryLedgerDialog({ api, siteId, item, summary, bins, onClose }: {
   return <Dialog title="库存变动流水" eyebrow={item.productName} description={description}
     size="xwide" className="warehouse-ledger-dialog" onClose={onClose}
     footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
-    <div className="warehouse-ledger-summary"><div><span>当前账面</span><strong>{formatWarehouseQuantity(summary?.onHand ?? 0)}</strong><small>{item.baseUnitCode}</small></div>
-      <div><span>当前可用</span><strong>{formatWarehouseQuantity(summary?.available ?? 0)}</strong><small>{item.baseUnitCode}</small></div>
-      <div><span>批次 / 库位</span><strong>{summary?.activeLots ?? 0} / {summary?.binCount ?? 0}</strong><small>当前有效</small></div>
-      <div><span>{debouncedQuery ? '查询结果' : '历史记账'}</span><strong>{totalElements}</strong><small>笔</small></div></div>
+    <div className="warehouse-ledger-summary"><div><span>当前账面</span><strong>{summary ? formatWarehouseQuantity(summary.onHand) : '—'}</strong><small>{item.baseUnitCode}</small></div>
+      <div><span>当前可用</span><strong>{summary ? formatWarehouseQuantity(summary.available) : '—'}</strong><small>{item.baseUnitCode}</small></div>
+      <div><span>批次 / 库位</span><strong>{summary?.activeLots ?? '—'} / {summary?.binCount ?? '—'}</strong><small>当前有效</small></div>
+      <div><span>{debouncedQuery ? '查询结果' : '历史记账'}</span><strong>{history.isSuccess ? totalElements : '—'}</strong><small>笔</small></div></div>
     <div className="warehouse-ledger-filters">
       <SearchField label="查询库存流水" value={query} onChange={setQuery}
         placeholder="搜索来源单据、流水号、批号、库位或备注" />
     </div>
-    {history.error ? <Alert>{errorMessage(history.error)}</Alert>
+    {history.error ? <EmptyState icon="pharmacy" title="库存流水读取失败" copy={errorMessage(history.error)}
+      action={<Button variant="secondary" onClick={() => void history.refetch()}>重新读取流水</Button>} />
       : history.isPending ? <LoadingState label="正在加载账目流水…" /> : !entries.length
       ? <EmptyState icon="pharmacy" title={debouncedQuery ? '没有符合条件的库存流水' : '暂无库存流水'}
           copy={debouncedQuery ? '请调整查询关键词。' : '该药品完成首次库存记账后，将在这里显示每次库存变动。'} />
@@ -470,9 +480,9 @@ function InventoryLedgerDialog({ api, siteId, item, summary, bins, onClose }: {
         </small>)}</td>
         <td className={tableCellClass('numeric')}><strong className={`warehouse-ledger-delta ${entry.delta >= 0 ? 'is-positive' : 'is-negative'}`}>
           {entry.delta > 0 ? '+' : ''}{formatWarehouseQuantity(entry.delta)} {item.baseUnitCode}</strong></td>
-        <td className={tableCellClass('numeric')}><strong>{formatWarehouseQuantity(entry.before)} → {formatWarehouseQuantity(entry.after)}</strong></td>
-        <td className={tableCellClass('numeric')}>{entry.unitCost === undefined ? '—' : formatWarehouseMoney(entry.unitCost)}
-          {entry.amount !== 0 && <small>金额 {formatWarehouseMoney(entry.amount)}</small>}</td>
+        <td className={tableCellClass('numeric')}><strong>{entry.before === undefined || entry.after === undefined ? '结存未取得' : `${formatWarehouseQuantity(entry.before)} → ${formatWarehouseQuantity(entry.after)}`}</strong></td>
+        <td className={tableCellClass('numeric')}>{entry.unitCost === undefined ? '单价未取得' : formatWarehouseMoney(entry.unitCost)}
+          <small>{entry.amount === undefined ? '金额未取得' : `金额 ${formatWarehouseMoney(entry.amount)}`}</small></td>
       </tr>)}</tbody></DataTable>
       </TableShell>}
   </Dialog>

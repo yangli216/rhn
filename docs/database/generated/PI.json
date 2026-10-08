@@ -1,5 +1,5 @@
 {
-  "fingerprint": "cf6b790881c7cf89a94898e2de0d7d9f33de0ebee3ca9d002f9ab8cca929a48e",
+  "fingerprint": "29033795aa43ffea288b26ca6e7fbda613f90ac95920280da8122dd5a636c9d6",
   "tables": [
     {
       "logical": "pi.resident_address",
@@ -1295,7 +1295,7 @@
           "type": "DECIMAL",
           "size": 5,
           "scale": 4,
-          "nullable": false,
+          "nullable": true,
           "defaultValue": null,
           "ordinal": 5,
           "comment": "匹配score",
@@ -3073,7 +3073,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-app/src/main/java/com/rhn/portal/dashboard/PortalSummaryService.java",
-          "line": 50
+          "line": 51
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/application/JpaWardMedicationSupplyCandidateDirectory.java",

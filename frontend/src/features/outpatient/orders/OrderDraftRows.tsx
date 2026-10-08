@@ -52,7 +52,7 @@ export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRem
       </span>
     </span>
     <span className="doctor-unified-order-detail">{value.request.medicationInstruction || '—'}</span>
-    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
+    <span className="doctor-unified-price">{value.request.pricingRequired === false ? '不计价' : formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span className="doctor-order-status-stack">
       <StatusBadge tone="warning">待确认</StatusBadge>
       {value.request.skinTestExempt ? (
@@ -108,6 +108,8 @@ export function ServiceDraftRow({ value, onEdit, onRemove, currentDept }: {
       <span className="doctor-direction-chip is-dept">
         {resolveExecutingDepartment({
           kind: 'service',
+          performerDepartmentId: value.performerDepartmentId,
+          performerDepartmentName: value.performerDepartmentName,
           type: value.serviceType,
           itemName: value.itemName,
         }, currentDept)}

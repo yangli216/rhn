@@ -11,7 +11,7 @@ import { InpatientAdmissionWorkspace } from './InpatientWorkspace'
 const resident: Resident = {
   id: 'resident-1', healthRecordNo: 'HR0001', fullName: '张三', maskedNationalId: '3301********1234',
   gender: 'MALE', birthDate: '1990-01-01', deceased: false, createdAt: '2026-08-29T01:00:00Z',
-  status: 'ACTIVE', version: 0, identifiers: [],
+  status: 'ACTIVE', version: 0, identifiers: [], phone: '13900000001',
 }
 
 const bed: InpatientBed = {
@@ -30,13 +30,14 @@ const episode: InpatientEpisode = {
 }
 
 describe('InpatientAdmissionWorkspace quick deposit', () => {
-  it('collects an optional deposit immediately after admission', async () => {
+  it.each([false, true])('collects an optional deposit and preserves admission success when refresh fails: %s', async (refreshFails) => {
     const admit = vi.fn().mockResolvedValue(episode)
     const registerDeposit = vi.fn().mockResolvedValue({ paymentId: 'payment-1', paymentNo: 'IPD-1',
       amount: 500, currencyCode: 'CNY', paymentMethodCode: 'CASH', paidAt: '2026-08-31T08:00:00+08:00',
       duplicate: false, account: {},
     })
-    const api = { inpatient: { bootstrap: vi.fn().mockResolvedValue({ beds: [bed], episodes: [] }),
+    const bootstrap = vi.fn().mockResolvedValue({ beds: [bed], episodes: [] })
+    const api = { inpatient: { bootstrap,
       admit, registerDeposit }, residents: { search: vi.fn().mockResolvedValue([resident]) },
       dictionaries: { resolve: vi.fn().mockResolvedValue([
         { code: 'SPOUSE', name: '配偶', sortOrder: 10 },
@@ -57,6 +58,15 @@ describe('InpatientAdmissionWorkspace quick deposit', () => {
     expect(await screen.findByText('已回填')).toBeInTheDocument()
     expect(screen.queryByText('从居民主索引选择患者，避免重复建档')).not.toBeInTheDocument()
     expect(screen.queryByText('登记入院时间、来源、方式及病情状态')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('联系电话')).toHaveValue('')
+    expect(screen.getByRole('button', { name: '确认入院登记' })).toBeDisabled()
+    expect(screen.getByLabelText('饮食类别')).toHaveTextContent('请选择')
+    for (const [label, option] of [['入院类型', '急诊入院'], ['入院来源', '急诊入院'], ['入院方式', '轮椅'],
+      ['入院病情', '急'], ['护理级别', '一级护理'], ['付费方式', '自费']]) {
+      expect(screen.getByLabelText(label)).toHaveTextContent('请选择')
+      await userEvent.click(screen.getByLabelText(label))
+      await userEvent.click(screen.getByRole('option', { name: option }))
+    }
     await userEvent.type(screen.getByLabelText('联系人姓名'), '李家属')
     const relationship = screen.getByLabelText('与患者关系')
     await waitFor(() => expect(relationship).toBeEnabled())
@@ -64,10 +74,13 @@ describe('InpatientAdmissionWorkspace quick deposit', () => {
     await userEvent.click(await screen.findByRole('option', { name: /子女/ }))
     await userEvent.type(screen.getByLabelText('联系电话'), '13800000000')
     await userEvent.type(screen.getByLabelText('快捷预交金（选填）'), '500')
+    if (refreshFails) bootstrap.mockRejectedValue(new Error('床位刷新失败'))
     await userEvent.click(screen.getByRole('button', { name: '确认入院登记' }))
 
     await waitFor(() => expect(admit).toHaveBeenCalledWith(expect.objectContaining({
       residentId: resident.id, bedId: bed.id, emergencyContactName: '李家属',
+      admissionTypeCode: 'EMERGENCY', admissionSourceCode: 'EMERGENCY', admissionMethodCode: 'WHEELCHAIR',
+      conditionCode: 'URGENT', nursingLevelCode: 'LEVEL_I', dietCode: undefined, paymentMethodCode: 'SELF_PAY',
       emergencyContactRelationship: 'CHILD', emergencyContactPhone: '13800000000',
     })))
     await waitFor(() => expect(registerDeposit).toHaveBeenCalledWith(episode.id, expect.objectContaining({

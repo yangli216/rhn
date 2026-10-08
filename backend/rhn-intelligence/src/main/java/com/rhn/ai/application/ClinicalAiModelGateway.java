@@ -138,7 +138,7 @@ public interface ClinicalAiModelGateway {
             allergies = allergies == null ? List.of() : List.copyOf(allergies);
             availablePlans = availablePlans == null ? List.of() : List.copyOf(availablePlans);
             diagnosticReports = diagnosticReports == null ? List.of() : List.copyOf(diagnosticReports);
-            clinicalHistory = clinicalHistory == null ? List.of() : List.copyOf(clinicalHistory);
+            clinicalHistory = List.copyOf(clinicalHistory);
         }
         public ModelRequest withTemporalContext(TemporalContext value) {
             return new ModelRequest(promptVersion, question, voiceTranscript, draft, resident, allergies,

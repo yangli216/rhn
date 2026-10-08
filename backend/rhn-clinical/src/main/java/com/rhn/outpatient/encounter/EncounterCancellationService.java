@@ -9,7 +9,6 @@ import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Map;
 
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -56,15 +55,17 @@ public class EncounterCancellationService implements OutpatientEncounterCancella
                 encounterId, normalizedCommandCode, normalizedReason);
         if (encounter.status() != EncounterStatus.CANCELLED) {
             long expectedRevision = encounter.version();
-            statusEvents.save(new EncounterStatusEvent(encounter, EncounterStatus.REGISTERED.name(),
+            EncounterStatusEvent cancelled = statusEvents.save(new EncounterStatusEvent(encounter, EncounterStatus.REGISTERED.name(),
                     EncounterStatus.CANCELLED.name(), expectedRevision, context.practitionerId(),
                     context.subjectId(), normalizedCommandCode, normalizedReason));
             encounter.cancelBeforeService();
             encounters.flush();
             eventPublisher.publish(encounter.tenantId(), encounter.organizationId(), "OUTPATIENT_REGISTRATION_CANCELLED",
-                    1, "Encounter", encounter.id(), encounter.version(), encounter.residentId(), Instant.now(),
+                    1, "Encounter", encounter.id(), encounter.version(), encounter.residentId(), cancelled.occurredAt(),
                     Map.of("encounterNo", encounter.encounterNo(), "reason", normalizedReason,
-                            "registrationId", closed.registrationId()));
+                            "registrationId", closed.registrationId(), "departmentId", encounter.departmentId(),
+                            "actorId", cancelled.userId(), "cancelledAt", cancelled.occurredAt().toString(),
+                            "status", encounter.status().name()));
         }
         return snapshot(encounter, closed);
     }

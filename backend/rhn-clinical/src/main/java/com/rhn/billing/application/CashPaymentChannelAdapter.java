@@ -28,8 +28,7 @@ class CashPaymentChannelAdapter implements PaymentChannelAdapter {
 
     @Override
     public QueryResult query(QueryInstruction instruction) {
-        return QueryResult.succeeded(
-                instruction.externalOrderNo() == null ? instruction.paymentMethodCode() + "-" + instruction.orderNo() : instruction.externalOrderNo(),
-                instruction.paymentMethodCode() + "-" + instruction.orderNo(), instruction.expectedAmount());
+        throw com.rhn.shared.api.BusinessErrors.conflict("CASH_RESULT_REQUIRES_RECONCILIATION",
+                "现金没有外部查询回执，未确认指令须核对实际收退现金记录，不能按申请金额推定成功");
     }
 }

@@ -127,6 +127,76 @@ class SkinTestApplicationServiceTest {
         assertThat(error.code()).isEqualTo("SKIN_TEST_CONFIGURATION_MISMATCH");
     }
 
+    @Test
+    void missing_snapshot_stays_visible_but_cannot_start_with_invented_defaults() {
+        MedicationRequestSnapshot request = request("DILUTED_SOLUTION", null);
+        when(request.medicationSnapshot()).thenReturn(null);
+        when(medicationRequests.activeForExecution(10L, 20L)).thenReturn(List.of(request));
+        when(medicationRequests.requireForRouting(1L, 100L)).thenReturn(request);
+        var item = service.worklist(null, null, null).getFirst();
+        assertThat(item.status()).isEqualTo("CONFIGURATION_REQUIRED");
+        assertThat(item.configuredTestMethod()).isNull();
+        assertThat(item.configuredSolutionMode()).isNull();
+        assertThat(item.configuredObservationMinutes()).isNull();
+        assertThat(item.resultValidityHours()).isNull();
+        assertThat(item.gateMessage()).contains("配置缺失或无效");
+        BusinessException error = assertThrows(BusinessException.class, () -> service.start(
+                100L, 4L, true, "NAME_AND_IDENTIFIER", "INTRADERMAL", false,
+                null, null, null, null, null, null, null, 20));
+        assertThat(error.code()).isEqualTo("SKIN_TEST_CONFIGURATION_REQUIRED");
+        org.mockito.Mockito.verify(events, org.mockito.Mockito.never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+        verifyNoInteractions(settlements, fulfillment, eventPublisher);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"null", "0", "-1", "121", "20.5", "\"20\""})
+    void invalid_observation_duration_is_not_replaced_with_twenty_minutes(String minutes) {
+        MedicationRequestSnapshot request = request("DILUTED_SOLUTION", null);
+        when(request.medicationSnapshot()).thenReturn(json.readTree("""
+                {"skinTestMethod":"PRICK","skinTestSolutionMode":"DILUTED_SOLUTION",
+                 "skinTestObservationMinutes":%s,"skinTestResultValidityHours":48}
+                """.formatted(minutes)));
+        when(medicationRequests.activeForExecution(10L, 20L)).thenReturn(List.of(request));
+        var item = service.worklist(null, null, null).getFirst();
+        assertThat(item.status()).isEqualTo("CONFIGURATION_REQUIRED");
+        org.junit.jupiter.api.Assertions.assertNotEquals(Integer.valueOf(20), item.configuredObservationMinutes());
+        assertThat(item.configuredTestMethod()).isEqualTo("PRICK");
+        assertThat(item.resultValidityHours()).isEqualTo(48);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.NullSource
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, -1, 8761})
+    void negative_history_requires_explicit_validity_window(Integer hours) {
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.validRecentNegativeSkinTests(30L, 50L, hours));
+        assertThat(error.code()).isEqualTo("SKIN_TEST_VALIDITY_REQUIRED");
+        verifyNoInteractions(events);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {10, 30})
+    void negative_history_cannot_extend_the_recorded_validity_window(int ageHours) {
+        MedicationRequestSnapshot request = request("DILUTED_SOLUTION", null);
+        var event = mock(com.rhn.treatment.domain.SkinTestEvent.class);
+        when(event.id()).thenReturn(501L);
+        when(event.tenantId()).thenReturn(1L);
+        when(event.medicationRequestId()).thenReturn(100L);
+        when(event.status()).thenReturn(com.rhn.treatment.domain.SkinTestEventStatus.COMPLETED);
+        when(event.result()).thenReturn("NEGATIVE");
+        when(event.completedAt()).thenReturn(java.time.Instant.now().minus(java.time.Duration.ofHours(ageHours)));
+        when(events.findById(501L)).thenReturn(Optional.of(event));
+        when(events.findByTenantIdAndResidentIdAndMedicationIdAndResultOrderByCompletedAtDesc(1L, 30L, 50L, "NEGATIVE"))
+                .thenReturn(List.of(event));
+        when(medicationRequests.requireForRouting(1L, 100L)).thenReturn(request);
+
+        assertThat(service.validRecentNegativeSkinTests(30L, 50L, 72)).hasSize(ageHours < 24 ? 1 : 0);
+
+        // Unknown historical validity must never be promoted to a reusable negative result.
+        when(request.medicationSnapshot()).thenReturn(null);
+        assertThat(service.validRecentNegativeSkinTests(30L, 50L, 72)).isEmpty();
+    }
+
     private MedicationRequestSnapshot request(String medicationSolutionMode, String resolvedSolutionMode) {
         return request(medicationSolutionMode, resolvedSolutionMode, "ORGANIZATION");
     }

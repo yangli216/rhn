@@ -98,7 +98,7 @@ public class InpatientMedicationDispenseChargeProjector {
         Long orgId = request.performerOrganizationId() != null ? request.performerOrganizationId() : account.organizationId();
         Long deptId = request.performerDepartmentId() != null ? request.performerDepartmentId() : account.departmentId();
         Instant occurredAt = dispense.occurredAt() == null ? Instant.now() : dispense.occurredAt();
-        String accountingCategory = resolveMedicationCategory(request.medicationType());
+        String accountingCategory = com.rhn.platform.masterdata.api.MedicationAccountingCategories.fromMedicationType(request.medicationType());
         ChargeItem charge = charges.save(new ChargeItem(
                 event.tenantId(), orgId, deptId,
                 account.id(), request.residentId(), request.encounterId(), request.id(),
@@ -113,16 +113,6 @@ public class InpatientMedicationDispenseChargeProjector {
                 charge.unitPrice(), charge.totalAmount()));
         ledger.save(new LedgerEntry(event.tenantId(), account.id(), "CHARGE", "DEBIT", amount,
                 request.currencyCode(), charge.id(), null, null, null, occurredAt, actorId));
-    }
-
-    private String resolveMedicationCategory(String medicationType) {
-        if (medicationType == null) return "WESTERN_MED";
-        return switch (medicationType.trim().toUpperCase()) {
-            case "CHINESE_PATENT", "CHINESE_PATENT_MED" -> "CHINESE_PATENT_MED";
-            case "HERBAL", "HERBAL_MED" -> "HERBAL_MED";
-            case "WESTERN", "WESTERN_MED" -> "WESTERN_MED";
-            default -> "MEDICATION";
-        };
     }
 
     private BigDecimal money(BigDecimal value) {

@@ -14,6 +14,9 @@ export interface ServicePlanDraft {
   clinicalDescription?: string
   unitPrice?: number
   currencyCode?: string
+  performerOrganizationId?: string
+  performerDepartmentId?: string
+  performerDepartmentName?: string
 }
 
 export function clinicalAiTreatmentKey(item: Pick<ClinicalAiTreatmentRecommendation, 'type' | 'catalogItemId'>) {

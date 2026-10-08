@@ -10,6 +10,8 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from './Icon'
+import { Button } from './index'
+import { errorMessage } from '../api/httpClient'
 
 export interface RemoteSearchOption<T = unknown> {
   value: string
@@ -33,6 +35,7 @@ export interface RemoteSearchSelectProps<T = unknown> {
   minChars?: number
   debounceMs?: number
   resultLimit?: number
+  cacheResults?: boolean
   disabled?: boolean
   clearable?: boolean
   showCode?: boolean
@@ -71,6 +74,7 @@ export function RemoteSearchSelect<T>({
   minChars = 1,
   debounceMs = 250,
   resultLimit = 30,
+  cacheResults = true,
   disabled = false,
   clearable = true,
   showCode = true,
@@ -121,16 +125,17 @@ export function RemoteSearchSelect<T>({
   const [activeIndex, setActiveIndex] = useState(-1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [retryAttempt, setRetryAttempt] = useState(0)
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition>()
   const normalizedQuery = query.trim()
 
   useEffect(() => {
     cacheRef.current.clear()
     requestSequence.current += 1
-  }, [loadOptions])
+  }, [loadOptions, cacheResults])
 
   useEffect(() => {
-    if (!open || normalizedQuery.length < minChars) {
+    if (!open || disabled || normalizedQuery.length < minChars) {
       requestSequence.current += 1
       setOptions([])
       setLoading(false)
@@ -139,7 +144,7 @@ export function RemoteSearchSelect<T>({
       return
     }
     const sequence = ++requestSequence.current
-    const cached = cacheRef.current.get(normalizedQuery)
+    const cached = cacheResults ? cacheRef.current.get(normalizedQuery) : undefined
     if (cached) {
       setOptions(cached)
       setActiveIndex(firstEnabledIndex(cached))
@@ -152,26 +157,29 @@ export function RemoteSearchSelect<T>({
     setLoading(true)
     setError('')
     const timer = window.setTimeout(() => {
-      loadOptions(normalizedQuery)
+      Promise.resolve().then(() => loadOptions(normalizedQuery))
         .then((items) => {
           if (sequence !== requestSequence.current) return
           const next = items.slice(0, resultLimit)
-          cacheRef.current.set(normalizedQuery, next)
+          if (cacheResults) cacheRef.current.set(normalizedQuery, next)
           setOptions(next)
           setActiveIndex(firstEnabledIndex(next))
         })
-        .catch(() => {
+        .catch((error) => {
           if (sequence !== requestSequence.current) return
           setOptions([])
           setActiveIndex(-1)
-          setError('检索失败，请检查网络后重试')
+          setError(`检索失败：${errorMessage(error)}`)
         })
         .finally(() => {
           if (sequence === requestSequence.current) setLoading(false)
         })
     }, debounceMs)
-    return () => window.clearTimeout(timer)
-  }, [debounceMs, loadOptions, minChars, normalizedQuery, open, resultLimit])
+    return () => {
+      window.clearTimeout(timer)
+      if (sequence === requestSequence.current) requestSequence.current += 1
+    }
+  }, [cacheResults, debounceMs, disabled, loadOptions, minChars, normalizedQuery, open, resultLimit, retryAttempt])
 
   useEffect(() => {
     if (!open) return
@@ -240,7 +248,7 @@ export function RemoteSearchSelect<T>({
   }, [open])
 
   function select(option: RemoteSearchOption<T>) {
-    if (option.disabled) return
+    if (disabled || loading || error || option.disabled) return
     justClosedRef.current = true
     setOpen(false)
     window.requestAnimationFrame(() => { justClosedRef.current = false })
@@ -352,7 +360,7 @@ export function RemoteSearchSelect<T>({
       {value && showCode && <code>{value.code}</code>}
       <Icon name="search" />
     </button>
-    {open && popoverPosition && createPortal(<div
+    {open && !disabled && popoverPosition && createPortal(<div
       ref={popoverRef}
       className="ui-remote-search__popover"
       data-placement={popoverPosition.placement}
@@ -385,7 +393,13 @@ export function RemoteSearchSelect<T>({
         </button>}
       </label>
       <div id={listboxId} className="ui-remote-search__list" role="listbox">
-        {prompt && <div className={`ui-remote-search__empty ${error ? 'is-error' : ''}`} role="status">{prompt}</div>}
+        {prompt && <div className={`ui-remote-search__empty ${error ? 'is-error' : ''}`} role={error ? 'alert' : 'status'}>
+          {prompt}
+          {error && <Button size="sm" variant="secondary" onClick={() => {
+            cacheRef.current.delete(normalizedQuery)
+            setRetryAttempt(attempt => attempt + 1)
+          }}>重新检索</Button>}
+        </div>}
         {options.map((option, index) => <button
           key={option.value}
           id={`${listboxId}-option-${index}`}

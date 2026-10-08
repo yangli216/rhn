@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
@@ -124,13 +125,24 @@ public class ClinicalDocumentService implements ClinicalDocumentDirectory {
                         "signatureMeaning", signatureMeaning)));
         version.sign(actor(), signatureMeaning, signatureEvidence);
         documentRepository.flush();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("summary", "临床文档已签署：" + document.title());
+        payload.put("documentTitle", document.title());
+        payload.put("documentType", document.documentType());
+        payload.put("documentVersion", expectedCurrentVersion);
+        payload.put("actorId", executionContextProvider.requireCurrent().subjectId());
+        payload.put("signatureMeaning", signatureMeaning);
+        payload.put("signedAt", version.signedAt().toString());
+        payload.put("signatureEvidenceId", version.signatureEvidenceId());
+        boolean requiresTask = document.encounterId() != null && document.organizationId() != null && document.departmentId() != null;
+        payload.put("signatureTaskRequired", requiresTask);
+        if (requiresTask) {
+            payload.put("residentId", document.residentId());
+            payload.put("encounterId", document.encounterId());
+            payload.put("departmentId", document.departmentId());
+        }
         eventPublisher.publish(document.tenantId(), document.organizationId(), "CLINICAL_DOCUMENT_SIGNED", 1,
-                "ClinicalDocument", document.id(), document.version(), document.residentId(), Instant.now(), Map.of(
-                        "summary", "临床文档已签署：" + document.title(),
-                        "documentType", document.documentType(),
-                        "documentVersion", expectedCurrentVersion,
-                        "actorId", executionContextProvider.requireCurrent().subjectId(),
-                        "signatureMeaning", signatureMeaning));
+                "ClinicalDocument", document.id(), document.version(), document.residentId(), version.signedAt(), payload);
         return toResponse(document);
     }
 
@@ -258,6 +270,7 @@ public class ClinicalDocumentService implements ClinicalDocumentDirectory {
                 "CLINICAL_DOCUMENT_READY_FOR_SIGNATURE", 1, "ClinicalDocument", document.id(),
                 document.version(), null, Instant.now(), Map.of(
                         "summary", "待签署：" + document.title(),
+                        "documentTitle", document.title(),
                         "documentType", document.documentType(),
                         "documentVersion", versionNumber,
                         "residentId", document.residentId(),

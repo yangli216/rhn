@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import type { TriageRecord } from '../../../shared/api/outpatientTriageApi'
-import { Button, Dialog, Icon } from '../../../shared/ui'
+import { Alert, Button, Dialog, Icon } from '../../../shared/ui'
 import { TRIAGE_LEVEL_DEFINITIONS } from './triageAssessmentRules'
 
 export interface TriageTicketModalProps {
@@ -13,17 +13,17 @@ export interface TriageTicketModalProps {
 export function TriageTicketModal({
   open,
   record,
-  hospitalName = '区域健康医疗协同平台中心医院',
+  hospitalName,
   onClose,
 }: TriageTicketModalProps) {
   const printRef = useRef<HTMLDivElement>(null)
 
   if (!open || !record) return null
 
-  const levelInfo = TRIAGE_LEVEL_DEFINITIONS[record.triageLevel] || TRIAGE_LEVEL_DEFINITIONS.LEVEL_4_NON_URGENT
+  const levelInfo = TRIAGE_LEVEL_DEFINITIONS[record.triageLevel]
 
   const handlePrint = () => {
-    window.print()
+    if (levelInfo) window.print()
   }
 
   const formatDateTime = (iso: string) => {
@@ -52,7 +52,7 @@ export function TriageTicketModal({
           <Button variant="secondary" onClick={onClose}>
             关闭
           </Button>
-          <Button variant="primary" onClick={handlePrint}>
+          <Button variant="primary" onClick={handlePrint} disabled={!levelInfo}>
             <Icon name="print" />
             <span>打印分诊小票</span>
           </Button>
@@ -63,17 +63,13 @@ export function TriageTicketModal({
         <div ref={printRef} className="triage-ticket-paper" id="triage-ticket-printable">
           {/* 凭条头部 */}
           <div className="triage-ticket-header">
-            <h3 className="triage-ticket-org">{hospitalName}</h3>
+            <h3 className="triage-ticket-org">{hospitalName || '机构名称未提供'}</h3>
             <h2 className="triage-ticket-title">门诊预检分诊凭条</h2>
             <div className="triage-ticket-meta">
               <span>分诊单号：{record.triageNo}</span>
               <span>分诊时间：{formatDateTime(record.triageTime)}</span>
             </div>
-            {/* 模拟条形码 */}
-            <div className="triage-ticket-barcode-box" aria-hidden="true">
-              <div className="triage-ticket-barcode-lines" />
-              <span className="triage-ticket-barcode-text">*{record.triageNo}*</span>
-            </div>
+
           </div>
 
           <div className="triage-ticket-divider" />
@@ -115,7 +111,7 @@ export function TriageTicketModal({
           <div className="triage-ticket-divider" />
 
           {/* 分诊定级核心图章 */}
-          <div className={`triage-ticket-level-banner triage-ticket-level-banner--${levelInfo.colorName}`}>
+          {levelInfo ? <div className={`triage-ticket-level-banner triage-ticket-level-banner--${levelInfo.colorName}`}>
             <div className="triage-ticket-level-badge">
               <span className="triage-ticket-level-code">{levelInfo.codeName}</span>
               <span className="triage-ticket-level-name">{levelInfo.label}</span>
@@ -126,7 +122,7 @@ export function TriageTicketModal({
               </p>
               <p className="triage-ticket-level-hint">{levelInfo.actionAdvice}</p>
             </div>
-          </div>
+          </div> : <Alert tone="warning">分诊等级未记录或无法识别，请核实后打印。</Alert>}
 
           {/* 绿色通道标注 */}
           {record.greenChannel && record.greenChannel !== 'NONE' && (
@@ -176,7 +172,7 @@ export function TriageTicketModal({
               </div>
               <div className="triage-ticket-vital-item">
                 <span className="triage-ticket-vital-label">血氧(SpO2)</span>
-                <span className={`triage-ticket-vital-val ${(record.oxygenSaturation || 100) < 93 ? 'triage-ticket-vital-val--danger' : ''}`}>
+                <span className={`triage-ticket-vital-val ${record.oxygenSaturation != null && record.oxygenSaturation < 93 ? 'triage-ticket-vital-val--danger' : ''}`}>
                   {record.oxygenSaturation != null ? `${record.oxygenSaturation} %` : '--'}
                 </span>
               </div>
@@ -189,7 +185,7 @@ export function TriageTicketModal({
               <div className="triage-ticket-vital-item">
                 <span className="triage-ticket-vital-label">意识(AVPU)</span>
                 <span className="triage-ticket-vital-val">
-                  {record.consciousness === 'ALERT' ? '清醒' : (record.consciousness === 'VOICE' ? '对声音有反应' : (record.consciousness === 'PAIN' ? '对疼痛有反应' : '无反应/昏迷'))}
+                  {record.consciousness === 'ALERT' ? '清醒' : (record.consciousness === 'VOICE' ? '对声音有反应' : (record.consciousness === 'PAIN' ? '对疼痛有反应' : (record.consciousness === 'UNRESPONSIVE' ? '无反应/昏迷' : '未记录')))}
                 </span>
               </div>
               <div className="triage-ticket-vital-item">
@@ -213,7 +209,7 @@ export function TriageTicketModal({
             )}
             <div className="triage-ticket-dept-highlight">
               <span className="triage-ticket-dept-label">推荐就诊科室：</span>
-              <strong className="triage-ticket-dept-name">{record.targetDepartmentName || '全科医疗科'}</strong>
+              <strong className="triage-ticket-dept-name">{record.targetDepartmentName || '未指定'}</strong>
               {record.targetDoctorName && (
                 <span className="triage-ticket-doctor-name">（指定医生：{record.targetDoctorName}）</span>
               )}
@@ -231,8 +227,7 @@ export function TriageTicketModal({
           {/* 护士签名与就医指引 */}
           <div className="triage-ticket-footer">
             <div className="triage-ticket-footer-meta">
-              <span>分诊台护士：{record.triageNurseName || '预检分诊护士'}</span>
-              <span>打印流水：{record.id.slice(-6)}</span>
+              <span>分诊台护士：{record.triageNurseName || '未记录'}</span>
             </div>
             <div className="triage-ticket-notice">
               <p>【就医须知】</p>

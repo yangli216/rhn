@@ -36,6 +36,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
+import org.mockito.ArgumentCaptor;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -56,7 +60,7 @@ class DirectRefundApplicationServiceTest {
     private ExecutionContextProvider contextProvider;
 
     private DirectRefundApplicationService service;
-    private final ExecutionContext context = new ExecutionContext(1L, 2L, "operator", "corr-1", Set.of());
+    private final ExecutionContext context = new ExecutionContext(1L, 2L, "operator", "corr-1", Set.of(), 1001L, 1002L, "ORGANIZATION", Set.of(1001L), Set.of(1002L));
 
     @BeforeEach
     void setUp() {
@@ -100,6 +104,7 @@ class DirectRefundApplicationServiceTest {
         when(payments.findByIdAndTenantId(paymentId, 1L)).thenReturn(Optional.of(payment));
 
         PatientAccount account = mock(PatientAccount.class);
+        when(account.organizationId()).thenReturn(1001L);
         when(account.id()).thenReturn(10L);
         when(account.encounterId()).thenReturn(200L);
         when(accounts.findByIdAndTenantId(10L, 1L)).thenReturn(Optional.of(account));
@@ -121,6 +126,65 @@ class DirectRefundApplicationServiceTest {
 
     @Test
     void whenDirectRefundSuccess_shouldReverseChargesAndRequestPharmacyCancellation() {
+        prepareRefund();
+        Long paymentId = 100L;
+        DirectRefundCommand command = new DirectRefundCommand(
+                "IDEMP-1", new BigDecimal("60.00"), "患者退费", "CASHIER", List.of(501L));
+
+        PaymentOrderView result = service.directRefund(paymentId, command);
+
+        assertNotNull(result);
+        assertEquals("RPO-001", result.orderNo());
+        verify(charges, times(1)).save(any(ChargeItem.class));
+        verify(ledger, times(1)).save(any());
+        verify(paymentOrchestration, times(1)).refund(any());
+        verify(pharmacy, times(1)).cancelUnfulfilledForRefund(1L, 8001L);
+        verify(receiptService, times(1)).redFlush(eq(888L), any(), eq("患者退费"), any());
+    }
+    @Test
+    void red_flush_is_limited_to_the_original_payments_settlement_with_a_key_per_receipt() {
+        prepareRefund();
+        Receipt second = mock(Receipt.class);
+        when(second.id()).thenReturn(889L);
+        when(second.status()).thenReturn("ISSUED");
+        when(second.receiptType()).thenReturn("STANDARD");
+        Receipt first = receipts.findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(1L, 999L).get(0);
+        when(receipts.findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(1L, 999L)).thenReturn(List.of(first, second));
+        refund();
+        verify(settlements, never()).findByTenantIdAndPatientAccountIdOrderByCreatedAtAscIdAsc(any(), any());
+        var key1 = ArgumentCaptor.forClass(String.class);
+        var key2 = ArgumentCaptor.forClass(String.class);
+        verify(receiptService).redFlush(eq(888L), key1.capture(), any(), any());
+        verify(receiptService).redFlush(eq(889L), key2.capture(), any(), any());
+        assertNotEquals(key1.getValue(), key2.getValue());
+        refund();
+        verify(receiptService, times(2)).redFlush(eq(888L), eq(key1.getValue()), any(), any());
+        verify(receiptService, times(2)).redFlush(eq(889L), eq(key2.getValue()), any(), any());
+    }
+
+    @Test
+    void payment_without_invoice_never_falls_back_to_unrelated_account_receipts() {
+        prepareRefund();
+        when(payments.findByIdAndTenantId(100L, 1L).orElseThrow().invoiceId()).thenReturn(null);
+        refund();
+        verifyNoInteractions(receiptService);
+        verify(settlements, never()).findByTenantIdAndPatientAccountIdOrderByCreatedAtAscIdAsc(any(), any());
+    }
+
+    @Test
+    void rejects_foreign_organization_before_any_financial_or_pharmacy_mutation() {
+        prepareRefund();
+        when(accounts.findByIdAndTenantId(10L, 1L).orElseThrow().organizationId()).thenReturn(2001L);
+        assertEquals("BILLING_ACCOUNT_SCOPE_INVALID", assertThrows(BusinessException.class, this::refund).code());
+        verifyNoInteractions(preCheckService, paymentOrchestration, pharmacy, receiptService);
+    }
+
+    private PaymentOrderView refund() {
+        return service.directRefund(100L, new DirectRefundCommand("IDEMP-1", new BigDecimal("60.00"),
+                "患者退费", "CASHIER", List.of(501L)));
+    }
+
+    private void prepareRefund() {
         Long paymentId = 100L;
         Long encounterId = 200L;
         Long accountId = 10L;
@@ -130,9 +194,11 @@ class DirectRefundApplicationServiceTest {
         when(payment.paymentType()).thenReturn("PAYMENT");
         when(payment.patientAccountId()).thenReturn(accountId);
         when(payment.amount()).thenReturn(new BigDecimal("60.00"));
+        when(payment.invoiceId()).thenReturn(500L);
         when(payments.findByIdAndTenantId(paymentId, 1L)).thenReturn(Optional.of(payment));
 
         PatientAccount account = mock(PatientAccount.class);
+        when(account.organizationId()).thenReturn(1001L);
         when(account.id()).thenReturn(accountId);
         when(account.encounterId()).thenReturn(encounterId);
         when(accounts.findByIdAndTenantId(accountId, 1L)).thenReturn(Optional.of(account));
@@ -182,8 +248,8 @@ class DirectRefundApplicationServiceTest {
 
         Settlement settlement = mock(Settlement.class);
         when(settlement.id()).thenReturn(999L);
-        when(settlements.findByTenantIdAndPatientAccountIdOrderByCreatedAtAscIdAsc(1L, accountId))
-                .thenReturn(List.of(settlement));
+        when(settlement.patientAccountId()).thenReturn(accountId);
+        when(settlements.findByTenantIdAndLegacyInvoiceId(1L, 500L)).thenReturn(Optional.of(settlement));
         Receipt receipt = mock(Receipt.class);
         when(receipt.id()).thenReturn(888L);
         when(receipt.receiptType()).thenReturn("STANDARD");
@@ -192,17 +258,6 @@ class DirectRefundApplicationServiceTest {
                 .thenReturn(List.of(receipt));
         when(receipts.findByTenantIdAndReversesReceiptId(1L, 888L)).thenReturn(Optional.empty());
 
-        DirectRefundCommand command = new DirectRefundCommand(
-                "IDEMP-1", new BigDecimal("60.00"), "患者退费", "CASHIER", List.of(501L));
-
-        PaymentOrderView result = service.directRefund(paymentId, command);
-
-        assertNotNull(result);
-        assertEquals("RPO-001", result.orderNo());
-        verify(charges, times(1)).save(any(ChargeItem.class));
-        verify(ledger, times(1)).save(any());
-        verify(paymentOrchestration, times(1)).refund(any());
-        verify(pharmacy, times(1)).cancelUnfulfilledForRefund(1L, 8001L);
-        verify(receiptService, times(1)).redFlush(eq(888L), any(), eq("患者退费"), any());
     }
+
 }

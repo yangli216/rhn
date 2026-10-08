@@ -2,8 +2,28 @@ import { describe, expect, it } from 'vitest'
 import { roundAmount } from './roundAmount'
 
 describe('roundAmount', () => {
-  it('默认精度为分(0.01)时，不产生舍入误差', () => {
-    expect(roundAmount(33.67)).toEqual({ rounded: 33.67, adjustment: 0 })
+  it.each([
+    [undefined, 'HALF_UP'], ['', 'HALF_UP'], ['0', 'HALF_UP'], ['0.1junk', 'HALF_UP'],
+    ['1', 'HALF_UP'], ['-0.1', 'HALF_UP'], ['0.01', undefined], ['0.01', ''], ['0.01', 'UNKNOWN'],
+  ])('rejects missing or invalid precision %s / mode %s', (precision, mode) => {
+    expect(() => roundAmount(33.67, precision, mode)).toThrow(/未配置或无效/)
+    expect(() => roundAmount(0, precision, mode)).toThrow(/未配置或无效/)
+  })
+
+  it.each([NaN, Infinity, -Infinity, 10_000_000_000, 0.0000001])('rejects invalid or unsupported amount %s', (amount) => {
+    expect(() => roundAmount(amount, '0.01', 'HALF_UP')).toThrow(/金额/)
+  })
+
+  it('rounds six-decimal accounting amounts once at the configured precision', () => {
+    expect(roundAmount(1.049, '0.1', 'HALF_UP')).toEqual({ rounded: 1, adjustment: -0.049 })
+    expect(roundAmount(1.050001, '0.1', 'HALF_EVEN_SIX')).toEqual({ rounded: 1.1, adjustment: 0.049999 })
+    expect(roundAmount(1.009, '0.01', 'FLOOR')).toEqual({ rounded: 1, adjustment: -0.009 })
+    expect(roundAmount(1.005, '0.01', 'HALF_UP')).toEqual({ rounded: 1.01, adjustment: 0.005 })
+    expect(roundAmount(-1.005, '0.01', 'HALF_UP')).toEqual({ rounded: -1.01, adjustment: -0.005 })
+    expect(roundAmount(0.1 + 0.2, '0.01', 'HALF_UP')).toEqual({ rounded: 0.3, adjustment: 0 })
+  })
+
+  it('显式精度为分(0.01)时，不产生舍入误差', () => {
     expect(roundAmount(33.67, '0.01', 'HALF_UP')).toEqual({ rounded: 33.67, adjustment: 0 })
     expect(roundAmount(33.67, '0.01', 'FLOOR')).toEqual({ rounded: 33.67, adjustment: 0 })
   })
@@ -34,7 +54,7 @@ describe('roundAmount', () => {
   })
 
   it('边界情况处理', () => {
-    expect(roundAmount(0)).toEqual({ rounded: 0, adjustment: 0 })
-    expect(roundAmount(NaN)).toEqual({ rounded: 0, adjustment: 0 })
+    expect(roundAmount(0, '0.01', 'HALF_UP')).toEqual({ rounded: 0, adjustment: 0 })
+    expect(() => roundAmount(NaN, '0.01', 'HALF_UP')).toThrow('待支付金额无效')
   })
 })

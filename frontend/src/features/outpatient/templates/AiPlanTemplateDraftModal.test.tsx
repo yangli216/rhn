@@ -1,10 +1,13 @@
+import { editorStandardsFixture } from './templateEditorFacts.testFixtures'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { RhnApi } from '../../../shared/api'
 import type { PlanTextDraft } from '../../../shared/api/outpatientPlanTemplatesApi'
 import { AiPlanTemplateDraftModal } from './AiPlanTemplateDraftModal'
+import { maintainedNoteReceipt } from './maintainedTemplateSave.testFixtures'
+import { catalogPage, catalogProduct, catalogService } from './templateCatalogSearch.testFixtures'
 
 describe('AiPlanTemplateDraftModal', () => {
   it('streams the clinical rows without exposing a duplicate narrative tail', async () => {
@@ -33,7 +36,7 @@ describe('AiPlanTemplateDraftModal', () => {
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
 
     const user = userEvent.setup()
@@ -47,9 +50,9 @@ describe('AiPlanTemplateDraftModal', () => {
     expect(await screen.findByText('正在完成方案生成与一致性校验…')).toBeInTheDocument()
     expect(screen.queryByText(/实时方案草案流/)).not.toBeInTheDocument()
 
-    // 验证流式阶段：诊断输出完整后即刻分块呈现，并带 ICD-10 标准诊断徽标
+    // 验证流式阶段：诊断输出完整后即刻分块呈现，明确标记编码仍需目录核对
     expect(await screen.findByText('急性上呼吸道感染 [J06.9]')).toBeInTheDocument()
-    expect(screen.getByText('ICD-10 标准诊断')).toBeInTheDocument()
+    expect(screen.getByText('诊断编码待目录核对')).toBeInTheDocument()
 
     await act(async () => complete({
       scopeType: 'PERSONAL', name: '成人上感方案', narrative: '诊断与评估：上呼吸道感染。',
@@ -66,7 +69,7 @@ describe('AiPlanTemplateDraftModal', () => {
     expect(infoBtn).toBeInTheDocument()
     await user.hover(infoBtn)
     expect(await screen.findByText('结合症状核对')).toBeInTheDocument()
-    expect(screen.getByText('ICD-10 标准诊断')).toBeInTheDocument()
+    expect(screen.getByText('诊断编码待目录核对')).toBeInTheDocument()
     expect(screen.queryByText('AI 建议')).not.toBeInTheDocument()
     expect(screen.queryByText('原文明确')).not.toBeInTheDocument()
     expect(screen.queryByText('查看依据')).not.toBeInTheDocument()
@@ -87,7 +90,7 @@ describe('AiPlanTemplateDraftModal', () => {
     ['规格：0.25g/粒；常规用法：每次 0.5g 口服 tid 7天', '建议规格：0.25g/粒', '用法：每次 0.5g 口服 tid 7天'],
     ['规格：0.25g/粒；口服 tid 7-10天', '建议规格：0.25g/粒', '用法：口服 · tid · 7-10天'],
     ['规格：待确认；单次剂量：0.5g，口服 tid 7天', '规格待确认', '用法：每次 0.5g · 口服 · tid · 7天'],
-  ])('separates medication strength from a single dose: %s', async (details, specification, usage) => {
+  ])('separates medication strength from a single dose: %s', async (details, specification, _usage) => {
     const api = {
       clinicalAi: { capabilities: vi.fn().mockResolvedValue({
         mode: 'MODEL', available: true, model: 'qwen-test', features: ['PLAN_COMPILATION'],
@@ -99,13 +102,13 @@ describe('AiPlanTemplateDraftModal', () => {
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
     const user = userEvent.setup()
     await user.type(screen.getByPlaceholderText(/请输入您的问题或描述症状/), '测试方案')
     await user.click(await screen.findByRole('button', { name: '发送' }))
     expect(await screen.findByText(specification)).toBeInTheDocument()
-    expect(screen.getByText(usage)).toBeInTheDocument()
+    expect(screen.getByText(`原始说明：${details}`)).toBeInTheDocument()
   })
 
   it('shows an applicability condition separately from a diagnosis', async () => {
@@ -123,7 +126,7 @@ describe('AiPlanTemplateDraftModal', () => {
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
 
     const user = userEvent.setup()
@@ -158,7 +161,7 @@ describe('AiPlanTemplateDraftModal', () => {
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
 
     const user = userEvent.setup()
@@ -194,7 +197,7 @@ describe('AiPlanTemplateDraftModal', () => {
       diagnoses: [{ code: 'J06.9', display: '急性上呼吸道感染，未特指', type: 'PRIMARY' }],
       medications: [{
         medicationId: '1', catalogItemId: '11', packageId: '111', medicationName: '对乙酰氨基酚',
-        preparationSpec: '0.5g', doseValue: 0.5, doseUnit: 'g', routeCode: 'ORAL', frequencyCode: 'PRN',
+        preparationSpec: '0.5g', doseValue: 0.5, doseUnit: 'g', routeCode: 'PO', frequencyCode: 'BID',
         quantity: 1, quantityUnit: 'BOX', substitutionAllowed: false, selfProvided: false,
       }],
       services: [],
@@ -213,11 +216,12 @@ describe('AiPlanTemplateDraftModal', () => {
       clinicalAi: { capabilities: vi.fn().mockResolvedValue({
         mode: 'MODEL', available: true, model: 'qwen-test', features: ['PLAN_COMPILATION'],
       }) },
+      masterData: { clinicalMedicationStandards: vi.fn().mockResolvedValue(editorStandardsFixture()) },
       outpatientPlanTemplates: { compileDraftStream, reviseDraftStream, convertDraft },
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
 
     const user = userEvent.setup()
@@ -251,7 +255,7 @@ describe('AiPlanTemplateDraftModal', () => {
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
 
     const user = userEvent.setup()
@@ -289,7 +293,7 @@ describe('AiPlanTemplateDraftModal', () => {
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
 
     const user = userEvent.setup()
@@ -327,7 +331,7 @@ describe('AiPlanTemplateDraftModal', () => {
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
 
     const user = userEvent.setup()
@@ -376,27 +380,17 @@ describe('AiPlanTemplateDraftModal', () => {
         { kind: 'MEDICATION', text: '阿莫西林胶囊', origin: 'SUGGESTED', status: 'UNMATCHED', details: '缺少在库唯一规格' },
       ],
     })
-    const searchMedicationProducts = vi.fn().mockResolvedValue({
-      content: [{
-        id: 'prod-001',
-        medicationId: 'med-001',
-        name: '阿莫西林胶囊 (哈药)',
-        preparationSpec: '0.25g*24粒',
-        doseUnit: '粒',
-        packageUnit: '盒',
-      }],
-      totalElements: 1,
-    })
+    const searchMedicationProducts = vi.fn().mockResolvedValue(catalogPage([catalogProduct('prod-001', 'med-001', '阿莫西林胶囊 (哈药)')]))
     const api = {
       clinicalAi: { capabilities: vi.fn().mockResolvedValue({
         mode: 'MODEL', available: true, model: 'qwen-test', features: ['PLAN_COMPILATION'],
       }) },
       outpatientPlanTemplates: { compileDraftStream, reviseDraftStream: vi.fn(), convertDraft },
-      masterData: { searchMedicationProducts },
+      masterData: { clinicalMedicationStandards: vi.fn().mockResolvedValue(editorStandardsFixture()), searchMedicationProducts, searchMedications: vi.fn().mockResolvedValue(catalogPage([])) },
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
 
     const user = userEvent.setup()
@@ -405,22 +399,35 @@ describe('AiPlanTemplateDraftModal', () => {
     await user.click(await screen.findByRole('button', { name: '确认方案并匹配院内目录' }))
 
     // 检查用药卡片中显示待对齐状态
-    expect(await screen.findByText('未在库 / 待对齐')).toBeInTheDocument()
+    expect(await screen.findByText('待匹配目录')).toBeInTheDocument()
     expect(screen.getByText('阿莫西林胶囊')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '确认存入方案池' })).toBeDisabled()
 
-    // 点击对齐在库药品
-    await user.click(screen.getByRole('button', { name: /对齐在库药品/ }))
-    expect(searchMedicationProducts).toHaveBeenCalledWith('阿莫西林胶囊', '', 'ACTIVE', '', 0, 8)
+    // 点击对齐目录药品
+    await user.click(screen.getByRole('button', { name: /对齐目录药品/ }))
+    expect(searchMedicationProducts).toHaveBeenCalledWith('阿莫西林胶囊', '', 'ACTIVE', '', 0, 10)
 
     // 选用候选药品
     const chooseBtn = await screen.findByRole('button', { name: '选用' })
     await user.click(chooseBtn)
 
-    // 验证变为在库已对齐，保存按钮可用
-    expect(await screen.findByText('在库已对齐')).toBeInTheDocument()
+    const confirmation = within(screen.getByRole('dialog', { name: '确认药品用法与数量' }))
+    const dose = confirmation.getByRole('spinbutton', { name: '单次剂量' })
+    await waitFor(() => expect(dose).toBeEnabled())
+    await user.type(dose, '0.5')
+    await user.click(within(dose.closest<HTMLElement>('.ui-field')!).getByRole('combobox'))
+    await user.click(screen.getByRole('option', { name: '克' }))
+    await user.click(confirmation.getByRole('combobox', { name: '给药途径' }))
+    await user.click(screen.getByRole('option', { name: '口服' }))
+    await user.click(confirmation.getByRole('combobox', { name: '用药频次' }))
+    await user.click(screen.getByRole('option', { name: '每日三次' }))
+    await user.type(confirmation.getByRole('spinbutton', { name: '药品数量' }), '2')
+    await user.click(confirmation.getByRole('button', { name: '确认加入方案' }))
+
+    // 明确确认后才变为产品已对齐，保存按钮可用
+    expect(await screen.findByText('产品已对齐')).toBeInTheDocument()
     expect(screen.getByText('阿莫西林胶囊 (哈药)')).toBeInTheDocument()
-    expect(screen.queryByText('未在库 / 待对齐')).not.toBeInTheDocument()
+    expect(screen.queryByText('待匹配目录')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '确认存入方案池' })).toBeEnabled()
   })
 
@@ -454,7 +461,7 @@ describe('AiPlanTemplateDraftModal', () => {
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
 
     const user = userEvent.setup()
@@ -495,7 +502,7 @@ describe('AiPlanTemplateDraftModal', () => {
 
   it('supports in-place manual adjustment for diagnoses, medication dosage, service quantity and additions', async () => {
     const editingTemplate: any = {
-      id: 'tpl-001',
+      id: 'tpl-001', status: 'ACTIVE', sortOrder: 0, useCount: 0,
       revision: 1,
       scopeType: 'PERSONAL',
       name: '轻症门诊方案',
@@ -507,12 +514,13 @@ describe('AiPlanTemplateDraftModal', () => {
       ],
       medications: [
         {
+          lineId: 'line-1', editorMode: 'regular', categoryCode: 'WESTERN', medicationCode: 'M1',
           medicationId: 'med-1',
           medicationName: '阿莫西林胶囊',
           preparationSpec: '0.25g',
           doseValue: 0.5,
           doseUnit: 'g',
-          routeCode: 'ORAL',
+          routeCode: 'PO',
           frequencyCode: 'TID',
           durationValue: 7,
           durationUnit: 'd',
@@ -536,38 +544,21 @@ describe('AiPlanTemplateDraftModal', () => {
       tasks: [],
     }
 
-    const update = vi.fn().mockResolvedValue({ ...editingTemplate, revision: 2 })
-    const searchMedicationProducts = vi.fn().mockResolvedValue({
-      content: [{
-        id: 'prod-002',
-        medicationId: 'med-002',
-        name: '布洛芬缓释胶囊',
-        preparationSpec: '0.3g*20粒',
-        doseUnit: '粒',
-        packageUnit: '盒',
-      }],
-      totalElements: 1,
-    })
-    const searchServices = vi.fn().mockResolvedValue({
-      content: [{
-        id: 'srv-002',
-        code: '2502',
-        name: 'C反应蛋白测定',
-        serviceType: 'LABORATORY',
-        unitCode: '次',
-      }],
-      totalElements: 1,
-    })
+    const update = vi.fn(async (_id, input) => ({ ...editingTemplate, ...input, revision: 2,
+      medications: input.medications.map((item: object, index: number) => ({ ...item, lineId: `line-${index}`, editorMode: 'regular', categoryCode: 'WESTERN', medicationCode: `M${index}` })),
+    }))
+    const searchMedicationProducts = vi.fn().mockResolvedValue(catalogPage([catalogProduct('prod-002', 'med-002', '布洛芬缓释胶囊')]))
+    const searchServices = vi.fn().mockResolvedValue(catalogPage([{ ...catalogService('srv-002', 'C反应蛋白测定', 'LABORATORY'), code: '2502' }]))
     const api = {
       clinicalAi: { capabilities: vi.fn().mockResolvedValue({ mode: 'MODEL', available: true }) },
       outpatientPlanTemplates: { update },
-      outpatientNoteTemplates: { create: vi.fn().mockResolvedValue({ id: 'note-linked' }) },
-      masterData: { searchMedicationProducts, searchServices },
+      outpatientNoteTemplates: { create: vi.fn(async input => ({ ...maintainedNoteReceipt(input), id: 'note-linked' })) },
+      masterData: { clinicalMedicationStandards: vi.fn().mockResolvedValue(editorStandardsFixture()), searchMedicationProducts, searchServices, searchMedications: vi.fn().mockResolvedValue(catalogPage([])) },
     } as unknown as RhnApi
 
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
-      <AiPlanTemplateDraftModal api={api} editingTemplate={editingTemplate} onClose={vi.fn()} onSaved={vi.fn()} />
+      <AiPlanTemplateDraftModal organizationId="org" api={api} editingTemplate={editingTemplate} onClose={vi.fn()} onSaved={vi.fn()} />
     </QueryClientProvider>)
 
     const user = userEvent.setup()
@@ -590,7 +581,7 @@ describe('AiPlanTemplateDraftModal', () => {
 
     // 3. 用药：调整用法
     await user.click(screen.getByRole('button', { name: '调整用法' }))
-    const durationInput = screen.getByLabelText(/疗程:/)
+    const durationInput = screen.getByRole('spinbutton', { name: '疗程' })
     await user.clear(durationInput)
     await user.type(durationInput, '5')
     await user.click(screen.getByRole('button', { name: '完成' }))
@@ -599,20 +590,24 @@ describe('AiPlanTemplateDraftModal', () => {
 
     // 4. 检验检查：调量
     await user.click(screen.getByRole('button', { name: '调量' }))
-    const qtyInput = screen.getByDisplayValue('1')
+    const qtyInput = screen.getByRole('spinbutton', { name: '项目数量' })
     await user.clear(qtyInput)
     await user.type(qtyInput, '2')
     await user.click(screen.getByRole('button', { name: '完成' }))
     expect(screen.getByText('2 次')).toBeInTheDocument()
 
-    // 5. 手动添加在库药品
-    await user.click(screen.getByRole('button', { name: '添加在库药品' }))
-    const medInput = screen.getByPlaceholderText(/输入药品名称搜索在库产品/)
+    // 5. 手动添加目录药品
+    await user.click(screen.getByRole('button', { name: '添加目录药品' }))
+    const medInput = screen.getByPlaceholderText(/输入药品名称搜索目录产品/)
     await user.type(medInput, '布洛芬')
     await user.click(screen.getAllByRole('button', { name: '搜索' })[0])
     expect(await screen.findByText('布洛芬缓释胶囊')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '选用' }))
-    expect(await screen.findByText('布洛芬缓释胶囊')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: '确认药品用法与数量' })).toHaveTextContent('布洛芬缓释胶囊')
+
+    const confirmation = within(screen.getByRole('dialog', { name: '确认药品用法与数量' }))
+    await user.type(confirmation.getByRole('spinbutton', { name: '药品数量' }), '2')
+    await user.click(confirmation.getByRole('button', { name: '确认加入方案' }))
 
     // 6. 手动添加检验检查
     await user.click(screen.getByRole('button', { name: '添加检验/检查' }))
@@ -621,7 +616,9 @@ describe('AiPlanTemplateDraftModal', () => {
     await user.click(screen.getAllByRole('button', { name: '搜索' })[0])
     expect(await screen.findByText('C反应蛋白测定')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '选用' }))
-    expect(await screen.findByText('C反应蛋白测定')).toBeInTheDocument()
+    const serviceConfirmation = within(screen.getByRole('dialog', { name: '确认项目数量与说明' }))
+    await user.type(serviceConfirmation.getByRole('spinbutton', { name: '项目数量' }), '1')
+    await user.click(serviceConfirmation.getByRole('button', { name: '确认项目加入方案' }))
 
     // 宣教与随访进入配套病历模板，不创建第二套文字性方案任务。
     await user.type(screen.getByRole('textbox', { name: '健康宣教' }), '多饮温开水，保持通风')
@@ -629,6 +626,10 @@ describe('AiPlanTemplateDraftModal', () => {
     // 8. 确认保存调整
     await user.click(screen.getByRole('button', { name: '确认保存调整' }))
     await vi.waitFor(() => expect(update).toHaveBeenCalled())
+    const addedMedication = update.mock.calls[0][1].medications.find((item: { medicationId: string }) => item.medicationId === 'med-002')
+    for (const field of ['packageId', 'doseValue', 'routeCode', 'frequencyCode']) expect(addedMedication[field]).toBeUndefined()
+    expect(addedMedication.quantity).toBe(2)
+    expect(update.mock.calls[0][1].medications.find((item: { medicationId: string }) => item.medicationId === 'med-002').durationValue).toBeUndefined()
     expect(update).toHaveBeenCalledWith(
       'tpl-001',
       expect.objectContaining({
@@ -662,7 +663,7 @@ it('keeps education in the document while removing the intended structured revie
       ] }) },
   } as unknown as RhnApi
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(<QueryClientProvider client={client}><AiPlanTemplateDraftModal api={api}
+  render(<QueryClientProvider client={client}><AiPlanTemplateDraftModal organizationId="org" api={api}
     onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>)
   const user = userEvent.setup()
   await user.type(screen.getByPlaceholderText(/请输入您的问题或描述症状/), '问诊方案')
@@ -697,7 +698,7 @@ it('buffers early treatment rows and keeps education and follow-up on the left t
     }) },
   } as unknown as RhnApi
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(<QueryClientProvider client={client}><AiPlanTemplateDraftModal api={api}
+  render(<QueryClientProvider client={client}><AiPlanTemplateDraftModal organizationId="org" api={api}
     onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>)
   const user = userEvent.setup()
   await user.type(screen.getByPlaceholderText(/请输入您的问题或描述症状/), '慢性支气管炎')
@@ -722,3 +723,33 @@ it('buffers early treatment rows and keeps education and follow-up on the left t
   expect(within(note).queryByLabelText('用药史')).not.toBeInTheDocument()
   expect(within(note).queryByLabelText('辅助检查结果')).not.toBeInTheDocument()
 })
+
+it('opens and mounts cleanly when editingTemplate has null tasks, null diagnoses, or null services', async () => {
+  const editingTemplate: any = {
+    id: 'tpl-sparse',
+    revision: 1,
+    scopeType: 'PERSONAL',
+    name: '极简门诊方案',
+    status: 'ACTIVE',
+    sortOrder: 0,
+    useCount: 0,
+    sourceType: 'MANUAL',
+    diagnoses: null,
+    medications: null,
+    services: null,
+    tasks: null,
+  }
+  const api = {
+    clinicalAi: { capabilities: vi.fn().mockResolvedValue({ mode: 'MODEL', available: true }) },
+    masterData: {
+      clinicalMedicationStandards: vi.fn().mockResolvedValue(editorStandardsFixture()),
+    },
+  } as unknown as RhnApi
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<QueryClientProvider client={client}>
+    <AiPlanTemplateDraftModal organizationId="org" api={api} editingTemplate={editingTemplate} onClose={vi.fn()} onSaved={vi.fn()} />
+  </QueryClientProvider>)
+  expect(screen.getByText('方案调整与明细微调')).toBeInTheDocument()
+  expect(screen.getByDisplayValue('极简门诊方案')).toBeInTheDocument()
+})
+

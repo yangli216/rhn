@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -60,6 +60,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
             nationalId: '230208194505119377',
             phone: '13367581545',
             manufacturerName: '云南制药有限公司',
+            organizationName: '三江镇中心卫生院', departmentName: '全科医疗科', doctorName: '范贺欣',
           },
           standardMappings: [],
           authoredAt: '2026-08-30T13:32:00.000Z',
@@ -144,7 +145,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
           resident: { id: 'res-1', fullName: '晓康', gender: 'MALE', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' },
           demographicProfile: { ethnicityCodeText: '汉族' },
           addresses: [{ addressText: '浙江省杭州市滨江区浦沿街道浦沿社区浦沿苑', primary: true }],
-          coverages: [{ coverageType: '自费' }],
+          coverages: [{ sdCoverageType: 'SELF_PAY', sdCoverageTypeText: '自费' }],
           relatedPersons: [],
           employments: [],
         }),
@@ -291,6 +292,14 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '关闭提示' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    vi.mocked(api.pharmacy.dispense).mockClear()
+    vi.mocked(api.pharmacy.inbox).mockResolvedValue([{ ...mockInboxItems[0],
+      request: { ...mockInboxItems[0].request, quantity: 0 },
+    }])
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['pharmacy-inbox'] }) })
+    await userEvent.click(screen.getByRole('button', { name: '发药(F4)' }))
+    expect(await screen.findByText(/缺少有效的发药数量/)).toBeInTheDocument()
+    expect(api.pharmacy.dispense).not.toHaveBeenCalled()
   })
 
   it('uses the matched stock-item trace policy before intake and displays countable dose units', async () => {
@@ -338,8 +347,6 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
             residentName: '晓康',
             gender: 'MALE',
             birthDate: '1945-05-11',
-            nationalId: '230208194505119377',
-            phone: '13367581545',
             manufacturerName: '示范制药有限公司',
           },
           standardMappings: [],
@@ -400,10 +407,34 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     )
 
     // Verify dual units displayed: 0.5 g (physical strength dose) and 2粒 (minimum package unit)
+    await waitFor(() => expect(screen.getAllByText('未维护').length).toBeGreaterThanOrEqual(3))
+    expect(screen.queryByText('230208194505119377')).not.toBeInTheDocument()
+    expect(screen.queryByText('13367581545')).not.toBeInTheDocument()
+    expect(screen.queryByText('浙江省杭州市滨江区浦沿街道浦沿社区浦沿苑')).not.toBeInTheDocument()
     expect(await screen.findByText('0.5 g（2粒）')).toBeInTheDocument()
     expect(screen.getByText('阿莫西林胶囊')).toBeInTheDocument()
     expect(screen.getByText('0.25g*24粒/盒')).toBeInTheDocument()
     expect(await screen.findByTitle('追溯码尚未扫码')).toHaveTextContent('0 / 1 盒')
+    // Historical incomplete records must stay incomplete in the live card, line and summary.
+    vi.mocked(api.pharmacy.inbox).mockResolvedValue([{ ...mockInboxItems[0], clinicalContext: undefined,
+      request: { ...mockInboxItems[0].request, unitPrice: undefined, totalAmount: undefined,
+        doseValue: undefined, doseUnit: undefined, durationValue: undefined, durationUnit: undefined,
+        packageSpec: undefined, preparationSpec: undefined, authoredAt: '', medicationSnapshot: {},
+      },
+    }])
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['pharmacy-inbox'] }) })
+    expect(await screen.findByText('剂量未记录')).toBeInTheDocument()
+    expect(screen.getByText('疗程未记录')).toBeInTheDocument()
+    expect(screen.getByText('厂家未记录')).toBeInTheDocument()
+    expect(screen.getByText('规格未记录')).toBeInTheDocument()
+    expect(screen.getByText('单价未提供')).toBeInTheDocument()
+    expect(screen.getAllByText('金额未提供').length).toBeGreaterThanOrEqual(3)
+    expect(screen.getByText('开立机构未记录 / 开立科室未记录 / 开立医生未记录')).toBeInTheDocument()
+    expect(screen.queryByText('21.50')).not.toBeInTheDocument()
+    expect(screen.queryByText('云南制药有限公司')).not.toBeInTheDocument()
+    expect(screen.queryByText('范贺欣')).not.toBeInTheDocument()
+    expect(screen.getByText(/开单时间:/)).toHaveTextContent('开单时间: 未记录')
+
   })
 
   it('uses the top pharmacy context and omits the duplicated site toolbar in review mode', async () => {

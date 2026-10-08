@@ -17,6 +17,7 @@ import java.util.Set;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
+import static com.rhn.shared.api.BusinessErrors.forbidden;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
@@ -71,6 +72,7 @@ class AllergyService implements AllergyDirectory {
                                                       Instant onsetAt, Long skinTestEventId) {
         ExecutionContext context = contextProvider.requireCurrent();
         Long canonicalId = residentDirectory.resolveCanonicalResidentId(residentId);
+        long[] orgDept = resolveOrgAndDept(canonicalId, encounterId, context);
         List<AllergyIntolerance> active = repository
                 .findByTenantIdAndResidentIdAndClinicalStatusOrderByRecordedAtDesc(
                         context.tenantId(), canonicalId, "ACTIVE");
@@ -98,7 +100,6 @@ class AllergyService implements AllergyDirectory {
                 matchedTerm == null ? Strings.trimToNull(substanceCode) : matchedTerm.code(),
                 matchedTerm == null ? Strings.trimToNull(substanceDisplay) : matchedTerm.display(), Strings.trimToNull(reactionText), onsetAt);
         validate(input);
-        long[] orgDept = resolveOrgAndDept(context.tenantId(), encounterId, context);
         AllergyIntolerance value = repository.saveAndFlush(new AllergyIntolerance(context.tenantId(), orgDept[0], orgDept[1], canonicalId,
                 input, context.subjectId(), context.practitionerId()));
         publish(value, "ALLERGY_RECORDED", "皮试阳性自动登记药物过敏", Map.of(
@@ -113,6 +114,7 @@ class AllergyService implements AllergyDirectory {
         Long canonicalId = residentDirectory.resolveCanonicalResidentId(residentId);
         RecordAllergyRequest input = standardized(context.tenantId(), normalized(raw));
         validate(input);
+        long[] orgDept = resolveOrgAndDept(canonicalId, input.encounterId(), context);
         List<AllergyIntolerance> active = repository
                 .findByTenantIdAndResidentIdAndClinicalStatusOrderByRecordedAtDesc(context.tenantId(), canonicalId, "ACTIVE");
         boolean actualAllergy = active.stream().anyMatch(value -> "ALLERGY".equals(value.assertionType()));
@@ -132,7 +134,6 @@ class AllergyService implements AllergyDirectory {
                 throw conflict("ALLERGY_ASSERTION_DUPLICATE", "相同的过敏声明已经存在");
             }
         }
-        long[] orgDept = resolveOrgAndDept(context.tenantId(), input.encounterId(), context);
         AllergyIntolerance value = repository.saveAndFlush(new AllergyIntolerance(context.tenantId(), orgDept[0], orgDept[1], canonicalId,
                 input, context.subjectId(), context.practitionerId()));
         publish(value, "ALLERGY_RECORDED", "记录患者过敏信息", Map.of("assertionType", input.assertionType(),
@@ -191,30 +192,38 @@ class AllergyService implements AllergyDirectory {
                 term.code(), term.display(), value.reactionText(), value.onsetAt());
     }
 
-    private long[] resolveOrgAndDept(Long tenantId, Long encounterId, ExecutionContext context) {
-        Long orgId = null;
-        Long deptId = null;
+    private long[] resolveOrgAndDept(Long residentId, Long encounterId, ExecutionContext context) {
+        Long orgId = context.organizationId();
+        Long deptId = context.departmentId();
         if (encounterId != null) {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "select ID_ORG, ID_DEPT from RHN_VIS_ENC where ID_TNT = ? and ID_ENC = ?",
-                    tenantId, encounterId);
-            if (!rows.isEmpty()) {
-                Map<String, Object> r = rows.get(0);
-                if (r.get("ID_ORG") != null) orgId = ((Number) r.get("ID_ORG")).longValue();
-                if (r.get("ID_DEPT") != null) deptId = ((Number) r.get("ID_DEPT")).longValue();
+                    "select ID_ORG, ID_DEPT, ID_PAT from RHN_VIS_ENC where ID_TNT = ? and ID_ENC = ?",
+                    context.tenantId(), encounterId);
+            if (rows.isEmpty()) throw notFound("ALLERGY_ENCOUNTER_NOT_FOUND", "未找到过敏记录关联的就诊");
+            Map<String, Object> row = rows.get(0);
+            Long encounterResidentId = nullableId(row.get("ID_PAT"));
+            if (encounterResidentId == null || !residentId.equals(residentDirectory.resolveCanonicalResidentId(encounterResidentId))) {
+                throw badRequest("ALLERGY_ENCOUNTER_PATIENT_MISMATCH", "关联就诊不属于当前患者");
             }
+            // The encounter's organization and department are a pair; never fill half from the operator's context.
+            orgId = nullableId(row.get("ID_ORG"));
+            deptId = nullableId(row.get("ID_DEPT"));
         }
-        if (orgId == null) orgId = context.organizationId();
-        if (deptId == null) deptId = context.departmentId();
-        if (orgId == null) orgId = 1L;
-        if (deptId == null) deptId = 1L;
+        if (orgId == null || deptId == null) {
+            throw badRequest("ALLERGY_ORGANIZATION_REQUIRED", "无法确定过敏记录的机构与科室，请选择完整工作上下文或关联有效就诊");
+        }
+        if (!context.canAccessOrganization(orgId)) {
+            throw forbidden("ALLERGY_ORGANIZATION_FORBIDDEN", "无权在该就诊所属机构记录过敏信息");
+        }
         return new long[]{orgId, deptId};
     }
+
+    private Long nullableId(Object value) { return value == null ? null : ((Number) value).longValue(); }
 
     private void publish(AllergyIntolerance value, String type, String summary, Map<String, Object> details) {
         ExecutionContext context = contextProvider.requireCurrent();
         var payload = new java.util.LinkedHashMap<String, Object>(details); payload.put("summary", summary);
-        eventPublisher.publish(value.tenantId(), context.organizationId(), type, 1, "AllergyIntolerance",
+        eventPublisher.publish(value.tenantId(), value.organizationId(), type, 1, "AllergyIntolerance",
                 value.id(), value.revision(), value.residentId(), Instant.now(), payload);
     }
 

@@ -1,4 +1,5 @@
 import { useMemo, type RefObject } from 'react'
+import '../../styles/cashier-controls.css'
 
 export interface CashPaymentCalculatorProps {
   payableAmount: number
@@ -62,7 +63,7 @@ export function CashPaymentCalculator({
 }: CashPaymentCalculatorProps) {
   const numericTendered = Number(tendered)
   const cashChange = numericTendered >= payableAmount ? Math.round((numericTendered - payableAmount) * 100) / 100 : 0
-  const isCashShort = payableAmount > 0 && (!tendered || isNaN(numericTendered) || numericTendered < payableAmount)
+  const isCashShort = payableAmount > 0 && (!tendered || !Number.isFinite(numericTendered) || numericTendered < payableAmount)
 
   const presets = useMemo(() => {
     return getCashPresets(payableAmount, maxPresets)
@@ -76,6 +77,7 @@ export function CashPaymentCalculator({
           <span className="cash-payment-symbol">{currencySymbol}</span>
           <input
             ref={inputRef}
+            data-barcode-scan="ignore"
             type="number"
             step={precision === '0.1' ? '0.1' : '0.01'}
             min={0}

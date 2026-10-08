@@ -23,15 +23,17 @@ public class MedicationCandidateMatchingService {
         if (intent == null || blank(intent.medicationName())) {
             return Result.unavailable("未识别到药品通用名");
         }
+        if (intent.requiresReview()) return new Result(Status.NEEDS_REVIEW, null, null, null,
+                "用法包含否定、范围、冲突、无效数量或未解析内容，请明确后重新匹配", List.of());
         List<OutpatientPrescriptionInventoryDirectory.OrderableMedicationView> medications = inventory
-                .findOrderableMedications(tenantId, organizationId, departmentId, intent.medicationName()).stream()
+                .findOrderableMedicationCandidates(tenantId, organizationId, departmentId, intent.medicationName()).stream()
                 .filter(value -> "ACTIVE".equals(value.sdStatus()))
                 .filter(value -> matchesMedication(intent.medicationName(), value))
                 .toList();
         if (medications.isEmpty()) {
             String stem = extractMedicationStem(intent.medicationName());
             if (stem != null && !stem.isBlank() && !stem.equals(intent.medicationName())) {
-                medications = inventory.findOrderableMedications(tenantId, organizationId, departmentId, stem).stream()
+                medications = inventory.findOrderableMedicationCandidates(tenantId, organizationId, departmentId, stem).stream()
                         .filter(value -> "ACTIVE".equals(value.sdStatus()))
                         .filter(value -> matchesMedication(intent.medicationName(), value))
                         .toList();
@@ -40,6 +42,9 @@ public class MedicationCandidateMatchingService {
         if (medications.isEmpty()) return Result.unavailable("当前机构可开药目录没有通用名精确匹配项");
         if (medications.size() > 1) return Result.ambiguous("MEDICATION", medications.size());
         var medication = medications.getFirst();
+        String specificationReview = MedicationSpecificationEvidence.reviewReason(intent, medication.preparationSpec());
+        if (specificationReview != null) return new Result(Status.NEEDS_REVIEW, null, null, null,
+                specificationReview, List.of());
 
         List<MedicationProductView> products = medication.products() == null ? List.of()
                 : medication.products().stream().filter(value -> value.orderable() && value.stocked()
@@ -75,6 +80,15 @@ public class MedicationCandidateMatchingService {
         if (!missing.isEmpty()) {
             return new Result(Status.NEEDS_REVIEW, medication, product, itemPackage,
                     "已唯一匹配目录，但缺少" + String.join("、", missing), List.of());
+        }
+        if (intent.quantity().signum() <= 0 || availability.packageFactor() == null
+                || availability.packageFactor().signum() <= 0
+                || availability.availablePackageQuantity() == null
+                || availability.availablePackageQuantity().compareTo(intent.quantity()) < 0
+                || availability.availableBaseQuantity().compareTo(
+                        intent.quantity().multiply(availability.packageFactor())) < 0) {
+            return new Result(Status.NEEDS_REVIEW, medication, product, itemPackage,
+                    "当前库存不足以满足请求数量，或包装换算事实未确认，请核对数量与库存", List.of());
         }
         return new Result(Status.UNIQUE_MATCH, medication, product, itemPackage,
                 "Medication、Product、Package 与库存均唯一匹配", List.of());

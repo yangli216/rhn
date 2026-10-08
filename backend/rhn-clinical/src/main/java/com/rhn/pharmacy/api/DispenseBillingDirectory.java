@@ -34,5 +34,7 @@ public interface DispenseBillingDirectory {
             Long packageId,
             BigDecimal baseQuantityFactor,
             String productCodeSnapshot,
-            String productNameSnapshot) {}
+            String productNameSnapshot,
+            Long taskId,
+            Long processedBy) {}
 }

@@ -95,6 +95,13 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INPATIENT_NURSING_ASSESSMENT_REQUIRED"));
 
+        mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/nursing-records", episodeId)
+                        .with(ward).contentType(MediaType.APPLICATION_JSON)
+                        .content(assessmentBody.replace("\"communicationStatus\":\"NORMAL\"", "\"communicationStatus\":null")
+                                .replace("IP-NURSING-ASSESSMENT-1", "IP-NURSING-ASSESSMENT-UNASSESSED")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INPATIENT_NURSING_ASSESSMENT_CODE_INVALID"));
+
         Instant queryFrom = occurredAt.minus(1, ChronoUnit.HOURS);
         Instant queryTo = occurredAt.plus(1, ChronoUnit.HOURS);
         mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/nursing-records", episodeId)
@@ -122,6 +129,13 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                   "commandCode":"IP-HANDOFF-CREATE-1"
                 }
                 """.formatted(shiftFrom, shiftTo, episodeId);
+        mockMvc.perform(post("/api/inpatient/shift-handoffs").with(ward)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(handoffBody.replace("发热，经物理降温后继续观察", " ")
+                                .replace("IP-HANDOFF-CREATE-1", "IP-HANDOFF-UNASSESSED")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.violations[0].field").value("patients[0].situation"));
         JsonNode handoff = postJson("/api/inpatient/shift-handoffs", handoffBody, ward, 201);
         String handoffId = handoff.get("id").asString();
         String contentEvidenceId = handoff.get("integrityEvidenceId").asString();

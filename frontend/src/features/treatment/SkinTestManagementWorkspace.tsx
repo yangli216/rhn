@@ -14,6 +14,7 @@ import '../../styles/features/treatment-skintest.css'
 type StatusFilter = 'ACTIONABLE' | 'OBSERVING' | 'FINISHED' | 'ALL'
 
 const statusLabel: Record<SkinTestStatus, string> = {
+  CONFIGURATION_REQUIRED: '配置缺失',
   WAITING_SETTLEMENT: '待结算',
   WAITING_DISPENSE: '待发药',
   PENDING: '待皮试',
@@ -27,7 +28,7 @@ const statusLabel: Record<SkinTestStatus, string> = {
 function statusTone(value: SkinTestStatus) {
   if (value === 'NEGATIVE') return 'success' as const
   if (value === 'POSITIVE') return 'danger' as const
-  if (['WAITING_SETTLEMENT', 'WAITING_DISPENSE', 'UNCERTAIN', 'INVALID'].includes(value)) return 'warning' as const
+  if (['CONFIGURATION_REQUIRED', 'WAITING_SETTLEMENT', 'WAITING_DISPENSE', 'UNCERTAIN', 'INVALID'].includes(value)) return 'warning' as const
   return 'info' as const
 }
 
@@ -80,7 +81,7 @@ export function SkinTestManagementWorkspace({ api, clinicalContext }: {
     const term = keyword.trim().toLowerCase()
     return allItems.filter((item) => {
       if (statusFilter === 'ACTIONABLE' && !['PENDING', 'IN_PROGRESS', 'UNCERTAIN', 'INVALID',
-        'WAITING_SETTLEMENT', 'WAITING_DISPENSE'].includes(item.status)) return false
+        'WAITING_SETTLEMENT', 'WAITING_DISPENSE', 'CONFIGURATION_REQUIRED'].includes(item.status)) return false
       if (statusFilter === 'OBSERVING' && item.status !== 'IN_PROGRESS') return false
       if (statusFilter === 'FINISHED' && !['NEGATIVE', 'POSITIVE'].includes(item.status)) return false
       if (!term) return true
@@ -117,6 +118,7 @@ export function SkinTestManagementWorkspace({ api, clinicalContext }: {
       queryClient.invalidateQueries({ queryKey: ['skin-test-worklist'] }),
       queryClient.invalidateQueries({ queryKey: ['treatment-worklist'] }),
       queryClient.invalidateQueries({ queryKey: ['doctor-skin-tests'] }),
+      queryClient.invalidateQueries({ queryKey: ['recent-negative-skin-test'] }),
       queryClient.invalidateQueries({ queryKey: ['doctor-allergies'] }),
     ])
   }
@@ -137,7 +139,7 @@ export function SkinTestManagementWorkspace({ api, clinicalContext }: {
   }).length
 
   const metrics = {
-    pending: allItems.filter((item) => ['PENDING', 'UNCERTAIN', 'INVALID', 'WAITING_SETTLEMENT', 'WAITING_DISPENSE'].includes(item.status)).length,
+    pending: allItems.filter((item) => ['PENDING', 'UNCERTAIN', 'INVALID', 'WAITING_SETTLEMENT', 'WAITING_DISPENSE', 'CONFIGURATION_REQUIRED'].includes(item.status)).length,
     observing: observingItems.length,
     positive: allItems.filter((item) => item.status === 'POSITIVE').length,
     negative: allItems.filter((item) => item.status === 'NEGATIVE').length,
@@ -221,15 +223,13 @@ export function SkinTestManagementWorkspace({ api, clinicalContext }: {
           {values.map((item) => {
             const isSelected = item.medicationRequestId === selectedRequestId
             const isObserving = item.status === 'IN_PROGRESS'
-            const readyAt = item.startedAt && item.observationMinutes
-              ? new Date(item.startedAt).getTime() + item.observationMinutes * 60_000
-              : 0
+            const readyAt = observationReadyAt(item)
             const remMin = readyAt ? Math.ceil((readyAt - now) / 60_000) : 0
             const isOverdue = readyAt > 0 && now >= readyAt
             const overdueMin = readyAt > 0 && now >= readyAt ? Math.floor((now - readyAt) / 60_000) : 0
-            const totalMin = item.observationMinutes || 20
+            const totalMin = item.observationMinutes
             const elapsedMin = readyAt ? Math.max(0, Math.floor((now - new Date(item.startedAt!).getTime()) / 60_000)) : 0
-            const progressRatio = Math.min(100, Math.max(0, (elapsedMin / totalMin) * 100))
+            const progressRatio = validMinutes(totalMin) ? Math.min(100, Math.max(0, (elapsedMin / totalMin) * 100)) : 0
 
             return (
               <button
@@ -258,7 +258,8 @@ export function SkinTestManagementWorkspace({ api, clinicalContext }: {
                   <span>{item.itemName || item.medicationName}</span>
                 </div>
 
-                {isObserving && (
+                {isObserving && !readyAt && <small>计时数据缺失</small>}
+                {isObserving && Boolean(readyAt) && (
                   <div className="skin-test-queue-item__countdown">
                     <div className="skin-test-countdown-bar">
                       <div
@@ -325,15 +326,16 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
 }) {
   const [identityVerified, setIdentityVerified] = useState(false)
   const [verificationMethod, setVerificationMethod] = useState<StartSkinTestInput['verificationMethod']>('NAME_AND_IDENTIFIER')
-  const testMethod = item.configuredTestMethod ?? 'INTRADERMAL'
+  const testMethod = item.configuredTestMethod
+  const configurationValid = validConfiguration(item)
   const originalSolution = item.configuredSolutionMode === 'ORIGINAL_SOLUTION'
-  const observationMinutes = item.configuredObservationMinutes ?? 20
+  const observationMinutes = item.configuredObservationMinutes
   const [solutionName, setSolutionName] = useState(originalSolution
-    ? (item.itemName || item.medicationName) : '按主数据方案配制的皮试液')
+    ? (item.itemName || item.medicationName) : '')
   const [lotNo, setLotNo] = useState('')
   const [concentration, setConcentration] = useState('')
   const [concentrationUnit, setConcentrationUnit] = useState('U/ml')
-  const [bodySite, setBodySite] = useState('左前臂屈侧下段')
+  const [bodySite, setBodySite] = useState('')
 
   const practitioners = useQuery({
     queryKey: ['practitioners'],
@@ -371,7 +373,9 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
 
   const refresh = async () => { await onRefresh() }
   const start = useMutation({
-    mutationFn: () => api.treatments.startSkinTest(item.medicationRequestId, {
+    mutationFn: () => {
+      if (!configurationValid || !testMethod || observationMinutes == null) throw new Error('皮试配置缺失或无效，无法开始皮试')
+      return api.treatments.startSkinTest(item.medicationRequestId, {
       expectedMedicationRevision: item.medicationRequestRevision,
       identityVerified,
       verificationMethod,
@@ -383,7 +387,8 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
       concentrationUnit: concentration ? concentrationUnit.trim() || undefined : undefined,
       bodySite: bodySite.trim() || undefined,
       observationMinutes,
-    }),
+      })
+    },
     onSuccess: refresh,
   })
 
@@ -406,16 +411,15 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
     onSuccess: refresh,
   })
 
-  const readyAt = item.startedAt && item.observationMinutes
-    ? new Date(item.startedAt).getTime() + item.observationMinutes * 60_000 : 0
+  const readyAt = observationReadyAt(item)
   const remainingMinutes = readyAt ? Math.max(0, Math.ceil((readyAt - clock) / 60_000)) : 0
   const elapsedMinutes = item.startedAt ? Math.floor((clock - new Date(item.startedAt).getTime()) / 60_000) : 0
   const overdueMinutes = readyAt ? Math.max(0, Math.floor((clock - readyAt) / 60_000)) : 0
   const isOverdue = overdueMinutes >= 1
-  const negativeBeforeObservationEnds = remainingMinutes > 0 && result === 'NEGATIVE'
+  const negativeBeforeObservationEnds = (!readyAt || remainingMinutes > 0) && result === 'NEGATIVE'
   const error = start.error || complete.error || cancel.error
   const canStart = ['PENDING', 'UNCERTAIN', 'INVALID'].includes(item.status)
-  const showConfiguration = ['WAITING_SETTLEMENT', 'WAITING_DISPENSE',
+  const showConfiguration = ['CONFIGURATION_REQUIRED', 'WAITING_SETTLEMENT', 'WAITING_DISPENSE',
     'PENDING', 'UNCERTAIN', 'INVALID'].includes(item.status)
   const dose = [item.doseValue, item.doseUnit].filter((value) => value != null && value !== '').join(' ')
 
@@ -523,23 +527,24 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
           <dl className="skin-test-config-strip" aria-label="药品主数据皮试方案">
             <div><dt>皮试方式</dt><dd>{testMethodLabel(testMethod)}</dd></div>
             <div><dt>试液类型</dt><dd>{solutionModeLabel(item.configuredSolutionMode)}</dd></div>
-            <div><dt>执行前置</dt><dd>{originalSolution ? '收费并发药后' : '可先皮试'}</dd></div>
-            <div><dt>观察时长</dt><dd>{observationMinutes} 分钟</dd></div>
+            <div><dt>执行前置</dt><dd>{!configurationValid ? '配置待完善' : originalSolution ? '收费并发药后' : '可先皮试'}</dd></div>
+            <div><dt>观察时长</dt><dd>{validMinutes(observationMinutes) ? `${observationMinutes} 分钟` : '未维护'}</dd></div>
           </dl>
           <div className="skin-test-protocol-notice">
             <span className="skin-test-notice-icon">ℹ️</span>
             <p>
-              {originalSolution
+              {!configurationValid ? '皮试方案缺失或无效，需完善后执行。' : originalSolution
                 ? '原液皮试使用本次处方药品，系统将在开始前校验药品已结算且已发药。'
                 : '非原液皮试使用独立配制试液，可在药品结算和发药前进行；阴性后用药仍须完成收费发药。'}
               {item.configurationInstructions ? ` ${item.configurationInstructions}` : ''}
-              {item.resultValidityHours ? ` 阴性结果有效 ${item.resultValidityHours} 小时。` : ''}
+              {validHours(item.resultValidityHours) ? ` 阴性结果有效 ${item.resultValidityHours} 小时。` : ''}
             </p>
           </div>
         </div>
       )}
     </header>
 
+    {!configurationValid && <Alert tone="warning">{item.gateMessage || '医嘱皮试配置缺失或无效，请完善药品主数据并重新开立医嘱后执行。'}</Alert>}
     {error && <Alert>{errorMessage(error)}</Alert>}
 
     {['WAITING_SETTLEMENT', 'WAITING_DISPENSE'].includes(item.status) && (
@@ -555,8 +560,7 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
           <Alert tone="info">上次判读为{statusLabel[item.status]}，请在对侧肢体重新规范执行皮试并计时。</Alert>
         )}
         <div className="skin-test-card-title">
-          <h3>开始皮试（皮内注射）</h3>
-          <span className="skin-test-guide-tag">注射 0.1ml 形成 6~8mm 圆形皮丘</span>
+          <h3>开始皮试（{testMethodLabel(testMethod)}）</h3>
         </div>
 
         <label className="treatment-identity-check">
@@ -630,10 +634,10 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
           <Button
             size="lg"
             busy={start.isPending}
-            disabled={!identityVerified}
+            disabled={!identityVerified || !configurationValid}
             onClick={() => start.mutate()}
           >
-            确认开始并计时（启动 {observationMinutes} 分钟留观）
+            {configurationValid ? `确认开始并计时（启动 ${observationMinutes} 分钟留观）` : '配置缺失，无法开始皮试'}
           </Button>
         </div>
       </section>
@@ -647,15 +651,15 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
           <div className="skin-test-timer-main">
             <span className="skin-test-timer-label">观察留观计时</span>
             <strong className="skin-test-timer-value">
-              {remainingMinutes > 0 ? `还需 ${remainingMinutes} 分钟` : '已到判读时间'}
+              {!readyAt ? '计时数据缺失，无法确认判读时间' : remainingMinutes > 0 ? `还需 ${remainingMinutes} 分钟` : '已到判读时间'}
             </strong>
             <small>
-              开始于 {formatTime(item.startedAt!)} · 预计于 {formatTime(new Date(readyAt).toISOString())} 判读
+              {readyAt ? `开始于 ${formatTime(item.startedAt!)} · 预计于 ${formatTime(new Date(readyAt).toISOString())} 判读` : '请核实已记录的开始时间和观察时长'}
             </small>
           </div>
           <div className="skin-test-timer-side">
-            <StatusBadge tone={remainingMinutes > 0 ? 'warning' : isOverdue ? 'danger' : 'success'}>
-              {isOverdue ? `超期 ${overdueMinutes}m` : `${item.observationMinutes} 分钟`}
+            <StatusBadge tone={!readyAt || remainingMinutes > 0 ? 'warning' : isOverdue ? 'danger' : 'success'}>
+              {!readyAt ? '无法计时' : isOverdue ? `超期 ${overdueMinutes}m` : `${item.observationMinutes} 分钟`}
             </StatusBadge>
             <Button
               size="sm"
@@ -874,6 +878,7 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
               busy={complete.isPending}
               disabled={
                 (result === 'POSITIVE' && !reaction.trim())
+                || !readyAt
                 || negativeBeforeObservationEnds
                 || !verifierPractitionerId
                 || (remainingMinutes > 0 && result !== 'NEGATIVE' && !earlyReadReason.trim())
@@ -964,7 +969,11 @@ function SkinTestPatientSafetySidecar({
   // Query resident's existing allergies
   const allergies = useQuery({
     queryKey: ['resident-allergies', item.residentId],
-    queryFn: () => api.residents.allergies(item.residentId, true),
+    queryFn: async () => {
+      const records = await api.residents.allergies(item.residentId, true)
+      if (!Array.isArray(records)) throw new Error('过敏史查询返回无效结果')
+      return records
+    },
     staleTime: 60_000,
   })
 
@@ -974,7 +983,15 @@ function SkinTestPatientSafetySidecar({
   }, [allItems, item.medicationRequestId, item.residentId])
 
   const allergyList = allergies.data ?? []
-  const hasKnownAllergies = allergyList.some((a) => a.assertionType === 'ALLERGY' && a.clinicalStatus === 'ACTIVE')
+  const hasKnownAllergies = allergyList.some((a) => a.assertionType === 'ALLERGY' && a.clinicalStatus === 'ACTIVE'
+    && !['REFUTED', 'ENTERED_IN_ERROR'].includes(a.verificationStatus))
+  const noKnownDrugAllergy = allergyList.some((a) => ['NO_KNOWN_ALLERGY', 'NO_KNOWN_DRUG_ALLERGY'].includes(a.assertionType)
+    && a.clinicalStatus === 'ACTIVE' && a.verificationStatus === 'CONFIRMED')
+  const allergyLabel = allergies.isError ? '过敏史查询失败' : allergies.isPending ? '过敏史加载中'
+    : hasKnownAllergies ? '存在过敏记录' : noKnownDrugAllergy ? '已记录无已知药物过敏' : '过敏史待核实'
+  const allergyTone = allergies.isError ? 'warning' : allergies.isPending ? 'neutral'
+    : hasKnownAllergies ? 'danger' : noKnownDrugAllergy ? 'success' : 'warning'
+
 
   return (
     <div className="skin-test-sidecar-container">
@@ -1009,22 +1026,24 @@ function SkinTestPatientSafetySidecar({
             <section className="skin-test-sidecar-card">
               <header className="skin-test-sidecar-head">
                 <h4>既往药物过敏档案</h4>
-                <span className={`skin-test-sidecar-tag ${hasKnownAllergies ? 'is-danger' : 'is-success'}`}>
-                  {hasKnownAllergies ? '存在过敏史' : '未见药物过敏'}
-                </span>
+                <StatusBadge tone={allergyTone}>{allergyLabel}</StatusBadge>
               </header>
 
               {allergies.isPending && <LoadingState label="加载过敏史…" />}
-              {!allergies.isPending && allergyList.length === 0 && (
-                <p className="skin-test-sidecar-empty-text">患者电子健康档案中暂无过敏登记。</p>
+              {allergies.isError && <>
+                <Alert tone="warning">过敏史查询失败，尚不能确认患者过敏情况。{errorMessage(allergies.error)}</Alert>
+                <Button variant="secondary" busy={allergies.isFetching} onClick={() => void allergies.refetch()}>重试过敏史查询</Button>
+              </>}
+              {allergies.isSuccess && allergyList.length === 0 && (
+                <p className="skin-test-sidecar-empty-text">暂无过敏登记，不能据此认定无药物过敏，请核实。</p>
               )}
 
               {allergyList.length > 0 && (
                 <ul className="skin-test-sidecar-allergy-list">
                   {allergyList.map((a) => (
                     <li key={a.id} className={a.assertionType === 'ALLERGY' ? 'is-allergy-item' : 'is-clear-item'}>
-                      <strong>{a.substanceDisplay || (a.assertionType === 'ALLERGY' ? '特定药物过敏' : '无已知过敏')}</strong>
-                      <small>{a.reactionText || (a.reactionSeverity ? `程度: ${a.reactionSeverity}` : '已确证')}</small>
+                      <strong>{a.substanceDisplay || (a.assertionType === 'NO_KNOWN_DRUG_ALLERGY' ? '无已知药物过敏' : a.assertionType === 'NO_KNOWN_ALLERGY' ? '无已知过敏' : '过敏原未记录')}</strong>
+                      <small>{a.reactionText || (a.reactionSeverity ? `程度: ${a.reactionSeverity}` : '反应详情未记录')}</small>
                     </li>
                   ))}
                 </ul>
@@ -1040,15 +1059,15 @@ function SkinTestPatientSafetySidecar({
               <div className="skin-test-spec-content">
                 <div className="skin-test-spec-row">
                   <span>标准浓度</span>
-                  <strong>{item.configurationInstructions || '按药品规程稀释'}</strong>
+                  <strong>{item.configurationInstructions || '未维护'}</strong>
                 </div>
                 <div className="skin-test-spec-row">
                   <span>留观规范</span>
-                  <strong>严密观察 {item.configuredObservationMinutes ?? 20} 分钟</strong>
+                  <strong>{validMinutes(item.configuredObservationMinutes) ? `严密观察 ${item.configuredObservationMinutes} 分钟` : '未维护'}</strong>
                 </div>
                 <div className="skin-test-spec-row">
                   <span>阴性有效期</span>
-                  <strong>{item.resultValidityHours ?? 24} 小时有效</strong>
+                  <strong>{validHours(item.resultValidityHours) ? `${item.resultValidityHours} 小时有效` : '未维护'}</strong>
                 </div>
                 <div className="skin-test-spec-emergency-hint">
                   <strong>⚠️ 抢救应急备药要求：</strong>
@@ -1117,9 +1136,29 @@ function SkinTestPatientSafetySidecar({
 function testMethodLabel(value?: SkinTestWorkItem['testMethod']) {
   if (value === 'PRICK') return '点刺试验'
   if (value === 'OTHER') return '其他'
-  return '皮内试验'
+  return value === 'INTRADERMAL' ? '皮内试验' : '未维护'
 }
 
 function solutionModeLabel(value?: SkinTestWorkItem['configuredSolutionMode']) {
-  return value === 'ORIGINAL_SOLUTION' ? '原液' : '非原液（配制试液）'
+  return value === 'ORIGINAL_SOLUTION' ? '原液' : value === 'DILUTED_SOLUTION' ? '非原液（配制试液）' : '未维护'
+}
+
+function validMinutes(value?: number): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 120
+}
+
+function validHours(value?: number): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 8760
+}
+
+function validConfiguration(item: SkinTestWorkItem) {
+  return ['INTRADERMAL', 'PRICK', 'OTHER'].includes(item.configuredTestMethod ?? '')
+    && ['ORIGINAL_SOLUTION', 'DILUTED_SOLUTION'].includes(item.configuredSolutionMode ?? '')
+    && validMinutes(item.configuredObservationMinutes) && validHours(item.resultValidityHours)
+}
+
+function observationReadyAt(item: SkinTestWorkItem) {
+  const startedAt = item.startedAt ? Date.parse(item.startedAt) : NaN
+  return Number.isFinite(startedAt) && validMinutes(item.observationMinutes)
+    ? startedAt + item.observationMinutes * 60_000 : 0
 }

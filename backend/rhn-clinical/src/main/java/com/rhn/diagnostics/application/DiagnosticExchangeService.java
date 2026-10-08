@@ -131,7 +131,7 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
         DiagnosticReport previous = reportRepository
                 .findTopByTenantIdAndEndpointCodeAndExternalReportIdOrderByReportVersionDesc(
                         request.tenantId(), input.endpointCode(), input.externalReportId()).orElse(null);
-        validateVersion(input, previous);
+        validateVersion(input, previous, request);
         ExecutionContext context = contextProvider.requireCurrent();
         DiagnosticReport report = reportRepository.save(new DiagnosticReport(request.tenantId(), request.residentId(),
                 request.encounterId(), request.id(), request.performerOrganizationId(), request.performerDepartmentId(),
@@ -255,7 +255,11 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
         }
     }
 
-    private void validateVersion(ReportCommand input, DiagnosticReport previous) {
+    private void validateVersion(ReportCommand input, DiagnosticReport previous, ServiceRequestSnapshot request) {
+        if (previous != null && (!request.id().equals(previous.requestId())
+                || !request.residentId().equals(previous.residentId()) || !request.encounterId().equals(previous.encounterId()))) {
+            throw conflict("DIAGNOSTIC_REPORT_REQUEST_MISMATCH", "外部报告编号已属于其他申请，不能跨申请更正报告");
+        }
         if (previous == null && input.reportVersion() != 1) {
             throw conflict("DIAGNOSTIC_REPORT_VERSION_GAP", "首个报告版本必须为 1");
         }

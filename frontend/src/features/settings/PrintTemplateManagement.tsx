@@ -508,7 +508,7 @@ export function PrintTemplateManagement({ api }: { api: RhnApi }) {
             options={(catalog.data?.mediaProfiles ?? []).map((item) => ({ value: item.id, label: item.mediaName, secondaryText: `${item.widthMm} x ${item.heightMm ?? '连续'} mm` }))} onChange={(value) => {
             const next = catalog.data?.mediaProfiles.find((item) => item.id === value)
             if (!next) return
-            setMediaId(next.id); applyConfig({ ...config, paper: paperConfig(next, definition?.layoutMode === 'CANVAS') })
+            setMediaId(next.id); applyConfig({ ...config, paper: paperConfig(next, definition?.layoutMode === 'CANVAS', Number(config.paper?.heightMm)) })
           }} /></FormField>
           {selectedCanvasElement && <ElementProperties element={selectedCanvasElement} fields={availableFields} disabled={!editable}
             onChange={updateElement} onDelete={removeElement} />}
@@ -706,7 +706,7 @@ function defaultConfig(definition: PrintDocumentDefinition, media: PrintMediaPro
 function defaultCanvasConfig(definition: PrintDocumentDefinition, media: PrintMediaProfile): LayoutConfig {
   const width = media.widthMm
   const height = media.heightMm ?? 55
-  const base = { paper: paperConfig(media, true) }
+  const base = { paper: paperConfig(media, true, definition.documentType === 'OUTPATIENT_REGISTRATION_TICKET' ? 140 : 55) }
   if (definition.documentType === 'INFUSION_LABEL') return { ...base, elements: [
     { type: 'text', xMm: 2, yMm: 2, widthMm: width - 4, heightMm: 6, text: definition.documentName, fontSize: 12, bold: true, align: 'CENTER' },
     { type: 'text', xMm: 2, yMm: 9, widthMm: width - 28, heightMm: 6, template: '{{patientName}}  {{bedNo}}', fontSize: 10, bold: true },
@@ -751,8 +751,10 @@ function defaultCanvasConfig(definition: PrintDocumentDefinition, media: PrintMe
       widthMm: width - 4, heightMm: 6, template: `${field.label}：{{${field.key}}}`, fontSize: 9 })),
   ] }
 }
-function paperConfig(media: PrintMediaProfile, canvas: boolean) {
-  return { widthMm: media.widthMm, heightMm: media.heightMm ?? (canvas ? 55 : 120), marginTopMm: media.marginTopMm,
+function paperConfig(media: PrintMediaProfile, canvas: boolean, continuousHeight?: number) {
+  const height = continuousHeight != null && Number.isFinite(continuousHeight) && continuousHeight > 0
+    ? continuousHeight : (canvas ? 55 : 120)
+  return { widthMm: media.widthMm, heightMm: media.heightMm ?? height, marginTopMm: media.marginTopMm,
     marginRightMm: media.marginRightMm, marginBottomMm: media.marginBottomMm, marginLeftMm: media.marginLeftMm }
 }
 function preferredMedia(definition: PrintDocumentDefinition, media: PrintMediaProfile[]) {

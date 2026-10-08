@@ -21,9 +21,33 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ResetDatabaseBeforeEachTestMethod
 class BillingSettlementTest extends RhnIntegrationTestSupport {
+    @org.springframework.beans.factory.annotation.Autowired com.rhn.billing.application.MedicationReturnChargeProjector returnProjector;
+    @org.springframework.beans.factory.annotation.Autowired com.rhn.platform.eventing.infrastructure.OutboxEventRepository returnEvents;
+    @org.springframework.beans.factory.annotation.Autowired com.rhn.shared.json.JsonCodec returnJson;
+    @org.springframework.beans.factory.annotation.Autowired org.springframework.jdbc.core.JdbcTemplate returnJdbc;
     private static final String PRODUCT_ID = "362387869795113";
     private static final String PACKAGE_ID = "362387869795403";
     private static final String BUSINESS_DAY = LocalDate.now(ZoneOffset.UTC).toString();
+
+    private void verifyReturnEventReplay(String taskId) {
+        var stored = returnEvents.findByAggregateIdOrderByRecordedAt(Long.valueOf(taskId)).stream()
+                .filter(e -> "MEDICATION_RETURN_POSTED".equals(e.eventType())).findFirst().orElseThrow().envelope(returnJson);
+        var data = new java.util.HashMap<>(stored.payload());
+        Long eventId = com.rhn.shared.id.GlobalIds.next();
+        var replay = new com.rhn.platform.eventing.api.DomainEventEnvelope(eventId, stored.tenantId(), stored.organizationId(),
+                stored.eventType(), stored.eventVersion(), stored.aggregateType(), stored.aggregateId(), stored.aggregateVersion(),
+                stored.subjectId(), stored.occurredAt(), stored.recordedAt(), stored.actor(), stored.source(), stored.correlationId(), null, data, stored.schemaVersion());
+        Object actor = data.remove("processedBy");
+        org.junit.jupiter.api.Assertions.assertThrows(com.rhn.shared.api.BusinessException.class, () -> returnProjector.project(replay));
+        assertEquals(0, returnJdbc.queryForObject("select count(*) from RHN_INT_EVT_CONSUME where ID_EVT=? and NA_CNSMR=?",
+                Integer.class, eventId, "billing-medication-return-charge-v1"));
+        data.put("processedBy", actor);
+        returnProjector.project(replay); returnProjector.project(replay);
+        assertEquals(1, returnJdbc.queryForObject("select count(*) from RHN_INT_EVT_CONSUME where ID_EVT=? and NA_CNSMR=?",
+                Integer.class, eventId, "billing-medication-return-charge-v1"));
+        assertEquals(1, returnJdbc.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where SD_SRC_TYPE='MEDICATION_RETURN' and ID_SRC=?",
+                Integer.class, data.get("returnDispenseId")));
+    }
 
     @Test
     void dispense_charge_concurrent_payment_return_refund_and_daily_reconciliation_close_the_ledger() throws Exception {
@@ -101,6 +125,7 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.events.length()").value(3));
 
         returnOne(dispense, "BIL-RET-" + suffix, pharmacist);
+        verifyReturnEventReplay(task.taskId());
         JsonNode afterReturn = synchronize(task.encounterId(), "BIL-SYNC-RET-" + suffix);
         assertEquals(0, afterReturn.get("createdCharges").asInt());
         assertEquals(2, afterReturn.get("existingCharges").asInt());
@@ -490,7 +515,7 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
     }
 
     @Test
-    void payment_order_with_rounding_adjustment_updates_settlement_and_invoice_amounts() throws Exception {
+    void payment_order_rejects_client_rounding_that_disagrees_with_configured_floor_rule() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
         PharmacyFixture pharmacy = createPharmacy(suffix);
         JsonNode lot = createLot(pharmacy.stockItemId(), "BIL-" + suffix);
@@ -516,21 +541,19 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                 }
                 """.formatted(suffix, adjustedAmount.toPlainString(), roundingAdjustment.toPlainString());
 
-        JsonNode paymentOrder = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders", invoice.get("id").asString())
-                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content(paymentBody))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-
-        assertEquals("SUCCEEDED", paymentOrder.get("status").asString());
+        mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders", invoice.get("id").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(paymentBody))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PAYMENT_ROUNDING_MISMATCH"));
 
         mockMvc.perform(get("/api/billing/settlements/{settlementId}", invoice.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SETTLED"))
-                .andExpect(jsonPath("$.roundingAmount").value(0.03))
-                .andExpect(jsonPath("$.netAmount").value(adjustedAmount.doubleValue()))
-                .andExpect(jsonPath("$.tenderedAmount").value(adjustedAmount.doubleValue()))
-                .andExpect(jsonPath("$.outstandingAmount").value(0));
+                .andExpect(jsonPath("$.status").value("PRICED"))
+                .andExpect(jsonPath("$.roundingAmount").value(0))
+                .andExpect(jsonPath("$.netAmount").value(originalAmount.doubleValue()))
+                .andExpect(jsonPath("$.tenderedAmount").value(0))
+                .andExpect(jsonPath("$.outstandingAmount").value(originalAmount.doubleValue()));
     }
 
     private JsonNode createLot(String stockItemId, String lotNo) throws Exception {

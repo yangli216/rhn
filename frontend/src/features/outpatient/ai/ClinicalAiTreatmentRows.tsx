@@ -1,3 +1,4 @@
+import { resolveServicePricing } from '../orders/servicePricing'
 import { useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import type { ClinicalAiTreatmentRecommendation } from '../../../shared/api/clinicalAiApi'
@@ -6,10 +7,11 @@ import type { Encounter } from '../../../shared/model'
 import { Button, Icon } from '../../../shared/ui'
 import { calculatePackageQuantity } from '../orders/medicationQuantity'
 import { clinicalAiTreatmentKey } from '../orders/orderDraftTypes'
-import { formatPackageUnit } from '../orders/orderPresentation'
+import { formatPackageUnit, formatUnitPrice } from '../orders/orderPresentation'
 import { resolveDispensableOptions } from '../orders/dispensableOptions'
 
 type OrderDetails = NonNullable<ClinicalAiTreatmentRecommendation['orderDraft']>
+type EditableOrderDetails = Omit<OrderDetails, 'quantity'> & { quantity?: number }
 
 /** Resolve catalog details after a requested analysis; this never triggers another model request. */
 export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onReview }: {
@@ -22,6 +24,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
   const [excluded, setExcluded] = useState<string[]>([])
   const [edits, setEdits] = useState<Record<string, Partial<OrderDetails>>>({})
   const [editingKey, setEditingKey] = useState<string>()
+  const [manualQuantities, setManualQuantities] = useState<Record<string, boolean>>({})
   const hasMedication = items.some((item) => item.type === 'MEDICATION')
   const routes = useQuery({ queryKey: ['outpatient-medication-routes'], queryFn: () => api.masterData.activeMedicationRoutes('OUTPATIENT'),
     enabled: hasMedication, staleTime: 300_000 })
@@ -40,45 +43,44 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
         const product = resolveDispensableOptions({ ...medication,
           products: medication.products.filter((value) => String(value.id) === String(item.catalogItemId)) }, encounter.organizationId)[0]
         if (!product) throw new Error('暂无可发药包装或有效价格')
-        return { medication, product, price: product.price, unit: formatPackageUnit(product.unitName, product.unitCode),
+        return { medication, product, price: product.price, currencyCode: product.currencyCode, unit: formatPackageUnit(product.unitName, product.unitCode),
           specification: product.itemPackage?.packageSpec || medication.preparationSpec,
           details: { packageId: product.itemPackage?.id, doseValue: medication.defaultDose,
             doseUnit: medication.defaultDoseUnit || medication.preparationUnit, routeCode: medication.defaultRoute,
-            frequencyCode: medication.defaultFrequency, quantity: 1,
-            instruction: product.product.instruction || '' } satisfies OrderDetails }
+            frequencyCode: medication.defaultFrequency, quantity: undefined,
+            instruction: product.product.instruction || '' } satisfies EditableOrderDetails }
       }
       const matches = await api.masterData.searchServices(item.code, item.type, 'ACTIVE', encounter.organizationId, 0, 100)
       const service = matches.content.find((value) => String(value.id) === String(item.catalogItemId))
       if (!service) throw new Error('项目已不在可用目录中')
-      const today = new Date().toLocaleDateString('sv-SE')
-      const price = service.prices?.filter((value) => value.sdStatus === 'ACTIVE' && value.sdPriceType === 'SALE'
-        && (!value.organizationId || value.organizationId === encounter.organizationId)
-        && (!value.validFrom || value.validFrom <= today) && (!value.validTo || value.validTo >= today))
-        .sort((left, right) => Number(Boolean(right.organizationId)) - Number(Boolean(left.organizationId)))[0]
+      const pricing = resolveServicePricing(service, encounter.organizationId)
+      if (pricing.error) throw new Error(pricing.error)
+      const price = pricing.price
       const requirements = [service.specimenType && `标本：${service.specimenType}`,
         service.examinationType && `检查类型：${service.examinationType}`, service.examinationNotes, service.attention].filter(Boolean).join('；')
-      return { price: price?.price, unit: formatPackageUnit(undefined, service.unitCode || 'ITEM'),
+      return { price: price?.price, currencyCode: price?.currencyCode, unit: formatPackageUnit(undefined, service.unitCode || 'ITEM'),
         specification: requirements, details: { quantity: 1,
           instruction: [requirements, item.rationale].filter(Boolean).join('；') } satisfies OrderDetails }
     },
   })) })
   const rows = items.map((item, index) => {
     const key = clinicalAiTreatmentKey(item), result = results[index], resolved = result.data
-    const details: OrderDetails = { quantity: 1, ...resolved?.details, ...edits[key] }
+    const details: EditableOrderDetails = { ...resolved?.details, ...edits[key] }
     const medication = item.type === 'MEDICATION'
-    const valid = Boolean(resolved) && Number.isFinite(details.quantity) && details.quantity > 0
+    const valid = Boolean(resolved) && typeof details.quantity === 'number' && Number.isFinite(details.quantity) && details.quantity > 0
       && (!medication || (Number.isFinite(details.doseValue) && Number(details.doseValue) > 0
         && details.doseUnit?.trim() && routes.data?.some((route) => route.code === details.routeCode)
         && frequencies.data?.some((frequency) => frequency.code === details.frequencyCode)
         && (details.durationValue === undefined || (Number.isFinite(details.durationValue) && details.durationValue > 0))))
     const change = (patch: Partial<OrderDetails>) => {
       const next = { ...details, ...patch }
-      if (resolved?.medication && resolved.product && next.durationValue && next.frequencyCode !== 'PRN'
+      if ('quantity' in patch) setManualQuantities(current => ({ ...current, [key]: true }))
+      if (resolved?.medication && resolved.product && !manualQuantities[key]
         && !('quantity' in patch) && ['doseValue', 'doseUnit', 'frequencyCode', 'durationValue'].some((field) => field in patch)) {
         const quantity = calculatePackageQuantity({ medication: resolved.medication, selectedPackage: resolved.product,
           doseValue: next.doseValue, doseUnit: next.doseUnit, frequencyCode: next.frequencyCode,
           durationValue: next.durationValue, frequencies: frequencies.data })?.quantity
-        if (quantity) patch.quantity = quantity
+        patch.quantity = quantity
       }
       setEdits((current) => ({ ...current, [key]: { ...current[key], ...patch } }))
     }
@@ -107,10 +109,10 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
               <small>{details.durationValue ? `${details.durationValue} 天` : details.frequencyCode === 'PRN' ? '按需使用，天数可补充' : '疗程未设定，可修改'} · {edits[key] ? '已修改，待核对' : '目录默认，需核对'}</small>
             </span> : resolved?.specification || '按项目执行流程'}
           </span>
-          <span className="doctor-unified-cell-qty">{resolved ? `${details.quantity} ${resolved.unit}` : '—'}</span>
+          <span className="doctor-unified-cell-qty">{resolved ? `${details.quantity ?? '待填'} ${resolved.unit}` : '—'}</span>
           <span className="doctor-unified-cell-dept">核对后确定</span>
           <span className="doctor-unified-cell-instruction" title={details.instruction || item.rationale}>{details.instruction || item.rationale}</span>
-          <span className="doctor-unified-cell-price">{resolved?.price === undefined ? '—' : `¥${resolved.price.toFixed(2)}`}</span>
+          <span className="doctor-unified-cell-price">{formatUnitPrice(resolved?.price, resolved?.currencyCode)}</span>
           <span className="doctor-unified-cell-status"><span className="doctor-ai-review-status">{resolved && !valid ? '需补全' : '待核对'}</span></span>
           <span className="doctor-unified-cell-actions"><Button size="sm" variant="text" disabled={disabled || !resolved}
             onClick={() => setEditingKey(open ? undefined : key)}>{open ? '收起' : '修改'}</Button></span>
@@ -130,8 +132,8 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
             <label>天数<input type="number" step="any" min="0" placeholder="未设定" value={details.durationValue ?? ''} disabled={disabled}
               onChange={(event) => change({ durationValue: event.target.value === '' ? undefined : Number(event.target.value) })} /></label>
           </>}
-          <label>总量（{resolved?.unit}）<input type="number" step="any" min="0" value={details.quantity || ''} disabled={disabled}
-            onChange={(event) => change({ quantity: Number(event.target.value) })} /></label>
+          <label>总量（{resolved?.unit}）<input type="number" step="any" min="0" value={details.quantity ?? ''} disabled={disabled}
+            onChange={(event) => change({ quantity: event.target.value === '' ? undefined : Number(event.target.value) })} /></label>
           <label className="doctor-ai-treatment-editor__instruction">{medication ? '用药嘱托' : '执行要求'}<input value={details.instruction ?? ''} disabled={disabled}
             maxLength={1000} onChange={(event) => change({ instruction: event.target.value })} /></label>
           {!valid && <small role="alert">请补全有效的{medication ? '剂量、单位、途径、频次和总量；填写天数时须大于 0' : '总量'}。</small>}
@@ -142,7 +144,10 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
       onClick={() => { void routes.refetch(); void frequencies.refetch() }}>重试</Button></div>}
     <div className="doctor-ai-order-batch" role="row"><span>已选 {selected.length} 项，核对后可批量转入待开立医嘱。</span>
       <Button size="sm" variant="primary" disabled={disabled || !selectedReady}
-        onClick={() => onReview(selected.map(({ item, details }) => ({ ...item, orderDraft: details })))}>
+        onClick={() => {
+          if (!selectedReady) return
+          onReview(selected.map(({ item, details }) => ({ ...item, orderDraft: { ...details, quantity: details.quantity! } })))
+        }}>
         <Icon name="check" />确认所选（{selected.length}）</Button>
     </div>
   </div>

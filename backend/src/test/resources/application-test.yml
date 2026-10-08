@@ -42,10 +42,14 @@ rhn:
   presence:
     store: memory
   billing:
+    fiscal:
+      mock-enabled: true
     payment:
       aggregated-adapter:
         enabled: false
     insurance:
+      chs:
+        mock-enabled: true
       chs-adapter:
         enabled: false
 springdoc:

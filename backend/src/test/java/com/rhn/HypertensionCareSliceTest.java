@@ -65,6 +65,17 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
                         && candidate.get("taskId").asString().equals(task.path("routePath").asString()
                         .replace("/care-management?taskId=", ""))));
 
+        JsonNode careReminder = StreamSupport.stream(workTasks.spliterator(), false)
+                .filter(task -> ("/care-management?taskId=" + candidate.get("taskId").asString())
+                        .equals(task.path("routePath").asString())).findFirst().orElseThrow();
+        assertEquals(candidate.get("priority").asString(), careReminder.get("priority").asString());
+        assertEquals(Instant.parse(candidate.get("dueAt").asString()), Instant.parse(careReminder.get("dueAt").asString()));
+        assertEquals(candidate.get("title").asString(), careReminder.get("title").asString());
+        mockMvc.perform(post("/api/tasks/{id}/complete", careReminder.get("id").asString()).with(rhnWorkContext()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("TASK_BUSINESS_ACTION_REQUIRED"));
+        mockMvc.perform(get("/api/tasks").with(rhnWorkContext()))
+                .andExpect(jsonPath("$[?(@.id == '%s')].status".formatted(careReminder.get("id").asString())).value("READY"));
+
         recordClinicalData(encounterId, 148, 94).andExpect(status().isOk());
         mockMvc.perform(get("/api/health-planning/hypertension-candidates")
                         .param("residentId", residentId).with(rhnWorkContext()))
@@ -119,6 +130,59 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
                         .param("residentId", residentId).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void subsequent_urgent_evidence_updates_the_original_task_and_claimed_work_reminder_without_downgrading()
+            throws Exception {
+        String residentId = createResident("紧急程度变化居民", "1980-06-18");
+        String encounterId = createActiveEncounter(residentId);
+        recordClinicalData(encounterId, 152, 96).andExpect(status().isOk());
+        JsonNode initial = candidate(residentId);
+        JsonNode reminder = reminder(initial.get("taskId").asString());
+        String reminderId = reminder.get("id").asString();
+        mockMvc.perform(post("/api/tasks/{id}/claim", reminderId).with(rhnWorkContext()))
+                .andExpect(status().isOk());
+
+        recordClinicalData(encounterId, 181, 108).andExpect(status().isOk());
+        JsonNode urgent = candidate(residentId);
+        assertEquals(initial.get("taskId").asString(), urgent.get("taskId").asString());
+        assertEquals("URGENT", urgent.get("priority").asString());
+        assertEquals("SUSPECTED", urgent.get("verificationStatus").asString());
+        assertTrue(Instant.parse(urgent.get("dueAt").asString()).isBefore(Instant.parse(initial.get("dueAt").asString())));
+        assertEquals(urgent.get("dueAt").asString(), urgent.get("evidenceEvents").get(1)
+                .get("evidence").get("recheckDueAt").asString());
+        JsonNode projected = reminder(urgent.get("taskId").asString());
+        assertEquals(reminderId, projected.get("id").asString());
+        assertEquals("URGENT", projected.get("priority").asString());
+        assertEquals("IN_PROGRESS", projected.get("status").asString());
+        assertEquals(urgent.get("title").asString(), projected.get("title").asString());
+        assertEquals(Instant.parse(urgent.get("dueAt").asString()), Instant.parse(projected.get("dueAt").asString()));
+
+        recordClinicalData(encounterId, 185, 112).andExpect(status().isOk());
+        recordClinicalData(encounterId, 148, 94).andExpect(status().isOk());
+        JsonNode later = candidate(residentId);
+        assertEquals("URGENT", later.get("priority").asString());
+        assertEquals(urgent.get("dueAt").asString(), later.get("dueAt").asString());
+        assertEquals(4, later.get("evidenceEvents").size());
+        assertEquals("URGENT", reminder(later.get("taskId").asString()).get("priority").asString());
+    }
+
+    private JsonNode candidate(String residentId) throws Exception {
+        JsonNode values = json(mockMvc.perform(get("/api/health-planning/hypertension-candidates")
+                        .param("residentId", residentId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(1, values.size());
+        return values.get(0);
+    }
+
+    private JsonNode reminder(String careTaskId) throws Exception {
+        JsonNode values = json(mockMvc.perform(get("/api/tasks").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var matches = StreamSupport.stream(values.spliterator(), false)
+                .filter(task -> ("/care-management?taskId=" + careTaskId).equals(task.path("routePath").asString())).toList();
+        assertEquals(1, matches.size());
+        return matches.get(0);
     }
 
     private String createResident(String name, String birthDate) throws Exception {

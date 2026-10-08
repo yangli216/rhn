@@ -1,6 +1,8 @@
+import { clinicalReferencePrices, clinicalMedicationType, clinicalStockText } from './clinicalResourceFacts'
 import { useCallback } from 'react'
 import type { DiseaseConcept, ItemGroup, MedicationKnowledge, ServiceCatalogItem } from '../api/masterDataApi'
 import type { OrderableMedicationKnowledge } from '../api/encountersApi'
+import { errorMessage } from '../api/httpClient'
 import type { RhnApi } from '../rhnApi'
 import { RemoteSearchSelect, type RemoteSearchOption, type RemoteSearchSelectProps } from './RemoteSearchSelect'
 import { matchesPinyinOrText } from './pinyinInitials'
@@ -23,69 +25,37 @@ export interface ClinicalResourceSearchProps<T extends ClinicalResource = Clinic
 
 const resourceCopy: Record<ClinicalResourceType, { placeholder: string; searchPlaceholder: string }> = {
   diagnosis: { placeholder: '检索并选择诊断', searchPlaceholder: '输入诊断名称、编码或拼音码' },
-  medication: { placeholder: '检索并选择在库药品', searchPlaceholder: '输入通用名、编码或别名' },
+  medication: { placeholder: '检索并选择药品', searchPlaceholder: '输入通用名、编码或别名' },
   service: { placeholder: '检索并选择诊疗项目', searchPlaceholder: '输入项目名称、编码或项目类型' },
   mixed: { placeholder: '搜索药品/项目名称或拼音', searchPlaceholder: '输入通用名、编码或别名' },
 }
 
-interface CacheItem<T> {
-  data: T[]
-  time: number
+const apiScopes = new WeakMap<RhnApi, number>()
+let nextApiScope = 0
+function searchScope(api: RhnApi, resource: ClinicalResourceType, organizationId?: string, encounterId?: string) {
+  if (!apiScopes.has(api)) apiScopes.set(api, ++nextApiScope)
+  return JSON.stringify([apiScopes.get(api), resource, organizationId, encounterId])
 }
 
-const CACHE_TTL_MS = 30_000
-
-const poolOrderableMeds = new Map<string, CacheItem<OrderableMedicationKnowledge>>()
-const poolMasterMeds = new Map<string, CacheItem<MedicationKnowledge>>()
-const poolServices = new Map<string, CacheItem<ServiceCatalogItem>>()
-const poolItemGroups = new Map<string, CacheItem<ItemGroup>>()
-
-async function getOrderableMedsPool(api: RhnApi, encounterId: string): Promise<OrderableMedicationKnowledge[]> {
-  const cached = poolOrderableMeds.get(encounterId)
-  if (cached && Date.now() - cached.time < CACHE_TTL_MS) return cached.data
-  try {
-    const list = (await api.encounters.orderableMedications(encounterId)) || []
-    poolOrderableMeds.set(encounterId, { data: list, time: Date.now() })
-    return list
-  } catch {
-    return cached?.data || []
+function requireClinicalList<T extends ClinicalResource>(source: unknown, nameField: 'name' | 'display'): T[] {
+  if (!Array.isArray(source) || source.some(value => !value || typeof value !== 'object'
+    || typeof value.id !== 'string' || !value.id.trim() || typeof value.code !== 'string' || !value.code.trim()
+    || typeof value[nameField] !== 'string' || !value[nameField].trim())
+    || new Set(source.map(value => value.id)).size !== source.length) {
+    throw new Error('返回目录数据不完整或包含重复记录')
   }
+  return source as T[]
 }
 
-async function getMasterMedsPool(api: RhnApi, organizationId = ''): Promise<MedicationKnowledge[]> {
-  const cached = poolMasterMeds.get(organizationId)
-  if (cached && Date.now() - cached.time < CACHE_TTL_MS) return cached.data
+async function searchClinicalList<T extends ClinicalResource>(label: string, query: string,
+  load: (query: string) => Promise<T[]>, matches?: (item: T, query: string) => boolean, nameField: 'name' | 'display' = 'name'): Promise<T[]> {
   try {
-    const list = (await api.masterData.medications('', '', 'ACTIVE', organizationId)) || []
-    poolMasterMeds.set(organizationId, { data: list, time: Date.now() })
-    return list
-  } catch {
-    return cached?.data || []
-  }
-}
-
-async function getServicesPool(api: RhnApi, organizationId = ''): Promise<ServiceCatalogItem[]> {
-  const cached = poolServices.get(organizationId)
-  if (cached && Date.now() - cached.time < CACHE_TTL_MS) return cached.data
-  try {
-    const list = (await api.masterData.services('', '', 'ACTIVE', organizationId)) || []
-    poolServices.set(organizationId, { data: list, time: Date.now() })
-    return list
-  } catch {
-    return cached?.data || []
-  }
-}
-
-async function getItemGroupsPool(api: RhnApi): Promise<ItemGroup[]> {
-  const cached = poolItemGroups.get('default')
-  if (cached && Date.now() - cached.time < CACHE_TTL_MS) return cached.data
-  try {
-    const list = (await api.masterData.itemGroups('', 'ORDER_SET', 'ACTIVE')) || []
-    poolItemGroups.set('default', { data: list, time: Date.now() })
-    return list
-  } catch {
-    return cached?.data || []
-  }
+    const values = requireClinicalList<T>(await load(query), nameField)
+    if (values.length || !matches || !/^[a-zA-Z0-9\s.]+$/.test(query)) return values
+    // Supplement a successful empty query with a fresh, same-context pinyin search.
+    // A failed request must propagate; it must never unlock a broader or cached search.
+    return requireClinicalList<T>(await load(''), nameField).filter(value => matches(value, query))
+  } catch (error) { throw new Error(`${label}检索失败：${errorMessage(error)}`) }
 }
 
 function matchMedicationItem(item: MedicationKnowledge & Partial<OrderableMedicationKnowledge>, query: string): boolean {
@@ -136,42 +106,23 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
     const trimmed = query.trim()
     if (!trimmed) return []
 
+    const medicationSearch = () => searchClinicalList('药品', trimmed,
+      value => encounterId ? api.encounters.orderableMedications(encounterId, value)
+        : api.masterData.medications(value, '', 'ACTIVE', organizationId), matchMedicationItem)
     if (resource === 'diagnosis') {
-      const values = await api.masterData.diseases(trimmed, '', 'ACTIVE')
-      return values
-        .filter((item) => !filterResult || filterResult(item as T))
-        .map((item) => mapResourceOption('diagnosis', item, organizationId) as RemoteSearchOption<T>)
+      const values = await searchClinicalList('诊断', trimmed, value => api.masterData.diseases(value, '', 'ACTIVE'), undefined, 'display')
+      return values.filter(item => !filterResult || filterResult(item as T))
+        .map(item => mapResourceOption('diagnosis', item, organizationId) as RemoteSearchOption<T>)
     }
-
     if (resource === 'medication') {
-      let values = await (encounterId
-        ? api.encounters.orderableMedications(encounterId, trimmed)
-        : api.masterData.medications(trimmed, '', 'ACTIVE', organizationId)
-      ).catch(() => [])
-
-      if ((!values || values.length === 0) && /^[a-zA-Z0-9\s.]+$/.test(trimmed)) {
-        const pool = encounterId
-          ? await getOrderableMedsPool(api, encounterId)
-          : await getMasterMedsPool(api, organizationId)
-        values = pool.filter((item) => matchMedicationItem(item, trimmed))
-      }
-
-      return (values || [])
-        .filter((item) => !filterResult || filterResult(item as T))
-        .map((item) => mapResourceOption('medication', item, organizationId) as RemoteSearchOption<T>)
+      const values = await medicationSearch()
+      return values.filter(item => !filterResult || filterResult(item as T))
+        .map(item => mapResourceOption('medication', item, organizationId) as RemoteSearchOption<T>)
     }
-
     if (resource === 'service') {
-      let values = await api.masterData.services(trimmed, '', 'ACTIVE', organizationId).catch(() => [])
-
-      if ((!values || values.length === 0) && /^[a-zA-Z0-9\s.]+$/.test(trimmed)) {
-        const pool = await getServicesPool(api, organizationId)
-        values = pool.filter((item) => matchServiceItem(item, trimmed))
-      }
-
-      return (values || [])
-        .filter((item) => !filterResult || filterResult(item as T))
-        .map((item) => mapResourceOption('service', item, organizationId) as RemoteSearchOption<T>)
+      const values = await searchClinicalList('项目', trimmed, value => api.masterData.services(value, '', 'ACTIVE', organizationId), matchServiceItem)
+      return values.filter(item => !filterResult || filterResult(item as T))
+        .map(item => mapResourceOption('service', item, organizationId) as RemoteSearchOption<T>)
     }
 
     // --- resource === 'mixed' 混合检索 ---
@@ -214,74 +165,20 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
 
     const tasks: Promise<RemoteSearchOption<ClinicalResource>[]>[] = []
 
-    if (searchMed) {
-      tasks.push(
-        (async () => {
-          const remoteItems = await (encounterId
-            ? api.encounters.orderableMedications(encounterId, actualQuery)
-            : api.masterData.medications(actualQuery, '', 'ACTIVE', organizationId)
-          ).catch(() => [])
-
-          if (remoteItems && remoteItems.length > 0) {
-            return remoteItems.map((item) => mapResourceOption('medication', item, organizationId))
-          }
-
-          if (/^[a-zA-Z0-9\s.]+$/.test(actualQuery)) {
-            const pool = encounterId
-              ? await getOrderableMedsPool(api, encounterId)
-              : await getMasterMedsPool(api, organizationId)
-            const matched = pool.filter((item) => matchMedicationItem(item, actualQuery))
-            if (matched.length > 0) {
-              return matched.map((item) => mapResourceOption('medication', item, organizationId))
-            }
-          }
-          return []
-        })()
-      )
-    }
-
-    if (searchSrv && api.masterData?.services) {
-      tasks.push(
-        (async () => {
-          const remoteItems = await api.masterData.services(actualQuery, '', 'ACTIVE', organizationId).catch(() => [])
-          if (remoteItems && remoteItems.length > 0) {
-            return remoteItems.map((item) => mapResourceOption('service', item, organizationId))
-          }
-
-          if (/^[a-zA-Z0-9\s.]+$/.test(actualQuery)) {
-            const pool = await getServicesPool(api, organizationId)
-            const matched = pool.filter((item) => matchServiceItem(item, actualQuery))
-            if (matched.length > 0) {
-              return matched.map((item) => mapResourceOption('service', item, organizationId))
-            }
-          }
-          return []
-        })()
-      )
-    }
-
-    if (searchGrp && api.masterData?.itemGroups) {
-      tasks.push(
-        (async () => {
-          const remoteItems = await api.masterData.itemGroups(actualQuery, 'ORDER_SET', 'ACTIVE').catch(() => [])
-          if (remoteItems && remoteItems.length > 0) {
-            return remoteItems.map((item) => mapItemGroupOption(item))
-          }
-
-          if (/^[a-zA-Z0-9\s.]+$/.test(actualQuery)) {
-            const pool = await getItemGroupsPool(api)
-            const matched = pool.filter((item) => matchItemGroupItem(item, actualQuery))
-            if (matched.length > 0) {
-              return matched.map((item) => mapItemGroupOption(item))
-            }
-          }
-          return []
-        })()
-      )
-    }
+    if (searchMed) tasks.push(searchClinicalList('药品', actualQuery,
+      value => encounterId ? api.encounters.orderableMedications(encounterId, value)
+        : api.masterData.medications(value, '', 'ACTIVE', organizationId), matchMedicationItem)
+      .then(values => values.map(item => mapResourceOption('medication', item, organizationId))))
+    if (searchSrv) tasks.push(searchClinicalList('项目', actualQuery,
+      value => api.masterData.services(value, '', 'ACTIVE', organizationId), matchServiceItem)
+      .then(values => values.map(item => mapResourceOption('service', item, organizationId))))
+    if (searchGrp) tasks.push(searchClinicalList('组套', actualQuery,
+      value => api.masterData.itemGroups(value, 'ORDER_SET', 'ACTIVE'), matchItemGroupItem)
+      .then(values => values.map(mapItemGroupOption)))
 
     const settled = await Promise.all(tasks)
     const combined = settled.flat()
+    if (new Set(combined.map(item => item.value)).size !== combined.length) throw new Error('混合检索返回了重复资源标识，请重新检索')
 
     return combined
       .filter((item) => !filterResult || filterResult(item.raw as T)) as RemoteSearchOption<T>[]
@@ -349,9 +246,11 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
   ) : props.popoverHeader
 
   return <RemoteSearchSelect<T>
+    key={searchScope(api, resource, organizationId, encounterId)}
     popoverMinWidth={props.popoverMinWidth ?? (resource === 'medication' || resource === 'mixed' ? 680 : 560)}
     openOnFocus={props.openOnFocus ?? true}
     {...props}
+    cacheResults={false}
     popoverHeader={popoverHeader}
     showCode={props.showCode ?? (resource !== 'medication' && resource !== 'mixed')}
     placeholder={placeholder ?? copy.placeholder}
@@ -380,15 +279,17 @@ function mapResourceOption(
     const value = item as MedicationKnowledge & Partial<OrderableMedicationKnowledge>
 
     // --- 第一行：药品通用信息（类型、通用名、制剂规格、剂型与临床属性）---
-    const typeLabel = value.sdMedicationTypeText || (value.sdMedicationType === 'HERBAL' ? '草药' : '西药')
+    const typeLabel = clinicalMedicationType(value)
     const clinicalTags = [
       typeLabel,
-      value.essentialDrug ? '基药' : '',
-      value.prescriptionDrug ? '处方药' : (value.products?.some((p) => p.otc) ? 'OTC' : ''),
-      value.skinTestRequired ? '需皮试' : '',
-      value.antimicrobial ? (value.sdAntimicrobialLevelText || '抗菌药') : '',
-      value.chronicDiseaseDrug ? '慢病药' : '',
-      value.products?.some((p) => p.centralPurchase) ? '集采' : '',
+      [value.essentialDrug, value.prescriptionDrug, value.skinTestRequired, value.antimicrobial, value.chronicDiseaseDrug]
+        .some(flag => typeof flag !== 'boolean') ? '临床属性待确认' : '',
+      value.essentialDrug === true ? '基药' : '',
+      value.prescriptionDrug === true ? '处方药' : (value.products?.some((p) => p.otc === true) ? 'OTC' : ''),
+      value.skinTestRequired === true ? '需皮试' : '',
+      value.antimicrobial === true ? (value.sdAntimicrobialLevelText || '抗菌药') : '',
+      value.chronicDiseaseDrug === true ? '慢病药' : '',
+      value.products?.some((p) => p.centralPurchase === true) ? '集采' : '',
     ].filter(Boolean)
 
     const spec = value.preparationSpec ? ` (${value.preparationSpec})` : ''
@@ -402,51 +303,17 @@ function mapResourceOption(
     ))
     const manufacturerText = manufacturers.join('/')
 
-    // 2. 参考单价
-    const activePrices: { price: number; unitName?: string }[] = []
-    for (const product of value.products ?? []) {
-      for (const p of product.prices ?? []) {
-        if ((p.sdStatus === 'ACTIVE' || !p.sdStatus) && typeof p.price === 'number') {
-          if (!organizationId || !p.organizationId || p.organizationId === organizationId) {
-            const matchedPkg = product.packages?.find((pkg) => pkg.id === p.packageId)
-            activePrices.push({
-              price: p.price,
-              unitName: matchedPkg?.unitName,
-            })
-          }
-        }
-      }
-    }
-    let priceText = ''
-    if (activePrices.length > 0) {
-      const minPrice = Math.min(...activePrices.map((item) => item.price))
-      const maxPrice = Math.max(...activePrices.map((item) => item.price))
-      const range = minPrice === maxPrice ? `¥${minPrice.toFixed(2)}` : `¥${minPrice.toFixed(2)}~${maxPrice.toFixed(2)}`
-      const unit = activePrices[0].unitName || value.packageUnitName || ''
-      priceText = unit ? `${range}/${unit}` : range
-    }
+    const priceText = clinicalReferencePrices(value.products, organizationId)
 
     // 3. 包装规格
     const packageSpecs = Array.from(new Set(
       (value.products ?? []).flatMap((p) =>
-        (p.packages ?? []).map((pkg) => pkg.packageSpec || (pkg.quantityFactor && pkg.unitName ? `${pkg.quantityFactor}${p.unitCode || value.preparationUnit || '单位'}/${pkg.unitName}` : ''))
+        (p.packages ?? []).map((pkg) => pkg.packageSpec || (typeof pkg.quantityFactor === 'number' && Number.isFinite(pkg.quantityFactor) && pkg.quantityFactor > 0 && pkg.unitName && p.unitCode ? `${pkg.quantityFactor}${p.unitCode}/${pkg.unitName}` : ''))
       ).filter(Boolean)
     ))
     const packageSpecText = packageSpecs.join(' / ')
 
-    // 4. 药房与库存
-    let stockText = ''
-    if (value.stockSiteName) {
-      if (value.availablePackageQuantity != null) {
-        if (value.availablePackageQuantity > 0) {
-          stockText = `${value.stockSiteName} (可用: ${value.availablePackageQuantity}${value.packageUnitName || '包装'})`
-        } else {
-          stockText = `${value.stockSiteName} (缺药)`
-        }
-      } else {
-        stockText = value.stockSiteName
-      }
-    }
+    const stockText = clinicalStockText(value)
 
     const description = [
       manufacturerText,
@@ -465,26 +332,17 @@ function mapResourceOption(
     }
   }
   const value = item as ServiceCatalogItem
-  const activePrices = (value.prices ?? []).filter((p) =>
-    (p.sdStatus === 'ACTIVE' || !p.sdStatus) && (!organizationId || !p.organizationId || p.organizationId === organizationId)
-  )
-  let priceText = ''
-  if (activePrices.length > 0) {
-    const minPrice = Math.min(...activePrices.map((p) => p.price))
-    const maxPrice = Math.max(...activePrices.map((p) => p.price))
-    const range = minPrice === maxPrice ? `¥${minPrice.toFixed(2)}` : `¥${minPrice.toFixed(2)}~${maxPrice.toFixed(2)}`
-    priceText = value.unitCode ? `${range}/${value.unitCode}` : range
-  }
+  const priceText = clinicalReferencePrices([value], organizationId)
   const typeTag = value.sdServiceTypeText || (
     value.sdServiceType === 'LABORATORY' ? '检验'
     : value.sdServiceType === 'EXAMINATION' ? '检查'
-    : value.sdServiceType === 'TREATMENT' ? '治疗' : '项目'
+    : value.sdServiceType === 'TREATMENT' ? '治疗' : value.sdServiceType ? `项目类型：${value.sdServiceType}` : '项目类型待确认'
   )
   const tags = [
     typeTag,
-    value.medicalTechnology ? '医疗技术' : '',
-    value.combinationItem ? '组合项目' : '',
-    value.pregnancyAlert ? '孕妇慎用' : '',
+    value.medicalTechnology === true ? '医疗技术' : '',
+    value.combinationItem === true ? '组合项目' : '',
+    value.pregnancyAlert === true ? '孕妇慎用' : '',
   ].filter(Boolean)
 
   return {
@@ -498,18 +356,20 @@ function mapResourceOption(
 }
 
 function mapItemGroupOption(item: ItemGroup): RemoteSearchOption<ClinicalResource> {
-  const memberCount = item.members?.length || 0
-  const preview = item.members?.map((m) => m.itemName).filter(Boolean).slice(0, 4).join('、')
-  const description = memberCount > 0
+  const membersKnown = Array.isArray(item.members)
+  const memberCount = membersKnown ? item.members.length : undefined
+  const preview = (membersKnown ? item.members : []).map((m) => m.itemName).filter(Boolean).slice(0, 4).join('、')
+  const description = memberCount !== undefined && memberCount > 0
     ? `包含 ${memberCount} 项明细: ${preview}${memberCount > 4 ? ' 等' : ''}`
-    : '医嘱组套'
+    : membersKnown ? '医嘱组套（无明细）' : '组套明细待确认'
 
   return {
     value: item.id,
     label: item.name,
     code: item.code,
     description,
-    tags: ['组套', `${memberCount}项`],
+    tags: ['组套', membersKnown ? `${memberCount}项` : '明细待确认'],
+    disabled: !membersKnown,
     raw: item,
   }
 }

@@ -50,5 +50,7 @@ public interface InsuranceSettlementAdapter {
             Long claimId, Long settlementId, String settlementNo, String idempotencyKey,
             String regionCode, String insuranceTypeCode,
             String originalExternalSettlementNo, BigDecimal amount, String reason,
-            String correlationId) {}
+            String correlationId, Long residentId, Long coverageId, String practitionerCode, String currencyCode,
+            BigDecimal insuranceFundAmount, BigDecimal personalAccountAmount,
+            BigDecimal patientCashAmount, BigDecimal otherFundAmount) {}
 }

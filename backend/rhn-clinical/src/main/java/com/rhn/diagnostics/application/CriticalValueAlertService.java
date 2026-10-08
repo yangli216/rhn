@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Set;
 
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -145,11 +146,20 @@ public class CriticalValueAlertService {
     }
 
     private void publish(CriticalValueAlert value, String eventType, Instant occurredAt) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("alertId", value.id());
+        payload.put("encounterId", value.encounterId());
+        payload.put("departmentId", value.departmentId());
+        payload.put("recipientUserId", value.recipientUserId());
+        payload.put("status", value.status().name());
+        payload.put("severity", value.severity());
+        payload.put("acknowledgeDeadlineAt", value.acknowledgeDeadlineAt().toString());
+        payload.put("observationName", value.observationName());
+        payload.put("triggerEvidence", value.triggerEvidence());
+        if (value.acknowledgedAt() != null) payload.put("acknowledgedAt", value.acknowledgedAt().toString());
+        if (value.acknowledgedBy() != null) payload.put("acknowledgedBy", value.acknowledgedBy());
         domainEvents.publish(value.tenantId(), value.organizationId(), eventType, 1, "CriticalValueAlert",
-                value.id(), value.revision() + 1, value.residentId(), occurredAt, Map.of(
-                        "alertId", value.id(), "encounterId", value.encounterId(),
-                        "departmentId", value.departmentId(), "recipientUserId", value.recipientUserId(),
-                        "status", value.status().name(), "severity", value.severity()));
+                value.id(), value.revision() + 1, value.residentId(), occurredAt, payload);
     }
 
     private boolean isCritical(Observation value) {

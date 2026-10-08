@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.math.RoundingMode;
 import java.time.Instant;
 
 @Entity
@@ -46,13 +47,32 @@ public class InventoryBalance {
 
     public void receive(BigDecimal quantity, BigDecimal unitCost) {
         if (quantity.signum() <= 0) throw invalid("INVENTORY_RECEIPT_QUANTITY_INVALID", "入库数量必须大于零");
-        if (unitCost != null) {
-            BigDecimal oldValue = averageUnitCost == null ? BigDecimal.ZERO
-                    : averageUnitCost.multiply(quantityOnHand);
+        if (unitCost != null && unitCost.signum() < 0) throw invalid("INVENTORY_RECEIPT_COST_INVALID", "入库成本不能小于零");
+        if (quantityOnHand.signum() == 0) {
+            averageUnitCost = unitCost;
+        } else if (averageUnitCost == null || unitCost == null) {
+            averageUnitCost = null;
+        } else {
+            BigDecimal oldValue = averageUnitCost.multiply(quantityOnHand);
             BigDecimal newQuantity = quantityOnHand.add(quantity);
             averageUnitCost = oldValue.add(unitCost.multiply(quantity)).divide(newQuantity, MathContext.DECIMAL64);
         }
         quantityOnHand = quantityOnHand.add(quantity); recalculate();
+    }
+
+    /** Receives a known document amount without first rounding its per-base-unit cost. */
+    public void receiveValue(BigDecimal quantity, BigDecimal receiptValue) {
+        if (quantity == null || quantity.signum() <= 0) throw invalid("INVENTORY_RECEIPT_QUANTITY_INVALID", "入库数量必须大于零");
+        if (receiptValue != null && receiptValue.signum() < 0) throw invalid("INVENTORY_RECEIPT_COST_INVALID", "入库成本不能小于零");
+        BigDecimal nextQuantity = quantityOnHand.add(quantity);
+        if (receiptValue == null || (quantityOnHand.signum() != 0 && averageUnitCost == null)) {
+            averageUnitCost = null;
+        } else {
+            BigDecimal previousValue = quantityOnHand.signum() == 0 ? BigDecimal.ZERO
+                    : averageUnitCost.multiply(quantityOnHand);
+            averageUnitCost = previousValue.add(receiptValue).divide(nextQuantity, 6, RoundingMode.HALF_UP);
+        }
+        quantityOnHand = nextQuantity; recalculate();
     }
 
     public void reserve(BigDecimal quantity) {

@@ -8976,22 +8976,22 @@
       {
         "logical": "insurance_fund_amount",
         "physical": "AMT_INS_FUND",
-        "comment": "医保fund金额"
+        "comment": "医保统筹基金金额；缺失保留空值；历史金额须结合来源标识核实"
       },
       {
         "logical": "personal_account_amount",
         "physical": "AMT_PERS_ACCT",
-        "comment": "personal账户金额"
+        "comment": "个人账户金额；缺失保留空值；历史金额须结合来源标识核实"
       },
       {
         "logical": "patient_cash_amount",
         "physical": "AMT_PAT_CASH",
-        "comment": "患者cash金额"
+        "comment": "患者现金自付金额；缺失保留空值；历史金额须结合来源标识核实"
       },
       {
         "logical": "other_fund_amount",
         "physical": "AMT_OTHER_FUND",
-        "comment": "otherfund金额"
+        "comment": "其他基金金额；缺失保留空值；历史金额须结合来源标识核实"
       },
       {
         "logical": "error_code",
@@ -9007,6 +9007,11 @@
         "logical": "responded_at",
         "physical": "DT_RSPND",
         "comment": "responded时间"
+      },
+      {
+        "logical": "amount_source",
+        "physical": "SD_AMT_SRC",
+        "comment": "金额来源；REPORTED按原回执保留缺失与零，LEGACY_UNVERIFIED历史来源待核实"
       }
     ],
     "previousPhysical": "RHN_INS_CLAIM_RESPONS"
@@ -25050,7 +25055,7 @@
       {
         "logical": "adverse_reaction",
         "physical": "FG_ADVERSE_REACT",
-        "comment": "是否adversereaction"
+        "comment": "不良反应评估：空表示未评估，真表示有，假表示无"
       },
       {
         "logical": "adverse_reaction_detail",

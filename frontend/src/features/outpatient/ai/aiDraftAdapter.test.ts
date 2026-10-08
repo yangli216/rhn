@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ClinicalAiDraftContext, ClinicalAiSuggestion } from '../../../shared/api/clinicalAiApi'
 import {
-  canApplyClinicalAiSuggestion, clinicalAiContextFingerprint, mergeAiDiagnoses, mergeAiRecordDraft,
+  canApplyClinicalAiSuggestion, clinicalAiContextFingerprint, clinicalAiDraftInput, mergeAiDiagnoses, mergeAiRecordDraft,
 } from './aiDraftAdapter'
 
 function makeContext(overrides: Partial<ClinicalAiDraftContext> = {}): ClinicalAiDraftContext {
@@ -56,6 +56,18 @@ describe('clinical AI draft adapter', () => {
     ])
   })
 
+  it('preserves resolved identity and management facts while retaining same codes from distinct systems', () => {
+    const existing = { code: 'SAME', display: '旧诊断', type: 'PRIMARY' as const, conceptId: 'western',
+      codeSystem: 'ICD', diagnosisDomain: 'WESTERN_MEDICINE' as const }
+    const incoming = { code: 'SAME', display: '中医诊断', type: 'PRIMARY' as const, conceptId: 'tcm',
+      codeSystem: 'TCM', diagnosisDomain: 'TCM_DISEASE' as const, diagnosisGroupId: 'group',
+      managementResolutionStatus: 'CONFIRMED' as const, managementPrograms: [] }
+    expect(mergeAiDiagnoses([existing], [incoming, incoming])).toEqual([existing, { ...incoming, type: 'SECONDARY' }])
+    expect(mergeAiDiagnoses([existing], [{ ...incoming, conceptId: undefined }])).toHaveLength(2)
+    expect(mergeAiDiagnoses([{ ...existing, conceptId: undefined }], [{ ...existing, conceptId: undefined, codeSystem: 'OTHER' }])).toHaveLength(2)
+    expect(mergeAiDiagnoses([{ code: 'SAME', display: '未知', type: 'PRIMARY' }], [existing])).toHaveLength(2)
+  })
+
   it('creates a stable fingerprint independent of diagnosis order', () => {
     const base = makeContext({ diagnoses: [
       { code: 'R05', display: '咳嗽', type: 'SECONDARY' },
@@ -68,6 +80,27 @@ describe('clinical AI draft adapter', () => {
       ...base, encounterId: 'enc-2', residentId: 'resident-2',
     }))
     expect(clinicalAiContextFingerprint(base)).toMatch(/^ctx-v2-[0-9a-f]{32}$/)
+  })
+
+  it.each(['conceptId', 'codeSystem', 'diagnosisDomain'] as const)('invalidates old AI results when diagnosis %s changes', (field) => {
+    const context = makeContext({ diagnoses: [{ conceptId: '101', codeSystem: 'SYS', diagnosisDomain: 'TCM_DISEASE',
+      code: 'SAME', display: '同名诊断', type: 'PRIMARY' }] })
+    const changed = makeContext({ diagnoses: context.diagnoses.map(item => ({ ...item,
+      [field]: field === 'conceptId' ? '102' : field === 'diagnosisDomain' ? 'TCM_SYNDROME' : 'OTHER',
+    })) })
+    expect(clinicalAiContextFingerprint(context)).not.toBe(clinicalAiContextFingerprint(changed))
+    expect(canApplyClinicalAiSuggestion(makeSuggestion(context), changed)).toBe(false)
+    expect(clinicalAiDraftInput(context).diagnoses).toEqual(context.diagnoses)
+  })
+
+  it('distinguishes unknown diagnosis identity from an explicitly declared western identity', () => {
+    const unknown = makeContext({ diagnoses: [{ code: 'I10', display: '同名诊断', type: 'PRIMARY' }] })
+    const known = { ...unknown, diagnoses: unknown.diagnoses.map(item => ({ ...item,
+      codeSystem: 'WHO.BD.CS.ICD10', diagnosisDomain: 'WESTERN_MEDICINE' as const,
+    })) }
+    expect(clinicalAiContextFingerprint(unknown)).not.toBe(clinicalAiContextFingerprint(known))
+    expect(clinicalAiDraftInput(unknown).diagnoses[0]).not.toHaveProperty('codeSystem')
+    expect(clinicalAiDraftInput(unknown).diagnoses[0]).not.toHaveProperty('diagnosisDomain')
   })
 
   it('rejects a suggestion after the clinical context changes', () => {

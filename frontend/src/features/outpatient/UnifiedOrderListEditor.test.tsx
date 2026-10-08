@@ -15,11 +15,13 @@ describe('UnifiedOrderListEditor', () => {
     encounters: {
       orderableMedications: vi.fn().mockResolvedValue([]),
     },
+    organization: { department: vi.fn().mockResolvedValue({ department: { id: 'dept-1', organizationId: 'org-1', name: '真实执行科室', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null } }) },
     treatments: {
       skinTestWorklist: vi.fn().mockResolvedValue([]),
       validNegativeSkinTests: vi.fn().mockResolvedValue([]),
     },
     masterData: {
+      medications: vi.fn().mockResolvedValue([]),
       activeOrderFrequencies: vi.fn().mockResolvedValue([{
         code: 'QD', name: '每日一次', executionTimes: ['08:00'], shortName: '每日一次',
         ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D',
@@ -36,6 +38,7 @@ describe('UnifiedOrderListEditor', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.clearAllMocks()
+    vi.mocked(mockApi.masterData.medications).mockResolvedValue([])
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([])
     vi.mocked(mockApi.masterData.services).mockResolvedValue([])
     vi.mocked(mockApi.masterData.itemGroups).mockResolvedValue([])
@@ -63,8 +66,8 @@ describe('UnifiedOrderListEditor', () => {
 
   it('rechecks multiple AI catalog selections and converts them directly to pending drafts', async () => {
     const raw = { id: 'lab-1', code: 'LAB001', name: '血常规', sdServiceType: 'LABORATORY', sdUsageType: 'COMMON',
-      sdStatus: 'ACTIVE', orderable: true, validFrom: '2020-01-01', prices: [], organizationAdoption: {
-        organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true } }
+      sdStatus: 'ACTIVE', orderable: true, chargeable: true, unitCode: '次', validFrom: '2020-01-01', prices: [{ id: 'service-price', organizationId: 'org-1', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 12.5, currencyCode: 'CNY', validFrom: '2020-01-01' }], organizationAdoption: {
+        organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true, chargeable: true, validFrom: '2020-01-01' } }
     vi.mocked(mockApi.masterData.searchServices).mockResolvedValue({ content: [raw] } as never)
     const consumed = vi.fn(), completed = vi.fn(), setServices = vi.fn(), setMedications = vi.fn()
     renderComponent({ aiOrderReview: { id: 'review-1', encounterId: 'enc-1', items: [{
@@ -92,17 +95,18 @@ describe('UnifiedOrderListEditor', () => {
 
   it.each([undefined, { packageId: 'package-para', doseValue: 1, doseUnit: 'g', routeCode: 'ORAL',
     frequencyCode: 'QD', durationValue: 3, quantity: 2, instruction: '测试医生核对的嘱托' }])(
-    'converts catalog defaults or physician-edited AI details to a pending draft: %j', async (orderDraft) => {
+    'requires explicit AI quantity or a complete calculation basis: %j', async (orderDraft) => {
     const medication = {
       id: 'm-para', code: 'MED-PARA', name: '对乙酰氨基酚片', preparationSpec: '0.5g', preparationUnit: '片',
       defaultDose: 0.5, defaultDoseUnit: 'g', defaultRoute: 'ORAL', defaultFrequency: 'QD',
       sdMedicationType: 'WESTERN', availablePackageQuantity: 20, stockSiteName: '门诊药房', packageUnitName: '盒',
       products: [{ id: 'product-para', code: 'P-PARA', name: '对乙酰氨基酚片 0.5g', manufacturerName: '示范制药',
         unitCode: '片', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-para', unitCode: 'BOX', unitName: '盒', packageSpec: '0.5g*20片/盒',
           quantityFactor: 20, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-para', packageId: 'package-para', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-para', packageId: 'package-para', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 8.6, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -113,13 +117,19 @@ describe('UnifiedOrderListEditor', () => {
         catalogItemId: 'product-para', code: 'MED-PARA', name: '对乙酰氨基酚片', rationale: '退热', orderDraft }],
       onCompleted: completed,
     } })
+    if (!orderDraft) {
+      expect(await screen.findByText(/剂量、疗程或包装信息无法可靠推算总量/)).toBeInTheDocument()
+      expect(setMedications).not.toHaveBeenCalled()
+      expect(completed).not.toHaveBeenCalled()
+      return
+    }
     await waitFor(() => expect(completed).toHaveBeenCalledWith(['MEDICATION:product-para']))
     expect(setMedications).toHaveBeenCalledTimes(1)
     expect(setMedications.mock.calls[0][0]([])[0]).toMatchObject({
       medicationName: '对乙酰氨基酚片', productName: '对乙酰氨基酚片 0.5g', unitPrice: 8.6,
-      request: { catalogItemId: 'product-para', doseValue: 0.5, doseUnit: 'g', routeCode: 'ORAL',
-        frequencyCode: 'QD', quantity: 1, quantityUnit: 'BOX', ...orderDraft && { doseValue: orderDraft.doseValue, durationValue: 3, durationUnit: 'd', quantity: 2,
-          medicationInstruction: orderDraft.instruction }  },
+      request: { catalogItemId: 'product-para', doseValue: orderDraft.doseValue, doseUnit: 'g', routeCode: 'ORAL',
+        frequencyCode: 'QD', quantityUnit: 'BOX', durationValue: 3, durationUnit: 'd', quantity: 2,
+        medicationInstruction: orderDraft.instruction },
     })
     expect(screen.queryByDisplayValue('对乙酰氨基酚片')).not.toBeInTheDocument()
   })
@@ -264,7 +274,7 @@ describe('UnifiedOrderListEditor', () => {
     expect(within(row).getByText('阿莫西林胶囊（已开立产品）')).toBeInTheDocument()
     expect(within(row).getByText('0.25g*24粒/盒')).toBeInTheDocument()
     expect(within(row).getByText('示范制药有限公司')).toBeInTheDocument()
-    expect(within(row).getByText('¥18.80')).toBeInTheDocument()
+    expect(within(row).getByText('价格待确认')).toBeInTheDocument()
     expect(within(row).getByText('已开立')).toBeInTheDocument()
     expect(within(row).queryByText(/库存|可用|余量/)).not.toBeInTheDocument()
   })
@@ -278,6 +288,7 @@ describe('UnifiedOrderListEditor', () => {
         serviceType: 'LABORATORY',
         itemName: 'C反应蛋白测定',
         itemCode: 'DEMO-LAB-CRP',
+        performerDepartmentId: '98648483543646209',
         unitPrice: 25,
         currencyCode: 'CNY',
         quantity: 1,
@@ -288,6 +299,8 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.getByText('血常规五分类')).toBeInTheDocument()
     expect(screen.getByText('C反应蛋白测定')).toBeInTheDocument()
     expect(screen.queryByText('DEMO-LAB-CRP')).not.toBeInTheDocument()
+    expect(screen.getAllByText('科室编号：98648483543646209（名称待确认）')).toHaveLength(2)
+    expect(screen.queryByText('检验科')).not.toBeInTheDocument()
     expect(screen.queryByText('LAB001')).not.toBeInTheDocument()
     expect(screen.getAllByText('¥25.00').length).toBeGreaterThanOrEqual(1)
   })
@@ -366,10 +379,11 @@ describe('UnifiedOrderListEditor', () => {
       sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药', products: [{
         id: 'product-1', code: 'P001', name: '阿莫西林胶囊（示范产品）', manufacturerName: '示范制药有限公司',
         unitCode: '粒', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-1', unitCode: 'BOX', unitName: '盒', packageSpec: '0.25g*24粒/盒',
           quantityFactor: 24, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-1', packageId: 'package-1', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-1', packageId: 'package-1', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 18.8, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -428,10 +442,11 @@ describe('UnifiedOrderListEditor', () => {
       sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药', products: [{
         id: 'product-iv-jump', code: 'PIV002', name: '葡萄糖注射液', manufacturerName: '示范制药有限公司',
         unitCode: '瓶', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-iv-jump', unitCode: 'BOTTLE', unitName: '瓶', packageSpec: '250ml/瓶',
           quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-iv-jump', packageId: 'package-iv-jump', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-iv-jump', packageId: 'package-iv-jump', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 6.0, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -465,15 +480,16 @@ describe('UnifiedOrderListEditor', () => {
     const user = userEvent.setup()
     const setMedicationDrafts = vi.fn()
     const medication = {
-      id: 'm-iv', code: 'IV001', name: '氯化钠注射液', preparationSpec: '100ml', preparationUnit: '瓶',
+      id: 'm-iv', code: 'IV001', name: '氯化钠注射液', preparationSpec: '100ml', preparationUnit: '瓶', strengthValue: 100, strengthUnit: 'ml',
       defaultDose: 100, defaultDoseUnit: 'ml', defaultRoute: 'IV', defaultFrequency: 'QD',
       sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药', products: [{
         id: 'product-iv', code: 'PIV001', name: '氯化钠注射液', manufacturerName: '示范制药有限公司',
         unitCode: '瓶', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-iv', unitCode: 'BOTTLE', unitName: '瓶', packageSpec: '100ml/瓶',
           quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-iv', packageId: 'package-iv', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-iv', packageId: 'package-iv', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 4.5, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -520,10 +536,11 @@ describe('UnifiedOrderListEditor', () => {
       sdMedicationType: 'HERBAL', sdMedicationTypeText: '草药', products: [{
         id: 'product-herb', code: 'PH001', name: '黄芪饮片', manufacturerName: '中药饮片有限公司',
         unitCode: 'g', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-herb', unitCode: 'g', unitName: 'g', packageSpec: '500g/袋',
           quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-herb', packageId: 'package-herb', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-herb', packageId: 'package-herb', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 0.12, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -623,7 +640,7 @@ describe('UnifiedOrderListEditor', () => {
     // 场景 1：30mg * QD * 7天 = 210mg；制剂含量 30mg/片（7片）；包装系数 7片/盒 -> 1 盒
     const res1 = calculatePackageQuantity({
       medication: {
-        preparationSpec: '30mg',
+        preparationSpec: '30mg', strengthValue: 30, strengthUnit: 'mg',
         preparationUnit: '片',
       } as any,
       doseValue: 30,
@@ -633,6 +650,7 @@ describe('UnifiedOrderListEditor', () => {
       frequencyCode: 'QD',
       durationValue: 7,
       selectedPackage: {
+        product: { unitCode: '片' },
         packageFactor: 7,
         unitName: '盒',
         unitCode: 'BOX',
@@ -644,7 +662,7 @@ describe('UnifiedOrderListEditor', () => {
     // 场景 2：20mg * BID * 5天 = 200mg；制剂含量 10mg/片（20片）；包装系数 10片/盒 -> 2 盒
     const res2 = calculatePackageQuantity({
       medication: {
-        preparationSpec: '10mg',
+        preparationSpec: '10mg', strengthValue: 10, strengthUnit: 'mg',
         preparationUnit: '片',
       } as any,
       doseValue: 20,
@@ -654,6 +672,7 @@ describe('UnifiedOrderListEditor', () => {
       frequencyCode: 'BID',
       durationValue: 5,
       selectedPackage: {
+        product: { unitCode: '片' },
         packageFactor: 10,
         unitName: '盒',
         unitCode: 'BOX',
@@ -665,7 +684,7 @@ describe('UnifiedOrderListEditor', () => {
     // 场景 3：未整除向上取整：15片 / 10片每盒 -> 2 盒
     const res3 = calculatePackageQuantity({
       medication: {
-        preparationSpec: '10mg',
+        preparationSpec: '10mg', strengthValue: 10, strengthUnit: 'mg',
         preparationUnit: '片',
       } as any,
       doseValue: 15,
@@ -675,6 +694,7 @@ describe('UnifiedOrderListEditor', () => {
       frequencyCode: 'QD',
       durationValue: 10, // 150mg = 15片
       selectedPackage: {
+        product: { unitCode: '片' },
         packageFactor: 10,
         unitName: '盒',
         unitCode: 'BOX',
@@ -702,7 +722,7 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByText(/库存/)).not.toBeInTheDocument()
   })
 
-  it('displays executing departments correctly for medication, lab, exam, and treatment orders with full route/frequency width support', async () => {
+  it('does not invent executing departments from drug types, item names or the current department', async () => {
     const examDraft: ServicePlanDraft = {
       id: 'draft-srv-exam',
       serviceType: 'EXAMINATION',
@@ -732,17 +752,14 @@ describe('UnifiedOrderListEditor', () => {
     // 表头包含执行科室
     expect(screen.getByText('执行科室')).toBeInTheDocument()
 
-    // 药品显示对应的药房（西药默认或由 stockSiteName 决定）
-    expect(screen.getAllByText('门诊西药房').length).toBeGreaterThan(0)
-
-    // 检验类默认显示检验科
-    expect(screen.getAllByText('检验科').length).toBeGreaterThan(0)
-
-    // 检查类根据项目智能归属放射影像科
-    expect(screen.getAllByText('放射影像科').length).toBeGreaterThan(0)
-
-    // 普通处置/费用类默认当前科室（全科医疗科）
-    expect(screen.getAllByText('全科医疗科').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('发药药房待确认').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('执行科室待确认').length).toBeGreaterThan(0)
+    for (const guessed of ['门诊西药房', '西药房', '检验科', '放射影像科', '放射/超声科', '全科医疗科', '门诊治疗室执行']) {
+      expect(screen.queryByText(guessed)).not.toBeInTheDocument()
+    }
+    await userEvent.click(screen.getByRole('row', { name: '编辑待确认医嘱 胸部正侧位片(DR)' }))
+    expect(screen.getAllByText('执行科室待确认').length).toBeGreaterThan(0)
+    expect(screen.queryByText('放射影像科')).not.toBeInTheDocument()
   })
 
   it('automatically selects input text on focus for quick value replacement without backspacing', async () => {
@@ -809,8 +826,9 @@ describe('UnifiedOrderListEditor', () => {
     const setServiceDrafts = vi.fn()
     const labItem = {
       id: 'srv-lab-1', code: 'LAB001', name: '血常规五分类', sdServiceType: 'LABORATORY',
-      sdServiceTypeText: '检验', unitCode: '次', orderable: true,
-      prices: [{ id: 'p-1', price: 20, currencyCode: 'CNY', sdStatus: 'ACTIVE' }],
+      sdServiceTypeText: '检验', unitCode: '次', orderable: true, chargeable: true, sdStatus: 'ACTIVE', sdUsageType: 'OUTPATIENT', validFrom: '2020-01-01',
+      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01' },
+      prices: [{ id: 'p-1', price: 20, currencyCode: 'CNY', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1', validFrom: '2020-01-01' }],
     }
     vi.mocked(mockApi.masterData.services).mockResolvedValue([labItem] as never)
     renderComponent({ setServiceDrafts })
@@ -841,17 +859,28 @@ describe('UnifiedOrderListEditor', () => {
     })
   })
 
+  function configureOrderSetApi(orderSet: { members: Array<{ catalogItemId: string; itemCode: string; itemName: string; serviceType: string }> }) {
+    vi.mocked(mockApi.masterData.itemGroups).mockResolvedValue([orderSet] as never)
+    vi.mocked(mockApi.masterData.searchServices).mockImplementation(async code => ({ content: orderSet.members.filter(member => member.itemCode === code)
+      .map(member => ({ id: member.catalogItemId, code: member.itemCode, name: member.itemName, sdServiceType: member.serviceType,
+        unitCode: '次', sdUsageType: 'OUTPATIENT', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01' },
+        prices: [{ id: `${member.catalogItemId}-price`, organizationId: 'org-1', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 12.5, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      })) } as never))
+  }
+
   it('supports prefix mode with slash prefix and imports entire order set members in batch', async () => {
     const user = userEvent.setup()
     const setServiceDrafts = vi.fn()
     const orderSet = {
-      id: 'set-1', code: 'SET001', name: '高血压常规检查组套', groupType: 'ORDER_SET', status: 'ACTIVE',
+      id: 'set-1', code: 'SET001', name: '高血压常规检查组套', groupType: 'ORDER_SET', status: 'ACTIVE', revision: 0, organizationId: null, executionDepartmentId: null,
+      usageType: 'COMMON', validFrom: '2020-01-01', validTo: null,
       members: [
-        { id: 'm-1', catalogItemId: 'srv-1', itemCode: 'LAB001', itemName: '血常规五分类', serviceType: 'LABORATORY', quantity: 1, unitCode: '次' },
-        { id: 'm-2', catalogItemId: 'srv-2', itemCode: 'EXAM001', itemName: '十二导联心电图', serviceType: 'EXAMINATION', quantity: 1, unitCode: '次' },
+        { id: 'm-1', sortOrder: 0, requiredMember: true, catalogItemId: 'srv-1', itemCode: 'LAB001', itemName: '血常规五分类', serviceType: 'LABORATORY', quantity: 1, unitCode: '次' },
+        { id: 'm-2', sortOrder: 1, requiredMember: true, catalogItemId: 'srv-2', itemCode: 'EXAM001', itemName: '十二导联心电图', serviceType: 'EXAMINATION', quantity: 1, unitCode: '次' },
       ],
     }
-    vi.mocked(mockApi.masterData.itemGroups).mockResolvedValue([orderSet] as never)
+    configureOrderSetApi(orderSet)
     renderComponent({ setServiceDrafts })
 
     await ensureComposerOpen(user)
@@ -862,27 +891,28 @@ describe('UnifiedOrderListEditor', () => {
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '/高血压')
     await user.click(await screen.findByRole('option', { name: /高血压常规检查组套/ }))
 
-    // 验证批量调入组套子项
-    expect(setServiceDrafts).toHaveBeenCalledTimes(1)
+    // 所有真实目录核对完成后才一次性调入。
+    await waitFor(() => expect(setServiceDrafts).toHaveBeenCalledTimes(1))
     const updater = setServiceDrafts.mock.calls[0][0]
     const drafts = updater([])
     expect(drafts).toHaveLength(2)
-    expect(drafts[0]).toMatchObject({ itemName: '血常规五分类', serviceType: 'LABORATORY' })
+    expect(drafts[0]).toMatchObject({ itemName: '血常规五分类', serviceType: 'LABORATORY', unitPrice: 12.5, currencyCode: 'CNY', performerDepartmentId: 'dept-1' })
     expect(drafts[1]).toMatchObject({ itemName: '十二导联心电图', serviceType: 'EXAMINATION' })
 
     // 验证界面显示一键调入成功的 Toast 提示
-    expect(screen.getByRole('status')).toHaveTextContent(/已成功调入组套【高血压常规检查组套】共 2 项项目/)
+    expect(screen.getByText(/已成功调入组套【高血压常规检查组套】共 2 项项目/).closest('[role="status"]')).not.toBeNull()
   })
 
   it('keeps composer open with a new empty row and focused after importing an order set', async () => {
     const user = userEvent.setup()
     const orderSet = {
-      id: 'set-trt', code: 'SET_TRT', name: '门诊清创包组套', groupType: 'ORDER_SET', status: 'ACTIVE',
+      id: 'set-trt', code: 'SET_TRT', name: '门诊清创包组套', groupType: 'ORDER_SET', status: 'ACTIVE', revision: 0, organizationId: null, executionDepartmentId: null,
+      usageType: 'COMMON', validFrom: '2020-01-01', validTo: null,
       members: [
-        { id: 'm-trt-1', catalogItemId: 'srv-trt-1', itemCode: 'TRT001', itemName: '清创缝合', serviceType: 'TREATMENT', quantity: 1, unitCode: '次' },
+        { id: 'm-trt-1', sortOrder: 0, requiredMember: true, catalogItemId: 'srv-trt-1', itemCode: 'TRT001', itemName: '清创缝合', serviceType: 'TREATMENT', quantity: 1, unitCode: '次' },
       ],
     }
-    vi.mocked(mockApi.masterData.itemGroups).mockResolvedValue([orderSet] as never)
+    configureOrderSetApi(orderSet)
 
     function StatefulWrapper() {
       const [serviceDrafts, setServiceDrafts] = useState<ServicePlanDraft[]>([])
@@ -926,8 +956,9 @@ describe('UnifiedOrderListEditor', () => {
     const setServiceDrafts = vi.fn()
     const treatmentItem = {
       id: 'srv-treatment-1', code: 'TRT001', name: '创口清创缝合术', sdServiceType: 'TREATMENT',
-      sdServiceTypeText: '处置', unitCode: '次', orderable: true,
-      prices: [{ id: 'p-trt-1', price: 68, currencyCode: 'CNY', sdStatus: 'ACTIVE' }],
+      sdServiceTypeText: '处置', unitCode: '次', orderable: true, chargeable: true, sdStatus: 'ACTIVE', sdUsageType: 'OUTPATIENT', validFrom: '2020-01-01',
+      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01' },
+      prices: [{ id: 'p-trt-1', price: 68, currencyCode: 'CNY', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1', validFrom: '2020-01-01' }],
     }
     vi.mocked(mockApi.masterData.services).mockResolvedValue([treatmentItem] as never)
     renderComponent({ setServiceDrafts })
@@ -968,10 +999,11 @@ describe('UnifiedOrderListEditor', () => {
       sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药', products: [{
         id: 'product-2', code: 'P002', name: '头孢曲松钠注射剂', manufacturerName: '安康制药有限公司',
         unitCode: '瓶', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-2', unitCode: 'VIAL', unitName: '瓶', packageSpec: '1g/瓶',
           quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-2', packageId: 'package-2', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-2', packageId: 'package-2', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 8.6, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -1002,10 +1034,11 @@ describe('UnifiedOrderListEditor', () => {
       sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药', products: [{
         id: 'product-skin', code: 'PSKIN', name: '青霉素V钾片', manufacturerName: '华北制药',
         unitCode: '盒', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-skin', unitCode: 'BOX', unitName: '盒', packageSpec: '0.25g*24片/盒',
           quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-skin', packageId: 'package-skin', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-skin', packageId: 'package-skin', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 15.0, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -1025,9 +1058,10 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByText(/已完成用药禁忌与配伍安全核对/)).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: /已完成用药禁忌与配伍安全核对/ })).not.toBeInTheDocument()
 
-    if (frequencyCode === 'PRN') {
+    {
       expect(screen.getByLabelText('总量')).toHaveValue(null)
-      expect(screen.getByText('当前频次无法自动推算总量，请核对并手动填写数量。')).toBeInTheDocument()
+      expect(screen.getByText(frequencyCode === 'PRN' ? '当前频次无法自动推算总量，请核对并手动填写数量。'
+        : '剂量、疗程或包装信息不足，无法自动推算总量，请核对并手动填写数量。')).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: '加入医嘱' }))
       expect(setMedicationDrafts).not.toHaveBeenCalled()
       await user.type(screen.getByLabelText('总量'), '3')
@@ -1069,15 +1103,16 @@ describe('UnifiedOrderListEditor', () => {
     }
 
     const ceftriaxone = {
-      id: 'm-cef', code: 'CEF001', name: '注射用头孢曲松钠', preparationSpec: '1g', preparationUnit: '支',
+      id: 'm-cef', code: 'CEF001', name: '注射用头孢曲松钠', preparationSpec: '1g', preparationUnit: '支', strengthValue: 1, strengthUnit: 'g',
       defaultDose: 1, defaultDoseUnit: 'g', defaultRoute: 'IV', defaultFrequency: 'QD',
       sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药', products: [{
         id: 'product-cef', code: 'PCEF', name: '注射用头孢曲松钠', manufacturerName: '安康制药',
         unitCode: '支', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-cef', unitCode: 'VIAL', unitName: '支', packageSpec: '1g/支',
           quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-cef', packageId: 'package-cef', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-cef', packageId: 'package-cef', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 8.6, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -1144,15 +1179,16 @@ describe('UnifiedOrderListEditor', () => {
   it('renders bracket connecting single head draft and active composer row during grouping session', async () => {
     const user = userEvent.setup()
     const ceftriaxone = {
-      id: 'm-cef', code: 'CEF001', name: '注射用头孢曲松钠', preparationSpec: '1g', preparationUnit: '支',
+      id: 'm-cef', code: 'CEF001', name: '注射用头孢曲松钠', preparationSpec: '1g', preparationUnit: '支', strengthValue: 1, strengthUnit: 'g',
       defaultDose: 1, defaultDoseUnit: 'g', defaultRoute: 'IV', defaultFrequency: 'QD',
       sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药', products: [{
         id: 'product-cef', code: 'PCEF', name: '注射用头孢曲松钠', manufacturerName: '安康制药',
         unitCode: '支', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-cef', unitCode: 'VIAL', unitName: '支', packageSpec: '1g/支',
           quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-cef', packageId: 'package-cef', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-cef', packageId: 'package-cef', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 8.6, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -1222,7 +1258,8 @@ describe('UnifiedOrderListEditor', () => {
         sdStatus: 'ACTIVE',
         orderable: true,
         chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{
           id: 'package-patent',
           unitCode: 'BOX',
@@ -1238,7 +1275,7 @@ describe('UnifiedOrderListEditor', () => {
           id: 'price-patent',
           packageId: 'package-patent',
           sdStatus: 'ACTIVE',
-          sdPriceType: 'SALE',
+          sdPriceType: 'SALE', organizationId: 'org-1',
           price: 25.5,
           currencyCode: 'CNY',
           validFrom: '2020-01-01',
@@ -1287,15 +1324,16 @@ describe('UnifiedOrderListEditor', () => {
     const setMedicationDrafts = vi.fn()
     const skintestMed = {
       id: 'm-penicillin-test', code: 'PEN001', name: '青霉素V钾片', sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药',
-      preparationSpec: '250mg', preparationUnit: '片', defaultDose: 250, defaultDoseUnit: 'mg',
+      preparationSpec: '250mg', preparationUnit: '片', strengthValue: 250, strengthUnit: 'mg', defaultDose: 250, defaultDoseUnit: 'mg',
       defaultRoute: 'ORAL', defaultFrequency: 'QD', skinTestRequired: true, skinTestResultValidityHours: 24,
       products: [{
         id: 'product-pen', code: 'PPEN', name: '青霉素V钾片 250mg', manufacturerName: '华北制药',
-        unitCode: '盒', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        unitCode: '片', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-pen', unitCode: 'BOX', unitName: '盒', packageSpec: '250mg*12片/盒',
-          quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-pen', packageId: 'package-pen', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+          quantityFactor: 12, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
+        prices: [{ id: 'price-pen', packageId: 'package-pen', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 18.0, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -1321,6 +1359,18 @@ describe('UnifiedOrderListEditor', () => {
     expect(await screen.findByText(/探测到历史有效皮试/)).toBeInTheDocument()
     expect(screen.getByText(/王复核护士/)).toBeInTheDocument()
 
+    // 手工勾选不能自动捏造历史阴性依据；只有显式引用才带入真实记录。
+    await user.click(screen.getByLabelText('免做皮试'))
+    expect(screen.getByLabelText('免试原因')).toHaveTextContent('请选择免试原因')
+    await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+    expect(setMedicationDrafts).not.toHaveBeenCalled()
+    expect(screen.getByText('已勾选免做皮试，必须选择或填写免试原因')).toBeInTheDocument()
+    await user.click(screen.getByLabelText('免试原因'))
+    await user.click(screen.getByRole('option', { name: '外院有效皮试结果证明' }))
+    expect(screen.queryByText('已引用免试')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '一键引用免试' })).toBeInTheDocument()
+    await user.click(screen.getByLabelText('免做皮试'))
+
     // 点击一键引用免试
     await user.click(screen.getByRole('button', { name: '一键引用免试' }))
     expect(await screen.findByText(/已引用免试/)).toBeInTheDocument()
@@ -1339,15 +1389,16 @@ describe('UnifiedOrderListEditor', () => {
     const setMedicationDrafts = vi.fn()
     const skintestMed = {
       id: 'm-penicillin-pos', code: 'PEN002', name: '注射用青霉素钠', sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药',
-      preparationSpec: '80万U', preparationUnit: '支', defaultDose: 800000, defaultDoseUnit: 'U',
+      preparationSpec: '80万U', preparationUnit: '支', strengthValue: 800000, strengthUnit: 'U', defaultDose: 800000, defaultDoseUnit: 'U',
       defaultRoute: 'ORAL', defaultFrequency: 'QD', skinTestRequired: true,
       products: [{
         id: 'product-pen2', code: 'PPEN2', name: '注射用青霉素钠 80万U', manufacturerName: '华北制药',
         unitCode: '支', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-pen2', unitCode: 'VIAL', unitName: '支', packageSpec: '80万U/支',
           quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-pen2', packageId: 'package-pen2', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-pen2', packageId: 'package-pen2', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 5.0, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -1382,10 +1433,11 @@ describe('UnifiedOrderListEditor', () => {
       strengthUnit: 'g',
       preparationUnit: '支',
       products: [{
-        id: 'prod-a', code: 'P-A', name: '头孢曲松钠', unitCode: '支', sdStatus: 'ACTIVE',
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        id: 'prod-a', code: 'P-A', name: '头孢曲松钠', unitCode: '支', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'pkg-a', unitCode: 'VIAL', unitName: '支', packageSpec: '1g/支', quantityFactor: 1, sdStatus: 'ACTIVE', defaultDispense: true, defaultSale: true, validFrom: '2020-01-01' }],
-        prices: [{ id: 'price-a', packageId: 'pkg-a', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 6.8, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+        prices: [{ id: 'price-a', packageId: 'pkg-a', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1', price: 6.8, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }]
     }
     const medB = {
@@ -1397,10 +1449,11 @@ describe('UnifiedOrderListEditor', () => {
       strengthUnit: 'mg',
       preparationUnit: '支',
       products: [{
-        id: 'prod-b', code: 'P-B', name: '维生素B1注射液', unitCode: '支', sdStatus: 'ACTIVE',
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        id: 'prod-b', code: 'P-B', name: '维生素B1注射液', unitCode: '支', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'pkg-b', unitCode: 'AMP', unitName: '安瓿', packageSpec: '100mg/2ml/支', quantityFactor: 1, sdStatus: 'ACTIVE', defaultDispense: true, defaultSale: true, validFrom: '2020-01-01' }],
-        prices: [{ id: 'price-b', packageId: 'pkg-b', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 1.2, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+        prices: [{ id: 'price-b', packageId: 'pkg-b', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1', price: 1.2, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }]
     }
 
@@ -1412,7 +1465,7 @@ describe('UnifiedOrderListEditor', () => {
       productName: '头孢曲松钠', routeName: '静脉滴注', routeExecutionType: 'INFUSION', administrationGroupKey: 'grp-test-1',
       request: {
         medicationId: 'med-a', catalogItemId: 'prod-a', packageId: 'pkg-a',
-        doseValue: 1, doseUnit: 'g', routeCode: 'IV', frequencyCode: 'QD', durationValue: 7, quantity: 7, quantityUnit: '支',
+        doseValue: 1, doseUnit: 'g', routeCode: 'IV', frequencyCode: 'QD', durationValue: 7, durationUnit: 'd', quantity: 7, quantityUnit: '支',
         substitutionAllowed: true, selfProvided: false,
       }
     }
@@ -1422,7 +1475,7 @@ describe('UnifiedOrderListEditor', () => {
       productName: '维生素B1注射液', routeName: '静脉滴注', routeExecutionType: 'INFUSION', administrationGroupKey: 'grp-test-1',
       request: {
         medicationId: 'med-b', catalogItemId: 'prod-b', packageId: 'pkg-b',
-        doseValue: 100, doseUnit: 'mg', routeCode: 'IV', frequencyCode: 'QD', durationValue: 7, quantity: 7, quantityUnit: '支',
+        doseValue: 100, doseUnit: 'mg', routeCode: 'IV', frequencyCode: 'QD', durationValue: 7, durationUnit: 'd', quantity: 7, quantityUnit: '支',
         substitutionAllowed: true, selfProvided: false,
       }
     }
@@ -1456,6 +1509,39 @@ describe('UnifiedOrderListEditor', () => {
     expect(result[1].request.frequencyCode).toBe('BID')
     expect(result[1].request.durationValue).toBe(5)
     expect(result[1].request.quantity).toBe(10)
+  })
+
+  it('shows skin test query failures in draft editing and supports retry without claiming no history', async () => {
+    vi.mocked(mockApi.treatments.validNegativeSkinTests).mockRejectedValueOnce(new Error('offline'))
+    vi.mocked(mockApi.treatments.skinTestWorklist).mockRejectedValueOnce(new Error('offline'))
+    const draft = { ...mockMedicationDraft, skinTestRequired: true, skinTestResultValidityHours: 24 }
+    renderComponent({ medicationDrafts: [draft] })
+    await userEvent.click(screen.getByRole('row', { name: `编辑待确认医嘱 ${draft.medicationName}` }))
+    expect(await screen.findByText('皮试历史查询失败，尚未核验')).toBeInTheDocument()
+    expect(await screen.findByText('当前就诊皮试结果查询失败，尚未核验')).toBeInTheDocument()
+    expect(screen.queryByText('未查到有效历史阴性凭据')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '一键引用免试' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '重试皮试历史' }))
+    expect(await screen.findByText('未查到有效历史阴性凭据')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '重试就诊皮试结果' }))
+    await waitFor(() => expect(screen.queryByText('当前就诊皮试结果查询失败，尚未核验')).not.toBeInTheDocument())
+  })
+
+  it('does not substitute another search result for missing draft medication safety knowledge', async () => {
+    vi.mocked(mockApi.masterData.medications).mockResolvedValue([{
+      id: 'different-medication', skinTestRequired: true, antimicrobial: true,
+    }] as never)
+    const draft = { ...mockMedicationDraft, skinTestRequired: undefined, antimicrobial: undefined }
+    const setMedicationDrafts = vi.fn()
+    renderComponent({ medicationDrafts: [draft], setMedicationDrafts })
+    await userEvent.click(screen.getByRole('row', { name: `编辑待确认医嘱 ${draft.medicationName}` }))
+    expect(await screen.findByText('当前药品安全资料查询失败，尚未核验')).toBeInTheDocument()
+    expect(screen.queryByText(/需皮试药品/)).not.toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('编辑用药嘱托'), '{enter}')
+    await waitFor(() => expect(setMedicationDrafts).toHaveBeenCalled())
+    const updated = setMedicationDrafts.mock.calls[0][0]([draft])
+    expect(updated[0].skinTestRequired).toBeUndefined()
+    expect(updated[0].antimicrobial).toBeUndefined()
   })
 
   it('displays skin test safety alert and exemption options in draft edit mode, and saves exemption back to draft', async () => {
@@ -1497,7 +1583,13 @@ describe('UnifiedOrderListEditor', () => {
 
     // 勾选免做皮试
     await userEvent.click(screen.getByLabelText('免做皮试'))
-    expect(screen.getByText(/已免做皮试/)).toBeInTheDocument()
+    expect(screen.getByText('免试原因待填写')).toBeInTheDocument()
+    expect(screen.getByLabelText('免试原因')).toHaveTextContent('请选择免试原因')
+    await userEvent.type(screen.getByLabelText('编辑用药嘱托'), '{enter}')
+    expect(setMedicationDrafts).not.toHaveBeenCalled()
+    expect(screen.getByText('已勾选免做皮试，必须选择或填写免试原因')).toBeInTheDocument()
+    await userEvent.click(screen.getByLabelText('免试原因'))
+    await userEvent.click(screen.getByRole('option', { name: '外院有效皮试结果证明' }))
 
     // 确认回车保存
     const instructionInput = screen.getByLabelText('编辑用药嘱托')
@@ -1505,7 +1597,7 @@ describe('UnifiedOrderListEditor', () => {
 
     expect(setMedicationDrafts).toHaveBeenCalled()
     expect(currentDrafts[0].request.skinTestExempt).toBe(true)
-    expect(currentDrafts[0].request.skinTestExemptReason).toBe('周期内已有阴性结果（有效时间内）')
+    expect(currentDrafts[0].request.skinTestExemptReason).toBe('外院有效皮试结果证明')
   })
 
   it('shows + 同组 for infusion drafts in edit mode and activates grouping session with pre-filled route/frequency', async () => {
@@ -1694,10 +1786,11 @@ describe('UnifiedOrderListEditor', () => {
       sdMedicationType: 'HERBAL', sdMedicationTypeText: '草药', products: [{
         id: 'product-herb1', code: 'PH001', name: '黄芪饮片', manufacturerName: '中药饮片有限公司',
         unitCode: 'g', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
-        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
         packages: [{ id: 'package-herb1', unitCode: 'g', unitName: 'g', packageSpec: '500g/袋',
           quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
-        prices: [{ id: 'price-herb1', packageId: 'package-herb1', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+        prices: [{ id: 'price-herb1', packageId: 'package-herb1', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1',
           price: 0.12, currencyCode: 'CNY', validFrom: '2020-01-01' }],
       }],
     }
@@ -1931,7 +2024,7 @@ describe('UnifiedOrderListEditor', () => {
         categoryCode: 'HERBAL',
         medicationCode: 'HERB001',
         medicationName: '黄芪',
-        unitPrice: 0.18,
+        unitPrice: 0.18, currencyCode: 'CNY',
         productName: '黄芪饮片',
         request: {
           medicationId: 'm-1', catalogItemId: 'srv-1', doseValue: 10.1, doseUnit: 'g',
@@ -1947,7 +2040,7 @@ describe('UnifiedOrderListEditor', () => {
         categoryCode: 'HERBAL',
         medicationCode: 'HERB002',
         medicationName: '党参',
-        unitPrice: 0.20,
+        unitPrice: 0.20, currencyCode: 'CNY',
         productName: '党参饮片',
         request: {
           medicationId: 'm-2', catalogItemId: 'srv-2', doseValue: 10, doseUnit: 'g',
@@ -1963,7 +2056,7 @@ describe('UnifiedOrderListEditor', () => {
         categoryCode: 'HERBAL',
         medicationCode: 'HERB003',
         medicationName: '甘草',
-        unitPrice: 0.16,
+        unitPrice: 0.16, currencyCode: 'CNY',
         productName: '炙甘草饮片',
         request: {
           medicationId: 'm-3', catalogItemId: 'srv-3', doseValue: 10.6, doseUnit: 'g',
@@ -1980,10 +2073,10 @@ describe('UnifiedOrderListEditor', () => {
     // 验证处方底栏整行已彻底移除，无冗余堆叠
     expect(document.querySelector('.doctor-herbal-summary-bar')).not.toBeInTheDocument()
 
-    // 验证单据栏小计金额精确计算且格式化为标准2位小数（¥38.60），无 38.598 等多余小数或浮点长尾
+    // 验证单据栏小计金额精确计算且格式化为标准2位小数（CNY 38.60），无 38.598 等多余小数或浮点长尾
     const subtotal = document.querySelector('.doctor-group-subtotal')
     expect(subtotal).toBeInTheDocument()
-    expect(subtotal).toHaveTextContent('¥38.60')
+    expect(subtotal).toHaveTextContent('CNY 38.60')
     expect(subtotal?.textContent).not.toContain('0000000000003')
 
     // 验证单据栏标题精简为“中药处方”，无冗余的“门诊”或“（待开立）”
@@ -2122,7 +2215,7 @@ describe('UnifiedOrderListEditor', () => {
 
     // 1. 单据栏分组 Header 均不显示多余的“待确认”徽标，避免与行内状态列重复
     const herbalHeader = screen.getByLabelText('中药处方分组')
-    expect(within(herbalHeader).queryByText('待确认')).not.toBeInTheDocument()
+    expect(within(herbalHeader).getByText('待确认').closest('.doctor-group-subtotal')).toBeInTheDocument()
     const labHeader = screen.getByLabelText('检验申请分组')
     expect(within(labHeader).queryByText('待确认')).not.toBeInTheDocument()
 
@@ -2141,5 +2234,167 @@ describe('UnifiedOrderListEditor', () => {
     expect(addChip).toHaveClass('is-icon-only')
     expect(addChip).not.toHaveTextContent('继续加药')
   })
+  function dispensingMedication() {
+    return {
+      id: 'facts-med', code: 'FACTS-MED', name: '处方事实测试药品', preparationUnit: '片',
+      defaultDose: 1, defaultDoseUnit: '片', defaultRoute: 'ORAL', defaultFrequency: 'QD',
+      sdMedicationType: 'WESTERN', products: [{
+        id: 'facts-product', name: '处方事实产品', unitCode: '片', sdStatus: 'ACTIVE',
+        validFrom: '2020-01-01', orderable: true, chargeable: true,
+        organizationAdoption: { organizationId: 'org-1', validFrom: '2020-01-01', sdStatus: 'ACTIVE',
+          orderable: true, chargeable: true, dispensable: true },
+        packages: [{ id: 'facts-package', unitCode: 'BOX', unitName: '盒', quantityFactor: 10,
+          sdStatus: 'ACTIVE', validFrom: '2020-01-01' }],
+        prices: [{ id: 'facts-price', organizationId: 'org-1', packageId: 'facts-package', price: 2,
+          currencyCode: 'CNY', sdStatus: 'ACTIVE', sdPriceType: 'SALE', validFrom: '2020-01-01' }],
+      }],
+    }
+  }
+  async function selectFactsMedication(user: ReturnType<typeof userEvent.setup>) {
+    await ensureComposerOpen(user)
+    await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '处方事实')
+    await user.click(await screen.findByRole('option', { name: /处方事实测试药品/ }))
+  }
+  it.each(['price', 'currency', 'factor'])('prevents %s defects from entering pending medication drafts', async field => {
+    const medication = dispensingMedication(), product = medication.products[0]
+    if (field === 'price') Object.assign(product.prices[0], { price: null })
+    if (field === 'currency') Object.assign(product.prices[0], { currencyCode: undefined })
+    if (field === 'factor') product.packages[0].quantityFactor = 0
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([medication] as never)
+    const user = userEvent.setup(), setMedicationDrafts = vi.fn()
+    renderComponent({ setMedicationDrafts })
+    await selectFactsMedication(user)
+    await user.type(screen.getByLabelText('总量'), '2')
+    await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+    expect(screen.getByText('所选发药产品、包装或有效价格尚未确认，请核实目录后重新选择')).toBeInTheDocument()
+    expect(setMedicationDrafts).not.toHaveBeenCalled()
+  })
+  it('clears a stale automatic quantity when duration is erased and preserves explicit manual totals', async () => {
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([dispensingMedication()] as never)
+    const user = userEvent.setup(), setMedicationDrafts = vi.fn()
+    renderComponent({ setMedicationDrafts })
+    await selectFactsMedication(user)
+    expect(screen.getByLabelText('总量')).toHaveValue(1)
+    await user.clear(screen.getByLabelText('疗程'))
+    expect(screen.getByLabelText('总量')).toHaveValue(null)
+    expect(screen.getByText('剂量、疗程或包装信息不足，无法自动推算总量，请核对并手动填写数量。')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+    expect(setMedicationDrafts).not.toHaveBeenCalled()
+    await user.type(screen.getByLabelText('总量'), '2')
+    await user.type(screen.getByLabelText('疗程'), '3')
+    expect(screen.getByLabelText('总量')).toHaveValue(2)
+    await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+    expect(setMedicationDrafts.mock.calls[0][0]([])[0]).toMatchObject({ quantityManuallySet: true, request: { quantity: 2 } })
+  })
+  it('does not silently switch product after the selected option becomes unusable', async () => {
+    const medication = dispensingMedication(), original = medication.products[0]
+    medication.products.push({ ...original, id: 'alternative-product', name: '另一个产品' })
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([medication] as never)
+    const user = userEvent.setup(), setMedicationDrafts = vi.fn()
+    renderComponent({ setMedicationDrafts })
+    await selectFactsMedication(user)
+    original.sdStatus = 'INACTIVE'
+    await user.clear(screen.getByLabelText('单次剂量'))
+    await user.type(screen.getByLabelText('单次剂量'), '2')
+    await user.type(screen.getByLabelText('总量'), '2')
+    await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+    expect(screen.getByText('所选发药产品、包装或有效价格尚未确认，请核实目录后重新选择')).toBeInTheDocument()
+    expect(setMedicationDrafts).not.toHaveBeenCalled()
+  })
+
+  it('does not present a partial draft subtotal when one price is unknown', () => {
+    renderComponent({ serviceDrafts: [
+      { ...mockServiceDraft, id: 's1', unitPrice: 10, currencyCode: 'CNY' },
+      { ...mockServiceDraft, id: 's2', unitPrice: undefined, currencyCode: 'CNY' },
+    ] })
+    const header = screen.getByLabelText('检验申请分组')
+    expect(header).toHaveTextContent('小计 待确认')
+    expect(header).not.toHaveTextContent('CNY 10')
+  })
+  it('shows zero-priced draft lines and separates currencies in the header', () => {
+    renderComponent({ serviceDrafts: [
+      { ...mockServiceDraft, id: 's1', unitPrice: 0, currencyCode: 'CNY' },
+      { ...mockServiceDraft, id: 's2', quantity: 2, unitPrice: 3, currencyCode: 'USD' },
+    ] })
+    expect(screen.getByLabelText('检验申请分组')).toHaveTextContent('CNY 0.00；USD 6.00')
+  })
+  it.each([undefined, 3.5])('uses saved service amount snapshots without inventing a value: %s', totalAmount => {
+    renderComponent({ services: [{ id: 'saved-price', serviceType: 'LABORATORY', itemName: '保存项目',
+      status: 'ACTIVE', quantity: 10, unitPrice: 10, totalAmount, currencyCode: 'USD', unitCode: '次' }] })
+    const header = document.querySelector('.doctor-group-subtotal')
+    expect(header).toHaveTextContent(totalAmount === undefined ? '小计 待确认' : 'USD 3.50')
+    expect(header).not.toHaveTextContent('100.00')
+  })
+  it('adds active saved prescription snapshots and excludes cancelled lines', () => {
+    const row = { authoredAt: '2026-10-01T00:00:00Z', prescriptionId: 'rx-facts', medicationType: 'WESTERN', unitPrice: 10, quantity: 10, currencyCode: 'USD' }
+    renderComponent({ medications: [
+      { ...row, id: 'mr1', itemName: '已开立药品甲', status: 'ACTIVE', totalAmount: 3 },
+      { ...row, id: 'mr2', itemName: '已开立药品乙', status: 'ACTIVE', totalAmount: 2 },
+      { ...row, id: 'mr3', itemName: '已撤销药品丙', status: 'CANCELLED', totalAmount: 10 },
+    ] })
+    expect(screen.getByLabelText('西药处方分组')).toHaveTextContent('USD 5.00')
+  })
+  it.each(['valid', 'expired', 'missing-currency'])('uses the verified service price in the composer and draft: %s', condition => {
+    // Interaction is async; return its promise so the test waits for the complete selection.
+    return (async () => {
+      const service = { id: 'price-service', code: 'PRICE', name: '价格核验项目', sdServiceType: 'LABORATORY',
+        unitCode: '次', sdUsageType: 'OUTPATIENT', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01',
+        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01' },
+        prices: [
+          { id: 'purchase', sdPriceType: 'PURCHASE', price: 1, currencyCode: 'CNY', sdStatus: 'ACTIVE' },
+          { id: 'sale', sdPriceType: 'SALE', organizationId: 'org-1', price: 8, currencyCode: condition === 'missing-currency' ? undefined : 'USD',
+            sdStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: condition === 'expired' ? '2020-01-01' : undefined },
+        ] }
+      vi.mocked(mockApi.masterData.services).mockResolvedValue([service] as never)
+      const user = userEvent.setup(), setServiceDrafts = vi.fn()
+      renderComponent({ setServiceDrafts })
+      await ensureComposerOpen(user)
+      await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+      await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '价格核验')
+      await user.click(await screen.findByRole('option', { name: /价格核验项目/ }))
+      await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+      if (condition === 'valid') {
+        expect(setServiceDrafts.mock.calls[0][0]([])[0]).toMatchObject({ unitPrice: 8, currencyCode: 'USD' })
+      } else {
+        expect(setServiceDrafts).not.toHaveBeenCalled()
+        expect(screen.getByText('价格待确认')).toBeInTheDocument()
+        expect(screen.getByText(condition === 'expired'
+          ? '当前机构及业务日期未配置有效销售价格，请维护价格后重新选择'
+          : '诊疗项目或销售价格信息待确认，请核实目录后重新选择')).toBeInTheDocument()
+      }
+    })()
+  })
+
+  it('retains a failed group import for retry without adding a partial draft or showing success', async () => {
+    const user = userEvent.setup(), setServiceDrafts = vi.fn()
+    const group = { id: 'retry-group', revision: 0, code: 'RETRY', name: '重试组套', groupType: 'ORDER_SET', status: 'ACTIVE',
+      organizationId: null, executionDepartmentId: null, usageType: 'OUTPATIENT', validFrom: '2020-01-01', validTo: null,
+      members: [{ id: 'retry-member', catalogItemId: 'retry-service', itemCode: 'RETRY-SRV', itemName: '重试项目',
+        serviceType: 'LABORATORY', quantity: 1, unitCode: '次', sortOrder: 0, requiredMember: true }] }
+    configureOrderSetApi(group)
+    vi.mocked(mockApi.masterData.searchServices).mockRejectedValueOnce(new Error('项目目录请求失败'))
+    renderComponent({ setServiceDrafts })
+    await ensureComposerOpen(user)
+    await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+    await user.click(screen.getByRole('tab', { name: /前缀模式/ }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '/重试')
+    await user.click(await screen.findByRole('option', { name: /重试组套/ }))
+    expect(await screen.findByText('组套未导入：项目目录请求失败')).toBeInTheDocument()
+    expect(setServiceDrafts).not.toHaveBeenCalled()
+    expect(screen.queryByText(/已成功调入组套/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '重试导入组套' }))
+    await waitFor(() => expect(setServiceDrafts).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('button', { name: '重试导入组套' })).not.toBeInTheDocument()
+  })
+  it('displays the verified execution department on imported service drafts and their editor', async () => {
+    const user = userEvent.setup()
+    renderComponent({ serviceDrafts: [{ ...mockServiceDraft, performerDepartmentId: 'actual-dept', performerDepartmentName: '医技中心二部' }] })
+    const row = screen.getByRole('row', { name: `编辑待确认医嘱 ${mockServiceDraft.itemName}` })
+    expect(within(row).getByText('医技中心二部')).toBeInTheDocument()
+    await user.click(row)
+    expect(screen.getAllByText('医技中心二部')).toHaveLength(2)
+  })
+
 });
 

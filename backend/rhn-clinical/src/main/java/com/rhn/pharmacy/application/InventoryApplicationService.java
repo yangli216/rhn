@@ -46,6 +46,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -93,6 +94,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
     private final CatalogLifecycleDirectory catalogDirectory;
     private final InventoryQuantityPolicy quantityPolicy;
     private final InventorySplitApplicationService splitService;
+    private final InventoryReceiptRoundingWriter receiptRoundingWriter;
     private final DomainEventPublisher eventPublisher;
     private final ExecutionContextProvider contextProvider;
 
@@ -105,7 +107,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
             InventoryReservationRepository reservationRepository,
             DispenseTaskRepository taskRepository, DispenseTaskLineRepository taskLineRepository,
             CatalogLifecycleDirectory catalogDirectory, InventoryQuantityPolicy quantityPolicy,
-            InventorySplitApplicationService splitService,
+            InventorySplitApplicationService splitService, InventoryReceiptRoundingWriter receiptRoundingWriter,
             DomainEventPublisher eventPublisher,
             ExecutionContextProvider contextProvider) {
         this.siteRepository = siteRepository; this.itemRepository = itemRepository;
@@ -115,7 +117,15 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         this.reservationRepository = reservationRepository; this.taskRepository = taskRepository;
         this.taskLineRepository = taskLineRepository; this.catalogDirectory = catalogDirectory;
         this.quantityPolicy = quantityPolicy; this.splitService = splitService;
+        this.receiptRoundingWriter = receiptRoundingWriter;
         this.eventPublisher = eventPublisher; this.contextProvider = contextProvider;
+    }
+
+    @Transactional(readOnly = true)
+    public List<InventoryTransactionLineView> transactionLines(Long transactionId) {
+        ExecutionContext context = requireWorkContext();
+        return transactionLineRepository.findByTenantIdAndInventoryTransactionIdOrderBySortOrder(
+                context.tenantId(), transactionId).stream().map(this::transactionLineView).toList();
     }
 
     @Transactional
@@ -255,6 +265,8 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
     @Transactional
     public InventoryTransactionView receiveDocument(String sourceType, ReceiveDocumentCommand input) {
         ExecutionContext context = requireWorkContext();
+        String currency = required(input.currencyCode(), "INVENTORY_CURRENCY_REQUIRED", "入库金额币种不能为空").toUpperCase(java.util.Locale.ROOT);
+        if (!currency.matches("[A-Z]{3}")) throw badRequest("INVENTORY_CURRENCY_INVALID", "入库金额币种格式不正确");
         String receiptSourceType = required(sourceType, "INVENTORY_SOURCE_TYPE_REQUIRED", "入库来源类型不能为空");
         String requestCode = required(input.requestCode(), "INVENTORY_REQUEST_CODE_REQUIRED", "库存入账请求编码不能为空");
         String sourceCode = required(input.sourceCode(), "INVENTORY_SOURCE_CODE_REQUIRED", "入库来源编码不能为空");
@@ -278,14 +290,18 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                 period.id(), nextNo("IT"), requestCode, "RECEIPT", receiptSourceType, sourceCode,
                 occurredAt, context.subjectId(), Strings.trimToNull(input.description())));
         List<InventoryTransactionLine> persisted = new ArrayList<>(); int order = 0;
+        List<InventoryReceiptRoundingWriter.Adjustment> roundingAdjustments = new ArrayList<>();
         List<ReceiveDocumentLineCommand> orderedLines = input.lines().stream()
                 .sorted(RECEIPT_LOCK_ORDER).toList();
         for (ReceiveDocumentLineCommand command : orderedLines) {
             if (command.operationQuantity() == null || command.operationQuantity().signum() <= 0) {
                 throw badRequest("INVENTORY_RECEIPT_QUANTITY_INVALID", "入库数量必须大于零");
             }
-            if (command.unitCost() != null && command.unitCost().signum() < 0) {
+            if (command.operationUnitCost() != null && command.operationUnitCost().signum() < 0) {
                 throw badRequest("INVENTORY_RECEIPT_COST_INVALID", "入库单位成本不能小于零");
+            }
+            if (command.operationUnitCost() != null && command.operationUnitCost().stripTrailingZeros().scale() > 6) {
+                throw badRequest("INVENTORY_RECEIPT_COST_PRECISION_INVALID", "入库包装单价最多保留六位小数");
             }
             StockItem item = requireItem(context, command.stockItemId());
             if (!site.id().equals(item.stockSiteId())) throw badRequest("INVENTORY_ITEM_SITE_MISMATCH", "经营项目不属于记账站点");
@@ -302,6 +318,11 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
             }
             var catalog = catalogDirectory.resolve(context.tenantId(), item.catalogItemId(), site.organizationId(),
                     item.basePackageId(), "SALE", businessDate);
+            if (catalog == null || catalog.itemPackage() == null
+                    || !item.basePackageId().equals(catalog.itemPackage().id())
+                    || catalog.itemPackage().quantityFactor() == null || catalog.itemPackage().quantityFactor().signum() <= 0) {
+                throw conflict("INVENTORY_RECEIPT_PACKAGE_INVALID", "缺少经营包装或有效换算系数，不能计算入库成本");
+            }
             BigDecimal factor = catalog.itemPackage().quantityFactor();
             BigDecimal operationQuantity = quantityPolicy.require(context.tenantId(), catalog.itemPackage().unitCode(),
                     command.operationQuantity(), "INVENTORY_RECEIPT_QUANTITY_PRECISION_INVALID", "入库数量");
@@ -311,14 +332,23 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
             InventoryBalance balance = availabilityService.lockDimension(context.tenantId(), bin.id(), item.id(),
                     lot.id(), stockStatus).orElseGet(() -> new InventoryBalance(context.tenantId(), site.id(), bin.id(),
                     item.id(), lot.id(), stockStatus, item.baseUnitCode()));
-            balance.receive(quantityDelta, command.unitCost()); availabilityService.save(balance);
-            persisted.add(transactionLineRepository.save(new InventoryTransactionLine(context.tenantId(),
+            BigDecimal receiptAmount = command.operationUnitCost() == null ? null
+                    : operationQuantity.multiply(command.operationUnitCost()).setScale(6, RoundingMode.HALF_UP);
+            BigDecimal baseUnitCost = command.operationUnitCost() == null ? null
+                    : command.operationUnitCost().divide(factor, 6, RoundingMode.HALF_UP);
+            BigDecimal previousValue = InventoryReceiptRoundingWriter.balanceValue(balance);
+            balance.receiveValue(quantityDelta, receiptAmount); availabilityService.save(balance);
+            InventoryTransactionLine line = transactionLineRepository.save(new InventoryTransactionLine(context.tenantId(),
                     transaction.id(), ++order, site.id(), bin.id(), item.id(), lot.id(), item.basePackageId(),
                     stockStatus, operationQuantity, catalog.itemPackage().unitCode(), factor,
-                    quantityDelta, command.unitCost())));
+                    quantityDelta, baseUnitCost, receiptAmount));
+            persisted.add(line);
+            var rounding = InventoryReceiptRoundingWriter.capture(balance, line, previousValue);
+            if (rounding != null) roundingAdjustments.add(rounding);
         }
         try {
             transactionLineRepository.flush(); availabilityService.flush(); transactionRepository.flush();
+            receiptRoundingWriter.write(context, transaction, currency, roundingAdjustments);
         } catch (DataIntegrityViolationException exception) {
             throw conflict("INVENTORY_RECEIPT_CONCURRENT_CONFLICT", "库存批量入账发生并发冲突，请使用原请求编码重试");
         }
@@ -379,7 +409,8 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                 balance = new InventoryBalance(context.tenantId(), site.id(), bin.id(), item.id(), lot.id(),
                         stockStatus, item.baseUnitCode());
             }
-            BigDecimal effectiveUnitCost = command.unitCost() == null ? balance.averageUnitCost() : command.unitCost();
+            BigDecimal effectiveUnitCost = command.unitCost() == null && quantityDelta.signum() < 0
+                    ? balance.averageUnitCost() : command.unitCost();
             if (quantityDelta.signum() > 0) balance.receive(quantityDelta, effectiveUnitCost);
             else {
                 if (Set.of("ISSUE", "TRANSFER").contains(transactionType)) {
@@ -908,10 +939,11 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
     public record ReceiveCommand(String requestCode, String sourceCode, Long stockItemId, Long stockBinId,
                                  Long stockLotId, BigDecimal operationQuantity, BigDecimal unitCost,
                                  Instant occurredAt, String description) {}
+    /** Quantity and price are both expressed in the operating package unit. */
     public record ReceiveDocumentLineCommand(Long stockItemId, Long stockBinId, Long stockLotId,
-                                             BigDecimal operationQuantity, BigDecimal unitCost) {}
+                                             BigDecimal operationQuantity, BigDecimal operationUnitCost) {}
     public record ReceiveDocumentCommand(String requestCode, String sourceCode, Long stockSiteId,
-                                         Instant occurredAt, String description,
+                                         Instant occurredAt, String description, String currencyCode,
                                          List<ReceiveDocumentLineCommand> lines) {}
     public record DocumentPostingLineCommand(Long stockBinId, Long stockItemId, Long stockLotId,
                                              String stockStatus, BigDecimal quantityDelta, BigDecimal unitCost,

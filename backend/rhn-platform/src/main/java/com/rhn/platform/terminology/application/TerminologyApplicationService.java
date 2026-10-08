@@ -548,12 +548,25 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                                                                           long expectedRevision,
                                                                           Collection<Long> conceptIds) {
         DiseaseManagementProgram value = requireManagementProgram(tenantId, id);
+        if (conceptIds == null || conceptIds.size() > 1000 || conceptIds.stream().anyMatch(Objects::isNull)
+                || conceptIds.stream().distinct().count() != conceptIds.size()) {
+            throw badRequest("DISEASE_MEMBERS_INPUT_INVALID", "必须明确提供最多 1000 个唯一疾病标识，不能静默清空、去重或截断");
+        }
+        List<Long> requested = List.copyOf(conceptIds);
+        List<DiseaseManagementMember> existing = managementMemberRepository.findByProgramIdOrderByCreatedAt(id);
+        if (!managementRuleRepository.findByProgramIdOrderByCreatedAt(id).isEmpty()
+                || existing.stream().anyMatch(member -> !"INCLUDE".equals(member.inclusionMode()))) {
+            throw new BusinessException("DISEASE_SCOPE_REPLACEMENT_REQUIRED",
+                    "当前项目含识别规则或排除例外，请使用完整疾病识别范围接口保存", HttpStatus.CONFLICT);
+        }
+        requested.forEach(conceptId -> requireDisease(tenantId, conceptId));
         value.replaceMembers(expectedRevision);
-        List<Long> normalized = conceptIds == null ? List.of() : conceptIds.stream().distinct().limit(1000).toList();
-        normalized.forEach(conceptId -> requireDisease(tenantId, conceptId));
-        managementMemberRepository.deleteByProgramId(id);
+        Set<Long> requestedIds = Set.copyOf(requested);
+        Set<Long> existingIds = existing.stream().map(DiseaseManagementMember::conceptId).collect(Collectors.toSet());
+        // An ID-only request cannot replace the retained members' notes, dates or status.
+        managementMemberRepository.deleteAll(existing.stream().filter(member -> !requestedIds.contains(member.conceptId())).toList());
         managementMemberRepository.flush();
-        normalized.forEach(conceptId -> managementMemberRepository.save(new DiseaseManagementMember(
+        requested.stream().filter(conceptId -> !existingIds.contains(conceptId)).forEach(conceptId -> managementMemberRepository.save(new DiseaseManagementMember(
                 id, conceptId, value.effectiveFrom(), value.effectiveTo(), null)));
         managementProgramRepository.flush();
         return programWithMembers(value);
@@ -564,12 +577,17 @@ public class TerminologyApplicationService implements TerminologyDirectory {
             long expectedRevision, Collection<DiseaseRuleCommand> rules,
             Collection<DiseaseExceptionCommand> exceptions) {
         DiseaseManagementProgram value = requireManagementProgram(tenantId, id);
+        if (rules == null || exceptions == null || rules.size() > 100 || exceptions.size() > 1000
+                || rules.stream().anyMatch(Objects::isNull) || exceptions.stream().anyMatch(Objects::isNull)) {
+            throw badRequest("DISEASE_SCOPE_INPUT_INVALID", "疾病识别范围必须完整提供，且规则不超过 100 条、例外不超过 1000 条");
+        }
+        List<DiseaseRuleCommand> normalizedRules = List.copyOf(rules);
+        List<DiseaseExceptionCommand> normalizedExceptions = List.copyOf(exceptions);
+        if (normalizedExceptions.stream().map(DiseaseExceptionCommand::conceptId).anyMatch(Objects::isNull)
+                || normalizedExceptions.stream().map(DiseaseExceptionCommand::conceptId).distinct().count() != normalizedExceptions.size()) {
+            throw badRequest("DISEASE_SCOPE_EXCEPTION_DUPLICATE", "疾病例外必须提供唯一的概念标识，不能静默合并重复项");
+        }
         value.replaceMembers(expectedRevision);
-        List<DiseaseRuleCommand> normalizedRules = rules == null ? List.of() : rules.stream().limit(100).toList();
-        List<DiseaseExceptionCommand> normalizedExceptions = exceptions == null ? List.of()
-                : exceptions.stream().filter(java.util.Objects::nonNull)
-                .collect(Collectors.toMap(DiseaseExceptionCommand::conceptId, Function.identity(),
-                        (left, right) -> right)).values().stream().limit(1000).toList();
         normalizedRules.forEach(rule -> {
             if (rule.codeSystemId() != null) requireVisibleDiseaseSystem(tenantId, rule.codeSystemId());
         });
@@ -794,9 +812,9 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                     Concept concept = concepts.get(member.conceptId());
                     CodeSystem system = concept == null ? null : systems.get(concept.codeSystemId());
                     return new DiseaseManagementProgramView.MemberView(member.conceptId(), member.inclusionMode(),
-                            concept == null ? "" : concept.code(), concept == null ? "已删除概念" : concept.display(),
+                            concept == null ? null : concept.code(), concept == null ? "概念信息待确认" : concept.display(),
                             system == null ? "未知编码体系" : system.name(),
-                            system == null ? "WESTERN_MEDICINE" : system.diagnosisDomain());
+                            system == null ? null : system.diagnosisDomain(), member.note());
                 }).toList());
     }
 

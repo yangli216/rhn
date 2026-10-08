@@ -274,6 +274,13 @@ public class OrganizationController {
         return service.getStaff(id);
     }
 
+    @PostMapping("/practitioners/onboarding")
+    @ResponseStatus(HttpStatus.CREATED)
+    StaffDetailView onboardStaff(@Valid @RequestBody OnboardStaffRequest request) {
+        return service.onboardStaff(request.code(), request.fullName(), request.sdPractGender(),
+                request.organizationId(), request.departmentId(), request.positionId(), request.hireDate());
+    }
+
     @PostMapping({"/practitioners", "/staff"})
     @ResponseStatus(HttpStatus.CREATED)
     StaffView createStaff(@Valid @RequestBody CreateStaffRequest request) {
@@ -491,6 +498,15 @@ public class OrganizationController {
             @NotBlank @Size(max = 100) String fullName,
             @NotNull PractitionerGender sdPractGender,
             @Size(max = 100) String practitionerIdentifier) {}
+
+    record OnboardStaffRequest(
+            @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
+            @NotBlank @Size(max = 100) String fullName,
+            @NotNull PractitionerGender sdPractGender,
+            @NotNull Long organizationId,
+            @NotNull Long departmentId,
+            @NotNull Long positionId,
+            @NotNull LocalDate hireDate) {}
 
     record UpdateStaffRequest(
             @Min(0) long expectedRevision,

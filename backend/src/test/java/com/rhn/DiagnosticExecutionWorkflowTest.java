@@ -1,7 +1,9 @@
 package com.rhn;
 
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import tools.jackson.databind.JsonNode;
@@ -17,8 +19,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Tag("outpatient-main-flow")
 class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
 
-    @Test
-    void paid_laboratory_request_moves_through_collection_execution_and_local_report() throws Exception {
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = "N")
+    void paid_laboratory_request_moves_through_collection_execution_and_local_report(String interpretation) throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         String residentId = createResident(suffix);
         String encounterId = createActiveEncounter(residentId);
@@ -87,10 +91,12 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"valueType":"NUMBER","observationValue":"5.8",
                                  "unitCode":"10^9/L","referenceRangeLow":3.5,"referenceRangeHigh":9.5,
-                                 "interpretationCode":"N","conclusion":"白细胞计数在参考范围内"}
-                                """.formatted(started.get("revision").asLong())))
+                                 %s"conclusion":"本次检验结果"}
+                                """.formatted(started.get("revision").asLong(), interpretation == null ? "" : "\"interpretationCode\":\"N\",")))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("FINAL"))
                 .andExpect(jsonPath("$.observations[0].valueNumber").value(5.8))
+                .andExpect(interpretation == null ? jsonPath("$.observations[0].interpretationCode").doesNotExist()
+                        : jsonPath("$.observations[0].interpretationCode").value(interpretation))
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext()).param("status", "COMPLETED"))
@@ -98,7 +104,9 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[?(@.requestId == '%s')].reportId"
                         .formatted(request.get("id").asString())).value(report.get("id").asString()));
         mockMvc.perform(get("/api/encounters/{id}/diagnostic-reports", encounterId).with(rhnWorkContext()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].conclusion").value("白细胞计数在参考范围内"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].conclusion").value("本次检验结果"))
+                .andExpect(interpretation == null ? jsonPath("$[0].observations[0].interpretationCode").doesNotExist()
+                        : jsonPath("$[0].observations[0].interpretationCode").value(interpretation));
     }
 
     private JsonNode findBy(JsonNode values, String field, String expected) {

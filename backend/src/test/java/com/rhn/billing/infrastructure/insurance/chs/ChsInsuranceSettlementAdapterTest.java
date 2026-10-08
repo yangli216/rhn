@@ -28,7 +28,7 @@ class ChsInsuranceSettlementAdapterTest {
         assertTrue(adapter.supports("310100", "390"));
         assertTrue(adapter.supports("310100", "EMPLOYEE_BASIC"));
         assertTrue(adapter.supports("310100", "RESIDENT_BASIC"));
-        assertFalse(adapter.supports("TEST_REGION", "BASIC_MEDICAL_INSURANCE"));
+        assertFalse(adapter.supports("TEST_REGION", "BASIC"));
         assertFalse(adapter.supports("310100", "COMMERCIAL_INSURANCE"));
         assertFalse(adapter.supports("310100", null));
     }
@@ -64,10 +64,14 @@ class ChsInsuranceSettlementAdapterTest {
         var reverseInstruction = new InsuranceSettlementAdapter.InsuranceReversal(
                 1001L, 2001L, "SETTLE-001", "IDEMP-REV-01",
                 "310100", "310",
-                settleResult.externalSettlementNo(), new BigDecimal("100.00"), "患者退号退费", "CORR-REV-01"
+                settleResult.externalSettlementNo(), new BigDecimal("100.00"), "患者退号退费", "CORR-REV-01", 88L, 5001L, "DOC-01", "CNY",
+                settleResult.insuranceFundAmount(), settleResult.personalAccountAmount(), settleResult.patientCashAmount(), settleResult.otherFundAmount()
         );
         var reverseResult = adapter.reverse(reverseInstruction);
         assertNotNull(reverseResult);
         assertEquals(InsuranceSettlementAdapter.InsuranceResult.Outcome.SUCCEEDED, reverseResult.outcome());
+        assertEquals(settleResult.insuranceFundAmount(), reverseResult.insuranceFundAmount());
+        assertEquals(settleResult.personalAccountAmount(), reverseResult.personalAccountAmount());
+        assertEquals(settleResult.patientCashAmount(), reverseResult.patientCashAmount());
     }
 }

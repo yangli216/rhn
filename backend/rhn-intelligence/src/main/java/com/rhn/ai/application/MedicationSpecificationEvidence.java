@@ -1,0 +1,81 @@
+package com.rhn.ai.application;
+
+import java.math.BigDecimal;
+import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
+/** Confirms explicit source specifications against catalog facts; never infers unit conversions. */
+final class MedicationSpecificationEvidence {
+    private static final String SPECIFICATION_BOUNDARY =
+            "[;；,，。\\n\\r]|单次剂量|每次|一次|常规用法|给药途径|途径|频次|疗程|连用|数量|共|口服|静脉|肌内|外用|用法"
+                    + "|建议规格|规格|含量|浓度|strength|specification|concentration|$";
+    private static final String SPECIFICATION_END = "(?=" + SPECIFICATION_BOUNDARY + ")";
+    private static final Pattern LABELED = Pattern.compile(
+            "(?:建议)?(?:规格|含量|浓度|strength|specification|concentration)\\s*[:：]?\\s*(.*?)"
+                    + SPECIFICATION_END,
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern NUMBER = Pattern.compile("[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+");
+
+    private MedicationSpecificationEvidence() {}
+
+    static String reviewReason(MedicationIntentParser.ParsedMedication intent, String catalogSpecification) {
+        List<String> requested = new ArrayList<>();
+        String name = text(intent.medicationName()).replace("()", "");
+        String hint = text(intent.productHint());
+        if (!hint.isEmpty() && !hint.equals(name)) {
+            if (name.isEmpty() || !hint.startsWith(name)) return "药品名称中的附加限定尚未核实，请人工确认产品及规格";
+            String suffix = unwrap(hint.substring(name.length()));
+            if (!suffix.isEmpty()) requested.add(suffix);
+        }
+        var labels = LABELED.matcher(intent.sourceText() == null ? "" : intent.sourceText());
+        while (labels.find()) {
+            if (labels.group(1).isBlank()) return "来源指定了规格但未提供完整内容，请人工确认";
+            requested.add(labels.group(1));
+        }
+        // Source quotes may retain a strength that was removed from the reviewed item's name.
+        if (!name.isEmpty()) {
+            String source = intent.sourceText() == null ? "" : Normalizer.normalize(intent.sourceText(), Normalizer.Form.NFKC)
+                    .toLowerCase(Locale.ROOT).replaceAll("[\\p{Zs}\\t]+", "");
+            var named = Pattern.compile(Pattern.quote(name) + "\\s*[(]?\\s*((?:[0-9]|\\.[0-9]).*?)"
+                    + "(?=" + SPECIFICATION_BOUNDARY + "|" + Pattern.quote(name) + ")", Pattern.CASE_INSENSITIVE).matcher(source);
+            while (named.find()) requested.add(named.group(1).replaceAll("[)]+$", ""));
+        }
+        if (requested.isEmpty()) return null;
+        var requirements = requested.stream().map(MedicationSpecificationEvidence::canonical).distinct().toList();
+        if (requirements.size() != 1) return "来源中存在多个不一致的药品规格，请明确后重新匹配";
+        return reviewExplicitSpecification(requirements.getFirst(), catalogSpecification);
+    }
+
+    static String reviewExplicitSpecification(String requestedSpecification, String catalogSpecification) {
+        if (requestedSpecification == null || requestedSpecification.isBlank()) return null;
+        if (catalogSpecification == null || catalogSpecification.isBlank()) return "来源包含明确规格，但目录规格缺失，未自动选择产品";
+        if (!canonical(requestedSpecification).equals(canonical(catalogSpecification))) {
+            return "来源规格与目录规格未确认一致，未替换规格或推算换算，请人工核对";
+        }
+        return null;
+    }
+
+    private static String canonical(String value) {
+        String source = unwrap(text(value));
+        var numbers = NUMBER.matcher(source);
+        StringBuilder result = new StringBuilder();
+        while (numbers.find()) numbers.appendReplacement(result,
+                new BigDecimal(numbers.group()).stripTrailingZeros().toPlainString());
+        numbers.appendTail(result);
+        return result.toString();
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : Normalizer.normalize(value, Normalizer.Form.NFKC)
+                .toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+    }
+
+    private static String unwrap(String value) {
+        while (value.length() >= 2 && ((value.startsWith("(") && value.endsWith(")"))
+                || (value.startsWith("[") && value.endsWith("]")))) value = value.substring(1, value.length() - 1);
+        return value;
+    }
+}

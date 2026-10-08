@@ -11,6 +11,7 @@ public interface InsuranceResultDirectory {
             String settlementNo, Operation operation, String externalSettlementNo, ResultStatus status,
             BigDecimal insuranceFundAmount, BigDecimal personalAccountAmount,
             BigDecimal patientCashAmount, BigDecimal otherFundAmount,
+            String currencyCode,
             String errorCode, String errorMessage, Object sanitizedPayload) {
         public enum ResultStatus { SUCCEEDED, PENDING, FAILED }
         public enum Operation { PRE_SETTLE, SETTLE, REVERSE }
@@ -35,10 +36,14 @@ public interface InsuranceResultDirectory {
 
     record InsuranceClaimResponseView(Long id, Long externalMessageId, String responseNo,
                                       String commandCode, String operation, String status,
-                                      String externalSettlementNo, BigDecimal insuranceFundAmount,
-                                      BigDecimal personalAccountAmount, BigDecimal patientCashAmount,
-                                      BigDecimal otherFundAmount, String errorCode, String errorMessage,
-                                      java.time.Instant respondedAt) {}
+                                      String externalSettlementNo,
+                                      @io.swagger.v3.oas.annotations.media.Schema(nullable = true) BigDecimal insuranceFundAmount,
+                                      @io.swagger.v3.oas.annotations.media.Schema(nullable = true) BigDecimal personalAccountAmount,
+                                      @io.swagger.v3.oas.annotations.media.Schema(nullable = true) BigDecimal patientCashAmount,
+                                      @io.swagger.v3.oas.annotations.media.Schema(nullable = true) BigDecimal otherFundAmount,
+                                      String errorCode, String errorMessage, java.time.Instant respondedAt,
+                                      @io.swagger.v3.oas.annotations.media.Schema(requiredMode = io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED,
+                                              allowableValues = {"REPORTED", "LEGACY_UNVERIFIED"}) String amountSource) {}
 
     /** 1101 医保人员信息查询请求（对外契约，屏蔽 CHS 专网报文模型）。 */
     record PersonInfoQuery(String certType, String certNo, String personName) {}

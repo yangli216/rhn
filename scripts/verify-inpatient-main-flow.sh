@@ -5,7 +5,7 @@ rhn_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 (
   cd "$rhn_project_root/backend"
-  mvn -Dtest=InpatientAdmissionFlowTest,InpatientTemperatureChartTest,InpatientOrderExecutionFlowTest,InpatientBillingFlowTest,InpatientDischargeReadinessFlowTest,InpatientMedicalRecordFlowTest,InpatientMedicationFulfillmentFlowTest,InpatientMedicationDispenseConsumptionTest,WardMedicationDeliveryFlowTest,InpatientWardBoardTest,InpatientDiagnosticExecutionFlowTest,InpatientNursingAndShiftHandoffTest test
+  mvn -Dtest=InpatientAdmissionFlowTest,InpatientAdmissionUnknownFactsTest,InpatientTemperatureChartTest,InpatientOrderExecutionFlowTest,InpatientBillingFlowTest,InpatientDischargeReadinessFlowTest,InpatientMedicalRecordFlowTest,InpatientMedicationFulfillmentFlowTest,InpatientMedicationDispenseConsumptionTest,WardMedicationDeliveryFlowTest,InpatientWardBoardTest,InpatientDiagnosticExecutionFlowTest,InpatientNursingAndShiftHandoffTest test
   # These scenarios deliberately reuse the demo resident and bed identifiers. Run them in fresh
   # application contexts so one scenario's inpatients cannot leak into another scenario.
   mvn -Dtest=WardMedicationReturnFlowTest test
@@ -27,6 +27,8 @@ rhn_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     src/features/inpatient/InpatientAdmissionDiagnosisPanel.test.tsx \
     src/features/inpatient/InpatientMedicalRecordWorkspace.test.tsx \
     src/features/inpatient/InpatientDischargeAndBilling.test.tsx \
+    src/features/inpatient/InpatientAdmissionQuickDeposit.test.tsx \
+    src/features/inpatient/InpatientRegistrationTruth.test.tsx \
     src/features/inpatient/InpatientNursingAndDiagnostics.test.tsx \
     src/features/pharmacy/WardMedicationReturnInbox.test.tsx \
     src/features/pharmacy/WardDailySupplyPanel.test.tsx \

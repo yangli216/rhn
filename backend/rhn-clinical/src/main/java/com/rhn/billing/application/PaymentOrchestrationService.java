@@ -32,19 +32,19 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 public class PaymentOrchestrationService implements PaymentResultDirectory {
     private static final Logger log = LoggerFactory.getLogger(PaymentOrchestrationService.class);
     private final PaymentOrderTransactionService transactions;
-    private final BillingApplicationService billing;
+    private final PaymentResultTransactionService results;
     private final ExternalMessageService messages;
     private final ExecutionContextProvider contextProvider;
     private final List<PaymentChannelAdapter> adapters;
     private final List<BillingSceneCompletionHandler> completionHandlers;
 
     public PaymentOrchestrationService(PaymentOrderTransactionService transactions,
-                                       BillingApplicationService billing,
+                                       PaymentResultTransactionService results,
                                        ExternalMessageService messages,
                                        ExecutionContextProvider contextProvider,
                                        List<PaymentChannelAdapter> adapters,
                                        List<BillingSceneCompletionHandler> completionHandlers) {
-        this.transactions = transactions; this.billing = billing; this.messages = messages;
+        this.transactions = transactions; this.results = results; this.messages = messages;
         this.contextProvider = contextProvider; this.adapters = List.copyOf(adapters);
         this.completionHandlers = List.copyOf(completionHandlers);
     }
@@ -175,50 +175,11 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
 
     @Override
     public PaymentOrderView accept(VerifiedPaymentResult result) {
-        PaymentOrder order = transactions.requireByOrderNo(result.paymentOrderNo());
-        if (!order.paymentMethodCode().equals(normalize(result.paymentMethodCode()))) {
-            throw conflict("PAYMENT_CALLBACK_METHOD_MISMATCH", "支付回调方式与原支付指令不一致");
+        PaymentOrderView view = results.accept(result);
+        if ("SUCCEEDED".equals(view.status()) && "SETTLEMENT_PAY".equals(view.orderType())) {
+            completeBusiness(transactions.require(view.id()));
         }
-        ExecutionContext context = contextProvider.requireCurrent();
-        var inbound = messages.receiveInbound(new ExternalMessageService.InboundMessage(
-                endpoint(order.paymentMethodCode()), "PAYMENT_RESULT", result.externalMessageBusinessId(),
-                order.correlationId(), context.organizationId(), context.departmentId(), result.sanitizedPayload()));
-        if ("REFUND".equals(order.orderType())) acceptRefundResult(order, result, inbound.id());
-        else acceptPaymentResult(order, result, inbound.id());
-        PaymentOrderView view = transactions.view(order.id(), inbound.duplicate());
-        messages.markProcessed(inbound.id(), "PaymentOrder", order.id(), view.revision());
         return view;
-    }
-
-    private void acceptPaymentResult(PaymentOrder order, VerifiedPaymentResult result, Long inboundId) {
-        switch (result.status()) {
-            case SUCCEEDED -> complete(order, result.commandCode(), inboundId, result.externalOrderNo(),
-                    result.externalTransactionNo(), result.capturedAmount());
-            case PENDING -> transactions.transition(order.id(), new PaymentOrderTransactionService.TransitionCommand(
-                    "CALLBACK", "PENDING", result.commandCode(), inboundId, result.externalOrderNo(),
-                    result.externalTransactionNo(), result.capturedAmount(), order.capturedAmount(),
-                    result.errorCode(), result.errorMessage()));
-            case FAILED -> transactions.transition(order.id(), new PaymentOrderTransactionService.TransitionCommand(
-                    "FAIL", "FAILED", result.commandCode(), inboundId, result.externalOrderNo(),
-                    result.externalTransactionNo(), result.capturedAmount(), order.capturedAmount(),
-                    result.errorCode(), result.errorMessage()));
-        }
-    }
-
-    private void acceptRefundResult(PaymentOrder order, VerifiedPaymentResult result, Long inboundId) {
-        Payment original = transactions.requireOriginalPayment(order);
-        switch (result.status()) {
-            case SUCCEEDED -> completeRefund(order, original, "外部通道退款", result.commandCode(), inboundId,
-                    result.externalOrderNo(), result.externalTransactionNo(), result.capturedAmount());
-            case PENDING -> transactions.transitionRefund(order.id(), new PaymentOrderTransactionService.RefundTransitionCommand(
-                    "REFUND_CALLBACK", "PENDING", result.commandCode(), inboundId, result.externalOrderNo(),
-                    result.externalTransactionNo(), result.capturedAmount(), order.refundedAmount(),
-                    result.errorCode(), result.errorMessage()));
-            case FAILED -> transactions.transitionRefund(order.id(), new PaymentOrderTransactionService.RefundTransitionCommand(
-                    "REFUND_CALLBACK", "FAILED", result.commandCode(), inboundId, result.externalOrderNo(),
-                    result.externalTransactionNo(), result.capturedAmount(), order.refundedAmount(),
-                    result.errorCode(), result.errorMessage()));
-        }
     }
 
     private PaymentOrderView queueForExternalAdapter(PaymentOrder order, PaymentInstruction instruction) {
@@ -379,13 +340,7 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
 
     private void complete(PaymentOrder order, String commandCode, Long externalMessageId, String externalOrderNo,
                           String externalTransactionNo, BigDecimal capturedAmount) {
-        BigDecimal amount = capturedAmount == null ? order.requestedAmount() : capturedAmount;
-        billing.collectPayment(order.invoiceId(), new BillingApplicationService.PaymentCommand(
-                "PAY-" + order.orderNo(), order.paymentMethodCode(), order.paymentSceneCode(), amount,
-                Instant.now(), externalTransactionNo, "统一支付指令 " + order.orderNo(), order.id()));
-        transactions.transition(order.id(), new PaymentOrderTransactionService.TransitionCommand(
-                "CAPTURE", "SUCCEEDED", commandCode, externalMessageId, externalOrderNo,
-                externalTransactionNo, amount, amount, null, null));
+        results.completePayment(order.id(), commandCode, externalMessageId, externalOrderNo, externalTransactionNo, capturedAmount);
         completeBusiness(order);
     }
 
@@ -417,13 +372,7 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
     private void completeRefund(PaymentOrder order, Payment original, String reason, String commandCode,
                                 Long externalMessageId, String externalOrderNo,
                                 String externalTransactionNo, BigDecimal refundedAmount) {
-        BigDecimal amount = refundedAmount == null ? order.requestedAmount() : refundedAmount;
-        billing.refundPayment(original.id(), new BillingApplicationService.RefundCommand(
-                "RF-" + order.orderNo(), amount, Instant.now(), externalTransactionNo, reason,
-                order.id(), order.paymentSceneCode()));
-        transactions.transitionRefund(order.id(), new PaymentOrderTransactionService.RefundTransitionCommand(
-                "REFUND_CALLBACK", "REFUNDED", commandCode, externalMessageId, externalOrderNo,
-                externalTransactionNo, amount, amount, null, null));
+        results.completeRefund(order.id(), reason, commandCode, externalMessageId, externalOrderNo, externalTransactionNo, refundedAmount);
     }
 
     private PaymentInstruction instruction(PaymentOrder order) {

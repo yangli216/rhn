@@ -1223,9 +1223,10 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 .ui-tree-panel__chevron.is-open svg { transform: rotate(90deg); }
 .ui-tree-panel__node-icon { width: 1.125rem; height: 1.125rem; flex: none; color: var(--color-brand-primary); stroke-width: 1.75; }
 .ui-tree-panel__node-icon.is-leaf { color: var(--color-text-disabled); }
-.ui-tree-panel__label { min-width: 0; max-width: none; flex: 1; display: flex; align-items: baseline; gap: var(--space-3); }
+/* Cap metadata by the available label width so nested names retain space. */
+.ui-tree-panel__label { min-width: 0; max-width: none; flex: 1; display: flex; align-items: baseline; gap: var(--space-2); }
 .ui-tree-panel__label strong { min-width: 0; flex: 1; overflow: hidden; font-size: var(--font-size-body); font-weight: var(--font-weight-medium); text-overflow: ellipsis; white-space: nowrap; }
-.ui-tree-panel__label small { min-width: 0; max-width: 7rem; flex: 0 1 7rem; overflow: hidden; color: var(--color-text-disabled); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--font-size-small); font-weight: var(--font-weight-regular); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.ui-tree-panel__label small { min-width: 0; max-width: min(40%, 7rem); flex: 0 1 auto; overflow: hidden; color: var(--color-text-disabled); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--font-size-small); font-weight: var(--font-weight-regular); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .ui-tree-panel__row.is-root .ui-tree-panel__label small { font-family: inherit; }
 .ui-tree-panel__badge { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); color: var(--color-neutral); background: var(--color-neutral-soft); font-size: var(--font-size-small); white-space: nowrap; }
 .ui-tree-panel__grip { width: var(--control-height-sm); height: var(--control-height-sm); flex: none; display: grid; place-items: center; color: var(--color-text-disabled); cursor: grab; }
@@ -2463,7 +2464,7 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 .ui-field.ui-field--document {
   display: grid;
   grid-template-columns: 4.8rem minmax(0, 1fr);
-  align-items: baseline;
+  align-items: start;
   gap: var(--space-1) var(--space-2);
   margin: 0;
   padding: var(--space-1) 0;
@@ -2473,19 +2474,23 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
   justify-content: flex-end;
   text-align: right;
   min-height: 0;
+  padding-top: 1px;
 }
 .ui-field--document .ui-field__label {
   width: 100%;
   text-align: right;
   white-space: nowrap;
   font-weight: var(--font-weight-bold);
+  line-height: 1.68;
 }
 .ui-field--document .ui-field__label::after { content: '：'; }
+.ui-field--document .ui-annotated-field { display: grid; }
 
 .ui-field--document :is(textarea, .ui-annotated-preview).ui-field__control {
   min-height: 1lh;
   height: auto;
   field-sizing: content;
+  margin-top: 0;
   padding: 0;
   border-color: transparent;
   background: transparent;

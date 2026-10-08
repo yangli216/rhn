@@ -13,6 +13,28 @@ const mockMethods: PaymentMethodOption[] = [
 ]
 
 describe('PaymentMethodSelector component', () => {
+  it.each([{ methods: [] }, { methods: [{ code: 'MEDICAL_INSURANCE', name: '医保统筹' }] }])('does not invent channels for empty monetary configuration: %j', ({ methods }) => {
+    render(<PaymentMethodSelector value="CASH" onChange={vi.fn()} methods={methods} />)
+    expect(screen.getByText('未配置可用支付方式')).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('hides cached options when loading fails and supports retry', async () => {
+    const onRetry = vi.fn()
+    render(<PaymentMethodSelector value="CASH" onChange={vi.fn()} methods={mockMethods}
+      status="error" onRetry={onRetry} />)
+    expect(screen.getByText('支付方式加载失败')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /现金收款/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '重新加载支付方式' }))
+    expect(onRetry).toHaveBeenCalledOnce()
+  })
+
+  it('shows loading without fake options', () => {
+    render(<PaymentMethodSelector value="" onChange={vi.fn()} methods={[]} status="loading" />)
+    expect(screen.getByRole('status')).toHaveTextContent('正在加载支付方式')
+    expect(screen.queryByText('未配置可用支付方式')).not.toBeInTheDocument()
+  })
+
   it('displays top 4 sorted methods directly as buttons and places the rest in 其它方式 dropdown', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

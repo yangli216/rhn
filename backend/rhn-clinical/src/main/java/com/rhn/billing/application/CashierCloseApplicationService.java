@@ -61,24 +61,26 @@ public class CashierCloseApplicationService {
         String commandCode = required(input.commandCode(), "CASHIER_CLOSE_COMMAND_REQUIRED", "日结幂等命令不能为空");
         CashierClose existing = closes.findByTenantIdAndCommandCode(context.tenantId(), commandCode).orElse(null);
         if (existing != null) {
+            requireAccess(existing, context);
             verifySame(existing, input);
             return view(existing, true);
+        }
+        if (context.departmentId() == null) {
+            throw badRequest("CASHIER_CLOSE_DEPARTMENT_REQUIRED", "生成日结单前必须选择收费员工作科室");
         }
         if (!users.lockAccount(context.tenantId(), context.subjectId())) {
             throw forbidden("CASHIER_CLOSE_USER_INVALID", "当前收费员账号不存在");
         }
         existing = closes.findByTenantIdAndCommandCode(context.tenantId(), commandCode).orElse(null);
         if (existing != null) {
+            requireAccess(existing, context);
             verifySame(existing, input);
             return view(existing, true);
         }
         String terminalCode = required(input.terminalCode(), "CASHIER_CLOSE_TERMINAL_REQUIRED", "日结终端不能为空");
-        Instant rangeFrom = Objects.requireNonNull(input.rangeFrom(), "rangeFrom");
-        Instant rangeTo = Objects.requireNonNull(input.rangeTo(), "rangeTo");
-        if (!rangeTo.isAfter(rangeFrom)) throw badRequest("CASHIER_CLOSE_RANGE_INVALID", "日结结束时间必须晚于开始时间");
-        if (Duration.between(rangeFrom, rangeTo).compareTo(Duration.ofDays(31)) > 0) {
-            throw badRequest("CASHIER_CLOSE_RANGE_TOO_LARGE", "单次日结范围不能超过31天");
-        }
+        Instant rangeFrom = input.rangeFrom();
+        Instant rangeTo = input.rangeTo();
+        validateRange(rangeFrom, rangeTo);
         if (!closes.findOverlapping(context.tenantId(), context.organizationId(), context.subjectId(), terminalCode,
                 rangeFrom, rangeTo, List.of(CashierCloseStatus.CALCULATED, CashierCloseStatus.CONFIRMED)).isEmpty()) {
             throw conflict("CASHIER_CLOSE_RANGE_OVERLAP", "当前收费员和终端存在重叠的有效日结");
@@ -95,23 +97,22 @@ public class CashierCloseApplicationService {
             groups.computeIfAbsent(key, ignored -> new Group()).add(signed);
         }
         Map<LineKey, BigDecimal> declared = declaredActuals(input.actualAmounts());
+        for (LineKey key : declared.keySet()) groups.computeIfAbsent(key, ignored -> new Group());
         BigDecimal expectedTotal = zero(); BigDecimal actualTotal = zero();
         record Draft(LineKey key, int count, BigDecimal expected, BigDecimal actual) {}
         java.util.ArrayList<Draft> drafts = new java.util.ArrayList<>();
         for (Map.Entry<LineKey, Group> entry : groups.entrySet()) {
             BigDecimal expected = money(entry.getValue().amount);
-            BigDecimal actual;
-            if ("CASH".equals(entry.getKey().paymentMethodCode())) {
-                actual = declared.get(entry.getKey());
-                if (actual == null) throw badRequest("CASHIER_CLOSE_CASH_ACTUAL_REQUIRED",
-                        "现金支付和退款必须分别录入实盘金额");
-            } else actual = expected;
+            BigDecimal actual = declared.get(entry.getKey());
+            if (actual == null) throw badRequest("CASH".equals(entry.getKey().paymentMethodCode())
+                            ? "CASHIER_CLOSE_CASH_ACTUAL_REQUIRED" : "CASHIER_CLOSE_ACTUAL_REQUIRED",
+                    entry.getKey().paymentMethodCode() + " / " + entry.getKey().paymentType() + " 必须录入实际核对金额");
             expectedTotal = expectedTotal.add(expected); actualTotal = actualTotal.add(actual);
             drafts.add(new Draft(entry.getKey(), entry.getValue().count, expected, actual));
         }
         expectedTotal = money(expectedTotal); actualTotal = money(actualTotal);
         String closeNo = "CC" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6);
-        Long deptId = context.departmentId() != null ? context.departmentId() : 1L;
+        Long deptId = context.departmentId();
         CashierClose close = closes.save(new CashierClose(context.tenantId(), context.organizationId(), deptId,
                 context.subjectId(), null, closeNo, commandCode, terminalCode, CashierCloseStatus.CALCULATED, rangeFrom, rangeTo,
                 eligible.size(), expectedTotal, actualTotal, money(actualTotal.subtract(expectedTotal)), currency,
@@ -130,6 +131,37 @@ public class CashierCloseApplicationService {
         return view(close, false);
     }
 
+    @Transactional(readOnly = true)
+    public CashierClosePreview preview(String terminalCode, Instant rangeFrom, Instant rangeTo) {
+        ExecutionContext context = requireContext();
+        terminalCode = required(terminalCode, "CASHIER_CLOSE_TERMINAL_REQUIRED", "日结终端不能为空");
+        validateRange(rangeFrom, rangeTo);
+        List<Payment> eligible = payments.findUnclosedForCashier(context.tenantId(), context.organizationId(),
+                context.subjectId(), terminalCode, rangeFrom, rangeTo);
+        String currency = eligible.stream().map(Payment::currencyCode).distinct().reduce((a, b) -> {
+            throw conflict("CASHIER_CLOSE_MULTI_CURRENCY", "一次日结只能包含一个币种");
+        }).orElse("CNY");
+        Map<LineKey, Group> grouped = new LinkedHashMap<>();
+        for (Payment payment : eligible) {
+            BigDecimal amount = money(payment.amount());
+            grouped.computeIfAbsent(new LineKey(payment.paymentMethodCode(), payment.paymentType()), ignored -> new Group())
+                    .add("REFUND".equals(payment.paymentType()) ? amount.negate() : amount);
+        }
+        List<CashierClosePreviewLine> previewLines = grouped.entrySet().stream().map(entry ->
+                new CashierClosePreviewLine(entry.getKey().paymentMethodCode(), entry.getKey().paymentType(),
+                        entry.getValue().count, money(entry.getValue().amount))).toList();
+        return new CashierClosePreview(currency, eligible.size(), previewLines);
+    }
+
+    private void validateRange(Instant from, Instant to) {
+        if (from == null || to == null || !to.isAfter(from)) {
+            throw badRequest("CASHIER_CLOSE_RANGE_INVALID", "日结结束时间必须晚于开始时间");
+        }
+        if (Duration.between(from, to).compareTo(Duration.ofDays(31)) > 0) {
+            throw badRequest("CASHIER_CLOSE_RANGE_TOO_LARGE", "单次日结范围不能超过31天");
+        }
+    }
+
     @Transactional
     public CashierCloseView confirm(Long closeId, ConfirmCommand input) {
         ExecutionContext context = requireContext();
@@ -138,7 +170,8 @@ public class CashierCloseApplicationService {
         if (close.status() == CashierCloseStatus.CONFIRMED) return view(close, true);
         if (close.status() != CashierCloseStatus.CALCULATED) throw conflict("CASHIER_CLOSE_STATUS_INVALID", "只有已计算日结可以确认");
         String reason = Strings.trimToNull(input.differenceReason());
-        if (close.differenceAmount().signum() != 0 && reason == null) {
+        if (lines.findByTenantIdAndCashierCloseIdOrderByLineNo(context.tenantId(), close.id()).stream()
+                .anyMatch(line -> line.differenceAmount().signum() != 0) && reason == null) {
             throw badRequest("CASHIER_CLOSE_DIFFERENCE_REASON_REQUIRED", "日结存在实收差异，必须填写差异原因");
         }
         close.confirm(context.subjectId(), reason);
@@ -224,14 +257,26 @@ public class CashierCloseApplicationService {
                 || !Objects.equals(close.rangeFrom(), input.rangeFrom()) || !Objects.equals(close.rangeTo(), input.rangeTo())) {
             throw conflict("CASHIER_CLOSE_COMMAND_REUSED", "日结幂等命令已被不同范围或终端使用");
         }
+        Map<LineKey, BigDecimal> actuals = declaredActuals(input.actualAmounts());
+        List<CashierCloseLine> stored = lines.findByTenantIdAndCashierCloseIdOrderByLineNo(close.tenantId(), close.id());
+        if (actuals.size() != stored.size() || stored.stream().anyMatch(line -> {
+            BigDecimal value = actuals.get(new LineKey(line.paymentMethodCode(), line.closeLineType()));
+            return value == null || value.compareTo(line.actualAmount()) != 0;
+        })) throw conflict("CASHIER_CLOSE_COMMAND_REUSED", "日结幂等命令已被不同核对金额使用");
     }
     private Map<LineKey, BigDecimal> declaredActuals(List<ActualAmount> values) {
         Map<LineKey, BigDecimal> result = new LinkedHashMap<>();
         if (values == null) return result;
         for (ActualAmount value : values) {
+            if (value == null) throw badRequest("CASHIER_CLOSE_ACTUAL_INVALID", "核对金额明细不能为空");
             LineKey key = new LineKey(upper(value.paymentMethodCode()), upper(value.paymentType()));
             if (key.paymentMethodCode() == null || key.paymentType() == null || value.amount() == null) {
                 throw badRequest("CASHIER_CLOSE_ACTUAL_INVALID", "实盘金额的支付方式、类型和金额不能为空");
+            }
+            if (!("PAYMENT".equals(key.paymentType()) || "REFUND".equals(key.paymentType()))
+                    || ("PAYMENT".equals(key.paymentType()) && value.amount().signum() < 0)
+                    || ("REFUND".equals(key.paymentType()) && value.amount().signum() > 0)) {
+                throw badRequest("CASHIER_CLOSE_ACTUAL_INVALID", "收款核对金额不能为负，退款核对金额不能为正");
             }
             if (result.putIfAbsent(key, money(value.amount())) != null) {
                 throw badRequest("CASHIER_CLOSE_ACTUAL_DUPLICATE", "同一支付方式和类型只能录入一条实盘金额");
@@ -258,6 +303,9 @@ public class CashierCloseApplicationService {
         private int count; private BigDecimal amount = BigDecimal.ZERO;
         private void add(BigDecimal value) { count++; amount = amount.add(value); }
     }
+    public record CashierClosePreview(String currencyCode, int transactionCount, List<CashierClosePreviewLine> lines) {}
+    public record CashierClosePreviewLine(String paymentMethodCode, String paymentType, int transactionCount,
+                                          BigDecimal expectedAmount) {}
     public record ActualAmount(String paymentMethodCode, String paymentType, BigDecimal amount) {}
     public record CalculateCommand(String commandCode, String terminalCode, Instant rangeFrom, Instant rangeTo,
                                    List<ActualAmount> actualAmounts) {}

@@ -3,6 +3,8 @@ package com.rhn.diagnostics.application;
 import com.rhn.diagnostics.api.DiagnosticExecutionTaskView;
 import com.rhn.billing.api.SettlementAuthorizationDirectory;
 import com.rhn.diagnostics.domain.DiagnosticExecutionTask;
+import com.rhn.diagnostics.domain.DiagnosticReport;
+import com.rhn.diagnostics.infrastructure.DiagnosticReportRepository;
 import com.rhn.diagnostics.domain.DiagnosticExecutionTaskStatus;
 import com.rhn.diagnostics.infrastructure.DiagnosticExecutionTaskRepository;
 import com.rhn.healthcore.api.ResidentDirectory;
@@ -37,6 +39,7 @@ public class DiagnosticExecutionService {
             "DIAGNOSTIC_REPORT_RECEIVED");
 
     private final DiagnosticExecutionTaskRepository tasks;
+    private final DiagnosticReportRepository reports;
     private final ServiceRequestDirectory requests;
     private final ResidentDirectory residents;
     private final SettlementAuthorizationDirectory settlements;
@@ -45,6 +48,7 @@ public class DiagnosticExecutionService {
     private final boolean requireSettlementAuthorization;
 
     public DiagnosticExecutionService(DiagnosticExecutionTaskRepository tasks,
+                                      DiagnosticReportRepository reports,
                                       ServiceRequestDirectory requests,
                                       ResidentDirectory residents,
                                       SettlementAuthorizationDirectory settlements,
@@ -52,7 +56,7 @@ public class DiagnosticExecutionService {
                                       IdempotentDomainEventConsumer eventConsumer,
                                       @Value("${rhn.diagnostics.require-settlement-authorization:true}")
                                       boolean requireSettlementAuthorization) {
-        this.tasks = tasks; this.requests = requests; this.residents = residents; this.settlements = settlements;
+        this.tasks = tasks; this.reports = reports; this.requests = requests; this.residents = residents; this.settlements = settlements;
         this.contextProvider = contextProvider; this.eventConsumer = eventConsumer;
         this.requireSettlementAuthorization = requireSettlementAuthorization;
     }
@@ -65,10 +69,11 @@ public class DiagnosticExecutionService {
                 .findTop100ByTenantIdAndOrganizationIdAndDepartmentIdOrderByCreatedAtDesc(
                         context.tenantId(), context.organizationId(), context.departmentId());
         values.forEach(this::reconcileSettlement);
+        Map<Long, DiagnosticReport> latestReports = DiagnosticReportEvidence.latestCompletedReports(reports, context.tenantId(), values);
         return values.stream()
                 .filter(value -> typeFilter == null || typeFilter.equals(value.requestType()))
-                .filter(value -> statusFilter == null || statusFilter.equals(value.status().name()))
-                .map(this::view).toList();
+                .filter(value -> statusFilter == null || statusFilter.equals(DiagnosticReportEvidence.status(value, latestReports).name()))
+                .map(value -> view(value, DiagnosticReportEvidence.status(value, latestReports))).toList();
     }
 
     @Transactional
@@ -132,11 +137,24 @@ public class DiagnosticExecutionService {
             case "BILLING_SETTLEMENT_FINALIZED" -> updateSettlement(event, true);
             case "BILLING_SETTLEMENT_REVERSED" -> updateSettlement(event, false);
             case "DIAGNOSTIC_REPORT_RECEIVED" -> tasks.lockByTenantIdAndRequestId(event.tenantId(), event.aggregateId())
-                    .ifPresent(value -> value.recordReport(longValue(event.payload().get("reportId")),
-                            text(event.payload().get("reportStatus")), longValue(event.payload().get("receivedBy")),
-                            text(event.payload().get("reportName")), event.occurredAt()));
+                    .ifPresent(value -> projectReport(value, event));
             default -> { }
         }
+    }
+
+    private void projectReport(DiagnosticExecutionTask task, DomainEventEnvelope event) {
+        Long reportId = longValue(event.payload().get("reportId"));
+        if (reportId == null) throw conflict("DIAGNOSTIC_REPORT_EVIDENCE_REQUIRED", "报告事件缺少已保存的报告凭据");
+        DiagnosticReport referenced = reports.findByIdAndTenantId(reportId, task.tenantId())
+                .orElseThrow(() -> conflict("DIAGNOSTIC_REPORT_EVIDENCE_REQUIRED", "报告事件引用的报告不存在"));
+        if (!task.requestId().equals(referenced.requestId())) {
+            throw conflict("DIAGNOSTIC_REPORT_REQUEST_MISMATCH", "报告不属于当前检查检验申请");
+        }
+        // A delayed/replayed event must not restore an obsolete final report after a correction or cancellation.
+        DiagnosticReport latest = reports.findTopByTenantIdAndRequestIdOrderByReceivedAtDescIdDesc(
+                        task.tenantId(), task.requestId())
+                .orElseThrow(() -> conflict("DIAGNOSTIC_REPORT_EVIDENCE_REQUIRED", "未找到申请的最新报告"));
+        task.recordReport(latest);
     }
 
     private void createFromEvent(DomainEventEnvelope event, boolean inpatient) {
@@ -199,14 +217,20 @@ public class DiagnosticExecutionService {
     }
 
     private DiagnosticExecutionTaskView view(DiagnosticExecutionTask value) {
+        return view(value, value.status());
+    }
+
+    private DiagnosticExecutionTaskView view(DiagnosticExecutionTask value, DiagnosticExecutionTaskStatus verifiedStatus) {
+        boolean inconsistent = verifiedStatus != value.status();
         ResidentDirectory.ResidentSnapshot resident = residents.requireSnapshot(value.residentId());
         return new DiagnosticExecutionTaskView(value.id(), value.revision(), value.taskNo(), value.requestType(),
-                value.status().name(), value.residentId(), resident.fullName(), resident.healthRecordNo(),
+                verifiedStatus.name(), value.residentId(), resident.fullName(), resident.healthRecordNo(),
                 value.encounterId(), value.requestId(), value.organizationId(), value.departmentId(),
                 value.settlementId(), value.reportId(), value.itemCodeSnapshot(), value.itemNameSnapshot(),
                 value.specimenTypeSnapshot(), value.examinationTypeSnapshot(), value.createdAt(),
                 value.collectedAt(), value.specimenNo(), value.collectionNote(), value.startedAt(),
-                value.completedAt(), value.completionNote(), value.exceptionNote());
+                inconsistent ? null : value.completedAt(), inconsistent ? null : value.completionNote(),
+                inconsistent ? "任务完成标记与最新有效报告不一致，请核对报告记录" : value.exceptionNote());
     }
 
     private ExecutionContext requireWorkContext() {

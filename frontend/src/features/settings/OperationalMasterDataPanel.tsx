@@ -1,8 +1,12 @@
 import { ClinicalSemanticImpactDialog } from './ClinicalSemanticImpactDialog'
+import { requireClinicalConfiguration } from './clinicalConfigurationTruth'
+import { examinationProfileForm, examinationProfileInput } from './examinationProfileForm'
+import { specimenForm, specimenConfigurationInput } from './specimenConfigurationForm'
+import { knownChargeTotal, previewQuantity, requireExaminationPlan, requireTubePlan } from './diagnosticPreview'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type {
-  ClinicalConfiguration, DiagnosticChargeLine, DictionaryValue, ExaminationChargePlan, ExaminationProfileInput, ExaminationVariantConfiguration, ExaminationVariantInput,
+  ClinicalConfiguration, DiagnosticChargeLine, DictionaryValue, ExaminationProfileInput, ExaminationVariantConfiguration, ExaminationVariantInput,
   ExaminationAttachmentConfiguration, ExaminationAttachmentInput,
   Department, ItemGroup, ItemGroupInput, LaboratoryProfile, Manufacturer, RhnApi, ServiceCatalogItem,
   LaboratoryTubePlan, SpecimenConfiguration, SpecimenConfigurationInput, SupplyInput, SupplyItem, UnitConversion,
@@ -37,15 +41,20 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
   const services = useQuery({ queryKey: ['master-data-services-operational', organization.id],
-    queryFn: () => api.masterData.services('', '', '', organization.id) })
-  const supplies = useQuery({ queryKey: ['master-data-operational-supplies'], queryFn: () => api.masterData.supplies(), enabled: area === 'supply' || area === 'unit' })
-  const groups = useQuery({ queryKey: ['master-data-operational-groups'], queryFn: () => api.masterData.itemGroups(), enabled: area === 'group' })
-  const units = useQuery({ queryKey: ['master-data-operational-units'], queryFn: () => api.masterData.units(), enabled: area === 'unit' || area === 'supply' })
-  const conversions = useQuery({ queryKey: ['master-data-operational-conversions'], queryFn: () => api.masterData.unitConversions(), enabled: area === 'unit' })
+    queryFn: async () => requireOperationalRows(await api.masterData.services('', '', '', organization.id), '诊疗项目'), enabled: area === 'group' || area === 'unit' })
+  const supplies = useQuery({ queryKey: ['master-data-operational-supplies'], queryFn: async () => requireOperationalRows(await api.masterData.supplies(), '耗材'), enabled: area === 'supply' || area === 'unit' })
+  const groups = useQuery({ queryKey: ['master-data-operational-groups'], queryFn: async () => requireOperationalRows(await api.masterData.itemGroups(), '项目组套'), enabled: area === 'group' })
+  const units = useQuery({ queryKey: ['master-data-operational-units'], queryFn: async () => requireOperationalRows(await api.masterData.units(), '计量单位'), enabled: area !== 'frequency' })
+  const conversions = useQuery({ queryKey: ['master-data-operational-conversions'], queryFn: async () => requireOperationalRows(await api.masterData.unitConversions(), '换算规则'), enabled: area === 'unit' })
   const frequencies = useQuery({ queryKey: ['master-data-operational-frequencies'],
-    queryFn: () => api.masterData.orderFrequencies(), enabled: area === 'frequency' })
+    queryFn: async () => requireOperationalRows(await api.masterData.orderFrequencies(), '医嘱频次'), enabled: area === 'frequency' })
   const departments = useQuery({ queryKey: ['master-data-operational-frequency-departments', organization.id],
-    queryFn: () => api.organization.departments(organization.id), enabled: area === 'frequency' })
+    queryFn: async () => requireOperationalRows(await api.organization.departments(organization.id), '科室'), enabled: area === 'frequency' })
+  const areaQueries = area === 'group' ? [groups, services, units]
+    : area === 'supply' ? [supplies, units]
+      : area === 'unit' ? [units, conversions, services, supplies] : [frequencies, departments]
+  const failedQuery = areaQueries.find((query) => query.isError)
+  const loadingArea = areaQueries.some((query) => query.isPending)
 
   const invalidate = async (message: string) => {
     setDialog(undefined); setFeedback(message); setOperationError('')
@@ -53,7 +62,7 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
     await client.invalidateQueries({ predicate: ({ queryKey }) => String(queryKey[0] ?? '').includes('active-order-frequencies') })
     await client.invalidateQueries({ queryKey: ['master-data-services'] })
   }
-  const execute = (message: string, task: Promise<unknown>) => task.then(() => invalidate(message)).catch((error) => setOperationError(errorMessage(error)))
+  const execute = (message: string, task: Promise<unknown>) => task.then(() => invalidate(message))
 
   return <div className="operational-master-data">
     {feedback && <Alert tone="success">{feedback}</Alert>}
@@ -64,6 +73,11 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
       { value: 'unit', label: '计量与换算', meta: '统一单位、全局/项目换算' },
       { value: 'frequency', label: '医嘱频次', meta: '规则语义、适用场景与执行时点' },
     ]} />
+    {failedQuery ? <>
+      <Alert duration={null}>{errorMessage(failedQuery.error)}</Alert>
+      <EmptyState icon="clinical" title="运营主数据加载失败" copy="尚无法确认当前数据，请重新加载后再维护。"
+        action={<Button variant="secondary" onClick={() => { void Promise.all(areaQueries.map((query) => query.refetch())) }}>重新加载</Button>} />
+    </> : loadingArea ? <LoadingState label="正在加载运营主数据…" /> : <>
     {area === 'group' && <ListSection title="项目组套与组合" copy="组套用于一次展开多个检验/检查项目；组合用于常用医嘱或套餐复用，服务端按类型校验成员。"
       action={<Button onClick={() => setDialog(<GroupDialog api={api} services={services.data ?? []} organization={organization} units={units.data ?? []}
         onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组套已新增', api.masterData.createItemGroup(input))} />)}><Icon name="add" />新增组套</Button>}>
@@ -89,15 +103,21 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
             onClose={() => setDialog(undefined)} onSave={(input) => execute('耗材/器械已更新', api.masterData.updateSupply(value, input))} />)}>编辑</Button>,
         ])} />}
     </ListSection>}
-    {area === 'unit' && <UnitWorkspace api={api} units={units.data ?? []} conversions={conversions.data ?? []}
+    {area === 'unit' && <UnitWorkspace api={api} organizationId={organization.id} units={units.data ?? []} conversions={conversions.data ?? []}
       catalogItems={[...(services.data ?? []), ...(supplies.data ?? [])]}
-      loading={units.isPending || conversions.isPending} onDialog={setDialog} onDone={invalidate} onError={(e) => setOperationError(errorMessage(e))} />}
+      loading={units.isPending || conversions.isPending} onDialog={setDialog} onDone={invalidate} />}
     {area === 'frequency' && <FrequencyWorkspace api={api} organization={organization}
       departments={departments.data ?? []} values={frequencies.data ?? []}
       loading={frequencies.isPending || departments.isPending} onDialog={setDialog}
       onDone={invalidate} onError={(e) => setOperationError(errorMessage(e))} />}
+    </>}
     {dialog}
   </div>
+}
+
+function requireOperationalRows<T>(rows: T[], name: string): T[] {
+  if (!Array.isArray(rows)) throw new Error(`${name}返回的数据格式不正确，请重新加载。`)
+  return rows
 }
 
 export function ClinicalServiceConfigurationDialog({ api, service, organizationId, dictionaries, onClose }: {
@@ -113,11 +133,11 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
   const [savingAliases, setSavingAliases] = useState(false)
   const configuration = useQuery({
     queryKey: ['master-data-clinical-configuration', service.id],
-    queryFn: () => api.masterData.clinicalConfiguration(service.id),
+    queryFn: async () => requireClinicalConfiguration(await api.masterData.clinicalConfiguration(service.id), service),
   })
   const aliases = useQuery({
     queryKey: ['master-data-service-aliases', service.id],
-    queryFn: () => api.masterData.serviceAliases(service.id),
+    queryFn: async () => requireOperationalRows(await api.masterData.serviceAliases(service.id), '项目别名'),
   })
   useEffect(() => {
     setAliasNames((aliases.data ?? []).map((value) => value.aliasName))
@@ -134,59 +154,17 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
     await client.invalidateQueries({ queryKey: ['master-data-services'] })
   }
   const execute = (message: string, task: Promise<unknown>) => task.then(() => invalidate(message))
-    .catch((error) => setOperationError(errorMessage(error)))
+  const saveProfile = async (message: string, task: Promise<ClinicalConfiguration>) => {
+    const saved = requireClinicalConfiguration(await task, service)
+    client.setQueryData(['master-data-clinical-configuration', service.id], saved)
+    await invalidate(message)
+  }
   const value = configuration.data
   const allServices = services.data ?? []
   const allUnits = units.data ?? []
   const laboratory = service.sdServiceType === 'LABORATORY'
   const examination = service.sdServiceType === 'EXAMINATION'
   const supportedType = laboratory || examination
-  // 严格判定真正的类型冲突（主档与执行配置交叉不匹配）
-  const isTypeConflict = Boolean(value && (
-    (laboratory && (value.serviceType === 'EXAMINATION' || (value.examination && !value.laboratory))) ||
-    (examination && (value.serviceType === 'LABORATORY' || (value.laboratory && !value.examination)))
-  ))
-
-  // 缺省安全兜底：若项目尚未初始化对应执行配置，自动补齐骨架对象供看板与原地编辑表单正常可用
-  const resolvedValue = useMemo(() => {
-    if (!value) return undefined
-    if (examination && !value.examination) {
-      return {
-        ...value,
-        serviceType: 'EXAMINATION',
-        examination: {
-          serviceId: service.id,
-          revision: 0,
-          examinationType: service.examinationType || '',
-          bodySiteRequired: false,
-          multiBodySite: false,
-          maxBodySiteCount: service.maxBodySiteCount,
-          preparationDescription: service.attention || '',
-          sitePricingMode: 'SINGLE',
-          includedSiteCount: 1,
-          additionalSiteQuantity: 1,
-          maxChargeableSiteCount: service.maxBodySiteCount || 1,
-          variants: [],
-          attachments: [],
-        },
-      } as ClinicalConfiguration
-    }
-    if (laboratory && !value.laboratory) {
-      return {
-        ...value,
-        serviceType: 'LABORATORY',
-        laboratory: {
-          serviceId: service.id,
-          revision: 0,
-          fastingRequired: false,
-          pointOfCare: false,
-          collectionDescription: service.attention || '',
-          specimens: [],
-        },
-      } as ClinicalConfiguration
-    }
-    return value
-  }, [value, examination, laboratory, service])
   const description = laboratory
     ? '统一维护检验方法、报告要求、标本容器、分管规则和试管加收；这里是该检验项目的唯一业务配置入口。'
     : '统一维护检查准备、允许部位与方式、多部位计价和附加收费；这里是该检查项目的唯一业务配置入口。'
@@ -201,25 +179,27 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
     {(configuration.error || aliases.error || services.error || units.error) && <Alert>
       {errorMessage(configuration.error || aliases.error || services.error || units.error)}
     </Alert>}
-    {configuration.isPending || services.isPending || units.isPending
-      ? <LoadingState label="正在加载项目执行与收费配置…" />
-      : !supportedType ? <Alert>当前项目类型不支持检验检查业务配置。</Alert>
-        : isTypeConflict ? <Alert>项目类型与执行配置不一致，已停止展示和编辑，请联系管理员修复主数据。</Alert>
-          : resolvedValue && <ClinicalWorkspace api={api} value={resolvedValue} services={allServices} dictionaries={dictionaries}
+    {configuration.isError || services.isError || units.isError
+      ? <EmptyState icon="clinical" title="执行与收费配置不可用" copy="数据加载失败或配置不完整，请刷新重试；确认配置前无法编辑或试算。"
+          action={<Button variant="secondary" onClick={() => { void configuration.refetch(); void services.refetch(); void units.refetch() }}>重新加载配置</Button>} />
+      : configuration.isPending || services.isPending || units.isPending
+        ? <LoadingState label="正在加载项目执行与收费配置…" />
+        : !supportedType ? <Alert>当前项目类型不支持检验检查业务配置。</Alert>
+          : value && <ClinicalWorkspace api={api} value={value} serviceStatus={service.sdStatus} serviceStatusText={service.sdStatusText} services={allServices} dictionaries={dictionaries}
           unitCodes={allUnits.filter((item) => item.status === 'ACTIVE')}
-          onSaveLaboratoryProfile={(input) => execute('检验项目基本配置已更新',
-            api.masterData.updateLaboratoryProfile(service.id, resolvedValue.laboratory?.revision ?? 0, input))}
-          onSaveExaminationProfile={(input) => execute('检查项目基本配置已更新',
-            api.masterData.updateExaminationProfile(service.id, resolvedValue.examination?.revision ?? 0, input))}
+          onSaveLaboratoryProfile={(input) => saveProfile('检验项目基本配置已更新',
+            api.masterData.updateLaboratoryProfile(service.id, value.laboratory!.revision, input))}
+          onSaveExaminationProfile={(input) => saveProfile('检查项目基本配置已更新',
+            api.masterData.updateExaminationProfile(service.id, value.examination!.revision, input))}
           onEditProfile={() => setDialog(laboratory
-            ? <LaboratoryProfileDialog value={resolvedValue.laboratory!} dictionaries={dictionaries} units={allUnits}
+            ? <LaboratoryProfileDialog value={value.laboratory!} dictionaries={dictionaries} units={allUnits}
               onClose={() => setDialog(undefined)} onSave={(input) => execute('检验项目基本配置已更新',
-                api.masterData.updateLaboratoryProfile(service.id, resolvedValue.laboratory?.revision ?? 0, input))} />
-            : <ExaminationProfileDialog value={resolvedValue.examination!} dictionaries={dictionaries}
+                api.masterData.updateLaboratoryProfile(service.id, value.laboratory!.revision, input))} />
+            : <ExaminationProfileDialog value={value.examination!} dictionaries={dictionaries}
               services={allServices} currentServiceId={service.id} onClose={() => setDialog(undefined)}
               onSave={(input) => execute('检查项目基本配置已更新',
-                api.masterData.updateExaminationProfile(service.id, resolvedValue.examination?.revision ?? 0, input))} />)}
-          onSpecimen={(row) => setDialog(<SpecimenDialog value={row} configuration={resolvedValue}
+                api.masterData.updateExaminationProfile(service.id, value.examination!.revision, input))} />)}
+          onSpecimen={(row) => setDialog(<SpecimenDialog value={row} configuration={value}
             units={allUnits} services={allServices} onClose={() => setDialog(undefined)}
             onSave={(input) => execute(row ? '标本配置已更新' : '标本配置已新增', row
               ? api.masterData.updateSpecimenConfiguration(service.id, row, input)
@@ -242,7 +222,8 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
             await execute('项目别名已更新', api.masterData.replaceServiceAliases(service.id, aliasNames.map((aliasName, index) => ({
               aliasType: 'SYNONYM', aliasName, primaryAlias: index === 0, status: 'ACTIVE',
             }))))
-          } finally { setSavingAliases(false) }
+          } catch (error) { setOperationError(errorMessage(error)) }
+          finally { setSavingAliases(false) }
         }}>保存别名</Button>
       </div>
       <div className="master-data-form-grid master-data-form-grid--2">
@@ -255,7 +236,9 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
         }}>加入列表</Button></div>
       </div>
       <div className="clinical-project-aliases__list">
-        {aliases.isPending ? <LoadingState label="正在加载项目别名…" /> : aliasNames.length === 0
+        {aliases.isError ? <EmptyState icon="clinical" title="项目别名加载失败" copy="尚无法确认已配置的别名，请重新加载。"
+          action={<Button variant="secondary" onClick={() => { void aliases.refetch() }}>重新加载别名</Button>} />
+          : aliases.isPending ? <LoadingState label="正在加载项目别名…" /> : aliasNames.length === 0
           ? <span className="muted">暂未配置别名</span>
           : aliasNames.map((aliasName) => <span className="clinical-project-aliases__item" key={aliasName}>
             {aliasName}<Button size="sm" variant="text" aria-label={`移除别名${aliasName}`} disabled={savingAliases} onClick={() => setAliasNames((current) => current.filter((value) => value !== aliasName))}>×</Button>
@@ -303,12 +286,12 @@ function ClinicalDataTable({ headers, rows, colWidths }: { headers: string[]; ro
   )
 }
 
-function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEditProfile, onSaveLaboratoryProfile, onSaveExaminationProfile, onSpecimen, onVariant, onAttachment }: {
-  api: RhnApi; value: ClinicalConfiguration; services: ServiceCatalogItem[]
+function ClinicalWorkspace({ api, value, serviceStatus, serviceStatusText, services, dictionaries, unitCodes, onEditProfile, onSaveLaboratoryProfile, onSaveExaminationProfile, onSpecimen, onVariant, onAttachment }: {
+  api: RhnApi; value: ClinicalConfiguration; serviceStatus: string; serviceStatusText?: string; services: ServiceCatalogItem[]
   dictionaries: Record<string, DictionaryValue[]>; unitCodes: UnitDefinition[]
   onEditProfile?: () => void
-  onSaveLaboratoryProfile?: (input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) => void
-  onSaveExaminationProfile?: (input: ExaminationProfileInput) => void
+  onSaveLaboratoryProfile?: (input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) => Promise<void>
+  onSaveExaminationProfile?: (input: ExaminationProfileInput) => Promise<void>
   onSpecimen: (value?: SpecimenConfiguration) => void
   onVariant: (value?: ExaminationVariantConfiguration) => void
   onAttachment: (value?: ExaminationAttachmentConfiguration) => void
@@ -317,6 +300,18 @@ function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEd
   const laboratory = value.serviceType === 'LABORATORY'
   const [tab, setTab] = useState<'options' | 'requirements' | 'attachments'>('options')
   const [editingProfile, setEditingProfile] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileError, setProfileError] = useState('')
+  const saveProfile = async (task: () => Promise<void>) => {
+    if (savingProfile) return
+    setSavingProfile(true); setProfileError('')
+    try {
+      await task()
+      setEditingProfile(false)
+    } catch (error) {
+      setProfileError(errorMessage(error))
+    } finally { setSavingProfile(false) }
+  }
   const profile = value.laboratory ?? value.examination
   const dictionaryName = (dictionaryCode: string, code?: string) =>
     code ? dictionaries[dictionaryCode]?.find((item) => item.code === code)?.name ?? '未匹配字典项' : '未设置'
@@ -333,7 +328,7 @@ function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEd
           <strong>{value.serviceName}</strong>
           <code>{value.serviceCode}</code>
         </div>
-        <State value="ACTIVE" />
+        <StatusBadge tone={serviceStatus === 'ACTIVE' ? 'success' : 'neutral'}>{serviceStatusText || serviceStatus || '未返回状态'}</StatusBadge>
       </div>
 
       <div className="clinical-header-card__facts">
@@ -350,9 +345,10 @@ function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEd
 
       <Button
         variant={editingProfile ? 'primary' : 'secondary'}
+        disabled={savingProfile}
         onClick={() => {
           if (onSaveLaboratoryProfile || onSaveExaminationProfile) {
-            setEditingProfile(!editingProfile)
+            if (!savingProfile) setEditingProfile(!editingProfile)
           } else if (onEditProfile) {
             onEditProfile()
           }
@@ -363,8 +359,10 @@ function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEd
     </div>
 
     {/* 原地内联卡片：项目基本配置与多部位计价 */}
-    {editingProfile && (
-      laboratory ? (
+    {profileError && <Alert duration={null}>{profileError}</Alert>}
+    {savingProfile && <LoadingState label="正在保存项目配置…" />}
+    {editingProfile && <fieldset className="master-data-dialog-fields" disabled={savingProfile}>
+      {laboratory ? (
         <LaboratoryProfileInlineEditor
           value={value.laboratory!}
           dictionaries={dictionaries}
@@ -372,8 +370,7 @@ function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEd
           onClose={() => setEditingProfile(false)}
           onSave={(input) => {
             if (onSaveLaboratoryProfile) {
-              onSaveLaboratoryProfile(input)
-              setEditingProfile(false)
+              void saveProfile(() => onSaveLaboratoryProfile(input))
             } else if (onEditProfile) {
               onEditProfile()
             }
@@ -388,15 +385,14 @@ function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEd
           onClose={() => setEditingProfile(false)}
           onSave={(input) => {
             if (onSaveExaminationProfile) {
-              onSaveExaminationProfile(input)
-              setEditingProfile(false)
+              void saveProfile(() => onSaveExaminationProfile(input))
             } else if (onEditProfile) {
               onEditProfile()
             }
           }}
         />
-      )
-    )}
+      )}
+    </fieldset>}
 
     {/* PC 端宽屏双栏工作台布局 */}
     <div className="clinical-workbench-grid" style={{ marginTop: 'var(--space-3)' }}>
@@ -571,7 +567,7 @@ function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEd
       {/* 右栏：即时联动试算沙盒（Live Sandbox） */}
       <div className="clinical-workbench-grid__aside">
         {laboratory ? (
-          <LaboratoryTubeSimulator api={api} currentServiceId={value.serviceId} services={services} />
+          <LaboratoryTubeSimulator api={api} currentServiceId={value.serviceId} services={services} configuration={value} />
         ) : (
           <ExaminationChargeSimulator api={api} value={value} />
         )}
@@ -593,8 +589,8 @@ function tubeDotColor(containerName: string, groupCode: string) {
 function sitePricingDetail(ex: NonNullable<ClinicalConfiguration['examination']>) {
   if (ex.sitePricingMode === 'SINGLE') return '不论选择多少个部位，主项目仅收 1 次基准费用'
   if (ex.sitePricingMode === 'PER_SITE') return '按选择的部位总数量，每个部位全额（100%）收取主项费用'
-  if (ex.sitePricingMode === 'BASE_PLUS_FIXED') return `超出基础部位后，每增加 1 个部位固定加收 ¥${ex.additionalSitePrice || 0}`
-  if (ex.sitePricingMode === 'BASE_PLUS_ITEM') return `超出基础部位后，每增加 1 个部位加收项目【${ex.additionalSiteItemName || '加收项'}】 × ${ex.additionalSiteQuantity || 1}`
+  if (ex.sitePricingMode === 'BASE_PLUS_FIXED') return `超出基础部位后，每增加 1 个部位固定加收 ¥${ex.additionalSitePrice ?? '未配置'}`
+  if (ex.sitePricingMode === 'BASE_PLUS_ITEM') return `超出基础部位后，每增加 1 个部位加收项目【${ex.additionalSiteItemName || `项目 ${ex.additionalSiteItemId ?? '未配置'}`}】 × ${ex.additionalSiteQuantity ?? '未配置'}`
   return '未设定多部位计价策略'
 }
 
@@ -604,30 +600,24 @@ function ExaminationChargeSimulator({ api, value }: { api: RhnApi; value: Clinic
   const optionalRules = examination.attachments.filter((item) => item.status === 'ACTIVE' && item.triggerType === 'OPTIONAL')
   const [selectedSites, setSelectedSites] = useState<string[]>(availableSites.slice(0, 1).map((s) => s.code))
   const [selectedRules, setSelectedRules] = useState<string[]>([])
-  const [result, setResult] = useState<ExaminationChargePlan>()
-  const [error, setError] = useState('')
-  const [running, setRunning] = useState(false)
-
+  const canRun = selectedSites.length > 0 || !examination.bodySiteRequired
+  const preview = useQuery({
+    queryKey: ['master-data-examination-preview', value, selectedSites, selectedRules],
+    queryFn: async () => requireExaminationPlan(await api.masterData.examinationChargePlan(value.serviceId, selectedSites, selectedRules), value.serviceId),
+    enabled: canRun, retry: false,
+  })
+  const running = preview.isFetching
+  const result = canRun && !running && preview.isSuccess ? preview.data : undefined
+  const error = canRun && preview.isError ? errorMessage(preview.error) : ''
+  const run = () => { void preview.refetch() }
   const toggle = (items: string[], v: string, setter: (next: string[]) => void) =>
     setter(items.includes(v) ? items.filter((item) => item !== v) : [...items, v])
-
-  const run = () => {
-    setRunning(true); setError('')
-    api.masterData.examinationChargePlan(value.serviceId, selectedSites, selectedRules)
-      .then(setResult).catch((reason) => setError(errorMessage(reason))).finally(() => setRunning(false))
-  }
-
-  useEffect(() => {
-    if (selectedSites.length > 0 || !examination.bodySiteRequired) {
-      run()
-    }
-  }, [selectedSites, selectedRules])
 
   return <section className="rule-simulator" aria-label="检查收费规则试算" style={{ marginTop: 0 }}>
     <header>
       <div>
         <h4>⚡ 阶梯收费实时试算沙盒</h4>
-        <p>模拟勾选实际执行部位与附加耗材，核验费用与计算依据。</p>
+        <p>按已保存配置试算所选部位与附加耗材；编辑中的规则需保存成功后生效。</p>
       </div>
       <Button size="sm" onClick={run} disabled={running || (examination.bodySiteRequired && selectedSites.length === 0)}>
         {running ? '计算中…' : '刷新试算'}
@@ -714,7 +704,7 @@ function formatTubeGroupLabel(groupCode: string, specimenName?: string): string 
   return groupCode
 }
 
-function LaboratoryTubeSimulator({ api, currentServiceId, services }: { api: RhnApi; currentServiceId: string; services: ServiceCatalogItem[] }) {
+function LaboratoryTubeSimulator({ api, currentServiceId, services, configuration }: { api: RhnApi; currentServiceId: string; services: ServiceCatalogItem[]; configuration: ClinicalConfiguration }) {
   const laboratoryServices = useMemo(
     () => services.filter((service) => service.sdServiceType === 'LABORATORY' && service.sdStatus === 'ACTIVE'),
     [services],
@@ -722,9 +712,18 @@ function LaboratoryTubeSimulator({ api, currentServiceId, services }: { api: Rhn
   const [searchKeyword, setSearchKeyword] = useState('')
   const [selected, setSelected] = useState<string[]>([currentServiceId])
   const [quantities, setQuantities] = useState<Record<string, string>>({ [currentServiceId]: '1' })
-  const [result, setResult] = useState<LaboratoryTubePlan>()
-  const [error, setError] = useState('')
-  const [running, setRunning] = useState(false)
+  const canRun = selected.length > 0
+  const preview = useQuery({
+    queryKey: ['master-data-laboratory-preview', configuration, selected, quantities],
+    queryFn: async () => requireTubePlan(await api.masterData.laboratoryTubePlan(selected.map((serviceId) => ({
+      serviceId, quantity: previewQuantity(quantities[serviceId]),
+    })))),
+    enabled: canRun, retry: false,
+  })
+  const running = preview.isFetching
+  const result = canRun && !running && preview.isSuccess ? preview.data : undefined
+  const error = canRun && preview.isError ? errorMessage(preview.error) : ''
+  const run = () => { void preview.refetch() }
 
   useEffect(() => { setSelected([currentServiceId]); setQuantities({ [currentServiceId]: '1' }) }, [currentServiceId])
 
@@ -749,16 +748,6 @@ function LaboratoryTubeSimulator({ api, currentServiceId, services }: { api: Rhn
     )
   }, [laboratoryServices, searchKeyword])
 
-  const run = () => {
-    setRunning(true); setError('')
-    api.masterData.laboratoryTubePlan(selected.map((serviceId) => ({ serviceId, quantity: Number(quantities[serviceId] || 1) })))
-      .then(setResult).catch((reason) => setError(errorMessage(reason))).finally(() => setRunning(false))
-  }
-
-  useEffect(() => {
-    if (selected.length > 0) run()
-    else setResult(undefined)
-  }, [selected, quantities])
 
   return <section className="rule-simulator" aria-label="检验分管规则试算" style={{ marginTop: 0 }}>
     <header>
@@ -999,8 +988,8 @@ function LaboratoryTubeSimulator({ api, currentServiceId, services }: { api: Rhn
 }
 
 function ChargeLines({ lines }: { lines: DiagnosticChargeLine[] }) {
-  if (!lines.length) return <p className="rule-simulator__empty">本次模拟未产生额外收费行（耗材已包含或免加收）。</p>
-  const totalAmount = lines.reduce((sum, line) => sum + (line.fixedAmount ?? 0), 0)
+  if (!lines.length) return <p className="rule-simulator__empty">本次试算未返回收费明细。</p>
+  const totalAmount = knownChargeTotal(lines)
   return (
     <div className="sandbox-charge-wrap">
       <div className="sandbox-charge-list">
@@ -1012,21 +1001,21 @@ function ChargeLines({ lines }: { lines: DiagnosticChargeLine[] }) {
             </div>
             <div className="sandbox-charge-item__price">
               <span>{line.quantity}{line.unitCode ? ` ${line.unitCode}` : ' 次'}</span>
-              {line.fixedAmount != null ? (
+              {!line.separatelyChargeable ? <span>不单独计费</span> : line.fixedAmount != null ? (
                 <strong>¥ {line.fixedAmount.toFixed(2)}</strong>
               ) : (
-                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>基准主项收费</span>
+                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>按项目价格计费，金额待计价</span>
               )}
             </div>
           </div>
         ))}
       </div>
-      {totalAmount > 0 && (
+      {totalAmount !== undefined ? (
         <div className="charge-total-bar">
-          <span>本次附加费用合计：</span>
+          <span>当前收费明细合计：</span>
           <strong>¥ {totalAmount.toFixed(2)}</strong>
         </div>
-      )}
+      ) : <p className="rule-simulator__empty">部分项目尚未计价，当前无法确认费用合计。</p>}
     </div>
   )
 }
@@ -1047,15 +1036,30 @@ const chargeSourceLabel = (value: string) => ({ BASE_SERVICE: '主项目', MULTI
 
 function FormDialog({
   title, description, onClose, onSubmit, size = 'wide', className = '',
-  gridClassName = 'master-data-form-grid--2', customLayout = false, children,
+  gridClassName = 'master-data-form-grid--2', customLayout = false, submitLabel = '保存', children,
 }: {
-  title: string; description: string; onClose: () => void; onSubmit: (e: FormEvent) => void
-  size?: 'default' | 'wide' | 'xwide'; className?: string; gridClassName?: string; customLayout?: boolean; children: ReactNode
+  title: string; description: string; onClose: () => void; onSubmit: (e: FormEvent) => void | Promise<void>
+  size?: 'default' | 'wide' | 'xwide'; className?: string; gridClassName?: string; customLayout?: boolean; submitLabel?: string; children: ReactNode
 }) {
-  return <Dialog title={title} eyebrow="基础数据 · 运营配置" description={description} size={size} className={className} onClose={onClose}>
-    <form className="master-data-dialog-form" onSubmit={onSubmit}>
-      {customLayout ? children : <div className={`master-data-form-grid ${gridClassName}`}>{children}</div>}
-      <div className="ui-form-actions"><Button variant="secondary" onClick={onClose} type="button">取消</Button><Button type="submit">保存</Button></div>
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const pending = useRef(false)
+  const close = () => { if (!pending.current) onClose() }
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (pending.current) return
+    pending.current = true; setSaving(true); setSaveError('')
+    try { await onSubmit(event) }
+    catch (error) { setSaveError(errorMessage(error)) }
+    finally { pending.current = false; setSaving(false) }
+  }
+  return <Dialog title={title} eyebrow="基础数据 · 运营配置" description={description} size={size} className={className} onClose={close} closeOnBackdrop={false}>
+    {saveError && <Alert duration={null}>{saveError}</Alert>}
+    <form className="master-data-dialog-form" onSubmit={(event) => { void submit(event) }}>
+      <fieldset className="master-data-dialog-fields" disabled={saving}>
+        {customLayout ? children : <div className={`master-data-form-grid ${gridClassName}`}>{children}</div>}
+      </fieldset>
+      <div className="ui-form-actions"><Button variant="secondary" onClick={close} type="button" disabled={saving}>取消</Button><Button type="submit" disabled={saving} busy={saving} busyLabel="保存中">{submitLabel}</Button></div>
     </form>
   </Dialog>
 }
@@ -1192,25 +1196,14 @@ function ExaminationProfileInlineEditor({
   onClose: () => void
   onSave: (input: ExaminationProfileInput) => void
 }) {
-  const [form, setForm] = useState({
-    examinationType: value.examinationType ?? '',
-    bodySiteRequired: value.bodySiteRequired,
-    multiBodySite: value.multiBodySite,
-    maxBodySiteCount: value.maxBodySiteCount?.toString() ?? '1',
-    preparationDescription: value.preparationDescription ?? '',
-    sitePricingMode: value.sitePricingMode,
-    includedSiteCount: String(value.includedSiteCount),
-    additionalSitePrice: value.additionalSitePrice?.toString() ?? '',
-    additionalSiteItemId: value.additionalSiteItemId ?? '',
-    additionalSiteQuantity: String(value.additionalSiteQuantity || 1),
-    maxChargeableSiteCount: value.maxChargeableSiteCount?.toString() ?? value.maxBodySiteCount?.toString() ?? '1',
-  })
+  const [form, setForm] = useState(() => examinationProfileForm(value))
+  const [validationError, setValidationError] = useState('')
 
   const itemOptions = services
     .filter((v) => v.id !== currentServiceId && v.chargeable && v.sdStatus === 'ACTIVE')
     .map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
 
-  const pricingMode = form.multiBodySite ? form.sitePricingMode : 'SINGLE'
+  const pricingMode = form.bodySiteRequired && form.multiBodySite ? form.sitePricingMode : 'SINGLE'
 
   const PRICING_MODES = [
     {
@@ -1236,6 +1229,8 @@ function ExaminationProfileInlineEditor({
   ]
 
   const ruleSummaryText = useMemo(() => {
+    try { examinationProfileInput(form) }
+    catch (error) { return `配置尚未完整：${errorMessage(error)}` }
     if (!form.bodySiteRequired) {
       return '开立时无需限定具体解剖部位，按主项目单次全额计收。'
     }
@@ -1244,14 +1239,14 @@ function ExaminationProfileInlineEditor({
     }
     switch (form.sitePricingMode) {
       case 'SINGLE':
-        return `允许多选部位（最多可选 ${form.maxBodySiteCount} 个），但主项目基准费只计收 1 次。`
+        return `允许多选部位（${form.maxBodySiteCount ? `最多可选 ${form.maxBodySiteCount} 个` : '未设置部位上限'}），但主项目基准费只计收 1 次。`
       case 'PER_SITE':
-        return `主项目按实际选择部位全额计费（最多 ${form.maxBodySiteCount} 个），总价 = 主项单价 × 部位数。`
+        return `主项目按实际选择部位全额计费（${form.maxBodySiteCount ? `最多 ${form.maxBodySiteCount} 个` : '未设置部位上限'}），总价 = 主项单价 × 部位数。`
       case 'BASE_PLUS_FIXED':
-        return `包含前 ${form.includedSiteCount} 个部位（按主项原价）；超出部位每部位固定加收 ¥${form.additionalSitePrice || '0.00'}${form.maxChargeableSiteCount ? `，累计最多计费 ${form.maxChargeableSiteCount} 个部位` : ''}。`
+        return `包含前 ${form.includedSiteCount} 个部位（按主项原价）；超出部位每部位固定加收 ¥${form.additionalSitePrice}${form.maxChargeableSiteCount ? `，累计最多计费 ${form.maxChargeableSiteCount} 个部位` : ''}。`
       case 'BASE_PLUS_ITEM': {
         const item = services.find((s) => s.id === form.additionalSiteItemId)
-        return `包含前 ${form.includedSiteCount} 个部位；超出部位每部位加收【${item ? item.name : '加收项目'}】× ${form.additionalSiteQuantity || 1}${form.maxChargeableSiteCount ? `，累计最多计费 ${form.maxChargeableSiteCount} 个部位` : ''}。`
+        return `包含前 ${form.includedSiteCount} 个部位；超出部位每部位加收【${item ? item.name : '加收项目'}】× ${form.additionalSiteQuantity}${form.maxChargeableSiteCount ? `，累计最多计费 ${form.maxChargeableSiteCount} 个部位` : ''}。`
       }
       default:
         return ''
@@ -1264,7 +1259,7 @@ function ExaminationProfileInlineEditor({
         <div>
           <h4>检查项目执行属性与多部位阶梯计价规则</h4>
           <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-            在此就地维护检查类型、部位选择约束与超部位阶梯计价逻辑，右侧试算沙盒即时同步
+            维护检查类型、部位选择约束与超部位计价规则；保存成功后，右侧试算按已保存配置更新。
           </span>
         </div>
         <Button size="sm" variant="text" onClick={onClose} type="button">
@@ -1272,22 +1267,13 @@ function ExaminationProfileInlineEditor({
         </Button>
       </div>
 
+      {validationError && <Alert duration={null}>{validationError}</Alert>}
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          onSave({
-            examinationType: form.examinationType || undefined,
-            bodySiteRequired: form.bodySiteRequired,
-            multiBodySite: form.bodySiteRequired && form.multiBodySite,
-            maxBodySiteCount: form.bodySiteRequired ? Number(form.maxBodySiteCount || 1) : undefined,
-            preparationDescription: form.preparationDescription || undefined,
-            sitePricingMode: pricingMode,
-            includedSiteCount: Number(form.includedSiteCount || 1),
-            additionalSitePrice: pricingMode === 'BASE_PLUS_FIXED' ? Number(form.additionalSitePrice) : undefined,
-            additionalSiteItemId: pricingMode === 'BASE_PLUS_ITEM' ? form.additionalSiteItemId : undefined,
-            additionalSiteQuantity: Number(form.additionalSiteQuantity || 1),
-            maxChargeableSiteCount: form.multiBodySite ? Number(form.maxChargeableSiteCount || form.maxBodySiteCount) : 1,
-          })
+          setValidationError('')
+          try { onSave(examinationProfileInput(form)) }
+          catch (error) { setValidationError(errorMessage(error)) }
         }}
       >
         <div className="clinical-inline-profile-editor__grid">
@@ -1447,9 +1433,9 @@ function ExaminationProfileInlineEditor({
   )
 }
 
-function LaboratoryProfileDialog({ value, dictionaries, units, onClose, onSave }: { value: LaboratoryProfile; dictionaries: Record<string, DictionaryValue[]>; units: UnitDefinition[]; onClose: () => void; onSave: (input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) => void }) {
+function LaboratoryProfileDialog({ value, dictionaries, units, onClose, onSave }: { value: LaboratoryProfile; dictionaries: Record<string, DictionaryValue[]>; units: UnitDefinition[]; onClose: () => void; onSave: (input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) => Promise<void> }) {
   const [form, setForm] = useState({ laboratoryMethod: value.laboratoryMethod ?? '', reportDuration: value.reportDuration?.toString() ?? '', reportDurationUnit: value.reportDurationUnit ?? '', fastingRequired: value.fastingRequired, pointOfCare: value.pointOfCare, collectionDescription: value.collectionDescription ?? '' })
-  return <FormDialog title="编辑检验项目配置" description="维护检验方法、报告时长与采集要求。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ ...form, laboratoryMethod: form.laboratoryMethod || undefined, reportDuration: form.reportDuration ? Number(form.reportDuration) : undefined, reportDurationUnit: form.reportDurationUnit || undefined, collectionDescription: form.collectionDescription || undefined }) }}>
+  return <FormDialog title="编辑检验项目配置" description="维护检验方法、报告时长与采集要求。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); return onSave({ ...form, laboratoryMethod: form.laboratoryMethod || undefined, reportDuration: form.reportDuration ? Number(form.reportDuration) : undefined, reportDurationUnit: form.reportDurationUnit || undefined, collectionDescription: form.collectionDescription || undefined }) }}>
     <FormField label="检验方法"><Select value={form.laboratoryMethod} onChange={(v) => setForm({ ...form, laboratoryMethod: v })} placeholder="选择检验方法" options={(dictionaries.BD_LAB_METHOD ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} /></FormField>
     <FormField label="报告时长"><input type="number" min="0.001" step="0.001" value={form.reportDuration} onChange={(e) => setForm({ ...form, reportDuration: e.target.value })} /></FormField>
     <FormField label="时长单位"><Select value={form.reportDurationUnit} onChange={(v) => setForm({ ...form, reportDurationUnit: v })} options={units.filter((v) => v.dimension === 'TIME' && v.status === 'ACTIVE').map(unitOption)} /></FormField>
@@ -1457,22 +1443,17 @@ function LaboratoryProfileDialog({ value, dictionaries, units, onClose, onSave }
     <Check label="要求空腹" checked={form.fastingRequired} onChange={(v) => setForm({ ...form, fastingRequired: v })} /><Check label="院内快速检测（POCT）" checked={form.pointOfCare} onChange={(v) => setForm({ ...form, pointOfCare: v })} />
   </FormDialog>
 }
-
 function ExaminationProfileDialog({ value, dictionaries, services, currentServiceId, onClose, onSave }: {
   value: NonNullable<ClinicalConfiguration['examination']>; dictionaries: Record<string, DictionaryValue[]>
   services: ServiceCatalogItem[]; currentServiceId: string; onClose: () => void
-  onSave: (input: ExaminationProfileInput) => void
+  onSave: (input: ExaminationProfileInput) => Promise<void>
 }) {
-  const [form, setForm] = useState({ examinationType: value.examinationType ?? '', bodySiteRequired: value.bodySiteRequired,
-    multiBodySite: value.multiBodySite, maxBodySiteCount: value.maxBodySiteCount?.toString() ?? '1',
-    preparationDescription: value.preparationDescription ?? '', sitePricingMode: value.sitePricingMode,
-    includedSiteCount: String(value.includedSiteCount), additionalSitePrice: value.additionalSitePrice?.toString() ?? '',
-    additionalSiteItemId: value.additionalSiteItemId ?? '', additionalSiteQuantity: String(value.additionalSiteQuantity || 1),
-    maxChargeableSiteCount: value.maxChargeableSiteCount?.toString() ?? value.maxBodySiteCount?.toString() ?? '1' })
+  const [form, setForm] = useState(() => examinationProfileForm(value))
+
   const itemOptions = services.filter((v) => v.id !== currentServiceId && v.chargeable && v.sdStatus === 'ACTIVE')
     .map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
-  const pricingMode = form.multiBodySite ? form.sitePricingMode : 'SINGLE'
-  return <FormDialog title="编辑检查项目配置" description="维护检查类型、部位约束和多部位计价规则。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ examinationType: form.examinationType || undefined, bodySiteRequired: form.bodySiteRequired, multiBodySite: form.bodySiteRequired && form.multiBodySite, maxBodySiteCount: form.bodySiteRequired ? Number(form.maxBodySiteCount || 1) : undefined, preparationDescription: form.preparationDescription || undefined, sitePricingMode: pricingMode, includedSiteCount: Number(form.includedSiteCount || 1), additionalSitePrice: pricingMode === 'BASE_PLUS_FIXED' ? Number(form.additionalSitePrice) : undefined, additionalSiteItemId: pricingMode === 'BASE_PLUS_ITEM' ? form.additionalSiteItemId : undefined, additionalSiteQuantity: Number(form.additionalSiteQuantity || 1), maxChargeableSiteCount: form.multiBodySite ? Number(form.maxChargeableSiteCount || form.maxBodySiteCount) : 1 }) }}>
+  const pricingMode = form.bodySiteRequired && form.multiBodySite ? form.sitePricingMode : 'SINGLE'
+  return <FormDialog title="编辑检查项目配置" description="维护检查类型、部位约束和多部位计价规则。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); return onSave(examinationProfileInput(form)) }}>
     <FormField label="检查类型"><Select value={form.examinationType} onChange={(v) => setForm({ ...form, examinationType: v })} options={(dictionaries.BD_EXAM_TYPE ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} /></FormField>
     <FormField label="最多部位数"><input type="number" min="1" disabled={!form.bodySiteRequired} value={form.maxBodySiteCount} onChange={(e) => setForm({ ...form, maxBodySiteCount: e.target.value })} /></FormField>
     <FormField label="多部位计价"><Select disabled={!form.multiBodySite} value={pricingMode} onChange={(v) => setForm({ ...form, sitePricingMode: v as typeof form.sitePricingMode })} options={[
@@ -1489,252 +1470,40 @@ function ExaminationProfileDialog({ value, dictionaries, services, currentServic
   </FormDialog>
 }
 
-interface TubePresetTemplate {
-  id: string
-  name: string
-  color: string
-  specimenKeyword: string
-  containerKeyword: string
-  tubeGroupCode: string
-  tubeSharingMode: 'SHARE' | 'SEPARATE' | 'BY_TEST_COUNT'
-  baseTubeCount: number
-  tubeChargeMode: 'NONE' | 'PER_TUBE' | 'EXCESS_TUBE'
-  includedTubeCount: number
-  chargeItemKeyword?: string
-  description: string
-}
-
-const TUBE_PRESET_TEMPLATES: TubePresetTemplate[] = [
-  {
-    id: 'biochem_serum',
-    name: '黄色促凝管 · 生化共管',
-    color: 'var(--color-specimen-cap-yellow)',
-    specimenKeyword: '血清',
-    containerKeyword: '促凝',
-    tubeGroupCode: 'BIOCHEM_SERUM',
-    tubeSharingMode: 'SHARE',
-    baseTubeCount: 1,
-    tubeChargeMode: 'PER_TUBE',
-    includedTubeCount: 0,
-    chargeItemKeyword: '采血管',
-    description: '肝功、肾功、电解质、血脂等生化检测，同次采血合并共用 1 管',
-  },
-  {
-    id: 'edta_blood',
-    name: '紫色EDTA管 · 血常规专管',
-    color: 'var(--color-specimen-cap-purple)',
-    specimenKeyword: '全血',
-    containerKeyword: 'EDTA',
-    tubeGroupCode: 'EDTA_HEMATOLOGY',
-    tubeSharingMode: 'SEPARATE',
-    baseTubeCount: 1,
-    tubeChargeMode: 'PER_TUBE',
-    includedTubeCount: 0,
-    chargeItemKeyword: '采血管',
-    description: '血常规、网织红细胞、糖化血红蛋白等临检项目，独立专管',
-  },
-  {
-    id: 'citrate_coag',
-    name: '蓝色枸橼酸钠 · 凝血专管',
-    color: 'var(--color-specimen-cap-blue)',
-    specimenKeyword: '血浆',
-    containerKeyword: '枸橼酸',
-    tubeGroupCode: 'CITRATE_COAGULATION',
-    tubeSharingMode: 'SEPARATE',
-    baseTubeCount: 1,
-    tubeChargeMode: 'PER_TUBE',
-    includedTubeCount: 0,
-    chargeItemKeyword: '采血管',
-    description: '凝血四项、D-二聚体等凝血功能检测，比例严格，独立专管',
-  },
-  {
-    id: 'glucose_lactate',
-    name: '灰色氟化钠 · 血糖生化',
-    color: 'var(--color-specimen-cap-gray)',
-    specimenKeyword: '血浆',
-    containerKeyword: '氟化钠',
-    tubeGroupCode: 'GLUCOSE_LACTATE',
-    tubeSharingMode: 'SHARE',
-    baseTubeCount: 1,
-    tubeChargeMode: 'PER_TUBE',
-    includedTubeCount: 0,
-    chargeItemKeyword: '采血管',
-    description: '血糖、糖耐量、血乳酸等抑制糖酵解检验，同次申请合并一管',
-  },
-  {
-    id: 'immuno_serum',
-    name: '红色干燥管 · 免疫发光',
-    color: 'var(--color-specimen-cap-red)',
-    specimenKeyword: '血清',
-    containerKeyword: '干燥',
-    tubeGroupCode: 'IMMUNO_SERUM',
-    tubeSharingMode: 'SHARE',
-    baseTubeCount: 1,
-    tubeChargeMode: 'PER_TUBE',
-    includedTubeCount: 0,
-    chargeItemKeyword: '采血管',
-    description: '甲状腺功能、肿瘤标志物、传染病发光检测等免疫项目',
-  },
-  {
-    id: 'urine_routine',
-    name: '尿杯/试管 · 尿液常规',
-    color: 'var(--color-specimen-cap-orange)',
-    specimenKeyword: '尿',
-    containerKeyword: '尿',
-    tubeGroupCode: 'URINE_ROUTINE',
-    tubeSharingMode: 'SEPARATE',
-    baseTubeCount: 1,
-    tubeChargeMode: 'NONE',
-    includedTubeCount: 0,
-    description: '尿常规、尿沉渣、尿妊娠等常规体液检测，无需采血管加收',
-  },
-]
-
 function SpecimenDialog({ value, configuration, units, services, onClose, onSave }: {
   value?: SpecimenConfiguration; configuration: ClinicalConfiguration
   units: UnitDefinition[]; services: ServiceCatalogItem[]; onClose: () => void
-  onSave: (input: SpecimenConfigurationInput) => void
+  onSave: (input: SpecimenConfigurationInput) => Promise<void>
 }) {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>()
-  const [form, setForm] = useState({
-    specimenItemId: value?.specimenItemId ?? '', containerItemId: value?.containerItemId ?? '',
-    minimumQuantity: value?.minimumQuantity?.toString() ?? '', minimumQuantityUnit: value?.minimumQuantityUnit?.toUpperCase() ?? '',
-    defaultSpecimen: value?.defaultSpecimen ?? false, requiredSpecimen: value?.requiredSpecimen ?? true,
-    sortOrder: String(value?.sortOrder ?? ((configuration.laboratory?.specimens.length ?? 0) + 1) * 10),
-    collectionDescription: value?.collectionDescription ?? '', status: value?.status ?? 'ACTIVE',
-    tubeGroupCode: value?.tubeGroupCode ?? '', tubeSharingMode: value?.tubeSharingMode ?? 'SEPARATE',
-    baseTubeCount: String(value?.baseTubeCount ?? 1), maxTestsPerTube: value?.maxTestsPerTube?.toString() ?? '',
-    tubeChargeMode: value?.tubeChargeMode ?? 'NONE', tubeChargeItemId: value?.tubeChargeItemId ?? '',
-    includedTubeCount: String(value?.includedTubeCount ?? 0), tubeChargeQuantity: String(value?.tubeChargeQuantity ?? 1),
-  })
+  const [form, setForm] = useState(() => specimenForm(value,
+    Math.max(0, ...(configuration.laboratory?.specimens ?? []).map((item) => item.sortOrder)) + 10))
 
   const chargeOptions = services.filter((v) => v.id !== configuration.serviceId && v.chargeable && v.sdStatus === 'ACTIVE')
     .map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
 
-  const applyTemplate = (tpl: TubePresetTemplate) => {
-    setSelectedTemplateId(tpl.id)
-    const matchedSpecimen = configuration.specimenOptions.find((opt) =>
-      opt.name.includes(tpl.specimenKeyword) || opt.code.includes(tpl.specimenKeyword.toUpperCase()))
-    const matchedContainer = configuration.containerOptions.find((opt) =>
-      opt.name.includes(tpl.containerKeyword) || opt.code.includes(tpl.containerKeyword.toUpperCase()))
-    const matchedChargeItem = tpl.chargeItemKeyword
-      ? chargeOptions.find((opt) => opt.label.includes(tpl.chargeItemKeyword!) || opt.secondaryText.includes(tpl.chargeItemKeyword!))
-      : undefined
-
-    setForm((prev) => ({
-      ...prev,
-      specimenItemId: matchedSpecimen ? matchedSpecimen.id : prev.specimenItemId,
-      containerItemId: matchedContainer ? matchedContainer.id : prev.containerItemId,
-      tubeSharingMode: tpl.tubeSharingMode,
-      tubeGroupCode: tpl.tubeGroupCode,
-      baseTubeCount: String(tpl.baseTubeCount),
-      tubeChargeMode: tpl.tubeChargeMode,
-      tubeChargeItemId: matchedChargeItem ? matchedChargeItem.value : (prev.tubeChargeItemId || (chargeOptions[0]?.value ?? '')),
-      includedTubeCount: String(tpl.includedTubeCount),
-      tubeChargeQuantity: '1',
-    }))
-  }
-
-  const sharingRuleDescription = useMemo(() => {
-    if (form.tubeSharingMode === 'SHARE') {
-      const spName = configuration.specimenOptions.find((o) => o.id === form.specimenItemId)?.name || '相同标本'
-      const ctName = configuration.containerOptions.find((o) => o.id === form.containerItemId)?.name || '相同采血管'
-      return `⚡ 同组共管：同一采血医嘱下，【${spName} + ${ctName}】的项目自动合并采血 1 管，避免重复扎针。`
-    }
-    if (form.tubeSharingMode === 'BY_TEST_COUNT') {
-      return `🔢 按项拆管：每管最多容纳 ${form.maxTestsPerTube || 1} 个项目，超出上限自动分拆下一管。`
-    }
-    return '🔒 独立专管：常规血常规、凝血等敏感项目不论是否同开，均单独采集 1 管。'
-  }, [form.tubeSharingMode, form.specimenItemId, form.containerItemId, form.maxTestsPerTube, configuration])
+  const sharingRuleDescription = form.tubeSharingMode === 'SHARE'
+    ? '同组共管：按已确认的分组和基础管数计算合管结果。'
+    : form.tubeSharingMode === 'BY_TEST_COUNT'
+      ? '按项目数拆管：按基础管数与每管最大项目数计算，最终管数以试算结果为准。'
+      : form.tubeSharingMode === 'SEPARATE' ? '独立专管：按当前项目配置的基础管数单独计算。' : '请选择分管模式。'
 
   return (
-    <Dialog
-      title={value ? '编辑标本与分管规则' : '新增标本与分管规则'}
-      eyebrow="基础数据 · 运营配置"
-      size="xwide"
-      className="specimen-config-dialog"
-      onClose={onClose}
-    >
-      <form
-        className="master-data-dialog-form"
-        onSubmit={(e) => {
-          e.preventDefault()
-          // 方案 A：分管编码由系统依据标本与容器自动隐式派生（或沿用预设模板），无需操作人员手工输入
-          let finalTubeGroupCode = form.tubeGroupCode
-          if (form.tubeSharingMode !== 'SEPARATE' && !finalTubeGroupCode) {
-            const sp = configuration.specimenOptions.find((o) => o.id === form.specimenItemId)
-            const ct = configuration.containerOptions.find((o) => o.id === form.containerItemId)
-            const spCode = sp ? sp.code.toUpperCase() : 'SPEC'
-            const ctCode = ct ? ct.code.toUpperCase() : 'CONT'
-            finalTubeGroupCode = `${spCode}_${ctCode}`
-          } else if (form.tubeSharingMode === 'SEPARATE') {
-            finalTubeGroupCode = ''
-          }
-
-          onSave({
-            specimenItemId: form.specimenItemId, containerItemId: form.containerItemId || undefined,
-            minimumQuantity: form.minimumQuantity ? Number(form.minimumQuantity) : undefined,
-            minimumQuantityUnit: form.minimumQuantityUnit || undefined, defaultSpecimen: form.defaultSpecimen,
-            requiredSpecimen: form.requiredSpecimen, sortOrder: Number(form.sortOrder),
-            collectionDescription: form.collectionDescription || undefined, status: form.status as 'ACTIVE' | 'INACTIVE',
-            tubeGroupCode: finalTubeGroupCode || undefined, tubeSharingMode: form.tubeSharingMode,
-            baseTubeCount: Number(form.baseTubeCount || 1),
-            maxTestsPerTube: form.tubeSharingMode === 'BY_TEST_COUNT' ? Number(form.maxTestsPerTube) : undefined,
-            tubeChargeMode: form.tubeChargeMode,
-            tubeChargeItemId: form.tubeChargeMode === 'NONE' ? undefined : form.tubeChargeItemId,
-            includedTubeCount: Number(form.includedTubeCount || 0),
-            tubeChargeQuantity: Number(form.tubeChargeQuantity || 1),
-          })
-        }}
-      >
+    <FormDialog title={value ? '编辑标本与分管规则' : '新增标本与分管规则'}
+      description="按本机构确认的标本、容器、分管和收费规则维护。"
+      size="xwide" className="specimen-config-dialog" customLayout onClose={onClose}
+      submitLabel="保存标本与分管规则"
+      onSubmit={(event) => { event.preventDefault(); return onSave(specimenConfigurationInput(form, configuration, services, value)) }}>
         <div className="specimen-config-workbench">
-          {/* 左栏：成熟采血管方案预设流 */}
-          <div className="specimen-template-box">
-            <div className="specimen-template-box__header">
-              <div>
-                <strong>常用采血管预设方案</strong>
-                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.125rem' }}>
-                  点击卡片一键套用成熟方案
-                </span>
-              </div>
-              <div style={{ minHeight: '1.75rem', display: 'flex', alignItems: 'center' }}>
-                {selectedTemplateId && (
-                  <Button size="sm" variant="text" onClick={() => setSelectedTemplateId(undefined)}>
-                    清除选中
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className="specimen-template-grid">
-              {TUBE_PRESET_TEMPLATES.map((tpl) => {
-                const isActive = selectedTemplateId === tpl.id
-                return (
-                  <button
-                    type="button"
-                    key={tpl.id}
-                    className={`specimen-template-card${isActive ? ' is-active' : ''}`}
-                    onClick={() => applyTemplate(tpl)}
-                  >
-                    <div className="specimen-template-card__color-bar" style={{ backgroundColor: tpl.color }} />
-                    <strong>
-                      <span className="tube-dot" style={{ backgroundColor: tpl.color }} />
-                      {tpl.name}
-                      {isActive && <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--color-brand-primary)' }}>✓ 已套用</span>}
-                    </strong>
-                    <span>{tpl.description}</span>
-                    <small>
-                      {tpl.tubeSharingMode === 'SHARE' ? '⚡ 同组共管' : '🔒 独立专管'} · {tpl.tubeChargeMode === 'NONE' ? '免加收试管费' : '按管加收耗材'}
-                    </small>
-                  </button>
-                )
-              })}
-            </div>
-
-            <div style={{ marginTop: 'var(--space-3)', padding: 'var(--space-2) var(--space-3)', background: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
-              💡 <strong>提示</strong>：点击预设方案可一键填入标本、对应采血管及分管规则，可在右侧微调。
-            </div>
-          </div>
+          <aside className="specimen-configuration-summary" aria-label="当前标本规则选择">
+            <div className="specimen-configuration-summary__header"><strong>当前选择摘要</strong></div>
+            <p>请核对实际目录项，并明确指定可共管的分组与收费方式。</p>
+            <dl>
+              <dt>送检标本</dt><dd>{configuration.specimenOptions.find((item) => item.id === form.specimenItemId)?.name ?? '未选择'}</dd>
+              <dt>采集容器</dt><dd>{configuration.containerOptions.find((item) => item.id === form.containerItemId)?.name ?? '未指定'}</dd>
+              <dt>合管分组编码</dt><dd>{form.tubeSharingMode === 'SEPARATE' ? '独立分管，无需分组' : form.tubeGroupCode || '未填写'}</dd>
+              <dt>收费项目</dt><dd>{form.tubeChargeMode === 'NONE' ? '已选择不加收' : chargeOptions.find((item) => item.value === form.tubeChargeItemId)?.label ?? '未选择'}</dd>
+            </dl>
+          </aside>
 
           {/* 右栏：三大业务卡片表单 */}
           <div className="specimen-config-main">
@@ -1765,7 +1534,7 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
                     onChange={(v) => {
                       setForm({ ...form, containerItemId: v })
                     }}
-                    placeholder="不限定容器（常规无菌器）"
+                    placeholder="未指定容器"
                     options={configuration.containerOptions.map((v) => ({
                       value: v.id,
                       label: v.name,
@@ -1810,13 +1579,17 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
               </div>
             </div>
 
-            {/* 卡片 2：同次开立分管规则（无需手工维护分管编码，纯临床业务逻辑） */}
+            {/* 卡片 2：本机构确认的分管规则 */}
             <div className="form-section-card">
               <div className="form-section-card__title">
                 <span>02 同次开立分管与合管策略</span>
                 <small>同一医嘱下多检验项目的合管、拆管及并管规则</small>
               </div>
 
+              {form.tubeSharingMode && form.tubeSharingMode !== 'SEPARATE' && <FormField label="合管分组编码" required
+                hint="仅同一分组且规则一致的项目可共管，请填写本机构确认的编码。">
+                <input value={form.tubeGroupCode} onChange={(event) => setForm({ ...form, tubeGroupCode: event.target.value })} />
+              </FormField>}
               {form.tubeSharingMode === 'BY_TEST_COUNT' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr', gap: 'var(--space-3)' }}>
                   <FormField label="分管模式" required>
@@ -1824,8 +1597,8 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
                       value={form.tubeSharingMode}
                       onChange={(v) => setForm({ ...form, tubeSharingMode: v as typeof form.tubeSharingMode })}
                       options={[
-                        { value: 'SHARE', label: '同组共管（相同标本与容器的项目合并抽1管）' },
-                        { value: 'SEPARATE', label: '独立专管（不论是否有同类项目均独立采1管）' },
+                        { value: 'SHARE', label: '同组共管（按确认的分组与基础管数）' },
+                        { value: 'SEPARATE', label: '独立专管（按基础管数单独计算）' },
                         { value: 'BY_TEST_COUNT', label: '按项目数拆管（超出试管容纳上限后另起1管）' },
                       ]}
                     />
@@ -1855,8 +1628,8 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
                       value={form.tubeSharingMode}
                       onChange={(v) => setForm({ ...form, tubeSharingMode: v as typeof form.tubeSharingMode })}
                       options={[
-                        { value: 'SHARE', label: '同组共管（相同标本与容器的项目合并抽1管）' },
-                        { value: 'SEPARATE', label: '独立专管（不论是否有同类项目均独立采1管）' },
+                        { value: 'SHARE', label: '同组共管（按确认的分组与基础管数）' },
+                        { value: 'SEPARATE', label: '独立专管（按基础管数单独计算）' },
                         { value: 'BY_TEST_COUNT', label: '按项目数拆管（超出试管容纳上限后另起1管）' },
                       ]}
                     />
@@ -1889,8 +1662,8 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
                     value={form.tubeChargeMode}
                     onChange={(v) => setForm({ ...form, tubeChargeMode: v as typeof form.tubeChargeMode })}
                     options={[
-                      { value: 'NONE', label: '不加收（已含在项目中或免费）' },
-                      { value: 'PER_TUBE', label: '按管加收（每产生 1 管加收 1 支）' },
+                      { value: 'NONE', label: '不加收' },
+                      { value: 'PER_TUBE', label: '按管加收（管数 × 每管加收数量）' },
                       { value: 'EXCESS_TUBE', label: '超管加收（超出免收数量后加收）' },
                     ]}
                   />
@@ -1908,7 +1681,7 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
-                {form.tubeChargeMode === 'EXCESS_TUBE' ? (
+                {form.tubeChargeMode === 'EXCESS_TUBE' && (
                   <FormField label="已包含试管数 (免加收数)">
                     <input
                       type="number"
@@ -1917,18 +1690,18 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
                       onChange={(e) => setForm({ ...form, includedTubeCount: e.target.value })}
                     />
                   </FormField>
-                ) : (
+                )}
                   <FormField label="每管加收数量">
                     <input
                       disabled={form.tubeChargeMode === 'NONE'}
                       type="number"
                       min="0.0001"
                       step="any"
-                      value={form.tubeChargeMode === 'NONE' ? '0' : form.tubeChargeQuantity}
+                      value={form.tubeChargeMode === 'NONE' ? '' : form.tubeChargeQuantity}
+                      placeholder={form.tubeChargeMode === 'NONE' ? '不适用' : undefined}
                       onChange={(e) => setForm({ ...form, tubeChargeQuantity: e.target.value })}
                     />
                   </FormField>
-                )}
 
                 <FormField label="显示排序号" required>
                   <input
@@ -1960,24 +1733,14 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
           </div>
         </div>
 
-        <div className="ui-form-actions" style={{ marginTop: 'var(--space-4)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-3)' }}>
-          <Button variant="secondary" onClick={onClose} type="button">
-            取消
-          </Button>
-          <Button type="submit">
-            保存标本与分管规则
-          </Button>
-        </div>
-      </form>
-    </Dialog>
+    </FormDialog>
   )
 }
 
 const BODY_SITE_QUICK_TAGS = ['头颅', '脑部', '颌面五官', '颈部', '胸部', '肺部', '全腹部', '上腹部', '盆腔', '腰椎', '颈椎', '胸椎', '四肢关节']
-
 function VariantDialog({ value, dictionaries, onClose, onSave }: {
   value?: ExaminationVariantConfiguration; dictionaries: Record<string, DictionaryValue[]>
-  onClose: () => void; onSave: (input: ExaminationVariantInput) => void
+  onClose: () => void; onSave: (input: ExaminationVariantInput) => Promise<void>
 }) {
   const [form, setForm] = useState({
     code: value?.code ?? '', name: value?.name ?? '', methodType: value?.methodType ?? '',
@@ -1997,7 +1760,7 @@ function VariantDialog({ value, dictionaries, onClose, onSave }: {
     description="维护检查项目允许选择的解剖部位与执行方式，编码用于申请与 PACS 执行交互。"
     onClose={onClose} onSubmit={(e) => {
       e.preventDefault()
-      onSave({
+      return onSave({
         code: form.code, name: form.name, methodType: form.methodType || undefined,
         bodySiteRequired: form.bodySiteRequired, mutualRecognitionCode: form.mutualRecognitionCode || undefined,
         sortOrder: Number(form.sortOrder), status: form.status as 'ACTIVE' | 'INACTIVE',
@@ -2076,10 +1839,9 @@ const ATTACHMENT_SCENE_TEMPLATES = [
     keyword: '麻醉',
   },
 ]
-
 function AttachmentDialog({ value, services, currentServiceId, onClose, onSave }: {
   value?: ExaminationAttachmentConfiguration; services: ServiceCatalogItem[]; currentServiceId: string
-  onClose: () => void; onSave: (input: ExaminationAttachmentInput) => void
+  onClose: () => void; onSave: (input: ExaminationAttachmentInput) => Promise<void>
 }) {
   const [form, setForm] = useState({
     attachmentCatalogItemId: value?.attachmentCatalogItemId ?? '',
@@ -2110,7 +1872,7 @@ function AttachmentDialog({ value, services, currentServiceId, onClose, onSave }
     description="支持场景化向导，根据触发条件（始终/按需/多部位）和数量依据（固定/每部位）自动计算胶片、造影剂与耗材收费。"
     onClose={onClose} onSubmit={(e) => {
       e.preventDefault()
-      onSave({
+      return onSave({
         attachmentCatalogItemId: form.attachmentCatalogItemId,
         triggerType: form.triggerType, quantityBasis: form.quantityBasis, quantity: Number(form.quantity),
         requiredAttachment: form.triggerType === 'OPTIONAL' ? false : form.requiredAttachment,
@@ -2169,10 +1931,9 @@ function AttachmentDialog({ value, services, currentServiceId, onClose, onSave }
     <Check label="在账单中生成独立收费行" checked={form.separatelyChargeable} onChange={(v) => setForm({ ...form, separatelyChargeable: v })} />
   </FormDialog>
 }
-
 function SupplyDialog({ value, units, manufacturers, onClose, onSave }: {
   value?: SupplyItem; units: UnitDefinition[]; manufacturers: Manufacturer[]
-  onClose: () => void; onSave: (input: SupplyInput) => void
+  onClose: () => void; onSave: (input: SupplyInput) => Promise<void>
 }) {
   const [form, setForm] = useState({
     supplyType: value?.supplyType ?? 'CONSUMABLE', code: value?.code ?? '', name: value?.name ?? '',
@@ -2196,7 +1957,7 @@ function SupplyDialog({ value, units, manufacturers, onClose, onSave }: {
     className="supply-dialog-modal"
     customLayout
     onClose={onClose}
-    onSubmit={(e) => { e.preventDefault(); onSave({
+    onSubmit={(e) => { e.preventDefault(); return onSave({
       supplyType: form.supplyType as 'CONSUMABLE' | 'DEVICE', code: form.code, name: form.name,
       unitCode: form.unitCode, orderable: form.orderable, chargeable: form.chargeable, stocked: form.stocked,
       status: form.status as 'ACTIVE' | 'INACTIVE', validFrom: form.validFrom, validTo: form.validTo || undefined,
@@ -2332,11 +2093,10 @@ const USAGE_TYPE_OPTIONS = [
   { value: 'EMERGENCY', label: '急诊业务 (EMERGENCY)' },
   { value: 'HEALTH_CHECK', label: '体检业务 (HEALTH_CHECK)' },
 ]
-
 function GroupDialog({ api, value, services, organization, units, onClose, onSave }: {
-  api?: RhnApi; value?: ItemGroup; services: ServiceCatalogItem[]
+  api: RhnApi; value?: ItemGroup; services: ServiceCatalogItem[]
   organization: Organization; units: UnitDefinition[]; onClose: () => void
-  onSave: (input: ItemGroupInput) => void
+  onSave: (input: ItemGroupInput) => Promise<void>
 }) {
   const [type, setType] = useState(value?.groupType ?? 'LIS')
   const [selected, setSelected] = useState<string[]>(value?.members.map((v) => v.catalogItemId) ?? [])
@@ -2353,8 +2113,17 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
   const [status, setStatus] = useState(value?.status ?? 'ACTIVE')
 
   const [search, setSearch] = useState('')
-  const [tubePlan, setTubePlan] = useState<LaboratoryTubePlan>()
-  const [loadingTubePlan, setLoadingTubePlan] = useState(false)
+  const canPreview = type === 'LIS' && selected.length > 0
+  const tubePreview = useQuery({
+    queryKey: ['master-data-operational-group-tube-preview', organization.id, selected, memberConfig],
+    queryFn: async () => requireTubePlan(await api.masterData.laboratoryTubePlan(selected.map((serviceId) => ({
+      serviceId, quantity: previewQuantity(memberConfig[serviceId]?.quantity),
+    })))),
+    enabled: canPreview, retry: false,
+  })
+  const loadingTubePlan = tubePreview.isFetching
+  const tubePlan = canPreview && !loadingTubePlan && tubePreview.isSuccess ? tubePreview.data : undefined
+  const tubeAmount = tubePlan ? knownChargeTotal(tubePlan.chargeLines) : undefined
 
   const usageOptions = useMemo(() => {
     const exists = USAGE_TYPE_OPTIONS.some((opt) => opt.value === usageType)
@@ -2384,26 +2153,6 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
       memberDescription: current[id]?.memberDescription ?? '', ...patch,
     } }))
 
-  // 当选择变动且为 LIS 组套时，实时计算试管计划
-  useEffect(() => {
-    if (type !== 'LIS' || !api || selected.length === 0) {
-      setTubePlan(undefined)
-      return
-    }
-    let cancelled = false
-    setLoadingTubePlan(true)
-    api.masterData.laboratoryTubePlan(selected.map((serviceId) => ({
-      serviceId, quantity: Number(memberConfig[serviceId]?.quantity || 1),
-    }))).then((res) => {
-      if (!cancelled) setTubePlan(res)
-    }).catch(() => {
-      if (!cancelled) setTubePlan(undefined)
-    }).finally(() => {
-      if (!cancelled) setLoadingTubePlan(false)
-    })
-    return () => { cancelled = true }
-  }, [type, selected, memberConfig, api])
-
   const tubeColor = (group: LaboratoryTubePlan['groups'][number]) => {
     const text = `${group.containerName || ''} ${group.groupCode || ''}`.toUpperCase()
     if (text.includes('促凝') || text.includes('BIOCHEM') || text.includes('黄')) return 'var(--color-warning)'
@@ -2421,7 +2170,7 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
     gridClassName="master-data-form-grid--4"
     onClose={onClose} onSubmit={(e) => {
       e.preventDefault()
-      onSave({
+      return onSave({
         organizationId: scope === 'ORGANIZATION' ? organization.id : undefined,
         code, name, groupType: type as ItemGroup['groupType'], usageType: usageType || undefined,
         pointOfCare, status: status as 'ACTIVE' | 'INACTIVE', validFrom, validTo: validTo || undefined,
@@ -2603,6 +2352,8 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
     {/* 实时采血分管与费用透视卡片 (仅检验组套) */}
     {type === 'LIS' && selected.length > 0 && (
       <div className="span-4 group-tube-insight">
+        {tubePreview.isError && <Alert duration={null}>{errorMessage(tubePreview.error)}</Alert>}
+        <Button size="sm" variant="text" disabled={loadingTubePlan} onClick={() => { void tubePreview.refetch() }}>重新试算分管</Button>
         <div className="group-tube-insight__header">
           <div className="group-tube-insight__title-area">
             <div className="tube-insight-icon-wrap">
@@ -2627,7 +2378,7 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
               {tubePlan.chargeLines.length > 0 && (
                 <div className="tube-stat-item tube-stat-item--fee">
                   <span className="tube-stat-label">试管耗材费预估</span>
-                  <span className="tube-stat-value">¥ {tubePlan.chargeLines.reduce((acc, l) => acc + (l.fixedAmount ? Number(l.fixedAmount) : 0), 0).toFixed(2)}</span>
+                  <span className="tube-stat-value">{tubeAmount === undefined ? '金额待计价' : `¥ ${tubeAmount.toFixed(2)}`}</span>
                 </div>
               )}
             </div>
@@ -2640,7 +2391,7 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
               return (
                 <div key={group.groupCode} className="group-tube-pill">
                   <span className="tube-dot" style={{ backgroundColor: color }} />
-                  <strong className="group-tube-pill__name">{group.specimenName || '标本'} · {group.containerName || '标准管'}</strong>
+                  <strong className="group-tube-pill__name">{group.specimenName || '标本名称未返回'} · {group.containerName || '容器名称未返回'}</strong>
                   <span className="group-tube-pill__detail">({group.tubeCount} 管 · 含 {group.serviceIds.length} 个检验单项)</span>
                 </div>
               )
@@ -2673,7 +2424,6 @@ const FIRST_DAY_POLICIES: Array<{
     desc: '以开立时间为基准顺延生成下一个执行时点。',
   },
 ]
-
 function FrequencyConfigurationWorkbenchDialog({
   frequency, organization, departments, api, onClose, onSaveConfiguration, onError,
 }: {
@@ -3106,7 +2856,7 @@ function FrequencyWorkspace({ api, organization, departments, values, loading, o
 }) {
   const saveFrequency = (value?: OrderFrequency) => (input: OrderFrequencyInput) =>
     (value ? api.masterData.updateOrderFrequency(value, input) : api.masterData.createOrderFrequency(input))
-      .then(() => onDone(value ? '医嘱频次已更新' : '医嘱频次已新增')).catch(onError)
+      .then(() => onDone(value ? '医嘱频次已更新' : '医嘱频次已新增'))
   const saveConfiguration = (frequency: OrderFrequency, value?: OrderFrequencyConfiguration) =>
     (input: OrderFrequencyConfigurationInput) => (value
       ? api.masterData.updateOrderFrequencyConfiguration(frequency.id, value, input)
@@ -3181,7 +2931,7 @@ function FrequencyWorkspace({ api, organization, departments, values, loading, o
 }
 
 function FrequencyDialog({ api, value, onClose, onSave }: {
-  api: RhnApi; value?: OrderFrequency; onClose: () => void; onSave: (input: OrderFrequencyInput) => void
+  api: RhnApi; value?: OrderFrequency; onClose: () => void; onSave: (input: OrderFrequencyInput) => Promise<void>
 }) {
   const [form, setForm] = useState<FrequencyDraft>({
     code: value?.code ?? '', name: value?.name ?? '', shortName: value?.shortName ?? '',
@@ -3231,7 +2981,7 @@ function FrequencyDialog({ api, value, onClose, onSave }: {
       if (usesTimes && !executionTimes.length) { setFormError('请至少添加一个执行时点'); return }
       if (!form.outpatientApplicable && !form.inpatientApplicable && !form.emergencyApplicable) { setFormError('请至少选择一个适用场景'); return }
       if (!form.medicationApplicable && !form.treatmentApplicable && !form.nursingApplicable) { setFormError('请至少选择一种医嘱类型'); return }
-      setFormError(''); onSave(input)
+      setFormError(''); return onSave(input)
     }} >
     <div className="frequency-dialog-split">
       <div className="frequency-dialog-split__main">
@@ -3407,7 +3157,6 @@ const frequencyTemplates: Array<{ id: string; title: string; copy: string; value
     defaultExecutionTimes: '', outpatientApplicable: false, inpatientApplicable: true, emergencyApplicable: true,
     medicationApplicable: true, treatmentApplicable: true, nursingApplicable: true, automaticTaskGeneration: false } },
 ]
-
 function FrequencyTimeEditor({ value, onChange, inheritLabel, inheritTimes = [] }: {
   value: string[]; onChange: (value: string[]) => void; inheritLabel?: string; inheritTimes?: string[]
 }) {
@@ -3499,34 +3248,52 @@ function frequencyApplicabilityLabel(value: OrderFrequency) {
   return `${scenes.join('/')} · ${orders.join('/')}`
 }
 
-function UnitWorkspace({ api, units, conversions, catalogItems, loading, onDialog, onDone, onError }: { api: RhnApi; units: UnitDefinition[]; conversions: UnitConversion[]; catalogItems: Array<ServiceCatalogItem | SupplyItem>; loading: boolean; onDialog: (v?: ReactNode) => void; onDone: (m: string) => Promise<void>; onError: (e: unknown) => void }) {
-  const [quantity, setQuantity] = useState('1'); const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [catalogItemId, setCatalogItemId] = useState(''); const [result, setResult] = useState('')
+function UnitWorkspace({ api, organizationId, units, conversions, catalogItems, loading, onDialog, onDone }: { api: RhnApi; organizationId: string; units: UnitDefinition[]; conversions: UnitConversion[]; catalogItems: Array<ServiceCatalogItem | SupplyItem>; loading: boolean; onDialog: (v?: ReactNode) => void; onDone: (m: string) => Promise<void> }) {
+  const [quantity, setQuantity] = useState('1'); const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [catalogItemId, setCatalogItemId] = useState('')
   const opts = units.filter((v) => v.status === 'ACTIVE').map(unitOption)
   const catalogOptions = catalogItems.map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
   const catalogName = (id?: string) => catalogItems.find((v) => v.id === id)?.name ?? '项目专属'
   const unitName = (code: string) => units.find((unit) => unit.code === code)?.name ?? code
-  const run = () => api.masterData.convertUnit(Number(quantity), from, to, catalogItemId || undefined, today()).then((v) => setResult(`${v.input} ${unitName(v.fromUnitCode)} = ${v.result} ${unitName(v.toUnitCode)} · ${v.path.map(unitName).join(' → ')}`)).catch(onError)
+  const date = today()
+  const preview = useQuery({
+    queryKey: ['master-data-operational-unit-preview', organizationId, quantity, from, to, catalogItemId, date, conversions, units],
+    queryFn: async () => {
+      const input = quantity.trim() ? Number(quantity) : NaN
+      if (!Number.isFinite(input)) throw new Error('请填写有效的换算数量。')
+      const value = await api.masterData.convertUnit(input, from, to, catalogItemId || undefined, date)
+      if (!value || value.input !== input || value.fromUnitCode !== from || value.toUnitCode !== to
+        || (value.catalogItemId ?? '') !== catalogItemId || value.effectiveDate !== date
+        || !Number.isFinite(value.result) || !Array.isArray(value.path) || !value.path.length
+        || value.path.some((code) => typeof code !== 'string' || !code)) {
+        throw new Error('单位换算结果不完整或与当前输入不一致，请重新试算。')
+      }
+      return `${value.input} ${unitName(value.fromUnitCode)} = ${value.result} ${unitName(value.toUnitCode)} · ${value.path.map(unitName).join(' → ')}`
+    },
+    enabled: false, retry: false,
+  })
+  const result = preview.isSuccess && !preview.isFetching ? preview.data : undefined
+  const run = () => { void preview.refetch() }
+
   const saveUnit = (value?: UnitDefinition) => (input: Omit<UnitDefinition, 'id' | 'revision'>) =>
     (value ? api.masterData.updateUnit(value, input) : api.masterData.createUnit(input))
-      .then(() => { onDialog(undefined); return onDone(value ? '计量单位已更新' : '计量单位已新增') }).catch(onError)
+      .then(() => { onDialog(undefined); return onDone(value ? '计量单位已更新' : '计量单位已新增') })
   const saveConversion = (value?: UnitConversion) => (input: UnitConversionInput) =>
     (value ? api.masterData.updateUnitConversion(value, input) : api.masterData.createUnitConversion(input))
-      .then(() => { onDialog(undefined); return onDone(value ? '换算规则已更新' : '换算规则已新增') }).catch(onError)
+      .then(() => { onDialog(undefined); return onDone(value ? '换算规则已更新' : '换算规则已新增') })
   return <section className="operational-master-data__body"><div className="operational-master-data__toolbar"><div><h3>统一计量单位与换算</h3><p>单位按计量维度管理，项目专属规则优先于全局规则。</p></div><div className="row-actions"><Button variant="secondary" onClick={() => onDialog(<UnitDialog onClose={() => onDialog(undefined)} onSave={saveUnit()} />)}>新增单位</Button><Button onClick={() => onDialog(<ConversionDialog units={units} catalogItems={catalogItems} onClose={() => onDialog(undefined)} onSave={saveConversion()} />)}>新增换算</Button></div></div>
     {loading ? <LoadingState label="正在加载计量体系…" /> : <div className="unit-workspace"><div><h4>单位定义</h4><DataTable headers={['单位', '维度', '精度', '状态', '操作']} rows={units.map((v) => [<b title={`单位编码：${v.code}`}>{v.name}{v.symbol && <small>{v.symbol}</small>}</b>, dimensions.find((d) => d.value === v.dimension)?.label, v.decimalScale, <State value={v.status} />, <Button size="sm" variant="text" onClick={() => onDialog(<UnitDialog value={v} onClose={() => onDialog(undefined)} onSave={saveUnit(v)} />)}>编辑</Button>])} /></div>
       <div><h4>换算规则</h4><DataTable headers={['范围', '换算', '有效期', '状态', '操作']} rows={conversions.map((v) => [v.catalogItemId ? catalogName(v.catalogItemId) : '全局', `1 ${unitName(v.fromUnitCode)} = ${v.factor} ${unitName(v.toUnitCode)}${v.offset ? ` + ${v.offset}` : ''}`, `${v.validFrom} 至 ${v.validTo || '长期'}`, <State value={v.status} />, <Button size="sm" variant="text" onClick={() => onDialog(<ConversionDialog value={v} units={units} catalogItems={catalogItems} onClose={() => onDialog(undefined)} onSave={saveConversion(v)} />)}>编辑</Button>])} /></div></div>}
-    <div className="unit-converter"><strong>换算试算</strong><Select value={catalogItemId} onChange={setCatalogItemId} placeholder="全局规则（可选项目）" options={catalogOptions} /><input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} /><Select value={from} onChange={setFrom} placeholder="来源单位" options={opts} /><span>→</span><Select value={to} onChange={setTo} placeholder="目标单位" options={opts} /><Button variant="secondary" disabled={!from || !to} onClick={run}>试算</Button>{result && <output>{result}</output>}</div>
+    <div className="unit-converter"><strong>换算试算</strong><Select value={catalogItemId} onChange={setCatalogItemId} placeholder="全局规则（可选项目）" options={catalogOptions} /><input aria-label="换算数量" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} /><Select aria-label="来源单位" value={from} onChange={setFrom} placeholder="来源单位" options={opts} /><span>→</span><Select aria-label="目标单位" value={to} onChange={setTo} placeholder="目标单位" options={opts} /><Button variant="secondary" disabled={!from || !to || !quantity.trim() || preview.isFetching} onClick={run}>试算</Button>{preview.isFetching && <LoadingState label="正在换算…" />}{preview.isError && <Alert duration={null}>{errorMessage(preview.error)}</Alert>}{result && <output>{result}</output>}</div>
   </section>
 }
 
-function UnitDialog({ value, onClose, onSave }: { value?: UnitDefinition; onClose: () => void; onSave: (v: Omit<UnitDefinition, 'id' | 'revision'>) => void }) {
+function UnitDialog({ value, onClose, onSave }: { value?: UnitDefinition; onClose: () => void; onSave: (v: Omit<UnitDefinition, 'id' | 'revision'>) => Promise<void> }) {
   const [form, setForm] = useState({ code: value?.code ?? '', name: value?.name ?? '', symbol: value?.symbol ?? '', dimension: value?.dimension ?? 'COUNT', decimalScale: String(value?.decimalScale ?? 0), status: value?.status ?? 'ACTIVE' })
-  return <FormDialog title={value ? '编辑计量单位' : '新增计量单位'} description="单位编码作为跨业务交换键，创建后不可修改。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ code: form.code, name: form.name, symbol: form.symbol || undefined, dimension: form.dimension as UnitDefinition['dimension'], decimalScale: Number(form.decimalScale), status: form.status as 'ACTIVE' | 'INACTIVE' }) }}><FormField label="单位编码" required><input value={form.code} disabled={Boolean(value)} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} /></FormField><FormField label="单位名称" required><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></FormField><FormField label="显示符号"><input value={form.symbol} onChange={(e) => setForm({ ...form, symbol: e.target.value })} /></FormField><FormField label="计量维度"><Select value={form.dimension} onChange={(v) => setForm({ ...form, dimension: v as UnitDefinition['dimension'] })} options={dimensions} /></FormField><FormField label="小数精度"><input type="number" min="0" max="12" value={form.decimalScale} onChange={(e) => setForm({ ...form, decimalScale: e.target.value })} /></FormField><FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField></FormDialog>
+  return <FormDialog title={value ? '编辑计量单位' : '新增计量单位'} description="单位编码作为跨业务交换键，创建后不可修改。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); return onSave({ code: form.code, name: form.name, symbol: form.symbol || undefined, dimension: form.dimension as UnitDefinition['dimension'], decimalScale: Number(form.decimalScale), status: form.status as 'ACTIVE' | 'INACTIVE' }) }}><FormField label="单位编码" required><input value={form.code} disabled={Boolean(value)} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} /></FormField><FormField label="单位名称" required><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></FormField><FormField label="显示符号"><input value={form.symbol} onChange={(e) => setForm({ ...form, symbol: e.target.value })} /></FormField><FormField label="计量维度"><Select value={form.dimension} onChange={(v) => setForm({ ...form, dimension: v as UnitDefinition['dimension'] })} options={dimensions} /></FormField><FormField label="小数精度"><input type="number" min="0" max="12" value={form.decimalScale} onChange={(e) => setForm({ ...form, decimalScale: e.target.value })} /></FormField><FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField></FormDialog>
 }
-function ConversionDialog({ value, units, catalogItems, onClose, onSave }: { value?: UnitConversion; units: UnitDefinition[]; catalogItems: Array<ServiceCatalogItem | SupplyItem>; onClose: () => void; onSave: (v: UnitConversionInput) => void }) {
+function ConversionDialog({ value, units, catalogItems, onClose, onSave }: { value?: UnitConversion; units: UnitDefinition[]; catalogItems: Array<ServiceCatalogItem | SupplyItem>; onClose: () => void; onSave: (v: UnitConversionInput) => Promise<void> }) {
   const [form, setForm] = useState({ catalogItemId: value?.catalogItemId ?? '', fromUnitCode: value?.fromUnitCode ?? '', toUnitCode: value?.toUnitCode ?? '', factor: String(value?.factor ?? ''), offset: String(value?.offset ?? 0), validFrom: value?.validFrom ?? today(), validTo: value?.validTo ?? '', status: value?.status ?? 'ACTIVE' }); const opts = units.filter((v) => v.status === 'ACTIVE' || v.code === value?.fromUnitCode || v.code === value?.toUnitCode).map(unitOption)
   const catalogOptions = catalogItems.map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
-  return <FormDialog title={value ? '编辑单位换算' : '新增单位换算'} description="全局规则适用于通用物理换算；包装规格等应使用项目专属换算。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ catalogItemId: form.catalogItemId || undefined, fromUnitCode: form.fromUnitCode, toUnitCode: form.toUnitCode, factor: Number(form.factor), offset: Number(form.offset), validFrom: form.validFrom, validTo: form.validTo || undefined, status: form.status as 'ACTIVE' | 'INACTIVE' }) }}><FormField label="规则范围"><Select disabled={Boolean(value)} value={form.catalogItemId} onChange={(v) => setForm({ ...form, catalogItemId: v })} placeholder="全局通用" options={catalogOptions} /></FormField><FormField label="来源单位" required><Select disabled={Boolean(value)} value={form.fromUnitCode} onChange={(v) => setForm({ ...form, fromUnitCode: v })} options={opts} /></FormField><FormField label="目标单位" required><Select disabled={Boolean(value)} value={form.toUnitCode} onChange={(v) => setForm({ ...form, toUnitCode: v })} options={opts} /></FormField><FormField label="乘数" required><input type="number" min="0.000000001" step="any" value={form.factor} onChange={(e) => setForm({ ...form, factor: e.target.value })} /></FormField><FormField label="偏移量"><input type="number" step="any" value={form.offset} onChange={(e) => setForm({ ...form, offset: e.target.value })} /></FormField><FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField><FormField label="生效日期"><input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} /></FormField><FormField label="失效日期"><input type="date" min={form.validFrom} value={form.validTo} onChange={(e) => setForm({ ...form, validTo: e.target.value })} /></FormField></FormDialog>
+  return <FormDialog title={value ? '编辑单位换算' : '新增单位换算'} description="全局规则适用于通用物理换算；包装规格等应使用项目专属换算。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); return onSave({ catalogItemId: form.catalogItemId || undefined, fromUnitCode: form.fromUnitCode, toUnitCode: form.toUnitCode, factor: Number(form.factor), offset: Number(form.offset), validFrom: form.validFrom, validTo: form.validTo || undefined, status: form.status as 'ACTIVE' | 'INACTIVE' }) }}><FormField label="规则范围"><Select disabled={Boolean(value)} value={form.catalogItemId} onChange={(v) => setForm({ ...form, catalogItemId: v })} placeholder="全局通用" options={catalogOptions} /></FormField><FormField label="来源单位" required><Select disabled={Boolean(value)} value={form.fromUnitCode} onChange={(v) => setForm({ ...form, fromUnitCode: v })} options={opts} /></FormField><FormField label="目标单位" required><Select disabled={Boolean(value)} value={form.toUnitCode} onChange={(v) => setForm({ ...form, toUnitCode: v })} options={opts} /></FormField><FormField label="乘数" required><input type="number" min="0.000000001" step="any" value={form.factor} onChange={(e) => setForm({ ...form, factor: e.target.value })} /></FormField><FormField label="偏移量"><input type="number" step="any" value={form.offset} onChange={(e) => setForm({ ...form, offset: e.target.value })} /></FormField><FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField><FormField label="生效日期"><input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} /></FormField><FormField label="失效日期"><input type="date" min={form.validFrom} value={form.validTo} onChange={(e) => setForm({ ...form, validTo: e.target.value })} /></FormField></FormDialog>
 }
-
 const unitOption = (v: UnitDefinition) => ({ value: v.code, label: v.name, secondaryText: v.symbol || v.code })

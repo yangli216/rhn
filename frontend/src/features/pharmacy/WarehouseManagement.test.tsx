@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../app/AppShell'
-import type { StockSite } from '../../shared/api'
+import type { InventoryBalance, InventoryTransactionPage, StockSite } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { WarehouseManagement } from './WarehouseManagement'
 
@@ -90,11 +90,12 @@ function renderComponent(api: RhnApi, context = clinicalContext) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
+  const rendered = render(
     <QueryClientProvider client={queryClient}>
       <WarehouseManagement api={api} clinicalContext={context} onNavigate={vi.fn()} />
     </QueryClientProvider>,
   )
+  return { ...rendered, queryClient }
 }
 
 describe('WarehouseManagement', () => {
@@ -205,4 +206,101 @@ describe('WarehouseManagement', () => {
       stockItemId: 'item-1', allPeriods: true, query: 'OPENING-STOCK', page: 0, size: 20,
     }))
   })
+})
+
+
+const warehouseContext = { organization: { id: 'org-1', name: '机构' },
+  department: { id: 'dept-warehouse', name: '药库' } } as unknown as ClinicalContext
+const balance = (cost?: number) => ({ id: 'balance', stockItemId: 'item-1', stockLotId: 'lot',
+  stockBinId: 'bin-1', stockStatus: 'AVAILABLE', quantityOnHand: 10, quantityAvailable: 10,
+  quantityReserved: 0, quantityFrozen: 0, averageUnitCost: cost }) as InventoryBalance
+
+it('does not report zero stock when a successful balance query later fails', async () => {
+  const api = createMockApi()
+  vi.mocked(api.pharmacy.balances).mockResolvedValue([balance(4)])
+  const { queryClient } = renderComponent(api, warehouseContext)
+  fireEvent.click(await screen.findByRole('button', { name: /库存查询/ }))
+  await screen.findByRole('table', { name: '库存查询结果' })
+  vi.mocked(api.pharmacy.balances).mockRejectedValueOnce(new Error('库存查询失败'))
+  await act(() => queryClient.invalidateQueries({ queryKey: ['warehouse-balances', 'site-warehouse'] }))
+  expect(await screen.findByText('库存基础数据读取失败')).toBeInTheDocument()
+  expect(screen.queryByRole('table', { name: '库存查询结果' })).not.toBeInTheDocument()
+  expect(screen.queryByText('零库存')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: '重新读取库存数据' }))
+  await screen.findByRole('table', { name: '库存查询结果' })
+})
+
+it.each([null, [{ ...balance(4), quantityOnHand: null }]])('rejects missing inventory data instead of showing zeros %#', async rows => {
+  const api = createMockApi()
+  vi.mocked(api.pharmacy.balances).mockResolvedValue(rows as unknown as InventoryBalance[])
+  renderComponent(api, warehouseContext)
+  expect(await screen.findByText('库存基础数据读取失败')).toBeInTheDocument()
+  expect(screen.queryByText('零库存')).not.toBeInTheDocument()
+})
+
+it('does not equate a failed site lookup with an unconfigured organization', async () => {
+  const api = createMockApi()
+  vi.mocked(api.pharmacy.sites).mockRejectedValue(new Error('站点不可用'))
+  renderComponent(api, warehouseContext)
+  expect(await screen.findByText('库存站点读取失败')).toBeInTheDocument()
+  expect(screen.queryByText('机构未配置任何库存站点')).not.toBeInTheDocument()
+})
+
+it('does not count a batch with missing cost as free in the weighted inventory cost', async () => {
+  const api = createMockApi()
+  vi.mocked(api.pharmacy.balances).mockResolvedValue([balance(4), { ...balance(), id: 'missing-cost' }])
+  renderComponent(api, warehouseContext)
+  fireEvent.click(await screen.findByRole('button', { name: /库存查询/ }))
+  const table = await screen.findByRole('table', { name: '库存查询结果' })
+  expect(within(table).getByText('成本未取得')).toBeInTheDocument()
+  expect(within(table).queryByText('¥2.00')).not.toBeInTheDocument()
+})
+
+function historyPage(anchor?: number): InventoryTransactionPage {
+  return { content: ['first', 'second'].map(id => ({ id, transactionNo: id, sourceCode: id,
+    occurredAt: '2026-10-03T00:00:00Z', transactionType: 'RECEIPT',
+    lines: [{ id: `line-${id}`, stockItemId: 'item-1', stockLotId: 'lot', stockBinId: 'bin-1',
+      stockStatus: 'AVAILABLE', quantityDelta: 2 }] })),
+    page: 0, size: 20, totalElements: 2, totalPages: 1, first: true, last: true,
+    firstEntryQuantityAfter: anchor } as InventoryTransactionPage
+}
+
+it('does not borrow current stock or invent zero amounts for missing ledger values', async () => {
+  const api = createMockApi()
+  vi.mocked(api.pharmacy.balances).mockResolvedValue([balance(4)])
+  vi.mocked(api.pharmacy.transactionPage).mockResolvedValue(historyPage())
+  renderComponent(api, warehouseContext)
+  fireEvent.click(await screen.findByRole('button', { name: /库存查询/ }))
+  fireEvent.click(await screen.findByRole('button', { name: '查看流水' }))
+  const table = await screen.findByRole('table', { name: '药品库存变动流水' })
+  expect(within(table).getAllByText('结存未取得')).toHaveLength(2)
+  expect(within(table).getAllByText('金额未取得')).toHaveLength(2)
+  expect(within(table).getAllByText('单价未取得')).toHaveLength(2)
+  expect(within(table).queryByText('8 → 10')).not.toBeInTheDocument()
+})
+
+it('does not infer consecutive balances across filtered-out transactions', async () => {
+  const api = createMockApi()
+  vi.mocked(api.pharmacy.transactionPage).mockResolvedValue(historyPage(10))
+  renderComponent(api, warehouseContext)
+  fireEvent.click(await screen.findByRole('button', { name: /库存查询/ }))
+  fireEvent.click(await screen.findByRole('button', { name: '查看流水' }))
+  await screen.findByRole('table', { name: '药品库存变动流水' })
+  expect(screen.getByText('6 → 8')).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('查询库存流水'), { target: { value: 'match' } })
+  await waitFor(() => expect(api.pharmacy.transactionPage).toHaveBeenCalledWith('site-warehouse', expect.objectContaining({ query: 'match' })))
+  await screen.findByText('结存未取得')
+  expect(screen.getByText('8 → 10')).toBeInTheDocument()
+  expect(screen.queryByText('6 → 8')).not.toBeInTheDocument()
+})
+
+it('treats malformed history as an error rather than an empty ledger', async () => {
+  const api = createMockApi()
+  vi.mocked(api.pharmacy.transactionPage).mockImplementation(async (_siteId, options) => options?.stockItemId
+    ? {} as InventoryTransactionPage : historyPage(10))
+  renderComponent(api, warehouseContext)
+  fireEvent.click(await screen.findByRole('button', { name: /库存查询/ }))
+  fireEvent.click(await screen.findByRole('button', { name: '查看流水' }))
+  expect(await screen.findByText('库存流水读取失败')).toBeInTheDocument()
+  expect(screen.queryByText('暂无库存流水')).not.toBeInTheDocument()
 })

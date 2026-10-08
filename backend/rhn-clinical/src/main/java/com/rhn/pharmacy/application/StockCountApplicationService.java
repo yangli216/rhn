@@ -56,6 +56,7 @@ public class StockCountApplicationService {
             return view(c, existing);
         }
         StockSite site = requireSite(c, input.stockSiteId());
+        Long departmentId = StockSiteRequirements.requireDepartment(site);
         String type = upper(input.countType());
         if (!TYPES.contains(type)) {
             throw badRequest("COUNT_TYPE_INVALID", "盘点类型不受支持");
@@ -95,7 +96,7 @@ public class StockCountApplicationService {
             no = "CT" + FORMAT.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
         }
         StockCount value = new StockCount(c.tenantId(), site.organizationId(),
-                site.departmentId() != null ? site.departmentId() : (c.departmentId() != null ? c.departmentId() : 1L),
+                departmentId,
                 site.id(), binId, no, request, type, Instant.now(), Strings.trimToNull(input.reason()),
                 Strings.trimToNull(input.description()), c.subjectId());
         repository.save(value);

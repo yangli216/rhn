@@ -107,7 +107,7 @@ describe('BillingWorkspace deep link', () => {
         createPaymentOrder,
       },
       dictionaries: { applicable: vi.fn().mockResolvedValue([
-        { code: 'CASH', name: '现金' }, { code: 'MEDICAL_INSURANCE', name: '医保支付' },
+        { code: 'CASH', name: '现金', attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }, { code: 'MEDICAL_INSURANCE', name: '医保支付' },
       ]) },
     } as unknown as RhnApi
     const clinicalContext = {
@@ -125,6 +125,7 @@ describe('BillingWorkspace deep link', () => {
     expect(screen.queryByText('医保支付')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '生成结算凭证' })).not.toBeInTheDocument()
     const settleButton = screen.getByRole('button', { name: '结算开票 (Ctrl+Enter)' })
+    await userEvent.type(await screen.findByPlaceholderText('28.6'), '28.6')
     await waitFor(() => expect(settleButton).toBeEnabled())
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }))
 
@@ -332,7 +333,7 @@ describe('BillingWorkspace deep link', () => {
         dailyReconciliation: vi.fn().mockResolvedValue({}),
         paymentOrders: vi.fn().mockResolvedValue([]),
       },
-      dictionaries: { applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金' }]) },
+      dictionaries: { applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金', attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
     } as unknown as RhnApi
     const clinicalContext = {
       organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },
@@ -366,6 +367,7 @@ describe('BillingWorkspace deep link', () => {
 
     // 5. Settle only the selected medication item
     const settleButton = screen.getByRole('button', { name: '结算开票 (Ctrl+Enter)' })
+    await userEvent.type(await screen.findByPlaceholderText('28.6'), '28.6')
     await waitFor(() => expect(settleButton).toBeEnabled())
     await user.click(settleButton)
 
@@ -453,7 +455,7 @@ describe('BillingWorkspace deep link', () => {
     await user.click(viewReceiptBtn)
 
     // 验证弹出发票预览并展示四要素
-    expect(await screen.findByText('江西省医疗门诊收费电子票据')).toBeInTheDocument()
+    expect(await screen.findByText('电子票据信息')).toBeInTheDocument()
     expect(screen.getByText('3601060126')).toBeInTheDocument()
     expect(screen.getAllByText('0001859231').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('251132')).toBeInTheDocument()

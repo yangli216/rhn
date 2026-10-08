@@ -531,6 +531,8 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "strengthValue":1,"strengthUnit":"g","sdStorageType":"ROOM_TEMPERATURE",
                                   "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                                   "sdAntimicrobialLevel":null,"skinTestRequired":true,
+                                 "skinTestMethod":"INTRADERMAL","skinTestSolutionMode":"DILUTED_SOLUTION",
+                                 "skinTestObservationMinutes":20,"skinTestResultValidityHours":24,
                                   "defaultDose":1,"defaultDoseUnit":"g","defaultRoute":"PO",
                                   "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,
                                   "sdStatus":"ACTIVE"

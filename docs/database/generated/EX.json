@@ -1,5 +1,5 @@
 {
-  "fingerprint": "cf6b790881c7cf89a94898e2de0d7d9f33de0ebee3ca9d002f9ab8cca929a48e",
+  "fingerprint": "29033795aa43ffea288b26ca6e7fbda613f90ac95920280da8122dd5a636c9d6",
   "tables": [
     {
       "logical": "ex.care_request",
@@ -1712,7 +1712,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/domain/DiagnosticExecutionTask.java",
-          "line": 17
+          "line": 19
         }
       ]
     },
@@ -8762,12 +8762,12 @@
           "type": "BOOLEAN",
           "size": 1,
           "scale": 0,
-          "nullable": false,
-          "defaultValue": "FALSE",
+          "nullable": true,
+          "defaultValue": null,
           "ordinal": 22,
-          "comment": "是否adversereaction",
+          "comment": "不良反应评估：空表示未评估，真表示有，假表示无",
           "logical": "adverse_reaction",
-          "catalogComment": "是否adversereaction"
+          "catalogComment": "不良反应评估：空表示未评估，真表示有，假表示无"
         },
         {
           "physical": "DES_ADVERSE_REACT_DETAIL",

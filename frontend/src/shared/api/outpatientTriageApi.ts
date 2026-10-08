@@ -56,7 +56,7 @@ export interface TriageRecord {
   oxygenSaturation?: number
   bloodGlucose?: number
   painScore?: number
-  consciousness: TriageConsciousness
+  consciousness?: TriageConsciousness
   fever: boolean
   epidemicHistory?: string
   riskTags?: string

@@ -17,7 +17,7 @@ const saved = {id:'med-1',revision:1,code:spec.id,name:entry.name,sdMedicationTy
   antimicrobialOutpatientAllowed:false,antimicrobialConsultationRequired:false,antimicrobialEmergencyAllowed:false,
   skinTestRequired:false,chronicDiseaseDrug:false,singleOrder:true,sdStatusText:'有效',classifications:[],allergenConceptIds:[]} as MedicationKnowledge
 function setup(prior: boolean | MedicationKnowledge[] = false) {
-  const masterData = {standardMedicationCandidates:vi.fn().mockResolvedValue(Array.isArray(prior) ? prior : prior ? [saved] : []),
+  const masterData = {itemAttributeMaintenance:vi.fn().mockResolvedValue({schema:{attributes:[]},baseValues:[],overrides:[]}), standardMedicationCandidates:vi.fn().mockResolvedValue(Array.isArray(prior) ? prior : prior ? [saved] : []),
     saveStandardMedication:vi.fn().mockResolvedValue(saved),
     createProductSetup:vi.fn().mockRejectedValueOnce(new Error('产品编码已存在')).mockResolvedValue({id:'product-1'})}
   const onComplete=vi.fn()
@@ -70,6 +70,7 @@ describe('standard medication operational setup', () => {
   it('reuses the existing standard specification and preserves its code when saving edits', async () => {
     const {masterData}=setup(true)
     await screen.findByDisplayValue(spec.id)
+    await screen.findByText('当前项目类型未装配自定义扩展属性。')
     submit()
     await screen.findByText('新增药品产品')
     expect(masterData.saveStandardMedication).toHaveBeenCalledWith(spec.id,expect.objectContaining({code:spec.id}),'org-1',saved)
@@ -82,6 +83,7 @@ describe('standard medication operational setup', () => {
     fireEvent.click(screen.getByRole('button', {name:/DRUG-LEGACY/}))
     expect(await screen.findByDisplayValue('DRUG-LEGACY')).toHaveAttribute('readonly')
     expect(document.querySelector('input[name="preparationUnit"]')).toHaveAttribute('readonly')
+    await screen.findByText('当前项目类型未装配自定义扩展属性。')
     submit()
     await screen.findByText('新增药品产品')
     expect(masterData.saveStandardMedication).toHaveBeenCalledWith(spec.id,expect.anything(),'org-1',used)

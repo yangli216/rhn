@@ -37,6 +37,119 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
     @MockitoBean DecisionModelGateway decisionGateway;
     @Autowired
     SearchEntryProjectionService searchEntryProjections;
+    @Autowired
+    com.rhn.platform.masterdata.infrastructure.MedicationRepository medicationRepository;
+
+    @Test
+    void explicitSpecificationMustAgreeWithTheRealCatalogBeforeAnOrderIsCompiled() throws Exception {
+        String actual = medicationRepository.findByIdAndTenantId(362387871000901L, Long.valueOf(TENANT))
+                .orElseThrow().preparationSpec();
+        org.junit.jupiter.api.Assertions.assertNotNull(actual);
+        org.junit.jupiter.api.Assertions.assertNotEquals("9999mg", actual);
+        for (boolean matching : List.of(false, true)) {
+            String details = "规格：" + (matching ? actual : "9999mg") + "；每次0.5g 口服 PRN 共2盒";
+            String body = objectMapper.writeValueAsString(java.util.Map.of(
+                    "naturalInput", "对乙酰氨基酚 " + details, "confirmedNarrative", "对乙酰氨基酚 " + details,
+                    "confirmedName", "规格事实核对", "scopeType", "PERSONAL",
+                    "reviewItems", List.of(java.util.Map.of("kind", "MEDICATION", "text", "对乙酰氨基酚",
+                            "origin", "SUGGESTED", "details", details))));
+            mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
+                            .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.medications.length()").value(matching ? 1 : 0))
+                    .andExpect(jsonPath("$.tasks[0].status").value(matching ? "MATCHED" : "NEEDS_REVIEW"));
+        }
+        String quoted = "对乙酰氨基酚 9999mg";
+        String quotedBody = objectMapper.writeValueAsString(java.util.Map.of(
+                "naturalInput", quoted, "confirmedNarrative", quoted, "confirmedName", "保留原文规格",
+                "scopeType", "PERSONAL", "reviewItems", List.of(java.util.Map.of(
+                        "kind", "MEDICATION", "text", "对乙酰氨基酚", "origin", "EXPLICIT",
+                        "sourceQuote", quoted, "details", "每次0.5g 口服 PRN 共2盒"))));
+        mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(quotedBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.medications.length()").value(0))
+                .andExpect(jsonPath("$.tasks[0].status").value("NEEDS_REVIEW"));
+        verifyNoInteractions(modelGateway, decisionGateway);
+    }
+
+    @Test
+    void conversionKeepsMissingMedicationDirectionsUnresolvedWithoutSupplyingDefaults() throws Exception {
+        for (String details : List.of("每次0.5g 口服 PRN", "共2盒")) {
+            mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
+                    .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"naturalInput":"对乙酰氨基酚", "confirmedNarrative":"对乙酰氨基酚",
+                         "confirmedName":"缺失用法核对", "scopeType":"PERSONAL",
+                         "reviewItems":[{"kind":"MEDICATION", "text":"对乙酰氨基酚", "origin":"SUGGESTED", "details":"%s"}]}
+                        """.formatted(details)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.medications.length()").value(0))
+                    .andExpect(jsonPath("$.tasks[0].status").value("NEEDS_REVIEW"))
+                    .andExpect(jsonPath("$.tasks[0].details").value(org.hamcrest.Matchers.containsString("缺少")));
+        }
+    }
+
+    @Test
+    void conversionDoesNotInventThreeDaysForAnExplicitMedicationWithoutCourse() throws Exception {
+        mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                    {"naturalInput":"对乙酰氨基酚", "confirmedNarrative":"对乙酰氨基酚",
+                     "confirmedName":"未指定疗程", "scopeType":"PERSONAL",
+                     "reviewItems":[{"kind":"MEDICATION", "text":"对乙酰氨基酚", "origin":"SUGGESTED",
+                                      "details":"每次0.5g 口服 PRN 共2盒"}]}
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.medications[0].doseValue").value(0.5))
+                .andExpect(jsonPath("$.medications[0].quantity").value(2))
+                .andExpect(jsonPath("$.medications[0].durationValue").doesNotExist())
+                .andExpect(jsonPath("$.medications[0].durationUnit").doesNotExist())
+                .andExpect(jsonPath("$.tasks[0].status").value("MATCHED"));
+    }
+
+    @Test
+    void investigationConversionRequiresExplicitQuantityInTheRealCatalogUnit() throws Exception {
+        searchEntryProjections.rebuildAll();
+        for (String details : List.of("", "数量：2 次")) {
+            boolean confirmedAmount = !details.isBlank();
+            mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
+                    .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"naturalInput":"完善血常规","confirmedNarrative":"完善血常规","scopeType":"PERSONAL",
+                         "reviewItems":[{"kind":"LABORATORY","text":"血常规","origin":"SUGGESTED","details":"%s"}]}
+                        """.formatted(details)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.services.length()").value(confirmedAmount ? 1 : 0))
+                    .andExpect(jsonPath("$.tasks[0].status").value(confirmedAmount ? "MATCHED" : "NEEDS_REVIEW"));
+        }
+        verifyNoInteractions(modelGateway, decisionGateway);
+    }
+
+    @Test
+    void groupConversionDoesNotConfirmOptionalMembersUnitOverridesOrConditionalInstructions() throws Exception {
+        for (int scenario = 0; scenario < 3; scenario++) {
+            String name = "组套事实核对" + scenario;
+            String unit = scenario == 1 ? "\"EA\"" : "null";
+            String description = scenario == 2 ? "必要时复查" : "采血后及时送检";
+            mockMvc.perform(post("/api/platform/master-data/operations/item-groups")
+                    .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"code":"AI-GROUP-FACT-%d","name":"%s","groupType":"LIS",
+                         "usageType":"OUTPATIENT","pointOfCare":false,"status":"ACTIVE","validFrom":"2026-01-01",
+                         "members":[{"catalogItemId":"362387869795101","sortOrder":10,"quantity":2.5,
+                         "unitCode":%s,"requiredMember":%s,"memberDescription":"%s"}]}
+                        """.formatted(scenario, name, unit, scenario != 0, description)))
+                    .andExpect(status().isCreated());
+            mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
+                    .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"naturalInput":"完善检验","confirmedNarrative":"%s","scopeType":"PERSONAL",
+                         "reviewItems":[{"kind":"LABORATORY","text":"%s","origin":"SUGGESTED"}]}
+                        """.formatted(name, name)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.services.length()").value(0))
+                    .andExpect(jsonPath("$.tasks[0].status").value("NEEDS_REVIEW"))
+                    .andExpect(jsonPath("$.tasks[0].details").value(org.hamcrest.Matchers.containsString(
+                            scenario == 0 ? "可选成员" : scenario == 1 ? "单位与目录单位不一致" : "必要时复查")));
+        }
+        verifyNoInteractions(modelGateway, decisionGateway);
+    }
 
     @Test
     void groupConversionPreservesMemberQuantityAndUnitWithoutWaivingPricing() throws Exception {
@@ -45,7 +158,7 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                     {"code":"AI-GROUP-QUANTITY","name":"数量单位回归组套","groupType":"LIS",
                      "usageType":"OUTPATIENT","pointOfCare":false,"status":"ACTIVE","validFrom":"2026-01-01",
                      "members":[{"catalogItemId":"362387869795101","sortOrder":10,"quantity":2.5,
-                     "unitCode":"EA","requiredMember":false}]}
+                     "unitCode":null,"requiredMember":true,"memberDescription":"采血后及时送检"}]}
                     """))
                 .andExpect(status().isCreated());
         mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
@@ -57,7 +170,8 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.services.length()").value(1))
                 .andExpect(jsonPath("$.services[0].catalogItemId").value(362387869795101L))
                 .andExpect(jsonPath("$.services[0].quantity").value(2.5))
-                .andExpect(jsonPath("$.services[0].unitCode").value("EA"))
+                .andExpect(jsonPath("$.services[0].unitCode").value("次"))
+                .andExpect(jsonPath("$.services[0].clinicalDescription").value(org.hamcrest.Matchers.containsString("采血后及时送检")))
                 .andExpect(jsonPath("$.services[0].pricingRequired").value(true))
                 .andExpect(jsonPath("$.tasks[0].status").value("MATCHED"));
         verifyNoInteractions(modelGateway, decisionGateway);
@@ -206,7 +320,7 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                     {"naturalInput":"上感方案","confirmedNarrative":"完善血常规检查","scopeType":"PERSONAL",
-                     "reviewItems":[{"kind":"LABORATORY","text":"血常规检查","origin":"SUGGESTED"}]}
+                     "reviewItems":[{"kind":"LABORATORY","text":"血常规检查","origin":"SUGGESTED","details":"数量：2 次"}]}
                     """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.services[0].catalogItemId").value(362387869795101L))
@@ -341,7 +455,8 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.diagnoses[0].code").value("J06.9"))
-                .andExpect(jsonPath("$.medications[0].catalogItemId").value(362387871000301L))
+                .andExpect(jsonPath("$.medications.length()").value(0))
+                .andExpect(jsonPath("$.tasks[1].status").value("NEEDS_REVIEW"))
                 .andExpect(jsonPath("$.tasks[0].origin").value("EXPLICIT"))
                 .andExpect(jsonPath("$.tasks[1].origin").value("SUGGESTED"))
                 .andExpect(jsonPath("$.tasks[1].sourceQuote").doesNotExist())
@@ -363,7 +478,7 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                                   "scopeType":"PERSONAL",
                                   "reviewItems":[
                                     {"kind":"DIAGNOSIS","text":"急性上呼吸道感染，未特指 [J06.9]","origin":"SUGGESTED"},
-                                    {"kind":"MEDICATION","text":"对乙酰氨基酚","origin":"SUGGESTED","details":"常规用法：每次0.5g 口服 PRN 疗程3天；适用条件：发热或疼痛时考虑；目的：解热镇痛；嘱托：发热或疼痛时服用"},
+                                    {"kind":"MEDICATION","text":"对乙酰氨基酚","origin":"SUGGESTED","details":"常规用法：每次0.5g 口服 PRN 疗程3天 共1盒；适用条件：发热或疼痛时考虑；目的：解热镇痛；嘱托：发热或疼痛时服用"},
                                     {"kind":"LABORATORY","text":"血常规","origin":"SUGGESTED","details":"高热持续时考虑"}
                                   ]
                                 }
@@ -381,12 +496,11 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.medications[0].durationUnit").value("天"))
                 .andExpect(jsonPath("$.medications[0].medicationInstruction").value("发热或疼痛时服用"))
                 .andExpect(jsonPath("$.tasks[1].details").value(org.hamcrest.Matchers.containsString("目的：解热镇痛")))
-                .andExpect(jsonPath("$.services.length()").value(1))
-                .andExpect(jsonPath("$.services[0].catalogItemId").value(362387869795101L))
-                .andExpect(jsonPath("$.services[0].itemName").value("血细胞分析"))
+                .andExpect(jsonPath("$.services.length()").value(0))
                 .andExpect(jsonPath("$.tasks[0].status").value("MATCHED"))
                 .andExpect(jsonPath("$.tasks[1].status").value("MATCHED"))
-                .andExpect(jsonPath("$.tasks[2].status").value("MATCHED"))
+                .andExpect(jsonPath("$.tasks[2].status").value("NEEDS_REVIEW"))
+                .andExpect(jsonPath("$.tasks[2].details").value(org.hamcrest.Matchers.containsString("高热持续时考虑")))
                 .andReturn().getResponse().getContentAsString();
 
         JsonNode compiled = json(compiledJson);
@@ -407,7 +521,8 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.diagnoses[0].code").value("J06.9"))
                 .andExpect(jsonPath("$.medications[0].catalogItemId").value(362387871000301L))
-                .andExpect(jsonPath("$.services[0].catalogItemId").value(362387869795101L));
+                .andExpect(jsonPath("$.services.length()").value(0))
+                .andExpect(jsonPath("$.tasks[2].status").value("NEEDS_REVIEW"));
         verifyNoInteractions(modelGateway);
     }
 

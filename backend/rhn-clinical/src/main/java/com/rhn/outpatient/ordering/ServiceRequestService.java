@@ -184,8 +184,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 .orElseThrow(() -> notFound("SERVICE_REQUEST_NOT_FOUND", "未找到诊疗请求"));
         value.cancel(input.expectedRevision(), input.reason().trim(), context.subjectId());
         repository.flush();
-        Map<String, Object> eventDetails = new LinkedHashMap<>();
-        eventDetails.put("catalogItemId", value.catalogItemId());
+        Map<String, Object> eventDetails = financialEventDetails(value, encounter, null);
         eventDetails.put("reason", input.reason().trim());
         eventDetails.put("cancelledBy", context.subjectId());
         publish(value, "SERVICE_REQUEST_CANCELLED", "撤销诊疗项目", eventDetails);
@@ -266,24 +265,30 @@ class ServiceRequestService implements ServiceRequestDirectory {
         Map<String, Object> payload = new LinkedHashMap<>(details);
         payload.put("requestNo", value.requestNo());
         payload.put("summary", summary);
-        eventPublisher.publish(value.tenantId(), value.performerOrganizationId(), type, 1,
-                "ServiceRequest", value.id(), value.revision(), value.residentId(), Instant.now(), payload);
+        Instant occurredAt = switch (type) {
+            case "SERVICE_REQUEST_AUTHORED" -> value.authoredAt();
+            case "SERVICE_REQUEST_CANCELLED" -> value.cancelledAt();
+            default -> Instant.now();
+        };
+        eventPublisher.publish(value.tenantId(), value.performerOrganizationId(), type,
+                details.containsKey("billingDisposition") ? 2 : 1,
+                "ServiceRequest", value.id(), value.revision(), value.residentId(), occurredAt.truncatedTo(java.time.temporal.ChronoUnit.MICROS), payload);
     }
 
     private Map<String, Object> financialEventDetails(ServiceRequest value,
                                                        EncounterDirectory.EncounterSnapshot encounter,
                                                        String explicitCategory) {
         Map<String, Object> details = new LinkedHashMap<>();
+        details.put("billingDisposition", com.rhn.outpatient.api.ClinicalOrderBillingDisposition.fromSnapshot(
+                false, false, value.unitPrice(), value.totalAmount(), value.currencyCode()).name());
         details.put("encounterId", encounter.id());
         details.put("residentId", encounter.residentId());
         details.put("encounterOrganizationId", encounter.organizationId());
         details.put("encounterDepartmentId", encounter.departmentId());
         details.put("catalogItemId", value.catalogItemId());
         details.put("serviceType", value.serviceTypeSnapshot());
-        String category = explicitCategory != null && !explicitCategory.isBlank()
-                ? explicitCategory.trim()
-                : resolveDefaultCategory(value.serviceTypeSnapshot());
-        details.put("accountingCategory", category);
+        String category = Strings.trimToNull(explicitCategory);
+        if (category != null) details.put("accountingCategory", category);
         details.put("performerDepartmentId", value.performerDepartmentId());
         if (value.specimenTypeSnapshot() != null) details.put("specimenType", value.specimenTypeSnapshot());
         if (value.examinationTypeSnapshot() != null) details.put("examinationType", value.examinationTypeSnapshot());
@@ -305,14 +310,4 @@ class ServiceRequestService implements ServiceRequestDirectory {
         return "SR" + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
     }
 
-    private String resolveDefaultCategory(String serviceType) {
-        if (serviceType == null) return "TREATMENT";
-        return switch (serviceType) {
-            case "LABORATORY" -> "LABORATORY";
-            case "EXAMINATION", "IMAGING" -> "EXAMINATION";
-            case "NURSING" -> "NURSING";
-            case "BED" -> "BED";
-            default -> "TREATMENT";
-        };
-    }
 }

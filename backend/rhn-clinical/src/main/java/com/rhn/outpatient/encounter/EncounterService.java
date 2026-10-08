@@ -13,7 +13,6 @@ import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
 import com.rhn.outpatient.api.OutpatientNoteFormDirectory;
 import com.rhn.outpatient.api.RegistrationValidityPolicy;
 import com.rhn.platform.tenant.TenantContext;
-import com.rhn.platform.terminology.api.DiseaseReferenceSnapshot;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.context.ExecutionContext;
@@ -335,15 +334,17 @@ public class EncounterService implements EncounterDirectory {
                 .findByTenantIdAndEncounterIdAndDiagnosisStageOrderBySortOrderAscRecordedAtAsc(
                         tenantId, encounter.id(), "ENCOUNTER");
         Map<String, EncounterDiagnosis> byCode = existing.stream().collect(Collectors.toMap(
-                EncounterDiagnosis::terminologyKey, Function.identity(), (left, right) -> left, LinkedHashMap::new));
+                EncounterDiagnosis::terminologyKey, Function.identity(), (left, right) -> {
+                    throw badRequest("DIAGNOSIS_HISTORY_AMBIGUOUS", "已有诊断存在重复身份，请核实历史记录后再保存");
+                }, LinkedHashMap::new));
         Set<String> incomingCodes = new LinkedHashSet<>();
         List<EncounterDiagnosisRevision> revisions = new java.util.ArrayList<>();
         for (int index = 0; index < request.diagnoses().size(); index++) {
             RecordClinicalDataRequest.DiagnosisInput input = request.diagnoses().get(index);
             int sortOrder = index + 1;
-            ResolvedDiagnosis resolved = resolveDiagnosis(tenantId, input);
+            DiagnosisTerminology resolved = resolveDiagnosis(tenantId, input);
             String key = resolved.terminologyKey();
-            incomingCodes.add(key);
+            if (!incomingCodes.add(key)) throw badRequest("DIAGNOSIS_DUPLICATED", "同一诊断不能重复录入");
             EncounterDiagnosis diagnosis = byCode.get(key);
             String changeType;
             if (diagnosis == null) {
@@ -465,11 +466,13 @@ public class EncounterService implements EncounterDirectory {
             if (diagnosis.codeSystemVersionSnapshot() != null) {
                 payload.put("systemVersion", diagnosis.codeSystemVersionSnapshot());
             }
-            payload.put("diagnosisDomain", diagnosis.diagnosisDomain());
+            if (diagnosis.diagnosisDomain() != null) payload.put("diagnosisDomain", diagnosis.diagnosisDomain());
             payload.put("code", diagnosis.code());
             payload.put("display", diagnosis.display());
             payload.put("type", diagnosis.diagnosisType().name());
-            payload.put("managementPrograms", managementEnvelope(diagnosis).programs());
+            var management = managementEnvelope(diagnosis);
+            payload.put("managementResolutionStatus", management.resolutionStatus());
+            if (management.programs() != null) payload.put("managementPrograms", management.programs());
             publish(encounter, "DIAGNOSIS_RECORDED", diagnosis.display(), payload);
         }
     }
@@ -603,6 +606,15 @@ public class EncounterService implements EncounterDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public EncounterServiceSnapshot requireOrganizationAccessibleService(Long encounterId) {
+        EncounterSnapshot accessible = requireOrganizationAccessible(encounterId);
+        Encounter value = encounterRepository.findByIdAndTenantId(encounterId, accessible.tenantId())
+                .orElseThrow(() -> notFound("ENCOUNTER_NOT_FOUND", "未找到该次就诊"));
+        return new EncounterServiceSnapshot(accessible, value.startedAt(), value.completedAt());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<EncounterSnapshot> findOrganizationAccessible(Collection<Long> encounterIds) {
         if (encounterIds == null || encounterIds.isEmpty()) return List.of();
         Long tenantId = TenantContext.requireTenantId();
@@ -616,18 +628,23 @@ public class EncounterService implements EncounterDirectory {
 
     @Override
     @Transactional(readOnly = true)
-    public List<EncounterSnapshot> recentForResident(Long residentId, int limit) {
-        Long canonicalResidentId = residentDirectory.resolveCanonicalResidentId(residentId);
+    public List<EncounterSnapshot> recentCompletedForResident(Long residentId, Long excludedEncounterId,
+                                                              Instant registeredSince, int limit) {
         Long tenantId = TenantContext.requireTenantId();
         ExecutionContext context = executionContextProvider.requireCurrent();
-        if (!context.hasWorkContext() || context.organizationId() == null || context.departmentId() == null) {
-            return List.of();
+        if (context.organizationId() == null) {
+            throw badRequest("ENCOUNTER_CONTEXT_REQUIRED", "查询历史就诊前请先选择机构");
         }
-        int cappedLimit = Math.max(0, Math.min(limit, 20));
-        return encounterRepository
-                .findTop20ByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdOrderByRegisteredAtDesc(
-                        tenantId, canonicalResidentId, context.organizationId(), context.departmentId())
-                .stream().limit(cappedLimit).map(this::snapshot).toList();
+        if (context.departmentId() == null) {
+            throw badRequest("ENCOUNTER_DEPARTMENT_REQUIRED", "查询历史就诊前请先选择科室");
+        }
+        int cappedLimit = Math.max(0, Math.min(limit, 10));
+        if (cappedLimit == 0) return List.of();
+        Long canonicalResidentId = residentDirectory.resolveCanonicalResidentId(residentId);
+        return encounterRepository.findCompletedHistory(tenantId, canonicalResidentId, context.organizationId(),
+                        context.departmentId(), EncounterStatus.COMPLETED, excludedEncounterId, registeredSince,
+                        org.springframework.data.domain.PageRequest.of(0, cappedLimit))
+                .stream().map(this::snapshot).toList();
     }
 
     @Override
@@ -692,8 +709,8 @@ public class EncounterService implements EncounterDirectory {
     private void validateDiagnoses(RecordClinicalDataRequest request) {
         long primaryCount = request.diagnoses().stream()
                 .filter(input -> input.type() == EncounterDiagnosis.DiagnosisType.PRIMARY).count();
-        long distinctCodes = request.diagnoses().stream().map(input -> input.conceptId() == null
-                ? "LEGACY|" + input.code().trim() : "CONCEPT|" + input.conceptId()).distinct().count();
+        long distinctCodes = request.diagnoses().stream().map(input -> DiagnosisTerminology.identityKey(
+                input.conceptId(), input.codeSystem(), input.diagnosisDomain(), input.code())).distinct().count();
         if (!request.diagnoses().isEmpty() && (primaryCount != 1
                 || request.diagnoses().getFirst().type() != EncounterDiagnosis.DiagnosisType.PRIMARY)) {
             throw badRequest("PRIMARY_DIAGNOSIS_ORDER_INVALID", "首项必须是唯一的主要诊断");
@@ -703,47 +720,24 @@ public class EncounterService implements EncounterDirectory {
         }
     }
 
-    private ResolvedDiagnosis resolveDiagnosis(Long tenantId, RecordClinicalDataRequest.DiagnosisInput input) {
-        if (input.conceptId() == null) {
-            return new ResolvedDiagnosis(null, null, null,
-                    input.diagnosisDomain() == null ? "WESTERN_MEDICINE" : input.diagnosisDomain(), input.code().trim(),
-                    input.display().trim(), jsonCodec.write(new DiseaseManagementEnvelope(List.of())));
-        }
-        DiseaseReferenceSnapshot value = terminologyDirectory.requireDisease(tenantId, input.conceptId(), LocalDate.now());
-        if (input.diagnosisDomain() != null && !input.diagnosisDomain().equals(value.diagnosisDomain())) {
-            throw badRequest("DIAGNOSIS_DOMAIN_MISMATCH", "诊断体系与所选疾病术语不一致");
-        }
-        return new ResolvedDiagnosis(value.conceptId(), value.systemCode(), value.systemVersion(),
-                value.diagnosisDomain(), value.code(), value.display(),
-                jsonCodec.write(new DiseaseManagementEnvelope(value.managementPrograms())));
+    private DiagnosisTerminology resolveDiagnosis(Long tenantId, RecordClinicalDataRequest.DiagnosisInput input) {
+        return DiagnosisTerminology.resolve(tenantId, input.conceptId(), input.diagnosisDomain(), input.code(),
+                input.display(), input.codeSystem(), terminologyDirectory, jsonCodec);
     }
 
     private EncounterResponse.DiagnosisResponse diagnosisResponse(EncounterDiagnosis value) {
+        var management = managementEnvelope(value);
         return new EncounterResponse.DiagnosisResponse(value.conceptId(), value.codeSystemCodeSnapshot(),
                 value.codeSystemVersionSnapshot(), value.diagnosisDomain(), value.diagnosisGroupId(), value.code(),
-                value.display(), value.diagnosisType().name(), value.sortOrder(), managementEnvelope(value).programs().stream()
+                value.display(), value.diagnosisType().name(), value.sortOrder(), management.resolutionStatus(),
+                management.programs() == null ? null : management.programs().stream()
                 .map(program -> new EncounterResponse.ManagementProgramResponse(program.id(), program.code(),
                         program.name(), program.managementType(), program.triggerAction(), program.reportCardType(),
                         program.reportDeadlineHours())).toList());
     }
 
-    private DiseaseManagementEnvelope managementEnvelope(EncounterDiagnosis value) {
-        if (value.managementSnapshotJson() == null || value.managementSnapshotJson().isBlank()) {
-            return new DiseaseManagementEnvelope(List.of());
-        }
-        return jsonCodec.read(value.managementSnapshotJson(), DiseaseManagementEnvelope.class);
-    }
-
-    private record DiseaseManagementEnvelope(
-            List<DiseaseReferenceSnapshot.DiseaseManagementSnapshot> programs) {
-        private DiseaseManagementEnvelope {
-            programs = programs == null ? List.of() : List.copyOf(programs);
-        }
-    }
-
-    private record ResolvedDiagnosis(Long conceptId, String systemCode, String systemVersion,
-                                     String diagnosisDomain, String code, String display, String managementJson) {
-        String terminologyKey() { return (systemCode == null ? "LEGACY" : systemCode) + "|" + code; }
+    private DiagnosisManagementSnapshot managementEnvelope(EncounterDiagnosis value) {
+        return DiagnosisManagementSnapshot.read(value.conceptId(), value.managementSnapshotJson(), jsonCodec);
     }
 
     private String canonicalCommand(Long encounterId, Object request) {
@@ -769,6 +763,20 @@ public class EncounterService implements EncounterDirectory {
         Map<String, Object> details = new LinkedHashMap<>(payload);
         details.put("encounterNo", encounter.encounterNo());
         details.put("summary", summary);
+        details.put("departmentId", encounter.departmentId());
+        details.put("actorId", executionContextProvider.requireCurrent().subjectId());
+        details.put("status", encounter.status().name());
+        if (type.equals("ENCOUNTER_STARTED") || type.equals("ENCOUNTER_COMPLETED")) {
+            EncounterStatusEvent reception = statusEventRepository
+                    .findFirstByTenantIdAndEncounterIdAndStatusFromAndStatusToOrderByOccurredAtAsc(
+                            encounter.tenantId(), encounter.id(), "REGISTERED", "IN_PROGRESS")
+                    .orElseThrow(() -> new IllegalStateException("Encounter reception evidence is missing"));
+            if (encounter.startedAt() == null || reception.userId() == null) {
+                throw new IllegalStateException("Encounter reception time or actor is missing");
+            }
+            details.put("startedAt", encounter.startedAt().toString());
+            details.put("startedBy", reception.userId());
+        }
         eventPublisher.publish(encounter.tenantId(), encounter.organizationId(), type, 1,
                 "Encounter", encounter.id(), encounter.version(), encounter.residentId(), Instant.now(), details);
     }

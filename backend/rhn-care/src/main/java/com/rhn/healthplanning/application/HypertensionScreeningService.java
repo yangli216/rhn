@@ -39,6 +39,8 @@ public class HypertensionScreeningService implements HypertensionCareDirectory {
     public static final String RULE_CODE = "WS_T_872_2025.SUSPECTED_HYPERTENSION";
     public static final String RULE_VERSION = "2025-09-19";
     public static final String GUIDANCE_VERSION = "NATIONAL_PRIMARY_HTN_2020";
+    private static final String URGENT_TITLE = "血压显著升高：立即复测并评估转诊";
+    private static final String URGENT_DESCRIPTION = "单次血压达到显著升高阈值，需立即规范复测，并由临床人员评估是否转诊；系统不自动确诊。";
     private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
     private static final String ICD10_HYPERTENSION = "I10";
     private static final int SYSTOLIC_THRESHOLD = 140;
@@ -111,15 +113,20 @@ public class HypertensionScreeningService implements HypertensionCareDirectory {
                     command.encounterId(), condition.id(), taskCode, command.organizationId(), command.departmentId(),
                     severe ? CareTaskPriority.URGENT : CareTaskPriority.HIGH,
                     severe ? command.measuredAt() : command.measuredAt().plus(RECHECK_WINDOW),
-                    severe ? "血压显著升高：立即复测并评估转诊" : "疑诊高血压：完成非同日复测",
-                    severe ? "单次血压达到显著升高阈值，需立即规范复测，并由临床人员评估是否转诊；系统不自动确诊。"
+                    severe ? URGENT_TITLE : "疑诊高血压：完成非同日复测",
+                    severe ? URGENT_DESCRIPTION
                             : "首次发现血压升高，请在4周内完成另外2次非同日规范测量；单次异常不作为高血压确诊。",
                     context.practitionerId(), context.subjectId()));
         }
 
         String commandCode = "SCREEN:" + command.encounterId() + ":" + command.systolicObservationId()
                 + ":" + command.diastolicObservationId();
+        boolean urgencyRaised = false;
         if (!eventRepository.existsByTenantIdAndCareTaskIdAndCommandCode(command.tenantId(), task.id(), commandCode)) {
+            if (!created && severe) {
+                urgencyRaised = task.raiseUrgency(command.measuredAt(), URGENT_TITLE, URGENT_DESCRIPTION);
+                if (urgencyRaised) taskRepository.saveAndFlush(task);
+            }
             Map<String, Object> evidence = evidence(command, age, severe, task.dueAt());
             String evidenceJson = jsonCodec.write(evidence);
             eventRepository.save(new CareTaskEvent(task, created, commandCode,
@@ -127,7 +134,7 @@ public class HypertensionScreeningService implements HypertensionCareDirectory {
                     RULE_CODE, RULE_VERSION, evidenceJson, sha256(evidenceJson), context.practitionerId(),
                     context.subjectId(), command.measuredAt()));
         }
-        if (created) publishReady(task, command, context);
+        if (created || urgencyRaised) publishReady(task, command, context);
         return new ScreeningOutcome(severe ? "URGENT_RECHECK" : "SUSPECTED", condition.id(), task.id(),
                 task.taskCode(), RULE_CODE, RULE_VERSION);
     }
@@ -202,15 +209,15 @@ public class HypertensionScreeningService implements HypertensionCareDirectory {
 
     private void publishReady(CareTask task, ScreeningCommand command, ExecutionContext context) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("departmentId", command.departmentId());
-        payload.put("residentId", command.residentId());
-        payload.put("encounterId", command.encounterId());
+        payload.put("departmentId", task.ownerDepartmentId());
+        payload.put("residentId", task.residentId());
+        payload.put("encounterId", task.encounterId());
         payload.put("title", task.title());
-        payload.put("summary", task.description());
+        if (task.description() != null) payload.put("summary", task.description());
         payload.put("priority", task.priority().name());
-        payload.put("dueAt", task.dueAt().toString());
+        if (task.dueAt() != null) payload.put("dueAt", task.dueAt().toString());
         payload.put("actorId", context.subjectId());
-        eventPublisher.publish(command.tenantId(), command.organizationId(), "CARE_TASK_READY", 1,
+        eventPublisher.publish(task.tenantId(), task.ownerOrganizationId(), "CARE_TASK_READY", 1,
                 "CareTask", task.id(), task.revision(), command.residentId(), command.measuredAt(), payload);
     }
 

@@ -2,9 +2,12 @@ package com.rhn;
 
 import com.rhn.platform.configuration.api.ConfigurationDirectory;
 import com.rhn.platform.configuration.api.ConfigurationValue;
+import com.rhn.platform.configuration.infrastructure.ConfigurationValueCache;
+import com.rhn.shared.api.BusinessException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.JsonNode;
 
 import java.util.UUID;
@@ -13,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -23,6 +27,8 @@ class ParameterDependencyFoundationTest extends RhnIntegrationTestSupport {
 
     @Autowired
     ConfigurationDirectory configurationDirectory;
+    @Autowired ConfigurationValueCache valueCache;
+    @Autowired JdbcTemplate jdbc;
 
     @Test
     void rejects_self_dependency_and_non_existent_dependency() throws Exception {
@@ -121,6 +127,120 @@ class ParameterDependencyFoundationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/configuration/definitions/{id}", childId).with(rhn()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dependencySatisfied").value(true));
+    }
+
+    @Test
+    void invalid_parent_json_is_unknown_in_preview_and_fails_runtime_without_caching_suppression() throws Exception {
+        String suffix = suffix();
+        String categoryId = createCategory("DEP_ERROR_" + suffix);
+        String parentKey = "test.dep.parent-" + suffix.toLowerCase();
+        String childKey = "test.dep.child-" + suffix.toLowerCase();
+        String parentId = createBooleanDefinition(categoryId, parentKey, "异常前置参数", "false");
+        String childId = createDefinition(categoryId, childKey, "依赖异常测试", parentKey, "true");
+        saveValue(childId, "TENANT", null, null, "\"configured\"", null);
+        valueCache.invalidateAll();
+        jdbc.update("UPDATE RHN_SYS_PARAM_DEF SET JSON_DEFAULT_VAL = ? WHERE ID_PARAM_DEF = ?", "{invalid", Long.valueOf(parentId));
+        try {
+            BusinessException failure = assertThrows(BusinessException.class, () -> configurationDirectory.resolveCurrent(
+                    Long.valueOf(TENANT), null, null, null, childKey));
+            assertEquals("PARAMETER_JSON_INVALID", failure.code());
+            assertTrue(valueCache.get(Long.valueOf(TENANT), null, null, null, null, null, null, childKey).isEmpty());
+            mockMvc.perform(get("/api/platform/configuration/definitions/{id}", childId).with(rhn()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.dependencySatisfied").doesNotExist());
+        } finally {
+            jdbc.update("UPDATE RHN_SYS_PARAM_DEF SET JSON_DEFAULT_VAL = ? WHERE ID_PARAM_DEF = ?", "true", Long.valueOf(parentId));
+        }
+        // Recover without clearing cache: a transient failure must not become a cached SUPPRESSED fact.
+        ConfigurationValue recovered = configurationDirectory.resolveCurrent(Long.valueOf(TENANT), null, null, null, childKey);
+        assertFalse(recovered.suppressedByDependency());
+        assertEquals("configured", recovered.value().asString());
+    }
+
+    @Test
+    void unavailable_parent_does_not_masquerade_as_an_unmet_condition() throws Exception {
+        String suffix = suffix();
+        String categoryId = createCategory("DEP_INACTIVE_" + suffix);
+        String parentKey = "test.dep.disabled-parent-" + suffix.toLowerCase();
+        String childKey = "test.dep.disabled-child-" + suffix.toLowerCase();
+        String parentId = createBooleanDefinition(categoryId, parentKey, "停用前置参数", "false");
+        String childId = createDefinition(categoryId, childKey, "依赖停用测试", parentKey, "true");
+        valueCache.invalidateAll();
+        jdbc.update("UPDATE RHN_SYS_PARAM_DEF SET SD_STATUS = 'INACTIVE' WHERE ID_PARAM_DEF = ?", Long.valueOf(parentId));
+        try {
+            BusinessException failure = assertThrows(BusinessException.class, () -> configurationDirectory.resolveCurrent(
+                    Long.valueOf(TENANT), null, null, null, childKey));
+            assertEquals("PARAMETER_NOT_FOUND", failure.code());
+            mockMvc.perform(get("/api/platform/configuration/definitions/{id}", childId).with(rhn()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.dependencySatisfied").doesNotExist());
+        } finally {
+            jdbc.update("UPDATE RHN_SYS_PARAM_DEF SET SD_STATUS = 'ACTIVE' WHERE ID_PARAM_DEF = ?", Long.valueOf(parentId));
+        }
+    }
+
+    @Test
+    void dependency_preview_uses_the_actual_organization_context() throws Exception {
+        String suffix = suffix();
+        String categoryId = createCategory("DEP_CONTEXT_" + suffix);
+        String parentKey = "test.dep.context-parent-" + suffix.toLowerCase();
+        String childKey = "test.dep.context-child-" + suffix.toLowerCase();
+        String body = mockMvc.perform(post("/api/platform/configuration/definitions").with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"categoryId":"%s","key":"%s","name":"机构前置开关",
+                                "valueType":"BOOLEAN","controlType":"SWITCH","defaultValueJson":"false",
+                                "allowedScopes":["PLATFORM","TENANT","ORGANIZATION"],"category":"BUSINESS","requestCode":"%s"}
+                                """.formatted(categoryId, parentKey, requestCode())))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String parentId = json(body).get("id").asString();
+        String childId = createDefinition(categoryId, childKey, "机构依赖测试", parentKey, "true");
+        saveValue(parentId, "ORGANIZATION", ORGANIZATION, null, "true", null);
+        mockMvc.perform(get("/api/platform/configuration/definitions/{id}", childId).with(rhn()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.dependencySatisfied").value(false));
+        mockMvc.perform(get("/api/platform/configuration/definitions/{id}", childId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.dependencySatisfied").value(true));
+    }
+
+    @Test
+    void rejects_misspelled_boolean_expectation_without_creating_a_definition() throws Exception {
+        String suffix = suffix();
+        String categoryId = createCategory("DEP_TYPED_" + suffix);
+        String parentKey = "test.dep.typed-parent-" + suffix.toLowerCase();
+        String childKey = "test.dep.typed-child-" + suffix.toLowerCase();
+        createBooleanDefinition(categoryId, parentKey, "布尔前置开关", "false");
+        mockMvc.perform(post("/api/platform/configuration/definitions").with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"categoryId":"%s","key":"%s","name":"无效布尔条件",
+                                "valueType":"STRING","controlType":"TEXT","allowedScopes":["TENANT"],"category":"BUSINESS",
+                                "dependsOnKey":"%s","dependsOnValue":"flase","requestCode":"%s"}
+                                """.formatted(categoryId, childKey, parentKey, requestCode())))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PARAMETER_DEPENDENCY_VALUE_INVALID"));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM RHN_SYS_PARAM_DEF WHERE CD_PARAM_KEY = ?", Integer.class, childKey));
+    }
+
+    @Test
+    void legacy_misspelled_expectation_cannot_enable_a_child_when_the_parent_is_false() throws Exception {
+        String suffix = suffix();
+        String categoryId = createCategory("DEP_LEGACY_" + suffix);
+        String parentKey = "test.dep.legacy-parent-" + suffix.toLowerCase();
+        String childKey = "test.dep.legacy-child-" + suffix.toLowerCase();
+        createBooleanDefinition(categoryId, parentKey, "关闭的前置开关", "false");
+        String childId = createDefinition(categoryId, childKey, "历史无效条件", parentKey, "true");
+        saveValue(childId, "TENANT", null, null, "\"configured\"", null);
+        valueCache.invalidateAll();
+        jdbc.update("UPDATE RHN_SYS_PARAM_DEF SET EXPR_DEPENDS_ON_VAL = ? WHERE ID_PARAM_DEF = ?", "flase", Long.valueOf(childId));
+        try {
+            BusinessException failure = assertThrows(BusinessException.class, () -> configurationDirectory.resolveCurrent(
+                    Long.valueOf(TENANT), null, null, null, childKey));
+            assertEquals("PARAMETER_DEPENDENCY_VALUE_INVALID", failure.code());
+            assertTrue(valueCache.get(Long.valueOf(TENANT), null, null, null, null, null, null, childKey).isEmpty());
+            mockMvc.perform(get("/api/platform/configuration/definitions/{id}", childId).with(rhn()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.dependencySatisfied").doesNotExist());
+        } finally {
+            jdbc.update("UPDATE RHN_SYS_PARAM_DEF SET EXPR_DEPENDS_ON_VAL = ? WHERE ID_PARAM_DEF = ?", "false", Long.valueOf(childId));
+        }
+        ConfigurationValue recovered = configurationDirectory.resolveCurrent(Long.valueOf(TENANT), null, null, null, childKey);
+        assertFalse(recovered.suppressedByDependency());
+        assertEquals("configured", recovered.value().asString());
     }
 
     private String createCategory(String code) throws Exception {

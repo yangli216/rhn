@@ -42,6 +42,7 @@ import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -77,6 +78,7 @@ public class InventoryPriceAdjustmentApplicationService {
         if (!TYPES.contains(type)) throw badRequest("PRICE_ADJUSTMENT_TYPE_INVALID", "当前仅支持售价调价或成本重估");
         String requestCode = required(command.requestCode(), "PRICE_ADJUSTMENT_REQUEST_REQUIRED", "调价请求编码不能为空");
         String currency = upper(command.currencyCode() == null ? "CNY" : command.currencyCode());
+        if ("COST_REVALUE".equals(type)) InventoryCostCurrency.requireSupported(currency);
         String priceType = "SALE_PRICE".equals(type)
                 ? required(command.priceType(), "PRICE_TYPE_REQUIRED", "售价调价必须指定价格类型") : null;
         LocalDate date = command.businessDate() == null ? LocalDate.now(ZoneOffset.UTC) : command.businessDate();
@@ -192,11 +194,24 @@ public class InventoryPriceAdjustmentApplicationService {
         ExecutionContext context = context(); Header header = requireHeader(context, id); StockSite site = requireSite(context, header.siteId());
         if ("POSTED".equals(header.status())) return get(context, id);
         if (!"APPROVED".equals(header.status())) throw conflict("PRICE_ADJUSTMENT_STATE_INVALID", "只有审核通过的调价单可以记账");
-        InventoryPeriod period = periods.lockForPosting(context.tenantId(), site.id(), periodCode(header.businessDate()))
+        if ("COST_REVALUE".equals(header.type())) InventoryCostCurrency.requireSupported(header.currency());
+        // Exclude quantity postings, including insertion of new balance dimensions, until valuation commits.
+        InventoryPeriod period = periods.lockForValuation(context.tenantId(), site.id(), periodCode(header.businessDate()))
                 .orElseThrow(() -> conflict("INVENTORY_PERIOD_MISSING", "调价业务日期所属库存期间不存在"));
         if (!period.accepts(header.businessDate())) throw conflict("INVENTORY_PERIOD_NOT_OPEN", "调价业务日期所属库存期间未开放");
         List<InventoryBalance> locked = availability.lockSiteBalances(context.tenantId(), site.id());
+        List<LineRecord> lines = lineRecords(context.tenantId(), id);
         List<DetailRecord> details = detailRecords(context.tenantId(), id);
+        for (LineRecord line : lines) {
+            Set<Long> currentIds = locked.stream().filter(balance -> balance.stockItemId().equals(line.itemId())
+                            && balance.quantityOnHand().signum() > 0)
+                    .map(InventoryBalance::id).collect(Collectors.toSet());
+            Set<Long> previewIds = details.stream().filter(detail -> detail.lineId().equals(line.id()))
+                    .map(DetailRecord::balanceId).collect(Collectors.toSet());
+            if (!currentIds.equals(previewIds)) {
+                throw conflict("PRICE_ADJUSTMENT_PREVIEW_STALE", "调价预检后库存范围已变化，请重新建立调价单");
+            }
+        }
         for (DetailRecord detail : details) {
             InventoryBalance balance = locked.stream().filter(value -> value.id().equals(detail.balanceId())).findFirst()
                     .orElseThrow(() -> conflict("PRICE_ADJUSTMENT_BALANCE_MISSING", "调价预检对应库存余额已不存在"));
@@ -211,14 +226,25 @@ public class InventoryPriceAdjustmentApplicationService {
                 where ID_TNT = ? and ID_INV_PRICE_ADJ = ? and SD_STATUS = 'APPROVED'
                 """, sqlTimestamp(now), context.subjectId(), context.tenantId(), id);
         if (posting != 1) throw conflict("PRICE_ADJUSTMENT_CONCURRENT_CHANGE", "调价单正在被其他用户处理");
-        for (LineRecord line : lineRecords(context.tenantId(), id)) {
+        for (LineRecord line : lines) {
             Long newPriceId = null; Long newPriceRevision = null;
             if ("SALE_PRICE".equals(header.type())) {
                 CatalogOperationalSnapshot resolved = catalog.resolve(context.tenantId(), line.catalogItemId(),
                         site.organizationId(), line.packageId(), header.priceType(), header.businessDate());
-                PriceView current = resolved.price();
-                if (current == null || !current.id().equals(line.oldPriceId()) || current.revision() != line.oldPriceRevision()) {
+                SalePricing pricing = requireSalePricing(resolved, line.packageId(), header.currency());
+                PriceView current = pricing.price();
+                if (!current.id().equals(line.oldPriceId()) || current.revision() != line.oldPriceRevision()) {
                     throw conflict("PRICE_ADJUSTMENT_CATALOG_PRICE_STALE", "售价预检后目录价格已变化，请重新建立调价单");
+                }
+                BigDecimal unitBefore = current.price().divide(pricing.factor(), 8, RoundingMode.HALF_UP);
+                BigDecimal unitAfter = line.newSalePrice().divide(pricing.factor(), 8, RoundingMode.HALF_UP);
+                for (DetailRecord detail : details.stream().filter(value -> value.lineId().equals(line.id())).toList()) {
+                    if (price(unitBefore).compareTo(detail.unitBefore()) != 0
+                            || price(unitAfter).compareTo(detail.unitAfter()) != 0
+                            || amount(detail.quantity().multiply(unitBefore)).compareTo(detail.valueBefore()) != 0
+                            || amount(detail.quantity().multiply(unitAfter)).compareTo(detail.valueAfter()) != 0) {
+                        throw conflict("PRICE_ADJUSTMENT_PACKAGE_STALE", "售价预检后包装换算结果已变化，请重新建立调价单");
+                    }
                 }
                 PriceView created = catalog.replacePriceVersion(new PriceReplacement(context.tenantId(), current.id(),
                         current.revision(), line.catalogItemId(), current.organizationId(), current.packageId(),
@@ -293,16 +319,14 @@ public class InventoryPriceAdjustmentApplicationService {
         if ("COST_REVALUE".equals(header.type()) && balances.isEmpty()) {
             throw conflict("PRICE_ADJUSTMENT_NO_STOCK", "成本重估项目当前没有在手库存");
         }
-        CatalogOperationalSnapshot snapshot = null; PriceView oldPrice = null;
+        PriceView oldPrice = null;
         BigDecimal saleBefore = null; BigDecimal unitAfter;
-        BigDecimal factor = BigDecimal.ONE;
+        BigDecimal factor = null;
         if ("SALE_PRICE".equals(header.type())) {
-            snapshot = catalog.resolve(context.tenantId(), item.catalogItemId(), header.organizationId(),
+            CatalogOperationalSnapshot snapshot = catalog.resolve(context.tenantId(), item.catalogItemId(), header.organizationId(),
                     item.basePackageId(), header.priceType(), header.businessDate());
-            oldPrice = snapshot.price();
-            if (oldPrice == null) throw conflict("PRICE_ADJUSTMENT_CURRENT_PRICE_MISSING", "经营项目缺少当前有效售价");
-            factor = snapshot.itemPackage() == null || snapshot.itemPackage().quantityFactor() == null
-                    ? BigDecimal.ONE : snapshot.itemPackage().quantityFactor();
+            SalePricing pricing = requireSalePricing(snapshot, line.packageId(), header.currency());
+            oldPrice = pricing.price(); factor = pricing.factor();
             saleBefore = oldPrice.price();
             unitAfter = line.newSalePrice().divide(factor, 8, RoundingMode.HALF_UP);
         } else {
@@ -338,6 +362,26 @@ public class InventoryPriceAdjustmentApplicationService {
         return new Preview(oldPrice == null ? null : oldPrice.id(), oldPrice == null ? null : oldPrice.revision(),
                 saleBefore, oldCost, quantity(quantity), amount(before), amount(after), amount(after.subtract(before)),
                 zeroAmount());
+    }
+
+    private static SalePricing requireSalePricing(CatalogOperationalSnapshot snapshot, Long packageId, String currency) {
+        if (packageId == null || snapshot == null || snapshot.itemPackage() == null
+                || !packageId.equals(snapshot.itemPackage().id())
+                || snapshot.itemPackage().quantityFactor() == null
+                || snapshot.itemPackage().quantityFactor().signum() <= 0) {
+            throw conflict("PRICE_ADJUSTMENT_PACKAGE_INVALID", "经营包装或有效换算系数缺失，不能执行销售调价");
+        }
+        PriceView current = snapshot.price();
+        if (current == null || current.price() == null || current.price().signum() < 0) {
+            throw conflict("PRICE_ADJUSTMENT_CURRENT_PRICE_MISSING", "经营项目缺少当前有效售价");
+        }
+        if (!packageId.equals(current.packageId())) {
+            throw conflict("PRICE_ADJUSTMENT_PRICE_PACKAGE_MISMATCH", "当前售价未明确对应经营包装，不能按包装销售价调价");
+        }
+        if (!currency.equals(current.currencyCode())) {
+            throw conflict("PRICE_ADJUSTMENT_CURRENCY_MISMATCH", "当前售价与调价单币种不一致，不能直接计算调价差额");
+        }
+        return new SalePricing(current, snapshot.itemPackage().quantityFactor());
     }
 
     private PriceAdjustmentView get(ExecutionContext context, Long id) {
@@ -525,4 +569,5 @@ public class InventoryPriceAdjustmentApplicationService {
                            BigDecimal oldUnitCost, BigDecimal quantity, BigDecimal valueBefore,
                            BigDecimal valueAfter, BigDecimal adjustmentAmount, BigDecimal roundingAmount) {}
     private record Repeated(Long id, String requestHash) {}
+    private record SalePricing(PriceView price, BigDecimal factor) {}
 }

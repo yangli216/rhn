@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * 4. 省财政公共查验服务验证 URL
  */
 @Component
-@ConditionalOnProperty(name = "rhn.billing.fiscal.mock-enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "rhn.billing.fiscal.mock-enabled", havingValue = "true")
 public class MockFiscalReceiptClient implements NationalFiscalReceiptClient {
     private static final Logger log = LoggerFactory.getLogger(MockFiscalReceiptClient.class);
 

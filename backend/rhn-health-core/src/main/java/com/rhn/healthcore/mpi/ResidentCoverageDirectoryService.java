@@ -34,27 +34,27 @@ class ResidentCoverageDirectoryService implements CoverageDirectory {
     }
 
     @Override
-    @Transactional
-    public CoverageView requireOrProvisionActive(Long coverageId, Long residentId, LocalDate serviceDate,
-                                                 String coverageTypeCode, String payerName) {
-        Long tenantId = TenantContext.requireTenantId();
-        LocalDate date = serviceDate == null ? LocalDate.now() : serviceDate;
+    @Transactional(readOnly = true)
+    public CoverageView requireExistingActive(Long coverageId, Long residentId, LocalDate serviceDate,
+                                               String coverageTypeCode) {
         if (coverageId != null) {
-            return requireActive(coverageId, residentId, date);
+            CoverageView value = requireActive(coverageId, residentId, serviceDate);
+            if (coverageTypeCode != null && !coverageTypeCode.isBlank()
+                    && !value.coverageTypeCode().equalsIgnoreCase(coverageTypeCode.trim())) {
+                throw conflict("INSURANCE_COVERAGE_TYPE_MISMATCH", "医保申请类型与患者保障类型不一致");
+            }
+            return value;
         }
-        var existing = repository.findByTenantIdAndResidentIdAndStatusOrderByPrimaryDescIdAsc(tenantId, residentId, "ACTIVE")
-                .stream().filter(v -> !v.validFrom().isAfter(date) && (v.validTo() == null || !v.validTo().isBefore(date)))
-                .findFirst();
-        if (existing.isPresent()) {
-            var value = existing.get();
-            return new CoverageView(value.id(), value.residentId(), value.coverageTypeCode(), value.payerName(),
-                    value.primary(), value.validFrom(), value.validTo());
-        }
-        String code = coverageTypeCode != null && !coverageTypeCode.isBlank() ? coverageTypeCode.trim() : "01";
-        String payer = payerName != null && !payerName.isBlank() ? payerName.trim() : "江西省南昌市城镇职工基本医疗保险";
-        ResidentCoverage created = repository.save(new ResidentCoverage(tenantId, residentId, code, payer,
-                "MED-" + residentId, true, LocalDate.of(2020, 1, 1), null, "SYSTEM"));
-        return new CoverageView(created.id(), created.residentId(), created.coverageTypeCode(), created.payerName(),
-                created.primary(), created.validFrom(), created.validTo());
+        LocalDate date = java.util.Objects.requireNonNull(serviceDate, "serviceDate");
+        var candidates = repository.findByTenantIdAndResidentIdAndStatusOrderByPrimaryDescIdAsc(
+                        TenantContext.requireTenantId(), residentId, "ACTIVE").stream()
+                .filter(v -> !v.validFrom().isAfter(date) && (v.validTo() == null || !v.validTo().isBefore(date)))
+                .filter(v -> coverageTypeCode == null || coverageTypeCode.isBlank()
+                        || v.coverageTypeCode().equalsIgnoreCase(coverageTypeCode.trim())).toList();
+        if (candidates.isEmpty()) throw conflict("COVERAGE_REQUIRED", "患者没有就诊日期有效的保障信息，请先核实并维护参保资料");
+        var primary = candidates.stream().filter(ResidentCoverage::primary).toList();
+        var eligible = primary.isEmpty() ? candidates : primary;
+        if (eligible.size() != 1) throw conflict("COVERAGE_AMBIGUOUS", "患者存在多条有效保障信息，请明确选择本次使用的保障记录");
+        return requireActive(eligible.getFirst().id(), residentId, date);
     }
 }

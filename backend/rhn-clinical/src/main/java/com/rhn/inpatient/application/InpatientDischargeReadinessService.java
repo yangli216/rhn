@@ -119,7 +119,7 @@ public class InpatientDischargeReadinessService {
         List<DischargeDiagnosisView> dischargeDiagnoses = encounterDiagnoses
                 .findActivePrimaryDiagnoses(episode.tenantId(), encounter.id(), "DISCHARGE").stream()
                 .map(value -> new DischargeDiagnosisView(value.id(), value.diagnosisStage(), value.code(), value.display(),
-                        value.diagnosisType(), value.verificationStatus(), value.diagnosisStatus()))
+                        value.diagnosisType(), value.verificationStatus(), value.diagnosisStatus(), value.conceptId(), value.diagnosisDomain()))
                 .toList();
         if (dischargeDiagnoses.isEmpty()) {
             blockers.add(new DischargeIssueView(
