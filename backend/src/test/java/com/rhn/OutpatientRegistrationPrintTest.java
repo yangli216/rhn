@@ -84,6 +84,74 @@ class OutpatientRegistrationPrintTest extends RhnIntegrationTestSupport {
         assertEquals(ticketReceipt.get("outputId").asString(), replay.get("outputId").asString());
     }
 
+    private static final String REGISTRATION_SERVICE = "362387869795104";
+
+    @Test
+    void registration_ticket_reflects_actual_settlement_payment_details() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        String residentId = createResident(suffix);
+        String scheduleId = createTodaySchedule(suffix, 10);
+
+        JsonNode intent = json(mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "scheduleId":"%s","idempotencyCode":"PRINT-REG-%s",
+                                  "registrationSource":"WINDOW","visitType":"GENERAL"
+                                }
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, scheduleId, suffix)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PAYMENT_PENDING"))
+                .andExpect(jsonPath("$.feeAmount").value(10.00))
+                .andReturn().getResponse().getContentAsString());
+
+        String settlementId = intent.get("settlementId").asString();
+        mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders", settlementId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "idempotencyKey":"REG-PAY-%s","businessScene":"REGISTRATION",
+                                  "paymentSceneCode":"CASHIER","paymentMethodCode":"CASH","amount":10.00,
+                                  "terminalCode":"REGISTRATION-TEST"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("SUCCEEDED"));
+
+        JsonNode completed = json(mockMvc.perform(get("/api/billing/registration-intents/{intentId}",
+                                intent.get("id").asString()).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.encounterId").isNotEmpty())
+                .andReturn().getResponse().getContentAsString());
+
+        String encounterId = completed.get("encounterId").asString();
+        Long registrationId = jdbcTemplate.queryForObject(
+                "select ID_PAT_REG from RHN_SC_PAT_REG where ID_ENC = ?", Long.class, Long.valueOf(encounterId));
+
+        String idempotencyKey = "REG-PRINT-BILLING-" + suffix;
+        String request = """
+                {"taskCode":"OP.REGISTRATION.TICKET.PRINT",
+                 "source":{"sourceType":"PatientRegistration","sourceId":"%s","encounterId":"%s"},
+                 "purpose":"PATIENT_COPY","copies":1,"idempotencyKey":"%s"}
+                """.formatted(registrationId, encounterId, idempotencyKey);
+        JsonNode ticketReceipt = json(mockMvc.perform(post("/api/platform/printing/tasks").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("GENERATED"))
+                .andReturn().getResponse().getContentAsString());
+
+        String payloadJson = jdbcTemplate.queryForObject(
+                "select JSON_SNAP from RHN_SYS_PRINT_OUTPUT where ID_PRINT_OUTPUT = " + ticketReceipt.get("outputId").asLong(),
+                String.class);
+        assertNotNull(payloadJson);
+        assertTrue(payloadJson.contains("\"payableAmount\":\"10.00\""), "自费实收金额应为 10.00，实际: " + payloadJson);
+        assertTrue(payloadJson.contains("\"paymentMethodName\":\"现金\""), "支付方式应为现金，实际: " + payloadJson);
+        assertTrue(payloadJson.contains("\"baseFee\":\"10.00\""), "诊查费应为 10.00，实际: " + payloadJson);
+
+        byte[] pdf = download(ticketReceipt);
+        assertPdf(pdf);
+    }
+
     private byte[] download(JsonNode receipt) throws Exception {
         MvcResult result = mockMvc.perform(get(receipt.get("downloadUrl").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -104,5 +172,21 @@ class OutpatientRegistrationPrintTest extends RhnIntegrationTestSupport {
                                 {"fullName":"挂号打印测试患者","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"FEMALE","birthDate":"1990-01-01"}
                                 """.formatted(nationalId)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
+    }
+
+    private String createTodaySchedule(String suffix, int capacity) throws Exception {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        JsonNode generated = json(mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "practitionerId":"362387869790223","catalogItemId":"%s",
+                                  "dateFrom":"%s","dateTo":"%s","weekdays":[%d],"dayParts":["MORNING"],
+                                  "morningStart":"00:00","morningEnd":"23:59","capacity":%d,
+                                  "locationName":"挂号打印验收诊室","idempotencyCode":"REG-PRINT-SCHED-%s"
+                                }
+                                """.formatted(REGISTRATION_SERVICE, today, today,
+                                today.getDayOfWeek().getValue(), capacity, suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        return generated.at("/schedules/0/id").asString();
     }
 }

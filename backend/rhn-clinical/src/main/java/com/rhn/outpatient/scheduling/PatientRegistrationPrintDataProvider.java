@@ -12,6 +12,8 @@ import com.rhn.platform.tenant.TenantContext;
 import com.rhn.queueing.api.QueueingDirectory;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -30,17 +32,20 @@ class PatientRegistrationPrintDataProvider implements PrintDataProvider {
     private final QueueingDirectory queueing;
     private final ResidentDirectory residentDirectory;
     private final OrganizationDirectory organizationDirectory;
+    private final com.rhn.platform.printing.api.RegistrationBillingDirectory billingDirectory;
 
     PatientRegistrationPrintDataProvider(PatientRegistrationRepository registrationRepository,
                                          ServiceScheduleRepository scheduleRepository,
                                          QueueingDirectory queueing,
                                          ResidentDirectory residentDirectory,
-                                         OrganizationDirectory organizationDirectory) {
+                                         OrganizationDirectory organizationDirectory,
+                                         com.rhn.platform.printing.api.RegistrationBillingDirectory billingDirectory) {
         this.registrationRepository = registrationRepository;
         this.scheduleRepository = scheduleRepository;
         this.queueing = queueing;
         this.residentDirectory = residentDirectory;
         this.organizationDirectory = organizationDirectory;
+        this.billingDirectory = billingDirectory;
     }
 
     @Override
@@ -94,8 +99,18 @@ class PatientRegistrationPrintDataProvider implements PrintDataProvider {
         payload.put("practitionerName", practitionerName);
         payload.put("serviceName", serviceName);
         payload.put("sdDayPartText", sdDayPartText);
-        payload.put("payableAmount", "0.00");
-        payload.put("paymentMethodName", "自费/医保");
+        var paymentSnapshot = billingDirectory.findPaymentSnapshotByEncounterId(tenantId, registration.encounterId());
+        BigDecimal payable = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::payableAmount).orElse(BigDecimal.ZERO);
+        String paymentMethodName = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::paymentMethodName).orElse("自费/医保");
+        BigDecimal totalFee = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::totalFee).orElse(payable);
+        BigDecimal insuranceDeduction = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::insuranceDeduction).orElse(BigDecimal.ZERO);
+        BigDecimal discountAmount = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::discountAmount).orElse(BigDecimal.ZERO);
+
+        payload.put("payableAmount", payable.setScale(2, RoundingMode.HALF_UP).toPlainString());
+        payload.put("paymentMethodName", paymentMethodName);
+        payload.put("baseFee", totalFee.setScale(2, RoundingMode.HALF_UP).toPlainString());
+        payload.put("insuranceDeduction", insuranceDeduction.setScale(2, RoundingMode.HALF_UP).toPlainString());
+        payload.put("seniorDiscount", discountAmount.setScale(2, RoundingMode.HALF_UP).toPlainString());
         payload.put("registeredAtText", DATE_TIME.format(registration.registeredAt()));
         payload.put("validUntilText", "当日当班有效");
 

@@ -270,10 +270,22 @@ class ConfigurablePdfRenderer {
             default -> Element.ALIGN_LEFT;
         };
         float padding = mm(decimal(element.get("paddingMm"), 0.8));
+        float padY = padding;
+        float leading = fontSize * 1.2f;
+        if (element.get("paddingMm") == null) {
+            float availableY = height - 2 * padY;
+            if (availableY < leading) {
+                padY = Math.max(0f, (height - leading) / 2f);
+                if (height < leading) {
+                    padY = 0f;
+                    leading = Math.max(fontSize, height);
+                }
+            }
+        }
         ColumnText column = new ColumnText(canvas);
         column.setSimpleColumn(new Phrase(content, font(fontSize, bool(element.get("bold"), false), Color.BLACK)),
-                x + padding, yBottom + padding, x + width - padding, yTop - padding,
-                fontSize * 1.2f, align);
+                x + padding, yBottom + padY, x + width - padding, yTop - padY,
+                leading, align);
         column.go();
     }
 

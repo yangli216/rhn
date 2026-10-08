@@ -726,7 +726,7 @@ function defaultCanvasConfig(definition: PrintDocumentDefinition, media: PrintMe
     { type: 'barcode', xMm: width - 30, yMm: Math.min(38, height - 14), widthMm: 28, heightMm: 12, path: 'barcode', showText: true },
   ] }
   if (definition.documentType === 'OUTPATIENT_REGISTRATION_TICKET') return { ...base, elements: [
-    { type: 'text', xMm: 2, yMm: 2, widthMm: width - 4, heightMm: 6, template: '{{organizationName}}', fontSize: 12, bold: true, align: 'CENTER' },
+    { type: 'text', xMm: 2, yMm: 2, widthMm: width - 4, heightMm: 7, template: '{{organizationName}}', fontSize: 11, bold: true, align: 'CENTER' },
     { type: 'text', xMm: 2, yMm: 9, widthMm: width - 4, heightMm: 5, text: '门诊挂号就诊凭条（热敏存根）', fontSize: 8, align: 'CENTER' },
     { type: 'line', xMm: 2, yMm: 15, widthMm: width - 4, heightMm: 0 },
     { type: 'text', xMm: 2, yMm: 17, widthMm: width - 4, heightMm: 5, text: '候诊排队序号', fontSize: 8, align: 'CENTER' },

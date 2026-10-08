@@ -285,7 +285,6 @@ function ThermalReceiptModal({
   onClose: () => void
 }) {
   const breakdown = feeBreakdown ?? { baseFee: 0, seniorDiscount: 0, insuranceDeduction: 0, payableAmount: 0 }
-  const validUntil = receipt.validUntil
   const [isPrinting, setIsPrinting] = useState(false)
   const [printFeedback, setPrintFeedback] = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
@@ -370,9 +369,7 @@ function ThermalReceiptModal({
           <dt>健康档案</dt><dd>{receipt.healthRecordNo}</dd>
           <dt>就诊科室</dt><dd>{departmentName}</dd>
           <dt>诊室地址</dt><dd><strong>{locationName || `${departmentName} 诊室`}</strong></dd>
-          {Boolean(receipt.practitionerName) && (
-            <><dt>接诊医生</dt><dd>{receipt.practitionerName}</dd></>
-          )}
+          <dt>接诊医生</dt><dd>{receipt.practitionerName || '普通门诊'}</dd>
           <dt>诊疗项目</dt><dd>{receipt.serviceName}</dd>
           <dt>就诊时段</dt><dd>{receipt.sdDayPartText || '当日出诊'}</dd>
           <dt>门诊诊查费</dt><dd>¥{breakdown.baseFee.toFixed(2)}</dd>
@@ -386,9 +383,7 @@ function ThermalReceiptModal({
             </>
           )}
           <dt>挂号时间</dt><dd>{clock(receipt.registeredAt)}</dd>
-          {validUntil ? (
-            <><dt>效期截止</dt><dd><strong>{clock(validUntil)}</strong></dd></>
-          ) : null}
+          <dt>效期截止</dt><dd><strong>当日当班有效</strong></dd>
         </dl>
 
         <div className="thermal-receipt-barcode-box">
@@ -400,7 +395,7 @@ function ThermalReceiptModal({
 
         <footer className="thermal-receipt-guidance">
           <p>请凭本凭条前往候诊区，关注大屏幕叫号</p>
-          <p>{validUntil ? `凭条效期截至 ${clock(validUntil)}` : '当日当班有效'} · 祝您早日康复</p>
+          <p>当日当班有效 · 祝您早日康复</p>
         </footer>
       </article>
     </div>
@@ -1013,12 +1008,13 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
     {showReceiptModal && activeReceiptItem && (() => {
       const activeSchedule = (schedules.data ?? []).find((s) => s.id === activeReceiptItem.scheduleId) ?? selectedSchedule
-      const activeLocation = activeSchedule?.locationName || (activeReceiptItem.serviceName ? `${activeReceiptItem.serviceName} 诊室` : `${clinicalContext.department.name} 诊室`)
+      const activeDept = activeReceiptItem.departmentName || targetDepartmentName || clinicalContext.department.name
+      const activeLocation = activeReceiptItem.locationName || activeSchedule?.locationName || (activeDept ? `${activeDept} 诊室` : `${clinicalContext.department.name} 诊室`)
       return <ThermalReceiptModal
         api={api}
         receipt={activeReceiptItem}
         organizationName={clinicalContext.organization.name}
-        departmentName={activeReceiptItem.serviceName || targetDepartmentName}
+        departmentName={activeDept}
         locationName={activeLocation}
         feeBreakdown={feeBreakdown}
         paymentMethodName={PAYMENT_METHOD_NAMES[selectedPaymentMethod] || '自费/医保'}
