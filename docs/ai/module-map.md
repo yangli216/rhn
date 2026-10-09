@@ -5,6 +5,7 @@
 
 | 用例 | 前端入口 | 后端入口，相对各模块 src/main/java/com/rhn | 验证入口 |
 | --- | --- | --- | --- |
+| AI / 团队协作、任务隔离、CI 与验证证据 | [协作与集成约定](../../CONTRIBUTING.md)、根 AGENTS.md；`.github/workflows/ci.yml` | `scripts/verify-scope.sh`、`scripts/verification-snapshot.py` | `python3 -B -m unittest discover -s scripts/tests -p 'test_development_workflow.py' -v`；业务与共享资产变化另选相应检查 |
 | 表结构、设计规范、业务语义与人机共建 | [数据库协作入口](../database/README.md)、`/schema-workbench.html`；开发端 `src/dev/schema-workbench/`；统计端 `features/analytics/SemanticWorkbench.tsx` | 开发采集与文件服务：`scripts/schema-workbench/`；统计资产：rhn-analytics 的 `semantic/outpatient-ontology.v1.yaml` | `cd frontend && npm run schema:test && npm run schema:check`；UI 用 `npm run check`；统计资产变化追加 semantic 模块测试 |
 | 新增页面、布局、基础组件与 UI 一致性 | [前端开发入口](frontend-ui.md)、[组件目录](../../frontend/src/shared/ui/README.md)、[可运行页面模板](../../frontend/src/shared/ui/templates/README.md) | 仅 UI 改动无需读取后端；涉及业务按下列领域继续定位 | `cd frontend && npm run check`；模板及门禁变更见前端入口 |
 | 门诊病历、诊断、草稿保存 | [record/README](../../frontend/src/features/outpatient/record/README.md)、DoctorWorkstation.tsx | rhn-clinical/outpatient/encounter/EncounterService.java | `./scripts/verify-scope.sh outpatient-draft` |
@@ -25,6 +26,7 @@
 - 用 `./scripts/verify-scope.sh round1 --list` 查看实际测试和构建命令；无数据库的频次契约测试共享同一 JSON 样例。
 - 仅前端改动使用对应范围的 `--frontend-only`（如 `round1 --frontend-only`），保留前端集成测试、UI 门禁与构建；后端、API 协议、迁移、权限、库存或收费逻辑有改动时不得使用该选项。知识面板与 Markdown 展示用 `./scripts/verify-scope.sh knowledge-panel`，修改共享 Dialog 时另外选择受影响的业务测试；跨医生站工作流仍用 `round1`。`timings.tsv` 记录阶段状态与秒数。
 - 验证脚本将完整日志存入忽略的 .runtime/verification，仅输出摘要／失败末尾；需要时再读完整文件。
+- 验证前后源码快照也存入该日志目录；源码或版本变化时退出 `2`，不能作为固定版本通过证据。并行任务隔离、共享资产串行集成与人工服务版本记录见 [协作约定](../../CONTRIBUTING.md)。
 - 公开 API、迁移、权限、库存、收费或公共框架变化要扩大测试，CI 完整验证继续保留。
 - 工作区变更先看范围；不把其他任务的未提交修改当成本次成果，不自动 commit/push。
 

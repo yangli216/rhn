@@ -132,6 +132,17 @@ if [[ "$rhn_option" != --list ]]; then
   mkdir -p "$rhn_logs"
   echo "Scope: $rhn_scope; logs: $rhn_logs"
   printf 'stage\tstatus\tseconds\n' > "$rhn_logs/timings.tsv"
+  # Record bytes as well as HEAD: a dirty worktree's HEAD alone is insufficient.
+  rhn_snapshot_started=$SECONDS
+  if (cd "$rhn_root" && python3 scripts/verification-snapshot.py capture \
+    --scope "$rhn_scope (frontend-only=$rhn_frontend_only)" --output "$rhn_logs/source-before.json") \
+    > "$rhn_logs/source-capture.log" 2>&1; then
+    printf 'source-capture\tPASS\t%s\n' "$((SECONDS - rhn_snapshot_started))" >> "$rhn_logs/timings.tsv"
+  else
+    printf 'source-capture\tFAIL\t%s\n' "$((SECONDS - rhn_snapshot_started))" >> "$rhn_logs/timings.tsv"
+    cat "$rhn_logs/source-capture.log" >&2
+    exit 2
+  fi
   if [[ "$rhn_frontend_only" == 1 ]]; then echo "Frontend only: backend checks are excluded; full CI remains required."; fi
 fi
 
@@ -167,4 +178,18 @@ if [[ "$rhn_frontend_only" == 0 ]]; then
 fi
 run_check ui-standards "$rhn_root/frontend" npm run ui:check || rhn_failed=1
 run_check frontend-build "$rhn_root/frontend" npm run build || rhn_failed=1
+if [[ "$rhn_option" != --list ]]; then
+  rhn_snapshot_started=$SECONDS
+  if (cd "$rhn_root" && python3 scripts/verification-snapshot.py check \
+    --before "$rhn_logs/source-before.json" --output "$rhn_logs/source-after.json") \
+    > "$rhn_logs/source-check.log" 2>&1; then
+    printf 'source-check\tPASS\t%s\n' "$((SECONDS - rhn_snapshot_started))" >> "$rhn_logs/timings.tsv"
+    tail -n 1 "$rhn_logs/source-check.log"
+  else
+    printf 'source-check\tINVALID\t%s\n' "$((SECONDS - rhn_snapshot_started))" >> "$rhn_logs/timings.tsv"
+    cat "$rhn_logs/source-check.log" >&2
+    echo "Verification attribution invalid (exit 2); stage results remain in timings.tsv." >&2
+    exit 2
+  fi
+fi
 exit "$rhn_failed"

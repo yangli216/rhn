@@ -5,7 +5,21 @@ on:
     branches: [main]
   pull_request:
 
+defaults:
+  run:
+    shell: bash --noprofile --norc -e -o pipefail {0}
+
 jobs:
+  development-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify CI failure propagation and source snapshots
+        run: python3 -B -m unittest discover -s scripts/tests -p 'test_development_workflow.py' -v
+
   backend:
     runs-on: ubuntu-latest
     defaults:

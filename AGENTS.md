@@ -1,5 +1,11 @@
 # Project Instructions
 
+## Parallel tasks and integration
+
+- Follow `CONTRIBUTING.md` for task isolation, shared-asset responsibility, migration integration, and verification evidence. New independent tasks use independent branches/worktrees; preserve existing in-flight tasks and never stash/reset others' changes to make room.
+- Declare the task's scope and integration role for shared UI, API/generated assets, migrations, security/config, and CI; integrate overlapping assets serially. Do not infer authorization to message other threads or commit/push from these coordination rules.
+- Verify a fixed source snapshot in the task/integration worktree. `verify-scope.sh` records source fingerprints before/after checks; exit 2 means invalid attribution or setup, not proof of a business regression. Recheck changed source before claiming success; do not build unrelated in-flight changes in the main checkout.
+
 ## Task entry points and focused verification
 
 - Start with `docs/ai/module-map.md` for the affected use case; read only the relevant domain guide and code paths.
