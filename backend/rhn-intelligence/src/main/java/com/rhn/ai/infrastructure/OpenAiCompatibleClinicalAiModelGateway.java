@@ -121,6 +121,8 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             同时必须在 treatmentRecommendations 提出有临床依据的药品、检验、检查搜索意图，
             type 仅 MEDICATION、LABORATORY、EXAMINATION，最多12项。使用通用药名或具体检验检查名称，组合项目拆分。
             血常规、CRP、咽拭子培养等实验室化验必须使用 LABORATORY，不得标为 MEDICATION 或 EXAMINATION；影像及功能检查使用 EXAMINATION。
+            检验检查按本次诊疗目的有选择地提出，不能把与疑似病种相关的项目全部作为常规套餐；未获得院内匹配结果前不得宣称本院常用、可开立或已安排。
+            区分本次评估与后续评估需要，不能无依据地安排后续功能检查；生命体征观察不默认转为收费医嘱，不重复建议已有测量或已完成检查，确有复测依据时除外。
             推荐仅基于本次已知临床资料，不为凑齐药品或检验而推荐；普通CRP与超敏CRP不可混用。未明确药品规格时不猜测规格，院内产品由后续匹配与医生确认。
             RECORD_DIAGNOSIS 阶段每项只输出 type、name；MEDICATION 可额外输出待匹配的 specification，检验检查不输出 specification。
             不需要某类治疗时可以不推荐，不得为了完整而盲目使用抗菌药。搜索意图不是处方，catalogItemId 等标识留空，不输出 rationale。
@@ -170,7 +172,10 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                “最高体温”只能留在现病史；只有“今天/今日/当前测量体温”等明确当前测量语义才可写入 temperature。体重（公斤、千克、kg）按数值写入 weightKg。
                缺少专科查体且没有既有预设时省略缺失部分，整段无依据则返回 null；必要查体项目只列入 missingInformation，不能将已有正常或阴性预设改标为本次已查体事实。
             5. healthEducation：根据已知症状写出具体、适度的生活指导和病情观察建议，使用“建议”表述，不能声称已经宣教或患者已经知晓。
-            6. followUp：写明与本次症状相关的复诊触发条件及需要及时就医的变化；无依据时不编造固定复诊日期，也不输出“待评估病情后确定随访计划”。
+            6. followUp：careContext 表明患者正在本次门诊就诊；随访复诊针对本次评估和处置后的病情变化、结果复核与复诊触发条件。
+               不得把“建议尽快到医院/专科就诊”作为已经在诊患者的默认复诊建议。检查方向属于本次诊疗，写入 treatmentRecommendations；不将本次尚需评估的事项伪装成院外复诊计划。
+               已知当前危险征象写入 safetyAlerts，提示医生在本次就诊及时评估；离院后新出现或加重的危险征象可提示及时急诊就医，不能因此省略当前风险。
+               转诊/专科会诊仅在已有资料支持且需进一步专科评估时条件性提出，不假设本次机构或科室无法处置。没有明确计划依据时不编造固定复诊日期，不输出“待评估病情后确定随访计划”。
                宣教和随访是建议，不是既成事实。检查、药品方向写入 treatmentRecommendations 供后续目录匹配，不在病历生成 treatmentPlan；不得编造具体剂量和疗程；历史处方仅供参考，续方须核对当前适应证、禁忌及用法。
             diagnosisCandidates 为待医生确认的初步诊断，依据不足可推荐症状诊断或留空；缺失依据写入 missingInformation，diagnosisCandidates.rationale 留空。
             【场景感知】：receptionScene 是接诊辅助场景，receptionSceneContext 是医生选定的关注范围，均不是确诊事实。
@@ -749,6 +754,8 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
         context.put("availableTreatments", request.availableTreatments());
         context.put("question", request.question());
         context.put("receptionScene", request.receptionScene());
+        context.put("careContext", Map.of("setting", "OUTPATIENT", "visitPhase", "IN_PROGRESS",
+                "followUpScope", "AFTER_CURRENT_ASSESSMENT"));
         context.put("receptionSceneContext", request.receptionSceneContext());
         context.put("voiceTranscript", nullable(request.voiceTranscript()));
         var temporal = request.temporalContext();

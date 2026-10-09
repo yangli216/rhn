@@ -112,7 +112,7 @@ class MedicationRequest {
     MedicationRequest(Long tenantId, Long residentId, Long encounterId, String requestNo,
                       Long requestGroupId, Long parentRequestId, MedicationRequestStatus initialStatus,
                       Long catalogItemId, Long packageId, Long performerOrganizationId,
-                      Long performerDepartmentId, LocalDate businessDate, Long authoredBy, String reasonText,
+                      Long performerDepartmentId, Long requestingOrganizationId, Long requestingDepartmentId, LocalDate businessDate, Long authoredBy, String reasonText,
                       String itemCode, String itemName, String quantityUnit, String localCode, String localName,
                       Long adoptionId, Long adoptionRevision, Long priceId, Long priceRevision, String priceType,
                       BigDecimal unitPrice, BigDecimal totalAmount, String currencyCode,
@@ -135,7 +135,7 @@ class MedicationRequest {
         this.intentCode = "ORDER";
         this.priorityCode = "ROUTINE"; this.catalogItemId = catalogItemId; this.packageId = packageId;
         this.performerOrganizationId = performerOrganizationId; this.performerDepartmentId = performerDepartmentId;
-        this.requestingOrganizationId = performerOrganizationId; this.requestingDepartmentId = performerDepartmentId;
+        this.requestingOrganizationId = requestingOrganizationId; this.requestingDepartmentId = requestingDepartmentId;
         this.businessDate = businessDate; this.authoredAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS); this.authoredBy = authoredBy;
         this.reasonText = reasonText; this.itemCodeSnapshot = itemCode; this.itemNameSnapshot = itemName;
         this.unitCodeSnapshot = quantityUnit; this.localCodeSnapshot = localCode; this.localNameSnapshot = localName;

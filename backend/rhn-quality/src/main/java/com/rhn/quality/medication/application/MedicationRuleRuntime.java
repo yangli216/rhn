@@ -19,7 +19,14 @@ import static com.rhn.outpatient.api.MedicationSafetyDecision.*;
 public class MedicationRuleRuntime {
     private final MedicationRuleGovernanceStore store; private final JsonCodec json; private final com.rhn.quality.medication.infrastructure.MedicationKnowledgePublicationStore publications;
     private final MedicationSafetyEngine engine; private final MedicationCandidateEvaluator templates=new MedicationCandidateEvaluator();
-    public MedicationRuleRuntime(MedicationRuleGovernanceStore store,JsonCodec json,com.rhn.quality.medication.infrastructure.MedicationKnowledgePublicationStore publications) {this.store=store;this.json=json;this.publications=publications;this.engine=MedicationSafetyEngine.standard(json);}
+    public MedicationRuleRuntime(MedicationRuleGovernanceStore store,JsonCodec json,com.rhn.quality.medication.infrastructure.MedicationKnowledgePublicationStore publications) {
+        this(store, json, publications, null);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public MedicationRuleRuntime(MedicationRuleGovernanceStore store,JsonCodec json,com.rhn.quality.medication.infrastructure.MedicationKnowledgePublicationStore publications,
+                                 @org.springframework.beans.factory.annotation.Autowired(required = false) MedicationSafetyCategoryService safetyCategories) {
+        this.store=store;this.json=json;this.publications=publications;this.engine=MedicationSafetyEngine.standard(json, safetyCategories);
+    }
     public record Selected(String key,Deployment deployment) {}
     public record Plan(List<RuleVersion> baseline,List<Selected> shadow,List<Selected> enforced) {}
     public Plan plan(PrescriptionSafetySnapshot input,List<RuleVersion> baseline,Instant now) {

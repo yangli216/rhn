@@ -31,7 +31,7 @@ import {
   type MedicationRoute, type StandardMedicationDetail, type StandardMedicationSpecification,
 } from '../../shared/rhnApi'
 import {
-  Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
+  Alert, Button, DataTable, Dialog, DictionarySelect, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
   Pagination, SearchField, Select, StatusBadge, TableShell, Tabs, Tooltip,
 } from '../../shared/ui'
 import '../../styles/features/operational-master-data.css'
@@ -509,22 +509,8 @@ export const SERVICE_SUBTYPE_MAP: Record<string, string> = {
   GENERAL: '常规项目',
 }
 
-export const ACCOUNTING_CATEGORY_MAP: Record<string, string> = {
-  LABORATORY: '检验费',
-  REGISTRATION: '诊察挂号费',
-  IMAGING: '检查影像费',
-  TREATMENT: '治疗处置费',
-  SURGERY: '手术费',
-  BED: '床位费',
-  NURSING: '护理费',
-  BLOOD: '输血费',
-  MATERIAL: '材料费',
-  OTHER: '其他费用',
-}
-
-export function accountingCategoryLabel(category?: string) {
-  if (!category) return ''
-  return ACCOUNTING_CATEGORY_MAP[category] || category
+export function accountingCategoryLabel(category?: string, categoryText?: string | null) {
+  return categoryText?.trim() || category || ''
 }
 
 export const SERVICE_DUPLICATE_RULE_MAP: Record<string, string> = {
@@ -578,7 +564,7 @@ export function ServiceTable({ values, loading, pagination, density = 'two-line'
       const subtype = serviceSubtypeLabel(value.serviceSubtype)
       const ruleText = serviceDuplicateRuleLabel(value.sdDuplicateRule, value.sdDuplicateRuleText)
       const mutualText = value.mutualRecognitionCode ? `互认 ${value.mutualRecognitionCode}` : ''
-      const accCategory = accountingCategoryLabel(value.accountingCategory)
+      const accCategory = accountingCategoryLabel(value.accountingCategory, value.accountingCategoryText)
       const execDetail = value.sdServiceType === 'LABORATORY'
         ? (value.laboratory ? `${value.laboratory.sdLaboratoryMethodText || '检验'} · ${value.laboratory.specimens.length} 种标本` : '未配置标本')
         : value.sdServiceType === 'EXAMINATION'
@@ -3193,10 +3179,11 @@ function DynamicItemAttributesSection({
 }
 
 export function ServiceDialog({ api, organization, dictionaries, value, onClose, onSave }: {
-  api?: RhnApi; organization?: Organization; dictionaries: DictionaryMap;
+  api: RhnApi; organization?: Organization; dictionaries: DictionaryMap;
   value?: ServiceCatalogItem; onClose: () => void; onSave: (input: ServiceInput) => void | Promise<unknown>
 }) {
   const queryClient = useQueryClient()
+  const [accountingCategory, setAccountingCategory] = useState(value?.accountingCategory ?? '')
   const [attrValues, setAttrValues] = useState<Record<string, string>>({})
   const maintenanceQuery = useQuery({
     queryKey: ['master-data-item-attributes', 'CATALOG_ITEM', value?.id, today()],
@@ -3262,8 +3249,9 @@ export function ServiceDialog({ api, organization, dictionaries, value, onClose,
     <FormSection title="目录属性与能力" description="这里只维护中心级目录属性；检验标本、检查部位、多部位计价与附加收费在该项目的“执行与收费”中统一维护。">
       <FormGrid columns={4}>
         <FormField label="计价单位"><input name="unitCode" defaultValue={value?.unitCode ?? '次'} /></FormField>
-        <FormField label="费用归并"><input name="accountingCategory" defaultValue={value?.accountingCategory}
-          placeholder="如 检验费" /></FormField>
+        <FormField label="费用归并"><DictionarySelect api={api.dictionaries} dictionaryCode="BD_ACCOUNTING_CATEGORY"
+          name="accountingCategory" aria-label="费用归并" value={accountingCategory} onChange={setAccountingCategory}
+          placeholder="选择费用归并分类" /></FormField>
         <SelectField name="sdDuplicateRule" label="重复开立规则" values={dictionaries.BD_SERVICE_DUPLICATE_RULE}
           defaultValue={value?.sdDuplicateRule ?? 'WARN'} />
         <FormField label="互认编码"><input name="mutualRecognitionCode" defaultValue={value?.mutualRecognitionCode}

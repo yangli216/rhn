@@ -27,9 +27,9 @@ public class MedicationStandardService {
     }
 
     public void validateNew(Long tenant, MedicationCommand command) {
-        // A disabled center record can be saved before its real product specification is known.
+        // A center draft can be saved before its real product specification is known.
         // Operational medications and manufacturer products still require a standard identity.
-        if ("INACTIVE".equals(command.status())
+        if ("DRAFT".equals(command.status())
                 && (command.standardSpecificationId() == null || command.standardSpecificationId().isBlank())) return;
         validateSpecification(command.standardSpecificationId(), command);
         var summary = catalog.summary();

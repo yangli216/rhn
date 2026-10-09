@@ -9,8 +9,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,24 +18,13 @@ import static org.mockito.Mockito.when;
 class ChargeCategoryAccountingTest {
 
     @Test
-    @DisplayName("标准分类字典映射：精准解析医保与公立医疗15+项核心大类")
-    void should_resolve_standard_accounting_categories() {
-        ChargeCategoryResolver resolver = new ChargeCategoryResolver(null);
-
-        assertEquals("诊察挂号费", resolver.label(1L, "REGISTRATION"));
-        assertEquals("检验费", resolver.label(1L, "LABORATORY"));
-        assertEquals("检查费", resolver.label(1L, "EXAMINATION"));
-        assertEquals("检查影像费", resolver.label(1L, "IMAGING"));
-        assertEquals("治疗处置费", resolver.label(1L, "TREATMENT"));
-        assertEquals("手术费", resolver.label(1L, "SURGERY"));
-        assertEquals("护理费", resolver.label(1L, "NURSING"));
-        assertEquals("床位费", resolver.label(1L, "BED"));
-        assertEquals("输血费", resolver.label(1L, "BLOOD"));
-        assertEquals("材料费", resolver.label(1L, "MATERIAL"));
-        assertEquals("西药费", resolver.label(1L, "WESTERN_MED"));
-        assertEquals("中成药费", resolver.label(1L, "CHINESE_PATENT_MED"));
-        assertEquals("中药饮片费", resolver.label(1L, "HERBAL_MED"));
-        assertEquals("药品费", resolver.label(1L, "MEDICATION"));
+    void missing_standard_dictionary_items_do_not_fall_back_to_local_chinese_labels() {
+        var directory = Mockito.mock(DictionaryDirectory.class);
+        when(directory.resolveItemTexts(1L, MasterDataDictionaryCodes.ACCOUNTING_CATEGORY)).thenReturn(Map.of());
+        var resolver = new ChargeCategoryResolver(directory);
+        assertEquals("LABORATORY", resolver.label(1L, "LABORATORY"));
+        assertEquals("IMAGING", resolver.label(1L, "IMAGING"));
+        assertEquals("OTHER", resolver.label(1L, "OTHER"));
     }
 
     @Test
@@ -97,7 +84,7 @@ class ChargeCategoryAccountingTest {
         assertEquals("UNCLASSIFIED", resolver.resolve(1L, null).code());
         assertEquals("UNCLASSIFIED", resolver.resolveByCode(1L, " ").code());
         assertEquals("OTHER", resolver.resolveByCode(1L, "OTHER").code());
-        assertEquals("其他费用", resolver.resolveByCode(1L, "OTHER").name());
+        assertEquals("OTHER", resolver.resolveByCode(1L, "OTHER").name());
     }
 
     @Test
@@ -113,14 +100,17 @@ class ChargeCategoryAccountingTest {
     @Test
     @DisplayName("新记录显式包含 SD_ACCTG_CAT 时：优先以快照分类独立核算")
     void should_prioritize_explicit_accounting_category() {
-        ChargeCategoryResolver resolver = new ChargeCategoryResolver(null);
+        var directory = Mockito.mock(DictionaryDirectory.class);
+        when(directory.resolveItemTexts(1L, MasterDataDictionaryCodes.ACCOUNTING_CATEGORY))
+                .thenReturn(Map.of("LABORATORY", "本院检验费", "SURGERY", "手术费"));
+        ChargeCategoryResolver resolver = new ChargeCategoryResolver(directory);
 
         // 检验类明细
         ChargeItem labCharge = Mockito.mock(ChargeItem.class);
         when(labCharge.accountingCategory()).thenReturn("LABORATORY");
         ChargeCategory labCat = resolver.resolve(1L, labCharge);
         assertEquals("LABORATORY", labCat.code());
-        assertEquals("检验费", labCat.name());
+        assertEquals("本院检验费", labCat.name());
 
         // 手术类明细
         ChargeItem surgCharge = Mockito.mock(ChargeItem.class);

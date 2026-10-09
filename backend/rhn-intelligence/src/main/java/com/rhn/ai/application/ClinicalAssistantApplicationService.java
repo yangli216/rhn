@@ -74,7 +74,7 @@ public class ClinicalAssistantApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ClinicalAssistantApplicationService.class);
     private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
     private static final String OUTPATIENT_NOTE = "OUTPATIENT_NOTE";
-    private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V10";
+    private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V11";
     private static final String LOCAL_PROMPT_VERSION = "local-assist-v2";
     private static final String DISCLAIMER = "本结果仅为本地规则辅助生成的待核对建议，不构成诊断或处方；系统不会自动保存病历、确认诊断、开立医嘱或完成诊毕，须由医生独立判断并确认。";
     private static final String MODEL_DISCLAIMER = "本结果由模型基于当前就诊资料生成，并已通过院内术语、方案白名单和确定性安全规则复核；不构成诊断或处方，须由医生独立判断并确认。";
@@ -226,7 +226,7 @@ public class ClinicalAssistantApplicationService {
         if (!java.util.Objects.equals(access.context().organizationId(), access.encounter().organizationId())) {
             throw new BusinessException("AI_CATALOG_CONTEXT_MISMATCH", "请切换到本次就诊机构后核对医嘱。", HttpStatus.CONFLICT);
         }
-        var intents = input.intents().stream().map(item -> new TreatmentRecommendation(item.type(), null, null,
+        var intents = input.intents().stream().map(item -> new TreatmentRecommendation(item.type(), item.catalogItemId(), item.medicationId(),
                 null, item.name(), item.specification(), item.rationale())).toList();
         return treatmentService.resolve(intents, LocalDate.now(ClinicalAiModelGateway.TemporalContext.ZONE));
     }

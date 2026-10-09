@@ -183,13 +183,14 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STANDARD_MEDICATION_REUSE_REQUIRED"));
     }
 
-    @Test void disabled_center_record_can_be_saved_without_inventing_a_standard_or_product() throws Exception {
+    @Test void center_draft_can_be_saved_without_inventing_a_standard_or_product() throws Exception {
         var created = json(mockMvc.perform(post(BASE+"/medications").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                  {"code":"CENTER-PENDING-SPEC","name":"复方硼砂含漱液","sdMedicationType":"WESTERN","sdStatus":"INACTIVE"}
+                  {"code":"CENTER-PENDING-SPEC","name":"复方硼砂含漱液","sdMedicationType":"WESTERN","sdStatus":"DRAFT",
+                   "singleOrder":true,"prescriptionDrug":false,"essentialDrug":false,"antimicrobial":false,"skinTestRequired":false,"chronicDiseaseDrug":false}
                   """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.sdStatus").value("INACTIVE"))
+                .andExpect(jsonPath("$.sdStatus").value("DRAFT"))
                 .andExpect(jsonPath("$.preparationSpec").isEmpty())
                 .andExpect(jsonPath("$.products").isEmpty())
                 .andExpect(jsonPath("$.standardReference.status").value("UNMAPPED"))
@@ -203,14 +204,15 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post(BASE+"/medication-products").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                   {"medicationId":"%s","manufacturerId":"%s","code":"DRAFT-PRODUCT","sdStatus":"ACTIVE","validFrom":"2020-01-01",
+                   "otc":false,"centralPurchase":false,"importAllowed":false,"traceSplitRequired":false,
                    "orderable":true,"chargeable":true,"stocked":false}
                   """.formatted(id, manufacturer)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("MEDICATION_PRODUCT_STANDARD_REQUIRED"));
     }
 
-    @Test void disabled_record_with_a_declared_standard_still_rejects_identity_drift() throws Exception {
-        var body = input(); body.put("sdStatus", "INACTIVE"); body.put("preparationSpec", "0.5g");
+    @Test void draft_with_a_declared_standard_still_rejects_identity_drift() throws Exception {
+        var body = input(); body.put("sdStatus", "DRAFT"); body.put("preparationSpec", "0.5g");
         mockMvc.perform(post(BASE+"/medications").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body.toString()))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("MEDICATION_STANDARD_IDENTITY_MISMATCH"));
     }

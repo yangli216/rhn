@@ -17,7 +17,7 @@ function setup(query: ReturnType<typeof vi.fn>, kind: 'MEDICATION' | 'CATALOG_IT
     ...(input.scopeType ? { overrides: [{ ...input, status: 'ACTIVE', id: input.overrideId ?? 'override-saved', revision: (input.expectedRevision ?? 0) + 1 }] }
       : { baseValues: [{ ...input, status: 'ACTIVE', id: input.valueId ?? 'base-saved', revision: (input.expectedRevision ?? 0) + 1 }] }) }))
   const api = { masterData: { itemAttributeMaintenance: query, saveItemAttributeValue: saveAttribute,
-    saveItemAttributeOverride: saveAttribute }, dictionaries: { get: vi.fn().mockResolvedValue({ items: [] }) } } as unknown as RhnApi
+    saveItemAttributeOverride: saveAttribute }, dictionaries: { get: vi.fn().mockResolvedValue({ items: [] }), resolve: vi.fn().mockResolvedValue([{ code: 'LABORATORY', name: '本院检验费', sortOrder: 1 }]) } } as unknown as RhnApi
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const shared = { api, organization: { id: 'org-main', name: '总院' } as never, onClose, onSave,
     dictionaries: { BD_MEDICATION_TYPE: [{ code: 'WESTERN', name: '西药' }], BD_DOSE_FORM: [{ code: 'TABLET', name: '片剂' }],
@@ -31,6 +31,18 @@ function setup(query: ReturnType<typeof vi.fn>, kind: 'MEDICATION' | 'CATALOG_IT
 }
 
 describe('master data attribute loading and values', () => {
+  it('selects a server dictionary name and submits its accounting code', async () => {
+    const { submit, onSave } = setup(vi.fn().mockResolvedValue(maintenance), 'CATALOG_ITEM')
+    await screen.findByDisplayValue('真实基线')
+    const selector = screen.getByRole('combobox', { name: '费用归并' })
+    await waitFor(() => expect(selector).not.toBeDisabled())
+    const user = userEvent.setup()
+    await user.click(selector)
+    await user.click(await screen.findByRole('option', { name: /本院检验费/ }))
+    submit()
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ accountingCategory: 'LABORATORY' })))
+  })
+
   it.each(['MEDICATION', 'CATALOG_ITEM'] as const)('keeps %s open until attributes are confirmed and reuses the request code on retry', async (kind) => {
     const { submit, onSave, onClose, saveAttribute } = setup(vi.fn().mockResolvedValue(maintenance), kind)
     const input = await screen.findByDisplayValue('真实基线')

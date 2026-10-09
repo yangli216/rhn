@@ -25,7 +25,12 @@ public class TreatmentCatalogDecisionService {
         public Group { candidates = List.copyOf(candidates); }
     }
     public record Attempt(boolean applied, List<TreatmentRecommendation> items, List<SafetyAlert> alerts,
-                          DecisionModelGateway.Result raw, boolean shadow) { }
+                          DecisionModelGateway.Result raw, boolean shadow, String mode, Double threshold) {
+        public Attempt(boolean applied, List<TreatmentRecommendation> items, List<SafetyAlert> alerts,
+                       DecisionModelGateway.Result raw, boolean shadow) {
+            this(applied, items, alerts, raw, shadow, null, null);
+        }
+    }
 
     public boolean enabled(DecisionScene scene, ExecutionContext context) {
         return !"DISABLED".equalsIgnoreCase(policy.text(context.tenantId(), "decision-mode", "DISABLED"))
@@ -103,7 +108,7 @@ public class TreatmentCatalogDecisionService {
                     : "决策模型存在不确定匹配，已使用原有匹配流程。";
             return new Attempt(applied, List.copyOf(selected.values()), List.of(new SafetyAlert("INFO", "目录决策试用",
                     message + " 模型：" + result.model() + "，耗时：" + result.latencyMs() + "ms，追踪：" + result.traceId()
-                            + "。匹配结果仍需核对，不代表临床适宜性。")), result, shadow);
+                            + "。匹配结果仍需核对，不代表临床适宜性。")), result, shadow, settings.mode().name(), settings.minConfidence());
         } catch (RuntimeException e) {
             outcome = "DECISION_FAILED";
             exceptionType = e.getClass().getSimpleName();

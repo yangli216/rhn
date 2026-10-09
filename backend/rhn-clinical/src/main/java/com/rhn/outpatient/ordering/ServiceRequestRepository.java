@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.Optional;
 
 interface ServiceRequestRepository extends JpaRepository<ServiceRequest, Long> {
+    @Query("select request from ServiceRequest request where request.tenantId = :tenantId "
+            + "and request.id in :ids and request.requestKind = 'SERVICE'")
+    List<ServiceRequest> findOriginsByIds(Long tenantId, java.util.Set<Long> ids);
     @Query("select request from ServiceRequest request where request.id = :id and request.tenantId = :tenantId "
             + "and request.requestKind = 'SERVICE'")
     Optional<ServiceRequest> findByIdAndTenantId(Long id, Long tenantId);

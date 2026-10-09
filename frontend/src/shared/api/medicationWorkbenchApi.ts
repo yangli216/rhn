@@ -125,7 +125,127 @@ export function createMedicationWorkbenchApi(client:ApiClient) {
     shadow:(id:string,encounterId:string,prescriptionId:string)=>post<MedicationTrialRun>('/candidates/'+id+'/shadow',{encounterId,prescriptionId}),
     prescriptionPreview:(encounterId:string,prescriptionId:string)=>post<PrescriptionPreview>('/prescription-preview',{encounterId,prescriptionId}),
     runs:(id:string)=>client.request<MedicationTrialRun[]>(root+'/candidates/'+id+'/runs'),
+    listSafetyCategories: (query = '', ruleKind = '') => {
+      const params = new URLSearchParams()
+      if (query) params.set('query', query)
+      if (ruleKind) params.set('ruleKind', ruleKind)
+      const q = params.toString() ? `?${params.toString()}` : ''
+      return client.request<MedicationSafetyCategoryView[]>('/api/quality/medication-safety/categories' + q)
+    },
+    getSafetyCategory: (id: string | number) => client.request<MedicationSafetyCategoryView>(`/api/quality/medication-safety/categories/${id}`),
+    createSafetyCategory: (body: CreateSafetyCategoryRequest) => client.request<MedicationSafetyCategoryView>('/api/quality/medication-safety/categories', { method: 'POST', body: JSON.stringify(body) }),
+    updateSafetyCategory: (id: string | number, body: UpdateSafetyCategoryRequest) => client.request<MedicationSafetyCategoryView>(`/api/quality/medication-safety/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    deleteSafetyCategory: (id: string | number) => client.request<void>(`/api/quality/medication-safety/categories/${id}`, { method: 'DELETE' }),
+    listSafetyCategoryMembers: (id: string | number, query = '') => client.request<SafetyCategoryMemberView[]>(`/api/quality/medication-safety/categories/${id}/members${query ? `?query=${encodeURIComponent(query)}` : ''}`),
+    addSafetyCategoryMembers: (id: string | number, items: SafetyCategoryMemberItem[]) => client.request<number>(`/api/quality/medication-safety/categories/${id}/members`, { method: 'POST', body: JSON.stringify({ items }) }),
+    removeSafetyCategoryMember: (id: string | number, memberId: string | number) => client.request<void>(`/api/quality/medication-safety/categories/${id}/members/${memberId}`, { method: 'DELETE' }),
+    listSafetyTagsForMedication: (medicationId?: string | number, name?: string) => {
+      const params = new URLSearchParams()
+      if (medicationId) params.set('medicationId', String(medicationId))
+      if (name) params.set('name', name)
+      const q = params.toString() ? `?${params.toString()}` : ''
+      return client.request<MedicationSafetyTagView[]>(`/api/quality/medication-safety/categories/by-medication${q}`)
+    },
+    listStandardCatalogCategories: () =>
+      client.request<StandardCatalogCategorySummary[]>('/api/quality/medication-safety/categories/standard-catalog-categories'),
+    searchStandardCatalogCandidates: (params: { major?: string; sub: string; systemicOnly?: boolean; excludeCategoryId?: string | number }) => {
+      const p = new URLSearchParams()
+      if (params.major) p.set('major', params.major)
+      p.set('sub', params.sub)
+      if (params.systemicOnly !== undefined) p.set('systemicOnly', String(params.systemicOnly))
+      if (params.excludeCategoryId) p.set('excludeCategoryId', String(params.excludeCategoryId))
+      return client.request<SafetyCategoryMemberItem[]>(`/api/quality/medication-safety/categories/standard-catalog-candidates?${p.toString()}`)
+    },
+    importSafetyCategoryMembersFromCatalog: (id: string | number, body: CatalogImportRequest) =>
+      client.request<CatalogImportResult>(`/api/quality/medication-safety/categories/${id}/import-from-catalog`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   }
+}
+
+export interface MedicationSafetyCategoryView {
+  id: string
+  code: string
+  name: string
+  ruleKind: string
+  rationale: string
+  isSystem: boolean
+  status: string
+  memberCount: number
+  revision: number
+  createdAt: string
+  updatedAt: string
+  catalogMajor?: string | null
+  catalogSub?: string | null
+  systemicOnly?: boolean
+}
+
+export interface CreateSafetyCategoryRequest {
+  code: string
+  name: string
+  ruleKind: string
+  rationale: string
+  catalogMajor?: string | null
+  catalogSub?: string | null
+  systemicOnly?: boolean
+}
+
+export interface UpdateSafetyCategoryRequest {
+  expectedRevision: number
+  name: string
+  rationale: string
+  status: string
+  catalogMajor?: string | null
+  catalogSub?: string | null
+  systemicOnly?: boolean
+}
+
+export interface SafetyCategoryMemberView {
+  id: string
+  categoryId: string
+  medicationId: string
+  medicationCode: string
+  medicationName: string
+  preparationSpec: string
+  doseForm: string
+  createdAt: string
+  inherited?: boolean
+}
+
+export interface SafetyCategoryMemberItem {
+  medicationId: string | number
+  medicationCode: string
+  medicationName: string
+  preparationSpec?: string
+  doseForm?: string
+}
+
+export interface StandardCatalogCategorySummary {
+  major: string
+  sub: string
+  entryCount: number
+  entryNames: string[]
+}
+
+export interface CatalogImportRequest {
+  catalogMajor?: string | null
+  catalogSub: string
+  systemicOnly?: boolean
+}
+
+export interface CatalogImportResult {
+  importedCount: number
+  skippedCount: number
+  totalCount: number
+}
+
+export interface MedicationSafetyTagView {
+  categoryId: string
+  categoryCode: string
+  categoryName: string
+  ruleKind: string
+  rationale: string
 }
 
 export interface CatalogEvidence { sourceType:string; sourceTitle:string; sourceVersion:string; sourceLocator:string; section:string; excerpt:string; usageScope:string }

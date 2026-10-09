@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Optional;
 
 interface MedicationRequestRepository extends JpaRepository<MedicationRequest, Long> {
+    @Query("select request from MedicationRequest request where request.tenantId = :tenantId "
+            + "and request.id in :ids and request.requestKind = 'MEDICATION'")
+    List<MedicationRequest> findOriginsByIds(Long tenantId, java.util.Set<Long> ids);
     @Query("select request from MedicationRequest request where request.id = :id and request.tenantId = :tenantId "
             + "and request.requestKind = 'MEDICATION'")
     Optional<MedicationRequest> findByIdAndTenantId(Long id, Long tenantId);

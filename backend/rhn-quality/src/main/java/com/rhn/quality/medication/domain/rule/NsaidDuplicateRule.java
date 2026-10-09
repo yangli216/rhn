@@ -2,6 +2,7 @@ package com.rhn.quality.medication.domain.rule;
 
 import tools.jackson.databind.JsonNode;
 import com.rhn.outpatient.api.PrescriptionSafetySnapshot;
+import com.rhn.quality.medication.application.MedicationSafetyCategoryService;
 import com.rhn.quality.medication.domain.MedicationSafetyFinding;
 import com.rhn.quality.medication.domain.RuleVersion;
 import com.rhn.shared.id.GlobalIds;
@@ -9,7 +10,6 @@ import com.rhn.shared.json.JsonCodec;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * 处方中存在两种及以上全身作用非甾体抗炎药（NSAIDs）的重复用药核查。
@@ -19,7 +19,10 @@ public final class NsaidDuplicateRule implements MedicationSafetyRule {
     public static final String CODE = "QMED.NSAID_DUPLICATE";
     public static final String IMPLEMENTATION = "java:nsaid-duplicate:1";
 
-    private static final List<String> NSAID_STEMS = List.of(
+    public static final String CAT_SYSTEMIC_NSAID = "SYSTEMIC_NSAID";
+
+    // 经典兜底基线（当租户尚未完成分类维护时平滑回退，保障基线安全）
+    private static final List<String> FALLBACK_NSAID_STEMS = List.of(
             "布洛芬", "双氯芬酸", "塞来昔布", "吲哚美辛", "美洛昔康", "依托考昔",
             "阿司匹林", "洛索洛芬", "萘普生", "酮洛芬", "吡罗昔康", "艾瑞昔布",
             "尼美舒利", "氟比洛芬"
@@ -30,9 +33,15 @@ public final class NsaidDuplicateRule implements MedicationSafetyRule {
     );
 
     private final JsonCodec json;
+    private final MedicationSafetyCategoryService safetyCategories;
 
     public NsaidDuplicateRule(JsonCodec json) {
+        this(json, null);
+    }
+
+    public NsaidDuplicateRule(JsonCodec json, MedicationSafetyCategoryService safetyCategories) {
         this.json = json;
+        this.safetyCategories = safetyCategories;
     }
 
     @Override
@@ -55,6 +64,7 @@ public final class NsaidDuplicateRule implements MedicationSafetyRule {
 
         var matchedItems = new ArrayList<PrescriptionSafetySnapshot.MedicationItem>();
         var matchedNames = new LinkedHashSet<String>();
+        Long tenantId = snapshot.tenantId();
 
         for (var item : active) {
             if (item.medicationSnapshot() == null || item.medicationSnapshot().isBlank()) {
@@ -69,8 +79,9 @@ public final class NsaidDuplicateRule implements MedicationSafetyRule {
 
             String name = med.path("name").asText(med.path("medicationName").asText(""));
             String doseForm = med.path("doseForm").asText("");
+            Long medId = med.hasNonNull("id") ? med.path("id").asLong() : null;
 
-            if (isSystemicNsaid(name, doseForm)) {
+            if (isSystemicNsaid(tenantId, medId, name, doseForm)) {
                 matchedItems.add(item);
                 matchedNames.add(name);
             }
@@ -90,23 +101,24 @@ public final class NsaidDuplicateRule implements MedicationSafetyRule {
         return List.of();
     }
 
-    private boolean isSystemicNsaid(String name, String doseForm) {
+    private boolean isSystemicNsaid(Long tenantId, Long medId, String name, String doseForm) {
         if (name == null || name.isBlank()) return false;
-        boolean stemMatch = false;
-        for (String stem : NSAID_STEMS) {
-            if (name.contains(stem)) {
-                stemMatch = true;
-                break;
-            }
-        }
-        if (!stemMatch) return false;
-
-        // 排除局部外用制剂
+        // 排除明确外用剂型
         for (String topical : TOPICAL_FORMS) {
-            if (doseForm.contains(topical) || name.contains(topical)) {
+            if (name.contains(topical) || (doseForm != null && doseForm.contains(topical))) {
                 return false;
             }
         }
-        return true;
+
+        if (safetyCategories != null && safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_SYSTEMIC_NSAID, doseForm)) {
+            return true;
+        }
+
+        for (String stem : FALLBACK_NSAID_STEMS) {
+            if (name.contains(stem)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -64,6 +64,9 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
         assertEquals(0, synchronizedCharges.get("createdCharges").asInt());
         assertEquals(1, synchronizedCharges.get("existingCharges").asInt());
         assertEquals(1, synchronizedCharges.at("/statement/charges").size());
+        assertEquals(DEPARTMENT, synchronizedCharges.at("/statement/charges/0/ordering/departmentId").asString());
+        assertTrue(!synchronizedCharges.at("/statement/charges/0/ordering/doctorName").asString().isBlank());
+        assertTrue(synchronizedCharges.at("/statement/charges/0/ordering/serviceType").isNull());
         BigDecimal fullAmount = synchronizedCharges.at("/statement/chargeAmount").decimalValue();
         assertEquals(1, fullAmount.signum());
         JsonNode duplicateSync = synchronize(task.encounterId(), "BIL-SYNC-RETRY-" + suffix);

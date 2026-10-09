@@ -44,7 +44,7 @@ public final class MasterDataViews {
             boolean medicalTechnology, boolean combinationItem, boolean singleOrder,
             String specimenType,
             @DictionaryBinding(MasterDataDictionaryCodes.EXAM_TYPE) String examinationType,
-            String accountingCategory,
+            @DictionaryBinding(MasterDataDictionaryCodes.ACCOUNTING_CATEGORY) String accountingCategory,
             @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_DUPLICATE_RULE) String sdDuplicateRule,
             BigDecimal multiSitePrice, Integer freeSiteCount, Integer maxBodySiteCount,
             String mutualRecognitionCode, boolean pregnancyAlert, String attention, String examinationNotes,

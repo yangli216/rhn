@@ -1,5 +1,5 @@
 import { createRef } from 'react'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { Dialog, FormField, Select } from './index'
@@ -212,6 +212,22 @@ describe('Non-modal panel', () => {
 
     unmount()
     outside.remove()
+  })
+
+  it('keeps parent panels open during nested matching and closes only the top panel on Escape', async () => {
+    const parentClose = vi.fn(), childClose = vi.fn(), user = userEvent.setup()
+    render(<Dialog title="推荐依据" presentation="panel" onClose={parentClose}>
+      <Dialog title="匹配目录" presentation="panel" onClose={childClose} closeOnBackdrop={false}>
+        <Select aria-label="嵌套候选" value="" onChange={vi.fn()} options={[{ value: 'cbc', label: '血常规' }]} />
+      </Dialog>
+    </Dialog>)
+    await user.click(within(screen.getByRole('dialog', { name: '匹配目录' })).getByRole('combobox'))
+    await user.click(screen.getByRole('option', { name: '血常规' }))
+    expect(parentClose).not.toHaveBeenCalled()
+    expect(childClose).not.toHaveBeenCalled()
+    await user.keyboard('{Escape}')
+    expect(childClose).toHaveBeenCalledTimes(1)
+    expect(parentClose).not.toHaveBeenCalled()
   })
 
   it('asks an existing panel to close when a new panel opens', async () => {

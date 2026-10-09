@@ -1,6 +1,8 @@
 package com.rhn.platform.masterdata.api;
 
 import java.util.Optional;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Read-only contract for business modules that need the governed precision of a unit code.
@@ -8,5 +10,8 @@ import java.util.Optional;
 public interface UnitDefinitionDirectory {
     Optional<UnitDefinitionSnapshot> findByCode(Long tenantId, String code);
 
-    record UnitDefinitionSnapshot(String code, int decimalScale, String status) {}
+    /** Display lookup includes inactive units used by historical facts; missing codes stay unresolved. */
+    Map<String, String> resolveNames(Long tenantId, Set<String> codes);
+
+    record UnitDefinitionSnapshot(String code, String name, int decimalScale, String status) {}
 }

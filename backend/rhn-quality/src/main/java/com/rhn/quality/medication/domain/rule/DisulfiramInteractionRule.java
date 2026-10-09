@@ -2,6 +2,7 @@ package com.rhn.quality.medication.domain.rule;
 
 import tools.jackson.databind.JsonNode;
 import com.rhn.outpatient.api.PrescriptionSafetySnapshot;
+import com.rhn.quality.medication.application.MedicationSafetyCategoryService;
 import com.rhn.quality.medication.domain.MedicationSafetyFinding;
 import com.rhn.quality.medication.domain.RuleVersion;
 import com.rhn.shared.id.GlobalIds;
@@ -19,23 +20,31 @@ public final class DisulfiramInteractionRule implements MedicationSafetyRule {
     public static final String CODE = "QMED.DISULFIRAM_INTERACTION";
     public static final String IMPLEMENTATION = "java:disulfiram-interaction:1";
 
-    // 类别 A：可引起双硫仑样反应的抗菌/抗原虫药物
-    private static final List<String> DISULFIRAM_INDUCERS = List.of(
+    public static final String CAT_DISULFIRAM_INDUCER = "DISULFIRAM_INDUCER";
+    public static final String CAT_ETHANOL_SOLVENT = "ETHANOL_SOLVENT";
+
+    // 经典兜底基线（当租户尚未完成分类维护时平滑回退，保障基线安全）
+    private static final List<String> FALLBACK_INDUCERS = List.of(
             "头孢哌酮", "头孢曲松", "头孢唑林", "头孢米诺", "头孢孟多",
             "头孢替安", "头孢尼西", "头孢拉定", "拉氧头孢",
             "甲硝唑", "替硝唑", "奥硝唑", "呋喃唑酮"
     );
 
-    // 类别 B：常见含乙醇溶剂/辅料的药物制剂或中成药
-    private static final List<String> ETHANOL_CONTAINING_DRUGS = List.of(
+    private static final List<String> FALLBACK_ETHANOL_DRUGS = List.of(
             "藿香正气水", "氢化可的松注射液", "复方甘草口服溶液", "硝酸甘油注射液",
             "十滴水", "地西泮注射液", "感冒止咳糖浆", "碘酊", "医用酒精", "乙醇"
     );
 
     private final JsonCodec json;
+    private final MedicationSafetyCategoryService safetyCategories;
 
     public DisulfiramInteractionRule(JsonCodec json) {
+        this(json, null);
+    }
+
+    public DisulfiramInteractionRule(JsonCodec json, MedicationSafetyCategoryService safetyCategories) {
         this.json = json;
+        this.safetyCategories = safetyCategories;
     }
 
     @Override
@@ -61,6 +70,7 @@ public final class DisulfiramInteractionRule implements MedicationSafetyRule {
 
         var matchedEthanol = new ArrayList<PrescriptionSafetySnapshot.MedicationItem>();
         var ethanolNames = new LinkedHashSet<String>();
+        Long tenantId = snapshot.tenantId();
 
         for (var item : active) {
             if (item.medicationSnapshot() == null || item.medicationSnapshot().isBlank()) {
@@ -75,13 +85,14 @@ public final class DisulfiramInteractionRule implements MedicationSafetyRule {
 
             String name = med.path("name").asText(med.path("medicationName").asText(""));
             String spec = med.path("preparationSpec").asText("");
+            Long medId = med.hasNonNull("id") ? med.path("id").asLong() : null;
 
-            if (isDisulfiramInducer(name)) {
+            if (isDisulfiramInducer(tenantId, medId, name)) {
                 matchedInducers.add(item);
                 inducerNames.add(name);
             }
 
-            if (isEthanolDrug(name, spec)) {
+            if (isEthanolDrug(tenantId, medId, name, spec)) {
                 matchedEthanol.add(item);
                 ethanolNames.add(name);
             }
@@ -104,9 +115,12 @@ public final class DisulfiramInteractionRule implements MedicationSafetyRule {
         return List.of();
     }
 
-    private boolean isDisulfiramInducer(String name) {
+    private boolean isDisulfiramInducer(Long tenantId, Long medId, String name) {
+        if (safetyCategories != null && safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_DISULFIRAM_INDUCER)) {
+            return true;
+        }
         if (name == null || name.isBlank()) return false;
-        for (String inducer : DISULFIRAM_INDUCERS) {
+        for (String inducer : FALLBACK_INDUCERS) {
             if (name.contains(inducer)) {
                 return true;
             }
@@ -114,20 +128,20 @@ public final class DisulfiramInteractionRule implements MedicationSafetyRule {
         return false;
     }
 
-    private boolean isEthanolDrug(String name, String spec) {
+    private boolean isEthanolDrug(Long tenantId, Long medId, String name, String spec) {
         if (name == null || name.isBlank()) return false;
         // 注意：藿香正气口服液/软胶囊不含乙醇，只有藿香正气水含乙醇
         if (name.contains("藿香正气口服液") || name.contains("藿香正气胶囊") || name.contains("藿香正气滴丸")) {
             return false;
         }
-        for (String ethanolDrug : ETHANOL_CONTAINING_DRUGS) {
+        if (safetyCategories != null && safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_ETHANOL_SOLVENT)) {
+            return true;
+        }
+        for (String ethanolDrug : FALLBACK_ETHANOL_DRUGS) {
             if (name.contains(ethanolDrug)) {
                 return true;
             }
         }
-        if (spec != null && spec.contains("乙醇")) {
-            return true;
-        }
-        return false;
+        return spec != null && spec.contains("乙醇");
     }
 }

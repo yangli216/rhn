@@ -1461,39 +1461,57 @@
 }
 .doctor-ai-whole-plan-choice article > div { min-width: 0; }
 .doctor-ai-whole-plan-choice article > .ui-button { flex-shrink: 0; }
-.doctor-ai-catalog-review {
-  display: grid;
-  gap: var(--layout-panel-gap);
-  padding: var(--layout-panel-gap);
-}
+.doctor-ai-catalog-review { display: contents; }
 
-.doctor-ai-catalog-review__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--layout-section-gap);
-}
-
-.doctor-ai-catalog-review__row > div:first-child {
-  flex: 1 1 180px;
-  min-width: 0;
-}
-
-.doctor-ai-catalog-review__row small {
-  display: block;
+.doctor-ai-catalog-review__intro {
+  min-width: 72rem;
+  padding: var(--space-1) var(--space-3);
   color: var(--color-text-secondary);
+}
+
+.doctor-ai-catalog-review__intro small {
   font-size: var(--font-size-caption);
 }
 
-.doctor-ai-catalog-review__choice {
-  display: flex;
-  align-items: center;
-  gap: var(--layout-panel-gap);
-  min-width: 0;
-  flex: 2 1 260px;
+.doctor-unified-order-row.is-catalog-pending {
+  border: 1px dashed var(--color-border-strong);
 }
 
-.doctor-ai-catalog-review__choice .form-field {
-  flex: 1;
-  min-width: 0;
+.doctor-unified-order-row.is-catalog-pending .doctor-ai-order-select { cursor: default; }
+
+.doctor-ai-catalog-review__reason {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+.doctor-ai-catalog-review__name { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.doctor-ai-catalog-review__name strong { overflow: hidden; text-overflow: ellipsis; }
+.doctor-ai-catalog-review__name > .ui-button { flex-shrink: 0; }
+
+.doctor-ai-catalog-panel.ui-dialog--panel {
+  width: min(42rem, calc(100vw - 2 * var(--space-4)));
+}
+.doctor-ai-catalog-panel__body {
+  overflow-y: auto;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.doctor-ai-catalog-panel__body p { margin: var(--space-1) 0; }
+.doctor-ai-catalog-panel__body small { display: block; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+
+/* Evidence drawer uses the same review rows with fewer visible columns. */
+.doctor-ai-catalog-review.is-compact { display: block; }
+.doctor-ai-catalog-review.is-compact .doctor-ai-catalog-review__intro { min-width: 0; }
+.doctor-ai-catalog-review.is-compact .doctor-unified-order-row {
+  min-width: 0;
+  grid-template-columns: 4.8rem minmax(8rem, 1fr) 5.8rem 6.5rem;
+}
+.doctor-ai-catalog-review.is-compact .doctor-unified-cell-directions,
+.doctor-ai-catalog-review.is-compact .doctor-unified-cell-qty,
+.doctor-ai-catalog-review.is-compact .doctor-unified-cell-dept,
+.doctor-ai-catalog-review.is-compact .doctor-unified-cell-instruction,
+.doctor-ai-catalog-review.is-compact .doctor-unified-cell-price { display: none; }

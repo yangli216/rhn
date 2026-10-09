@@ -145,6 +145,8 @@ export interface ClinicalAiTreatmentRecommendation {
   name: string
   specification?: string
   rationale?: string | null
+  /** Original AI wording retained after a clinician maps to an actual catalog item. */
+  aiOriginalName?: string
   /** Catalog-backed, physician-editable details; revalidated when accepting into order drafts. */
   orderDraft?: {
     packageId?: string
@@ -162,10 +164,22 @@ export interface ClinicalAiTreatmentRecommendation {
 
 export interface ClinicalAiTreatmentMatch {
   key: string
-  intent: { type: string; name: string; specification?: string; rationale?: string | null }
+  intent: { type: string; name: string; specification?: string; rationale?: string | null; catalogItemId?: string; medicationId?: string }
   status: string
   reason: string
   candidates: ClinicalAiTreatmentRecommendation[]
+  decisionReview?: {
+    status: 'COMPLETED' | 'DISABLED' | 'UNAVAILABLE' | 'NO_CANDIDATES'
+    model?: string | null
+    mode?: string | null
+    confidence?: number | null
+    threshold?: number | null
+    suggestedItem?: ClinicalAiTreatmentRecommendation | null
+    choice?: string | null
+    traceId?: string | null
+    latencyMs?: number | null
+    detail: string
+  } | null
 }
 
 export interface ClinicalAiSuggestion {

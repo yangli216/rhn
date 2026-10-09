@@ -32,14 +32,21 @@ public class MedicationSafetyAdapter implements MedicationSafetyPort {
 
     public MedicationSafetyAdapter(ExecutionContextProvider contexts, MedicationRuleRegistry registry,
                                    MedicationEvaluationStore store, JsonCodec json) {
-        this(contexts,registry,store,json,null);
+        this(contexts, registry, store, json, null, null);
     }
-    @org.springframework.beans.factory.annotation.Autowired
+
     public MedicationSafetyAdapter(ExecutionContextProvider contexts, MedicationRuleRegistry registry,
                                    MedicationEvaluationStore store, JsonCodec json, MedicationRuleRuntime runtime) {
-        this.runtime=runtime;
+        this(contexts, registry, store, json, runtime, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public MedicationSafetyAdapter(ExecutionContextProvider contexts, MedicationRuleRegistry registry,
+                                   MedicationEvaluationStore store, JsonCodec json, MedicationRuleRuntime runtime,
+                                   @org.springframework.beans.factory.annotation.Autowired(required = false) MedicationSafetyCategoryService safetyCategories) {
+        this.runtime = runtime;
         this.contexts = contexts; this.registry = registry; this.store = store; this.json = json;
-        this.engine = MedicationSafetyEngine.standard(json);
+        this.engine = MedicationSafetyEngine.standard(json, safetyCategories);
     }
 
     @Override

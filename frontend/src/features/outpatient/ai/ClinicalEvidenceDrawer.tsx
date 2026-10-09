@@ -17,6 +17,7 @@ export interface ClinicalEvidenceDrawerProps {
   isOpen: boolean
   onClose: () => void
   encounterId: string
+  organizationId?: string
   targetDiagnosis: { code: string; display: string } | null
   context?: ClinicalAiDraftContext | null
   sourceSuggestion?: ClinicalAiSuggestion | null
@@ -43,6 +44,7 @@ export function ClinicalEvidenceDrawer({
   isOpen,
   onClose,
   encounterId,
+  organizationId,
   targetDiagnosis,
   context,
   sourceSuggestion,
@@ -303,8 +305,8 @@ export function ClinicalEvidenceDrawer({
                   })}
                 </div>
 
-                {catalog && <ClinicalAiCatalogReview key={catalog.selection} matches={catalog.matches.filter(match => match.status !== 'MATCHED')}
-                  api={api} encounterId={encounterId} disabled={applying}
+                {catalog && <ClinicalAiCatalogReview layout="compact" key={catalog.selection} matches={catalog.matches.filter(match => match.status !== 'MATCHED')}
+                  api={api} encounterId={encounterId} organizationId={organizationId} disabled={applying}
                   onResolved={(keys, items) => {
                     setCatalog(previous => previous && ({ ...previous, matches: previous.matches.map(match => keys.includes(match.key)
                       ? { ...match, status: 'MATCHED', candidates: items } : match) }))

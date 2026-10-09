@@ -18,7 +18,12 @@ public final class BillingViews {
             String currencyCode, Long priceId, Long priceRevision,
             @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
             String itemCode, String itemName, Instant occurredAt, Long enteredBy,
-            Long reversesChargeItemId, String packageSpec, String manufacturerName, String unitName) {}
+            Long reversesChargeItemId, String packageSpec, String manufacturerName, String unitName,
+            @DictionaryBinding(MasterDataDictionaryCodes.ACCOUNTING_CATEGORY) String accountingCategory,
+            ChargeOrderingView ordering) {}
+
+    public record ChargeOrderingView(Long departmentId, String departmentName, Long practitionerId,
+                                     String doctorName, @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_TYPE) String serviceType) {}
 
     public record InvoiceLineView(Long id, Long chargeItemId, int lineNo, BigDecimal amount) {}
 

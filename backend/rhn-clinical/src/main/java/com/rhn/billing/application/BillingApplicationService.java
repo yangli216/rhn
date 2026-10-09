@@ -40,8 +40,10 @@ import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.dictionary.api.DictionaryAttributeDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.CatalogOperationalSnapshot;
+import com.rhn.platform.masterdata.api.UnitDefinitionDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.text.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -60,6 +62,8 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -87,6 +91,8 @@ public class BillingApplicationService {
     private final ChargeCategoryResolver categoryResolver;
     private final PaymentRoundingPolicy roundingPolicy;
     private final MedicationReturnChargeService medicationReturns;
+    private final UnitDefinitionDirectory unitDirectory;
+    private final BillingOrderOriginResolver orderOrigins;
 
     @Autowired
     public BillingApplicationService(
@@ -102,7 +108,8 @@ public class BillingApplicationService {
             ExecutionContextProvider contextProvider,
             SettlementApplicationService settlements,
             ChargeCategoryResolver categoryResolver, PaymentRoundingPolicy roundingPolicy,
-            MedicationReturnChargeService medicationReturns) {
+            MedicationReturnChargeService medicationReturns, UnitDefinitionDirectory unitDirectory,
+            BillingOrderOriginResolver orderOrigins) {
         this.accountRepository = accountRepository; this.chargeRepository = chargeRepository;
         this.componentRepository = componentRepository; this.invoiceRepository = invoiceRepository;
         this.invoiceLineRepository = invoiceLineRepository; this.categoryRepository = categoryRepository;
@@ -117,6 +124,8 @@ public class BillingApplicationService {
         this.categoryResolver = categoryResolver != null ? categoryResolver : new ChargeCategoryResolver(null);
         this.roundingPolicy = roundingPolicy;
         this.medicationReturns = medicationReturns;
+        this.unitDirectory = unitDirectory;
+        this.orderOrigins = orderOrigins;
     }
 
     @Transactional
@@ -555,11 +564,14 @@ public class BillingApplicationService {
                 .map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add));
         BigDecimal refundAmount = money(payments.stream().filter(value -> "REFUND".equals(value.paymentType()))
                 .map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add));
+        Map<String, String> unitNames = unitDirectory.resolveNames(context.tenantId(), charges.stream()
+                .map(ChargeItem::unitCode).filter(Objects::nonNull).collect(Collectors.toSet()));
+        var ordering = orderOrigins.resolve(context.tenantId(), charges);
         return new AccountStatementView(account.id(), account.revision(), account.residentId(), account.encounterId(),
                 account.organizationId(), account.departmentId(), account.accountType(), account.currencyCode(),
                 account.status().name(), account.openedAt(), chargeAmount, invoiced, uninvoiced, paymentAmount, refundAmount,
                 money(ledgerRepository.balance(context.tenantId(), account.id())),
-                charges.stream().map(this::chargeView).toList(),
+                charges.stream().map(value -> chargeView(value, unitNames, ordering.get(value.id()))).toList(),
                 invoices.stream().map(value -> invoiceView(context, value)).toList(),
                 settlements.listByAccount(context, account.id()),
                 payments.stream().map(this::paymentView).toList(), ledger.stream().map(this::ledgerView).toList());
@@ -578,22 +590,30 @@ public class BillingApplicationService {
                 invoice.issuedBy(), lines);
     }
 
-    private ChargeItemView chargeView(ChargeItem value) {
+    private ChargeItemView chargeView(ChargeItem value, Map<String, String> unitNames,
+                                     com.rhn.billing.api.BillingViews.ChargeOrderingView ordering) {
         String packageSpec = null;
         String manufacturerName = null;
-        String unitName = null;
-        if (value.sourceType() != null && value.sourceType().startsWith("MEDICATION")
-                && (value.requestId() != null || value.sourceId() != null)) {
-            Long reqId = value.requestId() != null ? value.requestId() : value.sourceId();
+        String unitName = value.unitCode() == null ? null
+                : unitNames.get(value.unitCode().trim().toUpperCase(Locale.ROOT));
+        Long reqId = value.requestId() != null ? value.requestId()
+                : "MEDICATION_REQUEST".equals(value.sourceType()) ? value.sourceId() : null;
+        if (value.sourceType() != null && value.sourceType().startsWith("MEDICATION") && reqId != null) {
             try {
                 MedicationRequestSnapshot snap = medicationRequestDirectory.requireForRouting(value.tenantId(), reqId);
                 if (snap != null) {
                     packageSpec = snap.packageSpec();
                     manufacturerName = snap.manufacturerName();
-                    unitName = snap.packageUnitName();
+                    // 包装名称仅适用于原申请单位；实际发退药可能按基本单位计费。
+                    if (value.unitCode() != null && snap.quantityUnit() != null
+                            && value.unitCode().trim().equalsIgnoreCase(snap.quantityUnit().trim())
+                            && Strings.trimToNull(snap.packageUnitName()) != null) {
+                        unitName = snap.packageUnitName();
+                    }
                 }
-            } catch (Exception ignored) {
-                // 处方快照缺失时仅少展示包装/厂家/包装单位，不影响费用明细。
+            } catch (BusinessException exception) {
+                if (exception.status() != org.springframework.http.HttpStatus.NOT_FOUND) throw exception;
+                // 历史医嘱缺失时使用单位主数据；其他查询失败不能伪装成名称缺失。
             }
         }
         return new ChargeItemView(value.id(), value.patientAccountId(), value.residentId(), value.encounterId(),
@@ -601,7 +621,8 @@ public class BillingApplicationService {
                 value.status(), value.quantity(), value.unitCode(), value.unitPrice(), value.totalAmount(),
                 value.currencyCode(), value.priceId(), value.priceRevision(), value.priceType(),
                 value.itemCodeSnapshot(), value.itemNameSnapshot(), value.occurredAt(), value.enteredBy(),
-                value.reversesChargeItemId(), packageSpec, manufacturerName, unitName);
+                value.reversesChargeItemId(), packageSpec, manufacturerName, unitName,
+                value.accountingCategory(), ordering);
     }
 
     private PaymentView paymentView(Payment value) {

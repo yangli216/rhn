@@ -1,6 +1,8 @@
 import {
   Children,
   cloneElement,
+  createContext,
+  useContext,
   isValidElement,
   useEffect,
   useId,
@@ -401,6 +403,8 @@ function advanceDialogFormOnEnter(event: ReactKeyboardEvent<HTMLDivElement>) {
   next.focus()
 }
 
+const DialogAncestors = createContext<string[]>([])
+
 export function Dialog({
   title,
   eyebrow,
@@ -431,6 +435,7 @@ export function Dialog({
   presentation?: 'dialog' | 'drawer' | 'panel'
   boundary?: HTMLElement | null
 }>) {
+  const ancestors = useContext(DialogAncestors)
   const dialogRef = useRef<HTMLDivElement>(null)
   const anchorRef = useRef<HTMLSpanElement>(null)
   const panelId = useId()
@@ -512,6 +517,10 @@ export function Dialog({
     }
 
     function handleKeyDown(event: KeyboardEvent) {
+      const openDialogs = Array.from(document.querySelectorAll('[data-dialog-id]'))
+      const topDialogs = openDialogs.filter(element => !openDialogs.some(other =>
+        other.getAttribute('data-dialog-ancestors')?.split(' ').includes(element.getAttribute('data-dialog-id') ?? '')))
+      if (topDialogs[topDialogs.length - 1] !== dialog) return
       if (event.key === 'Escape') {
         event.preventDefault()
         onCloseRef.current()
@@ -537,12 +546,20 @@ export function Dialog({
 
     function handlePanelPointerDown(event: PointerEvent) {
       if (!closeOnBackdrop || !(event.target instanceof Node) || dialog?.contains(event.target)) return
-      if (event.target instanceof Element && event.target.closest('[data-dialog-owner]')?.getAttribute('data-dialog-owner') === panelId) return
+      if (event.target instanceof Element) {
+        const owner = event.target.closest('[data-dialog-owner]')?.getAttribute('data-dialog-owner')
+        if (owner === panelId) return
+        const targetDialog = event.target.closest('[data-dialog-id]')
+          ?? Array.from(document.querySelectorAll('[data-dialog-id]')).find(element => element.getAttribute('data-dialog-id') === owner)
+        if (targetDialog?.getAttribute('data-dialog-ancestors')?.split(' ').includes(panelId)) return
+      }
       onCloseRef.current()
     }
 
     function handleAnotherPanelOpened(event: Event) {
-      if ((event as CustomEvent<string>).detail !== panelId) onCloseRef.current()
+      const openedId = (event as CustomEvent<string>).detail
+      const openedDialog = Array.from(document.querySelectorAll('[data-dialog-id]')).find(element => element.getAttribute('data-dialog-id') === openedId)
+      if (openedId !== panelId && !ancestors.includes(openedId) && !openedDialog?.getAttribute('data-dialog-ancestors')?.split(' ').includes(panelId)) onCloseRef.current()
     }
 
     document.addEventListener('keydown', handleKeyDown)
@@ -575,6 +592,7 @@ export function Dialog({
         className={`ui-dialog ${presentation !== 'dialog' ? `ui-dialog--${presentation}` : ''} ${size !== 'default' ? `ui-dialog--${size}` : ''} ${className}`}
         role="dialog"
         data-dialog-id={panelId}
+        data-dialog-ancestors={ancestors.join(' ')}
         aria-modal={presentation === 'dialog'}
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
@@ -592,7 +610,7 @@ export function Dialog({
           <IconButton icon="close" label={presentation === 'dialog' ? '关闭弹窗' : presentation === 'drawer' ? '关闭抽屉' : '关闭面板'} onClick={onClose} />
         </div>
         {description && <p className="ui-dialog__description" id={descriptionId}>{description}</p>}
-        {children}
+        <DialogAncestors.Provider value={[...ancestors, panelId]}>{children}</DialogAncestors.Provider>
         {footer && <div className="ui-form-actions">{footer}</div>}
       </div>
     </div>, document.body)}

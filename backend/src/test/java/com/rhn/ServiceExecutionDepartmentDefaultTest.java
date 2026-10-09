@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class ServiceExecutionDepartmentDefaultTest extends RhnIntegrationTestSupport {
+    @Autowired
+    private com.rhn.outpatient.api.OutpatientOrderOriginDirectory orderOrigins;
     @Autowired JdbcTemplate jdbc;
     @Test void seededDestinationsAreAvailableAndProjectConfigurationRemainsAnOverride() throws Exception {
         assertEquals(4, jdbc.queryForObject("select count(*) from RHN_SYS_DEPT where ID_TNT=? and ID_ORG=? and CD_DEPT in ('LABORATORY','IMAGING','ULTRASOUND','ECG')", Integer.class, Long.valueOf(TENANT), Long.valueOf(ORGANIZATION)));
@@ -36,6 +38,13 @@ class ServiceExecutionDepartmentDefaultTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.performerDepartmentId").value("362387869899101"))
                 .andReturn().getResponse().getContentAsString());
         assertEquals(Long.valueOf(DEPARTMENT), jdbc.queryForObject("select ID_DEPT_REQ from RHN_EX_CARE_REQ where ID_CARE_REQ=?", Long.class, request.path("id").asString()));
+        Long requestId = Long.valueOf(request.path("id").asString());
+        var origin = orderOrigins.findByRequestIds(Long.valueOf(TENANT), java.util.Set.of(), java.util.Set.of(requestId)).get(requestId);
+        assertEquals(Long.valueOf(DEPARTMENT), origin.departmentId());
+        assertEquals("LABORATORY", origin.serviceType());
+        assertEquals(Long.valueOf(encounter), origin.encounterId());
+        assertTrue(orderOrigins.findByRequestIds(-1L, java.util.Set.of(), java.util.Set.of(requestId)).isEmpty());
+        assertTrue(orderOrigins.findByRequestIds(Long.valueOf(TENANT), java.util.Set.of(requestId), java.util.Set.of()).isEmpty());
     }
     @Test void foreignAndInactiveDestinationsAreRejected() throws Exception {
         String encounter = encounter();

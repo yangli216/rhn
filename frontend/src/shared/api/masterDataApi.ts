@@ -1,4 +1,5 @@
 import type { ApiClient } from './httpClient'
+import type { components } from './generated'
 
 export interface MedicationIngredient {
   id: string; code: string; display: string; system: string; systemVersion: string; source: string
@@ -252,7 +253,7 @@ export interface CatalogAdoptionCandidate {
   packages: Array<{ id: string; unitCode: string; unitName: string; packageSpec?: string }>
 }
 
-export interface ServiceCatalogItem {
+export interface ServiceCatalogItem extends Pick<components['schemas']['ServiceView'], 'accountingCategoryText'> {
   id: string
   revision: number
   itemTypeId: string

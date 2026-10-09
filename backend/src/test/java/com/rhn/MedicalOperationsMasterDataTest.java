@@ -12,6 +12,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    com.rhn.platform.masterdata.api.UnitDefinitionDirectory unitDirectory;
+    @org.springframework.beans.factory.annotation.Autowired
+    com.rhn.platform.masterdata.infrastructure.UnitDefinitionRepository unitRepository;
+
+    @Test
+    void unit_names_are_tenant_scoped_and_include_inactive_history() {
+        Long tenant = Long.valueOf(TENANT);
+        unitRepository.saveAndFlush(new com.rhn.platform.masterdata.domain.UnitDefinition(tenant, tenant,
+                "DISPLAY_CUSTOM", "历史包装单位", "dc", "COUNT", 0, "INACTIVE"));
+        unitRepository.saveAndFlush(new com.rhn.platform.masterdata.domain.UnitDefinition(362387869790210L, tenant,
+                "DISPLAY_CUSTOM", "另一租户单位", "dc", "COUNT", 0, "ACTIVE"));
+        var names = unitDirectory.resolveNames(tenant, java.util.Set.of(" display_custom ", "MISSING"));
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.Map.of("DISPLAY_CUSTOM", "历史包装单位"), names);
+        org.junit.jupiter.api.Assertions.assertEquals("另一租户单位",
+                unitDirectory.resolveNames(362387869790210L, java.util.Set.of("DISPLAY_CUSTOM")).get("DISPLAY_CUSTOM"));
+        org.junit.jupiter.api.Assertions.assertEquals("历史包装单位", unitDirectory.findByCode(tenant, "display_custom").orElseThrow().name());
+        org.junit.jupiter.api.Assertions.assertTrue(unitDirectory.resolveNames(tenant, java.util.Set.of()).isEmpty());
+    }
+
     @Test
     void isolates_laboratory_and_examination_configuration_and_locks_service_type() throws Exception {
         JsonNode laboratoryItems = json(mockMvc.perform(get("/api/platform/master-data/services")

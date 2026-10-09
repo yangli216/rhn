@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
@@ -14,8 +14,9 @@ import { AggregatedPaymentModal } from '../../shared/billing/AggregatedPaymentMo
 import { confirmInsuranceResult, type InsuranceResultTarget } from '../../shared/billing/insuranceResult'
 import { FiscalReceiptModal } from '../../shared/billing/FiscalReceiptModal'
 import { Alert, Button, DataTable, SearchField, tableCellClass, PanelHead, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
-import { Icon } from '../../shared/ui/Icon'
+import { Icon, type IconName } from '../../shared/ui/Icon'
 import { age } from '../../shared/format'
+import { chargeCategoryTone } from '../../shared/presentation'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 import '../../styles/features/billing-settlement.css'
 
@@ -26,7 +27,6 @@ type CheckoutStage = 'IDLE' | 'CREATING_SETTLEMENT' | 'CREATING_PAYMENT'
 export interface BillingDocumentGroup {
   id: string
   docType: 'PRESCRIPTION' | 'SERVICE' | 'REGISTRATION' | 'OTHER'
-  docTypeName: string
   docNo: string
   occurredAt: string
   isExpired: boolean
@@ -35,32 +35,42 @@ export interface BillingDocumentGroup {
   uninvoicedAmount: number
   invoicedCount: number
   uninvoicedCount: number
+  orderingDepartmentName?: string
+  orderingDoctorName?: string
+  icon: IconName
 }
 
-const UNIT_ZH_MAP: Record<string, string> = {
-  BOX: '盒',
-  VIAL: '支',
-  BOTTLE: '瓶',
-  AMP: '支',
-  AMPOULE: '支',
-  PIECE: '片',
-  TABLET: '片',
-  CAPSULE: '粒',
-  BAG: '袋',
-  PACK: '包',
-  TUBE: '支',
-  SYRINGE: '支',
-  G: '克',
-  MG: '毫克',
-  ML: '毫升',
-  L: '升',
+export interface ChargeCategoryInfo {
+  code: string
+  name: string
+  tone?: 'neutral' | 'info' | 'success' | 'warning' | 'danger'
+}
+
+export function resolveChargeCategory(charge: AccountStatement['charges'][number]): ChargeCategoryInfo {
+  const code = (charge.accountingCategory || '').trim()
+  if (!code || code === 'UNCLASSIFIED') {
+    return { code, name: '分类未确认', tone: 'neutral' }
+  }
+  return {
+    code,
+    name: charge.accountingCategoryText?.trim() || code,
+    tone: chargeCategoryTone(code),
+  }
+}
+
+export function resolveChargeIcon(charge: AccountStatement['charges'][number]): IconName {
+  if (charge.sourceType.startsWith('MEDICATION')) return 'pill'
+  if (charge.sourceType === 'REGISTRATION') return 'user'
+  switch (charge.ordering?.serviceType) {
+    case 'LABORATORY': return 'flask'
+    case 'EXAMINATION': case 'IMAGING': return 'scan'
+    case 'TREATMENT': return 'stethoscope'
+    default: return 'file-text'
+  }
 }
 
 function formatUnit(unitCode?: string, unitName?: string) {
-  if (unitName && !/^[A-Za-z]+$/.test(unitName)) return unitName
-  if (!unitCode) return unitName || ''
-  const upper = unitCode.toUpperCase()
-  return UNIT_ZH_MAP[upper] || unitName || unitCode
+  return unitName?.trim() || unitCode || ''
 }
 
 function formatItemDisplayName(itemName: string, packageSpec?: string) {
@@ -256,38 +266,61 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
   const synchronize = useMutation({
     mutationFn: () => api.billing.synchronize(encounterId, `BIL-SYNC-${encounterId}-${Date.now()}`), onSuccess: refresh,
   })
+  const fullySettledChargeIds = useMemo(() => {
+    if (!statement.data) return new Set<string>()
+    const ids = new Set<string>()
+
+    const settledSettlements = statement.data.settlements.filter((s) =>
+      s.settlementType === 'NORMAL' && s.status === 'SETTLED' && s.outstandingAmount <= 0)
+    for (const s of settledSettlements) {
+      for (const line of s.lines) {
+        ids.add(line.chargeItemId)
+      }
+    }
+
+    for (const inv of statement.data.invoices) {
+      if (inv.paidAmount > 0 && inv.outstandingAmount <= 0) {
+        for (const line of inv.lines) {
+          ids.add(line.chargeItemId)
+        }
+      }
+    }
+
+    return ids
+  }, [statement.data])
+
   const invoicedChargeIds = useMemo(() => {
     if (!statement.data) return new Set<string>()
     return new Set(statement.data.invoices.flatMap((inv) => inv.lines.map((line) => line.chargeItemId)))
   }, [statement.data])
 
+  const activeCharges = useMemo(() => {
+    if (!statement.data) return []
+    return statement.data.charges.filter((c) => !fullySettledChargeIds.has(c.id))
+  }, [statement.data, fullySettledChargeIds])
+
   const documentGroups = useMemo(() => {
     if (!statement.data) return []
     const map = new Map<string, BillingDocumentGroup>()
 
-    for (const charge of statement.data.charges) {
+    for (const charge of activeCharges) {
       let docType: BillingDocumentGroup['docType'] = 'OTHER'
-      let docTypeName = '门诊综合费用'
       let docNo = charge.requestCode || charge.sourceId || charge.id
 
       if (charge.sourceType.startsWith('MEDICATION')) {
         docType = 'PRESCRIPTION'
-        docTypeName = '药品处方单'
         docNo = charge.requestCode || `CF-${charge.sourceId}`
       } else if (charge.sourceType.startsWith('SERVICE')) {
         docType = 'SERVICE'
-        docTypeName = '检查/检验处置单'
         docNo = charge.requestCode || `EX-${charge.sourceId}`
       } else if (charge.sourceType === 'DIRECT_VISIT_SERVICE') {
         docType = 'SERVICE'
-        docTypeName = '门诊服务费'
       } else if (charge.sourceType === 'REGISTRATION') {
         docType = 'REGISTRATION'
-        docTypeName = '挂号诊查费'
         docNo = charge.requestCode || `GH-${charge.sourceId}`
       }
 
-      const groupKey = `${docType}_${docNo}`
+      const groupKey = `${docType}_${docNo}_${charge.ordering?.departmentId ?? ""}_${charge.ordering?.practitionerId ?? ""}`
       let group = map.get(groupKey)
       if (!group) {
         const isExpired = docType === 'PRESCRIPTION' &&
@@ -295,7 +328,6 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
         group = {
           id: groupKey,
           docType,
-          docTypeName,
           docNo,
           occurredAt: charge.occurredAt,
           isExpired,
@@ -304,11 +336,15 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           uninvoicedAmount: 0,
           invoicedCount: 0,
           uninvoicedCount: 0,
+          orderingDepartmentName: charge.ordering?.departmentName,
+          orderingDoctorName: charge.ordering?.doctorName,
+          icon: resolveChargeIcon(charge),
         }
         map.set(groupKey, group)
       }
 
       group.charges.push(charge)
+      if (group.icon !== resolveChargeIcon(charge)) group.icon = 'file-text'
       group.totalAmount += charge.totalAmount
       if (invoicedChargeIds.has(charge.id)) {
         group.invoicedCount += 1
@@ -319,7 +355,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     }
 
     return Array.from(map.values())
-  }, [statement.data, invoicedChargeIds])
+  }, [activeCharges, invoicedChargeIds])
 
   const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set())
   const [collapsedDocIds, setCollapsedDocIds] = useState<Set<string>>(new Set())
@@ -329,11 +365,11 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
       setSelectedChargeIds(new Set())
       return
     }
-    const uninvoiced = statement.data.charges
+    const uninvoiced = activeCharges
       .filter((c) => !invoicedChargeIds.has(c.id))
       .map((c) => c.id)
     setSelectedChargeIds(new Set(uninvoiced))
-  }, [statement.data?.accountId, statement.data?.revision, invoicedChargeIds])
+  }, [statement.data?.accountId, statement.data?.revision, activeCharges, invoicedChargeIds])
 
   const toggleCharge = (id: string) => {
     setSelectedChargeIds((prev) => {
@@ -359,14 +395,12 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
   }
 
   const selectAllUninvoiced = () => {
-    if (!statement.data) return
-    const uninvoiced = statement.data.charges.filter((c) => !invoicedChargeIds.has(c.id)).map((c) => c.id)
+    const uninvoiced = activeCharges.filter((c) => !invoicedChargeIds.has(c.id)).map((c) => c.id)
     setSelectedChargeIds(new Set(uninvoiced))
   }
 
   const invertSelection = () => {
-    if (!statement.data) return
-    const uninvoiced = statement.data.charges.filter((c) => !invoicedChargeIds.has(c.id)).map((c) => c.id)
+    const uninvoiced = activeCharges.filter((c) => !invoicedChargeIds.has(c.id)).map((c) => c.id)
     setSelectedChargeIds((prev) => {
       const next = new Set<string>()
       uninvoiced.forEach((id) => {
@@ -387,15 +421,14 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
 
   const selectedChargesAmount = useMemo(() => {
     if (!statement.data) return 0
-    return statement.data.charges
+    return activeCharges
       .filter((c) => selectedChargeIds.has(c.id) && !invoicedChargeIds.has(c.id))
       .reduce((sum, c) => sum + c.totalAmount, 0)
-  }, [statement.data, selectedChargeIds, invoicedChargeIds])
+  }, [activeCharges, selectedChargeIds, invoicedChargeIds])
 
   const totalUninvoicedCount = useMemo(() => {
-    if (!statement.data) return 0
-    return statement.data.charges.filter((c) => !invoicedChargeIds.has(c.id)).length
-  }, [statement.data, invoicedChargeIds])
+    return activeCharges.filter((c) => !invoicedChargeIds.has(c.id)).length
+  }, [activeCharges, invoicedChargeIds])
 
   const canInvoice = selectedChargeIds.size > 0
 
@@ -824,7 +857,13 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
         <div className="billing-workbench">
       <Panel className="billing-statement">
         <PanelHead title="费用明细与单据"
-          meta={statement.data && `共 ${documentGroups.length} 张单据 · ${statement.data.charges.length} 项收费`}
+          meta={statement.data && (
+            documentGroups.length > 0
+              ? `共 ${documentGroups.length} 张单据 · ${activeCharges.length} 项费用`
+              : statement.data.charges.length > 0
+                ? '全部费用已结算完毕'
+                : '无费用事项'
+          )}
           actions={<div className="billing-section-head__actions billing-selection-toolbar">
             {selected?.status === 'PENDING_CHARGE' && (
               <Button size="sm" onClick={() => synchronize.mutate()} busy={synchronize.isPending}>同步计费</Button>
@@ -860,138 +899,164 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           <LoadingState label="正在加载费用明细…" />
         ) : statement.error ? (
           <Alert>{errorMessage(statement.error)}</Alert>
+        ) : statement.data && documentGroups.length === 0 ? (
+          <>
+            <EmptyState
+              icon="billing"
+              title="本次就诊费用已全部结清"
+              copy="当前无未结或待缴款项目。可在下方“结算与支付记录”中查看明细、原件及开具财政电子票据。"
+            />
+            {timelineCount > 0 && <details className="billing-history-panel">
+              <summary><span>结算与支付记录 · {timelineCount} 条</span><Icon name="chevron-down" /></summary>
+              <BillingTimeline
+                invoices={statement.data.invoices}
+                payments={statement.data.payments}
+                receipts={allCurrentReceipts}
+                currency={currency}
+                onViewReceipt={(receipt) => {
+                  setActiveReceipt(receipt)
+                  setFiscalModalOpen(true)
+                }}
+              />
+            </details>}
+          </>
         ) : statement.data ? (
           <>
             <section className="billing-table-section">
+              <div className="billing-table-wrap">
+                <DataTable compact className="billing-table--grouped" aria-label="费用明细与单据">
+                  <thead>
+                    <tr>
+                      <th className={tableCellClass('control')} style={{ width: '48px' }} aria-label="选择项目"></th>
+                      <th style={{ width: '110px' }}>费用归并</th>
+                      <th>项目名称</th>
+                      <th className={tableCellClass('numeric')} style={{ width: '90px' }}>数量</th>
+                      <th className={tableCellClass('numeric')} style={{ width: '100px' }}>单价</th>
+                      <th className={tableCellClass('numeric')} style={{ width: '110px' }}>金额</th>
+                      <th style={{ width: '170px' }}>开单时间</th>
+                      <th className={tableCellClass('status')} style={{ width: '110px' }}>结算状态</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documentGroups.map((group) => {
+                      const uninvoicedCharges = group.charges.filter((c) => !invoicedChargeIds.has(c.id))
+                      const isCollapsed = collapsedDocIds.has(group.id)
+                      const allGroupSelected = uninvoicedCharges.length > 0 && uninvoicedCharges.every((c) => selectedChargeIds.has(c.id))
+                      const someGroupSelected = uninvoicedCharges.some((c) => selectedChargeIds.has(c.id)) && !allGroupSelected
+                      const isPendingPayment = group.uninvoicedCount === 0
 
-              <div className="billing-doc-groups">
-                {documentGroups.map((group) => {
-                  const uninvoicedCharges = group.charges.filter((c) => !invoicedChargeIds.has(c.id))
-                  const isCollapsed = collapsedDocIds.has(group.id)
-                  const allGroupSelected = uninvoicedCharges.length > 0 && uninvoicedCharges.every((c) => selectedChargeIds.has(c.id))
-                  const someGroupSelected = uninvoicedCharges.some((c) => selectedChargeIds.has(c.id)) && !allGroupSelected
-                  const isFullyInvoiced = group.uninvoicedCount === 0
+                      return (
+                        <Fragment key={group.id}>
+                          <tr className={`billing-doc-group-row ${isPendingPayment ? 'is-pending-payment' : ''}`}>
+                            <td colSpan={8}>
+                              <div className="billing-doc-group-row__content">
+                                <div className="billing-doc-group-row__meta">
+                                  {group.uninvoicedCount > 0 ? (
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`勾选单据 ${group.docNo}`}
+                                      checked={allGroupSelected}
+                                      ref={(el) => { if (el) el.indeterminate = someGroupSelected }}
+                                      onChange={() => toggleDocumentGroup(group)}
+                                    />
+                                  ) : (
+                                    <span className="billing-doc-group-row__selection-spacer" aria-hidden="true" />
+                                  )}
+                                  <span className={`billing-doc-type-icon billing-doc-type-icon--${group.docType.toLowerCase()}`} data-icon={group.icon}>
+                                    <Icon name={group.icon} />
+                                  </span>
+                                  <div className="billing-doc-card__titles" aria-label="开单科室 / 开单医生">
+                                    <strong title="开单科室">{group.orderingDepartmentName || '科室未记录'}</strong>
+                                    <span aria-hidden="true">/</span>
+                                    <span title="开单医生">{group.orderingDoctorName || '医生未记录'}</span>
+                                    {group.charges.length > 1 && (
+                                      <StatusBadge tone="neutral">{group.charges.length} 项明细</StatusBadge>
+                                    )}
+                                  </div>
+                                  {group.isExpired && (
+                                    <StatusBadge tone="warning">处方已超72小时</StatusBadge>
+                                  )}
+                                </div>
+                                <div className="billing-doc-card__right">
+                                  <span className="billing-doc-card__amount">
+                                    小计 <strong>{money(group.totalAmount, currency)}</strong>
+                                  </span>
+                                  <Button variant="text"
+                                    aria-expanded={!isCollapsed}
+                                    onClick={() => toggleDocCollapse(group.id)}
+                                    aria-label={isCollapsed ? '展开单据明细' : '折叠单据明细'}
+                                  >
+                                    <Icon name={isCollapsed ? 'chevron-down' : 'chevron-up'} />
+                                  </Button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
 
-                  return (
-                    <div key={group.id} className={`billing-doc-card ${isFullyInvoiced ? 'is-settled' : ''}`}>
-                      <header className="billing-doc-card__header">
-                        <div className="billing-doc-card__meta">
-                          {!isFullyInvoiced ? (
-                            <input
-                              type="checkbox"
-                              aria-label={`勾选单据 ${group.docNo}`}
-                              checked={allGroupSelected}
-                              ref={(el) => { if (el) el.indeterminate = someGroupSelected }}
-                              onChange={() => toggleDocumentGroup(group)}
-                            />
-                          ) : (
-                            <span className="billing-doc-card__settled-icon" title="该单据已全部结算"><Icon name="check" /></span>
-                          )}
-                          <span className={`billing-doc-type-icon billing-doc-type-icon--${group.docType.toLowerCase()}`}>
-                            <Icon name={group.docType === 'PRESCRIPTION' ? 'pill' : group.docType === 'SERVICE' ? 'clinical' : group.docType === 'REGISTRATION' ? 'user' : 'billing'} />
-                          </span>
-                          <div className="billing-doc-card__titles">
-                            <strong>{group.docTypeName}</strong>
-                            <code>{group.docNo}</code>
-                            {group.charges.length > 1 && (
-                              <StatusBadge tone="neutral">{group.charges.length} 项明细</StatusBadge>
-                            )}
-                          </div>
-                          {group.isExpired && (
-                            <StatusBadge tone="warning">处方已超72小时</StatusBadge>
-                          )}
-                          {isFullyInvoiced ? (
-                            <StatusBadge tone="success">已全额结算</StatusBadge>
-                          ) : group.invoicedCount > 0 ? (
-                            <StatusBadge tone="info">部分已结 ({group.invoicedCount}/{group.charges.length})</StatusBadge>
-                          ) : null}
-                        </div>
-                        <div className="billing-doc-card__right">
-                          <span className="billing-doc-card__amount">
-                            小计 <strong>{money(group.totalAmount, currency)}</strong>
-                          </span>
-                          <Button variant="text"
-                            aria-expanded={!isCollapsed}
-                            onClick={() => toggleDocCollapse(group.id)}
-                            aria-label={isCollapsed ? '展开单据明细' : '折叠单据明细'}
-                          >
-                            <Icon name={isCollapsed ? 'chevron-down' : 'chevron-up'} />
-                          </Button>
-                        </div>
-                      </header>
+                          {!isCollapsed && group.charges.map((charge) => {
+                            const isInvoiced = invoicedChargeIds.has(charge.id)
+                            const isSelected = selectedChargeIds.has(charge.id)
+                            const category = resolveChargeCategory(charge)
 
-                      {!isCollapsed && (
-                        <div className="billing-doc-card__body">
-                          <DataTable compact aria-label="单据费用明细">
-                            <thead>
-                              <tr>
-                                <th className={tableCellClass('control')} aria-label="选择项目"></th>
-                                <th>项目名称</th>
-                                <th className={tableCellClass('numeric')}>数量</th>
-                                <th className={tableCellClass('numeric')}>单价</th>
-                                <th className={tableCellClass('numeric')}>金额</th>
-                                <th>开单时间</th>
-                                <th className={tableCellClass('status')}>结算状态</th>
+                            return (
+                              <tr key={charge.id} className={`billing-item-row ${isSelected && !isInvoiced ? 'is-selected' : ''}`}>
+                                <td className={tableCellClass('control')}>
+                                  {!isInvoiced ? (
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`勾选项目 ${charge.itemName}`}
+                                      checked={isSelected}
+                                      onChange={() => toggleCharge(charge.id)}
+                                    />
+                                  ) : (
+                                    <span aria-hidden="true">—</span>
+                                  )}
+                                </td>
+                                <td>
+                                  {category.name ? (
+                                    <StatusBadge tone={category.tone || 'neutral'}>{category.name}</StatusBadge>
+                                  ) : (
+                                    '-'
+                                  )}
+                                </td>
+                                <td>
+                                  <div className="billing-table-item-name">
+                                    <div className="billing-table-item-main">
+                                      <strong className="billing-table-item-title">
+                                        {formatItemDisplayName(charge.itemName, charge.packageSpec)}
+                                      </strong>
+                                      {charge.manufacturerName && (
+                                        <div className="billing-table-item-manufacturer">
+                                          {charge.manufacturerName}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {charge.totalAmount < 0 && (
+                                      <StatusBadge tone="warning">冲正</StatusBadge>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className={tableCellClass('numeric')}>{charge.quantity} {formatUnit(charge.unitCode, charge.unitName)}</td>
+                                <td className={tableCellClass('numeric')}>{money(charge.unitPrice, charge.currencyCode)}</td>
+                                <td className={tableCellClass('numeric')}>
+                                  {money(charge.totalAmount, charge.currencyCode)}
+                                </td>
+                                <td>{new Date(charge.occurredAt).toLocaleString('zh-CN')}</td>
+                                <td className={tableCellClass('status')}>
+                                  {isInvoiced ? (
+                                    <StatusBadge tone="warning">待缴款</StatusBadge>
+                                  ) : (
+                                    <StatusBadge tone="neutral">待结算</StatusBadge>
+                                  )}
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {group.charges.map((charge) => {
-                                const isInvoiced = invoicedChargeIds.has(charge.id)
-                                const isSelected = selectedChargeIds.has(charge.id)
-                                return (
-                                  <tr key={charge.id} className={isSelected && !isInvoiced ? 'is-selected' : ''}>
-                                    <td className={tableCellClass('control')}>
-                                      {!isInvoiced ? (
-                                        <input
-                                          type="checkbox"
-                                          aria-label={`勾选项目 ${charge.itemName}`}
-                                          checked={isSelected}
-                                          onChange={() => toggleCharge(charge.id)}
-                                        />
-                                      ) : (
-                                        <Icon name="check" className="billing-item-settled-check" />
-                                      )}
-                                    </td>
-                                    <td>
-                                      <div className="billing-table-item-name">
-                                         <div className="billing-table-item-main">
-                                           <strong className="billing-table-item-title">
-                                             {formatItemDisplayName(charge.itemName, charge.packageSpec)}
-                                           </strong>
-                                           {charge.manufacturerName && (
-                                             <div className="billing-table-item-manufacturer">
-                                               {charge.manufacturerName}
-                                             </div>
-                                           )}
-                                         </div>
-                                        {charge.totalAmount < 0 && (
-                                          <StatusBadge tone="warning">冲正</StatusBadge>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className={tableCellClass('numeric')}>{charge.quantity} {formatUnit(charge.unitCode, charge.unitName)}</td>
-                                    <td className={tableCellClass('numeric')}>{money(charge.unitPrice, charge.currencyCode)}</td>
-                                    <td className={tableCellClass('numeric')}>
-                                      {money(charge.totalAmount, charge.currencyCode)}
-                                    </td>
-                                    <td>{new Date(charge.occurredAt).toLocaleString('zh-CN')}</td>
-                                    <td className={tableCellClass('status')}>
-                                      {isInvoiced ? (
-                                        <StatusBadge tone="success">已结</StatusBadge>
-                                      ) : (
-                                        <StatusBadge tone="warning">未结</StatusBadge>
-                                      )}
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </DataTable>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                            )
+                          })}
+                        </Fragment>
+                      )
+                    })}
+                  </tbody>
+                </DataTable>
               </div>
             </section>
             {timelineCount > 0 && <details className="billing-history-panel">
@@ -1031,6 +1096,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                   setInsuranceClaimView(null)
                 }}
                 showAmountInput={false}
+                defaultCashToPayable
                 actionLabel="结算开票 (Ctrl+Enter)" busyLabel={checkoutStage === 'CREATING_SETTLEMENT' ? '正在生成结算单' : isPreSettlingInsurance ? '正在试算医保' : '正在支付'}
                 recoveringOrderId={recoverPaymentOrder.isPending ? recoverPaymentOrder.variables : undefined}
                 onRecoverOrder={(order) => recoverPaymentOrder.mutateAsync(order.id)}

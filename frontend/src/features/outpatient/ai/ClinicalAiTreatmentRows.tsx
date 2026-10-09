@@ -126,6 +126,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
                 />
               )}
             </div>
+            {item.aiOriginalName && <small>AI 原建议：{item.aiOriginalName}</small>}
             <small>{medication ? resolved?.specification || item.specification || item.code : item.code}</small>
           </span>
           <span className="doctor-unified-cell-directions" title={medication ? undefined : resolved?.executionRequirements || undefined}>{result.isPending ? '正在补齐目录用法…' : result.isError

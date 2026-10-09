@@ -79,6 +79,7 @@ class TreatmentCatalogDecisionServiceTest {
         mode("SHADOW"); answer("LABORATORY|101", 0.99);
         var result = service.match(groups, context);
         assertFalse(result.applied()); assertTrue(result.shadow()); assertEquals(List.of(candidate), result.items());
+        assertEquals("SHADOW", result.mode()); assertEquals(.9, result.threshold());
         verify(gateway).decide(argThat(input -> !input.state().toString().contains("患者病情")
                 && !input.questions().toString().contains("患者病情")
                 && input.questions().getFirst().criteria().containsKey("NONE")), any());

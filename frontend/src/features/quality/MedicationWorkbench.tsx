@@ -18,8 +18,9 @@ import './medication-workbench.css'
 import { MedicationRuleIntake, type IntakeSeed } from './MedicationRuleIntake'
 import { MedicationKnowledgeDrafts } from './MedicationKnowledgeDrafts'
 import { MedicationRuleCatalog } from './MedicationRuleCatalog'
+import { MedicationSafetyCategories } from './MedicationSafetyCategories'
 
-type TabKey = 'knowledge' | 'catalog' | 'sandbox' | 'evaluations' | 'factory'
+type TabKey = 'knowledge' | 'catalog' | 'safetyCategories' | 'sandbox' | 'evaluations' | 'factory'
 
 export const severityMap: Record<string, { label: string; tone: string }> = {
   CRITICAL: { label: '极高风险', tone: 'critical' },
@@ -526,16 +527,24 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
         variant="workspace"
         items={[
           { value: 'catalog', label: '在行规则目录' },
+          { value: 'safetyCategories', label: '安全分类维护' },
           { value: 'evaluations', label: '处方质量审查日志', meta: evaluations.length },
           { value: 'sandbox', label: '内置规则验证沙箱', meta: '单条 / 全部' },
           { value: 'factory', label: 'AI 规则工坊与候选孵化', meta: candidates.length },
           { value: 'knowledge', label: '规则知识草稿' },
         ]}
-        onChange={(value) => value === 'sandbox' ? openActiveSandbox('ALL') : setTab(value)}
+        onChange={(value) => value === 'sandbox' ? openActiveSandbox('ALL') : setTab(value as TabKey)}
       />
 
       {/* Tab 主体内容容器：自适应高度并杜绝外部整页滚动 */}
       <div className="qmed-tab-content">
+        {tab === 'safetyCategories' && (
+          <MedicationSafetyCategories
+            api={api}
+            onNotice={msg => setNotice(msg)}
+            onError={msg => setError(msg)}
+          />
+        )}
         {tab === 'knowledge' && <MedicationKnowledgeDrafts api={api} initialIntake={intakeSeed} onIntakeConsumed={() => setIntakeSeed(undefined)} />}
         {/* Tab 1: 在行生效规则库 */}
         {tab === 'catalog' && (

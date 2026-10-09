@@ -72,6 +72,26 @@ describe('SettlementPaymentPanel payment recovery', () => {
     expect(screen.getByRole('button', { name: '发起收款' })).toBeEnabled()
   })
 
+  it('defaults cashier cash to the payable amount and preserves manual edits until context changes', async () => {
+    const user = userEvent.setup()
+    const props = { settlements: [{ id: 's1', code: 'S1', outstandingAmount: 40, currencyCode: 'CNY' }],
+      methods: [{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }], orders: [],
+      defaultCashToPayable: true, onSubmit: vi.fn() }
+    const { rerender } = render(<SettlementPaymentPanel {...props} />)
+    const input = screen.getByPlaceholderText('40')
+    expect(input).toHaveValue(40)
+    expect(screen.queryByText(/缴款不足/)).not.toBeInTheDocument()
+    await user.clear(input)
+    expect(input).toHaveValue(null)
+    expect(screen.getByRole('button', { name: '确认收款并记账' })).toBeDisabled()
+    await user.type(input, '50')
+    expect(input).toHaveValue(50)
+    rerender(<SettlementPaymentPanel {...props} />)
+    expect(input).toHaveValue(50)
+    rerender(<SettlementPaymentPanel {...props} settlements={[{ id: 's2', code: 'S2', outstandingAmount: 25, currencyCode: 'CNY' }]} />)
+    expect(screen.getByPlaceholderText('25')).toHaveValue(25)
+  })
+
   it('requires explicit cash and rejects blank or short tender through the shortcut', async () => {
     const onSubmit = vi.fn()
     render(<SettlementPaymentPanel settlements={[{ id: 's1', code: 'S1', outstandingAmount: 20, currencyCode: 'CNY' }]}

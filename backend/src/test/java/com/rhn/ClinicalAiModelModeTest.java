@@ -327,7 +327,7 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.safetyAlerts[0].level").value("CRITICAL"))
                 .andExpect(jsonPath("$.safetyAlerts[1].level").value("WARNING"))
                 .andExpect(jsonPath("$.recommendedPlans.length()").value(0))
-                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V10"))
+                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V11"))
                 .andExpect(jsonPath("$.disclaimer").value(org.hamcrest.Matchers.containsString("院内术语")))
                 .andReturn().getResponse().getContentAsString());
 
@@ -393,12 +393,17 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                 .content("{\"intents\":[{\"type\":\"LABORATORY\",\"name\":\"不存在的核对项目\"}]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].status").value("NO_ORDERABLE_SERVICE"))
-                .andExpect(jsonPath("$[0].intent.name").value("不存在的核对项目"));
+                .andExpect(jsonPath("$[0].intent.name").value("不存在的核对项目"))
+                .andExpect(jsonPath("$[0].decisionReview.status").value("NO_CANDIDATES"));
         mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{id}/treatment-matches", encounterId)
                 .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{\"intents\":[]}"))
                 .andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{id}/treatment-matches", encounterId)
                 .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{\"intents\":[null]}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{id}/treatment-matches", encounterId)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"intents\":[{\"type\":\"LABORATORY\",\"name\":\"血常规\",\"catalogItemId\":-1}]}"))
                 .andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/ai/clinical-assistant/encounters/999999/treatment-matches")
                 .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)

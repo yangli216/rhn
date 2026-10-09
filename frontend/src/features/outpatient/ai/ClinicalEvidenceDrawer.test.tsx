@@ -214,18 +214,20 @@ describe('ClinicalEvidenceDrawer', () => {
     ]
     const api = { clinicalAi: { getEvidenceChain: vi.fn().mockResolvedValue({ ...mockEvidenceResult,
       gapOrders: [{ ...mockEvidenceResult.gapOrders[1], name: '血常规' }] }),
-      resolveTreatments: vi.fn().mockResolvedValue([{ key: 'cbc', intent, status: 'AMBIGUOUS', reason: '存在多个可用项目', candidates }]) } } as unknown as RhnApi
+      resolveTreatments: vi.fn().mockResolvedValueOnce([{ key: 'cbc', intent, status: 'AMBIGUOUS', reason: '存在多个可用项目', candidates }])
+        .mockResolvedValue([{ key: 'checked', intent, status: 'MATCHED', reason: '已核对', candidates: [candidates[0]] }]) } } as unknown as RhnApi
     const onClose = vi.fn(), onApplyGapOrders = vi.fn().mockResolvedValue(undefined)
     render(<ClinicalEvidenceDrawer isOpen onClose={onClose} encounterId="enc-101"
       targetDiagnosis={{ code: 'I10', display: '高血压' }} api={api} onApplyGapOrders={onApplyGapOrders} />)
     await user.click(await screen.findByRole('button', { name: /带入医嘱/ }))
     expect(onApplyGapOrders).not.toHaveBeenCalled()
     expect(onClose).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
     await user.click(screen.getByRole('combobox', { name: '匹配 血常规' }))
     await user.click(screen.getByRole('option', { name: '血常规（五分类）' }))
-    await user.click(screen.getByRole('button', { name: '核对用法' }))
+    await user.click(screen.getByRole('button', { name: '确认匹配' }))
     await user.click(screen.getByRole('button', { name: /带入医嘱/ }))
-    expect(onApplyGapOrders).toHaveBeenCalledWith([candidates[0]])
+    expect(onApplyGapOrders).toHaveBeenCalledWith([{ ...candidates[0], aiOriginalName: '血常规' }])
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 

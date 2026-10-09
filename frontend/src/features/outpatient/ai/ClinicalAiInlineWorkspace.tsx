@@ -172,7 +172,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
 
     {(suggestion || generating) && planFeature && portal(
       <div hidden={!(current || generating) || (!availableTreatmentItems.length && !pendingMatches.length)}>
-        <ClinicalAiCatalogReview key={`catalog:${session}`} matches={pendingMatches} api={api} encounterId={encounter.id}
+        <ClinicalAiCatalogReview key={`catalog:${session}`} matches={pendingMatches} api={api} encounterId={encounter.id} organizationId={encounter.organizationId}
           disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment}
           onResolved={(keys, items) => setCatalogSelection({ session, keys: [...resolvedCatalog.keys, ...keys],
             items: [...new Map([...resolvedCatalog.items, ...items].map(item => [treatmentKey(item), item])).values()] })} />

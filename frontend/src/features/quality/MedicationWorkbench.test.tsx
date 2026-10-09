@@ -118,6 +118,7 @@ const candidate = {
 
 function setup(available: boolean, saved: unknown[] = []) {
   const masterData = {
+    medications: vi.fn().mockResolvedValue([med.medication]),
     activeMedicationRoutes: vi.fn().mockResolvedValue([
       { id: '1', code: 'ORAL', name: '口服', systemCode: 'LOCAL', systemVersion: '1', executionType: 'NONE' }
     ]),
@@ -181,7 +182,45 @@ function setup(available: boolean, saved: unknown[] = []) {
       items: [{ medicationId: med.medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'ORAL', frequencyCode: 'TID',
         medicationName: '阿莫西林', preparationSpec: '0.25g', historicalSnapshotAvailable: true }]
     }),
-    runs: vi.fn().mockResolvedValue([])
+    runs: vi.fn().mockResolvedValue([]),
+    listSafetyCategories: vi.fn().mockResolvedValue([
+      {
+        id: '362387869899301',
+        code: 'DISULFIRAM_INDUCER',
+        name: '双硫仑样反应致敏抗菌药物',
+        ruleKind: 'INTERACTION_CONTRAINDICATION',
+        rationale: '抑制乙醛脱氢酶导致乙醛蓄积',
+        isSystem: true,
+        status: 'ACTIVE',
+        memberCount: 5,
+        revision: 0,
+        createdAt: '2026-09-16T00:00:00Z',
+        updatedAt: '2026-09-16T00:00:00Z'
+      }
+    ]),
+    listSafetyCategoryMembers: vi.fn().mockResolvedValue([
+      {
+        id: '1',
+        categoryId: '362387869899301',
+        medicationId: '991',
+        medicationCode: 'MED-CEF-01',
+        medicationName: '头孢哌酮钠舒巴坦钠',
+        preparationSpec: '1.5g',
+        doseForm: '注射剂',
+        createdAt: '2026-09-16T00:00:00Z'
+      }
+    ]),
+    createSafetyCategory: vi.fn(),
+    updateSafetyCategory: vi.fn(),
+    deleteSafetyCategory: vi.fn(),
+    addSafetyCategoryMembers: vi.fn().mockResolvedValue(1),
+    removeSafetyCategoryMember: vi.fn(),
+    listSafetyTagsForMedication: vi.fn().mockResolvedValue([]),
+    listStandardCatalogCategories: vi.fn().mockResolvedValue([
+      { major: '一、抗微生物药', sub: '（八）喹诺酮类', entryCount: 15, entryNames: ['左氧氟沙星'] }
+    ]),
+    searchStandardCatalogCandidates: vi.fn().mockResolvedValue([]),
+    importSafetyCategoryMembersFromCatalog: vi.fn().mockResolvedValue({ importedCount: 1, skippedCount: 0, totalCount: 1 })
   }
   render(
     <MemoryRouter>
@@ -413,5 +452,17 @@ describe('MedicationWorkbench', () => {
     expect(screen.getByDisplayValue('14')).toBeInTheDocument()
     expect(screen.getByText(/已从 HIS 读取就诊 1001 的处方 2001/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '原始处方旁路核对' })).toBeInTheDocument()
+  })
+
+  it('navigates to safety categories tab, displays categories and managed members', async () => {
+    setup(true, [candidate])
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('tab', { name: /安全分类维护/ }))
+    expect(await screen.findByText('合理用药安全分类')).toBeInTheDocument()
+    expect((await screen.findAllByText('双硫仑样反应致敏抗菌药物')).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('DISULFIRAM_INDUCER').length).toBeGreaterThanOrEqual(1)
+    expect(await screen.findByText('头孢哌酮钠舒巴坦钠')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /纳入药品/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /编辑分类/ })).toBeInTheDocument()
   })
 })

@@ -1,4 +1,5 @@
 import type { ApiClient } from './httpClient'
+import type { components } from './generated'
 
 export interface BillingWorkItem {
   encounterId: string
@@ -22,7 +23,7 @@ export interface BillingWorkItem {
   accountBalance: number
 }
 
-export interface ChargeItem {
+export interface ChargeItem extends Pick<components['schemas']['ChargeItemView'], 'accountingCategoryText' | 'ordering'> {
   id: string
   patientAccountId: string
   residentId: string
@@ -50,6 +51,7 @@ export interface ChargeItem {
   itemName: string
   occurredAt: string
   reversesChargeItemId?: string
+  accountingCategory?: string
 }
 
 export interface InvoiceLine { id: string; chargeItemId: string; lineNo: number; amount: number }

@@ -12,6 +12,15 @@ import type { WardDelivery } from './api/pharmacyApi'
 
 export type SemanticTone = 'success' | 'info' | 'warning' | 'danger' | 'neutral'
 
+// 分类名称由字典提供，此处仅维护视觉语义。
+export function chargeCategoryTone(code: string): SemanticTone {
+  const tones: Record<string, SemanticTone> = {
+    LABORATORY: 'info', IMAGING: 'info', EXAMINATION: 'info', REGISTRATION: 'info',
+    TREATMENT: 'warning', SURGERY: 'warning', MATERIAL: 'warning',
+  }
+  return tones[code.trim().toUpperCase()] ?? 'neutral'
+}
+
 export interface StatusPresentation {
   label: string
   tone: SemanticTone
@@ -143,6 +152,20 @@ export function medicationCandidateStatusPresentation(status: string): StatusPre
 
 export function semanticProbeStatusPresentation(status: string): StatusPresentation {
   return { label: status, tone: status === 'READY' ? 'success' : status === 'CLARIFY' ? 'warning' : 'danger' }
+}
+
+export function clinicalAiTreatmentMatchPresentation(status: string): StatusPresentation & { shortLabel: string } {
+  const values: Record<string, StatusPresentation & { shortLabel: string }> = {
+    MATCHED: { label: '已匹配院内项目', shortLabel: '已匹配', tone: 'success' },
+    AMBIGUOUS: { label: '待选院内项目', shortLabel: '待选项目', tone: 'warning' },
+    NO_ORDERABLE_SERVICE: { label: '未匹配本院项目', shortLabel: '未匹配', tone: 'warning' },
+    CATALOG_ERROR: { label: '目录读取失败', shortLabel: '目录异常', tone: 'warning' },
+    SPECIFICATION_REVIEW: { label: '待核对规格', shortLabel: '规格待核', tone: 'warning' },
+    MEDICATION_UNAVAILABLE: { label: '暂无可开立药品', shortLabel: '不可开立', tone: 'warning' },
+    MEDICATION_NOT_FOUND: { label: '未匹配院内药品', shortLabel: '未匹配', tone: 'warning' },
+    INVALID_INTENT: { label: '待完善检索', shortLabel: '待完善', tone: 'warning' },
+  }
+  return values[status] ?? { label: '待核对', shortLabel: '待核对', tone: 'warning' }
 }
 
 export function clinicalAiDraftStatusPresentation({ generating, error, current, hasSuggestion }: {

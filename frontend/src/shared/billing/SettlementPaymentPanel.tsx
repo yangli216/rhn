@@ -56,6 +56,7 @@ export interface SettlementPaymentPanelProps {
   isPreSettlingInsurance?: boolean
   submitShortcut?: boolean
   showAmountInput?: boolean
+  defaultCashToPayable?: boolean
 }
 
 export function SettlementPaymentPanel({
@@ -64,7 +65,7 @@ export function SettlementPaymentPanel({
   showSettlementMode = false, settlementModeCode, onSettlementModeChange, onSubmit, onRecoverOrder,
   onInitiateScanPay, insuranceIntegrated = false, insuranceClaimView, onPreSettleInsurance,
   onCancelInsurancePreSettle, isPreSettlingInsurance = false, submitShortcut = false,
-  showAmountInput = true,
+  showAmountInput = true, defaultCashToPayable = false,
 }: SettlementPaymentPanelProps) {
   const [settlementId, setSettlementId] = useState('')
   const [internalSettlementMode, setInternalSettlementMode] = useState<SettlementModeCode>('SELF_PAY')
@@ -142,8 +143,11 @@ export function SettlementPaymentPanel({
     }
   }, [methodCode])
 
-  // 实收必须由收银员确认；更换结算对象、金额或方式后重新录入。
-  useEffect(() => { setCashTendered('') }, [methodCode, numericAmount, settlementId, activeSettlementMode, methodsStatus])
+  // 收费工作台默认填入应付金额；切换对象后不能沿用上一笔手工输入的现金。
+  useEffect(() => {
+    setCashTendered(defaultCashToPayable && methodCode === 'CASH' && methodsStatus === 'ready'
+      && !insurancePending && Number.isFinite(numericAmount) && numericAmount > 0 ? String(numericAmount) : '')
+  }, [defaultCashToPayable, methodCode, numericAmount, settlementId, activeSettlementMode, methodsStatus, insurancePending])
 
   const numericTendered = Number(cashTendered)
   const isCashShort = methodCode === 'CASH' && paymentRequired && (!cashTendered || !Number.isFinite(numericTendered) || numericTendered < numericAmount)

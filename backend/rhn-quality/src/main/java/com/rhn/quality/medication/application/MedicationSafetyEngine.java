@@ -29,15 +29,19 @@ public final class MedicationSafetyEngine {
 
     /** One centrally defined runtime catalog is shared by production review and workbench validation. */
     public static MedicationSafetyEngine standard(JsonCodec json) {
+        return standard(json, null);
+    }
+
+    public static MedicationSafetyEngine standard(JsonCodec json, MedicationSafetyCategoryService safetyCategories) {
         return new MedicationSafetyEngine(List.of(
                 new com.rhn.quality.medication.domain.rule.DuplicateMedicationRule(),
                 new com.rhn.quality.medication.domain.rule.StandardReferenceDuplicateRule(json),
                 new com.rhn.quality.medication.domain.rule.AntimicrobialOutpatientRule(json),
                 new com.rhn.quality.medication.domain.rule.DrugAllergyRule(json),
                 new com.rhn.quality.medication.domain.rule.SkinTestRequirementRule(json),
-                new com.rhn.quality.medication.domain.rule.NsaidDuplicateRule(json),
-                new com.rhn.quality.medication.domain.rule.AgeContraindicationRule(json),
-                new com.rhn.quality.medication.domain.rule.DisulfiramInteractionRule(json)));
+                new com.rhn.quality.medication.domain.rule.NsaidDuplicateRule(json, safetyCategories),
+                new com.rhn.quality.medication.domain.rule.AgeContraindicationRule(json, safetyCategories),
+                new com.rhn.quality.medication.domain.rule.DisulfiramInteractionRule(json, safetyCategories)));
     }
 
     public Result evaluate(PrescriptionSafetySnapshot input, List<RuleVersion> versions, Instant time) {

@@ -11523,15 +11523,23 @@ export interface components {
             examination?: components["schemas"]["ExaminationServiceView"];
             organizationAdoption?: components["schemas"]["OrganizationAdoptionView"];
             prices?: components["schemas"]["PriceView"][];
+            defaultExecutionDepartment?: components["schemas"]["DefaultDepartment"];
             /** @description 字典 BD_SERVICE_DUPLICATE_RULE 的显示文本 */
             readonly sdDuplicateRuleText?: string;
-            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
-            readonly sdServiceTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
+            /** @description 字典 BD_EXAM_TYPE 的显示文本 */
+            readonly examinationTypeText?: string;
+            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
+            readonly sdServiceTypeText?: string;
             /** @description 字典 BD_SERVICE_USE 的显示文本 */
             readonly sdUsageTypeText?: string;
-            defaultExecutionDepartment?: components["schemas"]["DefaultDepartment"];
+            /** @description 字典 BD_ACCOUNTING_CATEGORY 的显示文本 */
+            readonly accountingCategoryText?: string;
+            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
+            readonly serviceTypeText?: string;
+            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
+            readonly priceTypeText?: string;
         };
         PackageRequest: {
             /** @example 824633720832983041 */
@@ -20970,6 +20978,12 @@ export interface components {
             packageSpec?: string;
             manufacturerName?: string;
             unitName?: string;
+            accountingCategory?: string;
+            ordering?: components["schemas"]["ChargeOrderingView"];
+            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
+            readonly priceTypeText?: string;
+            /** @description 字典 BD_ACCOUNTING_CATEGORY 的显示文本 */
+            readonly accountingCategoryText?: string;
         };
         ChargeSynchronizationView: {
             /** Format: int32 */
@@ -24692,6 +24706,7 @@ export interface components {
             status?: string;
             reason?: string;
             candidates?: components["schemas"]["TreatmentRecommendation"][];
+            decisionReview?: components["schemas"]["TreatmentDecisionReview"];
         };
         TreatmentMatchRequest: {
             intents: components["schemas"]["TreatmentSearchIntent"][];
@@ -24701,6 +24716,36 @@ export interface components {
             name: string;
             specification?: string;
             rationale?: string;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            /** @example 824633720832983041 */
+            medicationId?: string;
+        };
+        ChargeOrderingView: {
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            departmentName?: string;
+            /** @example 824633720832983041 */
+            practitionerId?: string;
+            doctorName?: string;
+            serviceType?: string;
+            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
+            readonly serviceTypeText?: string;
+        };
+        TreatmentDecisionReview: {
+            status?: string;
+            model?: string;
+            mode?: string;
+            /** Format: double */
+            confidence?: number;
+            /** Format: double */
+            threshold?: number;
+            suggestedItem?: components["schemas"]["TreatmentRecommendation"];
+            choice?: string;
+            traceId?: string;
+            /** @example 824633720832983041 */
+            latencyMs?: string;
+            detail?: string;
         };
     };
     responses: never;

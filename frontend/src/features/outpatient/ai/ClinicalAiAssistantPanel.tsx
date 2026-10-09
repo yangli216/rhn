@@ -871,6 +871,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         isOpen={Boolean(evidenceDiagnosis)}
         onClose={() => setEvidenceDiagnosis(null)}
         encounterId={encounter.id}
+        organizationId={encounter.organizationId}
         targetDiagnosis={evidenceDiagnosis}
         context={currentContext}
         sourceSuggestion={currentSuggestion}

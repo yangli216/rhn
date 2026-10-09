@@ -18,6 +18,7 @@ export type IconName =
   | 'bed'
   | 'database'
   | 'flask'
+  | 'scan'
   | 'stethoscope'
   | 'syringe'
   | 'close'
@@ -84,6 +85,7 @@ function iconPath(name: IconName) {
     case 'bed': return <><path d="M2 4v16M2 10h18a2 2 0 0 1 2 2v8M2 17h20" /><path d="M6 8h4a1 1 0 0 1 1 1v1H5V9a1 1 0 0 1 1-1Z" /></>
     case 'database': return <><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" /><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" /></>
     case 'flask': return <><path d="M10 2v5.5L4.4 18.2A2 2 0 0 0 6.1 21h11.8a2 2 0 0 0 1.7-2.8L14 7.5V2" /><path d="M8.5 2h7M6.5 15h11" /></>
+    case 'scan': return <><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M7 9h10M7 12h10M7 15h10" /></>
     case 'stethoscope': return <><path d="M4.5 3v5a4 4 0 0 0 8 0V3M4.5 3H3M12.5 3H14M8.5 12v3a4 4 0 0 0 4 4h1" /><circle cx="17.5" cy="19" r="3.5" /></>
     case 'syringe': return <><path d="m18 2 4 4M17 7l3-3M19 9 8.7 19.3a1 1 0 0 1-1.4 0l-2.6-2.6a1 1 0 0 1 0-1.4L15 5M9 11l4 4M5 19l-3 3M14 4l6 6" /></>
     case 'close': return <><path d="m6 6 12 12" /><path d="m18 6-12 12" /></>

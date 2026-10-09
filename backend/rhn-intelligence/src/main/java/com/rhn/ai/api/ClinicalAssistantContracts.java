@@ -243,8 +243,17 @@ public final class ClinicalAssistantContracts {
                                           String code, String name, String specification, String rationale) {}
 
     /** Unresolved intents remain distinct from executable catalog recommendations. */
+    public record TreatmentDecisionReview(String status, String model, String mode, Double confidence,
+                                          Double threshold, TreatmentRecommendation suggestedItem,
+                                          String choice, String traceId, Long latencyMs, String detail) {}
+
     public record TreatmentMatch(String key, TreatmentRecommendation intent, String status, String reason,
-                                 List<TreatmentRecommendation> candidates) {}
+                                 List<TreatmentRecommendation> candidates, TreatmentDecisionReview decisionReview) {
+        public TreatmentMatch(String key, TreatmentRecommendation intent, String status, String reason,
+                              List<TreatmentRecommendation> candidates) {
+            this(key, intent, status, reason, candidates, null);
+        }
+    }
 
     public record TreatmentMatchRequest(@jakarta.validation.constraints.NotEmpty @Size(max = 12)
                                         List<@jakarta.validation.constraints.NotNull @Valid TreatmentSearchIntent> intents) {}
@@ -252,7 +261,13 @@ public final class ClinicalAssistantContracts {
     public record TreatmentSearchIntent(@NotBlank @Size(max = 24) String type,
                                        @NotBlank @Size(max = 100) String name,
                                        @Size(max = 100) String specification,
-                                       @Size(max = 500) String rationale) {}
+                                       @Size(max = 500) String rationale,
+                                       @jakarta.validation.constraints.Positive Long catalogItemId,
+                                       @jakarta.validation.constraints.Positive Long medicationId) {
+        public TreatmentSearchIntent(String type, String name, String specification, String rationale) {
+            this(type, name, specification, rationale, null, null);
+        }
+    }
 
     public record SuggestionContent(
             String summary, RecordDraft recordDraft,

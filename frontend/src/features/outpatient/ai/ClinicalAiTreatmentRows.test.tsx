@@ -32,7 +32,7 @@ function setup(defaults = true, servicePricePatch: Record<string, unknown> = {},
   const onReview = vi.fn()
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(<QueryClientProvider client={client}><ClinicalAiTreatmentRows items={[item,
-    { type: 'LABORATORY', catalogItemId: 's1', code: 'LAB', name: '测试检验', rationale: '评估病因' }]}
+    { type: 'LABORATORY', catalogItemId: 's1', code: 'LAB', name: '测试检验', aiOriginalName: 'AI 原项目', rationale: '评估病因' }]}
     api={api} encounter={{ id: 'e1', organizationId: 'o1', departmentId: 'd1' } as Encounter} disabled={false} onReview={onReview} />
   </QueryClientProvider>)
   return { api, onReview }
@@ -42,6 +42,7 @@ describe('catalog-backed AI order details', () => {
   it('uses the server resolved default instead of the requesting clinic and preserves it in review', async () => {
     const { onReview } = setup(true, {}, { defaultExecutionDepartment: { departmentId: 'd2', departmentName: '检验中心', source: 'DEPARTMENT_TYPE' } })
     expect(await screen.findByText('检验中心')).toBeInTheDocument()
+    expect(screen.getByText('AI 原建议：AI 原项目')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: '选择 测试药品' }))
     fireEvent.click(screen.getByRole('button', { name: '确认所选（1）' }))
     expect(onReview).toHaveBeenCalledWith([expect.objectContaining({ orderDraft: expect.objectContaining({ performerDepartmentId: 'd2' }) })])

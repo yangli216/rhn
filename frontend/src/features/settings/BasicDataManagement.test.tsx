@@ -24,7 +24,7 @@ const mockServices: ServiceCatalogItem[] = [
     code: 'DEMO-LAB-CRP',
     name: 'C反应蛋白测定',
     unitCode: '项',
-    accountingCategory: 'LABORATORY',
+    accountingCategory: 'LABORATORY', accountingCategoryText: '检验费',
     orderable: true,
     chargeable: true,
     sdStatus: 'ACTIVE',
@@ -72,7 +72,7 @@ const mockServices: ServiceCatalogItem[] = [
     code: 'SRV-OPD-TCM-EXP',
     name: '中医名医门诊诊查',
     unitCode: '次',
-    accountingCategory: 'REGISTRATION',
+    accountingCategory: 'REGISTRATION', accountingCategoryText: '诊察挂号费',
     orderable: true,
     chargeable: true,
     sdStatus: 'ACTIVE',
@@ -152,8 +152,10 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(serviceTypeTone('TREATMENT')).toBe('success')
     expect(serviceTypeTone('SURGERY')).toBe('warning')
 
-    expect(accountingCategoryLabel('LABORATORY')).toBe('检验费')
-    expect(accountingCategoryLabel('REGISTRATION')).toBe('诊察挂号费')
+    expect(accountingCategoryLabel('LABORATORY', '本院检验收费')).toBe('本院检验收费')
+    expect(accountingCategoryLabel('CUSTOM', '特色理疗费')).toBe('特色理疗费')
+    expect(accountingCategoryLabel('LABORATORY')).toBe('LABORATORY')
+    expect(accountingCategoryLabel('REGISTRATION', '诊察挂号费')).toBe('诊察挂号费')
   })
 
   it('renders ServiceTable in two-line standard mode, omitting code from visible text while retaining tooltip', () => {

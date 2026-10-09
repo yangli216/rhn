@@ -4,7 +4,6 @@ import com.rhn.billing.domain.ChargeCategory;
 import com.rhn.billing.domain.ChargeItem;
 import com.rhn.platform.dictionary.api.DictionaryDirectory;
 import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -19,29 +18,9 @@ import java.util.Map;
 @Component
 public class ChargeCategoryResolver {
 
-    private static final Map<String, String> STANDARD_LABELS = Map.ofEntries(
-            Map.entry("REGISTRATION", "诊察挂号费"),
-            Map.entry("TREATMENT", "治疗处置费"),
-            Map.entry("PROCEDURE", "治疗处置费"),
-            Map.entry("LABORATORY", "检验费"),
-            Map.entry("EXAMINATION", "检查费"),
-            Map.entry("IMAGING", "检查影像费"),
-            Map.entry("SURGERY", "手术费"),
-            Map.entry("NURSING", "护理费"),
-            Map.entry("BED", "床位费"),
-            Map.entry("BLOOD", "输血费"),
-            Map.entry("MATERIAL", "材料费"),
-            Map.entry("WESTERN_MED", "西药费"),
-            Map.entry("CHINESE_PATENT_MED", "中成药费"),
-            Map.entry("HERBAL_MED", "中药饮片费"),
-            Map.entry("MEDICATION", "药品费"),
-            Map.entry("ORDER", "诊疗及医嘱费"),
-            Map.entry("OTHER", "其他费用")
-    );
-
     private final DictionaryDirectory dictionaryDirectory;
 
-    public ChargeCategoryResolver(@Autowired(required = false) DictionaryDirectory dictionaryDirectory) {
+    public ChargeCategoryResolver(DictionaryDirectory dictionaryDirectory) {
         this.dictionaryDirectory = dictionaryDirectory;
     }
 
@@ -71,12 +50,7 @@ public class ChargeCategoryResolver {
                 return new ChargeCategory(trimmed, dict.get(trimmed));
             }
         }
-        // 2. 内置标准分类映射
-        String label = STANDARD_LABELS.get(trimmed);
-        if (label != null) {
-            return new ChargeCategory(trimmed, label);
-        }
-        // 3. 自定义分类缺少名称时只展示原编码，不生成仿真的分类名称
+        // 字典未收录的编码保持原值，不维护第二套名称。
         return new ChargeCategory(trimmed, trimmed);
     }
 

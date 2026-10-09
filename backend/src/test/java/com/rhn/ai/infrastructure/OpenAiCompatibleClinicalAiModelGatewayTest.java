@@ -270,6 +270,9 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         var sent = jsonCodec.readTree(requestBody.get());
         var context = jsonCodec.readTree(sent.get("messages").get(1).get("content").asString());
         assertEquals("REPORT_FOLLOW_UP", context.get("receptionScene").asString());
+        assertEquals("OUTPATIENT", context.get("careContext").get("setting").asString());
+        assertEquals("IN_PROGRESS", context.get("careContext").get("visitPhase").asString());
+        assertEquals("AFTER_CURRENT_ASSESSMENT", context.get("careContext").get("followUpScope").asString());
         var historicalCatalog = context.get("clinicalHistory").get(0).get("medications").get(0).get("catalogSnapshot");
         assertEquals("0.5g", historicalCatalog.get("preparationSpec").asString());
         assertEquals(60, historicalCatalog.get("baseQuantity").asInt());
@@ -295,6 +298,10 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(writingPrompt.contains("整段均无依据时返回 null"));
         assertTrue(writingPrompt.contains("患者3天前出现发热，最高体温38℃。"));
         assertTrue(writingPrompt.contains("复诊触发条件"));
+        assertTrue(writingPrompt.contains("患者正在本次门诊就诊"));
+        assertTrue(writingPrompt.contains("已知当前危险征象写入 safetyAlerts"));
+        assertTrue(writingPrompt.contains("不能把与疑似病种相关的项目全部作为常规套餐"));
+        assertTrue(writingPrompt.contains("生命体征观察不默认转为收费医嘱"));
         assertTrue(writingPrompt.contains("diagnosisCandidates.rationale 留空"));
         assertTrue(writingPrompt.contains("每项只输出与目录条目一致的 type、catalogItemId"));
         assertTrue(writingPrompt.contains("不输出 rationale 或重复目录名称、编码、规格"));
