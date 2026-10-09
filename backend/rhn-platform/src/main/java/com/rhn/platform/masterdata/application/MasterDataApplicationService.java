@@ -486,7 +486,9 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.chronicDiseaseDrug(), command.singleOrder(), command.status());
         item.assignDefaultRoute(route == null ? null : route.id(), route == null ? null : route.code());
         item = medicationRepository.saveAndFlush(item);
-        medicationStandards.link(context.tenantId(), item.id(), command.standardSpecificationId(), context.subjectId());
+        if (!blank(command.standardSpecificationId())) {
+            medicationStandards.link(context.tenantId(), item.id(), command.standardSpecificationId(), context.subjectId());
+        }
         medicationSemantics.captureMedication(item);
         attributeSubjectRepository.save(ItemAttributeSubject.medication(
                 context.tenantId(), item.id(), context.subjectId()));

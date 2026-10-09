@@ -296,6 +296,24 @@ describe('UnifiedOrderListEditor', () => {
     expect(within(row).queryByText(/库存|可用|余量/)).not.toBeInTheDocument()
   })
 
+  it('resolves saved laboratory department names in both document headers and item rows', async () => {
+    vi.mocked(mockApi.organization.departments).mockResolvedValue([
+      { id: 'lab-dept', organizationId: 'org-1', name: '医学检验科', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null },
+    ] as never)
+    renderComponent({ services: ['血常规（五分类）', 'C反应蛋白测定'].map((itemName, index) => ({
+      id: `saved-lab-${index}`, status: 'ACTIVE', serviceType: 'LABORATORY', itemName,
+      authoredAt: '2026-10-09T00:00:00Z',
+      performerOrganizationId: 'org-1', performerDepartmentId: 'lab-dept', quantity: 1, unitCode: '次',
+    } as never)) })
+    await waitFor(() => expect(screen.getAllByText('医学检验科')).toHaveLength(4))
+    for (const itemName of ['血常规（五分类）', 'C反应蛋白测定']) {
+      expect(within(screen.getByRole('row', { name: new RegExp(itemName) })).getByText('医学检验科')).toBeInTheDocument()
+    }
+    expect(screen.queryByText(/科室编号：lab-dept/)).not.toBeInTheDocument()
+    expect(mockApi.organization.departments).toHaveBeenCalledTimes(1)
+    expect(mockApi.organization.departments).toHaveBeenCalledWith('org-1')
+  })
+
   it('renders read row for service orders properly without itemCode and with price', () => {
     renderComponent({
       serviceDrafts: [{ ...mockServiceDraft, unitPrice: 25, currencyCode: 'CNY' }],

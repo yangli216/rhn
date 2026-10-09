@@ -5,6 +5,8 @@ export type IconName =
   | 'arrow-left'
   | 'award'
   | 'billing'
+  | 'book-open'
+  | 'file-text'
   | 'calendar'
   | 'card'
   | 'check'
@@ -69,6 +71,8 @@ function iconPath(name: IconName) {
     case 'arrow-left': return <><path d="m15 18-6-6 6-6" /><path d="M9 12h10" /></>
     case 'award': return <><circle cx="12" cy="8" r="6" /><path d="m15.48 12.89 1.52 8.53a.5.5 0 0 1-.81.47L12.6 19.2a1 1 0 0 0-1.2 0l-3.58 2.69a.5.5 0 0 1-.81-.47l1.51-8.53" /></>
     case 'billing': return <><path d="M6 2h12v20l-3-2-3 2-3-2-3 2Z" /><path d="M9 7h6M9 11h6M9 15h3" /></>
+    case 'book-open': return <><path d="M12 6c-3-2-6-2-10-2v15c4 0 7 0 10 2 3-2 6-2 10-2V4c-4 0-7 0-10 2Z" /><path d="M12 6v15" /></>
+    case 'file-text': return <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 12h8M8 16h8" /></>
     case 'calendar': return <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>
     case 'card': return <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18M7 14h4" /></>
     case 'check': return <path d="m5 12 4 4L19 6" />

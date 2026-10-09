@@ -12,7 +12,7 @@ import type { AllergyIntolerance } from '../../shared/api/residentsApi'
 import type { Encounter } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
-  Alert, Button, ClinicalResourceSearch, Icon, Select, StatusBadge, type ClinicalResourceOption,
+  Alert, Button, IconButton, ClinicalResourceSearch, Select, StatusBadge, type ClinicalResourceOption,
 } from '../../shared/ui'
 import { MedicalInsertViewerModal } from './ai/MedicalInsertViewerModal'
 
@@ -371,7 +371,7 @@ function RegularSavedRow({ value, groupLabel, busy, onCancel, onInspect }: {
     <span>{value.quantity} {value.quantityUnit}</span><span title={value.medicationInstruction}>{value.medicationInstruction || '—'}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone={value.status === 'DRAFT' ? 'warning'
       : value.status === 'ACTIVE' ? 'success' : 'neutral'}>{statusLabel(value.status)}</StatusBadge>
-      <Button size="sm" variant="text" onClick={onInspect} title="查看药品说明书"><Icon name="pill" />说明书</Button>
+      <IconButton icon="file-text" label="说明书" onClick={onInspect} title="查看药品说明书" />
       {value.status !== 'CANCELLED' && <Button size="sm" variant="text" busy={busy} onClick={onCancel}>撤销</Button>}</span>
   </div>
 }
@@ -387,7 +387,7 @@ function HerbalSavedRow({ value, index, busy, onCancel, onInspect }: {
     <span>{value.quantity} {value.quantityUnit}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone={value.status === 'DRAFT' ? 'warning'
       : value.status === 'ACTIVE' ? 'success' : 'neutral'}>{statusLabel(value.status)}</StatusBadge>
-      <Button size="sm" variant="text" onClick={onInspect} title="查看草药说明书"><Icon name="pill" />说明书</Button>
+      <IconButton icon="file-text" label="说明书" onClick={onInspect} title="查看草药说明书" />
       {value.status !== 'CANCELLED' && <Button size="sm" variant="text" busy={busy} onClick={onCancel}>撤销</Button>}</span>
   </div>
 }
@@ -405,7 +405,7 @@ function RegularPlanRow({ value, groupLabel, onRemove, onInspect }: {
     <span>{request.frequencyCode || '—'}</span><span>{request.durationValue ? `${request.durationValue}${request.durationUnit || '天'}` : '—'}</span>
     <span>{request.quantity} {request.quantityUnit}</span><span title={request.medicationInstruction}>{request.medicationInstruction || '—'}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone="warning">待确认</StatusBadge>
-      <Button size="sm" variant="text" onClick={onInspect} title="查看药品说明书"><Icon name="pill" />说明书</Button>
+      <IconButton icon="file-text" label="说明书" onClick={onInspect} title="查看药品说明书" />
       <Button size="sm" variant="text" onClick={onRemove}>移除</Button></span>
   </div>
 }
@@ -422,7 +422,7 @@ function HerbalPlanRow({ value, index, onRemove, onInspect }: {
     <span>{request.doseValue ?? '—'}</span><span>{request.doseUnit || '—'}</span><span>{instruction}</span>
     <span>{request.quantity} {request.quantityUnit}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone="warning">待确认</StatusBadge>
-      <Button size="sm" variant="text" onClick={onInspect} title="查看草药说明书"><Icon name="pill" />说明书</Button>
+      <IconButton icon="file-text" label="说明书" onClick={onInspect} title="查看草药说明书" />
       <Button size="sm" variant="text" onClick={onRemove}>移除</Button></span>
   </div>
 }

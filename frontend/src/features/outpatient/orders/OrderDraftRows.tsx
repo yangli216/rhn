@@ -1,4 +1,4 @@
-import { Button, Icon, Popconfirm, StatusBadge } from '../../../shared/ui'
+import { IconButton, Button, Popconfirm, StatusBadge } from '../../../shared/ui'
 import type { MedicationPlanDraft } from './medicationDraft'
 import { type ServicePlanDraft } from './orderDraftTypes'
 import { formatPackageUnit, resolveExecutingDepartment, formatServiceExecution, formatUnitPrice } from './orderPresentation'
@@ -26,19 +26,13 @@ export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRem
           <div className="doctor-order-name-with-action">
             <strong>{medName}</strong>
             {onInspectMedication && medName && (
-              <Button
-                type="button"
-                size="sm"
-                variant="text"
-                className="doctor-order-insert-btn"
+              <IconButton icon="file-text" label="说明书"
                 title={`在临床知识库中查阅《${medName}》药品资料`}
                 onClick={(e) => {
                   e.stopPropagation()
                   onInspectMedication(medName)
                 }}
-              >
-                <Icon name="pill" />说明书
-              </Button>
+              />
             )}
           </div>
           {(spec || mfr) && (

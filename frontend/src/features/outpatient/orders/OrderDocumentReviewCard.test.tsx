@@ -126,7 +126,7 @@ describe('OrderDocumentReviewCard', () => {
     }))
   })
 
-  it('renders service card and edits its examination purpose', () => {
+  it.each(['lab', 'exam'] as const)('keeps examination purpose optional and editable for %s', (kind) => {
     const onChangeInfo = vi.fn()
     const serviceInfo = buildDefaultDocumentInfo(mockEncounter, 'service', '')
 
@@ -134,28 +134,33 @@ describe('OrderDocumentReviewCard', () => {
       { id: 's1', name: '血常规（三分类）', quantityText: '1 次', note: '门诊检验送检' },
     ]
 
-    render(
+    const card = (info: typeof serviceInfo) => (
       <OrderDocumentReviewCard
         cardKey="svc-1"
         title="检1"
-        kind="lab"
+        kind={kind}
         deptOrSite="检验科"
         items={serviceItems}
-        info={serviceInfo}
+        info={info}
         onChangeInfo={onChangeInfo}
         encounter={mockEncounter}
       />
     )
+    const { rerender } = render(card(serviceInfo))
 
     expect(screen.getByText('检1')).toBeInTheDocument()
     expect(screen.getByText('检验科')).toBeInTheDocument()
-    expect(screen.getByText('缺检查目的')).toBeInTheDocument()
+    expect(screen.queryByText(/缺检查目的/)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '补充' }))
+    fireEvent.click(screen.getByRole('button', { name: '修改' }))
+    expect(screen.getByLabelText('检查目的')).not.toBeRequired()
     fireEvent.change(screen.getByLabelText('检查目的'), { target: { value: '明确感染类型' } })
     expect(onChangeInfo).toHaveBeenCalledWith(expect.objectContaining({
       examinationPurpose: '明确感染类型',
     }))
+    rerender(card({ ...serviceInfo, examinationPurpose: '明确感染类型' }))
+    fireEvent.change(screen.getByLabelText('检查目的'), { target: { value: '' } })
+    expect(onChangeInfo).toHaveBeenLastCalledWith(expect.objectContaining({ examinationPurpose: '' }))
   })
 
   it('does not require an examination purpose for a treatment order', () => {

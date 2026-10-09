@@ -195,7 +195,8 @@ public final class ClinicalAssistantContracts {
             List<String> missingInformation,
             List<SafetyAlert> safetyAlerts,
             List<RecommendedPlan> recommendedPlans,
-            String disclaimer, List<TreatmentRecommendation> treatmentRecommendations) {}
+            String disclaimer, List<TreatmentRecommendation> treatmentRecommendations,
+            List<TreatmentMatch> treatmentMatches) {}
 
     public record RecordDraft(String chiefComplaint, String presentIllness, String medicalHistory,
                               String physicalExam, String treatmentPlan,
@@ -241,6 +242,18 @@ public final class ClinicalAssistantContracts {
     public record TreatmentRecommendation(String type, Long catalogItemId, Long medicationId,
                                           String code, String name, String specification, String rationale) {}
 
+    /** Unresolved intents remain distinct from executable catalog recommendations. */
+    public record TreatmentMatch(String key, TreatmentRecommendation intent, String status, String reason,
+                                 List<TreatmentRecommendation> candidates) {}
+
+    public record TreatmentMatchRequest(@jakarta.validation.constraints.NotEmpty @Size(max = 12)
+                                        List<@jakarta.validation.constraints.NotNull @Valid TreatmentSearchIntent> intents) {}
+
+    public record TreatmentSearchIntent(@NotBlank @Size(max = 24) String type,
+                                       @NotBlank @Size(max = 100) String name,
+                                       @Size(max = 100) String specification,
+                                       @Size(max = 500) String rationale) {}
+
     public record SuggestionContent(
             String summary, RecordDraft recordDraft,
             List<DiagnosisCandidate> diagnosisCandidates,
@@ -248,7 +261,15 @@ public final class ClinicalAssistantContracts {
             List<String> missingInformation,
             List<SafetyAlert> safetyAlerts,
             List<RecommendedPlan> recommendedPlans,
-            String disclaimer, List<TreatmentRecommendation> treatmentRecommendations) {
+            String disclaimer, List<TreatmentRecommendation> treatmentRecommendations,
+            List<TreatmentMatch> treatmentMatches) {
+        public SuggestionContent(String summary, RecordDraft recordDraft, List<DiagnosisCandidate> diagnosisCandidates,
+                                 List<DiagnosisCandidate> differentialDiagnoses, List<String> missingInformation,
+                                 List<SafetyAlert> safetyAlerts, List<RecommendedPlan> recommendedPlans, String disclaimer,
+                                 List<TreatmentRecommendation> treatmentRecommendations) {
+            this(summary, recordDraft, diagnosisCandidates, differentialDiagnoses, missingInformation,
+                    safetyAlerts, recommendedPlans, disclaimer, treatmentRecommendations, List.of());
+        }
         public SuggestionContent(String summary, RecordDraft recordDraft, List<DiagnosisCandidate> diagnosisCandidates,
                                  List<DiagnosisCandidate> differentialDiagnoses, List<String> missingInformation,
                                  List<SafetyAlert> safetyAlerts, List<RecommendedPlan> recommendedPlans, String disclaimer) {
@@ -262,6 +283,7 @@ public final class ClinicalAssistantContracts {
             safetyAlerts = safe(safetyAlerts);
             recommendedPlans = safe(recommendedPlans);
             treatmentRecommendations = safe(treatmentRecommendations);
+            treatmentMatches = safe(treatmentMatches);
         }
 
         private static <T> List<T> safe(List<T> values) {

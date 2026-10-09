@@ -51,6 +51,41 @@ public class ClinicalPlanPreflightService {
     private final OutpatientPrescriptionInventoryDirectory inventoryDirectory;
     private final ExecutionContextProvider contextProvider;
     private final ClinicalAiMetrics metrics;
+    private final ClinicalKnowledgeGateway knowledgeGateway;
+    private final ClinicalAssistantSettings settings;
+    private final ClinicalAiRuntimePolicy runtimePolicy;
+    private final com.rhn.healthcore.api.ResidentDirectory residentDirectory;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ClinicalPlanPreflightService(EncounterDirectory encounterDirectory,
+                                        OutpatientPlanTemplateDirectory planDirectory,
+                                        CatalogLifecycleDirectory catalogDirectory,
+                                        MedicationRouteDirectory routeDirectory,
+                                        OrderFrequencyDirectory frequencyDirectory,
+                                        AllergyDirectory allergyDirectory,
+                                        MedicationTerminologyDirectory terminologyDirectory,
+                                        OutpatientPrescriptionInventoryDirectory inventoryDirectory,
+                                        ExecutionContextProvider contextProvider,
+                                        ClinicalAiMetrics metrics,
+                                        @org.springframework.beans.factory.annotation.Autowired(required = false) ClinicalKnowledgeGateway knowledgeGateway,
+                                        @org.springframework.beans.factory.annotation.Autowired(required = false) ClinicalAssistantSettings settings,
+                                        @org.springframework.beans.factory.annotation.Autowired(required = false) ClinicalAiRuntimePolicy runtimePolicy,
+                                        @org.springframework.beans.factory.annotation.Autowired(required = false) com.rhn.healthcore.api.ResidentDirectory residentDirectory) {
+        this.encounterDirectory = encounterDirectory;
+        this.planDirectory = planDirectory;
+        this.catalogDirectory = catalogDirectory;
+        this.routeDirectory = routeDirectory;
+        this.frequencyDirectory = frequencyDirectory;
+        this.allergyDirectory = allergyDirectory;
+        this.terminologyDirectory = terminologyDirectory;
+        this.inventoryDirectory = inventoryDirectory;
+        this.contextProvider = contextProvider;
+        this.metrics = metrics;
+        this.knowledgeGateway = knowledgeGateway;
+        this.settings = settings;
+        this.runtimePolicy = runtimePolicy;
+        this.residentDirectory = residentDirectory;
+    }
 
     public ClinicalPlanPreflightService(EncounterDirectory encounterDirectory,
                                         OutpatientPlanTemplateDirectory planDirectory,
@@ -62,16 +97,9 @@ public class ClinicalPlanPreflightService {
                                         OutpatientPrescriptionInventoryDirectory inventoryDirectory,
                                         ExecutionContextProvider contextProvider,
                                         ClinicalAiMetrics metrics) {
-        this.encounterDirectory = encounterDirectory;
-        this.planDirectory = planDirectory;
-        this.catalogDirectory = catalogDirectory;
-        this.routeDirectory = routeDirectory;
-        this.frequencyDirectory = frequencyDirectory;
-        this.allergyDirectory = allergyDirectory;
-        this.terminologyDirectory = terminologyDirectory;
-        this.inventoryDirectory = inventoryDirectory;
-        this.contextProvider = contextProvider;
-        this.metrics = metrics;
+        this(encounterDirectory, planDirectory, catalogDirectory, routeDirectory, frequencyDirectory,
+                allergyDirectory, terminologyDirectory, inventoryDirectory, contextProvider, metrics,
+                null, null, null, null);
     }
 
     @Transactional(readOnly = true)
@@ -95,10 +123,50 @@ public class ClinicalPlanPreflightService {
                 .filter(check -> "BLOCKED".equals(check.status())).count()).sum();
         int warnings = results.stream().mapToInt(value -> (int) value.checks().stream()
                 .filter(check -> "WARNING".equals(check.status()) || "NOT_EVALUATED".equals(check.status())).count()).sum();
-        if (!medications.isEmpty()) warnings += 2;
+
+        EvaluationBoundary drugInteractions = INTERACTIONS_NOT_EVALUATED;
+        EvaluationBoundary contraindications = CONTRAINDICATIONS_NOT_EVALUATED;
+
+        ClinicalAssistantSettings activeSettings = resolveSettings(access.context());
+        boolean evaluated = false;
+        if (knowledgeGateway != null && !medications.isEmpty() && activeSettings != null && activeSettings.knowledgeAvailable()) {
+            try {
+                ClinicalKnowledgeGateway.PreflightSafetyRequest safetyRequest = buildSafetyRequest(medications, access, allergies, template);
+                ClinicalKnowledgeGateway.PreflightSafetyResult safetyResult = knowledgeGateway.evaluatePreflightSafety(safetyRequest, activeSettings);
+                if (safetyResult != null && safetyResult.success() && safetyResult.evaluationBoundaries() != null) {
+                    evaluated = true;
+                    var boundaries = safetyResult.evaluationBoundaries();
+                    var intBoundary = boundaries.interactions();
+                    var contraBoundary = boundaries.contraindications();
+
+                    drugInteractions = new EvaluationBoundary("EVALUATED", formatBoundaryMessage(intBoundary, "已依据国家卫健委及权威专科指南完成配伍相互作用审查"));
+                    contraindications = new EvaluationBoundary("EVALUATED", formatBoundaryMessage(contraBoundary, "已依据国家药监局法定说明书完成特殊人群与禁忌审查"));
+
+                    int cdssBlocking = safetyResult.blockingCount();
+                    int cdssWarnings = safetyResult.warningCount();
+
+                    if (cdssBlocking > 0 || "BLOCK".equalsIgnoreCase(safetyResult.level())
+                            || (safetyResult.canPrescribe() != null && !safetyResult.canPrescribe())) {
+                        blocking += Math.max(cdssBlocking, 1);
+                    }
+                    if (cdssWarnings > 0) {
+                        warnings += cdssWarnings;
+                    }
+                }
+            } catch (Exception exception) {
+                // 优雅降级设计：若知识服务未开启或网络不可用，自动平稳降级为原有的 NOT_EVALUATED
+                drugInteractions = INTERACTIONS_NOT_EVALUATED;
+                contraindications = CONTRAINDICATIONS_NOT_EVALUATED;
+            }
+        }
+
+        if (!evaluated && !medications.isEmpty()) {
+            warnings += 2;
+        }
+
         String status = blocking > 0 ? "BLOCKED" : warnings > 0 ? "WARNING" : "READY";
         PlanPreflight result = new PlanPreflight(template.id(), template.revision(), status, blocking, warnings, results,
-                INTERACTIONS_NOT_EVALUATED, CONTRAINDICATIONS_NOT_EVALUATED, Instant.now());
+                drugInteractions, contraindications, Instant.now());
         metrics.recordPlanPreflight(status, blocking);
         return result;
     }
@@ -318,6 +386,93 @@ public class ClinicalPlanPreflightService {
     private static PreflightCheck warning(String code, String message) { return new PreflightCheck(code, "WARNING", message); }
     private static PreflightCheck blocked(String code, String message) { return new PreflightCheck(code, "BLOCKED", message); }
     private static PreflightCheck notEvaluated(String code, String message) { return new PreflightCheck(code, "NOT_EVALUATED", message); }
+
+    private ClinicalAssistantSettings resolveSettings(ExecutionContext context) {
+        if (runtimePolicy != null) {
+            try {
+                return runtimePolicy.current(context);
+            } catch (Exception ignored) {}
+        }
+        return settings;
+    }
+
+    private static String formatBoundaryMessage(ClinicalKnowledgeGateway.PreflightSafetyResult.BoundaryItem boundary, String defaultPrefix) {
+        if (boundary == null) return defaultPrefix;
+        List<ClinicalKnowledgeGateway.PreflightSafetyResult.SafetyAlert> alerts = boundary.alerts();
+        if (alerts == null || alerts.isEmpty()) {
+            return boundary.message() != null && !boundary.message().isBlank()
+                    ? boundary.message().trim()
+                    : defaultPrefix + "，未检出安全风险。";
+        }
+        StringBuilder sb = new StringBuilder();
+        if (boundary.message() != null && !boundary.message().isBlank()) {
+            sb.append(boundary.message().trim()).append("；");
+        }
+        List<String> details = alerts.stream().map(a -> {
+            String prefix = "RED".equalsIgnoreCase(a.severity()) ? "【阻断】" : "【预警】";
+            String title = a.title() != null ? a.title() : "";
+            String msg = a.message() != null ? a.message() : "";
+            return prefix + title + (msg.isBlank() ? "" : "：" + msg);
+        }).toList();
+        sb.append(String.join("；", details));
+        return sb.toString();
+    }
+
+    private ClinicalKnowledgeGateway.PreflightSafetyRequest buildSafetyRequest(
+            List<OutpatientPlanTemplateDirectory.MedicationSnapshot> medications,
+            Access access,
+            List<AllergyDirectory.AllergySnapshot> allergies,
+            OutpatientPlanTemplateDirectory.PlanTemplateSnapshot template) {
+        List<ClinicalKnowledgeGateway.PreflightSafetyRequest.MedicationItem> medItems = medications.stream().map(m -> {
+            String name = m.medicationName() != null && !m.medicationName().isBlank()
+                    ? m.medicationName().trim()
+                    : (m.productName() != null ? m.productName().trim() : m.medicationCode());
+            java.util.Map<String, Object> draft = new java.util.LinkedHashMap<>();
+            if (m.doseValue() != null) draft.put("doseValue", m.doseValue());
+            if (m.doseUnit() != null) draft.put("doseUnit", m.doseUnit());
+            if (m.routeCode() != null) draft.put("routeCode", m.routeCode());
+            if (m.frequencyCode() != null) draft.put("frequencyCode", m.frequencyCode());
+            if (m.durationValue() != null) draft.put("durationValue", m.durationValue());
+            if (m.durationUnit() != null) draft.put("durationUnit", m.durationUnit());
+            if (m.quantity() != null) draft.put("quantity", m.quantity());
+            if (m.quantityUnit() != null) draft.put("quantityUnit", m.quantityUnit());
+            return new ClinicalKnowledgeGateway.PreflightSafetyRequest.MedicationItem(name, m.medicationCode(), draft);
+        }).toList();
+
+        java.util.Map<String, Object> patientContext = new java.util.LinkedHashMap<>();
+        if (residentDirectory != null && access.encounter().residentId() != null) {
+            try {
+                var resident = residentDirectory.requireSnapshot(access.encounter().residentId());
+                if (resident != null) {
+                    if (resident.gender() != null) patientContext.put("gender", resident.gender());
+                    if (resident.birthDate() != null) {
+                        int age = java.time.Period.between(resident.birthDate(), LocalDate.now()).getYears();
+                        patientContext.put("age", age);
+                    }
+                    if (resident.fullName() != null) patientContext.put("name", resident.fullName());
+                }
+            } catch (Exception ignored) {}
+        }
+        if (allergies != null && !allergies.isEmpty()) {
+            List<String> allergyNames = allergies.stream()
+                    .map(AllergyDirectory.AllergySnapshot::substanceDisplay)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            if (!allergyNames.isEmpty()) {
+                patientContext.put("allergies", allergyNames);
+            }
+        }
+        if (template.diagnoses() != null && !template.diagnoses().isEmpty()) {
+            List<String> diagNames = template.diagnoses().stream()
+                    .map(OutpatientPlanTemplateDirectory.DiagnosisSnapshot::display)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            if (!diagNames.isEmpty()) {
+                patientContext.put("diagnoses", diagNames);
+            }
+        }
+        return new ClinicalKnowledgeGateway.PreflightSafetyRequest(medItems, patientContext);
+    }
 
     private record Access(ExecutionContext context, EncounterDirectory.EncounterSnapshot encounter) {}
 }

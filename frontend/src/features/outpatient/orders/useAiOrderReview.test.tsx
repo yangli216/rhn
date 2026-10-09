@@ -15,7 +15,7 @@ function setup(pricePatch: Record<string, unknown> = {}, recommendationPatch: Pa
     encounter, busy: false, readOnly: false,
     aiOrderReview: { id: 'review-1', encounterId: encounter.id, items: [
       { type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB', name: '血常规', rationale: '模型生成的推荐理由', ...recommendationPatch },
-    ], onCompleted: vi.fn() },
+    ], onCompleted: vi.fn(), onFailed: vi.fn() },
     api: { masterData: { searchServices }, organization: { department: vi.fn(async (id: string) => ({
       department: { id, organizationId: 'org-1', name: id === 'dept-2' ? '检验中心' : '检验科',
         sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null },
@@ -35,6 +35,15 @@ function setup(pricePatch: Record<string, unknown> = {}, recommendationPatch: Pa
 }
 
 describe('AI order review lifecycle', () => {
+  it('keeps the entire selected batch when any project fails and reports the failed preparation', async () => {
+    const { props, complete } = setup()
+    props.aiOrderReview!.items.push({ type: 'LABORATORY', catalogItemId: 'missing', code: 'MISSING', name: '未维护项目' })
+    renderHook(useAiOrderReview, { initialProps: props })
+    await complete()
+    expect(props.setServiceDrafts).not.toHaveBeenCalled()
+    expect(props.aiOrderReview?.onCompleted).not.toHaveBeenCalled()
+    expect(props.aiOrderReview?.onFailed).toHaveBeenCalledWith(expect.stringContaining('未维护项目'))
+  })
   it.each(['busy', 'readOnly', 'patient'] as const)('discards a late catalog result after %s changes', async (change) => {
     const { props, searchServices, complete } = setup()
     const view = renderHook(useAiOrderReview, { initialProps: props })

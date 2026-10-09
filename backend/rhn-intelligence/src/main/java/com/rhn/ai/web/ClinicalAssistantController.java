@@ -129,6 +129,11 @@ class ClinicalAssistantController {
         return service.getEvidenceChain(encounterId, input);
     }
 
+    @PostMapping("/encounters/{encounterId}/treatment-matches")
+    List<TreatmentMatch> resolveTreatments(@PathVariable Long encounterId, @Valid @RequestBody TreatmentMatchRequest input) {
+        return service.resolveTreatments(encounterId, input);
+    }
+
     @GetMapping("/wiki/doc")
     com.rhn.ai.application.ClinicalKnowledgeGateway.WikiDocResult wikiDoc(
             @RequestParam(name = "name", required = false) String name,

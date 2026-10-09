@@ -1661,6 +1661,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
             <span>效期(天)</span>
             <div className="pharmacy-expiry-select-wrap">
               <Select
+                size="sm"
                 value={String(expiryDaysFilter)}
                 onChange={(val) => setExpiryDaysFilter(Number(val))}
                 clearable={false}

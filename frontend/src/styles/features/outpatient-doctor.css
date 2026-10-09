@@ -53,13 +53,54 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  container: doctor-patient / inline-size;
 }
-.doctor-patient-workspace > .ui-context-bar { margin-bottom: var(--space-1); padding: var(--space-1) var(--space-3); gap: var(--space-2); }
-.doctor-patient-workspace > .ui-context-bar .ui-context-bar__avatar { width: 2.625rem; height: 2.625rem; border-radius: var(--radius-md); font-size: var(--font-size-body); }
-.doctor-patient-workspace > .ui-context-bar .ui-context-bar__identity { min-width: 12rem; }
+.doctor-patient-workspace > .ui-context-bar {
+  margin-bottom: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  display: grid;
+  grid-template-columns: auto minmax(13rem, 17rem) minmax(0, 1fr) auto;
+  grid-template-areas: "avatar identity facts facts" "support support support actions";
+  align-items: center;
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+  flex: none;
+}
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__avatar { grid-area: avatar; width: 2.625rem; height: 2.625rem; border-radius: var(--radius-md); font-size: var(--font-size-body); }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__identity { grid-area: identity; min-width: 0; }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__identity h1 { overflow-wrap: anywhere; }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__identity p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__facts { grid-area: facts; min-width: 0; margin: 0; gap: var(--space-2); }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__support { grid-area: support; min-width: 0; }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__actions { grid-area: actions; margin-left: 0; justify-content: flex-end; }
 .doctor-patient-workspace > .ui-context-bar .ui-context-bar__identity h1 { margin: 0; font-size: var(--font-size-h3); }
-.doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact { min-width: 8.5rem; padding-left: var(--space-3); }
-.doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact:last-child { min-width: 10rem; }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact { min-width: 0; flex: 1; padding-left: var(--space-3); }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact:last-child { flex: 1.2; }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact dd { min-width: 0; }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact .ui-tooltip__trigger { max-width: 100%; }
+.doctor-context-triage { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.doctor-context-identifier { max-width: 100%; min-width: 0; padding-inline: 0; }
+.doctor-context-identifier .ui-button__label { max-width: 100%; min-width: 0; }
+.doctor-context-identifier .ui-button__label > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doctor-context-identifier .ui-icon { flex: none; }
+.doctor-context-support { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.doctor-context-phone { display: flex; align-items: center; flex: none; gap: var(--space-2); font-size: var(--font-size-small); white-space: nowrap; }
+.doctor-context-phone > span { color: var(--color-text-secondary); }
+.doctor-context-support .queue-capsule-container { min-width: 0; }
+.doctor-context-support .queue-mini-pill { flex: none; white-space: nowrap; }
+.doctor-context-support .pill-segment { flex: none; }
+.doctor-context-support .queue-next-name { display: inline-block; max-width: 7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.doctor-context-support .queue-mini-pill .ui-icon { flex: none; }
+@container doctor-patient (min-width: 96rem) {
+  .doctor-patient-workspace > .ui-context-bar {
+    grid-template-columns: auto minmax(13rem, 17rem) minmax(0, 1fr) auto auto;
+    grid-template-areas: "avatar identity facts support actions";
+  }
+  .doctor-context-phone { display: grid; gap: var(--space-1); }
+}
+@container doctor-patient (max-width: 72rem) {
+  .doctor-context-support .queue-next-name { max-width: 4rem; }
+}
 .doctor-context-allergy { max-width: 11rem; min-height: 1.625rem; margin: calc(calc(var(--space-1) * 0.5) * -1) 0; padding: calc(var(--space-1) * 0.75) calc(var(--space-1) * 1.5); display: flex; align-items: center; gap: var(--space-1); border: 0; border-radius: var(--radius-sm); color: var(--color-text-primary); background: var(--color-surface-subtle); font: inherit; font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); cursor: pointer; }
 .doctor-context-allergy span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .doctor-context-allergy .ui-icon { width: .875rem; height: .875rem; flex: none; }
@@ -129,8 +170,10 @@
 .doctor-identity-checks input { margin-top: var(--space-1); inline-size: 1.1rem; block-size: 1.1rem; }
 .doctor-identity-checks strong, .doctor-identity-checks small { display: block; }
 .doctor-identity-checks small { margin-top: var(--space-1); color: var(--color-text-secondary); }
-.doctor-context-actions { display: flex; align-items: center; gap: var(--space-3); }
-.doctor-context-actions__buttons { display: flex; align-items: center; gap: var(--space-2); }
+.doctor-context-actions { display: flex; align-items: center; gap: var(--space-2); flex: none; white-space: nowrap; }
+.doctor-context-actions__buttons { display: flex; align-items: center; gap: var(--space-2); flex: none; }
+.doctor-context-actions .ui-button { flex: none; white-space: nowrap; }
+.doctor-btn--save-draft { min-width: 6.5rem; }
 .doctor-btn--terminate { color: var(--color-danger) !important; }
 .doctor-btn--terminate:hover { background: var(--color-danger-soft) !important; color: var(--color-danger) !important; }
 .doctor-clinical-cockpit { min-height: 0; display: grid; grid-template-columns: minmax(29.5rem, .88fr) minmax(36.5rem, 1.12fr); align-items: start; gap: var(--layout-panel-gap); }
@@ -182,6 +225,17 @@
 .doctor-record-form { --doctor-record-label-width: 6em; --record-annotation-legend-offset: calc(var(--doctor-record-label-width) + var(--space-2)); padding: var(--space-2) var(--space-3) var(--space-3); display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-2); background: var(--color-surface); line-height: var(--line-height-body); border-bottom-left-radius: calc(var(--radius-md) - var(--radius-sm)); border-bottom-right-radius: calc(var(--radius-md) - var(--radius-sm)); }
 .doctor-clinical-cockpit.is-editing .doctor-record-form { flex: 1; display: flex; flex-direction: column; align-items: stretch; }
 .doctor-clinical-cockpit.is-editing .doctor-record-form > .ui-field { flex: 0 0 auto; }
+.doctor-record-annotation-footer {
+  margin-top: auto;
+  margin-left: var(--record-annotation-legend-offset, 0);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle, var(--color-border));
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.doctor-record-annotation-footer > .record-annotation-legend { margin: 0; padding: 0; border: 0; flex: 1; }
+.doctor-record-annotation-footer > .ui-button { margin-left: auto; flex-shrink: 0; }
 
 .doctor-record-form > .doctor-record-narrative { grid-template-columns: var(--doctor-record-label-width) minmax(0, 1fr); }
 
@@ -1362,191 +1416,113 @@
 .doctor-fee-lines span, .doctor-fee-lines span strong, .doctor-fee-lines small { min-width: 0; display: block; }
 .doctor-fee-lines small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .doctor-fee-lines > p { margin: 0; padding: var(--space-4); color: var(--color-text-secondary); text-align: center; }
-.doctor-completion-modal { width: min(72rem, 100%); }
-.doctor-completion-modal > .ui-dialog__description { margin: 0 0 var(--space-4); }
-.doctor-completion-dialog { display: grid; gap: var(--space-3); }
-.doctor-completion-dialog > .ui-alert { margin: 0; }
-
-/* 一条背景带承载关键摘要，避免内外多层卡片描边。 */
-.doctor-completion-overview {
-  display: grid;
-  grid-template-columns: minmax(14rem, 1.55fr) minmax(7.5rem, .7fr) minmax(7rem, .65fr) minmax(17rem, 1.5fr);
-  overflow: hidden;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-muted);
-  box-shadow: inset calc(var(--space-1) * 0.75) 0 var(--color-brand-primary);
-}
-.doctor-overview-stat {
-  position: relative;
-  min-width: 0;
-  min-height: 6.25rem;
-  padding: var(--space-3) var(--space-4);
+/* 诊毕确认：中性摘要、两栏表单和固定底部操作。 */
+.doctor-completion-modal { width: min(60rem, 100%); }
+.doctor-completion-dialog { display: grid; gap: var(--layout-section-gap); }
+.doctor-completion-banner {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
-.doctor-overview-stat + .doctor-overview-stat::before {
-  content: '';
-  position: absolute;
-  top: var(--space-4);
-  bottom: var(--space-4);
-  left: 0;
-  width: 1px;
-  background: color-mix(in srgb, var(--color-border-strong) 60%, transparent);
-}
-.doctor-overview-stat__header,
-.doctor-overview-stat__header-title {
+.doctor-completion-banner__content {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
 }
-.doctor-overview-stat__header { justify-content: flex-start; color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.doctor-overview-stat--fee .doctor-overview-stat__header { justify-content: space-between; }
-.doctor-overview-stat__header .ui-icon { width: 1rem; height: 1rem; color: var(--color-brand-primary); flex-shrink: 0; }
+.doctor-completion-banner__content > .ui-icon { width: 1rem; height: 1rem; }
+.doctor-completion-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.doctor-completion-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, .9fr) minmax(0, .6fr) minmax(20rem, 1.8fr);
+}
+.doctor-overview-stat {
+  min-width: 0;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.doctor-overview-stat + .doctor-overview-stat { border-left: 1px solid var(--color-border); }
+.doctor-overview-stat__header { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .doctor-overview-stat > strong,
 .doctor-fee-stat-content > strong {
-  overflow: hidden;
   color: var(--color-text-primary);
-  font-size: var(--font-size-h2);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
 }
 .doctor-overview-stat strong.is-warning { color: var(--color-warning); }
-.doctor-overview-stat strong.is-success { color: var(--color-success); }
-.doctor-overview-stat--diagnosis strong {
-  display: -webkit-box;
-  overflow: hidden;
-  font-size: var(--font-size-h2);
-  line-height: var(--line-height-body);
-  white-space: normal;
-  word-break: break-word;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-.doctor-fee-quick-invoice-btn {
-  min-height: 1.6rem;
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--color-brand-primary);
-  background: color-mix(in srgb, var(--color-brand-soft) 76%, var(--color-surface));
-  font: inherit;
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color var(--motion-fast) var(--ease-standard);
-}
-.doctor-fee-quick-invoice-btn:hover:not(:disabled) { background: var(--color-brand-soft); }
-.doctor-fee-quick-invoice-btn:disabled { opacity: .55; cursor: not-allowed; }
-.doctor-fee-stat-content { display: grid; gap: var(--space-1); }
-.doctor-fee-stat-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(var(--space-1) * 0.5) var(--space-3); }
+.doctor-fee-stat-content { display: grid; gap: var(--space-2); }
+.doctor-fee-stat-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); }
 .doctor-fee-stat-metrics span {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-1);
+  gap: var(--space-2);
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
   white-space: nowrap;
 }
-.doctor-fee-stat-metrics span strong { color: var(--color-text-primary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.doctor-fee-stat-metrics span strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
 .doctor-fee-stat__hint { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-
-.doctor-completion-payment-section {
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-subtle);
+.doctor-completion-payment { padding: var(--space-3); }
+.doctor-completion-confirmation {
+  padding: var(--space-3);
+  display: grid;
+  grid-template-columns: 12rem minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
 }
-.doctor-completion-payment { margin-top: var(--space-2); }
-.doctor-completion-workflow { display: grid; grid-template-columns: minmax(0, 2fr) minmax(17.5rem, .9fr); gap: var(--space-3); align-items: stretch; }
-.doctor-disposition-section,
-.doctor-completion-checklist--dialog {
+.doctor-completion-confirmation .ui-field { min-width: 0; margin: 0; }
+.doctor-completion-checklist__items {
   min-width: 0;
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-subtle);
+  padding-left: var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-3);
+  border-left: 1px solid var(--color-border);
 }
-.doctor-disposition-section { display: grid; align-content: start; gap: var(--space-3); }
-.doctor-disposition-section__head,
-.doctor-completion-checklist__title {
+.doctor-checklist-chip {
+  min-height: 2.75rem;
+  padding: var(--space-1) 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   color: var(--color-text-primary);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-body);
 }
-.doctor-disposition-section__head .ui-icon,
-.doctor-completion-checklist__title .ui-icon { width: 1rem; height: 1rem; color: var(--color-brand-primary); flex-shrink: 0; }
-.doctor-disposition-form { display: grid; grid-template-columns: 10.5rem minmax(0, 1fr); align-items: start; gap: var(--space-3); }
-.doctor-disposition-form .ui-field { margin: 0; }
-.doctor-disposition-form textarea { min-height: 4.25rem; resize: vertical; }
+.doctor-checklist-chip .ui-icon { width: 1rem; height: 1rem; }
+.doctor-checklist-chip.is-missing { color: var(--color-warning); }
+.doctor-checklist-chip > .ui-button { margin-left: auto; flex-shrink: 0; }
+
+/* 异常终止诊疗的待处置项。 */
+.doctor-completion-checklist--dialog {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+  box-shadow: inset calc(var(--space-1) * 0.75) 0 var(--color-warning);
+}
 .doctor-amendment-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
 .doctor-amendment-form .ui-field { min-width: 0; margin: 0; }
 .doctor-amendment-form .ui-field:first-child { grid-column: 1 / -1; }
 .doctor-amendment-form textarea { min-height: 5.5rem; resize: vertical; }
-.doctor-disposition-note-wrap { display: grid; gap: var(--space-2); }
-.doctor-quick-phrases { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: start; gap: var(--space-2); }
-.doctor-quick-phrases__label { padding-top: calc(var(--space-1) * 0.75); color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
-.doctor-quick-phrases__chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.doctor-quick-phrase-chip {
-  padding: calc(var(--space-1) * 0.75) calc(var(--space-1) * 1.75);
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--color-brand-primary);
-  background: var(--color-surface);
-  font: inherit;
-  font-size: var(--font-size-small);
-  line-height: var(--line-height-body);
-  cursor: pointer;
-  transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard);
-}
-.doctor-quick-phrase-chip:hover { color: var(--color-brand-strong); background: var(--color-brand-soft); }
-
-.doctor-completion-checklist--dialog {
-  display: grid;
-  align-content: start;
-  gap: var(--space-2);
-  box-shadow: inset calc(var(--space-1) * 0.75) 0 var(--color-warning);
-}
-.doctor-completion-checklist--dialog.is-ready-group { box-shadow: inset calc(var(--space-1) * 0.75) 0 var(--color-success); }
-.doctor-completion-checklist__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.doctor-completion-checklist__header > strong {
-  padding: calc(var(--space-1) * 0.75) var(--space-2);
-  border-radius: var(--radius-sm);
-  color: var(--color-warning);
-  background: var(--color-warning-soft);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  white-space: nowrap;
-}
-.doctor-completion-checklist--dialog.is-ready-group .doctor-completion-checklist__header > strong { color: var(--color-success); background: var(--color-success-soft); }
-.doctor-completion-checklist--dialog.is-pending-group .doctor-completion-checklist__title .ui-icon { color: var(--color-warning); }
-.doctor-completion-checklist--dialog.is-ready-group .doctor-completion-checklist__title .ui-icon { color: var(--color-success); }
-.doctor-completion-checklist__items { display: grid; }
-.doctor-checklist-chip {
-  min-height: 2.75rem;
-  padding: var(--space-2) 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  border-top: 1px solid var(--color-border);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-small);
-}
-.doctor-checklist-chip .ui-icon {
-  width: 1.45rem;
-  height: 1.45rem;
-  padding: 4px;
-  flex: none;
-  border-radius: 50%;
-}
-.doctor-checklist-chip.is-ready .ui-icon { color: var(--color-success); background: var(--color-success-soft); }
-.doctor-checklist-chip.is-missing .ui-icon { color: var(--color-warning); background: var(--color-warning-soft); }
-.doctor-checklist-action-btn { height: 1.65rem; margin-left: auto; padding: calc(var(--space-1) * 0.25) var(--space-2); flex-shrink: 0; font-size: var(--font-size-small); }
 .doctor-prescription-meta { min-height: 2rem; margin-bottom: var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .doctor-order-entry { margin-top: var(--space-2); display: grid; grid-template-columns: 8rem auto; align-items: end; gap: var(--space-2); }
 .doctor-order-entry .ui-field { margin: 0; }
@@ -1650,19 +1626,6 @@
   .doctor-fee-summary__totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-@media (max-width: 100rem) {
-  .doctor-patient-workspace > .ui-context-bar { align-items: flex-start; flex-wrap: wrap; }
-  .doctor-patient-workspace > .ui-context-bar .ui-context-bar__facts { min-width: 0; flex: 1; }
-  .doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact,
-  .doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact:last-child { min-width: 0; flex: 1; }
-  .doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact:last-child { display: block; }
-  .doctor-patient-workspace > .ui-context-bar .ui-context-bar__actions { width: 100%; margin-left: 0; justify-content: flex-end; }
-  .doctor-context-actions { width: 100%; justify-content: flex-end; flex-wrap: nowrap; }
-  .doctor-context-actions .queue-mini-pill,
-  .doctor-context-actions__buttons,
-  .doctor-context-actions__buttons .ui-button { flex: none; white-space: nowrap; }
-}
-
 @media (max-width: 47.5rem) {
   .doctor-queue-summary, .doctor-identity-checks, .doctor-record-form, .doctor-diagnosis-editor, .doctor-medication-directions, .doctor-allergy-editor { grid-template-columns: 1fr; }
   .doctor-record-vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1688,7 +1651,6 @@
   .doctor-workspace-drawer { right: 3.25rem; width: calc(100% - 3.5rem); }
   .doctor-referral-form, .doctor-referral-reject { grid-template-columns: 1fr; }
   .doctor-referral-form__wide { grid-column: auto; }
-  .doctor-disposition-form { grid-template-columns: 1fr; }
   .doctor-diagnosis-list > div { grid-template-columns: 4rem minmax(0, 1fr); }
   .doctor-order-lines { overflow-x: auto; }
   .doctor-order-line { min-width: 32rem; }
@@ -4600,24 +4562,50 @@
 }
 .doctor-print-doc-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto 5rem;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface-subtle);
+  cursor: pointer;
+  min-height: 3.25rem;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
-.doctor-print-doc-item.is-draft {
-  opacity: 0.75;
+.doctor-print-doc-item:hover:not(.is-disabled) {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-surface));
+}
+.doctor-print-doc-item.is-selected {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-surface));
+}
+.doctor-print-doc-item.is-disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+.doctor-print-doc-checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-brand-primary);
+  cursor: pointer;
+  margin: 0;
+}
+.doctor-print-doc-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 .doctor-print-doc-meta {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  gap: var(--space-0-5);
 }
 .doctor-print-doc-title {
   font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4625,6 +4613,14 @@
 .doctor-print-doc-meta small {
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doctor-print-doc-item > button {
+  height: 2rem;
+  width: 100%;
+  justify-content: center;
 }
 .doctor-print-compliance-notice {
   margin: var(--space-3) 0;
@@ -4647,27 +4643,38 @@
   gap: var(--space-2);
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
+  min-width: 0;
 }
 
-.doctor-print-meta-label {
-  font-weight: var(--font-weight-medium);
+.doctor-print-patient-name {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-body);
   color: var(--color-text-primary);
 }
 
 .doctor-print-meta-no {
-  font-family: var(--font-family-mono, monospace);
   font-size: var(--font-size-small);
-  padding: 0 var(--space-1);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xs);
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
+}
+
+.doctor-print-ready-pill {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-surface));
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
 }
 
 .doctor-print-center-actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.doctor-print-center-actions button {
+  height: 2rem;
 }
 
 .doctor-print-empty-hint {
@@ -4691,10 +4698,10 @@
 }
 
 .doctor-history-print-list article {
-  min-height: 3.5rem;
+  min-height: 3.25rem;
   padding: var(--space-2) var(--space-3);
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(9rem, 0.9fr) auto;
+  grid-template-columns: minmax(0, 1.6fr) minmax(7rem, 0.9fr) auto;
   align-items: center;
   gap: var(--space-3);
   border: 1px solid var(--color-border);
@@ -4730,7 +4737,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-top: var(--space-1);
+  margin-top: var(--space-0-5);
 }
 
 .doctor-history-print-list article > div:last-child {
@@ -4738,6 +4745,10 @@
   align-items: center;
   gap: var(--space-2);
   margin-left: auto;
+}
+
+.doctor-history-print-list article > div:last-child button {
+  height: 2rem;
 }
 
 /* 门诊就诊文书批量受控打印 */
@@ -4753,8 +4764,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
@@ -4762,15 +4772,26 @@
 }
 
 .doctor-batch-select-actions {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.doctor-batch-select-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  user-select: none;
 }
 
 .doctor-batch-count-hint {
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-  margin-left: var(--space-2);
 }
 
 .doctor-batch-count-hint strong {
@@ -4778,9 +4799,10 @@
 }
 
 .doctor-batch-options {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  margin-left: auto;
 }
 
 .doctor-batch-option-item {
@@ -4791,16 +4813,30 @@
   color: var(--color-text-secondary);
 }
 
+.doctor-batch-option-item label {
+  white-space: nowrap;
+}
+
+.doctor-batch-option-item select,
 .doctor-batch-option-item input {
-  padding: var(--space-1);
+  height: 2rem;
+  padding: 0 var(--space-2);
   font-size: var(--font-size-small);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-sizing: border-box;
 }
 
 .doctor-batch-option-item input[type="number"] {
-  width: 3.5rem;
+  width: 3.25rem;
+  text-align: center;
+}
+
+.doctor-batch-options > button {
+  height: 2rem;
+  white-space: nowrap;
 }
 
 .doctor-batch-item-list {
@@ -4909,10 +4945,18 @@
   gap: var(--space-2);
 }
 
-.doctor-completion-print-option {
-  padding: var(--space-2) var(--space-3);
-  margin-top: var(--space-2);
-  background: var(--color-surface-subtle);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+.doctor-completion-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
 }
+
+.doctor-completion-footer__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doctor-completion-print-option { display: flex; align-items: center; gap: var(--space-2); }

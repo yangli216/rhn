@@ -143,7 +143,7 @@ export function QueueCapsuleBar({
 
         <span className="pill-segment pill-segment--action">
           <Icon name="notification" />
-          <span>呼下一位 {candidate ? `(${candidate.residentName})` : ''}</span>
+          <span>呼下一位{candidate && <> (<span className="queue-next-name" title={candidate.residentName}>{candidate.residentName}</span>)</>}</span>
           <Icon name="chevron-down" className={`chevron ${popoverOpen ? 'is-expanded' : ''}`} />
         </span>
       </div>

@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type {
   ClinicalAiEvidenceChainResult,
   ClinicalAiEvidenceCheckpoint,
-  ClinicalAiGapOrder,
+  ClinicalAiTreatmentMatch,
+  ClinicalAiTreatmentRecommendation,
+  ClinicalAiSuggestion,
   ClinicalAiDraftContext,
 } from '../../../shared/api/clinicalAiApi'
 import { Alert, Button, LoadingState, EmptyState, Icon } from '../../../shared/ui'
 import { ClinicalKnowledgePanel } from './ClinicalKnowledgePanel'
+import { ClinicalAiCatalogReview } from './ClinicalAiCatalogReview'
 import './clinical-evidence.css'
 
 export interface ClinicalEvidenceDrawerProps {
@@ -16,8 +19,9 @@ export interface ClinicalEvidenceDrawerProps {
   encounterId: string
   targetDiagnosis: { code: string; display: string } | null
   context?: ClinicalAiDraftContext | null
+  sourceSuggestion?: ClinicalAiSuggestion | null
   api: RhnApi
-  onApplyGapOrders?: (orders: ClinicalAiGapOrder[]) => void | Promise<void>
+  onApplyGapOrders?: (orders: ClinicalAiTreatmentRecommendation[]) => void | Promise<void>
   onOpenWikiDoc?: (params: { id?: string; name?: string; type?: string }) => void
 }
 
@@ -28,6 +32,7 @@ const checkpointTypeLabels: Record<string, string> = {
   DIFFERENTIAL: '鉴别依据',
   RISK_FACTOR: '危险因素',
   GAP_EXAM: '待补检查',
+  EVIDENCE_GAP: '依据待补充',
 }
 
 function checkpointTypeLabel(checkpoint: ClinicalAiEvidenceCheckpoint) {
@@ -40,6 +45,7 @@ export function ClinicalEvidenceDrawer({
   encounterId,
   targetDiagnosis,
   context,
+  sourceSuggestion,
   api,
   onApplyGapOrders,
   onOpenWikiDoc,
@@ -50,38 +56,56 @@ export function ClinicalEvidenceDrawer({
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
   const [applying, setApplying] = useState(false)
   const [applyError, setApplyError] = useState('')
+  const [catalog, setCatalog] = useState<{ selection: string; matches: ClinicalAiTreatmentMatch[] } | null>(null)
+  const epoch = useRef(0)
+  const applyOrders = useRef(onApplyGapOrders)
+  applyOrders.current = onApplyGapOrders
+  const diagnosisCode = targetDiagnosis?.code
+  const diagnosis = targetDiagnosis?.display
+  const sourceSuggestionId = sourceSuggestion?.id
+  const recommendationReason = sourceSuggestion?.diagnosisCandidates.find(item => item.code === diagnosisCode)?.rationale
+  const {
+    chiefComplaint, presentIllness, physicalExam, medicalHistory,
+    systolic, diastolic, pulseRate, temperature, weightKg,
+  } = context ?? {}
 
+  // Depend on evidence inputs, not the identity of parent-created diagnosis/context objects.
   useEffect(() => {
-    if (!isOpen || !encounterId || !targetDiagnosis) {
+    const requestEpoch = ++epoch.current
+    setApplying(false)
+    setCatalog(null)
+    if (!isOpen || !encounterId || diagnosis == null || diagnosisCode == null) {
       setResult(null)
       setError(null)
       setLoading(false)
       setSelectedOrderIds([])
       setApplyError('')
-      return
+      return () => { epoch.current += 1 }
     }
 
     let active = true
     setLoading(true)
+    setResult(null)
+    setSelectedOrderIds([])
     setError(null)
     setApplyError('')
 
     // 构建生命体征字典
     const vitals: Record<string, unknown> = {}
-    if (context?.systolic != null) vitals.systolic = context.systolic
-    if (context?.diastolic != null) vitals.diastolic = context.diastolic
-    if (context?.pulseRate != null) vitals.heartRate = context.pulseRate
-    if (context?.temperature != null) vitals.temperature = context.temperature
-    if (context?.weightKg != null) vitals.weightKg = context.weightKg
+    if (systolic != null) vitals.systolic = systolic
+    if (diastolic != null) vitals.diastolic = diastolic
+    if (pulseRate != null) vitals.heartRate = pulseRate
+    if (temperature != null) vitals.temperature = temperature
+    if (weightKg != null) vitals.weightKg = weightKg
 
     api.clinicalAi
       .getEvidenceChain(encounterId, {
-        diagnosis: targetDiagnosis.display,
-        diagnosisCode: targetDiagnosis.code,
-        chiefComplaint: context?.chiefComplaint,
-        presentIllness: context?.presentIllness,
-        physicalExam: context?.physicalExam,
-        medicalHistory: context?.medicalHistory,
+        diagnosis,
+        diagnosisCode,
+        chiefComplaint,
+        presentIllness,
+        physicalExam,
+        medicalHistory,
         vitals,
       })
       .then((data) => {
@@ -101,18 +125,24 @@ export function ClinicalEvidenceDrawer({
 
     return () => {
       active = false
+      if (epoch.current === requestEpoch) epoch.current += 1
     }
-  }, [isOpen, encounterId, targetDiagnosis, context, api])
+  }, [isOpen, encounterId, diagnosis, diagnosisCode, sourceSuggestionId, chiefComplaint, presentIllness,
+    physicalExam, medicalHistory, systolic, diastolic, pulseRate, temperature, weightKg, api])
 
   if (!isOpen) return null
 
   const handleToggleOrder = (id: string) => {
+    if (applying) return
+    setCatalog(null)
     setSelectedOrderIds((curr) =>
       curr.includes(id) ? curr.filter((item) => item !== id) : [...curr, id]
     )
   }
 
   const handleToggleAllOrders = () => {
+    if (applying) return
+    setCatalog(null)
     if (!result?.gapOrders) return
     if (selectedOrderIds.length === result.gapOrders.length) {
       setSelectedOrderIds([])
@@ -124,15 +154,28 @@ export function ClinicalEvidenceDrawer({
   const handleExecuteOrders = async () => {
     if (!result?.gapOrders || !onApplyGapOrders || selectedOrderIds.length === 0) return
     const ordersToApply = result.gapOrders.filter((o) => selectedOrderIds.includes(o.id))
+    const selection = selectedOrderIds.slice().sort().join('|')
+    const requestEpoch = epoch.current
     try {
       setApplying(true)
       setApplyError('')
-      await onApplyGapOrders(ordersToApply)
-      onClose()
+      const matches = catalog?.selection === selection ? catalog.matches : await api.clinicalAi.resolveTreatments(encounterId,
+        ordersToApply.map(order => ({ type: order.category, name: order.name, rationale: order.indication })))
+      if (epoch.current !== requestEpoch) return
+      setCatalog({ selection, matches })
+      if (!matches.length) throw new Error('未返回目录匹配结果，请重试。')
+      if (matches.some(match => match.status !== 'MATCHED')) {
+        setApplyError('请先核对以下院内项目。')
+        return
+      }
+      if (!applyOrders.current) throw new Error('当前无法带入医嘱，请重新核对。')
+      await applyOrders.current([...new Map(matches.flatMap(match => match.candidates)
+        .map(item => [`${item.type}:${item.catalogItemId}`, item])).values()])
+      if (epoch.current === requestEpoch) onClose()
     } catch (err) {
-      setApplyError(err instanceof Error ? err.message : '建议项目未能带入医嘱，请稍后重试')
+      if (epoch.current === requestEpoch) setApplyError(err instanceof Error ? err.message : '建议项目未能带入医嘱，请稍后重试')
     } finally {
-      setApplying(false)
+      if (epoch.current === requestEpoch) setApplying(false)
     }
   }
 
@@ -161,6 +204,7 @@ export function ClinicalEvidenceDrawer({
         <div className="clinical-evidence-drawer">
           {applyError && <Alert tone="warning" duration={null}>{applyError}</Alert>}
           <div className="clinical-evidence-header-card">
+            {recommendationReason && <p className="clinical-evidence-summary"><strong>本轮 AI 推荐理由：</strong>{recommendationReason}</p>}
             <div className="clinical-evidence-header-title">
               <span className="clinical-evidence-header-main-title">
                 推荐诊断：{result.diagnosis?.name || targetDiagnosis?.display}
@@ -168,7 +212,7 @@ export function ClinicalEvidenceDrawer({
               {result.protocolTitle && <span className="clinical-evidence-diag-badge">{result.protocolTitle}</span>}
             </div>
             <p className="clinical-evidence-summary">
-              {result.summary || '已根据当前病历信息整理诊断依据。'}
+              {result.summary || '暂无对应知识库依据，请结合实际临床资料核对。'}
             </p>
           </div>
 
@@ -238,7 +282,7 @@ export function ClinicalEvidenceDrawer({
                           type="checkbox"
                           className="gap-order-checkbox"
                           checked={isChecked}
-                          onChange={() => handleToggleOrder(order.id)}
+                          disabled={applying} onChange={() => handleToggleOrder(order.id)}
                           onClick={(e) => e.stopPropagation()}
                           aria-label={`选择医嘱 ${order.name}`}
                         />
@@ -259,14 +303,21 @@ export function ClinicalEvidenceDrawer({
                   })}
                 </div>
 
+                {catalog && <ClinicalAiCatalogReview key={catalog.selection} matches={catalog.matches.filter(match => match.status !== 'MATCHED')}
+                  api={api} encounterId={encounterId} disabled={applying}
+                  onResolved={(keys, items) => {
+                    setCatalog(previous => previous && ({ ...previous, matches: previous.matches.map(match => keys.includes(match.key)
+                      ? { ...match, status: 'MATCHED', candidates: items } : match) }))
+                    setApplyError('')
+                  }} />}
                 <div className="gap-orders-action-bar">
-                  <Button size="sm" variant="text" onClick={handleToggleAllOrders}>
+                  <Button size="sm" variant="text" disabled={applying} onClick={handleToggleAllOrders}>
                     {selectedOrderIds.length === gapOrders.length ? '取消全选' : '全部勾选'}
                   </Button>
                   <Button
                     size="sm"
                     variant="primary"
-                    disabled={selectedOrderIds.length === 0 || !onApplyGapOrders || applying}
+                    disabled={selectedOrderIds.length === 0 || !onApplyGapOrders || applying || Boolean(catalog?.matches.some(match => match.status !== 'MATCHED'))}
                     busy={applying}
                     onClick={handleExecuteOrders}
                   >

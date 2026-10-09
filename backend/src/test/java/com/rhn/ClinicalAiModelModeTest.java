@@ -385,6 +385,49 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                 && "模型摘要".equals(request.priorSuggestion().summary())), any());
     }
 
+    @Test
+    void catalogMatchingIsReadOnlyScopedToTheEncounterAndValidatesInput() throws Exception {
+        String encounterId = createStartedEncounter();
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{id}/treatment-matches", encounterId)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"intents\":[{\"type\":\"LABORATORY\",\"name\":\"不存在的核对项目\"}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("NO_ORDERABLE_SERVICE"))
+                .andExpect(jsonPath("$[0].intent.name").value("不存在的核对项目"));
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{id}/treatment-matches", encounterId)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{\"intents\":[]}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{id}/treatment-matches", encounterId)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{\"intents\":[null]}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/999999/treatment-matches")
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"intents\":[{\"type\":\"LABORATORY\",\"name\":\"不存在的核对项目\"}]}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/ai/clinical-assistant/encounters/{id}/suggestions", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        org.mockito.Mockito.verifyNoInteractions(modelGateway);
+    }
+
+    @Test
+    void unresolvedTreatmentIntentSurvivesSuggestionPersistenceAndHistory() throws Exception {
+        String encounterId = createStartedEncounter();
+        var intent = new TreatmentRecommendation("LABORATORY", null, null, null, "不存在的检验项目", null, null);
+        when(modelGateway.analyze(any(), any())).thenReturn(new SuggestionContent("测试摘要", null,
+                List.of(), List.of(), List.of(), List.of(), List.of(), "待确认", List.of(intent)));
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{id}/suggestions", encounterId)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"clientContextFingerprint\":\"UNRESOLVED\",\"draft\":{\"diagnoses\":[]}}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.treatmentRecommendations.length()").value(0))
+                .andExpect(jsonPath("$.treatmentMatches[0].intent.name").value("不存在的检验项目"))
+                .andExpect(jsonPath("$.treatmentMatches[0].status").value("NO_ORDERABLE_SERVICE"));
+        mockMvc.perform(get("/api/ai/clinical-assistant/encounters/{id}/suggestions", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].treatmentMatches[0].intent.name").value("不存在的检验项目"));
+        verify(modelGateway, times(1)).analyze(any(), any());
+    }
+
     private String createStartedEncounter() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
         JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())

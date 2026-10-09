@@ -4,7 +4,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import type { ClinicalAiTreatmentRecommendation } from '../../../shared/api/clinicalAiApi'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
-import { Button, FormField, Icon, Select } from '../../../shared/ui'
+import { IconButton, Button, FormField, Icon, Select } from '../../../shared/ui'
 import { MedicalInsertViewerModal } from './MedicalInsertViewerModal'
 import { calculatePackageQuantity } from '../orders/medicationQuantity'
 import { clinicalAiTreatmentKey } from '../orders/orderDraftTypes'
@@ -117,19 +117,13 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
             <div className="doctor-order-name-with-action">
               <strong>{item.name}</strong>
               {medication && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="text"
-                  className="doctor-order-insert-btn"
+                <IconButton icon="file-text" label="说明书"
                   title={`在临床知识库中查阅《${item.name}》药品资料`}
                   onClick={(e) => {
                     e.stopPropagation()
                     setInspectMedicationName(item.name)
                   }}
-                >
-                  <Icon name="pill" />说明书
-                </Button>
+                />
               )}
             </div>
             <small>{medication ? resolved?.specification || item.specification || item.code : item.code}</small>

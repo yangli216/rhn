@@ -8,7 +8,7 @@ import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalIns
 import { assessReceptionScene, recentHistoryEncounters } from './receptionSceneAssessment'
 import type {
   ClinicalAiDraftContext, ClinicalAiTreatmentRecommendation, ClinicalAiPlanPreflight, ClinicalAiRecommendedPlan, ClinicalAiSuggestion,
-  ClinicalAiSuggestionEventType, ClinicalAiGapOrder,
+  ClinicalAiSuggestionEventType,
 } from '../../../shared/api/clinicalAiApi'
 import { canonicalizeAiDiagnoses } from './canonicalAiDiagnoses'
 import { diagnosisIdentityKey } from '../record/diagnosisIdentity'
@@ -16,7 +16,7 @@ import type { OutpatientPlanTemplate } from '../../../shared/api/outpatientPlanT
 import type { AllergyIntolerance } from '../../../shared/api/residentsApi'
 import type { Encounter } from '../../../shared/model'
 import { errorMessage, type RhnApi } from '../../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, StatusBadge, Tabs } from '../../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, FormField, Icon, IconButton, LoadingState, StatusBadge, Tabs } from '../../../shared/ui'
 import {
   canApplyClinicalAiSuggestion, clinicalAiContextFingerprint, clinicalAiDraftInput, type ClinicalAiDraftRequest,
   recordDraftFieldLabels, aiRecordDraftFields, formatAiRecordDraftValue, stableClinicalAiFingerprint, mergeAiRecordDraft, mergeAiDiagnoses,
@@ -60,7 +60,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   onOpenResults?: () => void
   historyEncounters?: Encounter[]
   onFieldStream?: (stream: ClinicalAiFieldStream | null) => void
-  onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[], onCompleted: (acceptedKeys: string[]) => void) => void
+  onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[], onCompleted: (acceptedKeys: string[]) => void, onFailed?: (message: string) => void) => void
   onReviewRecommendedPlan?: (plan: ClinicalAiRecommendedPlan) => void
   existingTreatmentKeys?: string[]
 }) {
@@ -134,6 +134,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const [selectedPlan, setSelectedPlan] = useState<ClinicalAiRecommendedPlan | null>(null)
   const [evidenceDiagnosis, setEvidenceDiagnosis] = useState<{ code: string; display: string } | null>(null)
   const [medicalInsertTarget, setMedicalInsertTarget] = useState<MedicalInsertTarget | null>(null)
+  const [isPromptExpanded, setIsPromptExpanded] = useState(false)
   const viewed = useRef(new Set<string>())
   const adoptionCommands = useRef(new Map<string, string>())
   const latestContext = useRef(currentContext)
@@ -557,67 +558,96 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       setViewMode(value); setSelectedPlan(null); setLocalError('')
       if (value === 'history' && !selectedHistoryId) setSelectedHistoryId(history.data?.[0]?.id ?? null)
     }} />
-    {!historicalView && <>
-    <section className="doctor-ai-assistant__prompt">
-      <div className="doctor-ai-assistant__prompt-head">
-        <FormField label="本次希望重点辅助什么"><textarea value={question} maxLength={500} disabled={inputBusy}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder="例如：补全病历要点、检查诊断遗漏、推荐已有诊疗方案（可不填）" /></FormField>
-        <div className="doctor-ai-assistant__prompt-tools">
+    {!historicalView && (
+      <div className="doctor-ai-assistant__quick-bar">
+        <div className="doctor-ai-assistant__quick-bar-actions">
+          <Button
+            busy={generate.isPending}
+            disabled={disabled || actionPending}
+            onClick={() => generate.mutate({})}
+          >
+            <Icon name="sparkles" />分析当前就诊
+          </Button>
           {voiceInput}
-          {question.trim() && <Button size="sm" variant="text" onClick={() => { setQuestion(''); setVoiceTranscript('') }}>清空</Button>}
         </div>
-      </div>
-      {interimTranscript && (
-        <div className="doctor-ai-interim-live" role="status" aria-live="polite">
-          <span className="doctor-ai-voice-pulse" aria-hidden="true" />
-          <span className="doctor-ai-interim-live__tag">正在识别</span>
-          <span className="doctor-ai-interim-live__text">{interimTranscript}</span>
-        </div>
-      )}
-      <div className="doctor-ai-assistant__quick-prompts" aria-label="快捷辅助方向">
-        {['补全病历要点', '检查危险信号', '核对诊断遗漏',
-          ...(capability.features.includes('REPORT_INTERPRETATION') ? ['解读检查报告'] : []),
-          ...(capability.features.includes('CLINICAL_FOLLOW_UP') ? ['生成补充问诊'] : []),
-          ...(capability.features.includes('FACT_CHECK') ? ['核查病历与报告一致性'] : []),
-          ...(capability.features.includes('DIAGNOSIS_REASONING') ? ['梳理鉴别诊断依据'] : []),
-          ...(capability.features.includes('LONGITUDINAL_HISTORY') ? ['核对慢病复诊与既往用药'] : []),
-        ].map((value) => <button type="button" key={value}
-          disabled={actionPending} onClick={() => setQuestion(value)}>{value}</button>)}
-      </div>
-      <div className="doctor-ai-assistant__prompt-actions">
-        {capability.features.includes('CONVERSATION_FOLLOW_UP') && suggestion && <Button variant="secondary"
-          busy={generate.isPending} disabled={disabled || actionPending || !current || !question.trim()}
-          onClick={() => generate.mutate({ parentSuggestionId: continuation ? undefined : suggestion.id })}>基于本结果追问</Button>}
-        <Button busy={generate.isPending} disabled={disabled || actionPending}
-          onClick={() => generate.mutate({})}><Icon name="sparkles" />分析当前就诊</Button>
-      </div>
-    </section>
-    {capability.features.includes('KNOWLEDGE_RETRIEVAL') && <section className="doctor-ai-assistant__knowledge">
-      <header><div><strong>循证知识检索</strong><small>仅展示带来源的院方知识服务结果</small></div></header>
-      <div className="doctor-ai-assistant__knowledge-search">
-        <input value={knowledgeQuery} maxLength={500} disabled={knowledgeSearch.isPending}
-          onChange={(event) => setKnowledgeQuery(event.target.value)} placeholder="疾病、药品或检查名称"
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && knowledgeQuery.trim()) knowledgeSearch.mutate()
-          }} />
-        <Button size="sm" variant="secondary" busy={knowledgeSearch.isPending}
-          disabled={!knowledgeQuery.trim()} onClick={() => knowledgeSearch.mutate()}>
-          <Icon name="search" />检索
+        <Button
+          type="button"
+          variant="text"
+          size="sm"
+          className="doctor-ai-assistant__prompt-toggle"
+          onClick={() => setIsPromptExpanded(!isPromptExpanded)}
+          aria-expanded={isPromptExpanded}
+          title="展开或收起专项追问与重点辅助输入"
+        >
+          <Icon name={isPromptExpanded ? 'chevron-up' : 'search'} />
+          {isPromptExpanded ? '收起专项探查' : (question.trim() ? '专项探查 (已填)' : '专项探查与追问')}
         </Button>
       </div>
-      {knowledgeSearch.data && <div className="doctor-ai-assistant__knowledge-results">
-        {knowledgeSearch.data.results.length > 0 ? knowledgeSearch.data.results.map((item) => <article key={item.id}>
-          <div className="doctor-ai-assistant__knowledge-title"><strong>{item.title}</strong>
-            {item.score !== undefined && <StatusBadge tone="neutral">相关度 {Math.round(item.score * 100)}%</StatusBadge>}
+    )}
+    {!historicalView && (isPromptExpanded || Boolean(interimTranscript)) && (
+      <section className="doctor-ai-assistant__prompt-collapse">
+        <div className="doctor-ai-assistant__prompt-head">
+          <FormField label="本次希望重点辅助什么">
+            <textarea
+              value={question}
+              maxLength={500}
+              disabled={inputBusy}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="例如：补全病历要点、检查诊断遗漏、推荐已有诊疗方案（可不填）"
+            />
+          </FormField>
+          <div className="doctor-ai-assistant__prompt-tools">
+            {question.trim() && (
+              <Button size="sm" variant="text" onClick={() => { setQuestion(''); setVoiceTranscript('') }}>
+                清空
+              </Button>
+            )}
           </div>
-          {item.excerpt && <p>{item.excerpt}</p>}
-          <small>来源：{item.sourceName}{item.publishYear ? ` · ${item.publishYear}` : ''}
-            {item.resourcePosition ? ` · ${item.resourcePosition}` : ''}</small>
-        </article>) : <EmptyState icon="search" title="未找到可信结果" copy="请调整疾病、药品或检查关键词后重试。" />}
-      </div>}
-    </section>}
-    </>}
+        </div>
+        {interimTranscript && (
+          <div className="doctor-ai-interim-live" role="status" aria-live="polite">
+            <span className="doctor-ai-voice-pulse" aria-hidden="true" />
+            <span className="doctor-ai-interim-live__tag">正在识别</span>
+            <span className="doctor-ai-interim-live__text">{interimTranscript}</span>
+          </div>
+        )}
+        <div className="doctor-ai-assistant__quick-prompts" aria-label="快捷辅助方向">
+          {['补全病历要点', '检查危险信号', '核对诊断遗漏',
+            ...(capability.features.includes('REPORT_INTERPRETATION') ? ['解读检查报告'] : []),
+            ...(capability.features.includes('CLINICAL_FOLLOW_UP') ? ['生成补充问诊'] : []),
+            ...(capability.features.includes('FACT_CHECK') ? ['核查病历与报告一致性'] : []),
+            ...(capability.features.includes('DIAGNOSIS_REASONING') ? ['梳理鉴别诊断依据'] : []),
+            ...(capability.features.includes('LONGITUDINAL_HISTORY') ? ['核对慢病复诊与既往用药'] : []),
+          ].map((value) => (
+            <Button
+              variant="secondary"
+              size="sm"
+              key={value}
+              disabled={actionPending}
+              onClick={() => {
+                setQuestion(value)
+                setIsPromptExpanded(true)
+              }}
+            >
+              {value}
+            </Button>
+          ))}
+        </div>
+        {capability.features.includes('CONVERSATION_FOLLOW_UP') && suggestion && (
+          <div className="doctor-ai-assistant__prompt-actions">
+            <Button
+              variant="secondary"
+              size="sm"
+              busy={generate.isPending}
+              disabled={disabled || actionPending || !current || !question.trim()}
+              onClick={() => generate.mutate({ parentSuggestionId: continuation ? undefined : suggestion.id })}
+            >
+              基于本结果追问
+            </Button>
+          </div>
+        )}
+      </section>
+    )}
     {historicalView && <SuggestionHistory history={history.data ?? []} selectedId={suggestion?.id}
       pending={history.isPending} error={history.error} onSelect={setSelectedHistoryId} />}
     {!auditFeature && <Alert>当前 AI 能力未声明审计留痕支持，因此仅展示建议，不允许带入草稿。</Alert>}
@@ -626,8 +656,15 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       {historicalView
         ? <Alert>历史建议为生成时的不可变记录，仅供追溯；请回到“当前建议”重新分析后再带入。</Alert>
         : !current && <Alert>当前草稿已变化或建议已经过期。为避免串写，请重新分析后再带入。</Alert>}
-      <SuggestionResult suggestion={suggestion} recordEntries={recordEntries}
-        showMissing={recordFeature} showSafety={safetyFeature} showDiagnoses={diagnosisFeature} />
+      <SuggestionResult
+        suggestion={suggestion}
+        recordEntries={recordEntries}
+        showMissing={recordFeature}
+        showSafety={safetyFeature}
+        showDiagnoses={diagnosisFeature}
+        onOpenInsert={(target) => setMedicalInsertTarget(target)}
+        onOpenEvidence={(diag) => setEvidenceDiagnosis(diag)}
+      />
       {!historicalView && (recordFeature || diagnosisFeature) && <div className="doctor-ai-assistant__actions">
         <Button busy={adoptDraft.isPending} disabled={disabled || actionPending || !current
           || !auditFeature || recordEntries.length === 0 && diagnosisDrafts.length === 0}
@@ -635,6 +672,97 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         <Button variant="secondary" busy={ignoreSuggestion.isPending}
           disabled={actionPending || !auditFeature} onClick={ignore}>忽略本次建议</Button>
       </div>}
+      {capability.features.includes('KNOWLEDGE_RETRIEVAL') && (
+        <section className="doctor-ai-assistant__context-knowledge">
+          <header>
+            <div>
+              <strong>情境循证参考与知识库</strong>
+              <small>根据本次病情主动匹配国家规范与说明书</small>
+            </div>
+          </header>
+          <div className="doctor-ai-assistant__context-cards">
+            {suggestion.diagnosisCandidates.slice(0, 2).map((item) => (
+              <article key={`guide-${item.code}`} className="doctor-ai-assistant__context-card">
+                <Icon name="clinical" />
+                <div className="doctor-ai-assistant__context-card-info">
+                  <strong>《{item.display} 临床诊疗规范》</strong>
+                  <small>国家卫健委及中华医学会权威指南</small>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setMedicalInsertTarget({ name: item.display, type: 'guideline' })}
+                >
+                  查阅指南
+                </Button>
+              </article>
+            ))}
+            {suggestion.treatmentRecommendations?.filter((t) => t.type === 'MEDICATION').slice(0, 2).map((med) => (
+              <article key={`med-${med.catalogItemId}`} className="doctor-ai-assistant__context-card">
+                <Icon name="pill" />
+                <div className="doctor-ai-assistant__context-card-info">
+                  <strong>《{med.name} 说明书》</strong>
+                  <small>国家药监局批准法定说明书</small>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setMedicalInsertTarget({ name: med.name, id: med.medicationId, type: 'medication' })}
+                >
+                  查阅说明书
+                </Button>
+              </article>
+            ))}
+          </div>
+          <div className="doctor-ai-assistant__manual-knowledge">
+            <div className="doctor-ai-assistant__knowledge-search">
+              <input
+                value={knowledgeQuery}
+                maxLength={500}
+                disabled={knowledgeSearch.isPending}
+                onChange={(event) => setKnowledgeQuery(event.target.value)}
+                placeholder="检索全院疾病、药品或检查资料..."
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && knowledgeQuery.trim()) knowledgeSearch.mutate()
+                }}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                busy={knowledgeSearch.isPending}
+                disabled={!knowledgeQuery.trim()}
+                onClick={() => knowledgeSearch.mutate()}
+              >
+                <Icon name="search" />检索
+              </Button>
+            </div>
+            {knowledgeSearch.data && (
+              <div className="doctor-ai-assistant__knowledge-results">
+                {knowledgeSearch.data.results.length > 0 ? (
+                  knowledgeSearch.data.results.map((item) => (
+                    <article key={item.id}>
+                      <div className="doctor-ai-assistant__knowledge-title">
+                        <strong>{item.title}</strong>
+                        {item.score !== undefined && (
+                          <StatusBadge tone="neutral">相关度 {Math.round(item.score * 100)}%</StatusBadge>
+                        )}
+                      </div>
+                      {item.excerpt && <p>{item.excerpt}</p>}
+                      <small>
+                        来源：{item.sourceName}
+                        {item.publishYear ? ` · ${item.publishYear}` : ''}
+                        {item.resourcePosition ? ` · ${item.resourcePosition}` : ''}
+                      </small>
+                    </article>
+                  ))
+                ) : (
+                  <EmptyState icon="search" title="未找到可信结果" copy="请调整疾病、药品或检查关键词后重试。" />
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
       {planFeature && suggestion.recommendedPlans.length > 0 && <section className="doctor-ai-assistant__plans">
         <header><strong>已有诊疗方案</strong><small>仅推荐院内已维护、当前医生可见的方案</small></header>
         {suggestion.recommendedPlans.map((plan) => <article key={plan.templateId}>
@@ -654,11 +782,40 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         <Button size="sm" variant="text" disabled={actionPending}
           onClick={() => void recordEvent(api, suggestion, 'FEEDBACK_NEGATIVE', 'RESULT')}>需改进</Button>
       </div>}
-    </> : !historicalView ? <EmptyState icon="clinical" title="尚未生成本次建议"
-      copy="助理会基于当前就诊和院内可用数据查漏补缺，结果由你决定是否带入草稿。" /> : null}
+    </> : !historicalView ? (
+      <>
+        <EmptyState icon="clinical" title="尚未生成本次建议"
+          copy="助理会基于当前就诊和院内可用数据查漏补缺，结果由你决定是否带入草稿。" />
+        {capability.features.includes('KNOWLEDGE_RETRIEVAL') && (
+          <section className="doctor-ai-assistant__context-knowledge">
+            <header><div><strong>循证知识检索</strong><small>仅展示带来源的院方知识服务结果</small></div></header>
+            <div className="doctor-ai-assistant__knowledge-search">
+              <input value={knowledgeQuery} maxLength={500} disabled={knowledgeSearch.isPending}
+                onChange={(event) => setKnowledgeQuery(event.target.value)} placeholder="疾病、药品或检查名称"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && knowledgeQuery.trim()) knowledgeSearch.mutate()
+                }} />
+              <Button size="sm" variant="secondary" busy={knowledgeSearch.isPending}
+                disabled={!knowledgeQuery.trim()} onClick={() => knowledgeSearch.mutate()}>
+                <Icon name="search" />检索
+              </Button>
+            </div>
+            {knowledgeSearch.data && <div className="doctor-ai-assistant__knowledge-results">
+              {knowledgeSearch.data.results.length > 0 ? knowledgeSearch.data.results.map((item) => <article key={item.id}>
+                <div className="doctor-ai-assistant__knowledge-title"><strong>{item.title}</strong>
+                  {item.score !== undefined && <StatusBadge tone="neutral">相关度 {Math.round(item.score * 100)}%</StatusBadge>}
+                </div>
+                {item.excerpt && <p>{item.excerpt}</p>}
+                <small>来源：{item.sourceName}{item.publishYear ? ` · ${item.publishYear}` : ''}
+                  {item.resourcePosition ? ` · ${item.resourcePosition}` : ''}</small>
+              </article>) : <EmptyState icon="search" title="未找到可信结果" copy="请调整疾病、药品或检查关键词后重试。" />}
+            </div>}
+          </section>
+        )}
+      </>
+    ) : null}
 
   </div>
-  if (!surfaces) return <>{assistantPanel}{planReview}</>
   const liveCurrent = Boolean(currentSuggestion && canApplyClinicalAiSuggestion(currentSuggestion, currentContext)
     && (inputKey === suggestionInputKey || continuation) && voiceTranscript.trim() === suggestionVoiceTranscript)
   const applyInline = (selection: InlineAiSelection) => {
@@ -681,51 +838,59 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         ...selection, overwriteRecord: !selection.incrementalRecord },
     })
   }
-  const reviewTreatments = (items: ClinicalAiTreatmentRecommendation[]) => {
+  const reviewTreatments = (items: ClinicalAiTreatmentRecommendation[], onSettled?: (keys: string[], error?: string) => void) => {
     const value = currentSuggestion
     if (!value || !onReviewTreatment || disabled || actionPending || !liveCurrent || items.length === 0) return
     onReviewTreatment(items, (acceptedKeys) => {
-      if (!acceptedKeys.length) return
+      if (!acceptedKeys.length) { onSettled?.([], '未新增医嘱，请核对是否已带入。'); return }
       setAcceptedTreatmentKeys((current) => [...new Set([...current, ...acceptedKeys])])
       treatmentContinuation.current = { id: value.id, fingerprint: clinicalContextWithoutOrdersFingerprint(latestContext.current),
         controls: controlsKey }
       void api.clinicalAi.recordEvent(value.id, eventInput(value, 'ADOPTED', 'TREATMENT',
         adoptionCommand(adoptionCommands.current, value.id, `TREATMENT:${acceptedKeys.sort().join('|')}`),
         JSON.stringify({ treatmentKeys: acceptedKeys }))).catch(() => undefined)
-    })
+      onSettled?.(acceptedKeys)
+    }, message => onSettled?.([], message))
   }
 
-  const handleApplyGapOrders = async (gapOrders: ClinicalAiGapOrder[]) => {
-    if (!onReviewTreatment || gapOrders.length === 0) return
-    const resolvedItems = await Promise.all(
-      gapOrders.map(async (gap): Promise<ClinicalAiTreatmentRecommendation | null> => {
-        try {
-          const matches = await api.masterData.searchServices(gap.name, gap.category, 'ACTIVE', encounter.organizationId, 0, 5)
-          const matchedItem = matches.content.find(
-            (m) => m.name.includes(gap.name) || gap.name.includes(m.name)
-          ) || matches.content[0]
-          if (matchedItem) {
-            return {
-              type: gap.category === 'LABORATORY' ? 'LABORATORY' : 'EXAMINATION',
-              catalogItemId: matchedItem.id,
-              code: matchedItem.code,
-              name: matchedItem.name,
-              rationale: gap.indication,
-            }
-          }
-        } catch {
-          return null
-        }
-        return null
-      })
-    )
-    const treatmentItems = resolvedItems.filter((item): item is ClinicalAiTreatmentRecommendation => item !== null)
-    const unmatched = gapOrders.filter((_, index) => resolvedItems[index] === null)
-    if (unmatched.length > 0) {
-      throw new Error(`以下建议尚未匹配院内检验检查目录：${unmatched.map((item) => item.name).join('、')}`)
+  const handleApplyGapOrders = async (items: ClinicalAiTreatmentRecommendation[]) => {
+    if (!onReviewTreatment || !currentSuggestion || disabled || actionPending || !liveCurrent || !items.length) {
+      throw new Error('当前建议已变化或不可编辑，请重新生成后核对。')
     }
-    reviewTreatments(treatmentItems)
+    await new Promise<void>((resolve, reject) => reviewTreatments(items, (keys, error) => {
+      if (error) reject(new Error(error))
+      else if (keys.length !== items.length) reject(new Error(`已带入 ${keys.length} 项，其余项目请在医嘱区核对。`))
+      else resolve()
+    }))
   }
+
+  const sharedDrawersAndModals = (
+    <>
+      {planReview}
+      <ClinicalEvidenceDrawer
+        isOpen={Boolean(evidenceDiagnosis)}
+        onClose={() => setEvidenceDiagnosis(null)}
+        encounterId={encounter.id}
+        targetDiagnosis={evidenceDiagnosis}
+        context={currentContext}
+        sourceSuggestion={currentSuggestion}
+        api={api}
+        onApplyGapOrders={handleApplyGapOrders}
+        onOpenWikiDoc={(target) => {
+          setEvidenceDiagnosis(null)
+          setMedicalInsertTarget(target)
+        }}
+      />
+      <MedicalInsertViewerModal
+        isOpen={Boolean(medicalInsertTarget)}
+        onClose={() => setMedicalInsertTarget(null)}
+        target={medicalInsertTarget}
+        api={api}
+      />
+    </>
+  )
+
+  if (!surfaces) return <>{assistantPanel}{sharedDrawersAndModals}</>
 
   return <>
     <ClinicalAiInlineWorkspace api={api} encounter={encounter} surfaces={surfaces}
@@ -767,26 +932,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       sceneAssessment={sceneAssessment}
       sceneLoading={reportsQuery.isPending || historyReportQueries.some((query) => query.isPending)} />
     {surfaces.detail && createPortal(assistantPanel, surfaces.detail)}
-    {planReview}
-    <ClinicalEvidenceDrawer
-      isOpen={Boolean(evidenceDiagnosis)}
-      onClose={() => setEvidenceDiagnosis(null)}
-      encounterId={encounter.id}
-      targetDiagnosis={evidenceDiagnosis}
-      context={currentContext}
-      api={api}
-      onApplyGapOrders={handleApplyGapOrders}
-      onOpenWikiDoc={(target) => {
-        setEvidenceDiagnosis(null)
-        setMedicalInsertTarget(target)
-      }}
-    />
-    <MedicalInsertViewerModal
-      isOpen={Boolean(medicalInsertTarget)}
-      onClose={() => setMedicalInsertTarget(null)}
-      target={medicalInsertTarget}
-      api={api}
-    />
+    {sharedDrawersAndModals}
   </>
 
 }
@@ -842,20 +988,107 @@ function formatSuggestionTime(value: string) {
   }).format(date)
 }
 
-function SuggestionResult({ suggestion, recordEntries, showMissing, showSafety, showDiagnoses }: {
+function SuggestionResult({ suggestion, recordEntries, showMissing, showSafety, showDiagnoses, onOpenInsert, onOpenEvidence }: {
   suggestion: ClinicalAiSuggestion
   recordEntries: Array<{ field: string; label: string; value: string }>
   showMissing: boolean
   showSafety: boolean
   showDiagnoses: boolean
+  onOpenInsert?: (target: MedicalInsertTarget) => void
+  onOpenEvidence?: (diag: { code: string; display: string }) => void
 }) {
+  const clinicalAlerts = suggestion.safetyAlerts.filter(item => !item.title.includes('目录决策回退'))
+
   return <div className="doctor-ai-assistant__result">
-    <section className="doctor-ai-assistant__summary"><span>就诊摘要</span><p>{suggestion.summary}</p></section>
-    {showSafety && suggestion.safetyAlerts.length > 0 && <section className="doctor-ai-assistant__alerts">
-      <header><strong>优先核对</strong></header>
-      {suggestion.safetyAlerts.map((item, index) => <article className={`is-${item.level.toLowerCase()}`}
-        key={`${item.title}-${index}`}><Icon name="warning" /><div><strong>{item.title}</strong><small>{item.detail}</small></div></article>)}
+    {showSafety && clinicalAlerts.length > 0 && <section className="doctor-ai-assistant__alerts">
+      <header>
+        <strong>优先核对</strong>
+        <small>{clinicalAlerts.length} 项需重点留意</small>
+      </header>
+      {clinicalAlerts.map((item, index) => {
+        const isCritical = item.level.toLowerCase() === 'critical' || item.title.includes('气道') || item.title.includes('过敏') || item.title.includes('风险')
+        const isVitalSign = item.title.includes('生命体征')
+        return (
+          <article
+            className={`doctor-ai-assistant__alert-card ${isCritical ? 'is-critical' : item.level.toLowerCase() === 'warning' ? 'is-warning' : 'is-info'}`}
+            key={`${item.title}-${index}`}
+          >
+            <Icon name={isCritical ? 'warning' : isVitalSign ? 'clinical' : 'info'} />
+            <div className="doctor-ai-assistant__alert-content">
+              <div className="doctor-ai-assistant__alert-title-row">
+                <strong>{item.title}</strong>
+                <span className="doctor-ai-assistant__alert-tag">
+                  {isCritical ? '安全红线' : isVitalSign ? '病历质控' : '临床核对'}
+                </span>
+              </div>
+              <small>{item.detail}</small>
+            </div>
+          </article>
+        )
+      })}
     </section>}
+    <section className="doctor-ai-assistant__summary"><span>就诊摘要</span><p>{suggestion.summary}</p></section>
+    {showDiagnoses && (suggestion.diagnosisCandidates.length > 0 || suggestion.differentialDiagnoses.length > 0)
+      && <section className="doctor-ai-assistant__diagnoses">
+        <header><strong>诊断辅助</strong><small>正式候选最多 3 项 · 附权威指南与证据链</small></header>
+        {suggestion.diagnosisCandidates.map((item) => <article key={`candidate-${item.code}`} className="doctor-ai-assistant__diagnosis-item">
+          <StatusBadge tone="success">候选</StatusBadge>
+          <div className="doctor-ai-assistant__diagnosis-body">
+            <div className="doctor-ai-assistant__diagnosis-head">
+              <strong>{item.display}</strong>
+              <div className="doctor-ai-assistant__diagnosis-actions">
+                {onOpenInsert && <IconButton icon="book-open" label="指南"
+                  title={`查阅《${item.display}》临床指南`}
+                  onClick={() => onOpenInsert({ name: item.display, type: 'guideline' })} />}
+                {onOpenEvidence && <Button size="sm" variant="text" className="doctor-order-insert-btn"
+                  title="查看循证推导检查点与证据链"
+                  onClick={() => onOpenEvidence({ code: item.code, display: item.display })}>
+                  <Icon name="info" />证据链
+                </Button>}
+              </div>
+            </div>
+            <small>{item.code} · 置信度 {Math.round(item.confidence * 100)}%{item.rationale ? ` · ${item.rationale}` : ''}</small>
+          </div>
+        </article>)}
+        {suggestion.differentialDiagnoses.map((item) => <article key={`differential-${item.code}`} className="doctor-ai-assistant__diagnosis-item is-differential">
+          <StatusBadge tone="warning">待鉴别</StatusBadge>
+          <div className="doctor-ai-assistant__diagnosis-body">
+            <div className="doctor-ai-assistant__diagnosis-head">
+              <strong>{item.display}</strong>
+              <div className="doctor-ai-assistant__diagnosis-actions">
+                {onOpenInsert && <IconButton icon="book-open" label="指南"
+                  title={`查阅《${item.display}》临床指南`}
+                  onClick={() => onOpenInsert({ name: item.display, type: 'guideline' })} />}
+              </div>
+            </div>
+            <small>{item.code}{item.rationale ? ` · ${item.rationale}` : ''}</small>
+          </div>
+        </article>)}
+      </section>}
+    {suggestion.treatmentRecommendations && suggestion.treatmentRecommendations.length > 0 && (
+      <section className="doctor-ai-assistant__treatments">
+        <header><strong>推荐医嘱与处方</strong><small>核对后可在主界面选用 · 附说明书</small></header>
+        <div className="doctor-ai-assistant__treatment-list">
+          {suggestion.treatmentRecommendations.map((item) => (
+            <article key={`${item.type}-${item.catalogItemId}`} className="doctor-ai-assistant__treatment-card">
+              <StatusBadge tone={item.type === 'MEDICATION' ? 'info' : 'neutral'}>
+                {item.type === 'MEDICATION' ? '药品' : item.type === 'LABORATORY' ? '检验' : '检查'}
+              </StatusBadge>
+              <div className="doctor-ai-assistant__treatment-info">
+                <strong>{item.name}</strong>
+                <small>{item.rationale || item.specification || ''}</small>
+              </div>
+              {item.type === 'MEDICATION' && onOpenInsert && (
+                <IconButton icon="file-text" label="说明书"
+                  onClick={() => onOpenInsert({ name: item.name, id: item.medicationId, type: 'medication' })}
+                  title={`查阅《${item.name}》说明书`}
+                />
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+    )}
     {showMissing && suggestion.missingInformation.length > 0 && <section className="doctor-ai-assistant__missing">
       <header><strong>建议补问 / 补录</strong></header><ul>{suggestion.missingInformation.map((item) => <li key={item}>{item}</li>)}</ul>
     </section>}
@@ -863,15 +1096,6 @@ function SuggestionResult({ suggestion, recordEntries, showMissing, showSafety, 
       <header><strong>病历草稿建议</strong><small>默认只补充当前空白内容</small></header>
       {recordEntries.map((item) => <article key={item.field}><span>{item.label}</span><p>{item.value}</p></article>)}
     </section>}
-    {showDiagnoses && (suggestion.diagnosisCandidates.length > 0 || suggestion.differentialDiagnoses.length > 0)
-      && <section className="doctor-ai-assistant__diagnoses"><header><strong>诊断辅助</strong><small>正式候选最多 3 项</small></header>
-        {suggestion.diagnosisCandidates.map((item) => <article key={`candidate-${item.code}`}>
-          <StatusBadge tone="success">候选</StatusBadge><div><strong>{item.display}</strong>
-            <small>{item.code} · 置信度 {Math.round(item.confidence * 100)}%{item.rationale ? ` · ${item.rationale}` : ''}</small></div></article>)}
-        {suggestion.differentialDiagnoses.map((item) => <article key={`differential-${item.code}`}>
-          <StatusBadge tone="warning">待鉴别</StatusBadge><div><strong>{item.display}</strong>
-            <small>{item.code}{item.rationale ? ` · ${item.rationale}` : ''}</small></div></article>)}
-      </section>}
   </div>
 }
 

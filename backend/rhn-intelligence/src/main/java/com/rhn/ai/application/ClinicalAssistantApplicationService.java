@@ -1,6 +1,9 @@
 package com.rhn.ai.application;
 
 import com.rhn.ai.api.ClinicalAssistantContracts.Capabilities;
+import com.rhn.ai.api.ClinicalAssistantContracts.TreatmentMatch;
+import com.rhn.ai.api.ClinicalAssistantContracts.TreatmentMatchRequest;
+import com.rhn.ai.api.ClinicalAssistantContracts.TreatmentRecommendation;
 import com.rhn.ai.api.ClinicalAssistantContracts.DiagnosisCandidate;
 import com.rhn.ai.api.ClinicalAssistantContracts.DiagnosisInput;
 import com.rhn.ai.api.ClinicalAssistantContracts.Draft;
@@ -216,6 +219,16 @@ public class ClinicalAssistantApplicationService {
                         clipped(value.resourcePosition(), 500)))
                 .toList();
         return new KnowledgeSearch(query, runtime.provider(), results, Instant.now());
+    }
+
+    public List<TreatmentMatch> resolveTreatments(Long encounterId, TreatmentMatchRequest input) {
+        Access access = requireAccess(encounterId, true);
+        if (!java.util.Objects.equals(access.context().organizationId(), access.encounter().organizationId())) {
+            throw new BusinessException("AI_CATALOG_CONTEXT_MISMATCH", "请切换到本次就诊机构后核对医嘱。", HttpStatus.CONFLICT);
+        }
+        var intents = input.intents().stream().map(item -> new TreatmentRecommendation(item.type(), null, null,
+                null, item.name(), item.specification(), item.rationale())).toList();
+        return treatmentService.resolve(intents, LocalDate.now(ClinicalAiModelGateway.TemporalContext.ZONE));
     }
 
     public ClinicalKnowledgeGateway.EvidenceChainResult getEvidenceChain(Long encounterId, EvidenceChainQuery input) {
@@ -616,7 +629,7 @@ public class ClinicalAssistantApplicationService {
             completeAlerts.addAll(treatment.alerts());
             alerts = distinctAlerts(completeAlerts, 20);
             content = new SuggestionContent(summary, recordDraft, candidates, differentials, missing,
-                    alerts, plans, MODEL_DISCLAIMER, treatment.items());
+                    alerts, plans, MODEL_DISCLAIMER, treatment.items(), treatment.matches());
         }
         if (onStage != null) onStage.accept(new GenerationStage("TREATMENTS", input.clientContextFingerprint().trim(), content));
         String risk = alerts.stream().anyMatch(value -> "CRITICAL".equals(value.level())) ? "CRITICAL"
@@ -1203,7 +1216,7 @@ public class ClinicalAssistantApplicationService {
         return new Suggestion(value.id(), parentSuggestionId, status, value.contextHash(), value.clientContextFingerprint(),
                 value.providerCode(), value.modelCode(), value.promptVersion(), value.generatedAt(), value.expiresAt(), content.summary(),
                 content.recordDraft(), content.diagnosisCandidates(), content.differentialDiagnoses(),
-                content.missingInformation(), content.safetyAlerts(), content.recommendedPlans(), content.disclaimer(), content.treatmentRecommendations());
+                content.missingInformation(), content.safetyAlerts(), content.recommendedPlans(), content.disclaimer(), content.treatmentRecommendations(), content.treatmentMatches());
     }
 
     private SuggestionContent readContent(AiSuggestion value) {

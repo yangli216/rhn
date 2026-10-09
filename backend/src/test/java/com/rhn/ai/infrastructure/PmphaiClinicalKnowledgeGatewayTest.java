@@ -14,6 +14,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -182,6 +183,78 @@ class PmphaiClinicalKnowledgeGatewayTest {
 
         var notFound = gateway.lookupWikiDoc("不存在的药物", "drug", settings(null));
         org.junit.jupiter.api.Assertions.assertNull(notFound);
+    }
+
+    @Test
+    void evaluatesPreflightSafetyThroughGatewayEndpoint() throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/gateway/api/cdss/preflight-safety", exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] response = """
+                    {
+                      "success": true,
+                      "canPrescribe": false,
+                      "level": "BLOCK",
+                      "summary": "【处方强行阻断】处方触发了最高级别绝对禁忌！",
+                      "blockingCount": 1,
+                      "warningCount": 0,
+                      "evaluationBoundaries": {
+                        "interactions": {
+                          "status": "EVALUATED",
+                          "evaluationCode": "PASS",
+                          "message": "已依据指南完成配伍相互作用审查。",
+                          "alerts": []
+                        },
+                        "contraindications": {
+                          "status": "EVALUATED",
+                          "evaluationCode": "BLOCKED",
+                          "message": "已依据法定说明书完成禁忌核查。",
+                          "alerts": [
+                            {
+                              "ruleId": "RULE-SAFETY-METFORMIN-RENAL",
+                              "severity": "RED",
+                              "title": "重度肾功能不全禁用二甲双胍",
+                              "message": "eGFR < 30 ml/min，绝对禁用！",
+                              "guideline": "临床诊疗指南"
+                            }
+                          ]
+                        },
+                        "dosageLimits": {
+                          "status": "EVALUATED",
+                          "evaluationCode": "PASS",
+                          "message": "剂量审查通过。",
+                          "alerts": []
+                        }
+                      },
+                      "preflightChecks": [],
+                      "allAlerts": []
+                    }
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+
+        var gateway = new PmphaiClinicalKnowledgeGateway(settings("test-key"), jsonCodec);
+        var req = new com.rhn.ai.application.ClinicalKnowledgeGateway.PreflightSafetyRequest(
+                List.of(new com.rhn.ai.application.ClinicalKnowledgeGateway.PreflightSafetyRequest.MedicationItem(
+                        "盐酸二甲双胍片", "C10BA02", Map.of("doseValue", 500, "frequencyCode", "TID")
+                )),
+                Map.of("age", 65, "egfr", 25)
+        );
+        var result = gateway.evaluatePreflightSafety(req, settings("test-key"));
+
+        assertTrue(result.success());
+        assertFalse(result.canPrescribe());
+        assertEquals("BLOCK", result.level());
+        assertEquals(1, result.blockingCount());
+        assertEquals("EVALUATED", result.evaluationBoundaries().contraindications().status());
+        assertEquals("BLOCKED", result.evaluationBoundaries().contraindications().evaluationCode());
+        assertEquals("重度肾功能不全禁用二甲双胍", result.evaluationBoundaries().contraindications().alerts().getFirst().title());
+        assertTrue(requestBody.get().contains("盐酸二甲双胍片"));
     }
 
     private ClinicalAssistantSettings settings(String knowledgeApiKey) {

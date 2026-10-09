@@ -1,13 +1,14 @@
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
 import { ClinicalAiTreatmentRows } from './ClinicalAiTreatmentRows'
+import { ClinicalAiCatalogReview } from './ClinicalAiCatalogReview'
 import { MedicalInsertViewerModal } from './MedicalInsertViewerModal'
 import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { ClinicalAiCapabilities, ClinicalAiDraftContext, ClinicalAiRecordDraft,
   ClinicalAiSuggestion, ClinicalAiRecommendedPlan, ClinicalAiTreatmentRecommendation } from '../../../shared/api/clinicalAiApi'
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
-import { Button, Icon } from '../../../shared/ui'
+import { IconButton, Button, Icon } from '../../../shared/ui'
 import type { ClinicalAiPreview } from '../../../shared/api/clinicalAiStream'
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
 
@@ -72,6 +73,8 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
 }) {
   const session = `${context.encounterId}:${generating ? 'generating' : suggestion?.id ?? ''}`
   const [viewingGuideline, setViewingGuideline] = useState<string | null>(null)
+  const [catalogSelection, setCatalogSelection] = useState<{ session: string; keys: string[]; items: ClinicalAiTreatmentRecommendation[] }>({ session: '', keys: [], items: [] })
+  const resolvedCatalog = catalogSelection.session === session ? catalogSelection : { keys: [] as string[], items: [] as ClinicalAiTreatmentRecommendation[] }
   const [diagnosisSelection, setDiagnosisSelection] = useState<{ session: string; excluded: string[] }>({ session: '', excluded: [] })
   const excludedDiagnoses = diagnosisSelection.session === session ? diagnosisSelection.excluded : []
   const alreadyEntered = (code: string) => context.diagnoses.some(diagnosis =>
@@ -84,9 +87,12 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   const selectedDiagnoses = diagnoses.filter((item) => !excludedDiagnoses.includes(item.code))
   const diagnosisFeature = capability.features.includes('TERMINOLOGY_VALIDATION')
   const planFeature = capability.features.includes('PLAN_RECOMMENDATIONS')
+  const treatmentItems = [...(generating ? preview.treatmentRecommendations ?? [] : suggestion?.treatmentRecommendations ?? []), ...resolvedCatalog.items]
   const availableTreatmentItems = planFeature
-    ? (generating ? preview.treatmentRecommendations ?? [] : suggestion?.treatmentRecommendations ?? [])
+    ? [...new Map(treatmentItems.map(item => [treatmentKey(item), item])).values()]
       .filter((item) => !existingTreatmentKeys.includes(treatmentKey(item))) : []
+  const pendingMatches = planFeature && !generating ? (suggestion?.treatmentMatches ?? [])
+    .filter(match => !resolvedCatalog.keys.includes(match.key)) : []
   const portal = (node: ReactNode, target: HTMLDivElement | null, key: string) => target ? createPortal(node, target, key) : null
 
   return <>
@@ -140,19 +146,13 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
             <span className="doctor-diag-col-main"><span className="doctor-diag-name-wrap">
               <strong className="doctor-diag-name">{item.display}</strong>
               <span className="doctor-diag-code-pill">{item.code}</span>
-              <Button
-                type="button"
-                size="sm"
-                variant="text"
-                className="doctor-order-insert-btn"
+              <IconButton icon="book-open" label="指南"
                 title={`在临床知识库中查阅《${item.display}》相关指南`}
                 onClick={(e) => {
                   e.stopPropagation()
                   setViewingGuideline(item.display)
                 }}
-              >
-                <Icon name="clinical" />指南
-              </Button>
+              />
             </span></span>
             <span className="doctor-diag-col-domain"><span className="doctor-diag-badge is-secondary">待医生确认</span></span>
             <span className="doctor-diag-col-management">—</span>
@@ -171,7 +171,12 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
       </div>, surfaces.diagnoses, 'diagnoses')}
 
     {(suggestion || generating) && planFeature && portal(
-      <div hidden={!(current || generating) || !availableTreatmentItems.length}><ClinicalAiTreatmentRows key={context.encounterId} items={availableTreatmentItems}
+      <div hidden={!(current || generating) || (!availableTreatmentItems.length && !pendingMatches.length)}>
+        <ClinicalAiCatalogReview key={`catalog:${session}`} matches={pendingMatches} api={api} encounterId={encounter.id}
+          disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment}
+          onResolved={(keys, items) => setCatalogSelection({ session, keys: [...resolvedCatalog.keys, ...keys],
+            items: [...new Map([...resolvedCatalog.items, ...items].map(item => [treatmentKey(item), item])).values()] })} />
+        <ClinicalAiTreatmentRows key={context.encounterId} items={availableTreatmentItems}
         api={api} encounter={encounter} disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment}
         onReview={(items) => onReviewTreatment?.(items)} /></div>, surfaces.plans, 'treatments')}
 

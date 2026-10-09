@@ -19,7 +19,7 @@ export const createRecordSchema = (bloodPressureRequired: boolean) => z.object({
   presentIllness: z.string().trim().max(4000),
   medicalHistory: z.string().trim().max(4000),
   physicalExam: z.string().trim().max(4000),
-  treatmentPlan: z.string().trim().max(4000),
+  treatmentPlan: z.string().trim().max(4000).optional(),
   allergyHistory: z.string().trim().max(4000).optional(),
   medicationHistory: z.string().trim().max(4000).optional(),
   auxiliaryExaminations: z.string().trim().max(4000).optional(),

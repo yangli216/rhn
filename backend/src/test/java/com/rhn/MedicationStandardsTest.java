@@ -183,6 +183,38 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STANDARD_MEDICATION_REUSE_REQUIRED"));
     }
 
+    @Test void disabled_center_record_can_be_saved_without_inventing_a_standard_or_product() throws Exception {
+        var created = json(mockMvc.perform(post(BASE+"/medications").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                  {"code":"CENTER-PENDING-SPEC","name":"复方硼砂含漱液","sdMedicationType":"WESTERN","sdStatus":"INACTIVE"}
+                  """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.sdStatus").value("INACTIVE"))
+                .andExpect(jsonPath("$.preparationSpec").isEmpty())
+                .andExpect(jsonPath("$.products").isEmpty())
+                .andExpect(jsonPath("$.standardReference.status").value("UNMAPPED"))
+                .andReturn().getResponse().getContentAsString());
+        String id = created.path("id").asString();
+        assertThat(jdbc.queryForObject("select count(*) from RHN_BD_MED_STD_SOURCE where ID_MED=?", Integer.class, Long.valueOf(id))).isZero();
+        mockMvc.perform(get(BASE+"/medications").with(rhnWorkContext()).param("query", "CENTER-PENDING-SPEC"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(id));
+        var manufacturer = json(mockMvc.perform(get(BASE+"/manufacturers").with(rhnWorkContext()))
+                .andReturn().getResponse().getContentAsString()).get(0).path("id").asString();
+        mockMvc.perform(post(BASE+"/medication-products").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                  {"medicationId":"%s","manufacturerId":"%s","code":"DRAFT-PRODUCT","sdStatus":"ACTIVE","validFrom":"2020-01-01",
+                   "orderable":true,"chargeable":true,"stocked":false}
+                  """.formatted(id, manufacturer)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEDICATION_PRODUCT_STANDARD_REQUIRED"));
+    }
+
+    @Test void disabled_record_with_a_declared_standard_still_rejects_identity_drift() throws Exception {
+        var body = input(); body.put("sdStatus", "INACTIVE"); body.put("preparationSpec", "0.5g");
+        mockMvc.perform(post(BASE+"/medications").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body.toString()))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("MEDICATION_STANDARD_IDENTITY_MISMATCH"));
+    }
+
     @Test void legacy_drift_is_not_treated_as_a_valid_standard_reference() throws Exception {
         var linked = linkStandardMedication(SPEC, "MED-2026-W006-04");
         jdbc.update("update RHN_BD_MED set PREP_SPEC=? where ID_MED=?", "0.5g", linked.path("id").asLong());

@@ -679,6 +679,25 @@ input[type="checkbox"]:disabled {
 .ui-select__trigger.is-placeholder { color: var(--color-text-secondary); }
 .ui-select__value { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ui-select__count { min-width: 1.5rem; height: 1.5rem; padding: 0 var(--space-1); display: inline-grid; place-items: center; border-radius: var(--radius-round); color: var(--color-brand-primary); background: var(--color-brand-soft); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.ui-select--sm .ui-select__trigger,
+.ui-select__trigger.ui-select--sm {
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-small);
+  border-radius: var(--radius-sm);
+  gap: var(--space-1);
+}
+.ui-select--sm .ui-select__trigger .ui-icon,
+.ui-select__trigger.ui-select--sm .ui-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+.ui-select--sm .ui-select__trigger-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-right: var(--space-1);
+}
 .ui-select__popover {
   position: fixed;
   z-index: var(--z-modal-popover);
@@ -1579,11 +1598,19 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 .ui-context-bar__identity h1 { margin: 0 0 var(--space-1); font-size: var(--font-size-h2); line-height: 1.2; }
 .ui-context-bar__identity .ui-eyebrow + h1 { margin-top: var(--space-1); }
 .ui-context-bar__identity p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.ui-context-bar__identity-head { display: flex; align-items: center; gap: var(--space-2); }
+.ui-context-bar__identity-head h1 { min-width: 0; }
+.ui-context-bar__identity-head > .ui-badge { flex: none; }
+.ui-context-bar__support { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .ui-context-bar__facts { display: flex; align-items: stretch; }
 .ui-context-bar__fact { min-width: 9.375rem; padding-left: var(--space-5); border-left: 1px solid var(--color-border); }
 .ui-context-bar__fact dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .ui-context-bar__fact dd { margin: var(--space-1) 0 0; font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
 .ui-context-bar__actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
+
+.ui-action-menu { position: relative; flex: none; }
+.ui-action-menu__items { position: absolute; top: calc(100% + var(--space-1)); inset-inline-end: 0; z-index: var(--z-popover); min-width: max-content; padding: var(--space-1); display: grid; gap: var(--space-1); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-panel); }
+.ui-action-menu__items > .ui-button { justify-content: flex-start; }
 
 .ui-back-link { min-height: var(--target-size-min); margin: 0 0 var(--space-3); padding: 0; display: inline-flex; align-items: center; gap: var(--space-2); border: 0; color: var(--color-text-secondary); background: transparent; font-size: var(--font-size-small); cursor: pointer; }
 .ui-back-link:hover { color: var(--color-brand-primary); }

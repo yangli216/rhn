@@ -74,8 +74,8 @@ export function OrderDocumentReviewCard({
 }) {
   const isPrescription = ['western', 'patent', 'herbal'].includes(kind)
   const isService = !isPrescription
-  const requiresExaminationPurpose = kind === 'lab' || kind === 'exam'
-  const missing = checkDocumentInfoMissing(info, requiresExaminationPurpose ? 'service' : 'prescription')
+  const showExaminationPurpose = kind === 'lab' || kind === 'exam'
+  const missing = checkDocumentInfoMissing(info, isService ? 'service' : 'prescription')
   const baseId = useId()
   const inList = useContext(ReviewListContext)
   const [expanded, setExpanded] = useState(false)
@@ -161,9 +161,9 @@ export function OrderDocumentReviewCard({
           <label className="doctor-review-external"><input type="checkbox" checked={Boolean(info.externalPrescription)}
             onChange={event => onChangeInfo({ ...info, externalPrescription: event.target.checked })} />外配处方</label>
         </>}
-        {requiresExaminationPurpose && <FormField label="检查目的" required>
-          <input aria-label="检查目的" aria-required="true" value={info.examinationPurpose || ''} maxLength={500}
-            placeholder="填写检查目的" onChange={event => onChangeInfo({ ...info, examinationPurpose: event.target.value })} />
+        {showExaminationPurpose && <FormField label="检查目的">
+          <input aria-label="检查目的" value={info.examinationPurpose || ''} maxLength={500}
+            placeholder="选填" onChange={event => onChangeInfo({ ...info, examinationPurpose: event.target.value })} />
         </FormField>}
       </div>
     </td></tr>}

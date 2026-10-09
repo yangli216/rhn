@@ -14,9 +14,10 @@ import { OrderDocumentGroupHeader } from './OrderDocumentGroupHeader'
 import { MedicationReadRow, ServiceReadRow } from './OrderReadRows'
 import type { SavedOrderEntry, DraftOrderEntry } from './orderEntries'
 import type { GroupingComposerTarget } from './orderListTypes'
+import { useSavedOrderDepartmentNames } from './useOrderExecutionDepartments'
 
 export function SavedOrderList({ savedEntries, draftEntries, allDocuments, prescriptions,
-  documentRows, activeDocKey, handleSelectDoc: _handleSelectDoc, onSavedDocument: _onSavedDocument, encounter: _encounter, api: _api, readOnly, busy,
+  documentRows, activeDocKey, handleSelectDoc: _handleSelectDoc, onSavedDocument: _onSavedDocument, encounter: _encounter, api, readOnly, busy,
   documentEditing, currentDept, onCancelService, onPrintService, onCancelMedication, onPrint, onInspectMedication,
   skinTestByRequest, groupingComposerTarget, groupingSession, isComposerActive, composer }: {
   savedEntries: SavedOrderEntry[]
@@ -44,6 +45,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
   isComposerActive: boolean
   composer: ReactNode
 }) {
+  const departmentName = useSavedOrderDepartmentNames(api, savedEntries.flatMap(entry => entry.kind === 'service' ? [entry.value] : []))
   return <>{savedEntries.map((entry, index) => {
         const getEntryDocKey = (e: typeof entry) =>
           e.kind === 'service' ? `service:${e.value.id}` : `prescription:${(e.value as MedicationRequest).prescriptionId || e.value.id}`
@@ -77,7 +79,8 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   kind={groupKind}
                   itemCount={docItems.length}
                   itemUnit="项"
-                  dept={resolveExecutingDepartment({ kind: 'service', performerDepartmentId: svc.performerDepartmentId })}
+                  dept={resolveExecutingDepartment({ kind: 'service', performerDepartmentId: svc.performerDepartmentId,
+                    performerDepartmentName: departmentName(svc) })}
                   subtotal={subtotal}
                   missingFields={missingFields}
                   isSelected={activeDocKey === entryDocKey || Boolean(documentRows[svc.id]?.selected)}
@@ -165,6 +168,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
         let rowNode: React.ReactNode
         if (entry.kind === 'service') {
           rowNode = <ServiceReadRow key={`service-${entry.value.id}`} value={entry.value}
+            performerDepartmentName={departmentName(entry.value)}
             busy={busy || Boolean(documentEditing && documentRows[entry.value.id]?.selected)} readOnly={readOnly} currentDept={currentDept}
             documentLink={documentRows[entry.value.id]} onCancel={() => onCancelService(entry.value)} />
         } else {

@@ -26,6 +26,8 @@ import static com.rhn.ai.application.ClinicalAiModelException.Reason;
 
 @Component
 final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGateway {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleClinicalAiModelGateway.class);
+    private com.rhn.shared.context.ExecutionContextProvider contextProvider;
     // Transport budgets only: domain history retains every active order/diagnosis.
     private static final int HISTORY_DIAGNOSIS_CONTEXT_LIMIT = 20;
     private static final int HISTORY_MEDICATION_CONTEXT_LIMIT = 50;
@@ -118,6 +120,8 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             有效临床要点需生成初步诊断方向，即使无法确定病因也可给症状诊断，不能因用户仅要求病历而省略。
             同时必须在 treatmentRecommendations 提出有临床依据的药品、检验、检查搜索意图，
             type 仅 MEDICATION、LABORATORY、EXAMINATION，最多12项。使用通用药名或具体检验检查名称，组合项目拆分。
+            血常规、CRP、咽拭子培养等实验室化验必须使用 LABORATORY，不得标为 MEDICATION 或 EXAMINATION；影像及功能检查使用 EXAMINATION。
+            推荐仅基于本次已知临床资料，不为凑齐药品或检验而推荐；普通CRP与超敏CRP不可混用。未明确药品规格时不猜测规格，院内产品由后续匹配与医生确认。
             RECORD_DIAGNOSIS 阶段每项只输出 type、name；MEDICATION 可额外输出待匹配的 specification，检验检查不输出 specification。
             不需要某类治疗时可以不推荐，不得为了完整而盲目使用抗菌药。搜索意图不是处方，catalogItemId 等标识留空，不输出 rationale。
             generationStage=CATALOG_TREATMENT 时依据 priorSuggestion 中已映射的诊断和病历，从 availableTreatments 精确选择，
@@ -197,9 +201,11 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
 
     @Autowired
     OpenAiCompatibleClinicalAiModelGateway(ClinicalAssistantSettings settings, JsonCodec jsonCodec,
-                                            ClinicalAiMetrics metrics, ClinicalAiCircuitBreaker circuitBreaker) {
+                                            ClinicalAiMetrics metrics, ClinicalAiCircuitBreaker circuitBreaker,
+                                            com.rhn.shared.context.ExecutionContextProvider contextProvider) {
         this(settings, jsonCodec, HttpClient.newBuilder().connectTimeout(settings.connectTimeout()).build(),
                 metrics, circuitBreaker);
+        this.contextProvider = contextProvider;
     }
 
     OpenAiCompatibleClinicalAiModelGateway(ClinicalAssistantSettings settings, JsonCodec jsonCodec) {
@@ -233,7 +239,8 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             throw new ClinicalAiModelException(Reason.CONFIGURATION, null, "模型服务配置不完整", null);
         }
         HttpRequest.Builder builder = requestBuilder(request, active, false);
-        String requestKind = "PLAN_MATCH".equals(request.generationStage()) ? "PLAN_MATCH" : "SUGGESTION";
+        String requestKind = "PLAN_MATCH".equals(request.generationStage()) ? "PLAN_MATCH"
+                : "CATALOG_TREATMENT".equals(request.generationStage()) ? "CATALOG_TREATMENT" : "SUGGESTION";
         return structuredResponse(builder, active, request.promptVersion(), requestKind, SuggestionContent.class);
     }
 
@@ -265,6 +272,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
     private <T> T structuredResponse(HttpRequest.Builder builder, ClinicalAssistantSettings active,
                                      String promptVersion, String requestKind, Class<T> responseType) {
         long started = System.nanoTime();
+        var timing = new ModelTiming(started, correlationId());
         try {
             beforeRequest(active);
             HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
@@ -275,10 +283,14 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                 throw new ClinicalAiModelException(reason, status, "模型服务返回非成功状态：" + status, null);
             }
             recordUsage(response.body(), active);
-            T content = jsonCodec.read(extractContent(response.body()), responseType);
+            timing.usage(jsonCodec.readTree(response.body()));
+            String text = extractContent(response.body());
+            timing.outputChars = text.length();
+            T content = jsonCodec.read(text, responseType);
             if (content == null) throw new ClinicalAiModelException(Reason.INVALID_RESPONSE, null,
                     "模型服务返回空结果", null);
             recordRequest(active, promptVersion, requestKind, "SUCCESS", started);
+            timing.outcome = "SUCCESS";
             return content;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -297,6 +309,8 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             }
             recordRequest(active, promptVersion, requestKind, Reason.INVALID_RESPONSE.name(), started);
             throw new ClinicalAiModelException(Reason.INVALID_RESPONSE, null, "模型结构化结果解析失败", exception);
+        } finally {
+            timing.write(active, requestKind, false);
         }
     }
 
@@ -560,6 +574,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
         java.util.concurrent.atomic.AtomicBoolean firstVisible = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicReference<java.util.concurrent.ScheduledFuture<?>> firstVisibleDeadline =
                 new java.util.concurrent.atomic.AtomicReference<>();
+        var timing = new ModelTiming(started, correlationId());
         try (var input = response.body()) {
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 int status = response.statusCode();
@@ -599,6 +614,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                     JsonNode chunk = jsonCodec.readTree(data);
                     if (chunk.has("error")) throw new IllegalArgumentException("模型流式服务返回错误");
                     recordUsage(data, active);
+                    timing.usage(chunk);
                     JsonNode choice = chunk.path("choices").path(0);
                     JsonNode deltaNode = choice.path("delta");
                     String delta = deltaNode.path("content").asString("");
@@ -608,6 +624,8 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                         if (firstDeadline != null) firstDeadline.cancel(false);
                     }
                     if (!delta.isEmpty()) {
+                        if (timing.firstContentMs < 0) timing.firstContentMs = (System.nanoTime() - started) / 1_000_000;
+                        timing.outputChars += delta.length();
                         content.append(delta);
                         if (content.length() > 262144) throw new IllegalArgumentException("模型流式结果过大");
                         recordFirstVisible(active, promptVersion, requestKind, started, firstVisible);
@@ -625,7 +643,47 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             if (!done || !"stop".equals(finishReason)) throw new IllegalArgumentException("模型流式结果未完整结束");
             T result = decoder.apply(content.toString());
             recordRequest(active, promptVersion, requestKind, "SUCCESS", started);
+            timing.outcome = "SUCCESS";
             return result;
+        } finally {
+            timing.write(active, requestKind, true);
+        }
+    }
+
+    private String correlationId() {
+        if (contextProvider == null) return "UNAVAILABLE";
+        try { return contextProvider.requireCurrent().correlationId(); }
+        catch (RuntimeException ignored) { return "UNAVAILABLE"; }
+    }
+
+    /** Numeric metadata only; never logs prompts, patient text, endpoints or provider credentials. */
+    private static final class ModelTiming {
+        final long started;
+        final String correlationId;
+        long promptTokens = -1, completionTokens = -1, totalTokens = -1, reasoningTokens = -1;
+        long firstContentMs = -1, outputChars;
+        String outcome = "FAILED";
+        ModelTiming(long started, String correlationId) { this.started = started; this.correlationId = correlationId; }
+        void usage(JsonNode chunk) {
+            JsonNode usage = chunk.path("usage");
+            // Providers may omit usage or repeat cumulative values; retain the last reported count, never sum frames.
+            promptTokens = count(usage.path("prompt_tokens"), promptTokens);
+            completionTokens = count(usage.path("completion_tokens"), completionTokens);
+            totalTokens = count(usage.path("total_tokens"), totalTokens);
+            reasoningTokens = count(usage.path("completion_tokens_details").path("reasoning_tokens"), reasoningTokens);
+        }
+        private long count(JsonNode value, long previous) {
+            return value.isIntegralNumber() && value.canConvertToLong() && value.asLong() >= 0 ? value.asLong() : previous;
+        }
+        void write(ClinicalAssistantSettings active, String requestKind, boolean streaming) {
+            long totalMs = (System.nanoTime() - started) / 1_000_000;
+            double tokensPerSecond = completionTokens < 0 || totalMs <= 0 ? -1 : completionTokens * 1000.0 / totalMs;
+            log.info("clinical_ai_model_timing correlationId={} requestKind={} model={} streaming={} outcome={} "
+                            + "promptTokens={} completionTokens={} totalTokens={} reasoningTokens={} usageReported={} "
+                            + "firstContentMs={} outputChars={} totalMs={} completionTokensPerSecond={}",
+                    correlationId, requestKind, active.model(), streaming, outcome, promptTokens, completionTokens,
+                    totalTokens, reasoningTokens, promptTokens >= 0 || completionTokens >= 0, firstContentMs,
+                    outputChars, totalMs, Math.round(tokensPerSecond * 100.0) / 100.0);
         }
     }
 

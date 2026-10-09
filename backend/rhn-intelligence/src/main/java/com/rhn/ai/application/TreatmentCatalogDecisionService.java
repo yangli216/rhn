@@ -37,13 +37,21 @@ public class TreatmentCatalogDecisionService {
     }
 
     public Attempt match(List<Group> groups, ExecutionContext context, DecisionScene scene) {
+        long started = System.nanoTime();
+        String outcome = "UNEXPECTED_ERROR";
+        String exceptionType = "NONE";
         try {
-            if (!enabled(scene, context)) return empty();
+            if ("DISABLED".equalsIgnoreCase(policy.text(context.tenantId(), "decision-mode", "DISABLED"))) {
+                outcome = "MODE_DISABLED"; return empty();
+            }
+            if (!policy.booleanValue(context.tenantId(), scene.settingKey(), scene.defaultEnabled())) {
+                outcome = "SCENE_DISABLED"; return empty();
+            }
             var settings = DecisionModelSettings.current(policy, context.tenantId());
-            if (settings.mode() == DecisionModelSettings.Mode.DISABLED) return empty();
-            if (!settings.ready()) return fallback("决策模型配置未完整，已使用原有匹配流程。");
+            if (settings.mode() == DecisionModelSettings.Mode.DISABLED) { outcome = "MODE_DISABLED"; return empty(); }
+            if (!settings.ready()) { outcome = "CONFIGURATION_INCOMPLETE"; return fallback("决策模型配置未完整，已使用原有匹配流程。"); }
             if (groups.isEmpty() || groups.stream().flatMap(group -> group.candidates().stream()).map(TreatmentCatalogDecisionService::key)
-                    .distinct().count() > 64) return fallback("候选范围超出试用上限，已使用原有匹配流程。");
+                    .distinct().count() > 64) { outcome = "CANDIDATE_SCOPE_INVALID"; return fallback("候选范围超出试用上限，已使用原有匹配流程。"); }
             var states = new LinkedHashMap<String, Object>();
             var questions = new ArrayList<DecisionModelGateway.ChoiceQuestion>();
             var byQuestion = new LinkedHashMap<String, Map<String, TreatmentRecommendation>>();
@@ -81,6 +89,7 @@ public class TreatmentCatalogDecisionService {
             }
             boolean shadow = settings.mode() == DecisionModelSettings.Mode.SHADOW;
             boolean applied = !shadow && confident;
+            outcome = shadow ? "SHADOW" : applied ? "APPLIED" : "UNCONFIRMED_MATCH";
             // Catalog ids and probability distributions only; no patient state, secrets or provider response body.
             log.info("catalog_decision tenant={} trace={} version={} scene={} inputHash={} model={} mode={} applied={} latencyMs={} answers={}",
                     context.tenantId(), result.traceId(), VERSION, scene.name(), inputHash(request), result.model(), settings.mode(), applied,
@@ -96,7 +105,12 @@ public class TreatmentCatalogDecisionService {
                     message + " 模型：" + result.model() + "，耗时：" + result.latencyMs() + "ms，追踪：" + result.traceId()
                             + "。匹配结果仍需核对，不代表临床适宜性。")), result, shadow);
         } catch (RuntimeException e) {
+            outcome = "DECISION_FAILED";
+            exceptionType = e.getClass().getSimpleName();
             return fallback("决策模型未完成或返回不可用，已回退原有匹配流程。");
+        } finally {
+            log.info("clinical_ai_decision_timing correlationId={} scene={} outcome={} groupCount={} totalMs={} exceptionType={}",
+                    context.correlationId(), scene, outcome, groups.size(), (System.nanoTime() - started) / 1_000_000, exceptionType);
         }
     }
 

@@ -19,6 +19,18 @@ const dept = { ...org, id: 'dept', parentId: 'org', sdOrgKind: 'ORG_UNIT', sdOrg
 const detail = { practitioner: person, employments: [employment], assignments: [assignment] }
 
 describe('organization personnel authoritative reads', () => {
+  it('accepts explicitly unfilled legacy gender without inventing UNKNOWN', () => {
+    const legacyPerson = { ...person, sdPractGender: null, sdPractGenderText: null }
+    const legacyAssignment = { ...assignment, sdPractGender: null }
+    expect(requirePractitioners([legacyPerson])[0].sdPractGender).toBeNull()
+    expect(requirePersonnelAssignments([legacyAssignment])[0].sdPractGender).toBeNull()
+    expect(requirePractitionerDetail({ practitioner: legacyPerson, employments: [employment], assignments: [legacyAssignment] }, 'person')
+      .practitioner.sdPractGenderText).toBeNull()
+  })
+  it.each([{ sdPractGender: undefined }, { sdPractGenderText: undefined }, { sdPractGenderText: null },
+    { sdPractGender: null }, { sdPractGender: null, sdPractGenderText: '男' }])('still rejects absent or inconsistent gender facts %j', patch => {
+    expect(() => requirePractitioners([{ ...person, ...patch }])).toThrow()
+  })
   it.each([
     [requirePractitioners, person], [requirePersonnelAssignments, assignment], [requirePositions, position], [requireOrganizationUnits, org],
   ] as const)('distinguishes a confirmed empty catalog from missing, partial or duplicate data', (read, row) => {

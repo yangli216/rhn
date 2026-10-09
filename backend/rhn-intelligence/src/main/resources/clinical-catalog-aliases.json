@@ -1,0 +1,7 @@
+[
+  {"type":"LABORATORY","name":"血常规","aliases":["血常规检查"],"queries":["血常规"],"broad":true},
+  {"type":"LABORATORY","name":"血常规（五分类）","aliases":["血常规五分类","五分类血常规"],"queries":["血常规"],"broad":false},
+  {"type":"LABORATORY","name":"血常规（三分类）","aliases":["血常规三分类","三分类血常规"],"queries":["血常规"],"broad":false},
+  {"type":"LABORATORY","name":"C反应蛋白测定","aliases":["C反应蛋白","CRP","C反应蛋白测定（CRP）"],"queries":["C反应蛋白","CRP"],"broad":false},
+  {"type":"LABORATORY","name":"超敏C反应蛋白测定","aliases":["超敏CRP","hs-CRP","hsCRP","超敏C反应蛋白"],"queries":["C反应蛋白","CRP"],"broad":false}
+]

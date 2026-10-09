@@ -72,23 +72,17 @@ export function hasPendingCompletionPayment(orders: PaymentOrder[]) {
   return orders.some(row => ['CREATED', 'PENDING', 'PROCESSING', 'PARTIAL', 'REFUNDING'].includes(row.status))
 }
 
-/** Re-read at submission: a previously displayed confirmation is not evidence of the current state. */
+/** Re-read clinical facts before signing/completion. Billing proceeds independently after the visit. */
 export async function confirmCompletionFacts(api: RhnApi, encounter: Encounter,
   displayedMode: OutpatientCompletionMode | undefined, assertCurrent: () => void) {
   assertCurrent()
-  const [configuration, services, medications, rawStatement] = await Promise.all([
+  const [configuration, services, medications] = await Promise.all([
     api.configuration.resolve(completionModeKey, { organizationId: encounter.organizationId,
       departmentId: encounter.departmentId, moduleCode: 'DOCTOR_WORKSTATION' }),
     api.encounters.serviceRequests(encounter.id), api.encounters.medicationRequests(encounter.id),
-    api.billing.statement(encounter.id),
   ])
   assertCurrent()
   requireFact(requireCompletionMode(configuration) === displayedMode, '诊毕模式已变化')
   requireCompletionOrderCount(services, encounter, 'service')
   requireCompletionOrderCount(medications, encounter, 'medication')
-  const statement = requireCompletionStatement(rawStatement, encounter)
-  requireFact(completionBillingSummary(statement).settled, '尚有未完成结算或未开票费用')
-  const orders = requireCompletionPaymentOrders(await api.billing.paymentOrders(statement.accountId), statement)
-  assertCurrent()
-  requireFact(!hasPendingCompletionPayment(orders), '支付或退款仍在处理中')
 }

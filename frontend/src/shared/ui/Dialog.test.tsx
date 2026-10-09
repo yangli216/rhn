@@ -143,6 +143,18 @@ describe('Content-bound drawer', () => {
 })
 
 describe('Non-modal panel', () => {
+  it('keeps its own portaled Select interactive while closing on unrelated outside controls', async () => {
+    const onClose = vi.fn(), user = userEvent.setup()
+    render(<><Select aria-label="外部选项" options={[{ value: 'outside', label: '外部项目' }]} value="" onChange={vi.fn()} />
+      <Dialog title="目录核对" presentation="panel" onClose={onClose}>
+        <Select aria-label="院内项目" options={[{ value: 'five', label: '五分类血常规' }]} value="" onChange={vi.fn()} />
+      </Dialog></>)
+    await user.click(screen.getByRole('combobox', { name: '院内项目' }))
+    await user.click(screen.getByRole('option', { name: '五分类血常规' }))
+    expect(onClose).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('combobox', { name: '外部选项' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
   it('keeps the application interactive and does not steal focus', async () => {
     const root = document.createElement('div')
     root.id = 'root'

@@ -732,7 +732,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
             onClick={() => setSelectedPractitionerId(value.id)}><span className="master-person-avatar">{value.fullName.slice(0, 1)}</span>
             <span><strong>{value.fullName}</strong><code>{primaryAssignmentMap.get(value.id)
               ? `${primaryAssignmentMap.get(value.id)!.departmentName} · ${primaryAssignmentMap.get(value.id)!.positionName}`
-              : `${value.code} · ${value.sdPractGenderText}`}</code></span>
+              : `${value.code} · ${value.sdPractGenderText ?? '未填写'}`}</code></span>
             <StatusBadge tone={value.sdPersonnelStatus === 'ACTIVE' ? 'success' : 'neutral'}>
               {value.sdPersonnelStatusText}</StatusBadge></button>)}
           {directoryReady && practitioners.data.length && !filteredPractitioners.length
@@ -1382,7 +1382,7 @@ function PractitionerWorkbench({
               </div>
               <div className="master-prop-item">
                 <dt>生理性别</dt>
-                <dd>{practitioner.sdPractGenderText}</dd>
+                <dd>{practitioner.sdPractGenderText ?? '未填写'}</dd>
               </div>
             </dl>
           </article>

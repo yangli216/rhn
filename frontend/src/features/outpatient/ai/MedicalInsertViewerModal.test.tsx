@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { MedicalInsertViewerModal } from './MedicalInsertViewerModal'
@@ -27,6 +27,61 @@ const mockMedDoc: ClinicalAiWikiDocResult = {
 }
 
 describe('MedicalInsertViewerModal', () => {
+  it('keeps a pending or loaded article stable when the parent recreates the same target', async () => {
+    let resolveDoc!: (doc: ClinicalAiWikiDocResult) => void
+    const getWikiDoc = vi.fn(() => new Promise<ClinicalAiWikiDocResult>((resolve) => { resolveDoc = resolve }))
+    const api = { clinicalAi: { getWikiDoc } } as unknown as RhnApi
+    const props = { isOpen: true, onClose: vi.fn(), api }
+    const target = { name: '苯磺酸氨氯地平片', type: 'medication' }
+    const { rerender } = render(<MedicalInsertViewerModal {...props} target={{ ...target }} />)
+
+    rerender(<MedicalInsertViewerModal {...props} target={{ ...target }} />)
+    expect(getWikiDoc).toHaveBeenCalledTimes(1)
+    await act(async () => resolveDoc(mockMedDoc))
+    expect(screen.getByText('10mg / 日')).toBeInTheDocument()
+
+    rerender(<MedicalInsertViewerModal {...props} target={{ ...target }} />)
+    expect(getWikiDoc).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('10mg / 日')).toBeInTheDocument()
+    expect(screen.queryByText('正在加载知识库资料…')).not.toBeInTheDocument()
+  })
+
+  it('loads a changed article and ignores a late response for the previous article', async () => {
+    let resolveOldDoc!: (doc: ClinicalAiWikiDocResult) => void
+    const getWikiDoc = vi.fn()
+      .mockImplementationOnce(() => new Promise<ClinicalAiWikiDocResult>((resolve) => { resolveOldDoc = resolve }))
+      .mockResolvedValueOnce({ id: 'new-guide', title: '新指南', type: 'GUIDELINE', markdown: '新的诊疗建议' })
+    const api = { clinicalAi: { getWikiDoc } } as unknown as RhnApi
+    const props = { isOpen: true, onClose: vi.fn(), api }
+    const { rerender } = render(<MedicalInsertViewerModal {...props} target={{ id: 'old-guide', type: 'guideline' }} />)
+
+    rerender(<MedicalInsertViewerModal {...props} target={{ id: 'new-guide', type: 'guideline' }} />)
+    expect(await screen.findByText('新的诊疗建议')).toBeInTheDocument()
+    expect(getWikiDoc).toHaveBeenLastCalledWith({ id: 'new-guide', type: 'guideline' })
+
+    await act(async () => resolveOldDoc(mockMedDoc))
+    expect(screen.getByText('新的诊疗建议')).toBeInTheDocument()
+    expect(screen.queryByText('10mg / 日')).not.toBeInTheDocument()
+  })
+
+  it('clears the old article when switching and reloads for a new API session', async () => {
+    const getWikiDoc = vi.fn().mockResolvedValueOnce(mockMedDoc).mockResolvedValueOnce({ title: '新指南', type: 'GUIDELINE', markdown: '新的诊疗建议' })
+    const api = { clinicalAi: { getWikiDoc } } as unknown as RhnApi
+    const props = { isOpen: true, onClose: vi.fn() }
+    const { rerender } = render(<MedicalInsertViewerModal {...props} api={api} target={{ name: mockMedDoc.title, type: 'medication' }} />)
+    await screen.findByText('10mg / 日')
+
+    rerender(<MedicalInsertViewerModal {...props} api={api} target={{ name: '新指南', type: 'guideline' }} />)
+    expect(screen.getByRole('dialog', { name: '临床指南 · 新指南' })).toBeInTheDocument()
+    expect(screen.queryByText('10mg / 日')).not.toBeInTheDocument()
+    await screen.findByText('新的诊疗建议')
+
+    const nextGetWikiDoc = vi.fn().mockResolvedValue({ title: '新指南', type: 'GUIDELINE', markdown: '新会话资料' })
+    rerender(<MedicalInsertViewerModal {...props} api={{ clinicalAi: { getWikiDoc: nextGetWikiDoc } } as unknown as RhnApi} target={{ name: '新指南', type: 'guideline' }} />)
+    expect(await screen.findByText('新会话资料')).toBeInTheDocument()
+    expect(nextGetWikiDoc).toHaveBeenCalledTimes(1)
+  })
+
   it('renders drug label with max daily dose and contraindications', async () => {
     const user = userEvent.setup()
     const getWikiDoc = vi.fn().mockResolvedValue(mockMedDoc)

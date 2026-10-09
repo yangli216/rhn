@@ -1,7 +1,7 @@
 import type { MedicationKnowledge, ServiceCatalogItem } from '../../../shared/api/masterDataApi'
 import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
-import { Button, ClinicalResourceSearch, Icon, Select, type ClinicalResource, type ClinicalResourceOption, type OrderSearchMode } from '../../../shared/ui'
+import { IconButton, ClinicalResourceSearch, Select, type ClinicalResource, type ClinicalResourceOption, type OrderSearchMode } from '../../../shared/ui'
 import type { DispensableProductOption } from './dispensableOptions'
 import type { OrderEntryType } from './orderDraftTypes'
 import { AdministrationGroupBracket } from './OrderRowDecorations'
@@ -102,20 +102,14 @@ export function OrderComposerResource({
             </>
           )}
           {onInspectMedication && (
-            <Button
-              type="button"
-              size="sm"
-              variant="text"
-              className="doctor-order-insert-btn"
+            <IconButton icon="file-text" label="说明书"
               title={`在临床知识库中查阅《${selectedProduct?.product?.name || (medicationOption as any)?.label || ''}》药品资料`}
               onClick={(e) => {
                 e.stopPropagation()
                 const medName = selectedProduct?.product?.name || (medicationOption as any)?.label || ''
                 if (medName) onInspectMedication(medName)
               }}
-            >
-              <Icon name="pill" />说明书
-            </Button>
+            />
           )}
         </div>
       )}

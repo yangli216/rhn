@@ -28,6 +28,10 @@ case "$rhn_scope" in
       src/features/outpatient/orders/useDraftRowInteractions.test.tsx
       src/features/outpatient/orders/useAiOrderReview.test.tsx
       src/features/outpatient/ai/ClinicalAiTreatmentRows.test.tsx
+      src/features/outpatient/ai/ClinicalAiCatalogReview.test.tsx
+      src/features/outpatient/ai/ClinicalEvidenceDrawer.test.tsx
+      src/shared/ui/Dialog.test.tsx
+      src/shared/ui/Select.test.tsx
       src/features/outpatient/UnifiedOrderListEditor.test.tsx
       src/features/pharmacy/medicationDisplay.test.ts
       src/features/pharmacy/PharmacyWorkspace.test.tsx
@@ -101,6 +105,7 @@ if [[ "$rhn_scope" == outpatient-draft || "$rhn_scope" == round1 ]]; then
     src/features/outpatient/templates/useTemplateApplication.test.tsx
     src/features/outpatient/templates/historicalPlanSelection.test.ts
   )
+  rhn_backend_tests+=",ClinicalAiModelModeTest"
   rhn_backend_tests+=",OutpatientDoctorWorkstationTest,ClinicalAiPlanPreflightTest,OutpatientNoteTemplateTest,OutpatientPlanTemplateTest,ClinicalAiPlanCompilationTest,TemplateCatalogPagingContractTest,ServiceOrderableCatalogCompletenessTest,com.rhn.ai.application.ClinicalTreatmentRecommendationServiceTest,com.rhn.platform.web.ApiExceptionHandlerTest,com.rhn.platform.masterdata.application.ItemGroupDirectoryServiceTest,com.rhn.ai.application.ClinicalPlanInvestigationTruthTest,com.rhn.ai.application.PlanInvestigationDecisionServiceTest,com.rhn.ai.application.ClinicalPlanMedicationTruthTest,com.rhn.ai.application.MedicationIntentParserTest,com.rhn.ai.application.MedicationSpecificationEvidenceTest,com.rhn.ai.application.MedicationCandidateMatchingServiceTest,com.rhn.ai.application.HistoricalPlanResolutionServiceTest,com.rhn.ai.application.HistoricalPlanComparisonServiceTest,com.rhn.ai.application.ClinicalPlanRetrievalServiceTest,ClinicalAiPlanIdentityTest,HistoricalPlanCoverageContractTest,HistoricalEncounterWindowTest,DiagnosisManagementEvidenceTest,DiagnosisDomainTruthTest,DiagnosisDomainMigrationTest,DiagnosisOwnershipPersistenceTest,com.rhn.outpatient.encounter.DiagnosisOwnershipValidationTest,com.rhn.outpatient.encounter.DiagnosisManagementSnapshotTest,com.rhn.pharmacy.application.OutpatientInventoryRoutingTruthTest,com.rhn.outpatient.ordering.JpaOutpatientClinicalHistoryDirectoryTest"
   rhn_backend_tests+=",OutpatientStructuredNoteFormTest,ClinicalDocumentFoundationTest"
   rhn_backend_tests+=",ServiceExecutionDepartmentDefaultTest,com.rhn.platform.masterdata.api.ServiceExecutionDepartmentPolicyTest"

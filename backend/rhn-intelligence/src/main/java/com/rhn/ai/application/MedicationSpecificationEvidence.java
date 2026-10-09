@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
-/** Confirms explicit source specifications against catalog facts; never infers unit conversions. */
+/** Confirms explicit strength against catalog facts; only exact mass-unit equivalence is allowed. */
 final class MedicationSpecificationEvidence {
     private static final String SPECIFICATION_BOUNDARY =
             "[;；,，。\\n\\r]|单次剂量|每次|一次|常规用法|给药途径|途径|频次|疗程|连用|数量|共|口服|静脉|肌内|外用|用法"
@@ -18,6 +18,7 @@ final class MedicationSpecificationEvidence {
                     + SPECIFICATION_END,
             Pattern.CASE_INSENSITIVE);
     private static final Pattern NUMBER = Pattern.compile("[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+");
+    private static final Pattern MASS = Pattern.compile("(?<![a-z0-9.])([0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)(mg|μg|ug|g)(?![a-z])");
     private static final Pattern PLACEHOLDER = Pattern.compile(
             "(?:建议)?规格\\s*[:：]\\s*(?:待确认|不明确|未知|未提供)", Pattern.CASE_INSENSITIVE);
     private static final Pattern PER_UNIT = Pattern.compile(
@@ -86,7 +87,7 @@ final class MedicationSpecificationEvidence {
         String requested = canonical(requestedSpecification);
         String catalog = canonical(catalogSpecification);
         boolean sameStrengthWithoutRequestedPresentation = !requested.matches(".*[/／].*")
-                && catalog.matches(Pattern.quote(requested) + "[/／].+");
+                && catalog.matches(Pattern.quote(requested) + "[/／](?:粒|片|支|袋|包|瓶|枚|贴|管|吸)");
         if (!requested.equals(catalog) && !sameStrengthWithoutRequestedPresentation) {
             return "来源规格与目录规格未确认一致，未替换规格或推算换算，请人工核对";
         }
@@ -95,6 +96,19 @@ final class MedicationSpecificationEvidence {
 
     private static String canonical(String value) {
         String source = unwrap(text(value));
+        var masses = MASS.matcher(source);
+        StringBuilder converted = new StringBuilder();
+        while (masses.find()) {
+            BigDecimal factor = switch (masses.group(2)) {
+                case "g" -> new BigDecimal("1000");
+                case "μg", "ug" -> new BigDecimal("0.001");
+                default -> BigDecimal.ONE;
+            };
+            masses.appendReplacement(converted, new BigDecimal(masses.group(1)).multiply(factor)
+                    .stripTrailingZeros().toPlainString() + "mg");
+        }
+        masses.appendTail(converted);
+        source = converted.toString();
         var numbers = NUMBER.matcher(source);
         StringBuilder result = new StringBuilder();
         while (numbers.find()) numbers.appendReplacement(result,

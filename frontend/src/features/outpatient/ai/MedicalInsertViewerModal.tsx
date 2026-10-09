@@ -74,9 +74,13 @@ export function MedicalInsertViewerModal({
   const [loading, setLoading] = useState(false)
   const [doc, setDoc] = useState<ClinicalAiWikiDocResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const name = target?.name
+  const id = target?.id
+  const type = target?.type
 
+  // Callers recreate target objects during workstation updates; only article changes should reload.
   useEffect(() => {
-    if (!isOpen || !target || (!target.name && !target.id)) {
+    if (!isOpen || (!name && !id)) {
       setDoc(null)
       setError(null)
       setLoading(false)
@@ -85,6 +89,7 @@ export function MedicalInsertViewerModal({
 
     let active = true
     setLoading(true)
+    setDoc(null)
     setError(null)
 
     if (!api?.clinicalAi?.getWikiDoc) {
@@ -95,9 +100,9 @@ export function MedicalInsertViewerModal({
 
     api.clinicalAi
       .getWikiDoc({
-        name: target.name,
-        id: target.id,
-        type: target.type,
+        name,
+        id,
+        type,
       })
       .then((data) => {
         if (!active) return
@@ -113,7 +118,7 @@ export function MedicalInsertViewerModal({
     return () => {
       active = false
     }
-  }, [isOpen, target, api])
+  }, [isOpen, name, id, type, api])
 
   if (!isOpen) return null
 

@@ -143,6 +143,79 @@ describe('ClinicalAiAssistantPanel suggestion history', () => {
   })
 })
 
+describe('ClinicalAiAssistantPanel layout and clinical usability optimization', () => {
+  it('collapses prompt textarea by default and expands on demand, preserves actionable catalog alerts, and provides evidence and insert buttons', async () => {
+    const generate = vi.fn().mockImplementation((_id: string, input: GenerateClinicalAiSuggestionInput) => Promise.resolve({
+      id: 'sugg-opt', status: 'GENERATED' as const, contextHash: 'sha256:opt',
+      clientContextFingerprint: input.clientContextFingerprint, provider: 'test', promptVersion: 'V1',
+      generatedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      summary: '6岁患儿急性扁桃体炎待评估', recordDraft: {},
+      diagnosisCandidates: [
+        { code: 'J03.9', display: '急性扁桃体炎', type: 'PRIMARY' as const, confidence: 0.9, rationale: '咽痛扁桃体红肿' },
+      ],
+      differentialDiagnoses: [],
+      treatmentRecommendations: [
+        { type: 'MEDICATION' as const, catalogItemId: 'drug-1', medicationId: 'med-1', code: 'PARA01', name: '对乙酰氨基酚混悬液', rationale: '解热镇痛' },
+      ],
+      missingInformation: [],
+      safetyAlerts: [
+        { level: 'CRITICAL' as const, title: '儿童咽痛需警惕气道风险', detail: '核对呼吸困难或气道受累表现' },
+        { level: 'WARNING' as const, title: '缺少生命体征', detail: '未录入体温心率' },
+        { level: 'INFO' as const, title: '目录待匹配', detail: 'A组链球菌快速抗原检测未匹配到本次可用目录' },
+        { level: 'WARNING' as const, title: '目录决策回退', detail: '回退至规则引擎' },
+      ],
+      recommendedPlans: [],
+      disclaimer: '仅供医生参考',
+    }))
+    const api = assistantApi({
+      capabilities: vi.fn().mockResolvedValue({
+        mode: 'MODEL', available: true, provider: 'test', model: 'test',
+        features: ['RECORD_COMPLETENESS', 'TERMINOLOGY_VALIDATION', 'SAFETY_REMINDERS', 'PLAN_RECOMMENDATIONS', 'AUDIT_TRAIL', 'KNOWLEDGE_RETRIEVAL'],
+      }),
+      generate,
+      knowledgeSearch: vi.fn().mockResolvedValue({ query: '', provider: 'test', results: [], retrievedAt: '' }),
+    })
+    renderPanel(api)
+
+    // 1. 默认状态下大文本框收起，首屏仅有快捷条与“专项探查与追问”折叠入口
+    expect(await screen.findByRole('button', { name: '专项探查与追问' })).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/例如：补全病历要点/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /分析当前就诊/ })).toBeInTheDocument()
+
+    // 2. 点击折叠入口可展开专项探查输入框与快捷标签
+    await userEvent.click(screen.getByRole('button', { name: '专项探查与追问' }))
+    expect(screen.getByPlaceholderText(/例如：补全病历要点/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '补全病历要点' })).toBeInTheDocument()
+
+    // 3. 点击“分析当前就诊”生成建议
+    await userEvent.click(screen.getByRole('button', { name: /分析当前就诊/ }))
+
+    // 4. 验证优先核对中过滤了 IT 目录日志，且临床红线与病历质控带有鲜明标识
+    expect(await screen.findByText('儿童咽痛需警惕气道风险')).toBeInTheDocument()
+    expect(screen.getByText('安全红线')).toBeInTheDocument()
+    expect(screen.getByText('缺少生命体征')).toBeInTheDocument()
+    expect(screen.getByText('病历质控')).toBeInTheDocument()
+    // 未匹配原因保留，纯实现细节仍隐藏
+    expect(screen.getByText('目录待匹配')).toBeInTheDocument()
+    expect(screen.queryByText('目录决策回退')).not.toBeInTheDocument()
+
+    // 5. 验证诊断行展示“指南”与“证据链”按钮
+    expect(screen.getAllByRole('button', { name: /指南/ }).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: /证据链/ })).toBeInTheDocument()
+
+    // 6. 验证药品建议行展示“说明书”按钮
+    expect(screen.getAllByRole('button', { name: /说明书/ }).length).toBeGreaterThan(0)
+
+    // 7. 验证情境循证参考卡片自动推送
+    expect(screen.getByText('情境循证参考与知识库')).toBeInTheDocument()
+    expect(screen.getByText(/《急性扁桃体炎 临床诊疗规范》/)).toBeInTheDocument()
+
+    // 8. 点击“查阅指南”按钮直接调阅权威指南模态框
+    await userEvent.click(screen.getAllByRole('button', { name: '查阅指南' })[0])
+    expect(await screen.findByRole('dialog', { name: /临床指南 · 急性扁桃体炎/ })).toBeInTheDocument()
+  })
+})
+
 function historicalSuggestion(overrides: Partial<ClinicalAiSuggestion> = {}): ClinicalAiSuggestion {
   return { ...baseSuggestion(), ...overrides }
 }

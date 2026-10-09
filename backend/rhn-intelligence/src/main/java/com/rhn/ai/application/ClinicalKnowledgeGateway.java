@@ -9,6 +9,8 @@ public interface ClinicalKnowledgeGateway {
 
     EvidenceChainResult evaluateEvidenceChain(EvidenceChainRequest request, ClinicalAssistantSettings runtimeSettings);
 
+    PreflightSafetyResult evaluatePreflightSafety(PreflightSafetyRequest request, ClinicalAssistantSettings runtimeSettings);
+
     WikiDocResult lookupWikiDoc(String query, String docType, ClinicalAssistantSettings runtimeSettings);
 
     record KnowledgeResult(String id, String title, String excerpt, Double score,
@@ -100,4 +102,79 @@ public interface ClinicalKnowledgeGateway {
             String markdown,
             String html
     ) {}
+
+    record PreflightSafetyRequest(
+            List<MedicationItem> medications,
+            Map<String, Object> patientContext
+    ) {
+        public PreflightSafetyRequest {
+            medications = medications == null ? List.of() : List.copyOf(medications);
+            patientContext = patientContext == null ? Map.of() : Map.copyOf(patientContext);
+        }
+
+        public record MedicationItem(
+                String name,
+                String medicationCode,
+                Map<String, Object> orderDraft
+        ) {
+            public MedicationItem(String name) {
+                this(name, null, null);
+            }
+        }
+    }
+
+    record PreflightSafetyResult(
+            boolean success,
+            Boolean canPrescribe,
+            String level,
+            String summary,
+            int blockingCount,
+            int warningCount,
+            Boundaries evaluationBoundaries,
+            List<CheckItem> preflightChecks,
+            List<SafetyAlert> allAlerts
+    ) {
+        public PreflightSafetyResult {
+            preflightChecks = preflightChecks == null ? List.of() : List.copyOf(preflightChecks);
+            allAlerts = allAlerts == null ? List.of() : List.copyOf(allAlerts);
+        }
+
+        public record Boundaries(
+                BoundaryItem interactions,
+                BoundaryItem contraindications,
+                BoundaryItem dosageLimits
+        ) {}
+
+        public record BoundaryItem(
+                String status,
+                String evaluationCode,
+                String message,
+                List<SafetyAlert> alerts
+        ) {
+            public BoundaryItem {
+                alerts = alerts == null ? List.of() : List.copyOf(alerts);
+            }
+        }
+
+        public record CheckItem(
+                String code,
+                String status,
+                String title,
+                String message,
+                List<SafetyAlert> alerts
+        ) {
+            public CheckItem {
+                alerts = alerts == null ? List.of() : List.copyOf(alerts);
+            }
+        }
+
+        public record SafetyAlert(
+                String ruleId,
+                String severity,
+                String title,
+                String message,
+                String guideline
+        ) {}
+    }
 }
+

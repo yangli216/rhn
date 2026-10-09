@@ -10710,6 +10710,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/clinical-assistant/encounters/{encounterId}/treatment-matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resolveTreatments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -21702,6 +21718,7 @@ export interface components {
             recommendedPlans?: components["schemas"]["RecommendedPlan"][];
             disclaimer?: string;
             treatmentRecommendations?: components["schemas"]["TreatmentRecommendation"][];
+            treatmentMatches?: components["schemas"]["TreatmentMatch"][];
         };
         TreatmentRecommendation: {
             type?: string;
@@ -24668,6 +24685,22 @@ export interface components {
             departmentId?: string;
             departmentName?: string;
             source?: string;
+        };
+        TreatmentMatch: {
+            key?: string;
+            intent?: components["schemas"]["TreatmentRecommendation"];
+            status?: string;
+            reason?: string;
+            candidates?: components["schemas"]["TreatmentRecommendation"][];
+        };
+        TreatmentMatchRequest: {
+            intents: components["schemas"]["TreatmentSearchIntent"][];
+        };
+        TreatmentSearchIntent: {
+            type: string;
+            name: string;
+            specification?: string;
+            rationale?: string;
         };
     };
     responses: never;
@@ -50194,6 +50227,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["OrderDraftSaveResponse"];
+                };
+            };
+        };
+    };
+    resolveTreatments: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TreatmentMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TreatmentMatch"][];
                 };
             };
         };

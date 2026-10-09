@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
 import type { DiseaseConcept } from '../../../shared/api/masterDataApi'
 import type { RhnApi } from '../../../shared/rhnApi'
-import { Alert, Button, ClinicalResourceSearch, Icon, Panel, PanelHead, Popconfirm, Select, type ClinicalResourceOption } from '../../../shared/ui'
+import { Alert, Button, ClinicalResourceSearch, Icon, IconButton, Panel, PanelHead, Popconfirm, Select, type ClinicalResourceOption } from '../../../shared/ui'
 import { diagnosisKey, moveDiagnosis, normalizeDiagnosisOrder } from './clinicalRecordDraft'
 import { diagnosisDomainLabel } from '../../../shared/presentation'
 import { diagnosisManagementFromCatalog, hasConfirmedDiagnosisManagement } from './diagnosisManagementEvidence'
@@ -147,16 +147,11 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
                 <div className="doctor-diag-name-wrap">
                   <strong className="doctor-diag-name">{item.display}</strong>
                   <span className="doctor-diag-code-pill" title={`ICD编码: ${item.code}`}>{item.code}</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="text"
+                  <IconButton icon="book-open" label="指南"
                     className="doctor-diag-guide-btn"
                     title={`在临床知识库中查阅《${item.display}》相关指南`}
                     onClick={() => setViewingGuideline(item.display)}
-                  >
-                    <Icon name="clinical" />指南
-                  </Button>
+                  />
                 </div>
               </span>
               <span className="doctor-diag-col-domain">

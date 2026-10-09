@@ -1154,6 +1154,10 @@ describe('DoctorWorkstation reception flow', () => {
   it('hides back-to-list button in editing mode and requires suspend/complete/terminate to finish', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
+    api.outpatientFlow = {
+      terminationReadiness: vi.fn().mockResolvedValue({ encounterId: 'encounter-101', ready: true, issues: [] }),
+      terminate: vi.fn(),
+    } as never
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
 
     render(<QueryClientProvider client={queryClient}>
@@ -1173,7 +1177,11 @@ describe('DoctorWorkstation reception flow', () => {
     // 3. 必须通过暂挂、诊毕或终止诊疗来正常终结接诊
     expect(screen.getByRole('button', { name: '暂挂' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '诊毕' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '终止诊疗' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: '终止诊疗' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '更多' }))
+    await user.click(screen.getByRole('menuitem', { name: '终止诊疗' }))
+    expect(await screen.findByRole('dialog', { name: '终止本次诊疗' })).toBeInTheDocument()
+    expect(api.outpatientFlow.terminate).not.toHaveBeenCalled()
   })
 
   it('manages allergies in the workstation drawer and records a controlled allergen directly', async () => {
@@ -1347,16 +1355,16 @@ describe('DoctorWorkstation reception flow', () => {
     await user.clear(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'))
     await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '发热3天')
     await user.clear(systolic); await user.clear(diastolic)
-    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await user.click(screen.getByRole('button', { name: '保存草稿' }))
     await waitFor(() => expect(document.getElementById('doctor-vital-errors')).toHaveTextContent('请填写收缩压；请填写舒张压'))
     expect(screen.queryByText(/NaN|Invalid input/)).not.toBeInTheDocument()
     expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
     fireEvent.change(systolic, { target: { value: '301' } })
     fireEvent.change(diastolic, { target: { value: '80' } })
-    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await user.click(screen.getByRole('button', { name: '保存草稿' }))
     await waitFor(() => expect(document.getElementById('doctor-vital-errors')).toHaveTextContent('收缩压请输入 20～300 之间的数值'))
     fireEvent.change(systolic, { target: { value: '70' } })
-    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await user.click(screen.getByRole('button', { name: '保存草稿' }))
     await waitFor(() => expect(document.getElementById('doctor-vital-errors')).toHaveTextContent('收缩压必须大于舒张压'))
   })
 
@@ -1415,7 +1423,7 @@ describe('DoctorWorkstation reception flow', () => {
     await user.type(screen.getByLabelText('体温'), '36.8')
     await user.clear(screen.getByLabelText('体温'))
     // 4. 点击保存草稿
-    const saveDraftBtn = screen.getByRole('button', { name: '保存全部草稿' })
+    const saveDraftBtn = screen.getByRole('button', { name: '保存草稿' })
     await user.click(saveDraftBtn)
 
     // 5. 验证后端接口被正确调用
@@ -1455,7 +1463,7 @@ describe('DoctorWorkstation reception flow', () => {
     })
   })
 
-  it('shows an active laboratory document while reviewing a pending prescription', async () => {
+  it.each([true, false])('shows an active laboratory document while reviewing a pending prescription (department found: %s)', async departmentFound => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
     const medicationRequest = {
@@ -1474,7 +1482,7 @@ describe('DoctorWorkstation reception flow', () => {
     } as any
     const laboratoryRequest = {
       id: 'service-lab-1', revision: 0, residentId: 'resident-1', encounterId: 'encounter-101',
-      requestNo: 'LAB-001', performerDepartmentId: 'actual-lab-dept', status: 'ACTIVE', catalogItemId: 'catalog-lab-1', businessDate: '2026-09-28',
+      requestNo: 'LAB-001', performerOrganizationId: 'org-1', performerDepartmentId: 'actual-lab-dept', status: 'ACTIVE', catalogItemId: 'catalog-lab-1', businessDate: '2026-09-28',
       itemCode: 'LAB-CBC', itemName: '血常规', unitCode: '次', adoptionId: 'adoption-1', adoptionRevision: 1,
       quantity: 1, itemAttributeSnapshot: {}, itemAttributeHash: 'hash-lab',
       itemAttributeResolvedAt: '2026-09-28T08:10:00Z', standardMappings: [], serviceType: 'LABORATORY',
@@ -1485,6 +1493,9 @@ describe('DoctorWorkstation reception flow', () => {
     api.encounters.prescriptions = vi.fn().mockResolvedValue([prescription])
     api.encounters.medicationRequests = vi.fn().mockResolvedValue([medicationRequest])
     api.encounters.serviceRequests = vi.fn().mockResolvedValue([laboratoryRequest])
+    if (departmentFound) vi.mocked(api.organization.departments).mockResolvedValue([
+      { id: 'actual-lab-dept', organizationId: 'org-1', name: '医学检验科', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null },
+    ] as never)
 
     renderStation(api)
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
@@ -1496,7 +1507,7 @@ describe('DoctorWorkstation reception flow', () => {
     expect(within(review).getByText('检1')).toBeInTheDocument()
     expect(within(review).getByText('血常规')).toBeInTheDocument()
     expect(within(review).getByText('明确感染类型')).toBeInTheDocument()
-    expect(within(review).getByText('科室编号：actual-lab-dept（名称待确认）')).toBeInTheDocument()
+    expect(await within(review).findByText(departmentFound ? '医学检验科' : '科室编号：actual-lab-dept（名称待确认）')).toBeInTheDocument()
     expect(within(review).getByText('发药药房待确认')).toBeInTheDocument()
     for (const guessed of ['检验科', '中成药房', '默认药房']) expect(within(review).queryByText(guessed)).not.toBeInTheDocument()
   })
@@ -1693,7 +1704,7 @@ describe('DoctorWorkstation reception flow', () => {
     expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
   })
 
-  it('renders friendly completion dialog with 4-metric fee card, quick phrase chips, and standardized checklist icons', async () => {
+  it('renders a compact completion dialog with fee details, disposition selection, and standard checklist icons', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
@@ -1712,9 +1723,8 @@ describe('DoctorWorkstation reception flow', () => {
     // Click '诊毕' button to open completion dialog
     await user.click(screen.getByRole('button', { name: '诊毕' }))
 
-    // Completion modal title and eyebrow
+    // Completion modal keeps a single concise title.
     await waitFor(() => {
-      expect(screen.getByText('本次就诊收口')).toBeInTheDocument()
       expect(screen.getByRole('dialog', { name: /诊毕确认/ })).toBeInTheDocument()
     })
 
@@ -1724,19 +1734,15 @@ describe('DoctorWorkstation reception flow', () => {
     expect(screen.getByText('未开票')).toBeInTheDocument()
     expect(screen.getByText('待支付')).toBeInTheDocument()
 
-    // Verify quick phrase chips
-    const followUpChip = screen.getByRole('button', { name: '一周后门诊复查' })
-    expect(followUpChip).toBeInTheDocument()
-
-    // Click quick phrase chip to auto-populate textarea
-    await user.click(followUpChip)
-    const textarea = screen.getByPlaceholderText('复诊时间、注意事项、转诊去向等') as HTMLTextAreaElement
-    expect(textarea.value).toBe('一周后门诊复查')
+    const dialog = screen.getByRole('dialog', { name: '诊毕确认' })
+    expect(within(dialog).getByRole('combobox', { name: '就诊转归' })).toBeInTheDocument()
+    expect(within(dialog).queryByLabelText('转归及随访说明')).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('combobox', { name: '常用语' })).not.toBeInTheDocument()
 
     // Verify standardized checklist
     const checklist = screen.getByLabelText('诊毕准入核对')
-    expect(checklist).toHaveTextContent('主诉已保存')
-    expect(checklist).toHaveTextContent('主要诊断')
+    expect(checklist).toHaveTextContent('主诉未保存')
+    expect(checklist).toHaveTextContent('未录入主要诊断')
     expect(checklist).toHaveTextContent('确认时自动签署')
 
     // Ensure raw Unicode check/circle characters are completely absent
@@ -1846,7 +1852,7 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
     const complaint = await screen.findByPlaceholderText('症状、持续时间及本次就诊原因')
     fireEvent.change(complaint, { target: { value: '已提交的主诉' } })
-    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await user.click(screen.getByRole('button', { name: '保存草稿' }))
     await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledTimes(1))
     const readCount = vi.mocked(api.clinicalDocuments.byEncounter).mock.calls.length
     if (change === 'text') fireEvent.change(complaint, { target: { value: '等待期间的新主诉' } })
@@ -1891,7 +1897,7 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
     await user.click(screen.getByRole('button', { name: '诊毕' }))
     const dialog = await screen.findByRole('dialog', { name: '诊毕确认' })
-    await user.click(within(dialog).getByLabelText(/诊毕后立即打开批量打印/))
+    await user.click(within(dialog).getByLabelText(/诊毕后批量打印/))
     await user.click(within(dialog).getByRole('button', { name: '确认诊毕' }))
     await waitFor(() => expect(api.encounters.complete).toHaveBeenCalledTimes(1))
     // Shared Alert renders into the notification viewport outside the dialog portal.
@@ -1927,7 +1933,7 @@ describe('DoctorWorkstation reception flow', () => {
     const complaint = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
     await waitFor(() => expect(complaint).toHaveValue('头痛复诊'))
     fireEvent.change(complaint, { target: { value: '头痛复诊，今日加重' } })
-    expect(await screen.findByRole('button', { name: /保存全部草稿/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /保存草稿/ })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '诊毕' }))
     expect(await screen.findByRole('button', { name: '保存并继续诊毕' })).toBeInTheDocument()
 
@@ -1965,7 +1971,7 @@ describe('DoctorWorkstation reception flow', () => {
     return user
   }
   it.each(['configuration', 'statement', 'services', 'medications', 'payments'] as const)(
-    'blocks completion while %s loads or fails, then allows explicit recovery', async source => {
+    'keeps clinical readiness separate from %s loading and failure', async source => {
       const api = completionFactsApi()
       const object = source === 'configuration' ? api.configuration : ['statement', 'payments'].includes(source) ? api.billing : api.encounters
       const key = source === 'configuration' ? 'resolve' : source === 'statement' ? 'statement'
@@ -1976,7 +1982,9 @@ describe('DoctorWorkstation reception flow', () => {
       target[key] = vi.fn(() => new Promise((_resolve, fail) => { reject = fail }))
       const user = await openCompletionFacts(api)
       const button = () => within(screen.getByRole('dialog', { name: '诊毕确认' })).getByRole('button', { name: '确认诊毕' })
-      expect(button()).toBeDisabled()
+      const clinicalSource = !['statement', 'payments'].includes(source)
+      if (clinicalSource) expect(button()).toBeDisabled()
+      else await waitFor(() => expect(button()).toBeEnabled())
       expect(screen.queryByText('已全部通过')).not.toBeInTheDocument()
       if (source === 'statement') {
         expect(screen.getByText('费用待核对')).toBeInTheDocument()
@@ -1985,10 +1993,12 @@ describe('DoctorWorkstation reception flow', () => {
       }
       if (source === 'services' || source === 'medications') expect(screen.getByText('医嘱待核对')).toBeInTheDocument()
       await act(async () => reject(new Error('读取中断')))
-      expect(await screen.findByText(/诊毕资料加载失败/)).toBeInTheDocument()
-      await user.click(button())
-      expect(api.encounters.complete).not.toHaveBeenCalled()
-      expect(api.clinicalDocuments.sign).not.toHaveBeenCalled()
+      expect(await screen.findByText(clinicalSource ? /诊毕资料加载失败/ : /费用信息加载失败/)).toBeInTheDocument()
+      if (clinicalSource) {
+        await user.click(button())
+        expect(api.encounters.complete).not.toHaveBeenCalled()
+        expect(api.clinicalDocuments.sign).not.toHaveBeenCalled()
+      } else expect(button()).toBeEnabled()
       target[key] = original
       await user.click(screen.getByRole('button', { name: '重新加载诊毕资料' }))
       await waitFor(() => expect(button()).toBeEnabled())
@@ -2015,46 +2025,95 @@ describe('DoctorWorkstation reception flow', () => {
       ])
       else api.billing.paymentOrders = vi.fn().mockResolvedValue(null)
       const user = await openCompletionFacts(api)
-      expect(await screen.findByText(/诊毕资料加载失败/)).toBeInTheDocument()
+      const billingFailure = failure.startsWith('statement') || failure === 'payments-missing'
+      expect(await screen.findByText(billingFailure ? /费用信息加载失败/ : /诊毕资料加载失败/)).toBeInTheDocument()
       const button = within(screen.getByRole('dialog', { name: '诊毕确认' })).getByRole('button', { name: '确认诊毕' })
-      expect(button).toBeDisabled()
+      if (billingFailure) await waitFor(() => expect(button).toBeEnabled())
+      else expect(button).toBeDisabled()
       await user.click(button)
-      expect(api.encounters.complete).not.toHaveBeenCalled()
+      if (billingFailure) await waitFor(() => expect(api.encounters.complete).toHaveBeenCalledTimes(1))
+      else expect(api.encounters.complete).not.toHaveBeenCalled()
       expect(api.clinicalDocuments.sign).not.toHaveBeenCalled()
       expect(screen.queryByText('已全部通过')).not.toBeInTheDocument()
     })
 
-  it.each(['uninvoiced', 'failed-settlement', 'pending-payment'] as const)(
-    'does not treat %s with zero payable balance as settled', async failure => {
+  it.each(['uninvoiced', 'unpaid', 'partial-payment', 'failed-settlement', 'pending-payment', 'refunding'] as const)(
+    'allows signing and completion with %s while preserving the actual billing status', async failure => {
       const api = completionFactsApi()
-      const settlement = completionSettlementFixture({ status: failure === 'failed-settlement' ? 'FAILED' : 'SETTLED', outstandingAmount: 0 })
+      api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+      api.clinicalDocuments.sign = vi.fn().mockImplementation(async () => {
+        const signed = outpatientNote('SIGNED')
+        api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([signed])
+        return signed
+      })
+      const unpaid = failure === 'unpaid' || failure === 'partial-payment'
+      const pending = failure === 'pending-payment' || failure === 'refunding'
+      const settlement = completionSettlementFixture({
+        status: failure === 'failed-settlement' ? 'FAILED' : failure === 'unpaid' ? 'PRICED'
+          : failure === 'partial-payment' ? 'PARTIAL' : 'SETTLED', outstandingAmount: unpaid ? 10 : 0,
+      })
       api.billing.statement = vi.fn().mockResolvedValue({ ...completionStatementFixture(mockInProgressEncounter),
         ...(failure === 'uninvoiced' ? { chargeAmount: 10, uninvoicedAmount: 10 } : { settlements: [settlement] }),
       })
-      if (failure === 'pending-payment') api.billing.paymentOrders = vi.fn().mockResolvedValue([
-        { id: 'pay-1', patientAccountId: 'acc-1', settlementId: settlement.id, status: 'PENDING', currencyCode: 'CNY',
+      if (pending) api.billing.paymentOrders = vi.fn().mockResolvedValue([
+        { id: 'pay-1', patientAccountId: 'acc-1', settlementId: settlement.id,
+          status: failure === 'refunding' ? 'REFUNDING' : 'PENDING', currencyCode: 'CNY',
           requestedAmount: 10, capturedAmount: 0, refundedAmount: 0 },
       ])
-      await openCompletionFacts(api)
-      expect(await screen.findByText(failure === 'uninvoiced' ? '尚有未开票费用' : failure === 'pending-payment' ? '支付处理中' : '结算尚未完成')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '确认诊毕' })).toBeDisabled()
+      const user = await openCompletionFacts(api)
+      const overview = screen.getByRole('region', { name: '诊毕状态汇总' })
+      expect(await within(overview).findByText(failure === 'uninvoiced' ? '尚有未开票费用'
+        : pending ? '支付处理中' : unpaid ? '¥10.00' : '结算尚未完成',
+      { selector: '.doctor-fee-stat-content > strong' })).toBeInTheDocument()
+      const button = screen.getByRole('button', { name: '签署并诊毕' })
+      await waitFor(() => expect(button).toBeEnabled())
       expect(screen.queryByText(/已结清/)).not.toBeInTheDocument()
-      expect(screen.queryByText('已全部通过')).not.toBeInTheDocument()
+      await user.click(button)
+      await waitFor(() => expect(api.encounters.complete).toHaveBeenCalledTimes(1))
+      expect(api.clinicalDocuments.sign).toHaveBeenCalledWith('note-1', 1)
+      expect(api.billing.issueInvoice).not.toHaveBeenCalled()
+      expect(api.billing.createPaymentOrder).not.toHaveBeenCalled()
     })
 
-  it('invalidates previously confirmed amounts after a failed refresh', async () => {
+  it('invalidates stale fee amounts after a failed refresh without blocking completion', async () => {
     const api = completionFactsApi()
     const user = await openCompletionFacts(api)
     await waitFor(() => expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled())
     api.billing.statement = vi.fn().mockRejectedValue(new Error('费用刷新失败'))
     await user.click(screen.getByRole('button', { name: '重新加载诊毕资料' }))
-    expect(await screen.findByText(/诊毕资料加载失败/)).toBeInTheDocument()
+    expect(await screen.findByText(/费用信息加载失败/)).toBeInTheDocument()
     expect(screen.getByText('费用待核对')).toBeInTheDocument()
     expect(screen.queryByText(/已结清/)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '确认诊毕' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: '确认诊毕' }))
+    await waitFor(() => expect(api.encounters.complete).toHaveBeenCalledTimes(1))
   })
 
-  it.each(['configuration', 'mode-changed', 'new-charge', 'services', 'medications', 'payments'] as const)(
+  it.each(['statement', 'paymentOrders', 'methods'] as const)(
+    'allows signing and completion when the billing %s interface fails', async source => {
+      const api = completionFactsApi()
+      api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+      api.clinicalDocuments.sign = vi.fn().mockImplementation(async () => {
+        const signed = outpatientNote('SIGNED')
+        api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([signed])
+        return signed
+      })
+      if (source === 'methods') {
+        api.billing.statement = vi.fn().mockResolvedValue({ ...completionStatementFixture(mockInProgressEncounter),
+          settlements: [completionSettlementFixture()],
+        })
+        api.dictionaries.applicable = vi.fn().mockRejectedValue(new Error('支付方式读取中断'))
+      } else api.billing[source] = vi.fn().mockRejectedValue(new Error('费用读取中断'))
+      const user = await openCompletionFacts(api)
+      await screen.findByText(/费用信息加载失败/)
+      const button = screen.getByRole('button', { name: '签署并诊毕' })
+      await waitFor(() => expect(button).toBeEnabled())
+      await user.click(button)
+      await waitFor(() => expect(api.encounters.complete).toHaveBeenCalledTimes(1))
+      expect(api.clinicalDocuments.sign).toHaveBeenCalledWith('note-1', 1)
+    })
+
+  it.each(['configuration', 'mode-changed', 'services', 'medications'] as const)(
     'rechecks %s before signing even after the displayed facts were ready', async source => {
       const api = completionFactsApi()
       api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
@@ -2066,12 +2125,8 @@ describe('DoctorWorkstation reception flow', () => {
         key: 'outpatient.doctor-workstation.completion-mode', value: 'SEPARATE_CONFIRMATIONS',
         requestedScope: 'DEPARTMENT', resolvedScope: 'DEPARTMENT', inherited: false, suppressedByDependency: false,
       })
-      else if (source === 'new-charge') api.billing.statement = vi.fn().mockResolvedValue({
-        ...completionStatementFixture(mockInProgressEncounter), chargeAmount: 12, uninvoicedAmount: 12,
-      })
       else if (source === 'services') api.encounters.serviceRequests = vi.fn().mockResolvedValue(null)
-      else if (source === 'medications') api.encounters.medicationRequests = vi.fn().mockResolvedValue(null)
-      else api.billing.paymentOrders = vi.fn().mockResolvedValue(null)
+      else api.encounters.medicationRequests = vi.fn().mockResolvedValue(null)
       await user.click(button)
       expect(await screen.findByText(source === 'configuration' ? '配置读取中断' : /诊毕资料未确认/)).toBeInTheDocument()
       expect(api.clinicalDocuments.sign).not.toHaveBeenCalled()
@@ -2091,37 +2146,36 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(screen.getByRole('button', { name: '诊毕' }))
     const button = await screen.findByRole('button', { name: '签署并诊毕' })
     await waitFor(() => expect(button).toBeEnabled())
-    let finish!: (value: ReturnType<typeof completionStatementFixture>) => void
-    api.billing.statement = vi.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
-      .mockResolvedValue(completionStatementFixture(mockInProgressEncounter))
+    let finish!: (value: never[]) => void
+    api.encounters.serviceRequests = vi.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+      .mockResolvedValue([])
     await user.click(button)
-    await waitFor(() => expect(api.billing.statement).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(api.encounters.serviceRequests).toHaveBeenCalledTimes(1))
     rendered.rerender(view({ ...api }))
-    await act(async () => finish(completionStatementFixture(mockInProgressEncounter)))
+    await act(async () => finish([]))
     expect(await screen.findByText(/文书操作未确认.*工作上下文/)).toBeInTheDocument()
     expect(api.clinicalDocuments.sign).not.toHaveBeenCalled()
     expect(api.encounters.complete).not.toHaveBeenCalled()
   })
 
-  it('preserves clinician notes across disposition changes and uses the actual currency', async () => {
+  it('submits the selected disposition without duplicating follow-up notes and uses the actual currency', async () => {
     const api = completionFactsApi()
     api.billing.statement = vi.fn().mockResolvedValue({ ...completionStatementFixture(mockInProgressEncounter), currencyCode: 'USD' })
     const user = await openCompletionFacts(api)
     await waitFor(() => expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled())
-    expect(screen.getByText(/已结清/)).not.toHaveTextContent('¥')
-    const note = screen.getByLabelText('转归及随访说明')
-    expect(note).toHaveValue('')
+    const overview = screen.getByRole('region', { name: '诊毕状态汇总' })
+    expect(within(overview).getByText('已结清')).toBeInTheDocument()
+    expect(overview).not.toHaveTextContent('¥')
+    expect(overview).toHaveTextContent('US$0.00')
     await user.click(screen.getByRole('combobox', { name: /就诊转归/ }))
     await user.click(screen.getByRole('option', { name: '收治住院' }))
-    expect(note).toHaveValue('')
-    await user.type(note, '已联系住院部，等待床位确认')
     await user.click(screen.getByRole('combobox', { name: /就诊转归/ }))
     await user.click(screen.getByRole('option', { name: '转诊 / 转科' }))
-    expect(note).toHaveValue('已联系住院部，等待床位确认')
     await user.click(screen.getByRole('button', { name: '确认诊毕' }))
     await waitFor(() => expect(api.encounters.complete).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
-      dispositionCode: 'REFERRAL', dispositionNote: '已联系住院部，等待床位确认',
+      dispositionCode: 'REFERRAL',
     })))
+    expect(vi.mocked(api.encounters.complete).mock.calls[0][1]).not.toHaveProperty('dispositionNote')
   })
 
   it.each([
@@ -2155,21 +2209,20 @@ describe('DoctorWorkstation reception flow', () => {
     }
     await user.click(action)
     expect(await screen.findByText(/诊间结算操作未确认/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '确认诊毕' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled()
     if (failure === 'empty') {
       await user.click(screen.getByRole('button', { name: '继续诊疗' }))
       expect(screen.queryByRole('dialog', { name: '诊毕确认' })).not.toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: '诊毕' }))
       await screen.findByRole('dialog', { name: '诊毕确认' })
     }
-    const retry = await screen.findByRole('button', { name: '核实上次结算操作' })
+    const retry = await screen.findByRole('button', { name: '核实上次结算' })
     await user.click(retry)
-    await waitFor(() => expect(screen.queryByRole('button', { name: '核实上次结算操作' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('button', { name: '核实上次结算' })).not.toBeInTheDocument())
     const calls = kind === 'invoice' ? fixture.api.issueInvoice.mock.calls : fixture.api.createPaymentOrder.mock.calls
     expect(calls).toHaveLength(2)
     expect(calls[1]).toEqual(calls[0])
-    if (kind === 'payment') await waitFor(() => expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled())
-    else expect(screen.getByRole('button', { name: '确认诊毕' })).toBeDisabled()
+    await waitFor(() => expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled())
   })
 
   it('keeps the completion dialog open while a collection request is unresolved', async () => {
@@ -2422,7 +2475,9 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(legend).toHaveTextContent('虚线文字可点击查看来源并调整')
     expect(legend).toHaveTextContent('蓝色：需按本次患者替换')
     expect(legend).toHaveTextContent('橙色：重点信息')
-    expect(document.querySelector('#doctor-record-form')?.lastElementChild).toBe(legend)
+    const annotationFooter = document.querySelector('#doctor-record-form')?.lastElementChild
+    expect(annotationFooter).toContainElement(legend)
+    expect(annotationFooter).toContainElement(screen.getByRole('button', { name: '隐藏标记' }))
     await user.click(screen.getByRole('button', { name: '隐藏标记' }))
     expect(screen.queryByRole('complementary', { name: '病历标记说明' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '显示标记' }))
@@ -2432,11 +2487,11 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.click(screen.getByRole('button', { name: '应用修改' }))
     expect(screen.getByRole('textbox', { name: '现病史' })).toHaveTextContent('咳嗽5天，用药3天；无胸痛')
     vi.mocked(api.clinicalDocuments.byEncounter).mockResolvedValueOnce([])
-    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await user.click(screen.getByRole('button', { name: '保存草稿' }))
     expect((await screen.findAllByText(/病历保存回执未确认.*未找到唯一的本次门诊病历/)).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: '无胸痛：模板预设 · 重点阴性 · 已保存确认' })).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '现病史' })).toHaveTextContent('咳嗽5天，用药3天；无胸痛')
-    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await user.click(screen.getByRole('button', { name: '保存草稿' }))
     await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
       presentIllness: '咳嗽5天，用药3天；无胸痛',
       annotations: expect.arrayContaining([expect.objectContaining({ source: 'DOCTOR', binding: 'symptom.cough.duration' }),
@@ -2456,9 +2511,17 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(screen.getByLabelText('收缩压')).toHaveAttribute('aria-required', 'false')
     await user.clear(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'))
     await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '咳嗽两天')
-    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await user.click(screen.getByRole('button', { name: '保存草稿' }))
     await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101',
       expect.objectContaining({ chiefComplaint: '咳嗽两天', systolic: undefined, diastolic: undefined })))
+    await screen.findByText('门诊病历、诊断与医嘱草稿已保存')
+    await user.clear(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'))
+    await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '咳嗽三天')
+    await user.click(screen.getByRole('button', { name: '保存草稿' }))
+    await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledTimes(2))
+    expect(api.encounters.recordClinicalData).toHaveBeenLastCalledWith('encounter-101',
+      expect.objectContaining({ chiefComplaint: '咳嗽三天' }))
+    expect(screen.queryByText(/Invalid input: expected string/)).not.toBeInTheDocument()
   })
 
   it('keeps mapped treatment suggestions available after record and diagnosis adoption', async () => {
@@ -2480,7 +2543,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(within(diagnosisTable).getByLabelText('AI 诊断待确认')).toHaveTextContent('原发性高血压')
     await user.clear(screen.getByLabelText('收缩压'))
     await user.clear(screen.getByLabelText('舒张压'))
-    const saveDraftBtn = screen.getByRole('button', { name: '保存全部草稿' })
+    const saveDraftBtn = screen.getByRole('button', { name: '保存草稿' })
     await user.click(saveDraftBtn)
     console.log('DIAGNOSES DOM:', diagnosisTable.innerHTML)
     console.log('ORDERS DOM:', orderTable.innerHTML)
@@ -2539,8 +2602,8 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.clear(systolicInput)
     await user.clear(diastolicInput)
 
-    // 点击保存全部草稿
-    const saveDraftBtn = screen.getByRole('button', { name: '保存全部草稿' })
+    // 点击保存草稿
+    const saveDraftBtn = screen.getByRole('button', { name: '保存草稿' })
     await user.click(saveDraftBtn)
 
     // 应该提示血压错误
@@ -2902,6 +2965,69 @@ describe('DoctorWorkstation controlled printing workflow', () => {
     expect(within(printSection).getByRole('button', { name: '补打' })).toBeInTheDocument()
   })
 
+  it('supports inline one-click batch printing directly inside EncounterPrintPanel without secondary dialog', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const medicationActive = {
+      id: 'med-1', revision: 1, prescriptionId: 'rx-1', status: 'ACTIVE',
+      medicationId: '362387880000128', medicationSnapshot: { name: '阿莫西林胶囊' },
+      quantity: 1, quantityUnit: '盒', doseValue: 0.5, doseUnit: 'g', routeCode: 'ORAL',
+      frequencyCode: 'TID', durationValue: 3, durationUnit: 'DAY', substitutionAllowed: false,
+      selfProvided: false, itemAttributeSnapshot: {}, itemAttributeHash: 'h1', standardMappings: [],
+      authoredAt: '2026-09-28T08:00:00Z',
+    } as any
+    const prescriptionActive = {
+      id: 'rx-1', revision: 1, residentId: 'resident-1', encounterId: 'encounter-101',
+      prescriptionNo: 'RX20260928001', categoryCode: 'WESTERN', status: 'ACTIVE',
+      performerOrganizationId: 'org-1', performerDepartmentId: 'dept-1',
+      authoredAt: '2026-09-28T08:00:00Z', medicationRequests: [medicationActive],
+    } as any
+    const serviceActive = {
+      id: 'svc-1', revision: 1, residentId: 'resident-1', encounterId: 'encounter-101',
+      requestNo: 'SR20260928001', serviceType: 'LABORATORY', status: 'ACTIVE',
+      itemName: '血常规', catalogItemId: 'lab-1',
+      authoredAt: '2026-09-28T08:00:00Z',
+    } as any
+
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('SIGNED')])
+    api.encounters.prescriptions = vi.fn().mockResolvedValue([prescriptionActive])
+    api.encounters.medicationRequests = vi.fn().mockResolvedValue([medicationActive])
+    api.encounters.serviceRequests = vi.fn().mockResolvedValue([serviceActive])
+
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+
+    const printToolBtn = await screen.findByRole('button', { name: '就诊文书' })
+    await user.click(printToolBtn)
+
+    const printCenter = (await screen.findByText('可输出医疗文书与单据')).closest('.doctor-print-center-panel') as HTMLElement
+    expect(printCenter).toBeInTheDocument()
+
+    // 抽屉内直接展示批量操作栏，并且默认勾选了所有就绪项（3 项）
+    expect(printCenter.querySelector('.doctor-batch-count-hint')).toHaveTextContent(/已选\s*3\s*\/\s*3\s*项可打印单据/)
+    const batchTriggerBtn = within(printCenter).getByRole('button', { name: /一键批量打印/ })
+    expect(batchTriggerBtn).toBeInTheDocument()
+
+    // 点击一键批量打印，原地执行，不触发任何二次弹窗
+    await user.click(batchTriggerBtn)
+
+    // 确认没有弹出任何二次 Dialog 弹窗
+    expect(screen.queryByRole('dialog', { name: '批量受控打印' })).not.toBeInTheDocument()
+
+    // 验证 API 依次调起
+    await waitFor(() => expect(api.printing.clinicalDocument).toHaveBeenCalledWith('note-1', 'PATIENT_COPY', 1))
+    await waitFor(() => expect(api.printing.prescription).toHaveBeenCalledWith('encounter-101', 'rx-1', 'PATIENT_COPY', 1))
+    await waitFor(() => expect(api.printing.serviceRequest).toHaveBeenCalledWith('encounter-101', 'svc-1', 'PATIENT_COPY', 1))
+
+    // 验证调起系统打印
+    await waitFor(() => expect(api.printing.printPdf).toHaveBeenCalledWith('/api/platform/printing/outputs/out-note-1/content'))
+    await waitFor(() => expect(api.printing.printPdf).toHaveBeenCalledWith('/api/platform/printing/outputs/out-rx-1/content'))
+    await waitFor(() => expect(api.printing.printPdf).toHaveBeenCalledWith('/api/platform/printing/outputs/out-svc-1/content'))
+
+    // 验证出现就地成功反馈提示（Toast/Alert 渲染在系统通知视口）
+    expect(await screen.findByText(/已成功完成 3 项文书受控生成并调起打印/)).toBeInTheDocument()
+  })
+
   it('supports one-click batch printing for all ready clinical documents and orders', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
@@ -2996,7 +3122,7 @@ describe('DoctorWorkstation controlled printing workflow', () => {
       return completed
     })
 
-    const printOptionCheckbox = screen.getByLabelText(/诊毕后立即打开批量打印/)
+    const printOptionCheckbox = screen.getByLabelText(/诊毕后批量打印/)
     expect(printOptionCheckbox).toBeInTheDocument()
     expect(printOptionCheckbox).not.toBeChecked()
 

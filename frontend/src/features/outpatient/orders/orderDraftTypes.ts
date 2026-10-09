@@ -28,4 +28,5 @@ export interface AiOrderReviewCommand {
   encounterId: string
   items: ClinicalAiTreatmentRecommendation[]
   onCompleted?: (acceptedKeys: string[]) => void
+  onFailed?: (message: string) => void
 }

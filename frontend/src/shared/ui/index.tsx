@@ -25,6 +25,7 @@ import type { SemanticTone } from '../presentation'
 export { Icon, type IconName } from './Icon'
 export { EditableTable, EditableRow, EditableCell, useEditableRowScope } from './EditableTable'
 export { Popconfirm, type PopconfirmProps } from './Popconfirm'
+export { ActionMenu, type ActionMenuItem } from './ActionMenu'
 export { Tooltip, type TooltipProps }
 export { Select, type SelectMultipleProps, type SelectOption, type SelectProps, type SelectSingleProps } from './Select'
 export { DictionarySelect, type DictionarySelectProps } from './DictionarySelect'
@@ -536,6 +537,7 @@ export function Dialog({
 
     function handlePanelPointerDown(event: PointerEvent) {
       if (!closeOnBackdrop || !(event.target instanceof Node) || dialog?.contains(event.target)) return
+      if (event.target instanceof Element && event.target.closest('[data-dialog-owner]')?.getAttribute('data-dialog-owner') === panelId) return
       onCloseRef.current()
     }
 
@@ -572,6 +574,7 @@ export function Dialog({
         ref={dialogRef}
         className={`ui-dialog ${presentation !== 'dialog' ? `ui-dialog--${presentation}` : ''} ${size !== 'default' ? `ui-dialog--${size}` : ''} ${className}`}
         role="dialog"
+        data-dialog-id={panelId}
         aria-modal={presentation === 'dialog'}
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
@@ -664,26 +667,29 @@ export function StatusBadge({ tone = 'neutral', children, className = '' }: Prop
   return <span className={`ui-badge ui-badge--${tone} ${className}`}>{children}</span>
 }
 
-export function ObjectContextBar({ avatar, eyebrow, title, description, facts, actions }: {
+export function ObjectContextBar({ avatar, eyebrow, title, description, identityStatus, facts, support, actions }: {
   avatar: string
   eyebrow?: string
   title: string
   description: string
+  identityStatus?: ReactNode
   facts?: Array<{ label: string; value: ReactNode }>
+  support?: ReactNode
   actions?: ReactNode
 }) {
   return <section className="ui-context-bar" aria-label={`${title}业务上下文`}>
     <div className="ui-context-bar__avatar" aria-hidden="true">{avatar}</div>
     <div className="ui-context-bar__identity">
       {eyebrow && <span className="ui-eyebrow">{eyebrow}</span>}
-      <h1>{title}</h1>
-      <p>{description}</p>
+      {identityStatus ? <div className="ui-context-bar__identity-head"><h1>{title}</h1>{identityStatus}</div> : <h1>{title}</h1>}
+      <p title={description}>{description}</p>
     </div>
     {facts && facts.length > 0 && <dl className="ui-context-bar__facts">
       {facts.map((fact) => <div className="ui-context-bar__fact" key={fact.label}>
         <dt>{fact.label}</dt><dd>{fact.value || '—'}</dd>
       </div>)}
     </dl>}
+    {support && <div className="ui-context-bar__support">{support}</div>}
     {actions && <div className="ui-context-bar__actions">{actions}</div>}
   </section>
 }

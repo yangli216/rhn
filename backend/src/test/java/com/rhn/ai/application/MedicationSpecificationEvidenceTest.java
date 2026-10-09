@@ -31,6 +31,17 @@ class MedicationSpecificationEvidenceTest {
         assertNotNull(MedicationSpecificationEvidence.reviewReason(intent, null));
     }
 
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"500mg,0.5g", "5mg,0.005g", "500μg,0.5mg", "500mg/片,0.5g/片", "5mg/mL,0.005g/mL"})
+    void exactMassEquivalencePreservesConcentrationAndPresentation(String requested, String catalog) {
+        assertNull(MedicationSpecificationEvidence.reviewExplicitSpecification(requested, catalog));
+    }
+    @Test void equalMassNeverRemovesDifferentFormOrPackagingRestrictions() {
+        assertNotNull(MedicationSpecificationEvidence.reviewExplicitSpecification("500mg/片", "0.5g/粒"));
+        assertNotNull(MedicationSpecificationEvidence.reviewExplicitSpecification("500mg", "0.5g/mL"));
+        assertNotNull(MedicationSpecificationEvidence.reviewExplicitSpecification("500mg×10片", "0.5g×20片"));
+        assertNotNull(MedicationSpecificationEvidence.reviewExplicitSpecification("500mg缓释", "0.5g"));
+    }
     @Test void ordinaryDoseDoesNotBecomeARequestedProductSpecification() {
         var intent = parser.parse("维生素B12片", "每次5mg 口服 QD 共1盒");
         assertNull(MedicationSpecificationEvidence.reviewReason(intent, null));
@@ -38,7 +49,7 @@ class MedicationSpecificationEvidenceTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"0.5mg", "5mg/mL", "0.005g", "5mg×10片", "5mg或10mg", ""})
+    @ValueSource(strings = {"0.5mg", "5mg/mL", "5mg×10片", "5mg或10mg", ""})
     void doesNotDiscardDecimalPointsRatiosPackagingOrUncertainty(String specification) {
         var intent = parser.parse("测试药品", "规格：" + specification + "；每次5mg 口服 QD 共1盒");
         assertNotNull(MedicationSpecificationEvidence.reviewReason(intent, "5mg"));

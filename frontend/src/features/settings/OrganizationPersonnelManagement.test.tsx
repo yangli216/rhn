@@ -598,6 +598,15 @@ describe('profile form dictionary and draft truth', () => {
     expect(within(region).getAllByText('尚未接入').length).toBeGreaterThan(0)
     expect(within(region).getByText(/不能据此判断是否已登记/)).toBeInTheDocument()
   })
+  it('opens the personnel directory and details for historical staff with unfilled gender', async () => {
+    const people = mockPractitioners.map(person => ({ ...person, sdPractGender: null, sdPractGenderText: null }))
+    const assignments = mockAssignments.map(assignment => ({ ...assignment, sdPractGender: null, sdPractGenderText: null }))
+    renderComponent(people, assignments)
+    await userEvent.click(screen.getByRole('tab', { name: '人员任职' }))
+    expect(await within(screen.getByRole('listbox', { name: '人员列表' })).findByText('陈国华')).toBeInTheDocument()
+    expect(await screen.findByText('未填写')).toBeInTheDocument()
+    expect(screen.queryByText(/人员目录返回不完整|任职目录返回不完整|人员档案返回不完整/)).not.toBeInTheDocument()
+  })
 })
 
 describe('governance profile writes require an actual new record', () => {

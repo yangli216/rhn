@@ -38,10 +38,17 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
   useEffect(() => {
     if (!aiOrderReview || aiOrderReview.encounterId !== encounter.id) return
     let cancelled = false
+    let settled = false
+    const fail = (message: string) => {
+      if (settled) return
+      settled = true
+      aiOrderReview.onFailed?.(message)
+    }
     const canReview = () => !cancelled && reviewState.current.encounterId === aiOrderReview.encounterId
       && !reviewState.current.busy && !reviewState.current.readOnly
     if (!canReview()) {
       setValidationError('当前医嘱区正在处理其他操作，请稍后重试。')
+      fail('当前医嘱区正在处理其他操作，请稍后重试。')
       reviewState.current.onAiOrderReviewConsumed?.()
       return
     }
@@ -164,26 +171,38 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
         }
         return { item, serviceDraft }
       }))
-      if (!canReview()) return
+      if (!canReview()) { fail('当前就诊或编辑状态已变化，请重新核对。'); return }
+      const failures = resolved.filter((value) => value.error)
+      if (failures.length) {
+        const message = failures.map(value => `${value.item.name}：${value.error}`).join('；')
+        setValidationError(message)
+        fail(message)
+        return
+      }
       const medicationAdditions = resolved.flatMap((value) => value.medicationDraft ? [value.medicationDraft] : [])
       const serviceAdditions = resolved.flatMap((value) => value.serviceDraft ? [value.serviceDraft] : [])
       if (medicationAdditions.length) setMedicationDrafts((current) => [...current, ...medicationAdditions])
       if (serviceAdditions.length) setServiceDrafts((current) => [...current, ...serviceAdditions])
       const acceptedKeys = resolved.filter((value) => value.medicationDraft || value.serviceDraft)
         .map((value) => clinicalAiTreatmentKey(value.item))
-      const failures = resolved.filter((value) => value.error)
       if (acceptedKeys.length) {
         setSuccessToast(`已将 ${acceptedKeys.length} 项 AI 建议转为待确认医嘱，可直接逐项编辑或统一审核开立。`)
         aiOrderReview.onCompleted?.(acceptedKeys)
-        if (!failures.length) reviewState.current.onAiOrdersPrepared?.()
+        settled = true
+        reviewState.current.onAiOrdersPrepared?.()
       }
-      setValidationError(failures.length ? failures.map((value) => `${value.item.name}：${value.error}`).join('；') : '')
+      setValidationError('')
+      if (!acceptedKeys.length) fail('所选项目已在医嘱中，未重复带入。')
     })().catch((error: unknown) => {
-      if (canReview()) setValidationError(error instanceof Error ? error.message : '部分目录读取失败，请重试或在医嘱区检索。')
+      if (canReview()) {
+        const message = error instanceof Error ? error.message : '部分目录读取失败，请重试或在医嘱区检索。'
+        setValidationError(message)
+        fail(message)
+      }
     }).finally(() => {
       if (!cancelled) reviewState.current.onAiOrderReviewConsumed?.()
     })
-    return () => { cancelled = true }
+    return () => { cancelled = true; fail('当前核对已取消，请重新核对。') }
     // The review is a one-shot command. Mutable editor state is checked again after the catalog query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiOrderReview?.id, encounter.id, encounter.organizationId, encounter.departmentId, api])

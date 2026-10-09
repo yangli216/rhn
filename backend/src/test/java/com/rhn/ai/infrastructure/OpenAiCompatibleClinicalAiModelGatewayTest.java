@@ -49,10 +49,20 @@ import static org.mockito.ArgumentMatchers.any;
 class OpenAiCompatibleClinicalAiModelGatewayTest {
     private HttpServer server;
     private final JsonCodec jsonCodec = new TestJsonCodec();
+    private ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> timingLogs;
+    private void captureTimingLogs() {
+        timingLogs = new ch.qos.logback.core.read.ListAppender<>();
+        timingLogs.start();
+        ((ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleClinicalAiModelGateway.class)).addAppender(timingLogs);
+    }
 
     @AfterEach
     void stopServer() {
         if (server != null) server.stop(0);
+        if (timingLogs != null) {
+            ((ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleClinicalAiModelGateway.class)).detachAppender(timingLogs);
+            timingLogs.stop();
+        }
     }
 
     @Test
@@ -377,6 +387,7 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
 
     @Test
     void streamsDraftBeforeProviderCompletesAndStillParsesFinalContent() throws Exception {
+        captureTimingLogs();
         var firstDelta = new java.util.concurrent.CountDownLatch(1);
         var body = new AtomicReference<String>();
         String json = "{\"summary\":\"合成测试摘要\",\"recordDraft\":{\"chiefComplaint\":\"测试主诉\"}}";
@@ -391,7 +402,9 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
                 if (!firstDelta.await(2, java.util.concurrent.TimeUnit.SECONDS)) throw new IOException("Delta was buffered");
             } catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
             output.write((deltaFrame(json.substring(16))
-                    + "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+                    + "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+                    + "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":120,\"completion_tokens\":45,\"total_tokens\":165}}\n\n"
+                    + "data: [DONE]\n\n")
                     .getBytes(StandardCharsets.UTF_8));
             exchange.close();
         });
@@ -406,10 +419,18 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(jsonCodec.readTree(body.get()).path("stream_options").path("include_usage").asBoolean());
         assertEquals(1, registry.get("rhn.ai.clinical.provider.first.visible").timer().count());
         assertEquals(1, registry.get("rhn.ai.clinical.provider.request").tag("outcome", "SUCCESS").timer().count());
+        String timing = timingLogs.list.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                .filter(value -> value.startsWith("clinical_ai_model_timing")).findFirst().orElseThrow();
+        assertTrue(timing.contains("promptTokens=120 completionTokens=45 totalTokens=165"));
+        assertTrue(timing.contains("usageReported=true"));
+        assertTrue(timing.contains("completionTokensPerSecond="));
+        assertFalse(timing.contains("firstContentMs=-1"));
+        assertFalse(timing.contains("合成测试摘要"));
     }
 
     @Test
     void streamsPlanDraftBeforeProviderCompletesAndParsesReviewItems() throws Exception {
+        captureTimingLogs();
         var firstDelta = new java.util.concurrent.CountDownLatch(1);
         var body = new AtomicReference<String>();
         String json = jsonCodec.write(new PlanIntent("成人上感方案", "待核对", "诊断与评估：上感待核对。",
@@ -439,6 +460,11 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertNull(result.items().getFirst().sourceQuote());
         assertEquals(json, chunks.toString());
         assertTrue(jsonCodec.readTree(body.get()).path("stream").asBoolean());
+        String timing = timingLogs.list.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                .filter(value -> value.startsWith("clinical_ai_model_timing")).findFirst().orElseThrow();
+        assertTrue(timing.contains("usageReported=false"));
+        assertTrue(timing.contains("promptTokens=-1 completionTokens=-1 totalTokens=-1"));
+        assertTrue(timing.contains("completionTokensPerSecond=-1.0"));
     }
 
     @Test

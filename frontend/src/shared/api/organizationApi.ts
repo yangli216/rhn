@@ -96,8 +96,8 @@ export interface Practitioner {
   revision: number
   code: string
   fullName: string
-  sdPractGender: PractitionerGender
-  sdPractGenderText: string
+  sdPractGender: PractitionerGender | null
+  sdPractGenderText: string | null
   sdPersonnelStatus: PersonnelStatus
   sdPersonnelStatusText: string
   createdAt: string

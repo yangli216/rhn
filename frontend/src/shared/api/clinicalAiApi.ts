@@ -160,8 +160,17 @@ export interface ClinicalAiTreatmentRecommendation {
   }
 }
 
+export interface ClinicalAiTreatmentMatch {
+  key: string
+  intent: { type: string; name: string; specification?: string; rationale?: string | null }
+  status: string
+  reason: string
+  candidates: ClinicalAiTreatmentRecommendation[]
+}
+
 export interface ClinicalAiSuggestion {
   treatmentRecommendations?: ClinicalAiTreatmentRecommendation[]
+  treatmentMatches?: ClinicalAiTreatmentMatch[]
   id: string
   parentSuggestionId?: string
   status: 'GENERATED' | 'PARTIALLY_ADOPTED' | 'ADOPTED' | 'IGNORED' | 'EXPIRED' | 'FAILED'
@@ -324,6 +333,10 @@ export function createClinicalAiApi(client: ApiClient) {
     getEvidenceChain: (encounterId: string, input: ClinicalAiEvidenceChainQuery) => client.request<ClinicalAiEvidenceChainResult>(
       `/api/ai/clinical-assistant/encounters/${encounterId}/evidence-chain`,
       { method: 'POST', body: JSON.stringify(input) },
+    ),
+    resolveTreatments: (encounterId: string, intents: ClinicalAiTreatmentMatch['intent'][]) => client.request<ClinicalAiTreatmentMatch[]>(
+      `/api/ai/clinical-assistant/encounters/${encounterId}/treatment-matches`,
+      { method: 'POST', body: JSON.stringify({ intents }) },
     ),
     getWikiDoc: (query: { name?: string; id?: string; type?: string }) => {
       const search = new URLSearchParams()

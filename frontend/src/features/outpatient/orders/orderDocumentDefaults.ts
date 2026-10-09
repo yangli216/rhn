@@ -22,15 +22,12 @@ export function buildDefaultDocumentInfo(
 
 export function checkDocumentInfoMissing(
   info?: OrderDocumentInfo | null,
-  kind: 'prescription' | 'service' = 'prescription'
+  _kind: 'prescription' | 'service' = 'prescription'
 ): string[] {
-  if (!info) return kind === 'service' ? ['关联诊断', '检查目的'] : ['关联诊断']
+  if (!info) return ['关联诊断']
   const missing: string[] = []
   if (!info.diagnoses || info.diagnoses.length === 0) {
     missing.push('关联诊断')
-  }
-  if (kind === 'service' && (!info.examinationPurpose || !info.examinationPurpose.trim())) {
-    missing.push('检查目的')
   }
   return missing
 }

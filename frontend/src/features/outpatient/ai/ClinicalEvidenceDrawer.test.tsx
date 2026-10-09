@@ -5,7 +5,14 @@ import { describe, expect, it, vi } from 'vitest'
 import { ClinicalEvidenceDrawer } from './ClinicalEvidenceDrawer'
 import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
 import type { RhnApi } from '../../../shared/rhnApi'
-import type { ClinicalAiEvidenceChainResult } from '../../../shared/api/clinicalAiApi'
+import type { ClinicalAiDraftContext, ClinicalAiEvidenceChainResult } from '../../../shared/api/clinicalAiApi'
+
+const matchedOrders = [
+  { type: 'EXAMINATION' as const, catalogItemId: 'ecg', code: 'ECG', name: '12导联常规心电图' },
+  { type: 'LABORATORY' as const, catalogItemId: 'bio', code: 'BIO', name: '生化全套' },
+]
+const catalogMatches = matchedOrders.map((item, index) => ({ key: String(index), intent: { type: item.type, name: item.name },
+  status: 'MATCHED', reason: '已匹配', candidates: [item] }))
 
 const mockEvidenceResult: ClinicalAiEvidenceChainResult = {
   success: true,
@@ -77,6 +84,36 @@ const mockEvidenceResult: ClinicalAiEvidenceChainResult = {
 }
 
 describe('ClinicalEvidenceDrawer', () => {
+  it('preserves evidence and doctor selections for equivalent inputs, but reloads for changed clinical facts', async () => {
+    const user = userEvent.setup()
+    const getEvidenceChain = vi.fn().mockResolvedValue(mockEvidenceResult)
+    const api = { clinicalAi: { getEvidenceChain } } as unknown as RhnApi
+    const props = { isOpen: true, onClose: vi.fn(), encounterId: 'enc-101', api }
+    const diagnosis = { code: 'I10', display: '原发性高血压 2级' }
+    const context: ClinicalAiDraftContext = {
+      encounterId: 'enc-101', residentId: 'resident-101', encounterStatus: 'IN_PROGRESS',
+      documentVersion: 0, documentStatus: 'DRAFT', structuredContextFingerprint: 'record-0',
+      medicationDraftFingerprint: '', serviceDraftFingerprint: '', allergyContextFingerprint: '',
+      allergyState: 'READY', busy: false, diagnoses: [{ ...diagnosis, type: 'PRIMARY' }],
+      chiefComplaint: '头晕', systolic: 168, diastolic: 102,
+    }
+    const { rerender } = render(<ClinicalEvidenceDrawer {...props} targetDiagnosis={{ ...diagnosis }} context={{ ...context }} />)
+    await screen.findByText(/中国高血压临床诊疗循证证据链/)
+    const [firstOrder] = screen.getAllByRole('checkbox')
+    await user.click(firstOrder)
+    expect(firstOrder).not.toBeChecked()
+
+    rerender(<ClinicalEvidenceDrawer {...props} targetDiagnosis={{ ...diagnosis }} context={{ ...context }} />)
+    expect(getEvidenceChain).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('正在整理当前诊断的推荐依据…')).not.toBeInTheDocument()
+    expect(firstOrder).not.toBeChecked()
+
+    rerender(<ClinicalEvidenceDrawer {...props} targetDiagnosis={{ ...diagnosis }} context={{ ...context, systolic: 180 }} />)
+    await waitFor(() => expect(getEvidenceChain).toHaveBeenCalledTimes(2))
+    expect(getEvidenceChain).toHaveBeenLastCalledWith('enc-101', expect.objectContaining({ vitals: { systolic: 180, diastolic: 102 } }))
+    await screen.findByText(/中国高血压临床诊疗循证证据链/)
+  })
+
   it('renders checklist, guideline references, and applies gap orders', async () => {
     const user = userEvent.setup()
     const getEvidenceChain = vi.fn().mockResolvedValue(mockEvidenceResult)
@@ -87,6 +124,7 @@ describe('ClinicalEvidenceDrawer', () => {
     const api = {
       clinicalAi: {
         getEvidenceChain,
+        resolveTreatments: vi.fn().mockResolvedValue(catalogMatches),
       },
     } as unknown as RhnApi
 
@@ -131,8 +169,72 @@ describe('ClinicalEvidenceDrawer', () => {
     const executeBtn = screen.getByRole('button', { name: /带入医嘱/ })
     expect(executeBtn).toBeInTheDocument()
     await user.click(executeBtn)
-    expect(onApplyGapOrders).toHaveBeenCalledWith(mockEvidenceResult.gapOrders)
+    expect(onApplyGapOrders).toHaveBeenCalledWith(matchedOrders)
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('splits matching through the backend and waits for actual draft preparation before closing', async () => {
+    const user = userEvent.setup()
+    let complete!: () => void
+    const onApplyGapOrders = vi.fn().mockImplementation(() => new Promise<void>(resolve => { complete = resolve }))
+    const resolveTreatments = vi.fn().mockResolvedValue(catalogMatches)
+    const api = { clinicalAi: { getEvidenceChain: vi.fn().mockResolvedValue({ ...mockEvidenceResult,
+      gapOrders: [{ ...mockEvidenceResult.gapOrders[0], name: '血常规五分类+超敏CRP' }] }), resolveTreatments } } as unknown as RhnApi
+    const onClose = vi.fn()
+    render(<ClinicalEvidenceDrawer isOpen onClose={onClose} encounterId="enc-101"
+      targetDiagnosis={{ code: 'J02.9', display: '急性咽炎' }} api={api} onApplyGapOrders={onApplyGapOrders} />)
+    await user.click(await screen.findByRole('button', { name: /带入医嘱/ }))
+    expect(resolveTreatments).toHaveBeenCalledWith('enc-101', [{ type: 'EXAMINATION', name: '血常规五分类+超敏CRP',
+      rationale: mockEvidenceResult.gapOrders[0].indication }])
+    expect(onApplyGapOrders).toHaveBeenCalledWith(matchedOrders)
+    expect(onClose).not.toHaveBeenCalled()
+    complete()
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+  })
+
+  it('keeps API failures visible and never closes or reports a catalog miss', async () => {
+    const user = userEvent.setup()
+    const api = { clinicalAi: { getEvidenceChain: vi.fn().mockResolvedValue(mockEvidenceResult),
+      resolveTreatments: vi.fn().mockRejectedValue(new Error('目录服务不可用')) } } as unknown as RhnApi
+    const onClose = vi.fn(), onApplyGapOrders = vi.fn()
+    render(<ClinicalEvidenceDrawer isOpen onClose={onClose} encounterId="enc-101"
+      targetDiagnosis={{ code: 'I10', display: '高血压' }} api={api} onApplyGapOrders={onApplyGapOrders} />)
+    await user.click(await screen.findByRole('button', { name: /带入医嘱/ }))
+    expect(await screen.findByText('目录服务不可用')).toBeInTheDocument()
+    expect(onApplyGapOrders).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('keeps ambiguous items pending until a physician chooses a catalog candidate', async () => {
+    const user = userEvent.setup()
+    const intent = { type: 'LABORATORY', name: '血常规' }
+    const candidates = [
+      { type: 'LABORATORY' as const, catalogItemId: 'cbc5', code: 'CBC5', name: '血常规（五分类）' },
+      { type: 'LABORATORY' as const, catalogItemId: 'cbc3', code: 'CBC3', name: '血常规（三分类）' },
+    ]
+    const api = { clinicalAi: { getEvidenceChain: vi.fn().mockResolvedValue({ ...mockEvidenceResult,
+      gapOrders: [{ ...mockEvidenceResult.gapOrders[1], name: '血常规' }] }),
+      resolveTreatments: vi.fn().mockResolvedValue([{ key: 'cbc', intent, status: 'AMBIGUOUS', reason: '存在多个可用项目', candidates }]) } } as unknown as RhnApi
+    const onClose = vi.fn(), onApplyGapOrders = vi.fn().mockResolvedValue(undefined)
+    render(<ClinicalEvidenceDrawer isOpen onClose={onClose} encounterId="enc-101"
+      targetDiagnosis={{ code: 'I10', display: '高血压' }} api={api} onApplyGapOrders={onApplyGapOrders} />)
+    await user.click(await screen.findByRole('button', { name: /带入医嘱/ }))
+    expect(onApplyGapOrders).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('combobox', { name: '匹配 血常规' }))
+    await user.click(screen.getByRole('option', { name: '血常规（五分类）' }))
+    await user.click(screen.getByRole('button', { name: '核对用法' }))
+    await user.click(screen.getByRole('button', { name: /带入医嘱/ }))
+    expect(onApplyGapOrders).toHaveBeenCalledWith([candidates[0]])
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the actual reason from the current AI suggestion alongside knowledge evidence', async () => {
+    const api = { clinicalAi: { getEvidenceChain: vi.fn().mockResolvedValue(mockEvidenceResult) } } as unknown as RhnApi
+    render(<ClinicalEvidenceDrawer isOpen onClose={vi.fn()} encounterId="enc-101"
+      targetDiagnosis={{ code: 'I10', display: '高血压' }} api={api}
+      sourceSuggestion={{ id: 'current', diagnosisCandidates: [{ code: 'I10', rationale: '本轮记录血压升高，需结合复测核对' }] } as never} />)
+    expect(await screen.findByText('本轮记录血压升高，需结合复测核对')).toBeInTheDocument()
   })
 
   it('replaces evidence with the full document and closes the document panel', async () => {

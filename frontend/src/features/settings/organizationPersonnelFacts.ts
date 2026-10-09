@@ -10,15 +10,15 @@ const status = z.enum(['ACTIVE', 'INACTIVE'])
 const gender = z.enum(['MALE', 'FEMALE', 'UNKNOWN'])
 const positionType = z.enum(['CLINICAL', 'NURSING', 'PHARMACY', 'MEDICAL_TECHNOLOGY', 'ADMINISTRATIVE'])
 const identity = { id: text, revision, code: text }
-const practitionerSchema = z.object({ ...identity, fullName: text, sdPractGender: gender, sdPractGenderText: text,
+const practitionerSchema = z.object({ ...identity, fullName: text, sdPractGender: gender.nullable(), sdPractGenderText: text.nullable(),
   sdPersonnelStatus: status, sdPersonnelStatusText: text, createdAt: z.string().refine(isIsoInstant), updatedAt: z.string().refine(isIsoInstant),
-}).passthrough()
+}).passthrough().refine(value => value.sdPractGender === null ? value.sdPractGenderText === null : value.sdPractGenderText !== null)
 const employmentSchema = z.object({ ...identity, practitionerId: text, organizationId: text, organizationName: text,
   sdEmploymentType: z.enum(['PERMANENT', 'CONTRACT', 'DISPATCHED', 'TEMPORARY']), sdEmploymentTypeText: text,
   primaryEmployment: z.boolean(), hireDate: date, leaveDate: date.nullish(), sdPersonnelStatus: status, sdPersonnelStatusText: text,
 }).passthrough().refine(value => !value.leaveDate || value.leaveDate >= value.hireDate)
 const assignmentSchema = z.object({ ...identity, employmentId: text, practitionerId: text, practitionerCode: text,
-  practitionerName: text, sdPractGender: gender, organizationId: text, organizationName: text, departmentId: text, departmentName: text,
+  practitionerName: text, sdPractGender: gender.nullable(), organizationId: text, organizationName: text, departmentId: text, departmentName: text,
   positionId: text, positionName: text, sdPositionType: positionType, sdPositionTypeText: text,
   sdAssignmentType: z.enum(['PRIMARY', 'PART_TIME', 'SECONDMENT', 'ROTATION']), sdAssignmentTypeText: text,
   primaryAssignment: z.boolean(), workloadPercent: z.number().min(0).max(100).nullish(),

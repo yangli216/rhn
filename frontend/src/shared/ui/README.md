@@ -33,8 +33,11 @@
 | `LoadingState` / `EmptyState` | 异步区域状态 | 状态播报、统一空状态结构和可选操作 |
 | `Dialog` | 单任务弹窗 | 焦点约束、Escape、焦点恢复、滚动锁定 |
 | `ObjectContextBar` | 居民、患者等对象上下文 | 身份、关键事实和主操作的统一位置 |
+| `ActionMenu` | 次要对象操作 | 共享 Button 触发，支持方向键、Esc、外部点击关闭 |
 | `BackButton` | 返回上层任务 | 统一图标、尺寸与焦点状态 |
 | `Switch` | 开关选择 | 遵循 ARIA switch 语义规范，支持键盘 Space/Enter 操作、受控/非受控、sm/md 尺寸与随动状态说明 |
+
+`ObjectContextBar` 的 `identityStatus` 插槽用于姓名旁的当前业务状态，`support` 插槽用于联系信息、候诊等辅助操作；业务布局可按实际容器宽度安排这些区域。`ActionMenu` 接受 `items`（`key`、`label`、`onSelect`，以及可选 `danger`、`disabled`），选择后关闭菜单并调用业务原有确认流程。
 
 `SearchField` 可传 `inputRef`，用于 F1、Alt+K 等业务快捷键聚焦；清空后焦点仍回到同一输入框。有内容时也保持稳定的可访问名称，页面不需另写搜索外壳和清空按钮。
 

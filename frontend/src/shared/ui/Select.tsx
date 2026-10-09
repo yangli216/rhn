@@ -28,6 +28,7 @@ interface SelectBaseProps {
   id?: string
   name?: string
   className?: string
+  size?: 'sm' | 'md'
   options: SelectOption[]
   placeholder?: string
   emptyText?: string
@@ -70,6 +71,7 @@ export function Select(props: SelectProps) {
     id,
     name,
     className = '',
+    size = 'md',
     options,
     placeholder = '请选择',
     emptyText = '暂无可选项',
@@ -336,7 +338,9 @@ export function Select(props: SelectProps) {
     }
   }
 
-  return <div className={`ui-select ${open ? 'is-open' : ''}`} ref={rootRef}>
+  const sizeClass = size === 'sm' ? 'ui-select--sm' : ''
+
+  return <div className={`ui-select ${open ? 'is-open' : ''} ${sizeClass}`.trim()} ref={rootRef}>
     {name && (multiple
       ? values.map((value) => <input key={value} type="hidden" name={name} value={value} disabled={disabled} />)
       : <input type="hidden" name={name} value={values[0] ?? ''} disabled={disabled} />)}
@@ -345,7 +349,7 @@ export function Select(props: SelectProps) {
       id={controlId}
       type="button"
       role="combobox"
-      className={`ui-select__trigger ${selectedOptions.length ? '' : 'is-placeholder'} ${className}`}
+      className={`ui-select__trigger ${selectedOptions.length ? '' : 'is-placeholder'} ${sizeClass} ${className}`.trim()}
       aria-label={ariaLabel}
       aria-controls={listboxId}
       aria-describedby={ariaDescribedBy}
@@ -387,6 +391,7 @@ export function Select(props: SelectProps) {
       {loading ? <span className="ui-spinner" aria-hidden="true" /> : <Icon name="chevron-down" />}
     </button>
     {open && popoverPosition && createPortal(<div ref={popoverRef} className="ui-select__popover" data-editable-row={editableRowScope}
+      data-dialog-owner={rootRef.current?.closest('[data-dialog-id]')?.getAttribute('data-dialog-id') || undefined}
       data-placement={popoverPosition.placement} style={{ top: popoverPosition.top, bottom: popoverPosition.bottom,
         left: popoverPosition.left, width: popoverPosition.width, maxHeight: popoverPosition.maxHeight }}>
       {searchable && <label className="ui-select__search">

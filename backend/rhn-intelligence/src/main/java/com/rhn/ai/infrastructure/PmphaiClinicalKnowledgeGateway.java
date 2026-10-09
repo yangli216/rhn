@@ -106,6 +106,39 @@ final class PmphaiClinicalKnowledgeGateway implements ClinicalKnowledgeGateway {
     }
 
     @Override
+    public PreflightSafetyResult evaluatePreflightSafety(PreflightSafetyRequest request, ClinicalAssistantSettings runtimeSettings) {
+        ClinicalAssistantSettings active = runtimeSettings == null ? settings : runtimeSettings;
+        if (!active.knowledgeAvailable()) throw new ClinicalAiModelException("医学知识服务配置不完整");
+        URI targetUri = preflightSafetyEndpoint(active.knowledgeEndpoint());
+        String body = jsonCodec.write(request);
+        HttpRequest.Builder builder = HttpRequest.newBuilder(targetUri)
+                .timeout(active.requestTimeout())
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body));
+        if (active.knowledgeApiKey() != null) {
+            builder.header("Authorization", "Bearer " + active.knowledgeApiKey());
+        }
+        try {
+            HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new ClinicalAiModelException("处方预检安全服务返回非成功状态：" + response.statusCode());
+            }
+            PreflightSafetyResult result = jsonCodec.read(response.body(), PreflightSafetyResult.class);
+            if (result == null) {
+                throw new ClinicalAiModelException("处方预检安全服务响应为空");
+            }
+            return result;
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new ClinicalAiModelException("处方预检安全请求被中断", exception);
+        } catch (IOException | RuntimeException exception) {
+            if (exception instanceof ClinicalAiModelException modelException) throw modelException;
+            throw new ClinicalAiModelException("处方预检安全服务调用或结果解析失败", exception);
+        }
+    }
+
+    @Override
     public WikiDocResult lookupWikiDoc(String query, String docType, ClinicalAssistantSettings runtimeSettings) {
         ClinicalAssistantSettings active = runtimeSettings == null ? settings : runtimeSettings;
         if (!active.knowledgeAvailable()) throw new ClinicalAiModelException("医学知识服务配置不完整");
@@ -146,6 +179,15 @@ final class PmphaiClinicalKnowledgeGateway implements ClinicalKnowledgeGateway {
 
     List<KnowledgeResult> search(String query, int limit) {
         return search(query, limit, settings);
+    }
+
+    private static URI preflightSafetyEndpoint(URI searchEndpoint) {
+        String path = searchEndpoint.getRawPath();
+        if (path != null && path.contains("/knowledge/")) {
+            String cdssPath = path.substring(0, path.lastIndexOf("/knowledge/")) + "/cdss/preflight-safety";
+            return URI.create(searchEndpoint.getScheme() + "://" + searchEndpoint.getRawAuthority() + cdssPath);
+        }
+        return siblingEndpoint(searchEndpoint, "preflight-safety");
     }
 
     private static URI siblingEndpoint(URI searchEndpoint, String operation) {

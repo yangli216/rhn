@@ -42,6 +42,25 @@ class TreatmentCatalogDecisionServiceTest {
         assertFalse(service.match(groups, context).applied());
         verifyNoInteractions(gateway);
     }
+    @Test void logsDisabledAndFailureReasonWithoutLeakingProviderMessages() {
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(TreatmentCatalogDecisionService.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start(); logger.addAppender(appender);
+        try {
+            service.match(groups, context);
+            mode("ASSIST");
+            when(gateway.decide(any(), any())).thenThrow(new IllegalStateException("independent-test-key secret patient"));
+            service.match(groups, context);
+            String messages = appender.list.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                    .collect(java.util.stream.Collectors.joining("\n"));
+            assertTrue(messages.contains("correlationId=test"));
+            assertTrue(messages.contains("outcome=MODE_DISABLED"));
+            assertTrue(messages.contains("outcome=DECISION_FAILED"));
+            assertTrue(messages.contains("exceptionType=IllegalStateException"));
+            assertFalse(messages.contains("independent-test-key"));
+            assertFalse(messages.contains("secret patient"));
+        } finally { logger.detachAppender(appender); appender.stop(); }
+    }
     @Test void sceneGatePreventsCallsEvenWithSharedAssistEnabled() {
         mode("ASSIST");
         when(policy.booleanValue(1L, DecisionScene.ASSISTANT_RECOMMENDATIONS.settingKey(), true)).thenReturn(false);

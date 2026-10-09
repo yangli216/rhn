@@ -4,11 +4,12 @@ import type { OutpatientPlanTemplate } from '../../../shared/api/outpatientPlanT
 
 const text = z.string().trim().min(1)
 const status = z.enum(['READY', 'WARNING', 'BLOCKED'])
+const boundaryStatus = z.enum(['NOT_EVALUATED', 'EVALUATED', 'PASS', 'WARNING', 'BLOCKED'])
 const schema = z.object({ templateId: text, templateRevision: z.number().int().nonnegative(), status,
   blockingCount: z.number().int().nonnegative(), warningCount: z.number().int().nonnegative(),
   checkedAt: z.iso.datetime({ offset: true }),
-  drugInteractions: z.object({ status: z.literal('NOT_EVALUATED'), message: text }),
-  contraindications: z.object({ status: z.literal('NOT_EVALUATED'), message: text }),
+  drugInteractions: z.object({ status: boundaryStatus, message: text }),
+  contraindications: z.object({ status: boundaryStatus, message: text }),
   medications: z.array(z.object({ lineId: text, medicationId: text, catalogItemId: text.nullish(), packageId: text.nullish(),
     medicationCode: text, medicationName: text, status, checks: z.array(z.object({ code: text,
       status: z.enum(['PASS', 'WARNING', 'BLOCKED', 'NOT_EVALUATED']), message: text })).min(1) })),
@@ -37,7 +38,7 @@ export function requirePlanPreflight(value: ClinicalAiPlanPreflight, plan: Outpa
   // Both explicitly unevaluated safety boundaries count as warnings for medication plans.
   if (value.medications.length) warnings += [value.drugInteractions, value.contraindications]
     .filter(boundary => boundary.status === 'NOT_EVALUATED').length
-  if (value.blockingCount !== blocking || value.warningCount !== warnings
-    || value.status !== (blocking ? 'BLOCKED' : warnings ? 'WARNING' : 'READY')) return fail()
+  if (value.blockingCount < blocking || value.warningCount < warnings
+    || value.status !== (value.blockingCount ? 'BLOCKED' : value.warningCount ? 'WARNING' : 'READY')) return fail()
   return value
 }
