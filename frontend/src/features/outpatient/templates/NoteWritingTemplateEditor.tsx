@@ -3,6 +3,7 @@ import { FormField } from '../../../shared/ui'
 import { noteTemplateFields } from '../record/NoteTemplateBar'
 import { AnnotatedRecordField } from '../record/AnnotatedRecordField'
 import { rebaseAnnotations } from '../record/recordAnnotations'
+import { RecordAnnotationLegend } from '../record/RecordAnnotationLegend'
 
 export function NoteWritingTemplateEditor({ content, onChange, disabled = false }: {
   disabled?: boolean
@@ -19,5 +20,6 @@ export function NoteWritingTemplateEditor({ content, onChange, disabled = false 
             annotations: rebaseAnnotations(key, content[key] || '', value, content.annotations ?? []) })} />
       </FormField>)}
     </div>
+    {!disabled && (content.annotations?.length ?? 0) > 0 && <RecordAnnotationLegend />}
   </section>
 }

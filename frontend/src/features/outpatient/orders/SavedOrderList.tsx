@@ -17,7 +17,7 @@ import type { GroupingComposerTarget } from './orderListTypes'
 
 export function SavedOrderList({ savedEntries, draftEntries, allDocuments, prescriptions,
   documentRows, activeDocKey, handleSelectDoc: _handleSelectDoc, onSavedDocument: _onSavedDocument, encounter: _encounter, api: _api, readOnly, busy,
-  documentEditing, currentDept, onCancelService, onPrintService, onCancelMedication, onPrint,
+  documentEditing, currentDept, onCancelService, onPrintService, onCancelMedication, onPrint, onInspectMedication,
   skinTestByRequest, groupingComposerTarget, groupingSession, isComposerActive, composer }: {
   savedEntries: SavedOrderEntry[]
   draftEntries: DraftOrderEntry[]
@@ -37,6 +37,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
   onPrintService: (value: ServiceRequest) => void
   onCancelMedication: (value: MedicationRequest) => void
   onPrint: (value: Prescription) => void
+  onInspectMedication?: (name: string) => void
   skinTestByRequest: Map<string, SkinTestWorkItem>
   groupingComposerTarget: GroupingComposerTarget
   groupingSession: { groupKey: string } | null
@@ -214,7 +215,8 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
             readOnly={readOnly}
             currentDept={currentDept}
             skinTest={skinTestByRequest.get(entry.value.id)}
-            onCancel={() => onCancelMedication(entry.value)} />
+            onCancel={() => onCancelMedication(entry.value)}
+            onInspectMedication={onInspectMedication} />
         }
         if (groupingComposerTarget?.type === 'saved' && groupingComposerTarget.index === index) {
           return (

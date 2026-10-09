@@ -2,9 +2,12 @@ package com.rhn.ai.application;
 
 import com.rhn.ai.api.ClinicalAssistantContracts.TreatmentRecommendation;
 import com.rhn.ai.api.ClinicalAssistantContracts.SafetyAlert;
+import com.rhn.ai.api.ClinicalAssistantContracts.SuggestionContent;
 import com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory;
 import com.rhn.platform.masterdata.api.ServiceCatalogDirectory;
 import com.rhn.shared.context.ExecutionContextProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -16,6 +19,7 @@ import java.util.Set;
 /** Resolve clinical intent first, then let the model choose only from institution-backed candidates. */
 @Service
 public class ClinicalTreatmentRecommendationService {
+    private static final Logger log = LoggerFactory.getLogger(ClinicalTreatmentRecommendationService.class);
     private final OutpatientPrescriptionInventoryDirectory inventory;
     private final ServiceCatalogDirectory services;
     private final ExecutionContextProvider contexts;
@@ -33,12 +37,16 @@ public class ClinicalTreatmentRecommendationService {
     public Result recommend(List<TreatmentRecommendation> intents, ClinicalAiModelGateway.ModelRequest request,
                             ClinicalAssistantSettings runtime) {
         var context = contexts.requireCurrent();
+        long started = System.nanoTime();
+        var timing = new TreatmentTiming(intents.size());
         var available = new LinkedHashMap<String, TreatmentRecommendation>();
         var deterministic = new LinkedHashMap<String, TreatmentRecommendation>();
         var ambiguous = new LinkedHashMap<String, TreatmentRecommendation>();
         var decisionGroups = new ArrayList<TreatmentCatalogDecisionService.Group>();
         var alerts = new ArrayList<SafetyAlert>();
         var seen = new java.util.HashSet<String>();
+        long catalogStarted = System.nanoTime();
+        try {
         for (var intent : intents.stream().limit(12).toList()) {
             if (intent == null || intent.name() == null || intent.name().isBlank()
                     || intent.type() == null || !Set.of("MEDICATION", "LABORATORY", "EXAMINATION").contains(intent.type())) continue;
@@ -65,7 +73,7 @@ public class ClinicalTreatmentRecommendationService {
                             if (stock == null || !stock.routeConfigured() || !stock.stockItemConfigured()
                                     || stock.availablePackageQuantity() == null || stock.availablePackageQuantity().signum() <= 0) continue;
                             var item = new TreatmentRecommendation("MEDICATION", product.id(), medication.id(),
-                                    medication.code(), medication.name(), medication.preparationSpec(), intent.rationale());
+                                    medication.code(), medication.name(), medication.preparationSpec(), null);
                             available.putIfAbsent(key(item), item);
                             intentCandidates.add(item);
                         }
@@ -75,7 +83,7 @@ public class ClinicalTreatmentRecommendationService {
                 } else {
                     for (var service : services.searchOrderableServices(name, intent.type(), context.organizationId(), LocalDate.now())) {
                         var item = new TreatmentRecommendation(intent.type(), service.id(), null, service.code(),
-                                service.name(), service.specimenType() == null ? service.examinationType() : service.specimenType(), intent.rationale());
+                                service.name(), service.specimenType() == null ? service.examinationType() : service.specimenType(), null);
                         available.putIfAbsent(key(item), item);
                         intentCandidates.add(item);
                     }
@@ -99,29 +107,51 @@ public class ClinicalTreatmentRecommendationService {
                 alerts.add(new SafetyAlert("WARNING", "目录暂不可用", name + "的可用目录读取失败，请在医嘱区重新检索。"));
             }
         }
-        if (available.isEmpty()) return new Result(List.of(), alerts);
+        timing.catalogLookupMs = elapsedMillis(catalogStarted);
+        timing.candidateCount = available.size();
+        timing.deterministicCount = deterministic.size();
+        timing.ambiguousCount = ambiguous.size();
+        if (available.isEmpty()) {
+            timing.outcome = "NO_CANDIDATE";
+            return new Result(List.of(), alerts);
+        }
         if (deterministic.size() >= 8 || ambiguous.isEmpty()) {
+            timing.outcome = "DETERMINISTIC";
             return new Result(deterministic.values().stream().limit(8).toList(), alerts);
         }
         if (ambiguous.size() > 64) {
             alerts.add(new SafetyAlert("WARNING", "目录候选过多", "候选数量超过模型匹配上限，未截取部分候选代替完整结果，请在医嘱区缩小范围后核对。"));
+            timing.outcome = "TOO_MANY_CANDIDATES";
             return new Result(deterministic.values().stream().limit(8).toList(), alerts);
         }
         var candidates = List.copyOf(ambiguous.values());
         var allowedKeys = candidates.stream().map(ClinicalTreatmentRecommendationService::key).collect(java.util.stream.Collectors.toSet());
-        var decision = decisions.match(decisionGroups, context);
+        TreatmentCatalogDecisionService.Attempt decision;
+        long decisionStarted = System.nanoTime();
+        try {
+            decision = decisions.match(decisionGroups, context);
+        } finally {
+            timing.decisionMs = elapsedMillis(decisionStarted);
+        }
         alerts.addAll(decision.alerts());
         if (decision.applied()) {
             var result = new LinkedHashMap<String, TreatmentRecommendation>(deterministic);
             decision.items().stream().filter(item -> allowedKeys.contains(key(item)))
                     .forEach(item -> result.putIfAbsent(key(item), item));
+            timing.outcome = "DECISION_APPLIED";
             return new Result(result.values().stream().limit(8).toList(), alerts);
         }
         try {
-            var selection = gateway.analyze(new ClinicalAiModelGateway.ModelRequest(request.promptVersion(), request.question(),
-                    request.voiceTranscript(), request.draft(), request.resident(), request.allergies(), request.availablePlans(),
-                    request.diagnosticReports(), request.clinicalHistory(), request.priorSuggestion(), request.receptionScene(),
-                    request.receptionSceneContext(), "CATALOG_TREATMENT", candidates, request.temporalContext()), runtime);
+            SuggestionContent selection;
+            long baselineStarted = System.nanoTime();
+            try {
+                selection = gateway.analyze(new ClinicalAiModelGateway.ModelRequest(request.promptVersion(), request.question(),
+                        request.voiceTranscript(), request.draft(), request.resident(), request.allergies(), request.availablePlans(),
+                        request.diagnosticReports(), request.clinicalHistory(), request.priorSuggestion(), request.receptionScene(),
+                        request.receptionSceneContext(), "CATALOG_TREATMENT", candidates, request.temporalContext()), runtime);
+            } finally {
+                timing.baselineModelMs = elapsedMillis(baselineStarted);
+            }
             var result = new LinkedHashMap<String, TreatmentRecommendation>(deterministic);
             var baseline = new ArrayList<TreatmentRecommendation>();
             for (var item : selection.treatmentRecommendations()) {
@@ -129,16 +159,48 @@ public class ClinicalTreatmentRecommendationService {
                 var mapped = candidates.stream().filter(candidate -> key(candidate).equals(key(item))).findFirst().orElse(null);
                 if (mapped == null) continue;
                 baseline.add(mapped);
-                String rationale = item.rationale() == null ? "请结合当前病情核对适应证。" : item.rationale().substring(0, Math.min(500, item.rationale().length()));
                 result.putIfAbsent(key(mapped), new TreatmentRecommendation(mapped.type(), mapped.catalogItemId(),
-                        mapped.medicationId(), mapped.code(), mapped.name(), mapped.specification(), rationale));
+                        mapped.medicationId(), mapped.code(), mapped.name(), mapped.specification(), null));
                 if (result.size() >= 8) break;
             }
             decisions.compare(decision, baseline, context);
+            timing.outcome = "BASELINE_APPLIED";
             return new Result(result.values().stream().limit(8).toList(), alerts);
         } catch (RuntimeException exception) {
             alerts.add(new SafetyAlert("WARNING", "治疗推荐未完成", "病历及诊断已整理，目录治疗推荐暂未完成，请在医嘱区检索核对。"));
+            timing.outcome = "BASELINE_FAILED";
             return new Result(deterministic.values().stream().limit(8).toList(), alerts);
+        }
+        } finally {
+            if (timing.catalogLookupMs < 0) timing.catalogLookupMs = elapsedMillis(catalogStarted);
+            timing.candidateCount = available.size();
+            timing.deterministicCount = deterministic.size();
+            timing.ambiguousCount = ambiguous.size();
+            log.info("clinical_ai_treatment_timing correlationId={} outcome={} intentCount={} candidateCount={} "
+                            + "deterministicCount={} ambiguousCount={} catalogLookupMs={} decisionMs={} "
+                            + "baselineModelMs={} totalMs={}",
+                    context.correlationId(), timing.outcome, timing.intentCount, timing.candidateCount,
+                    timing.deterministicCount, timing.ambiguousCount, timing.catalogLookupMs,
+                    timing.decisionMs, timing.baselineModelMs, elapsedMillis(started));
+        }
+    }
+
+    private static long elapsedMillis(long startedNanos) {
+        return (System.nanoTime() - startedNanos) / 1_000_000;
+    }
+
+    private static final class TreatmentTiming {
+        private final int intentCount;
+        private String outcome = "FAILED";
+        private int candidateCount;
+        private int deterministicCount;
+        private int ambiguousCount;
+        private long catalogLookupMs = -1;
+        private long decisionMs = -1;
+        private long baselineModelMs = -1;
+
+        private TreatmentTiming(int intentCount) {
+            this.intentCount = intentCount;
         }
     }
 

@@ -62,10 +62,10 @@ public class ClinicalAiAdministrationService {
             descriptor("voice-max-audio-mb", "语音能力", "单次录音上限", "上传音频的最大 MB 数", "NUMBER"),
             descriptor("speech-endpoint", "语音能力", "语音服务地址", "Audio Transcriptions 完整 HTTP/HTTPS 地址", "STRING"),
             descriptor("speech-model", "语音能力", "语音模型标识", "语音转写请求使用的模型名称", "STRING"),
-            descriptor("knowledge-enabled", "知识能力", "启用医学知识检索", "是否允许调用医学知识服务", "BOOLEAN"),
+            descriptor("knowledge-enabled", "知识能力", "启用临床知识库检索", "是否允许调用临床知识库服务", "BOOLEAN"),
             descriptor("knowledge-max-results", "知识能力", "知识结果上限", "单次返回的可追溯知识结果数量", "NUMBER"),
-            descriptor("knowledge-endpoint", "知识能力", "医学知识服务地址", "PMPHAI-compatible 完整 HTTP/HTTPS 地址", "STRING"),
-            secret("knowledge-api-key", "知识能力", "医学知识 API Key", "未单独配置时使用模型服务 API Key")).stream(), java.util.Arrays.stream(DecisionScene.values()).map(scene -> descriptor(scene.settingKey(),
+            descriptor("knowledge-endpoint", "知识能力", "临床知识库服务地址", "配置 /search 检索接口；文档与证据链使用同路径下的 /doc、/evidence-chain 接口", "STRING"),
+            secret("knowledge-api-key", "知识能力", "临床知识库 API Key", "本地 medical-llm-wiki 无需配置；外部服务未单独配置时继承模型服务 API Key")).stream(), java.util.Arrays.stream(DecisionScene.values()).map(scene -> descriptor(scene.settingKey(),
             "决策业务场景", scene.label(), scene.description() + "；受决策总开关控制，共用模型和连接配置", "BOOLEAN"))).toList();
     private static final Map<String, Descriptor> BY_KEY = DESCRIPTORS.stream()
             .collect(java.util.stream.Collectors.toUnmodifiableMap(Descriptor::key, value -> value));
@@ -129,8 +129,81 @@ public class ClinicalAiAdministrationService {
             return testSpeech(request, context);
         }
         if ("DECISION".equals(target)) return testDecision(request, context);
+        if ("KNOWLEDGE".equals(target)) return testKnowledge(request, context);
         if (!"MODEL".equals(target)) throw badRequest("AI_TEST_TARGET_INVALID", "不支持的模型测试目标。");
         return testModel(request, context);
+    }
+
+    private ConfigurationTestResult testKnowledge(ConfigurationTestRequest request, ExecutionContext context) {
+        long start = System.nanoTime();
+        String endpoint = Strings.trimToNull(request.endpoint());
+        if (endpoint == null) {
+            endpoint = resolveText("knowledge-endpoint", request.scope(), context);
+        }
+        if (endpoint == null || (!endpoint.startsWith("http://") && !endpoint.startsWith("https://"))) {
+            return new ConfigurationTestResult("KNOWLEDGE", false, 0, 0,
+                    "知识库服务地址为空或格式不合法，请输入以 http:// 或 https:// 开头的完整服务地址", null);
+        }
+
+        String apiKey = Strings.trimToNull(request.secretValue());
+        if (apiKey == null) {
+            apiKey = resolveSecret("knowledge-api-key", request.scope(), context);
+        }
+        if (apiKey == null) {
+            apiKey = resolveSecret("api-key", request.scope(), context);
+        }
+
+        int timeout = probeTimeout(request);
+        HttpClient probeClient = probeHttpClient(timeout);
+
+        String probeBody = jsonCodec.write(Map.of(
+                "query", "高血压",
+                "type", 1,
+                "limit", 1,
+                "enableAbstract", true));
+
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(endpoint))
+                .timeout(Duration.ofSeconds(timeout))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(probeBody));
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder.header("Authorization", "Bearer " + apiKey);
+        }
+
+        try {
+            HttpResponse<String> response = sendProbe(probeClient, builder.build());
+            long latencyMs = (System.nanoTime() - start) / 1_000_000;
+            int code = response.statusCode();
+            String respBody = response.body() == null ? "" : response.body().trim();
+            String truncatedBody = respBody.length() > 600 ? respBody.substring(0, 600) + "..." : respBody;
+
+            if (code >= 200 && code < 300) {
+                return new ConfigurationTestResult("KNOWLEDGE", true, code, latencyMs,
+                        "临床知识库连接成功，检索测试探针响应正常", truncatedBody);
+            }
+            if (code == 401 || code == 403) {
+                return new ConfigurationTestResult("KNOWLEDGE", false, code, latencyMs,
+                        "认证失败 (HTTP " + code + ")：临床知识库 API Key 无效或缺少权限。", truncatedBody);
+            }
+            return new ConfigurationTestResult("KNOWLEDGE", false, code, latencyMs,
+                    "临床知识库服务返回非成功状态码 (HTTP " + code + ")", truncatedBody);
+        } catch (HttpTimeoutException exception) {
+            long latencyMs = (System.nanoTime() - start) / 1_000_000;
+            return new ConfigurationTestResult("KNOWLEDGE", false, 504, latencyMs,
+                    String.format(Locale.ROOT, "临床知识库请求超时 (超过 %d 秒)：请检查服务地址与端口是否正确。", timeout),
+                    exception.getMessage());
+        } catch (java.net.ConnectException exception) {
+            long latencyMs = (System.nanoTime() - start) / 1_000_000;
+            return new ConfigurationTestResult("KNOWLEDGE", false, 502, latencyMs,
+                    "网络连接失败：无法连通临床知识库服务，请确认 medical-llm-wiki 或目标知识库服务已启动。",
+                    exception.getMessage());
+        } catch (Exception exception) {
+            long latencyMs = (System.nanoTime() - start) / 1_000_000;
+            return new ConfigurationTestResult("KNOWLEDGE", false, 0, latencyMs,
+                    "临床知识库测试探针执行异常：" + (exception.getMessage() != null ? exception.getMessage() : exception.getClass().getSimpleName()),
+                    exception.toString());
+        }
     }
 
     private ConfigurationTestResult testDecision(ConfigurationTestRequest request, ExecutionContext context) {

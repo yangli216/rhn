@@ -3,10 +3,12 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { clinicalAiPreview, type ClinicalAiPreview, type ClinicalAiFieldStream } from '../../../shared/api/clinicalAiStream'
 import { ClinicalAiInlineWorkspace, type ClinicalAiSurfaces, type InlineAiSelection } from './ClinicalAiInlineWorkspace'
+import { ClinicalEvidenceDrawer } from './ClinicalEvidenceDrawer'
+import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
 import { assessReceptionScene, recentHistoryEncounters } from './receptionSceneAssessment'
 import type {
   ClinicalAiDraftContext, ClinicalAiTreatmentRecommendation, ClinicalAiPlanPreflight, ClinicalAiRecommendedPlan, ClinicalAiSuggestion,
-  ClinicalAiSuggestionEventType,
+  ClinicalAiSuggestionEventType, ClinicalAiGapOrder,
 } from '../../../shared/api/clinicalAiApi'
 import { canonicalizeAiDiagnoses } from './canonicalAiDiagnoses'
 import { diagnosisIdentityKey } from '../record/diagnosisIdentity'
@@ -37,6 +39,7 @@ interface AiAdoptionIntent {
   eventDetail?: string
   allergyReviewConfirmed?: boolean
   allergyOverrideReason?: string
+  dismissDiagnosisBatch?: boolean
 }
 
 export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies, allergyState, api, disabled,
@@ -84,7 +87,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const planController = useRef<AbortController | null>(null)
   const planCache = useRef(new Map<string, { expires: number; plans: ClinicalAiRecommendedPlan[] }>())
   const inputKey = stableClinicalAiFingerprint('ai-input', {
-    scope: [encounter.organizationId, encounter.departmentId, encounter.clinicianId],
+    scope: [templateApiScope(api), encounter.organizationId, encounter.departmentId, encounter.clinicianId],
     context: clinicalAiContextFingerprint({ ...currentContext, busy: false }), scene: sceneAssessment.scene,
     conditions: sceneAssessment.matchedConditions, selectedReportIds: sceneAssessment.selectedReportIds, reports: diagnosticReports, question: question.trim(), voiceTranscript: voiceTranscript.trim(),
   })
@@ -98,6 +101,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const adoptedContinuation = useRef<{ id: string; coreFingerprint: string; fullFingerprint: string; controls: string } | null>(null)
   const treatmentContinuation = useRef<{ id: string; fingerprint: string; controls: string } | null>(null)
   const [acceptedTreatmentKeys, setAcceptedTreatmentKeys] = useState<string[]>([])
+  const [dismissedDiagnosisBatchId, setDismissedDiagnosisBatchId] = useState<string | null>(null)
   const controlsKey = stableClinicalAiFingerprint('ai-controls', { question: question.trim(), voiceTranscript: voiceTranscript.trim(),
     diagnosticReports })
   const currentClinicalFingerprint = clinicalContextWithoutOrdersFingerprint(currentContext)
@@ -128,6 +132,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
   const [localError, setLocalError] = useState('')
   const [selectedPlan, setSelectedPlan] = useState<ClinicalAiRecommendedPlan | null>(null)
+  const [evidenceDiagnosis, setEvidenceDiagnosis] = useState<{ code: string; display: string } | null>(null)
+  const [medicalInsertTarget, setMedicalInsertTarget] = useState<MedicalInsertTarget | null>(null)
   const viewed = useRef(new Set<string>())
   const adoptionCommands = useRef(new Map<string, string>())
   const latestContext = useRef(currentContext)
@@ -277,7 +283,13 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
             if (controller.signal.aborted || latestInputKey.current !== key) return
             text += delta
             if (text.length > 262144) { controller.abort(); return }
-            if (Date.now() - lastPaint >= 60) { setPreview(clinicalAiPreview(text)); lastPaint = Date.now() }
+            if (Date.now() - lastPaint >= 60) {
+              setPreview((current) => current.phase ? current : clinicalAiPreview(text)); lastPaint = Date.now()
+            }
+          }, (stage) => {
+            if (controller.signal.aborted || latestInputKey.current !== key
+              || stage.clientContextFingerprint !== input.clientContextFingerprint) return
+            setPreview({ ...stage.content, phase: stage.phase })
           }) : await api.clinicalAi.generate(encounter.id, input, controller.signal)
         if (controller.signal.aborted || latestInputKey.current !== key) throw new DOMException('已取消过期分析', 'AbortError')
         return { value, transcript, key }
@@ -378,7 +390,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
           controls: controlsKey,
         }
       }
-      if (!value.request.planTemplate) onApply(value.request)
+      if (!value.request.planTemplate) onApply(value.dismissDiagnosisBatch && value.request.diagnoses?.length
+        ? { ...value.request, onApplied: () => setDismissedDiagnosisBatchId(value.suggestion.id) } : value.request)
     },
   })
   const ignoreSuggestion = useMutation({
@@ -657,7 +670,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     const selectionFingerprint = stableClinicalAiFingerprint('selection', selection)
     const commandKey = `${sectionCode}:${selectionFingerprint}`
     const context = latestContext.current
-    adoptDraft.mutate({ suggestion: value, sectionCode, commandKey,
+    adoptDraft.mutate({ suggestion: value, sectionCode, commandKey, dismissDiagnosisBatch: Boolean(selection.diagnoses?.length),
       commandCode: adoptionCommand(adoptionCommands.current, value.id, commandKey),
       eventDetail: JSON.stringify({ selectedRecordFields: Object.keys(selection.recordDraft ?? {}),
         diagnosisCodes: selection.diagnoses?.map((item) => item.code) ?? [],
@@ -681,9 +694,43 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         JSON.stringify({ treatmentKeys: acceptedKeys }))).catch(() => undefined)
     })
   }
+
+  const handleApplyGapOrders = async (gapOrders: ClinicalAiGapOrder[]) => {
+    if (!onReviewTreatment || gapOrders.length === 0) return
+    const resolvedItems = await Promise.all(
+      gapOrders.map(async (gap): Promise<ClinicalAiTreatmentRecommendation | null> => {
+        try {
+          const matches = await api.masterData.searchServices(gap.name, gap.category, 'ACTIVE', encounter.organizationId, 0, 5)
+          const matchedItem = matches.content.find(
+            (m) => m.name.includes(gap.name) || gap.name.includes(m.name)
+          ) || matches.content[0]
+          if (matchedItem) {
+            return {
+              type: gap.category === 'LABORATORY' ? 'LABORATORY' : 'EXAMINATION',
+              catalogItemId: matchedItem.id,
+              code: matchedItem.code,
+              name: matchedItem.name,
+              rationale: gap.indication,
+            }
+          }
+        } catch {
+          return null
+        }
+        return null
+      })
+    )
+    const treatmentItems = resolvedItems.filter((item): item is ClinicalAiTreatmentRecommendation => item !== null)
+    const unmatched = gapOrders.filter((_, index) => resolvedItems[index] === null)
+    if (unmatched.length > 0) {
+      throw new Error(`以下建议尚未匹配院内检验检查目录：${unmatched.map((item) => item.name).join('、')}`)
+    }
+    reviewTreatments(treatmentItems)
+  }
+
   return <>
     <ClinicalAiInlineWorkspace api={api} encounter={encounter} surfaces={surfaces}
       context={currentContext} capability={capability} suggestion={currentSuggestion} current={liveCurrent}
+      diagnosisBatchDismissed={dismissedDiagnosisBatchId === currentSuggestion?.id}
       busy={actionPending} inputBusy={inputBusy} generating={generate.isPending}
       preview={preview}
       onView={() => { if (currentSuggestion) setResultViewedId(currentSuggestion.id) }} disabled={disabled || currentContext.busy}
@@ -713,6 +760,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       onReviewRecommendedPlan={onReviewRecommendedPlan}
       onGenerate={async (focus) => (await generate.mutateAsync({ focus })).value.id} onApply={applyInline}
       onOpenDetail={onOpenDetail} onOpenHistory={onOpenHistory} onOpenResults={onOpenResults}
+      onOpenEvidenceChain={setEvidenceDiagnosis}
       onReviewTreatment={reviewTreatments}
       existingTreatmentKeys={[...new Set([...existingTreatmentKeys, ...acceptedTreatmentKeys])]}
 
@@ -720,6 +768,25 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       sceneLoading={reportsQuery.isPending || historyReportQueries.some((query) => query.isPending)} />
     {surfaces.detail && createPortal(assistantPanel, surfaces.detail)}
     {planReview}
+    <ClinicalEvidenceDrawer
+      isOpen={Boolean(evidenceDiagnosis)}
+      onClose={() => setEvidenceDiagnosis(null)}
+      encounterId={encounter.id}
+      targetDiagnosis={evidenceDiagnosis}
+      context={currentContext}
+      api={api}
+      onApplyGapOrders={handleApplyGapOrders}
+      onOpenWikiDoc={(target) => {
+        setEvidenceDiagnosis(null)
+        setMedicalInsertTarget(target)
+      }}
+    />
+    <MedicalInsertViewerModal
+      isOpen={Boolean(medicalInsertTarget)}
+      onClose={() => setMedicalInsertTarget(null)}
+      target={medicalInsertTarget}
+      api={api}
+    />
   </>
 
 }
@@ -800,10 +867,10 @@ function SuggestionResult({ suggestion, recordEntries, showMissing, showSafety, 
       && <section className="doctor-ai-assistant__diagnoses"><header><strong>诊断辅助</strong><small>正式候选最多 3 项</small></header>
         {suggestion.diagnosisCandidates.map((item) => <article key={`candidate-${item.code}`}>
           <StatusBadge tone="success">候选</StatusBadge><div><strong>{item.display}</strong>
-            <small>{item.code} · 置信度 {Math.round(item.confidence * 100)}% · {item.rationale}</small></div></article>)}
+            <small>{item.code} · 置信度 {Math.round(item.confidence * 100)}%{item.rationale ? ` · ${item.rationale}` : ''}</small></div></article>)}
         {suggestion.differentialDiagnoses.map((item) => <article key={`differential-${item.code}`}>
           <StatusBadge tone="warning">待鉴别</StatusBadge><div><strong>{item.display}</strong>
-            <small>{item.code} · {item.rationale}</small></div></article>)}
+            <small>{item.code}{item.rationale ? ` · ${item.rationale}` : ''}</small></div></article>)}
       </section>}
   </div>
 }

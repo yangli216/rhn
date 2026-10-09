@@ -69,18 +69,28 @@ describe('clinical AI adoption boundary', () => {
 
   it('adopts a request once and only undoes adopted fields, retaining diagnoses and other edits', () => {
     const h = setup()
-    const aiDraft = h.request({ diagnoses: [{ code: 'I10', display: '高血压', type: 'PRIMARY' }] })
+    const onApplied = vi.fn()
+    const aiDraft = h.request({ diagnoses: [{ code: 'I10', display: '高血压', type: 'PRIMARY' }], onApplied })
     h.rerender({ ...h.props, aiDraft })
     expect(h.result.current.form.getValues('presentIllness')).toBe('AI 生成的现病史')
     expect(h.onAiDraftConsumed).toHaveBeenCalledTimes(1)
     h.rerender({ ...h.props, aiDraft })
     expect(h.onAiDraftConsumed).toHaveBeenCalledTimes(1)
+    expect(onApplied).toHaveBeenCalledOnce()
     act(() => h.result.current.form.setValue('physicalExam', '医生补充查体'))
     expect(h.result.current.canUndoAiRecord).toBe(true)
     act(() => h.result.current.undoAiRecord())
     expect(h.result.current.form.getValues()).toMatchObject({ presentIllness: '', physicalExam: '医生补充查体' })
     expect(h.result.current.diagnoses).toEqual([expect.objectContaining({ code: 'I10', type: 'PRIMARY' })])
     expect(h.result.current.canUndoAiRecord).toBe(false)
+  })
+
+  it('does not acknowledge stale or unchanged adoption requests', () => {
+    const h = setup(), onApplied = vi.fn()
+    h.rerender({ ...h.props, aiDraft: h.request({ residentId: 'other', onApplied }) })
+    expect(onApplied).not.toHaveBeenCalled()
+    h.rerender({ ...h.props, aiDraft: h.request({ requestId: 'noop', recordDraft: {}, diagnoses: [], onApplied }) })
+    expect(onApplied).not.toHaveBeenCalled()
   })
 
   it.each(['patient', 'version', 'structured', 'busy'] as const)('rejects a request after %s context changes', (change) => {

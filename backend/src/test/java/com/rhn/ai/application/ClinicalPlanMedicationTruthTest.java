@@ -49,6 +49,10 @@ class ClinicalPlanMedicationTruthTest {
         return new OrderFrequencyDirectory.FrequencySnapshot(id, 1L, code, name, code, null, "REGULAR", 1,
                 BigDecimal.ONE, "DAY", "FIXED", List.of(), "DEFAULT", false);
     }
+    OrderFrequencyDirectory.FrequencySnapshot computableFrequency(long id, String code, String name, int dailyCount) {
+        return new OrderFrequencyDirectory.FrequencySnapshot(id, 1L, code, name, code, null, "TIMES_PER_PERIOD",
+                dailyCount, BigDecimal.ONE, "D", "STANDARD_TIME", List.of(), "DEFAULT", false);
+    }
     @Test void resolvesRouteAndFrequencyFromLiveContextRatherThanStaticCodes() {
         matched(MedicationCandidateMatchingService.Status.UNIQUE_MATCH);
         when(routes.resolveActive(anyLong(), anyString(), anyString(), any())).thenReturn(java.util.Optional.of(
@@ -115,13 +119,18 @@ class ClinicalPlanMedicationTruthTest {
         when(matcher.match(anyLong(), anyLong(), anyLong(), any())).thenReturn(MedicationCandidateMatchingService.Result.unavailable("无机构产品"));
         when(knowledge.search(anyString())).thenReturn(rows);
     }
-    @Test void doesNotUpgradeMissingDirectionsOrAmbiguity() {
-        for (var status : List.of(MedicationCandidateMatchingService.Status.NEEDS_REVIEW, MedicationCandidateMatchingService.Status.AMBIGUOUS)) {
-            matched(status);
-            var result = convert("每次0.5g 口服 QD 共2盒");
-            assertTrue(result.medications().isEmpty()); assertEquals("NEEDS_REVIEW", result.tasks().getFirst().status());
-        }
+    @Test void doesNotUpgradeAReviewResultButCanTryTheGenericMasterForProductAmbiguity() {
+        matched(MedicationCandidateMatchingService.Status.NEEDS_REVIEW);
+        var review = convert("每次0.5g 口服 QD 共2盒");
+        assertTrue(review.medications().isEmpty()); assertEquals("NEEDS_REVIEW", review.tasks().getFirst().status());
         verifyNoInteractions(knowledge);
+
+        reset(matcher, knowledge);
+        matched(MedicationCandidateMatchingService.Status.AMBIGUOUS);
+        when(knowledge.search(anyString())).thenReturn(List.of());
+        var ambiguous = convert("每次0.5g 口服 QD 共2盒");
+        assertTrue(ambiguous.medications().isEmpty()); assertEquals("NEEDS_REVIEW", ambiguous.tasks().getFirst().status());
+        verify(knowledge).search("测试药品");
     }
     @Test void keepsExplicitQuantityAndCanonicalPackageUnitWithoutInventingDuration() {
         matched(MedicationCandidateMatchingService.Status.UNIQUE_MATCH);
@@ -134,6 +143,45 @@ class ClinicalPlanMedicationTruthTest {
         matched(MedicationCandidateMatchingService.Status.UNIQUE_MATCH);
         var line = convert("每次0.5g 口服 QD 共2盒 疗程7天").medications().getFirst();
         assertEquals(new BigDecimal("7"), line.durationValue()); assertEquals("天", line.durationUnit());
+    }
+    @Test void derivesPackageQuantityFromDoseFixedFrequencyCourseAndCatalogStrength() {
+        when(medication.strengthValue()).thenReturn(new BigDecimal("0.25"));
+        when(medication.strengthUnit()).thenReturn("g");
+        when(medication.preparationSpec()).thenReturn("0.25g");
+        when(medication.preparationUnit()).thenReturn("粒");
+        when(itemPackage.quantityFactor()).thenReturn(new BigDecimal("20"));
+        when(frequencies.active(anyLong(), anyLong(), anyLong(), anyString(), anyString(), any())).thenReturn(
+                List.of(computableFrequency(3L, "TID", "每日三次", 3)));
+        when(matcher.match(anyLong(), anyLong(), anyLong(), argThat(value -> value != null && value.quantity() == null))).thenReturn(
+                new MedicationCandidateMatchingService.Result(MedicationCandidateMatchingService.Status.NEEDS_REVIEW,
+                        medication, product, itemPackage, "已唯一匹配目录，但缺少数量", List.of()));
+        when(matcher.match(anyLong(), anyLong(), anyLong(), argThat(value -> value != null && value.quantity() != null))).thenReturn(
+                new MedicationCandidateMatchingService.Result(MedicationCandidateMatchingService.Status.UNIQUE_MATCH,
+                        medication, product, itemPackage, "唯一匹配", List.of()));
+
+        var result = convert("建议规格：0.25g/粒；每次0.5g 口服 TID 疗程7天");
+
+        assertEquals(new BigDecimal("3"), result.medications().getFirst().quantity());
+        assertEquals("BOX", result.medications().getFirst().quantityUnit());
+        assertTrue(result.tasks().getFirst().details().contains("自动推导总量 3 BOX"));
+    }
+
+    @Test void derivesGenericPrnQuantityOnlyFromAnExplicitDailyMaximumAndCourse() {
+        var row = generic(1, "测试药品", "ACTIVE", "粒");
+        when(row.medication().preparationSpec()).thenReturn("0.3g");
+        when(row.medication().strengthValue()).thenReturn(new BigDecimal("0.3"));
+        when(row.medication().strengthUnit()).thenReturn("g");
+        genericSearch(List.of(row));
+        when(frequencies.active(anyLong(), anyLong(), anyLong(), anyString(), anyString(), any())).thenReturn(List.of(
+                new OrderFrequencyDirectory.FrequencySnapshot(4L, 1L, "PRN", "必要时", "PRN", null,
+                        "PRN", null, null, null, "EVENT", List.of(), "DEFAULT", false)));
+
+        var result = convert("建议规格：0.3g/粒；每次0.3g 口服 PRN 疗程3天，24小时不超过3次");
+
+        assertEquals(new BigDecimal("9"), result.medications().getFirst().quantity());
+        assertEquals("粒", result.medications().getFirst().quantityUnit());
+        assertNull(result.medications().getFirst().catalogItemId());
+        assertEquals("MATCHED", result.tasks().getFirst().status());
     }
     @Test void cannotBuildACompleteLineFromStrengthOrDefaults() {
         matched(MedicationCandidateMatchingService.Status.UNIQUE_MATCH);

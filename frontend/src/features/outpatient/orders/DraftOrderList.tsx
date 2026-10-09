@@ -23,7 +23,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
   routeOptions, administrationGroupOptions, routes, frequencies, readOnly, isComposerActive, entryType, setMedicationDrafts,
   setServiceDrafts, startHerbalGrouping, groupingComposerTarget, composer, editingDraft,
   setEditingDraft, onEditDraft, onSaveMedicationDraft, continueGroupingFromDraft, groupingSession,
-  currentDept, encounter, api, allergies, skinTests }: {
+  currentDept, encounter, api, allergies, skinTests, onInspectMedication }: {
   draftEntries: DraftOrderEntry[]
   herbalFormula: HerbalComposerFormula
   onHerbalFormulaChange: (formula: HerbalComposerFormula) => void
@@ -51,6 +51,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
   api: RhnApi
   allergies: AllergyIntolerance[]
   skinTests: SkinTestWorklistState
+  onInspectMedication?: (name: string) => void
 }) {
   return <>{draftEntries.map((entry, index) => {
         const currCat = draftCategoryOf(entry)
@@ -237,7 +238,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
         const rowNode = entry.kind === 'service'
           ? editingDraft?.kind === 'service' && editingDraft.id === entry.value.id
             ? <ServiceDraftEditRow key={`draft-service-edit-${entry.value.id}`} value={entry.value}
-                currentDept={currentDept}
+                encounter={encounter} api={api}
                 onCancel={() => setEditingDraft(null)}
                 onSave={(next) => {
                   setServiceDrafts((current) => current.map((value) => value.id === next.id ? next : value))
@@ -301,6 +302,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                   isTail={isTail}
                   currentDept={currentDept}
                   onAppendToGroup={continueGroupingFromDraft}
+                  onInspectMedication={onInspectMedication}
                   onEdit={() => onEditDraft({ kind: 'medication', id: entry.value.id })}
                   onRemove={() => setMedicationDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />
               })()

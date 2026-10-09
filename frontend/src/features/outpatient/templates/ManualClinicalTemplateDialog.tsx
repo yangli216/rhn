@@ -19,6 +19,8 @@ import { saveMaintainedNote, saveMaintainedPlan } from './maintainedTemplateSave
 import { useTemplateApplication } from './useTemplateApplication'
 import { rebaseAnnotations } from '../record/recordAnnotations'
 import { recordTextFields } from '../../../shared/api/recordAnnotations'
+import { AnnotatedRecordField } from '../record/AnnotatedRecordField'
+import { RecordAnnotationLegend } from '../record/RecordAnnotationLegend'
 
 type TemplateKind = 'NOTE' | 'PLAN'
 const auxiliaryTaskKinds = new Set<OutpatientPlanTask['kind']>(['EDUCATION', 'FOLLOW_UP', 'CONDITION'])
@@ -109,14 +111,14 @@ export function ManualClinicalTemplateDialog({ api, organizationId, kind, editin
     title={`${noteEditing || planEditing ? '编辑' : '新建'}${kind === 'NOTE' ? '病历模板' : '诊疗方案'}`}
     eyebrow="人工维护 · 标准目录"
     description={kind === 'NOTE' ? '直接维护可复用病历段落，不包含诊断和医嘱。' : undefined}
-    size="xwide" className={kind === 'PLAN' ? 'manual-plan-template-dialog' : ''}
+    size="xwide" className={kind === 'PLAN' ? 'manual-plan-template-dialog' : 'manual-note-template-dialog'}
     closeOnBackdrop={false} onClose={() => !saving && onClose()}
     footer={<>
       <Button variant="secondary" disabled={saving} onClick={onClose}>取消</Button>
       <Button busy={saving} disabled={!valid} onClick={() => void save()}>保存模板</Button>
     </>}>
     {(error || operation.error) && <div role="alert" className="doctor-plan-pool-notice">{error || operation.error}</div>}
-    <div inert={saving} className={`manual-template-dialog ${kind === 'PLAN' ? 'is-plan' : ''}`}>
+    <div inert={saving} className={`manual-template-dialog ${kind === 'PLAN' ? 'is-plan' : 'is-note'}`}>
       <div className={`ui-form-grid ${kind === 'PLAN' ? 'manual-template-plan-meta' : ''}`}>
         <FormField label="模板名称" required><input value={name} maxLength={100}
           onChange={(event) => setName(event.target.value)} placeholder="输入便于识别的模板名称" /></FormField>
@@ -135,13 +137,17 @@ export function ManualClinicalTemplateDialog({ api, organizationId, kind, editin
         </FormField>
       </div>
 
-      {kind === 'NOTE' ? <div className="manual-template-note-grid">
-        {noteTemplateFields.map(({ key, label }) => <FormField key={key} label={label}>
-          <textarea value={noteContent[key] || ''} rows={key === 'chiefComplaint' ? 2 : 4}
-            onChange={(event) => setNoteContent((current) => ({ ...current, [key]: event.target.value,
-              annotations: rebaseAnnotations(key, current[key] ?? '', event.target.value, current.annotations ?? []) }))}
-            placeholder={`输入可复用的${label}内容`} />
-        </FormField>)}
+      {kind === 'NOTE' ? <div className="manual-template-note-editor">
+        <div className="manual-template-note-grid">
+          {noteTemplateFields.map(({ key, label }) => <FormField key={key} label={label}>
+            <AnnotatedRecordField field={key} showAnnotations annotations={noteContent.annotations ?? []}
+              value={noteContent[key] || ''} rows={key === 'chiefComplaint' ? 2 : 4}
+              onValueChange={(value) => setNoteContent((current) => ({ ...current, [key]: value,
+                annotations: rebaseAnnotations(key, current[key] ?? '', value, current.annotations ?? []) }))}
+              placeholder={`输入可复用的${label}内容`} />
+          </FormField>)}
+        </div>
+        {(noteContent.annotations?.length ?? 0) > 0 && <RecordAnnotationLegend />}
       </div> : <div className="manual-template-plan-grid">
         <section className="plan-template-note-link">
           <div className="plan-template-note-link__copy">

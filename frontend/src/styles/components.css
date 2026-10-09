@@ -1411,6 +1411,69 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
   box-shadow: -6px 0 24px color-mix(in srgb, var(--color-text-primary) 12%, transparent);
   animation: drawer-slide-in 0.32s cubic-bezier(0.2, 0, 0, 1) both;
 }
+
+.ui-dialog-backdrop.ui-dialog-backdrop--panel {
+  padding: 0;
+  display: block;
+  overflow: visible;
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+  animation: none;
+}
+
+.ui-dialog-backdrop--panel > .ui-dialog--panel {
+  position: absolute;
+  top: calc(var(--layout-topbar-height) + var(--space-3));
+  right: var(--space-4);
+  bottom: var(--space-4);
+  width: min(30rem, calc(100vw - 2 * var(--space-4)));
+  max-height: none;
+  padding: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  pointer-events: auto;
+  animation: drawer-slide-in var(--motion-normal) var(--ease-standard) both;
+}
+
+.ui-dialog--panel > .ui-dialog__head {
+  min-width: 0;
+  min-height: var(--control-height-lg);
+  margin: 0;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: 0;
+}
+
+.ui-dialog--panel > .ui-dialog__head .ui-dialog__heading {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ui-dialog--panel > .ui-dialog__head > .ui-icon-button {
+  flex: 0 0 var(--target-size-min);
+}
+
+.ui-dialog--panel > .ui-dialog__head h2 {
+  overflow: hidden;
+  font-size: var(--font-size-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-dialog--panel > .ui-dialog__description {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ui-dialog.ui-dialog--panel > .ui-form-actions {
+  position: static;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 0;
+}
 .ui-dialog--drawer > .ui-dialog__head {
   flex: none;
   top: 0;
@@ -1444,7 +1507,8 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
   to { transform: translateX(0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ui-dialog-backdrop--drawer, .ui-dialog-backdrop--drawer > .ui-dialog--drawer { animation: none; }
+  .ui-dialog-backdrop--drawer, .ui-dialog-backdrop--drawer > .ui-dialog--drawer,
+  .ui-dialog-backdrop--panel, .ui-dialog-backdrop--panel > .ui-dialog--panel { animation: none; }
 }
 
 .ui-dialog form,

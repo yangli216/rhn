@@ -701,8 +701,10 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     }
   }, [paymentMethods.options, selectedPaymentMethod])
 
-  useEffect(() => { setCashTendered('') },
-    [feeBreakdown.payableAmount, scheduleId, selected?.id, selectedPaymentMethod, coverageSelection, paymentMethods.status])
+  useEffect(() => {
+    setCashTendered(selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0
+      ? String(feeBreakdown.payableAmount) : '')
+  }, [feeBreakdown.payableAmount, scheduleId, selected?.id, selectedPaymentMethod])
 
   const paymentMethodAvailable = paymentMethods.status === 'ready'
     && paymentMethods.options.some((item) => item.code === selectedPaymentMethod)
@@ -978,8 +980,15 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       .reduce((sum, value) => sum + value.amount, 0),
     otherFundAmount: currentSettlement?.otherAmount }] : []
 
-  const todayList = (todayQueue.data ?? []).slice(0, 10)
-  const todayWaitingCount = (todayQueue.data ?? []).filter((item) =>
+  const todayRecords = todayQueue.data ?? []
+  const todayList = [...todayRecords].sort((left, right) => {
+    const leftRegisteredAt = Date.parse(left.registeredAt)
+    const rightRegisteredAt = Date.parse(right.registeredAt)
+    const timeDifference = (Number.isNaN(rightRegisteredAt) ? 0 : rightRegisteredAt)
+      - (Number.isNaN(leftRegisteredAt) ? 0 : leftRegisteredAt)
+    return timeDifference || right.registrationId.localeCompare(left.registrationId, 'zh-CN', { numeric: true })
+  }).slice(0, 3)
+  const todayWaitingCount = todayRecords.filter((item) =>
     item.status === 'WAITING' && item.registrationStatus !== 'CANCELLED').length
 
   return <>
@@ -1238,6 +1247,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 payableAmount={feeBreakdown.payableAmount}
                 tendered={cashTendered}
                 onTenderedChange={setCashTendered}
+                onEnter={() => confirmButtonRef.current?.click()}
               />
             )}
 
@@ -1531,17 +1541,23 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         </div>
       </div>
 
-      <details className="registration-history-panel">
+      <details className="registration-history-panel" open>
         <summary>
-          <span><strong>本窗口今日挂号记录（最近流水）</strong> · 今日已挂号 {todayList.length} 人 · {todayWaitingCount} 人候诊中</span>
-          <span>展开查看 / 补打 <Icon name="chevron-down" /></span>
+          <span className="registration-history-summary-main">
+            <strong>本窗口今日挂号记录（最近流水）</strong> · 今日已挂号 {todayRecords.length} 人 · {todayWaitingCount} 人候诊中
+          </span>
+          <span className="registration-history-summary-actions">
+            <Button size="sm" variant="text" onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              void todayQueue.refetch()
+            }}>
+              <Icon name="refresh" />刷新流水
+            </Button>
+            <span className="registration-history-toggle">查看 / 补打 <Icon name="chevron-down" /></span>
+          </span>
         </summary>
         <div className="registration-history-content">
-          <div className="registration-history-toolbar">
-            <span>最近 {todayList.length} 条业务记录</span>
-            <Button size="sm" variant="text" onClick={() => void todayQueue.refetch()}>
-              <Icon name="refresh" />刷新流水</Button>
-          </div>
           {todayList.length === 0 ? (
             <div className="registration-history-empty">
               今日尚无挂号流水记录。

@@ -4,11 +4,16 @@ set -euo pipefail
 
 rhn_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 rhn_scope="${1:-}"
-rhn_option="${2:-}"
-if [[ $# -gt 2 || ( -n "$rhn_option" && "$rhn_option" != --list ) ]]; then
-  echo "Usage: $0 {frequency|outpatient-draft|round1} [--list]" >&2
-  exit 2
-fi
+rhn_option=""
+rhn_frontend_only=0
+if [[ $# -gt 0 ]]; then shift; fi
+for rhn_arg in "$@"; do
+  case "$rhn_arg" in
+    --list) rhn_option=--list ;;
+    --frontend-only) rhn_frontend_only=1 ;;
+    *) echo "Usage: $0 {frequency|outpatient-draft|round1|knowledge-panel} [--frontend-only] [--list]" >&2; exit 2 ;;
+  esac
+done
 
 rhn_frontend_tests=()
 rhn_backend_tests="ArchitectureTest"
@@ -30,8 +35,16 @@ case "$rhn_scope" in
     rhn_backend_tests+=",ClinicalFrequencyContractTest,ClinicalSemanticPrimitivesTest"
     ;;
   outpatient-draft) ;;
+  knowledge-panel)
+    rhn_frontend_only=1
+    rhn_frontend_tests+=(
+      src/shared/ui/Dialog.test.tsx
+      src/features/outpatient/ai/ClinicalEvidenceDrawer.test.tsx
+      src/features/outpatient/ai/MedicalInsertViewerModal.test.tsx
+    )
+    ;;
   *)
-    echo "Usage: $0 {frequency|outpatient-draft|round1} [--list]" >&2
+    echo "Usage: $0 {frequency|outpatient-draft|round1|knowledge-panel} [--frontend-only] [--list]" >&2
     exit 2
     ;;
 esac
@@ -90,6 +103,7 @@ if [[ "$rhn_scope" == outpatient-draft || "$rhn_scope" == round1 ]]; then
   )
   rhn_backend_tests+=",OutpatientDoctorWorkstationTest,ClinicalAiPlanPreflightTest,OutpatientNoteTemplateTest,OutpatientPlanTemplateTest,ClinicalAiPlanCompilationTest,TemplateCatalogPagingContractTest,ServiceOrderableCatalogCompletenessTest,com.rhn.ai.application.ClinicalTreatmentRecommendationServiceTest,com.rhn.platform.web.ApiExceptionHandlerTest,com.rhn.platform.masterdata.application.ItemGroupDirectoryServiceTest,com.rhn.ai.application.ClinicalPlanInvestigationTruthTest,com.rhn.ai.application.PlanInvestigationDecisionServiceTest,com.rhn.ai.application.ClinicalPlanMedicationTruthTest,com.rhn.ai.application.MedicationIntentParserTest,com.rhn.ai.application.MedicationSpecificationEvidenceTest,com.rhn.ai.application.MedicationCandidateMatchingServiceTest,com.rhn.ai.application.HistoricalPlanResolutionServiceTest,com.rhn.ai.application.HistoricalPlanComparisonServiceTest,com.rhn.ai.application.ClinicalPlanRetrievalServiceTest,ClinicalAiPlanIdentityTest,HistoricalPlanCoverageContractTest,HistoricalEncounterWindowTest,DiagnosisManagementEvidenceTest,DiagnosisDomainTruthTest,DiagnosisDomainMigrationTest,DiagnosisOwnershipPersistenceTest,com.rhn.outpatient.encounter.DiagnosisOwnershipValidationTest,com.rhn.outpatient.encounter.DiagnosisManagementSnapshotTest,com.rhn.pharmacy.application.OutpatientInventoryRoutingTruthTest,com.rhn.outpatient.ordering.JpaOutpatientClinicalHistoryDirectoryTest"
   rhn_backend_tests+=",OutpatientStructuredNoteFormTest,ClinicalDocumentFoundationTest"
+  rhn_backend_tests+=",ServiceExecutionDepartmentDefaultTest,com.rhn.platform.masterdata.api.ServiceExecutionDepartmentPolicyTest"
   rhn_backend_tests+=",BillingSettlementTest,PaymentRoundingIntegrationTest"
 fi
 
@@ -97,19 +111,23 @@ fi
 for rhn_test in "${rhn_frontend_tests[@]}"; do
   [[ -f "$rhn_root/frontend/$rhn_test" ]] || { echo "Missing test: $rhn_test" >&2; exit 2; }
 done
-IFS=',' read -r -a rhn_backend_classes <<< "$rhn_backend_tests"
-for rhn_class in "${rhn_backend_classes[@]}"; do
-  rhn_class_path="${rhn_class#com.rhn.}"
-  rhn_class_path="${rhn_class_path//.//}"
-  [[ -f "$rhn_root/backend/src/test/java/com/rhn/$rhn_class_path.java" ]] || {
-    echo "Missing test: $rhn_class" >&2; exit 2;
-  }
-done
+if [[ "$rhn_frontend_only" == 0 ]]; then
+  IFS=',' read -r -a rhn_backend_classes <<< "$rhn_backend_tests"
+  for rhn_class in "${rhn_backend_classes[@]}"; do
+    rhn_class_path="${rhn_class#com.rhn.}"
+    rhn_class_path="${rhn_class_path//.//}"
+    [[ -f "$rhn_root/backend/src/test/java/com/rhn/$rhn_class_path.java" ]] || {
+      echo "Missing test: $rhn_class" >&2; exit 2;
+    }
+  done
+fi
 
 if [[ "$rhn_option" != --list ]]; then
   rhn_logs="$rhn_root/.runtime/verification/$(date +%Y%m%d-%H%M%S)-$$"
   mkdir -p "$rhn_logs"
   echo "Scope: $rhn_scope; logs: $rhn_logs"
+  printf 'stage\tstatus\tseconds\n' > "$rhn_logs/timings.tsv"
+  if [[ "$rhn_frontend_only" == 1 ]]; then echo "Frontend only: backend checks are excluded; full CI remains required."; fi
 fi
 
 run_check() {
@@ -121,11 +139,16 @@ run_check() {
     printf '\n'
     return
   fi
+  local rhn_started=$SECONDS
   if (cd "$rhn_directory" && "$@") > "$rhn_logs/$rhn_name.log" 2>&1; then
-    echo "PASS $rhn_name"
+    local rhn_elapsed=$((SECONDS - rhn_started))
+    echo "PASS $rhn_name (${rhn_elapsed}s)"
+    printf '%s\tPASS\t%s\n' "$rhn_name" "$rhn_elapsed" >> "$rhn_logs/timings.tsv"
     tail -n 8 "$rhn_logs/$rhn_name.log"
   else
-    echo "FAIL $rhn_name; full log: $rhn_logs/$rhn_name.log" >&2
+    local rhn_elapsed=$((SECONDS - rhn_started))
+    echo "FAIL $rhn_name (${rhn_elapsed}s); full log: $rhn_logs/$rhn_name.log" >&2
+    printf '%s\tFAIL\t%s\n' "$rhn_name" "$rhn_elapsed" >> "$rhn_logs/timings.tsv"
     tail -n 60 "$rhn_logs/$rhn_name.log" >&2
     return 1
   fi
@@ -133,8 +156,10 @@ run_check() {
 
 rhn_failed=0
 run_check frontend-tests "$rhn_root/frontend" npm run test -- "${rhn_frontend_tests[@]}" || rhn_failed=1
-run_check backend-tests "$rhn_root/backend" mvn -q -pl rhn-app -am \
-  -Dspring.profiles.active=test "-Dtest=$rhn_backend_tests" test || rhn_failed=1
+if [[ "$rhn_frontend_only" == 0 ]]; then
+  run_check backend-tests "$rhn_root/backend" mvn -q -pl rhn-app -am \
+    -Dspring.profiles.active=test "-Dtest=$rhn_backend_tests" test || rhn_failed=1
+fi
 run_check ui-standards "$rhn_root/frontend" npm run ui:check || rhn_failed=1
 run_check frontend-build "$rhn_root/frontend" npm run build || rhn_failed=1
 exit "$rhn_failed"

@@ -172,7 +172,8 @@ button.doctor-plan-item-card,
   gap: var(--space-4);
 }
 
-.ui-dialog.manual-plan-template-dialog {
+.ui-dialog.manual-plan-template-dialog,
+.ui-dialog.manual-note-template-dialog {
   width: min(92rem, calc(100vw - var(--space-5) - var(--space-5)));
   height: min(92vh, 60rem);
   display: flex;
@@ -180,11 +181,13 @@ button.doctor-plan-item-card,
   overflow: hidden;
 }
 
-.manual-plan-template-dialog > .ui-dialog__description {
+.manual-plan-template-dialog > .ui-dialog__description,
+.manual-note-template-dialog > .ui-dialog__description {
   margin: var(--space-2) 0 var(--space-3);
 }
 
-.manual-plan-template-dialog > .ui-form-actions {
+.manual-plan-template-dialog > .ui-form-actions,
+.manual-note-template-dialog > .ui-form-actions {
   flex: none;
   margin-top: var(--space-3);
 }
@@ -195,6 +198,13 @@ button.doctor-plan-item-card,
   flex: 1 1 0;
   gap: var(--space-2);
   align-content: start;
+  overflow-y: auto;
+}
+
+.manual-template-dialog.is-note {
+  min-height: 0;
+  flex: 1 1 0;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow-y: auto;
 }
 
@@ -209,13 +219,20 @@ button.doctor-plan-item-card,
   margin: 0;
 }
 
+.manual-template-note-editor {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .manual-template-note-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
   gap: var(--space-3);
 }
 
-.manual-template-note-grid > :last-child {
+.manual-template-note-grid > .ui-field:last-of-type {
   grid-column: 1 / -1;
 }
 
@@ -972,4 +989,3 @@ button.doctor-plan-item-card,
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
 }
-

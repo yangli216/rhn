@@ -23,6 +23,27 @@ describe('clinical AI streaming', () => {
     expect(completed).toHaveBeenCalledWith(expect.objectContaining({ id: 's1' }))
   })
 
+  it('streams education and follow-up before the record JSON is complete', () => {
+    const preview = clinicalAiPreview('{"recordDraft":{"allergyHistory":"待核实","medicationHistory":"待补充","auxiliaryExaminations":"尚无结果","healthEducation":"建议适当休息","followUp":"若症状加重')
+    expect(preview.recordDraft).toEqual({ allergyHistory: '待核实', medicationHistory: '待补充',
+      auxiliaryExaminations: '尚无结果', healthEducation: '建议适当休息', followUp: '若症状加重' })
+  })
+
+  it('delivers read-only stages while waiting for a committed result', async () => {
+    let stream!: ReadableStreamDefaultController<Uint8Array>
+    const response = new Response(new ReadableStream({ start(controller) { stream = controller } }))
+    const stage = vi.fn(), completed = vi.fn()
+    const promise = consumeClinicalAiStream(response, vi.fn(), stage).then(completed)
+    const content = { recordDraft: { healthEducation: '建议休息', followUp: '症状加重时复诊' },
+      diagnosisCandidates: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }], treatmentRecommendations: [] }
+    stream.enqueue(new TextEncoder().encode(`event: stage\ndata: ${JSON.stringify({ phase: 'DIAGNOSES', clientContextFingerprint: 'f1', content })}\n\n`))
+    await vi.waitFor(() => expect(stage).toHaveBeenCalledWith(expect.objectContaining({ phase: 'DIAGNOSES', content })))
+    expect(completed).not.toHaveBeenCalled()
+    stream.enqueue(new TextEncoder().encode('event: complete\ndata: {"id":"s1","clientContextFingerprint":"f1","recordDraft":{}}\n\n'))
+    await promise
+    expect(completed).toHaveBeenCalledOnce()
+  })
+
   it('rejects an interrupted stream instead of adopting its preview', async () => {
     const response = new Response('event: delta\ndata: {"text":"{\\"summary\\":\\"半成品"}\n\n')
     await expect(consumeClinicalAiStream(response, vi.fn())).rejects.toThrow('连接已中断')

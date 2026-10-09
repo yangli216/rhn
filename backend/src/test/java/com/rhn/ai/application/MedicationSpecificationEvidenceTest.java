@@ -7,6 +7,19 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MedicationSpecificationEvidenceTest {
+    @Test
+    void addsCatalogSuggestionOnlyWhenTheDraftHasNoUsableSpecification() {
+        assertEquals("建议规格：0.25g/粒；常规用法：每次0.5g 口服 tid",
+                MedicationSpecificationEvidence.addSuggestedSpecification(
+                        "阿莫西林胶囊", "常规用法：每次0.5g 口服 tid", "0.25g/粒"));
+        assertEquals("建议规格：0.25g/粒；常规用法：每次0.5g 口服 tid",
+                MedicationSpecificationEvidence.addSuggestedSpecification(
+                        "阿莫西林胶囊", "建议规格：待确认；常规用法：每次0.5g 口服 tid", "0.25g/粒"));
+        assertEquals("规格：0.125g/粒；常规用法：每次0.5g 口服 tid",
+                MedicationSpecificationEvidence.addSuggestedSpecification(
+                        "阿莫西林胶囊", "规格：0.125g/粒；常规用法：每次0.5g 口服 tid", "0.25g/粒"));
+    }
+
     private final MedicationIntentParser parser = new MedicationIntentParser();
 
     @ParameterizedTest
@@ -42,6 +55,12 @@ class MedicationSpecificationEvidenceTest {
         assertNull(MedicationSpecificationEvidence.reviewReason(intent, "5 mg"));
         var concentration = parser.parse("测试药品", "浓度：5mg/mL；每次2mL 口服 QD 共1瓶");
         assertNull(MedicationSpecificationEvidence.reviewReason(concentration, "5.00 mg / mL"));
+    }
+    @Test void catalogPresentationUnitCompletesStrengthWithoutHidingAConflictingRequestedUnit() {
+        var strengthOnly = parser.parse("测试药品", "规格：0.25g；每次0.5g 口服 QD 共1盒");
+        assertNull(MedicationSpecificationEvidence.reviewReason(strengthOnly, "0.25g/粒"));
+        var withPresentation = parser.parse("测试药品", "规格：0.25g/片；每次0.5g 口服 QD 共1盒");
+        assertNotNull(MedicationSpecificationEvidence.reviewReason(withPresentation, "0.25g/粒"));
     }
     @ParameterizedTest
     @ValueSource(strings = {"测试药品 10mg", "测试药品（10mg）", "测试药品10mg"})

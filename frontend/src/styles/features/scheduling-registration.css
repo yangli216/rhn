@@ -386,7 +386,7 @@
 
 
 /* Registration workstation: patient strip over schedules and the shared cashier. */
-.registration-workspace-layout { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--layout-panel-gap); margin-bottom: 0; }
+.registration-workspace-layout { min-width: 0; min-height: 0; display: flex; flex: 1 1 0; flex-direction: column; align-items: stretch; gap: var(--layout-panel-gap); margin-bottom: 0; }
 .registration-intake-strip {
   position: relative;
   z-index: 4;
@@ -627,23 +627,25 @@
 }
 
 .registration-linked-appointment { margin: 0; }
-.registration-workbench { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem); align-items: stretch; gap: var(--layout-panel-gap); }
-.registration-col-schedules { min-width: 0; grid-column: 1; grid-row: 1; display: block; }
-.registration-schedule-panel { height: 100%; overflow: hidden; border-radius: var(--radius-lg); }
+.registration-workbench { min-width: 0; min-height: 0; display: grid; flex: 1 1 0; grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem); align-items: stretch; gap: var(--layout-panel-gap); }
+.registration-col-schedules { min-width: 0; min-height: 0; grid-column: 1; grid-row: 1; display: block; }
+.registration-schedule-panel { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-lg); }
+.registration-schedule-panel .registration-schedule-grid-pro { min-height: 0; flex: 1 1 auto; align-content: start; overflow: auto; overscroll-behavior: contain; }
 .registration-cashier { min-height: 0; grid-column: 2; grid-row: 1; }
 .registration-cashier .cashier-panel__body { padding: 0; }
 .registration-settlement-section { min-width: 0; min-height: 100%; padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); border: 0; }
 .registration-settlement-section .registration-fee-card { padding: 0 0 var(--space-2); border: 0; background: transparent; }
 .registration-submit-area { margin-top: auto; padding-top: var(--space-3); }
-.registration-history-panel { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.registration-history-panel { flex: none; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .registration-history-panel > summary { min-height: var(--panel-header-min-height); padding: var(--space-1) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); cursor: pointer; list-style: none; flex-wrap: wrap; }
 .registration-history-panel > summary::-webkit-details-marker { display: none; }
 .registration-history-panel > summary strong { color: var(--color-text-primary); }
-.registration-history-panel > summary > span:last-child { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-brand-primary); white-space: nowrap; }
-.registration-history-panel > summary .ui-icon { width: 1rem; height: 1rem; transition: transform var(--motion-fast) var(--ease-standard); }
-.registration-history-panel[open] > summary .ui-icon { transform: rotate(180deg); }
+.registration-history-summary-actions { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-brand-primary); white-space: nowrap; }
+.registration-history-summary-actions > .ui-button { min-height: 1.75rem; padding: 0 var(--space-1); }
+.registration-history-toggle { display: inline-flex; align-items: center; gap: var(--space-1); }
+.registration-history-toggle .ui-icon { width: 1rem; height: 1rem; transition: transform var(--motion-fast) var(--ease-standard); }
+.registration-history-panel[open] .registration-history-toggle .ui-icon { transform: rotate(180deg); }
 .registration-history-content { border-top: 1px solid var(--color-border); }
-.registration-history-toolbar { min-height: 2.5rem; padding: 0 var(--space-4); display: flex; align-items: center; justify-content: space-between; color: var(--color-text-secondary); font-size: var(--font-size-small); background: var(--color-surface-subtle); }
 .registration-history-empty { padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }
 .registration-workspace > .ui-panel { min-width: 0; overflow: hidden; }
 .registration-intake-form { padding: var(--space-3) var(--space-4) var(--space-4); display: grid; gap: var(--space-3); }

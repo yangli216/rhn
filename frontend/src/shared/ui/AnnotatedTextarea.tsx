@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type TextareaHTMLAttributes } from 'react'
 import { createPortal } from 'react-dom'
-import { Button, FormField } from './index'
+import { Button, FormField, IconButton } from './index'
 import './annotated-textarea.css'
 
 export interface TextAnnotation {
@@ -93,14 +93,17 @@ export function AnnotatedTextarea({ value, onValueChange, annotations, showAnnot
     {active && createPortal(<div ref={popup} role="dialog" aria-modal="false" aria-label={active.mark.label}
       className="ui-annotation-popover" style={{ left: active.left, top: active.top }}>
       <div className="ui-annotation-popover__heading"><strong>{active.mark.label}</strong>
-        <Button size="sm" variant="text" onClick={() => setActive(null)}>关闭</Button></div>
-      {active.mark.description && <p>{active.mark.description}</p>}
-      {canEdit ? <><FormField label="调整此处文字"><textarea value={replacement} rows={2}
-        maxLength={props.maxLength} onChange={(event) => setReplacement(event.target.value)} /></FormField>
-        <div className="ui-annotation-popover__actions">
-          <Button size="sm" variant="text" onClick={() => replace('')}>移除</Button>
-          <Button size="sm" onClick={() => replace(replacement)}>应用修改</Button>
-        </div></> : <p>{active.mark.text}</p>}
+        <IconButton icon="close" label="关闭标记详情" onClick={() => setActive(null)} /></div>
+      <div className="ui-annotation-popover__body">
+        {active.mark.description && <p>{active.mark.description}</p>}
+        {canEdit ? <FormField label="调整文字"><textarea value={replacement} rows={1}
+          maxLength={props.maxLength} onChange={(event) => setReplacement(event.target.value)} /></FormField>
+          : <p>{active.mark.text}</p>}
+      </div>
+      {canEdit && <div className="ui-annotation-popover__actions">
+        <Button size="sm" variant="text" onClick={() => replace('')}>移除</Button>
+        <Button size="sm" onClick={() => replace(replacement)}>应用修改</Button>
+      </div>}
     </div>, document.body)}
   </div>
 }

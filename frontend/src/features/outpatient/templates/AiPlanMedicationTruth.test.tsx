@@ -44,6 +44,7 @@ async function fill(f: ReturnType<typeof fixture>, dialog: ReturnType<typeof wit
   await f.user.click(screen.getByRole('option', { name: '口服' }))
   await f.user.click(dialog.getByRole('combobox', { name: '用药频次' }))
   await f.user.click(screen.getByRole('option', { name: '每日两次' }))
+  await f.user.clear(dialog.getByRole('spinbutton', { name: '药品数量' }))
   await f.user.type(dialog.getByRole('spinbutton', { name: '药品数量' }), '3')
 }
 
@@ -52,7 +53,7 @@ describe('AI plan medication confirmation', () => {
     const f = fixture(), dialog = await f.select()
     expect(dialog.getByRole('region', { name: '原始用药建议' })).toHaveTextContent('不要口服；每次0.5-1g，疗程7-10天，共3盒')
     expect(dialog.getByRole('spinbutton', { name: '单次剂量' })).toHaveValue(null)
-    expect(dialog.getByRole('spinbutton', { name: '药品数量' })).toHaveValue(null)
+    expect(dialog.getByRole('spinbutton', { name: '药品数量' })).toHaveValue(1)
     expect(dialog.getByRole('spinbutton', { name: '疗程' })).toHaveValue(null)
     expect(dialog.getByRole('button', { name: '确认加入方案' })).toBeDisabled()
     expect(f.update).not.toHaveBeenCalled()
@@ -78,6 +79,7 @@ describe('AI plan medication confirmation', () => {
   it('retains entered values on dictionary failure and permits an explicit retry', async () => {
     const f = fixture(); f.standards.mockRejectedValueOnce(new Error('字典连接失败'))
     const dialog = await f.select()
+    await f.user.clear(dialog.getByRole('spinbutton', { name: '药品数量' }))
     await f.user.type(dialog.getByRole('spinbutton', { name: '药品数量' }), '3')
     expect(await dialog.findByText(/字典连接失败/)).toBeInTheDocument()
     expect(dialog.getByRole('button', { name: '确认加入方案' })).toBeDisabled()
@@ -86,17 +88,14 @@ describe('AI plan medication confirmation', () => {
     expect(dialog.getByRole('spinbutton', { name: '药品数量' })).toHaveValue(3)
     expect(f.update).not.toHaveBeenCalled()
   })
-  it('manual addition also requires an explicit quantity and does not adopt catalog usage defaults', async () => {
+  it('manual addition uses confirmed catalog defaults and one package as a reviewable starting point', async () => {
     const f = fixture(false), dialog = await f.select()
-    await f.user.type(dialog.getByRole('spinbutton', { name: '药品数量' }), '2')
     await waitFor(() => expect(dialog.getByRole('button', { name: '确认加入方案' })).toBeEnabled())
     await f.user.click(dialog.getByRole('button', { name: '确认加入方案' }))
     await f.user.click(screen.getByRole('button', { name: '确认保存调整' }))
     await waitFor(() => expect(f.update).toHaveBeenCalledTimes(1))
-    expect(f.update.mock.calls[0][1].medications[0]).toMatchObject({ quantity: 2 })
-    expect(f.update.mock.calls[0][1].medications[0].doseValue).toBeUndefined()
-    expect(f.update.mock.calls[0][1].medications[0].routeCode).toBeUndefined()
-    expect(f.update.mock.calls[0][1].medications[0].frequencyCode).toBeUndefined()
+    expect(f.update.mock.calls[0][1].medications[0]).toMatchObject({ quantity: 1, doseValue: 9,
+      doseUnit: 'g', routeCode: 'PO', frequencyCode: 'BID' })
   })
   it('does not accept a pending selection after the API context changes', async () => {
     const f = fixture(), dialog = await f.select()
@@ -108,7 +107,6 @@ describe('AI plan medication confirmation', () => {
   })
   it('blocks saving after clearing a quantity and does not silently restore 1', async () => {
     const f = fixture(false), dialog = await f.select()
-    await f.user.type(dialog.getByRole('spinbutton', { name: '药品数量' }), '2')
     await waitFor(() => expect(dialog.getByRole('button', { name: '确认加入方案' })).toBeEnabled())
     await f.user.click(dialog.getByRole('button', { name: '确认加入方案' }))
     await f.user.click(screen.getByRole('button', { name: '调整用法' }))

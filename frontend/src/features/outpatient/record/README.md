@@ -89,6 +89,8 @@ AI 辅诊默认输出连贯的病历正文，缺失要素集中到 `missingInfor
 
 连续口述由 `ai/useStableVoiceCopilot.ts` 仅对已稳定识别片段触发；900 ms 合并停顿，普通键盘输入不自动分析。模板优先推荐，无匹配走现有流式生成。自动采纳使用 `overwriteRecord=false`，只填空白字段或按语义绑定更新；非空且无法可靠定位的新信息保留在对照建议，手工修改冲突继续显示行内标记。模板内容、患者/输入版本及取消信号共同防止迟到结果覆盖当前工作。相关工作流测试在 `ClinicalAiQuietWorkflow.test.tsx` 与 `useClinicalAiDraft.test.tsx`。
 
+AI 共写的病历流式白名单覆盖全部书写字段，包括健康宣教与随访复诊。SSE `stage` 事件先返回目录核对后的诊断（DIAGNOSES），再返回匹配后的医嘱（TREATMENTS）；这两阶段仅供只读预览，没有可采纳的建议身份。只有事务完成后的 `complete` 才允许确认；中断或上下文变化丢弃预览。诊断确认仅带入所选项，编辑器通过本地 `onApplied` 回执确认实际草稿变更后，收起该建议 ID 下的整批诊断（含未勾选项），不影响医嘱或下一轮建议；留痕失败、草稿拒绝或无变更不收起。回归见 `clinicalAiStream.test.ts`、`ClinicalAiModelModeTest`、`ClinicalAiQuietWorkflow.test.tsx`、`useClinicalAiDraft.test.tsx`。
+
 
 历史诊疗事实按选定就诊保留全部有效诊断、药品和服务申请，不能在领域投影阶段按模型上下文预算静默截断。`EncounterHistorySnapshot`、模型请求和历史重复方案解析均拒绝将未返回的历史集合补为空列表。模型网关单独限制每次就诊的上下文条数，并传入各类事实的 `coverage.total/included/omitted`；省略记录不能用来推断不存在其他诊断或医嘱。当前就诊范围仍受时间窗和次数限制，尚不代表患者全部病史。验证见 `JpaOutpatientClinicalHistoryDirectoryTest` 的第 51 条用法冲突用例与 `OpenAiCompatibleClinicalAiModelGatewayTest` 的真实发送报文覆盖检查。
 

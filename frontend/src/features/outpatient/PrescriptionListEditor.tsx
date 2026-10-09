@@ -12,8 +12,9 @@ import type { AllergyIntolerance } from '../../shared/api/residentsApi'
 import type { Encounter } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
-  Alert, Button, ClinicalResourceSearch, Select, StatusBadge, type ClinicalResourceOption,
+  Alert, Button, ClinicalResourceSearch, Icon, Select, StatusBadge, type ClinicalResourceOption,
 } from '../../shared/ui'
+import { MedicalInsertViewerModal } from './ai/MedicalInsertViewerModal'
 
 type EditorMode = 'regular' | 'herbal'
 type EditableField = 'doseValue' | 'doseUnit' | 'routeCode' | 'frequencyCode'
@@ -119,6 +120,7 @@ function PrescriptionEditorSection({
   const [herbalMethod, setHerbalMethod] = useState('水煎服')
   const [herbalFrequency, setHerbalFrequency] = useState('BID')
   const [validationError, setValidationError] = useState('')
+  const [inspectMedicationName, setInspectMedicationName] = useState<string | null>(null)
   const currentMedication = line.medication?.raw
   const dispensableOptions = currentMedication
     ? resolveDispensableOptions(currentMedication, encounter.organizationId) : []
@@ -268,14 +270,16 @@ function PrescriptionEditorSection({
       </div>
       {visibleLines.map(({ request }, index) => mode === 'regular'
         ? <RegularSavedRow key={request.id} value={request} groupLabel={administrationGroups.get(request.id)}
-          busy={cancelBusy} onCancel={() => onCancel(request)} />
+          busy={cancelBusy} onCancel={() => onCancel(request)} onInspect={() => setInspectMedicationName(request.medicationName)} />
         : <HerbalSavedRow key={request.id} value={request} index={index + 1} busy={cancelBusy}
-          onCancel={() => onCancel(request)} />)}
+          onCancel={() => onCancel(request)} onInspect={() => setInspectMedicationName(request.medicationName)} />)}
       {visibleDrafts.map((draft, index) => mode === 'regular'
         ? <RegularPlanRow key={draft.id} value={draft} groupLabel={draftGroups.get(draft.id)}
-          onRemove={() => onDraftsChange((current) => current.filter((item) => item.id !== draft.id))} />
+          onRemove={() => onDraftsChange((current) => current.filter((item) => item.id !== draft.id))}
+          onInspect={() => setInspectMedicationName(draft.medicationName)} />
         : <HerbalPlanRow key={draft.id} value={draft} index={visibleLines.length + index + 1}
-          onRemove={() => onDraftsChange((current) => current.filter((item) => item.id !== draft.id))} />)}
+          onRemove={() => onDraftsChange((current) => current.filter((item) => item.id !== draft.id))}
+          onInspect={() => setInspectMedicationName(draft.medicationName)} />)}
       <div className="doctor-prescription-grid__entry" role="row" key={line.key}>
         <span className="doctor-prescription-group-cell">{mode === 'regular' ? (isInfusionRoute(line.routeCode, line.routeExecutionType) ? 'IV' : '—')
           : visibleLines.length + visibleDrafts.length + 1}</span>
@@ -346,11 +350,17 @@ function PrescriptionEditorSection({
       {requiresSafetyReview && <label><input type="checkbox" checked={line.safetyReviewed}
         onChange={(event) => update('safetyReviewed', event.target.checked)} /> 已核对患者过敏及药品风险</label>}
     </div>}
+    <MedicalInsertViewerModal
+      isOpen={Boolean(inspectMedicationName)}
+      onClose={() => setInspectMedicationName(null)}
+      target={inspectMedicationName ? { name: inspectMedicationName, type: 'medication' } : null}
+      api={api}
+    />
   </section>
 }
 
-function RegularSavedRow({ value, groupLabel, busy, onCancel }: {
-  value: MedicationRequest; groupLabel?: string; busy: boolean; onCancel: () => void
+function RegularSavedRow({ value, groupLabel, busy, onCancel, onInspect }: {
+  value: MedicationRequest; groupLabel?: string; busy: boolean; onCancel: () => void; onInspect: () => void
 }) {
   return <div className={`doctor-prescription-grid__saved ${groupLabel ? 'is-grouped' : ''}`} role="row">
     <span className="doctor-prescription-group-cell">{groupLabel || '—'}</span>
@@ -361,12 +371,13 @@ function RegularSavedRow({ value, groupLabel, busy, onCancel }: {
     <span>{value.quantity} {value.quantityUnit}</span><span title={value.medicationInstruction}>{value.medicationInstruction || '—'}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone={value.status === 'DRAFT' ? 'warning'
       : value.status === 'ACTIVE' ? 'success' : 'neutral'}>{statusLabel(value.status)}</StatusBadge>
+      <Button size="sm" variant="text" onClick={onInspect} title="查看药品说明书"><Icon name="pill" />说明书</Button>
       {value.status !== 'CANCELLED' && <Button size="sm" variant="text" busy={busy} onClick={onCancel}>撤销</Button>}</span>
   </div>
 }
 
-function HerbalSavedRow({ value, index, busy, onCancel }: {
-  value: MedicationRequest; index: number; busy: boolean; onCancel: () => void
+function HerbalSavedRow({ value, index, busy, onCancel, onInspect }: {
+  value: MedicationRequest; index: number; busy: boolean; onCancel: () => void; onInspect: () => void
 }) {
   const instruction = value.medicationInstruction?.split('；').slice(1).join('；') || '—'
   return <div className="doctor-prescription-grid__saved" role="row">
@@ -376,12 +387,13 @@ function HerbalSavedRow({ value, index, busy, onCancel }: {
     <span>{value.quantity} {value.quantityUnit}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone={value.status === 'DRAFT' ? 'warning'
       : value.status === 'ACTIVE' ? 'success' : 'neutral'}>{statusLabel(value.status)}</StatusBadge>
+      <Button size="sm" variant="text" onClick={onInspect} title="查看草药说明书"><Icon name="pill" />说明书</Button>
       {value.status !== 'CANCELLED' && <Button size="sm" variant="text" busy={busy} onClick={onCancel}>撤销</Button>}</span>
   </div>
 }
 
-function RegularPlanRow({ value, groupLabel, onRemove }: {
-  value: MedicationPlanDraft; groupLabel?: string; onRemove: () => void
+function RegularPlanRow({ value, groupLabel, onRemove, onInspect }: {
+  value: MedicationPlanDraft; groupLabel?: string; onRemove: () => void; onInspect: () => void
 }) {
   const request = value.request
   return <div className={`doctor-prescription-grid__saved is-plan-draft ${groupLabel ? 'is-grouped' : ''}`} role="row">
@@ -393,12 +405,13 @@ function RegularPlanRow({ value, groupLabel, onRemove }: {
     <span>{request.frequencyCode || '—'}</span><span>{request.durationValue ? `${request.durationValue}${request.durationUnit || '天'}` : '—'}</span>
     <span>{request.quantity} {request.quantityUnit}</span><span title={request.medicationInstruction}>{request.medicationInstruction || '—'}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone="warning">待确认</StatusBadge>
+      <Button size="sm" variant="text" onClick={onInspect} title="查看药品说明书"><Icon name="pill" />说明书</Button>
       <Button size="sm" variant="text" onClick={onRemove}>移除</Button></span>
   </div>
 }
 
-function HerbalPlanRow({ value, index, onRemove }: {
-  value: MedicationPlanDraft; index: number; onRemove: () => void
+function HerbalPlanRow({ value, index, onRemove, onInspect }: {
+  value: MedicationPlanDraft; index: number; onRemove: () => void; onInspect: () => void
 }) {
   const request = value.request
   const instruction = request.medicationInstruction?.split('；').slice(1).join('；') || '—'
@@ -409,6 +422,7 @@ function HerbalPlanRow({ value, index, onRemove }: {
     <span>{request.doseValue ?? '—'}</span><span>{request.doseUnit || '—'}</span><span>{instruction}</span>
     <span>{request.quantity} {request.quantityUnit}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone="warning">待确认</StatusBadge>
+      <Button size="sm" variant="text" onClick={onInspect} title="查看草药说明书"><Icon name="pill" />说明书</Button>
       <Button size="sm" variant="text" onClick={onRemove}>移除</Button></span>
   </div>
 }

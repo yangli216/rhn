@@ -523,12 +523,14 @@ export function ClinicalAiCopilotHub({
                     <Icon name="sparkles" />
                   </span>
                   <span className="doctor-ai-generation__label">
-                    {preview.recordDraft.treatmentPlan ? '正在匹配诊断与院内方案' : '正在共写病历'}
+                    {preview.phase === 'TREATMENTS' ? '建议已生成，正在准备确认'
+                      : preview.phase === 'DIAGNOSES' ? '诊断已生成，正在匹配医嘱' : '正在共写病历'}
                   </span>
                 </div>
                 <ClinicalAiPipelineStepper
                   generating={generating}
                   hasTreatmentPlan={Boolean(preview.recordDraft.treatmentPlan)}
+                  completedStage={preview.phase}
                   current={current}
                   surfaces={surfaces}
                 />

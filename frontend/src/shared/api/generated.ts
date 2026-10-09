@@ -11515,6 +11515,7 @@ export interface components {
             readonly sdStatusText?: string;
             /** @description 字典 BD_SERVICE_USE 的显示文本 */
             readonly sdUsageTypeText?: string;
+            defaultExecutionDepartment?: components["schemas"]["DefaultDepartment"];
         };
         PackageRequest: {
             /** @example 824633720832983041 */
@@ -24661,6 +24662,12 @@ export interface components {
             conceptId?: string | null;
             codeSystem?: string | null;
             diagnosisDomain?: string | null;
+        };
+        DefaultDepartment: {
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            departmentName?: string;
+            source?: string;
         };
     };
     responses: never;

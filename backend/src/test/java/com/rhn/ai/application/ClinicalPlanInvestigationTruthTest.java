@@ -57,10 +57,19 @@ class ClinicalPlanInvestigationTruthTest {
                 null, "检验方案", List.of(items)));
     }
 
+    @Test void singleMatchedServiceDefaultsToOneWhenNoQuantityWasRequested() {
+        for (String details : List.of("", "用于评估")) {
+            var result = convert(item(details));
+            assertEquals(BigDecimal.ONE, result.services().getFirst().quantity());
+            assertEquals("MATCHED", result.tasks().getFirst().status());
+            assertTrue(result.tasks().getFirst().details().contains("默认 1 EA"));
+        }
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"", "用于评估", "数量：0 EA", "数量：-2 EA", "数量：2-3 EA", "数量：约2 EA",
+    @ValueSource(strings = {"数量：0 EA", "数量：-2 EA", "数量：2-3 EA", "数量：约2 EA",
             "数量：2 次", "数量：2", "数量：二 EA", "数量：2 EA；数量：3 EA", "数量：2 EA；共3EA", "数量：2 EA，3EA"})
-    void missingInvalidConflictingOrUnverifiedUnitDoesNotBecomeOne(String details) {
+    void invalidConflictingOrUnverifiedUnitDoesNotBecomeOne(String details) {
         var result = convert(item(details));
         assertTrue(result.services().isEmpty());
         assertEquals("NEEDS_REVIEW", result.tasks().getFirst().status());

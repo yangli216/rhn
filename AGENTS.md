@@ -7,6 +7,7 @@
 - Locate symbols with scoped `rg` before reading whole files. Exclude generated types, large catalogs, build output, and logs from routine implementation searches; inspect them explicitly when the task concerns contracts or data.
 - `./scripts/verify-scope.sh {frequency|outpatient-draft|round1} --list` shows the maintained checks. Run the applicable scope; expand verification for contracts, migrations, permissions, inventory, billing, or shared infrastructure. A scope is not a replacement for full CI.
 - Keep full test logs in files and inspect concise results first. Preserve existing service, test-isolation, and Git rules below.
+- For frontend-only edits, use the applicable scope with `--frontend-only`; this retains frontend integration tests, UI checks, and the build without repeating backend tests. Never use this flag for changes to backend code, API contracts, migrations, permissions, inventory, or billing logic. `knowledge-panel` is the focused scope for knowledge viewing; expand for other shared Dialog consumers or workstation integration. Review `timings.tsv` for stage costs.
 
 ## Browser automation
 

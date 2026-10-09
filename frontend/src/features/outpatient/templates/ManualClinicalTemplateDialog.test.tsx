@@ -29,6 +29,22 @@ function mockApi() {
 }
 
 describe('ManualClinicalTemplateDialog', () => {
+  it('keeps annotation explanations at the bottom of the full-height note editor', () => {
+    render(<ManualClinicalTemplateDialog api={mockApi()} kind="NOTE" onClose={vi.fn()} onSaved={vi.fn()}
+      editingNote={{
+        id: 'note-1', revision: 0, scopeType: 'PERSONAL', name: '咳嗽病历', specialtyCode: 'GENERAL_PRACTICE',
+        documentType: 'OUTPATIENT_NOTE', contentSchema: 'RHN.OUTPATIENT_NOTE_TEMPLATE.V1', status: 'ACTIVE',
+        sortOrder: 0, useCount: 0, createdAt: '2026-09-25T00:00:00Z', updatedAt: '2026-09-25T00:00:00Z',
+        content: { chiefComplaint: '咳嗽3天', annotations: [{ field: 'chiefComplaint', text: '3天', start: 2,
+          source: 'TEMPLATE', kind: 'VARIABLE', binding: 'symptom.cough.duration' }] },
+      }} />)
+
+    expect(screen.getByRole('button', { name: '3天：模板预设' })).toBeInTheDocument()
+    const legend = screen.getByRole('complementary', { name: '病历标记说明' })
+    expect(legend.parentElement?.lastElementChild).toBe(legend)
+    expect(legend).toHaveTextContent('蓝色：需按本次患者替换')
+  })
+
   it('creates a note template without invoking AI', async () => {
     const user = userEvent.setup()
     const api = mockApi()

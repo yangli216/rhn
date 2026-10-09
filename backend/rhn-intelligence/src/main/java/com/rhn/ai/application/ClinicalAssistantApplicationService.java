@@ -4,9 +4,11 @@ import com.rhn.ai.api.ClinicalAssistantContracts.Capabilities;
 import com.rhn.ai.api.ClinicalAssistantContracts.DiagnosisCandidate;
 import com.rhn.ai.api.ClinicalAssistantContracts.DiagnosisInput;
 import com.rhn.ai.api.ClinicalAssistantContracts.Draft;
+import com.rhn.ai.api.ClinicalAssistantContracts.EvidenceChainQuery;
 import com.rhn.ai.api.ClinicalAssistantContracts.Event;
 import com.rhn.ai.api.ClinicalAssistantContracts.EventRequest;
 import com.rhn.ai.api.ClinicalAssistantContracts.GenerateRequest;
+import com.rhn.ai.api.ClinicalAssistantContracts.GenerationStage;
 import com.rhn.ai.api.ClinicalAssistantContracts.KnowledgeReference;
 import com.rhn.ai.api.ClinicalAssistantContracts.KnowledgeSearch;
 import com.rhn.ai.api.ClinicalAssistantContracts.KnowledgeSearchRequest;
@@ -57,6 +59,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -68,7 +71,7 @@ public class ClinicalAssistantApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ClinicalAssistantApplicationService.class);
     private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
     private static final String OUTPATIENT_NOTE = "OUTPATIENT_NOTE";
-    private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V9";
+    private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V10";
     private static final String LOCAL_PROMPT_VERSION = "local-assist-v2";
     private static final String DISCLAIMER = "本结果仅为本地规则辅助生成的待核对建议，不构成诊断或处方；系统不会自动保存病历、确认诊断、开立医嘱或完成诊毕，须由医生独立判断并确认。";
     private static final String MODEL_DISCLAIMER = "本结果由模型基于当前就诊资料生成，并已通过院内术语、方案白名单和确定性安全规则复核；不构成诊断或处方，须由医生独立判断并确认。";
@@ -215,6 +218,74 @@ public class ClinicalAssistantApplicationService {
         return new KnowledgeSearch(query, runtime.provider(), results, Instant.now());
     }
 
+    public ClinicalKnowledgeGateway.EvidenceChainResult getEvidenceChain(Long encounterId, EvidenceChainQuery input) {
+        Access access = requireAccess(encounterId, true);
+        ClinicalAssistantSettings runtime = runtimePolicy.current(access.context());
+        requireAvailable(runtime, access.context());
+        if (!runtime.knowledgeAvailable()) {
+            throw new BusinessException("AI_KNOWLEDGE_UNAVAILABLE",
+                    "临床知识库服务尚未配置；医生站其他功能不受影响。", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+
+        ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(access.encounter().residentId());
+        Integer age = null;
+        if (resident.birthDate() != null) {
+            age = java.time.Period.between(resident.birthDate(), java.time.LocalDate.now()).getYears();
+        }
+        String gender = safe(resident.gender());
+
+        String chiefComplaint = input.chiefComplaint();
+        String presentIllness = input.presentIllness();
+        String physicalExam = input.physicalExam();
+        String medicalHistory = input.medicalHistory();
+        Map<String, Object> vitals = input.vitals() == null ? Map.of() : input.vitals();
+
+        var patientContext = new ClinicalKnowledgeGateway.EvidenceChainRequest.PatientContext(
+                age,
+                gender,
+                chiefComplaint,
+                presentIllness,
+                physicalExam,
+                medicalHistory,
+                vitals
+        );
+
+        var request = new ClinicalKnowledgeGateway.EvidenceChainRequest(
+                input.diagnosis(),
+                input.diagnosisCode(),
+                patientContext
+        );
+
+        try {
+            return knowledgeGateway.evaluateEvidenceChain(request, runtime);
+        } catch (RuntimeException exception) {
+            throw new BusinessException("AI_EVIDENCE_CHAIN_UNAVAILABLE",
+                    "循证推导服务暂时不可用，请稍后重试。", HttpStatus.BAD_GATEWAY);
+        }
+    }
+
+    public ClinicalKnowledgeGateway.WikiDocResult getWikiDoc(String query, String type) {
+        ExecutionContext requestContext = contextProvider.requireCurrent();
+        ClinicalAssistantSettings runtime = runtimePolicy.current(requestContext);
+        requireAvailable(runtime, requestContext);
+        if (!runtime.knowledgeAvailable()) {
+            throw new BusinessException("AI_KNOWLEDGE_UNAVAILABLE",
+                    "临床知识库服务尚未配置；医生站其他功能不受影响。", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+        try {
+            ClinicalKnowledgeGateway.WikiDocResult doc = knowledgeGateway.lookupWikiDoc(query, type, runtime);
+            if (doc == null) {
+                throw notFound("AI_WIKI_DOC_NOT_FOUND", "未找到对应的临床说明书或指南文档");
+            }
+            return doc;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (RuntimeException exception) {
+            throw new BusinessException("AI_WIKI_DOC_UNAVAILABLE",
+                    "知识库文档服务暂时不可用，请稍后重试。", HttpStatus.BAD_GATEWAY);
+        }
+    }
+
     private static String displayBytes(int bytes) {
         if (bytes % (1024 * 1024) == 0) return bytes / (1024 * 1024) + " MB";
         if (bytes % 1024 == 0) return bytes / 1024 + " KB";
@@ -265,15 +336,30 @@ public class ClinicalAssistantApplicationService {
     }
 
     public Suggestion generate(Long encounterId, GenerateRequest input, java.util.function.Consumer<String> onDelta) {
+        return generate(encounterId, input, onDelta, null);
+    }
+
+    public Suggestion generate(Long encounterId, GenerateRequest input, java.util.function.Consumer<String> onDelta,
+                               java.util.function.Consumer<GenerationStage> onStage) {
         long started = System.nanoTime();
         ExecutionContext requestContext = contextProvider.requireCurrent();
         ClinicalAssistantSettings runtime = runtimePolicy.current(requestContext);
+        GenerationTiming timing = new GenerationTiming();
+        java.util.function.Consumer<String> timedOnDelta = onDelta == null ? null : delta -> {
+            timing.firstDeltaMs.compareAndSet(-1, elapsedMillis(started));
+            onDelta.accept(delta);
+        };
+        String outcome = "IN_PROGRESS";
         try {
+        long phaseStarted = System.nanoTime();
         requireAvailable(runtime, requestContext);
         Access access = requireAccess(encounterId, true);
         Instant now = Instant.now();
         var temporalContext = new ClinicalAiModelGateway.TemporalContext(now, access.encounter().registeredAt());
         ServerContext serverContext = loadServerContext(access);
+        timing.contextLoadMs = elapsedMillis(phaseStarted);
+
+        phaseStarted = System.nanoTime();
         List<ClinicalPlanRetrievalService.Match> recalled = retrievePlans(input, serverContext.plans());
         var candidates = planDirectory.visibleByIds(recalled.stream().map(match -> match.plan().id()).toList())
                 .stream().collect(java.util.stream.Collectors.toMap(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot::id, plan -> plan));
@@ -288,9 +374,19 @@ public class ClinicalAssistantApplicationService {
         }
         SuggestionContent priorSuggestion = requirePriorSuggestion(access, input, serverContext, now, runtime);
         String contextHash = contextHash(access, input);
-        Analysis analysis = runtime.mode() == ClinicalAssistantSettings.Mode.MODEL
-                ? analyzeWithModel(input, serverContext, planMatches, priorSuggestion, runtime, temporalContext, onDelta)
-                : analyzeLocally(access, input, serverContext, planMatches);
+        timing.planRecallMs = elapsedMillis(phaseStarted);
+        timing.planMatches = planMatches.size();
+
+        phaseStarted = System.nanoTime();
+        Analysis analysis;
+        try {
+            analysis = runtime.mode() == ClinicalAssistantSettings.Mode.MODEL
+                    ? analyzeWithModel(input, serverContext, planMatches, priorSuggestion, runtime, temporalContext,
+                    timedOnDelta, onStage, timing)
+                    : analyzeLocally(access, input, serverContext, planMatches);
+        } finally {
+            timing.analysisMs = elapsedMillis(phaseStarted);
+        }
         SuggestionContent content = analysis.content();
 
         Map<String, Object> evidence = new LinkedHashMap<>();
@@ -309,28 +405,47 @@ public class ClinicalAssistantApplicationService {
                 "clinicalScore", match.clinicalScore(), "reasons", match.evidence())).toList());
         evidence.put("clinicalWriteInvoked", false);
 
-        AiSuggestion value = transactionTemplate.execute(status -> {
-            AiSuggestion saved = suggestions.save(new AiSuggestion(access.context().tenantId(), access.encounter().residentId(),
-                    access.encounter().id(), access.encounter().organizationId(), access.encounter().departmentId(),
-                    input.clientContextFingerprint().trim(), contextHash, jsonCodec.write(content), jsonCodec.write(evidence),
-                    serverContext.hash(), analysis.riskLevel(), runtime.provider(), runtime.model(),
-                    runtime.mode() == ClinicalAssistantSettings.Mode.MODEL ? PROMPT_VERSION : LOCAL_PROMPT_VERSION,
-                    access.context().practitionerId(), access.context().subjectId(), now,
-                    now.plus(runtime.suggestionTtl())));
-            events.save(new AiSuggestionEvent(saved.tenantId(), saved.id(), "GENERATED", null, "GENERATED",
-                    access.context().practitionerId(), access.context().subjectId(), null, saved.contextHash(),
-                    "GENERATED-" + saved.id(), runtime.mode() == ClinicalAssistantSettings.Mode.MODEL
-                            ? "模型辅助建议生成" : "本地辅助建议生成", jsonCodec.write(Map.of(
-                    "provider", runtime.provider(), "mode", runtime.mode().name())), now));
-            return saved;
-        });
+        phaseStarted = System.nanoTime();
+        AiSuggestion value;
+        try {
+            value = transactionTemplate.execute(status -> {
+                AiSuggestion saved = suggestions.save(new AiSuggestion(access.context().tenantId(), access.encounter().residentId(),
+                        access.encounter().id(), access.encounter().organizationId(), access.encounter().departmentId(),
+                        input.clientContextFingerprint().trim(), contextHash, jsonCodec.write(content), jsonCodec.write(evidence),
+                        serverContext.hash(), analysis.riskLevel(), runtime.provider(), runtime.model(),
+                        runtime.mode() == ClinicalAssistantSettings.Mode.MODEL ? PROMPT_VERSION : LOCAL_PROMPT_VERSION,
+                        access.context().practitionerId(), access.context().subjectId(), now,
+                        now.plus(runtime.suggestionTtl())));
+                events.save(new AiSuggestionEvent(saved.tenantId(), saved.id(), "GENERATED", null, "GENERATED",
+                        access.context().practitionerId(), access.context().subjectId(), null, saved.contextHash(),
+                        "GENERATED-" + saved.id(), runtime.mode() == ClinicalAssistantSettings.Mode.MODEL
+                                ? "模型辅助建议生成" : "本地辅助建议生成", jsonCodec.write(Map.of(
+                        "provider", runtime.provider(), "mode", runtime.mode().name())), now));
+                return saved;
+            });
+        } finally {
+            timing.persistenceMs = elapsedMillis(phaseStarted);
+        }
         Suggestion result = view(value, content, now);
+        outcome = "SUCCESS";
         metrics.recordGeneration(runtime.mode().name(), runtime.provider(), "SUCCESS", System.nanoTime() - started);
         return result;
         } catch (RuntimeException exception) {
-            String outcome = exception instanceof BusinessException business ? business.code() : "UNEXPECTED_ERROR";
+            outcome = exception instanceof BusinessException business ? business.code() : "UNEXPECTED_ERROR";
             metrics.recordGeneration(runtime.mode().name(), runtime.provider(), outcome, System.nanoTime() - started);
             throw exception;
+        } finally {
+            long analysisOtherMs = timing.analysisMs < 0 ? -1
+                    : Math.max(0, timing.analysisMs - Math.max(0, timing.primaryModelMs)
+                    - Math.max(0, timing.treatmentMs));
+            log.info("clinical_ai_generation_timing correlationId={} mode={} provider={} model={} streaming={} "
+                            + "outcome={} contextLoadMs={} planRecallMs={} analysisMs={} primaryModelMs={} "
+                            + "firstDeltaMs={} treatmentMs={} analysisOtherMs={} persistenceMs={} totalMs={} "
+                            + "planMatches={} treatmentIntents={}",
+                    requestContext.correlationId(), runtime.mode().name(), runtime.provider(), runtime.model(),
+                    onDelta != null, outcome, timing.contextLoadMs, timing.planRecallMs, timing.analysisMs,
+                    timing.primaryModelMs, timing.firstDeltaMs.get(), timing.treatmentMs, analysisOtherMs,
+                    timing.persistenceMs, elapsedMillis(started), timing.planMatches, timing.treatmentIntents);
         }
     }
 
@@ -435,8 +550,10 @@ public class ClinicalAssistantApplicationService {
                                       List<ClinicalPlanRetrievalService.Match> planMatches,
                                       SuggestionContent priorSuggestion, ClinicalAssistantSettings runtime,
                                       ClinicalAiModelGateway.TemporalContext temporalContext,
-                                      java.util.function.Consumer<String> onDelta) {
+                                      java.util.function.Consumer<String> onDelta,
+                                      java.util.function.Consumer<GenerationStage> onStage, GenerationTiming timing) {
         SuggestionContent raw;
+        long modelStarted = System.nanoTime();
         try {
             var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION,
                     Strings.trimToNull(input.question()), Strings.trimToNull(input.voiceTranscript()), input.draft(),
@@ -457,6 +574,8 @@ public class ClinicalAssistantApplicationService {
             throw new BusinessException("AI_MODEL_UNAVAILABLE",
                     modelException == null ? "模型辅助暂时不可用，请稍后重试；医生站其他功能不受影响。"
                             : modelException.userMessage(), HttpStatus.BAD_GATEWAY);
+        } finally {
+            timing.primaryModelMs = elapsedMillis(modelStarted);
         }
         if (raw == null) {
             throw new BusinessException("AI_MODEL_RESPONSE_INVALID", "模型未返回有效的结构化建议，请稍后重试。",
@@ -478,22 +597,47 @@ public class ClinicalAssistantApplicationService {
         }
         SuggestionContent content = new SuggestionContent(summary, recordDraft, candidates, differentials,
                 missing, alerts, plans, MODEL_DISCLAIMER);
+        if (onStage != null) onStage.accept(new GenerationStage("DIAGNOSES", input.clientContextFingerprint().trim(), content));
+        timing.treatmentIntents = raw.treatmentRecommendations().size();
         if (!raw.treatmentRecommendations().isEmpty()) {
             var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION, Strings.trimToNull(input.question()),
                     Strings.trimToNull(input.voiceTranscript()), input.draft(), serverContext.resident(), serverContext.allergies(),
                     planMatches.stream().map(ClinicalPlanRetrievalService.Match::plan).toList(),
                     serverContext.reports(), serverContext.clinicalHistory(), content,
                     input.receptionScene(), input.receptionSceneContext()).withTemporalContext(temporalContext);
-            var treatment = treatmentService.recommend(raw.treatmentRecommendations(), request, runtime);
+            long treatmentStarted = System.nanoTime();
+            ClinicalTreatmentRecommendationService.Result treatment;
+            try {
+                treatment = treatmentService.recommend(raw.treatmentRecommendations(), request, runtime);
+            } finally {
+                timing.treatmentMs = elapsedMillis(treatmentStarted);
+            }
             List<SafetyAlert> completeAlerts = new ArrayList<>(alerts);
             completeAlerts.addAll(treatment.alerts());
             alerts = distinctAlerts(completeAlerts, 20);
             content = new SuggestionContent(summary, recordDraft, candidates, differentials, missing,
                     alerts, plans, MODEL_DISCLAIMER, treatment.items());
         }
+        if (onStage != null) onStage.accept(new GenerationStage("TREATMENTS", input.clientContextFingerprint().trim(), content));
         String risk = alerts.stream().anyMatch(value -> "CRITICAL".equals(value.level())) ? "CRITICAL"
                 : alerts.isEmpty() ? "INFO" : "MEDIUM";
         return new Analysis(content, risk);
+    }
+
+    private static long elapsedMillis(long startedNanos) {
+        return (System.nanoTime() - startedNanos) / 1_000_000;
+    }
+
+    private static final class GenerationTiming {
+        private final AtomicLong firstDeltaMs = new AtomicLong(-1);
+        private long contextLoadMs = -1;
+        private long planRecallMs = -1;
+        private long analysisMs = -1;
+        private long primaryModelMs = -1;
+        private long treatmentMs = -1;
+        private long persistenceMs = -1;
+        private int planMatches;
+        private int treatmentIntents;
     }
 
     private SuggestionContent requirePriorSuggestion(Access access, GenerateRequest input,

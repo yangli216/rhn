@@ -290,6 +290,8 @@ export interface ServiceCatalogItem {
   examination?: ExaminationServiceDetail
   organizationAdoption?: OrganizationAdoption
   prices: CatalogPrice[]
+  defaultExecutionDepartment?: { departmentId: string | null; departmentName: string | null;
+    source: 'CONFIGURED' | 'DEPARTMENT_TYPE' | 'CONFIGURATION_INVALID' | 'MISSING' | 'AMBIGUOUS' } | null
 }
 
 export interface ServiceAlias {

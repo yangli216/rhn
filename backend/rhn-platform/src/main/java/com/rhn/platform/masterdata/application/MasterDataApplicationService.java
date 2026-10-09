@@ -803,6 +803,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     private List<ServiceView> serviceViews(Long tenantId, List<ServiceCatalogItem> items, Long organizationId, LocalDate at) {
         List<Long> ids = items.stream().map(ServiceCatalogItem::id).toList();
         Map<Long, OrganizationCatalogItem> adoptions = adoptionMap(tenantId, organizationId, ids, at);
+        var executionDepartments = organizationId == null || items.isEmpty() ? List.<com.rhn.platform.organization.api.DepartmentView>of()
+                : organizationDirectory.listDepartments(tenantId, organizationId);
         Map<Long, List<CatalogPrice>> prices = priceMap(tenantId, ids);
         Map<Long, LaboratoryService> laboratories = laboratoryServiceRepository
                 .findByTenantIdAndCatalogItemIdIn(tenantId, ids).stream()
@@ -826,7 +828,12 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 value.attention(), value.examinationNotes(), laboratoryView(laboratories.get(value.id()),
                         specimens.getOrDefault(value.id(), List.of())),
                 examinationView(examinations.get(value.id()), variants.getOrDefault(value.id(), List.of())),
-                adoptionView(adoptions.get(value.id()), organizationId), priceViews(prices.get(value.id())))).toList();
+                adoptionView(adoptions.get(value.id()), organizationId), priceViews(prices.get(value.id())),
+                organizationId == null ? null : com.rhn.platform.masterdata.api.ServiceExecutionDepartmentPolicy.resolve(
+                        value.serviceType(), value.examinationType(), adoptions.get(value.id()) != null
+                                && organizationId.equals(adoptions.get(value.id()).organizationId())
+                                ? adoptions.get(value.id()).defaultDepartmentId() : null,
+                        organizationId, executionDepartments, at))).toList();
     }
 
     private LaboratoryServiceView laboratoryView(LaboratoryService value,

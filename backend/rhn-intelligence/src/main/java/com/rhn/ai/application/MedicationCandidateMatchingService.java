@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 /** Resolves Medication -> Product -> Package without silently selecting among multiple valid candidates. */
 @Service
@@ -18,6 +19,22 @@ public class MedicationCandidateMatchingService {
         this.inventory = inventory;
     }
 
+    /** Suggests a specification only when every exact, orderable catalog candidate agrees. */
+    public Optional<String> suggestPreparationSpecification(long tenantId, long organizationId, long departmentId,
+                                                            String medicationName) {
+        if (blank(medicationName)) return Optional.empty();
+        List<OutpatientPrescriptionInventoryDirectory.OrderableMedicationView> medications = matchingMedications(
+                tenantId, organizationId, departmentId, medicationName);
+        if (medications.isEmpty() || medications.stream().anyMatch(value -> blank(value.preparationSpec()))) {
+            return Optional.empty();
+        }
+        List<String> specifications = medications.stream()
+                .map(this::displaySpecification)
+                .distinct()
+                .toList();
+        return specifications.size() == 1 ? Optional.of(specifications.getFirst()) : Optional.empty();
+    }
+
     public Result match(long tenantId, long organizationId, long departmentId,
                         MedicationIntentParser.ParsedMedication intent) {
         if (intent == null || blank(intent.medicationName())) {
@@ -25,24 +42,28 @@ public class MedicationCandidateMatchingService {
         }
         if (intent.requiresReview()) return new Result(Status.NEEDS_REVIEW, null, null, null,
                 "用法包含否定、范围、冲突、无效数量或未解析内容，请明确后重新匹配", List.of());
-        List<OutpatientPrescriptionInventoryDirectory.OrderableMedicationView> medications = inventory
-                .findOrderableMedicationCandidates(tenantId, organizationId, departmentId, intent.medicationName()).stream()
-                .filter(value -> "ACTIVE".equals(value.sdStatus()))
-                .filter(value -> matchesMedication(intent.medicationName(), value))
-                .toList();
-        if (medications.isEmpty()) {
-            String stem = extractMedicationStem(intent.medicationName());
-            if (stem != null && !stem.isBlank() && !stem.equals(intent.medicationName())) {
-                medications = inventory.findOrderableMedicationCandidates(tenantId, organizationId, departmentId, stem).stream()
-                        .filter(value -> "ACTIVE".equals(value.sdStatus()))
-                        .filter(value -> matchesMedication(intent.medicationName(), value))
-                        .toList();
-            }
-        }
+        List<OutpatientPrescriptionInventoryDirectory.OrderableMedicationView> medications = matchingMedications(
+                tenantId, organizationId, departmentId, intent.medicationName());
         if (medications.isEmpty()) return Result.unavailable("当前机构可开药目录没有通用名精确匹配项");
+        List<String> specificationReviews = medications.stream()
+                .map(value -> MedicationSpecificationEvidence.reviewReason(intent,
+                        MedicationSpecificationEvidence.catalogSpecification(value.preparationSpec(), value.preparationUnit())))
+                .toList();
+        if (specificationReviews.stream().anyMatch(java.util.Objects::nonNull)) {
+            List<OutpatientPrescriptionInventoryDirectory.OrderableMedicationView> compatible = new ArrayList<>();
+            for (int index = 0; index < medications.size(); index++) {
+                if (specificationReviews.get(index) == null) compatible.add(medications.get(index));
+            }
+            if (compatible.isEmpty()) {
+                return new Result(Status.NEEDS_REVIEW, null, null, null,
+                        specificationReviews.stream().filter(java.util.Objects::nonNull).findFirst().orElseThrow(), List.of());
+            }
+            medications = compatible;
+        }
         if (medications.size() > 1) return Result.ambiguous("MEDICATION", medications.size());
         var medication = medications.getFirst();
-        String specificationReview = MedicationSpecificationEvidence.reviewReason(intent, medication.preparationSpec());
+        String specificationReview = MedicationSpecificationEvidence.reviewReason(intent,
+                MedicationSpecificationEvidence.catalogSpecification(medication.preparationSpec(), medication.preparationUnit()));
         if (specificationReview != null) return new Result(Status.NEEDS_REVIEW, null, null, null,
                 specificationReview, List.of());
 
@@ -63,6 +84,10 @@ public class MedicationCandidateMatchingService {
         List<PackageView> packageMatches = blank(intent.quantityUnit()) ? packages : packages.stream()
                 .filter(value -> exact(intent.quantityUnit(), value.unitCode())
                         || exact(intent.quantityUnit(), value.unitName())).toList();
+        if (blank(intent.quantityUnit()) && packageMatches.size() > 1) {
+            List<PackageView> defaultSalePackages = packageMatches.stream().filter(PackageView::defaultSale).toList();
+            if (defaultSalePackages.size() == 1) packageMatches = defaultSalePackages;
+        }
         if (packageMatches.isEmpty()) return Result.unavailable("产品没有与数量单位匹配的有效包装");
         if (packageMatches.size() > 1) return Result.ambiguous("PACKAGE", packageMatches.size());
         var itemPackage = packageMatches.getFirst();
@@ -96,6 +121,28 @@ public class MedicationCandidateMatchingService {
 
     private boolean exact(String left, String right) {
         return !blank(left) && !blank(right) && normalized(left).equals(normalized(right));
+    }
+    private List<OutpatientPrescriptionInventoryDirectory.OrderableMedicationView> matchingMedications(
+            long tenantId, long organizationId, long departmentId, String medicationName) {
+        List<OutpatientPrescriptionInventoryDirectory.OrderableMedicationView> medications = inventory
+                .findOrderableMedicationCandidates(tenantId, organizationId, departmentId, medicationName).stream()
+                .filter(value -> "ACTIVE".equals(value.sdStatus()))
+                .filter(value -> matchesMedication(medicationName, value))
+                .toList();
+        if (!medications.isEmpty()) return medications;
+        String stem = extractMedicationStem(medicationName);
+        if (stem == null || stem.isBlank() || stem.equals(medicationName)) return medications;
+        return inventory.findOrderableMedicationCandidates(tenantId, organizationId, departmentId, stem).stream()
+                .filter(value -> "ACTIVE".equals(value.sdStatus()))
+                .filter(value -> matchesMedication(medicationName, value))
+                .toList();
+    }
+
+    private String displaySpecification(OutpatientPrescriptionInventoryDirectory.OrderableMedicationView medication) {
+        String specification = medication.preparationSpec().trim();
+        String unit = medication.preparationUnit();
+        if (blank(unit) || specification.matches(".*[/／].*")) return specification;
+        return specification + "/" + unit.trim();
     }
     private boolean matchesMedication(String intentName, OutpatientPrescriptionInventoryDirectory.OrderableMedicationView value) {
         if (exact(intentName, value.name()) || exact(intentName, value.code())) {

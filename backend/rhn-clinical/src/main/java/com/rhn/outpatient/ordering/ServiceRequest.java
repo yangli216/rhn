@@ -85,7 +85,8 @@ class ServiceRequest {
 
     ServiceRequest(Long tenantId, Long residentId, Long encounterId, String requestNo,
                    Long catalogItemId, Long packageId, Long performerOrganizationId,
-                   Long performerDepartmentId, LocalDate businessDate, Long authoredBy, String reasonText,
+                   Long performerDepartmentId, Long requestingOrganizationId, Long requestingDepartmentId,
+                   LocalDate businessDate, Long authoredBy, String reasonText,
                    String itemCodeSnapshot, String itemNameSnapshot, String unitCodeSnapshot,
                    String localCodeSnapshot, String localNameSnapshot, Long adoptionId, long adoptionRevision,
                    Long priceId, Long priceRevision, String priceType, BigDecimal unitPrice,
@@ -110,8 +111,8 @@ class ServiceRequest {
         this.packageId = packageId;
         this.performerOrganizationId = performerOrganizationId;
         this.performerDepartmentId = performerDepartmentId;
-        this.requestingOrganizationId = performerOrganizationId;
-        this.requestingDepartmentId = performerDepartmentId;
+        this.requestingOrganizationId = requestingOrganizationId;
+        this.requestingDepartmentId = requestingDepartmentId;
         this.businessDate = businessDate;
         this.authoredAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         this.authoredBy = authoredBy;

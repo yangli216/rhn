@@ -20,6 +20,8 @@ export interface ClinicalAiDraftRequest {
   planTemplate?: OutpatientPlanTemplate
   allergyReviewConfirmed?: boolean
   allergyOverrideReason?: string
+  /** Local receipt, invoked only after the editor accepts an actual draft change. */
+  onApplied?: () => void
 }
 
 export function clinicalAiContextFingerprint(value: ClinicalAiDraftContext) {

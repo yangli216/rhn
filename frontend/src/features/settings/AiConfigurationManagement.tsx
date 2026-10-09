@@ -5,7 +5,7 @@ import {
   type ClinicalAiConfigurationTestResult, type ClinicalAiConfigurationUpdate, type RhnApi,
 } from '../../shared/rhnApi'
 import {
-  Alert, Button, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead, Select, StatusBadge, Switch, Tabs
+  Alert, Button, FormField, Icon, type IconName, IconButton, LoadingState, PageHeader, Panel, PanelHead, Select, StatusBadge, Switch, Tabs
 } from '../../shared/ui'
 import '../../styles/ai-configuration.css'
 
@@ -176,6 +176,36 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
         ...prev,
         SPEECH: {
           target: 'SPEECH',
+          success: false,
+          statusCode: 0,
+          latencyMs: 0,
+          message: `测试请求执行失败：${errorMessage(err)}`,
+        },
+      }))
+    },
+  })
+
+  const testKnowledge = useMutation({
+    mutationFn: () => api.clinicalAi.testAdministrationConfiguration({
+      scope,
+      target: 'KNOWLEDGE',
+      endpoint: typeof draft['knowledge-endpoint'] === 'string' ? draft['knowledge-endpoint'] : undefined,
+      secretValue: secrets['knowledge-api-key'] || secrets['api-key'] || undefined,
+      timeoutSeconds: typeof draft['request-timeout-seconds'] === 'number' ? draft['request-timeout-seconds'] : 15,
+    }),
+    onSuccess: (res) => {
+      setTestResult((prev) => ({ ...prev, KNOWLEDGE: res }))
+      if (res.success) {
+        setTimeout(() => {
+          setTestResult((prev) => (prev.KNOWLEDGE?.success ? { ...prev, KNOWLEDGE: null } : prev))
+        }, 3500)
+      }
+    },
+    onError: (err) => {
+      setTestResult((prev) => ({
+        ...prev,
+        KNOWLEDGE: {
+          target: 'KNOWLEDGE',
           success: false,
           statusCode: 0,
           latencyMs: 0,
@@ -397,10 +427,10 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
               detail={data.runtime.speechReady ? '音频转录服务可用' : '未启用或端点无效'}
             />
             <ReadinessRow
-              label="人卫知识检索"
+              label="临床知识库"
               icon="roadmap"
               ready={data.runtime.knowledgeReady}
-              detail={data.runtime.knowledgeReady ? '医学知识库在线' : '未启用或端点无效'}
+              detail={data.runtime.knowledgeReady ? '临床知识库在线' : '未启用或端点无效'}
             />
           </div>
 
@@ -465,7 +495,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
                       {group === '模型服务' && '配置 OpenAI 协议大语言模型连接参数与输出限制'}
                       {group === '临床治理' && '把控临床建议生命周期与医师分批灰度策略'}
                       {group === '语音能力' && '接诊问诊音频流服务端转写配置'}
-                      {group === '知识能力' && '人民卫生出版社可追溯临床知识库接入'}
+                      {group === '知识能力' && '可追溯临床知识库接入（支持 medical-llm-wiki 本地服务等）'}
                       {group === '决策公共配置' && '所有场景共用总开关、Jev 模型、密钥、超时和置信度门槛'}
                       {group === '决策业务场景' && '按业务独立启用；总开关关闭时所有场景均不调用 Jev。新场景默认关闭。'}
                     </span>
@@ -622,6 +652,52 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
                       </button>
                     </div>
                   )}
+
+                  {group === '知识能力' && isGroupEnabled && (
+                    <div className="ai-config-group-actions">
+                      {testResult.KNOWLEDGE?.success && (
+                        <span className="ai-config-test-success-pill" title={testResult.KNOWLEDGE.message}>
+                          <Icon name="check" />
+                          <span>知识库已连通 · {testResult.KNOWLEDGE.latencyMs}ms</span>
+                        </span>
+                      )}
+
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={testKnowledge.isPending}
+                        busy={testKnowledge.isPending}
+                        onClick={() => testKnowledge.mutate()}
+                        title="向临床知识库服务地址发送测试探针，检测连通性与检索服务是否正常"
+                      >
+                        <Icon name="residents" />
+                        <span>测试临床知识库连接</span>
+                      </Button>
+
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setDraft((current) => ({
+                            ...current,
+                            'knowledge-endpoint': 'http://127.0.0.1:8788/api/knowledge/search',
+                            'knowledge-max-results': 5,
+                          }))
+                          setResetKeys((current) => {
+                            const next = new Set(current)
+                            next.delete('knowledge-endpoint')
+                            next.delete('knowledge-max-results')
+                            return next
+                          })
+                          setFeedback('已自动填入【medical-llm-wiki 本地知识库】推荐服务地址，确认后可点击保存变更')
+                        }}
+                        title="一键填入本地 medical-llm-wiki 临床知识库服务地址"
+                      >
+                        <Icon name="sparkles" />
+                        <span>medical-llm-wiki 预设</span>
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -686,6 +762,33 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
                         <details className="ai-config-test-banner__details">
                           <summary>查看上游原始返回 / 异常明细</summary>
                           <pre>{testResult.SPEECH.rawDetail}</pre>
+                        </details>
+                      )}
+                    </div>
+                  )}
+
+                  {group === '知识能力' && testResult.KNOWLEDGE && !testResult.KNOWLEDGE.success && (
+                    <div className="ai-config-test-banner ai-config-test-banner--error">
+                      <div className="ai-config-test-banner__header">
+                        <div className="ai-config-test-banner__status">
+                          <Icon name="warning" />
+                          <strong>临床知识库连接测试未通过</strong>
+                          <span className="ai-config-test-banner__meta">
+                            {testResult.KNOWLEDGE.statusCode > 0 && `HTTP ${testResult.KNOWLEDGE.statusCode} · `}
+                            {testResult.KNOWLEDGE.latencyMs}ms
+                          </span>
+                        </div>
+                        <IconButton
+                          icon="close"
+                          label="关闭诊断结果"
+                          onClick={() => setTestResult((prev) => ({ ...prev, KNOWLEDGE: null }))}
+                        />
+                      </div>
+                      <p className="ai-config-test-banner__message">{testResult.KNOWLEDGE.message}</p>
+                      {testResult.KNOWLEDGE.rawDetail && (
+                        <details className="ai-config-test-banner__details">
+                          <summary>查看上游原始返回 / 异常明细</summary>
+                          <pre>{testResult.KNOWLEDGE.rawDetail}</pre>
                         </details>
                       )}
                     </div>

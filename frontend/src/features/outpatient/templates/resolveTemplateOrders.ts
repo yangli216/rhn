@@ -8,7 +8,7 @@ import type { MedicationPlanDraft } from '../orders/medicationDraft'
 import type { ServicePlanDraft } from '../orders/orderDraftTypes'
 import { resolveDispensableOptions } from '../orders/dispensableOptions'
 import { resolveServicePricing } from '../orders/servicePricing'
-import { resolveOrderExecutionDepartment } from '../orders/orderExecutionDepartment'
+import { defaultServiceExecutionDepartment, resolveOrderExecutionDepartment } from '../orders/orderExecutionDepartment'
 import { draftToBatchItem, matchSplitPreviewDraft } from '../orders/persistOrderDrafts'
 import { requireSplitPreview } from '../orders/usePrescriptionSplitPreview'
 import { requirePlanApplicationShape } from './templateApplicationReceipt'
@@ -140,7 +140,9 @@ export async function resolveTemplateOrders(plan: OutpatientPlanTemplate, encoun
     const pricing = resolveServicePricing(current, encounter.organizationId)
     if (!pricing.price) return fail(`${item.itemName}：${pricing.error}`)
     if (!sameUnit(item.unitCode, current.unitCode)) return fail(`${item.itemName}的模板单位与当前目录不一致`)
-    const organizationId = item.performerOrganizationId ?? encounter.organizationId, departmentId = item.performerDepartmentId ?? encounter.departmentId
+    const organizationId = item.performerOrganizationId ?? encounter.organizationId,
+      departmentId = item.performerDepartmentId ?? defaultServiceExecutionDepartment(current, encounter.departmentId)
+    if (!departmentId) return fail(`${item.itemName}的执行科室未配置或存在多个候选，请维护机构项目`)
     const departmentKey = `${organizationId}|${departmentId}`
     if (!departments.has(departmentKey)) departments.set(departmentKey, resolveOrderExecutionDepartment(departmentId, organizationId, api))
     const department = await departments.get(departmentKey)!

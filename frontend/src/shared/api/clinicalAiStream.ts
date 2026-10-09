@@ -1,7 +1,14 @@
 import type { ClinicalAiRecordText, ClinicalAiSuggestion } from './clinicalAiApi'
 
-/** Only the committed, validated `complete` event is an adoptable suggestion. */
-export async function consumeClinicalAiStream(response: Response, onDelta: (text: string) => void): Promise<ClinicalAiSuggestion> {
+export interface ClinicalAiStreamStage {
+  phase: 'DIAGNOSES' | 'TREATMENTS'
+  clientContextFingerprint: string
+  content: Pick<ClinicalAiSuggestion, 'recordDraft' | 'summary' | 'diagnosisCandidates' | 'treatmentRecommendations'>
+}
+
+/** Stages are read-only previews; only the committed `complete` event is adoptable. */
+export async function consumeClinicalAiStream(response: Response, onDelta: (text: string) => void,
+  onStage?: (stage: ClinicalAiStreamStage) => void): Promise<ClinicalAiSuggestion> {
   const reader = response.body?.getReader()
   if (!reader) throw new Error('无法读取生成结果，请重试。')
   const decoder = new TextDecoder()
@@ -25,6 +32,12 @@ export async function consumeClinicalAiStream(response: Response, onDelta: (text
             return value as ClinicalAiSuggestion
           }
           if (event === 'delta' && typeof value.text === 'string') onDelta(value.text)
+          if (event === 'stage') {
+            if (!['DIAGNOSES', 'TREATMENTS'].includes(value?.phase) || !value.clientContextFingerprint
+              || !value.content?.recordDraft || !Array.isArray(value.content.diagnosisCandidates)
+              || !Array.isArray(value.content.treatmentRecommendations)) throw new Error('生成阶段结果不完整，请重试。')
+            onStage?.(value as ClinicalAiStreamStage)
+          }
           event = ''; data = []
         }
       }
@@ -43,8 +56,15 @@ export interface ClinicalAiFieldStream {
   recordDraft: ClinicalAiRecordText
 }
 
-export interface ClinicalAiPreview { summary?: string; recordDraft: ClinicalAiRecordText }
-const fields = new Set(['chiefComplaint', 'presentIllness', 'medicalHistory', 'physicalExam', 'treatmentPlan'])
+export interface ClinicalAiPreview {
+  summary?: string
+  recordDraft: ClinicalAiRecordText
+  phase?: ClinicalAiStreamStage['phase']
+  diagnosisCandidates?: ClinicalAiSuggestion['diagnosisCandidates']
+  treatmentRecommendations?: ClinicalAiSuggestion['treatmentRecommendations']
+}
+const fields = new Set(['chiefComplaint', 'presentIllness', 'medicalHistory', 'physicalExam', 'treatmentPlan',
+  'allergyHistory', 'medicationHistory', 'auxiliaryExaminations', 'healthEducation', 'followUp'])
 
 /** A small incremental JSON reader: never treats JSON embedded inside quoted text as a field. */
 export function clinicalAiPreview(source: string): ClinicalAiPreview {

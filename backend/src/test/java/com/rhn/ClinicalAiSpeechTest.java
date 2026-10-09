@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -145,6 +146,68 @@ class ClinicalAiSpeechTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.results[0].publishYear").value("2024"))
                 .andExpect(jsonPath("$.results[0].resourcePosition").value("第 3 章"))
                 .andExpect(jsonPath("$.results[0].score").value(1.0));
+    }
+
+    @Test
+    void evaluatesEvidenceChainForEncounter() throws Exception {
+        String encounterId = createStartedEncounter();
+        when(knowledgeGateway.evaluateEvidenceChain(any(), any())).thenReturn(
+                new ClinicalKnowledgeGateway.EvidenceChainResult(
+                        true, "PROT-HTN-001", "原发性高血压门诊规范诊疗方案",
+                        new ClinicalKnowledgeGateway.EvidenceChainResult.DiagnosisRef("I10", "原发性高血压 2级"),
+                        "推导证据确凿",
+                        java.util.List.of(
+                                new ClinicalKnowledgeGateway.EvidenceChainResult.Checkpoint(
+                                        "MET", "VITAL", "诊室血压 168/102 mmHg ≥ 160/100 mmHg", "达到2级高血压门槛", "非同日3次诊室测量"
+                                )
+                        ),
+                        java.util.List.of(
+                                new ClinicalKnowledgeGateway.EvidenceChainResult.GapOrder(
+                                        "gap-ecg", "12导联心电图", "EXAMINATION", "EXAMINATION", "功能检查科", "医技检查", "排查左室肥厚", true
+                                )
+                        ),
+                        java.util.List.of(
+                                new ClinicalKnowledgeGateway.EvidenceChainResult.GuidelineRef(
+                                        "SRC-CMA-CARD-2024-01", "中国高血压防治指南（2024年修订版）", "第4章", "中华医学会", "2024", "sources/SRC-CMA-CARD-2024-01.md", java.util.List.of("诊室血压≥140/90确立诊断")
+                                )
+                        )
+                )
+        );
+
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/evidence-chain", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"diagnosis\":\"原发性高血压 2级\",\"diagnosisCode\":\"I10\",\"vitals\":{\"systolicBp\":168,\"diastolicBp\":102}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.protocolId").value("PROT-HTN-001"))
+                .andExpect(jsonPath("$.diagnosis.code").value("I10"))
+                .andExpect(jsonPath("$.checkpoints[0].status").value("MET"))
+                .andExpect(jsonPath("$.checkpoints[0].label").value("诊室血压 168/102 mmHg ≥ 160/100 mmHg"))
+                .andExpect(jsonPath("$.gapOrders[0].name").value("12导联心电图"))
+                .andExpect(jsonPath("$.guidelines[0].title").value("中国高血压防治指南（2024年修订版）"));
+    }
+
+    @Test
+    void lookupsWikiDocThroughController() throws Exception {
+        when(knowledgeGateway.lookupWikiDoc(eq("厄贝沙坦片"), eq("drug"), any())).thenReturn(
+                new ClinicalKnowledgeGateway.WikiDocResult(
+                        "厄贝沙坦片", "厄贝沙坦片 官方核准药品说明书", "drug_insert", "心血管系统",
+                        "厄贝沙坦片", "Irbesartan Tablets", "C09CA04", "甲类医保",
+                        java.util.List.of("安博维"), java.util.List.of("150mg/片"), "300mg qd", "150mg qd",
+                        java.util.List.of("妊娠期禁用"), java.util.Map.of("pregnancy", "禁用"), "密封保存",
+                        java.util.List.of("SRC-NMPA-2024"), java.util.List.of("降压药"), "inserts/厄贝沙坦片.md",
+                        "# 厄贝沙坦片", "<h1>厄贝沙坦片</h1>"
+                )
+        );
+
+        mockMvc.perform(get("/api/ai/clinical-assistant/wiki/doc")
+                        .param("name", "厄贝沙坦片")
+                        .param("type", "drug")
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("厄贝沙坦片"))
+                .andExpect(jsonPath("$.genericName").value("厄贝沙坦片"))
+                .andExpect(jsonPath("$.atcCode").value("C09CA04"))
+                .andExpect(jsonPath("$.maxDailyDose").value("300mg qd"));
     }
 
     private MockMultipartFile file(String name, String contentType, byte[] bytes) {

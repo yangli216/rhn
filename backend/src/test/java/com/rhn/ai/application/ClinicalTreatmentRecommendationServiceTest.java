@@ -57,6 +57,7 @@ class ClinicalTreatmentRecommendationServiceTest {
         assertEquals("血常规", result.items().getFirst().name());
         assertEquals("LAB001", result.items().getFirst().code());
         assertNull(result.items().getFirst().medicationId());
+        assertNull(result.items().getFirst().rationale());
         verify(gateway).analyze(argThat(value -> "CATALOG_TREATMENT".equals(value.generationStage())
                 && value.availableTreatments().size() == 1 && value.priorSuggestion() == request.priorSuggestion()), eq(settings));
     }
@@ -66,6 +67,7 @@ class ClinicalTreatmentRecommendationServiceTest {
         assertEquals(1, result.items().size());
         assertEquals(101L, result.items().getFirst().catalogItemId());
         assertEquals("血常规", result.items().getFirst().name());
+        assertNull(result.items().getFirst().rationale());
         verifyNoInteractions(gateway);
     }
     @Test void ambiguousCatalogMatchesStillUseConstrainedSecondPass() {

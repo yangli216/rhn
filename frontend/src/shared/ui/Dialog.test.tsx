@@ -141,3 +141,87 @@ describe('Content-bound drawer', () => {
     expect(screen.getByRole('heading', { level: 2, name: '测试标题' })).toBeInTheDocument()
   })
 })
+
+describe('Non-modal panel', () => {
+  it('keeps the application interactive and does not steal focus', async () => {
+    const root = document.createElement('div')
+    root.id = 'root'
+    const trigger = document.createElement('button')
+    trigger.textContent = '查看知识'
+    root.appendChild(trigger)
+    document.body.appendChild(root)
+    trigger.focus()
+    const onClose = vi.fn()
+
+    const { unmount } = render(
+      <Dialog title="临床指南" presentation="panel" onClose={onClose}>
+        <button type="button">面板操作</button>
+      </Dialog>
+    )
+
+    const panel = screen.getByRole('dialog', { name: '临床指南' })
+    expect(panel).toHaveAttribute('aria-modal', 'false')
+    expect(root).not.toHaveAttribute('inert')
+    expect(document.body.style.overflow).not.toBe('hidden')
+    expect(trigger).toHaveFocus()
+
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    unmount()
+    root.remove()
+  })
+
+  it('keeps the close button available for long titles and closes on outside pointer interaction', async () => {
+    const outside = document.createElement('button')
+    outside.textContent = '面板外操作'
+    document.body.appendChild(outside)
+    const onClose = vi.fn()
+
+    const { unmount } = render(
+      <Dialog
+        title="《急性咽峡炎与扁桃体炎基层诊疗指南（2020年）》来源解析与完整参考资料"
+        eyebrow="临床知识库"
+        presentation="panel"
+        onClose={onClose}
+      >
+        <button type="button">面板内操作</button>
+      </Dialog>
+    )
+
+    const closeButton = screen.getByRole('button', { name: '关闭面板' })
+    expect(closeButton.closest('.ui-dialog__head')).not.toBeNull()
+
+    await userEvent.click(screen.getByRole('button', { name: '面板内操作' }))
+    expect(onClose).not.toHaveBeenCalled()
+
+    await userEvent.click(outside)
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    unmount()
+    outside.remove()
+  })
+
+  it('asks an existing panel to close when a new panel opens', async () => {
+    const closeFirst = vi.fn()
+    const closeSecond = vi.fn()
+
+    const { rerender } = render(
+      <Dialog title="第一个知识面板" presentation="panel" onClose={closeFirst}>
+        <div>第一份内容</div>
+      </Dialog>
+    )
+
+    rerender(<>
+      <Dialog title="第一个知识面板" presentation="panel" onClose={closeFirst}>
+        <div>第一份内容</div>
+      </Dialog>
+      <Dialog title="第二个知识面板" presentation="panel" onClose={closeSecond}>
+        <div>第二份内容</div>
+      </Dialog>
+    </>)
+
+    await vi.waitFor(() => expect(closeFirst).toHaveBeenCalledTimes(1))
+    expect(closeSecond).not.toHaveBeenCalled()
+  })
+})

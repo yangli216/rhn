@@ -122,7 +122,7 @@ public final class ClinicalAssistantSettings {
     public Set<Long> enabledDepartmentIds() { return enabledDepartmentIds; }
     public int rolloutPercentage() { return rolloutPercentage; }
     public boolean speechAvailable() { return mode == Mode.MODEL && speechEndpoint != null && speechModel != null; }
-    public boolean knowledgeAvailable() { return mode == Mode.MODEL && knowledgeEndpoint != null; }
+    public boolean knowledgeAvailable() { return (mode == Mode.MODEL || mode == Mode.LOCAL_ASSIST) && knowledgeEndpoint != null; }
     public boolean available() { return mode == Mode.LOCAL_ASSIST || mode == Mode.MODEL && endpoint != null && model != null; }
 
     public boolean availableFor(com.rhn.shared.context.ExecutionContext context) {

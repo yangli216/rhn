@@ -5,13 +5,16 @@ import com.rhn.ai.api.ClinicalAssistantContracts.RecordDraft;
 import com.rhn.ai.api.ClinicalAssistantContracts.RecommendedPlan;
 import com.rhn.ai.api.ClinicalAssistantContracts.SafetyAlert;
 import com.rhn.ai.api.ClinicalAssistantContracts.SuggestionContent;
+import com.rhn.ai.api.ClinicalAssistantContracts.TreatmentRecommendation;
 import com.rhn.ai.application.ClinicalAiModelGateway;
 import com.rhn.ai.application.ClinicalAiModelException;
+import com.rhn.ai.application.ClinicalTreatmentRecommendationService;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
@@ -37,6 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
     @MockitoBean ClinicalAiModelGateway modelGateway;
+    @MockitoSpyBean ClinicalTreatmentRecommendationService treatmentService;
 
     @Test
     void checksApplicabilityEvenWhenAnExistingWholePlanMatchesExactly() throws Exception {
@@ -156,6 +160,64 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void publishesValidatedDiagnosesBeforeTreatmentWorkAndPublishesOrdersBeforeCompletion() throws Exception {
+        String encounterId = createStartedEncounter();
+        var matched = new TreatmentRecommendation("LABORATORY", 101L, null, "LAB001", "血常规", null, "按病情评估");
+        when(modelGateway.analyzeStreaming(any(), any(), any())).thenReturn(new SuggestionContent("合成摘要",
+                new RecordDraft("测试主诉", null, null, null, null),
+                List.of(new DiagnosisCandidate("I10", "模型改名", "PRIMARY", 0.8, "需核对"),
+                        new DiagnosisCandidate("INVALID", "不存在的诊断", "SECONDARY", 0.5, "应过滤")),
+                List.of(), List.of(), List.of(), List.of(), "待核对", List.of(matched)));
+        org.mockito.Mockito.doAnswer(invocation -> {
+            var attributes = (org.springframework.web.context.request.ServletRequestAttributes)
+                    org.springframework.web.context.request.RequestContextHolder.currentRequestAttributes();
+            jakarta.servlet.ServletResponse currentResponse = attributes.getResponse();
+            while (currentResponse instanceof jakarta.servlet.ServletResponseWrapper wrapper) currentResponse = wrapper.getResponse();
+            var response = (org.springframework.mock.web.MockHttpServletResponse) currentResponse;
+            String preview = response.getContentAsString();
+            org.junit.jupiter.api.Assertions.assertTrue(preview.contains("\"phase\":\"DIAGNOSES\""));
+            org.junit.jupiter.api.Assertions.assertTrue(preview.contains("原发性高血压"));
+            org.junit.jupiter.api.Assertions.assertFalse(preview.contains("模型改名"));
+            org.junit.jupiter.api.Assertions.assertFalse(preview.contains("不存在的诊断"));
+            org.junit.jupiter.api.Assertions.assertFalse(preview.contains("event: complete"));
+            org.junit.jupiter.api.Assertions.assertFalse(preview.contains("\"id\""));
+            return new ClinicalTreatmentRecommendationService.Result(List.of(matched), List.of());
+        }).when(treatmentService).recommend(any(), any(), any());
+        String stream = mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions/stream", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"clientContextFingerprint\":\"STAGE-CONTEXT\",\"draft\":{\"diagnoses\":[]}}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        int diagnosisAt = stream.indexOf("\"phase\":\"DIAGNOSES\"");
+        int treatmentAt = stream.indexOf("\"phase\":\"TREATMENTS\"");
+        int completeAt = stream.indexOf("event: complete");
+        org.junit.jupiter.api.Assertions.assertTrue(diagnosisAt >= 0 && treatmentAt > diagnosisAt && completeAt > treatmentAt);
+        org.junit.jupiter.api.Assertions.assertTrue(stream.substring(treatmentAt, completeAt).contains("血常规"));
+        mockMvc.perform(get("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void treatmentFailureAfterDiagnosisPreviewDoesNotCommitPartialSuggestion() throws Exception {
+        String encounterId = createStartedEncounter();
+        var intent = new TreatmentRecommendation("LABORATORY", null, null, null, "血常规", null, "按病情评估");
+        when(modelGateway.analyzeStreaming(any(), any(), any())).thenReturn(new SuggestionContent("合成摘要",
+                new RecordDraft("测试主诉", null, null, null, null), List.of(), List.of(), List.of(), List.of(), List.of(),
+                "待核对", List.of(intent)));
+        org.mockito.Mockito.doThrow(new IllegalStateException("private-provider-details"))
+                .when(treatmentService).recommend(any(), any(), any());
+        String stream = mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions/stream", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"clientContextFingerprint\":\"FAILED-STAGE\",\"draft\":{\"diagnoses\":[]}}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(stream.contains("\"phase\":\"DIAGNOSES\""));
+        org.junit.jupiter.api.Assertions.assertTrue(stream.contains("event: error"));
+        org.junit.jupiter.api.Assertions.assertFalse(stream.contains("event: complete"));
+        org.junit.jupiter.api.Assertions.assertFalse(stream.contains("private-provider-details"));
+        mockMvc.perform(get("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void providerFailureReturnsActionableMessageAndDoesNotSaveSuggestion() throws Exception {
         when(modelGateway.analyze(any(), any())).thenThrow(new ClinicalAiModelException(
                 ClinicalAiModelException.Reason.PROVIDER_REJECTED, 400, "secret provider response", null));
@@ -265,7 +327,7 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.safetyAlerts[0].level").value("CRITICAL"))
                 .andExpect(jsonPath("$.safetyAlerts[1].level").value("WARNING"))
                 .andExpect(jsonPath("$.recommendedPlans.length()").value(0))
-                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V9"))
+                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V10"))
                 .andExpect(jsonPath("$.disclaimer").value(org.hamcrest.Matchers.containsString("院内术语")))
                 .andReturn().getResponse().getContentAsString());
 

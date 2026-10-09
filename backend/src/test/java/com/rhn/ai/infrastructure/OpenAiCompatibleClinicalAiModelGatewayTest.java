@@ -285,6 +285,11 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(writingPrompt.contains("整段均无依据时返回 null"));
         assertTrue(writingPrompt.contains("患者3天前出现发热，最高体温38℃。"));
         assertTrue(writingPrompt.contains("复诊触发条件"));
+        assertTrue(writingPrompt.contains("diagnosisCandidates.rationale 留空"));
+        assertTrue(writingPrompt.contains("每项只输出与目录条目一致的 type、catalogItemId"));
+        assertTrue(writingPrompt.contains("不输出 rationale 或重复目录名称、编码、规格"));
+        assertTrue(writingPrompt.contains("diagnosisCandidates[{code,display,type,confidence}]"));
+        assertTrue(writingPrompt.contains("CATALOG_TREATMENT 使用 [{type,catalogItemId}]"));
         assertFalse(writingPrompt.contains("有有效临床输入时生成五个段落"));
         assertFalse(writingPrompt.contains("没有事实且没有既有预设时写"));
         assertTrue(requestBody.get().contains("FEMALE"));

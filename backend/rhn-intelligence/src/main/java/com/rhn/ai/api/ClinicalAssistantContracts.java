@@ -228,6 +228,7 @@ public final class ClinicalAssistantContracts {
         }
     }
 
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     public record DiagnosisCandidate(String code, String display, String type,
                                      double confidence, String rationale) {}
 
@@ -236,6 +237,7 @@ public final class ClinicalAssistantContracts {
     public record RecommendedPlan(Long templateId, String name, String description, String rationale) {}
 
     /** The initial pass supplies type/name search intents; only catalog-mapped items reach clients. */
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     public record TreatmentRecommendation(String type, Long catalogItemId, Long medicationId,
                                           String code, String name, String specification, String rationale) {}
 
@@ -266,6 +268,9 @@ public final class ClinicalAssistantContracts {
             return values == null ? List.of() : List.copyOf(values);
         }
     }
+
+    /** Catalog-validated read-only preview. No suggestion identity exists until generation commits. */
+    public record GenerationStage(String phase, String clientContextFingerprint, SuggestionContent content) {}
 
     public record Event(Long id, String eventType, String statusFrom, String statusTo,
                         String commandCode, String sectionCode, String contextHash,
@@ -362,4 +367,26 @@ public final class ClinicalAssistantContracts {
             Integer historicalIndex, Integer standardIndex,
             String historicalDisplay, String standardDisplay,
             String reason) {}
+
+    public record EvidenceChainQuery(
+            @Size(max = 200) String diagnosis,
+            @Size(max = 64) String diagnosisCode,
+            @Size(max = 1000) String chiefComplaint,
+            @Size(max = 5000) String presentIllness,
+            @Size(max = 2000) String physicalExam,
+            @Size(max = 2000) String medicalHistory,
+            java.util.Map<String, Object> vitals
+    ) {
+        public EvidenceChainQuery(String diagnosis, String diagnosisCode, String chiefComplaint,
+                                  String presentIllness, String medicalHistory, java.util.Map<String, Object> vitals) {
+            this(diagnosis, diagnosisCode, chiefComplaint, presentIllness, null, medicalHistory, vitals);
+        }
+    }
+
+    public record WikiDocQuery(
+            @Size(max = 200) String name,
+            @Size(max = 200) String id,
+            @Size(max = 500) String path,
+            @Size(max = 50) String type
+    ) {}
 }

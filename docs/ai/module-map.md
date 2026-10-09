@@ -23,6 +23,7 @@
 - 常规实现搜索限制在相关 src 目录，排除 generated.ts、构建产物；契约任务按 schema 名定位生成类型。
 - OpenAPI、药品目录和物理表映射是权威数据／生成资产，保留在仓库，避免为普通 UI 改动整文件读取。
 - 用 `./scripts/verify-scope.sh round1 --list` 查看实际测试和构建命令；无数据库的频次契约测试共享同一 JSON 样例。
+- 仅前端改动使用对应范围的 `--frontend-only`（如 `round1 --frontend-only`），保留前端集成测试、UI 门禁与构建；后端、API 协议、迁移、权限、库存或收费逻辑有改动时不得使用该选项。知识面板与 Markdown 展示用 `./scripts/verify-scope.sh knowledge-panel`，修改共享 Dialog 时另外选择受影响的业务测试；跨医生站工作流仍用 `round1`。`timings.tsv` 记录阶段状态与秒数。
 - 验证脚本将完整日志存入忽略的 .runtime/verification，仅输出摘要／失败末尾；需要时再读完整文件。
 - 公开 API、迁移、权限、库存、收费或公共框架变化要扩大测试，CI 完整验证继续保留。
 - 工作区变更先看范围；不把其他任务的未提交修改当成本次成果，不自动 commit/push。

@@ -7,6 +7,7 @@ export type PipelineStage = 'record' | 'diagnosis' | 'treatment'
 export interface ClinicalAiPipelineStepperProps {
   generating: boolean
   hasTreatmentPlan: boolean
+  completedStage?: 'DIAGNOSES' | 'TREATMENTS'
   current?: boolean
   surfaces?: ClinicalAiSurfaces
   className?: string
@@ -48,6 +49,7 @@ const STAGES: StageDefinition[] = [
 export function ClinicalAiPipelineStepper({
   generating,
   hasTreatmentPlan,
+  completedStage,
   current = false,
   surfaces,
   className = '',
@@ -55,6 +57,8 @@ export function ClinicalAiPipelineStepper({
 }: ClinicalAiPipelineStepperProps) {
   const getStageStatus = (key: PipelineStage): 'generating' | 'done' | 'ready' | 'waiting' | 'idle' => {
     if (generating) {
+      if (completedStage === 'TREATMENTS') return 'done'
+      if (completedStage === 'DIAGNOSES') return key === 'treatment' ? 'generating' : 'done'
       if (!hasTreatmentPlan) {
         if (key === 'record') return 'generating'
         return 'waiting'

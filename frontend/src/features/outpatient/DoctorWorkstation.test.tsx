@@ -259,6 +259,14 @@ function createMockApi({
       createPaymentOrder: vi.fn(),
       issueInvoice: vi.fn(),
     },
+    organization: {
+      departments: vi.fn().mockResolvedValue([
+        { id: 'dept-1', organizationId: 'org-1', name: '全科医疗科', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null },
+      ]),
+      department: vi.fn().mockResolvedValue({ department: {
+        id: 'dept-1', organizationId: 'org-1', name: '全科医疗科', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null,
+      } }),
+    },
     masterData: {
       diseases: vi.fn().mockResolvedValue([
         {
@@ -671,6 +679,7 @@ describe('DoctorWorkstation reception flow', () => {
         medicationName: '阿莫西林胶囊', catalogItemId: 'med-product', packageId: 'med-box', categoryCode: 'WESTERN', doseValue: 0.5, doseUnit: 'g', routeCode: 'PO',
         frequencyCode: 'TID', durationValue: 3, durationUnit: 'DAY', quantity: 1, quantityUnit: '盒',
         substitutionAllowed: true, selfProvided: false }], createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z' }
+    template.medications[0].quantityUnit = 'BOX'
     installTemplateCatalog(api, template)
     vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([template])
     vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(template)
@@ -695,7 +704,48 @@ describe('DoctorWorkstation reception flow', () => {
     await waitFor(() => expect(submit).toBeEnabled())
     expect(within(review).getByText('1 张单据')).toBeInTheDocument()
     expect(within(review).getByText('核实药房')).toBeInTheDocument()
+    expect(within(review).getByText('1 盒')).toBeInTheDocument()
+    expect(within(review).queryByText(/\bBOX\b/)).not.toBeInTheDocument()
     expect(within(review).queryByText('单据数量待确认')).not.toBeInTheDocument()
+  })
+
+  it('shows specific record validation errors in review and returns to the invalid field without losing orders', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    vi.mocked(api.encounters.byResident).mockResolvedValue([{ ...mockInProgressEncounter,
+      chiefComplaint: '', systolic: 70, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
+    }] as Encounter[])
+    const template: OutpatientPlanTemplate = { id: 'record-validation', revision: 1, scopeType: 'PERSONAL', name: '检查方案',
+      status: 'ACTIVE', sortOrder: 0, useCount: 0, diagnoses: [], medications: [], tasks: [],
+      services: [{ catalogItemId: 'lab', itemCode: 'LAB', itemName: '血常规', serviceType: 'LABORATORY', quantity: 1, unitCode: '次' }],
+      createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z' }
+    installTemplateCatalog(api, template)
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([template])
+    vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(template)
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    await user.click(await screen.findByRole('button', { name: '带入当前草稿 (1)' }))
+    await user.click(screen.getByRole('button', { name: '审核开立' }))
+    const review = await screen.findByRole('dialog', { name: '医嘱开立核查' })
+    await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
+    expect(await within(review).findByRole('alert')).toHaveTextContent('病历尚未通过校验：请输入主诉')
+    expect(within(review).getByRole('alert')).toHaveTextContent('收缩压必须大于舒张压')
+    expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
+    expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
+    await user.click(within(review).getByRole('button', { name: '返回病历补充' }))
+    expect(screen.queryByRole('dialog', { name: '医嘱开立核查' })).not.toBeInTheDocument()
+    const chiefComplaint = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
+    await waitFor(() => expect(chiefComplaint).toHaveFocus())
+    await user.type(chiefComplaint, '复诊')
+    await user.clear(screen.getByLabelText('收缩压'))
+    await user.type(screen.getByLabelText('收缩压'), '120')
+    await user.click(screen.getByRole('button', { name: '审核开立' }))
+    const reopened = await screen.findByRole('dialog', { name: '医嘱开立核查' })
+    expect(within(reopened).getByText('血常规')).toBeInTheDocument()
+    await user.click(within(reopened).getByRole('button', { name: '确认分单并开立' }))
+    await waitFor(() => expect(api.encounters.saveOrderDrafts).toHaveBeenCalledTimes(1))
   })
 
   it('saves an order-only change even when the clinical record has no edits', async () => {
@@ -2368,9 +2418,17 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     const drawer = await screen.findByRole('complementary', { name: '临床模板' })
     await user.click(within(drawer).getByRole('tab', { name: /病历模板/ }))
     await user.click(await within(drawer).findByRole('button', { name: '带入病历草稿 (2)' }))
+    const legend = screen.getByRole('complementary', { name: '病历标记说明' })
+    expect(legend).toHaveTextContent('虚线文字可点击查看来源并调整')
+    expect(legend).toHaveTextContent('蓝色：需按本次患者替换')
+    expect(legend).toHaveTextContent('橙色：重点信息')
+    expect(document.querySelector('#doctor-record-form')?.lastElementChild).toBe(legend)
+    await user.click(screen.getByRole('button', { name: '隐藏标记' }))
+    expect(screen.queryByRole('complementary', { name: '病历标记说明' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '显示标记' }))
     await user.click(await screen.findByRole('button', { name: '3天：模板预设 · 咳嗽病程' }))
-    await user.clear(screen.getByLabelText('调整此处文字'))
-    await user.type(screen.getByLabelText('调整此处文字'), '5天')
+    await user.clear(screen.getByLabelText('调整文字'))
+    await user.type(screen.getByLabelText('调整文字'), '5天')
     await user.click(screen.getByRole('button', { name: '应用修改' }))
     expect(screen.getByRole('textbox', { name: '现病史' })).toHaveTextContent('咳嗽5天，用药3天；无胸痛')
     vi.mocked(api.clinicalDocuments.byEncounter).mockResolvedValueOnce([])
@@ -2426,7 +2484,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.click(saveDraftBtn)
     console.log('DIAGNOSES DOM:', diagnosisTable.innerHTML)
     console.log('ORDERS DOM:', orderTable.innerHTML)
-    await user.click(within(diagnosisTable).getByRole('button', { name: '确认录入' }))
+    await user.click(within(diagnosisTable).getByRole('button', { name: /确认所选诊断/ }))
     await waitFor(() => expect(document.querySelector('.doctor-diagnosis-row')).toHaveTextContent('原发性高血压'))
     expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
     await user.click(within(orderTable).getByRole('button', { name: '确认所选（1）' }))
@@ -2502,7 +2560,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
 
     // 医生可继续确认录入 AI 诊断
-    await user.click(within(diagnosisTable).getByRole('button', { name: '确认录入' }))
+    await user.click(within(diagnosisTable).getByRole('button', { name: /确认所选诊断/ }))
     await waitFor(() => expect(document.querySelector('.doctor-diagnosis-row')).toHaveTextContent('急性上呼吸道感染'))
 
     // AI 医嘱依然存在且可确认
@@ -2561,7 +2619,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(screen.queryByRole('textbox', { name: '诊疗计划' })).not.toBeInTheDocument()
     const diagnosisTable = screen.getByRole('table', { name: '本次诊断连续录入列表' })
     expect(within(diagnosisTable).getByLabelText('AI 诊断待确认')).toBeInTheDocument()
-    expect(within(diagnosisTable).getByRole('button', { name: '确认录入' })).toBeEnabled()
+    expect(within(diagnosisTable).getByRole('button', { name: /确认所选诊断/ })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: '撤销本次病历采纳' }))
     expect(chief).toHaveValue('原始主诉')
     expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('')
@@ -2587,7 +2645,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await waitFor(() => expect(chief).toHaveValue('核对后的复诊主诉'))
     expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('')
     await user.click(within(screen.getByRole('table', { name: '本次诊断连续录入列表' }))
-      .getByRole('button', { name: '确认录入' }))
+      .getByRole('button', { name: /确认所选诊断/ }))
     expect(within(screen.getByRole('table', { name: '本次诊断连续录入列表' })).getByText('原发性高血压')).toBeInTheDocument()
     expect(api.clinicalAi.recordEvent).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       eventType: 'ADOPTED', sectionCode: 'RECORD', detail: expect.stringContaining('chiefComplaint'),
@@ -2813,11 +2871,10 @@ describe('DoctorWorkstation controlled printing workflow', () => {
     renderStation(api)
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
 
-    const printToolBtn = await screen.findByRole('button', { name: '受控打印' })
+    const printToolBtn = await screen.findByRole('button', { name: '就诊文书' })
     await user.click(printToolBtn)
 
-    const printCenterTitle = await screen.findByText('门诊受控打印中心')
-    const printCenter = printCenterTitle.closest('.doctor-print-center-panel') as HTMLElement
+    const printCenter = (await screen.findByText('可输出医疗文书与单据')).closest('.doctor-print-center-panel') as HTMLElement
     expect(within(printCenter).getByText('可输出医疗文书与单据')).toBeInTheDocument()
     expect(within(printCenter).getByText('门诊病历')).toBeInTheDocument()
 
@@ -2833,6 +2890,16 @@ describe('DoctorWorkstation controlled printing workflow', () => {
     expect(await screen.findByRole('dialog', { name: '补打门诊处方' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登记补打并打印' }))
     await waitFor(() => expect(api.printing.reprint).toHaveBeenCalledWith('job-rx-1', 1))
+
+    // 验证已签署门诊病历的状态展示准确性
+    expect(within(printCenter).getByText('已签署 · V1')).toBeInTheDocument()
+    expect(within(printCenter).getByText('可打印')).toBeInTheDocument()
+
+    // 留痕列表仅保留不可变 PDF 下载与受控补打，移除绕过审计的直接打印
+    const printSection = within(printCenter).getByLabelText('受控打印记录与审计留痕')
+    expect(within(printSection).queryByRole('button', { name: '打印' })).not.toBeInTheDocument()
+    expect(within(printSection).getByRole('button', { name: '下载' })).toBeInTheDocument()
+    expect(within(printSection).getByRole('button', { name: '补打' })).toBeInTheDocument()
   })
 
   it('supports one-click batch printing for all ready clinical documents and orders', async () => {

@@ -1,7 +1,7 @@
 import type { RecordAnnotation } from './recordAnnotations'
 import type { DiagnosisInput } from './encountersApi'
 import type { ApiClient } from './httpClient'
-import { consumeClinicalAiStream } from './clinicalAiStream'
+import { consumeClinicalAiStream, type ClinicalAiStreamStage } from './clinicalAiStream'
 
 export type ClinicalAiMode = 'DISABLED' | 'LOCAL_ASSIST' | 'MODEL'
 export type ClinicalAiConfigurationScope = 'PLATFORM' | 'TENANT'
@@ -50,7 +50,7 @@ export interface ClinicalAiConfigurationUpdate {
 
 export interface ClinicalAiConfigurationTestInput {
   scope: ClinicalAiConfigurationScope
-  target: 'MODEL' | 'SPEECH' | 'DECISION'
+  target: 'MODEL' | 'SPEECH' | 'DECISION' | 'KNOWLEDGE'
   endpoint?: string
   model?: string
   secretValue?: string
@@ -58,7 +58,7 @@ export interface ClinicalAiConfigurationTestInput {
 }
 
 export interface ClinicalAiConfigurationTestResult {
-  target: 'MODEL' | 'SPEECH' | 'DECISION'
+  target: 'MODEL' | 'SPEECH' | 'DECISION' | 'KNOWLEDGE'
   success: boolean
   statusCode: number
   latencyMs: number
@@ -121,7 +121,7 @@ export interface ClinicalAiDraftContext extends ClinicalAiDraftInput {
 
 export interface ClinicalAiDiagnosisCandidate extends DiagnosisInput {
   confidence: number
-  rationale: string
+  rationale?: string | null
 }
 
 export interface ClinicalAiSafetyAlert {
@@ -144,7 +144,7 @@ export interface ClinicalAiTreatmentRecommendation {
   code: string
   name: string
   specification?: string
-  rationale: string
+  rationale?: string | null
   /** Catalog-backed, physician-editable details; revalidated when accepting into order drafts. */
   orderDraft?: {
     packageId?: string
@@ -155,6 +155,8 @@ export interface ClinicalAiTreatmentRecommendation {
     durationValue?: number
     quantity: number
     instruction?: string
+    performerOrganizationId?: string
+    performerDepartmentId?: string
   }
 }
 
@@ -302,9 +304,9 @@ export function createClinicalAiApi(client: ApiClient) {
         { method: 'POST', body: JSON.stringify(input), signal },
       ),
     generateStream: async (encounterId: string, input: GenerateClinicalAiSuggestionInput,
-      signal: AbortSignal, onDelta: (text: string) => void) => consumeClinicalAiStream(
+      signal: AbortSignal, onDelta: (text: string) => void, onStage?: (stage: ClinicalAiStreamStage) => void) => consumeClinicalAiStream(
         await client.eventStream(`/api/ai/clinical-assistant/encounters/${encounterId}/suggestions/stream`,
-          signal, undefined, { method: 'POST', body: JSON.stringify(input) }), onDelta),
+          signal, undefined, { method: 'POST', body: JSON.stringify(input) }), onDelta, onStage),
     transcribe: (encounterId: string, audio: Blob) => {
       const body = new FormData()
       const extension = audio.type.includes('wav') ? 'wav' : audio.type.includes('mp4') ? 'mp4'
@@ -319,6 +321,19 @@ export function createClinicalAiApi(client: ApiClient) {
       `/api/ai/clinical-assistant/encounters/${encounterId}/knowledge-searches`,
       { method: 'POST', body: JSON.stringify({ query }) },
     ),
+    getEvidenceChain: (encounterId: string, input: ClinicalAiEvidenceChainQuery) => client.request<ClinicalAiEvidenceChainResult>(
+      `/api/ai/clinical-assistant/encounters/${encounterId}/evidence-chain`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+    getWikiDoc: (query: { name?: string; id?: string; type?: string }) => {
+      const search = new URLSearchParams()
+      if (query.name) search.set('name', query.name)
+      if (query.id) search.set('id', query.id)
+      if (query.type) search.set('type', query.type)
+      return client.request<ClinicalAiWikiDocResult>(
+        `/api/ai/clinical-assistant/wiki/doc?${search.toString()}`,
+      )
+    },
     preflightPlan: (encounterId: string, templateId: string, input: ClinicalAiPlanPreflightInput) =>
       client.request<ClinicalAiPlanPreflight>(
         `/api/ai/clinical-assistant/encounters/${encounterId}/plan-templates/${templateId}/preflight`,
@@ -332,4 +347,77 @@ export function createClinicalAiApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify(input),
       }),
   }
+}
+
+export interface ClinicalAiEvidenceCheckpoint {
+  status: 'MET' | 'SUGGESTED'
+  type: string
+  label: string
+  detail: string
+  sourceQuote?: string
+}
+
+export interface ClinicalAiGapOrder {
+  id: string
+  name: string
+  category: 'LABORATORY' | 'EXAMINATION'
+  orderType: string
+  dept: string
+  spec?: string
+  indication: string
+  defaultChecked: boolean
+}
+
+export interface ClinicalAiGuidelineRef {
+  id: string
+  title: string
+  chapter: string
+  authority: string
+  publishYear: string
+  docPath: string
+  keyExcerpts: string[]
+}
+
+export interface ClinicalAiEvidenceChainResult {
+  success: boolean
+  protocolId: string
+  protocolTitle: string
+  diagnosis: { code: string; name: string }
+  summary: string
+  checkpoints: ClinicalAiEvidenceCheckpoint[]
+  gapOrders: ClinicalAiGapOrder[]
+  guidelines: ClinicalAiGuidelineRef[]
+}
+
+export interface ClinicalAiEvidenceChainQuery {
+  diagnosis?: string
+  diagnosisCode?: string
+  chiefComplaint?: string
+  presentIllness?: string
+  physicalExam?: string
+  medicalHistory?: string
+  vitals?: Record<string, unknown>
+}
+
+export interface ClinicalAiWikiDocResult {
+  id: string
+  title: string
+  type: string
+  category?: string
+  genericName?: string
+  englishName?: string
+  atcCode?: string
+  approvalCategory?: string
+  tradeNames?: string[]
+  formsAndSpecs?: string[]
+  maxDailyDose?: string
+  standardMaintenanceDose?: string
+  keyContraindications?: string[]
+  specialPopulations?: Record<string, unknown>
+  storage?: string
+  sources?: string[]
+  tags?: string[]
+  relPath?: string
+  markdown?: string
+  html?: string
 }

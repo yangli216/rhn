@@ -36,12 +36,13 @@ function fixture(task = true, organizationId: string | undefined = 'org') {
 }
 
 describe('AI plan service confirmation', () => {
-  it('requires explicit quantity and preserves restrictions before confirming a source task', async () => {
+  it('prefills one project while preserving restrictions for doctor confirmation', async () => {
     const f = fixture(), dialog = await f.select()
     expect(f.searchServices).toHaveBeenCalledWith('目录检查项目', '', 'ACTIVE', 'org', 0, 10)
-    expect(dialog.getByRole('spinbutton', { name: '项目数量' })).toHaveValue(null)
+    expect(dialog.getByRole('spinbutton', { name: '项目数量' })).toHaveValue(1)
     expect(dialog.getByRole('region', { name: '原始项目建议' })).toHaveTextContent('必要时复查两次，暂缓增强检查')
-    expect(dialog.getByRole('button', { name: '确认项目加入方案' })).toBeDisabled()
+    expect(dialog.getByRole('button', { name: '确认项目加入方案' })).toBeEnabled()
+    await f.user.clear(dialog.getByRole('spinbutton', { name: '项目数量' }))
     await f.user.type(dialog.getByRole('spinbutton', { name: '项目数量' }), '2')
     await f.user.type(dialog.getByRole('textbox', { name: '检查检验说明' }), '核实后复查，暂缓增强')
     await f.user.click(dialog.getByRole('button', { name: '确认项目加入方案' }))
@@ -59,12 +60,13 @@ describe('AI plan service confirmation', () => {
     expect(screen.getByRole('button', { name: '确认保存调整' })).toBeDisabled()
     expect(f.update).not.toHaveBeenCalled()
   })
-  it('also requires a quantity for manual addition and reflects confirmed nonchargeable configuration', async () => {
+  it('defaults manual addition to one and reflects confirmed nonchargeable configuration', async () => {
     const f = fixture(false)
     f.service.organizationAdoption.chargeable = false
     const dialog = await f.select()
     expect(dialog.getByText(/作为不计价项目加入/)).toBeInTheDocument()
-    expect(dialog.getByRole('button', { name: '确认项目加入方案' })).toBeDisabled()
+    expect(dialog.getByRole('button', { name: '确认项目加入方案' })).toBeEnabled()
+    await f.user.clear(dialog.getByRole('spinbutton', { name: '项目数量' }))
     await f.user.type(dialog.getByRole('spinbutton', { name: '项目数量' }), '3')
     await f.user.click(dialog.getByRole('button', { name: '确认项目加入方案' }))
     await f.user.click(screen.getByRole('button', { name: '确认保存调整' }))
@@ -74,6 +76,7 @@ describe('AI plan service confirmation', () => {
   it('blocks saving after clearing or entering a nonpositive quantity', async () => {
     const f = fixture(false), dialog = await f.select()
     const input = dialog.getByRole('spinbutton', { name: '项目数量' })
+    await f.user.clear(input)
     await f.user.type(input, '0')
     expect(dialog.getByRole('button', { name: '确认项目加入方案' })).toBeDisabled()
     await f.user.clear(input); await f.user.type(input, '2')
@@ -88,6 +91,7 @@ describe('AI plan service confirmation', () => {
   })
   it('invalidates a pending confirmation after organization changes even with the same API object', async () => {
     const f = fixture(), dialog = await f.select()
+    await f.user.clear(dialog.getByRole('spinbutton', { name: '项目数量' }))
     await f.user.type(dialog.getByRole('spinbutton', { name: '项目数量' }), '2')
     f.rerender(f.tree(f.api, 'other'))
     expect(dialog.getByText(/当前机构、会话或方案已变化/)).toBeInTheDocument()
@@ -106,6 +110,7 @@ describe('AI plan service confirmation', () => {
   })
   it('does not silently duplicate a service', async () => {
     const f = fixture(false), dialog = await f.select()
+    await f.user.clear(dialog.getByRole('spinbutton', { name: '项目数量' }))
     await f.user.type(dialog.getByRole('spinbutton', { name: '项目数量' }), '2')
     await f.user.click(dialog.getByRole('button', { name: '确认项目加入方案' }))
     await f.search()

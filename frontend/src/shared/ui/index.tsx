@@ -427,11 +427,12 @@ export function Dialog({
   className?: string
   initialFocusRef?: RefObject<HTMLElement | null>
   enterNavigation?: boolean
-  presentation?: 'dialog' | 'drawer'
+  presentation?: 'dialog' | 'drawer' | 'panel'
   boundary?: HTMLElement | null
 }>) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const anchorRef = useRef<HTMLSpanElement>(null)
+  const panelId = useId()
   const triggerRef = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null)
   const initialFocusTargetRef = useRef(initialFocusRef)
   const onCloseRef = useRef(onClose)
@@ -495,17 +496,19 @@ export function Dialog({
     const applicationRoot = document.getElementById('root')
     const applicationWasInert = applicationRoot?.hasAttribute('inert') ?? false
 
-    if (presentation !== 'drawer') {
+    if (presentation === 'dialog') {
       document.body.style.overflow = 'hidden'
       applicationRoot?.setAttribute('inert', '')
     }
 
     const dialog = dialogRef.current
-    const focusable = dialog ? focusableElements(dialog) : []
-    const autoFocusTarget = dialog?.querySelector<HTMLElement>('[autofocus]')
-    const focusedInsideDialog = document.activeElement instanceof HTMLElement && dialog?.contains(document.activeElement)
-      ? document.activeElement : null
-    ;(initialFocusTargetRef.current?.current ?? focusedInsideDialog ?? autoFocusTarget ?? focusable[0] ?? dialog)?.focus({ preventScroll: true })
+    if (presentation !== 'panel') {
+      const focusable = dialog ? focusableElements(dialog) : []
+      const autoFocusTarget = dialog?.querySelector<HTMLElement>('[autofocus]')
+      const focusedInsideDialog = document.activeElement instanceof HTMLElement && dialog?.contains(document.activeElement)
+        ? document.activeElement : null
+      ;(initialFocusTargetRef.current?.current ?? focusedInsideDialog ?? autoFocusTarget ?? focusable[0] ?? dialog)?.focus({ preventScroll: true })
+    }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -513,7 +516,7 @@ export function Dialog({
         onCloseRef.current()
         return
       }
-      if (event.key !== 'Tab' || !dialog) return
+      if (event.key !== 'Tab' || !dialog || presentation === 'panel') return
       const elements = focusableElements(dialog)
       if (elements.length === 0) {
         event.preventDefault()
@@ -531,26 +534,45 @@ export function Dialog({
       }
     }
 
+    function handlePanelPointerDown(event: PointerEvent) {
+      if (!closeOnBackdrop || !(event.target instanceof Node) || dialog?.contains(event.target)) return
+      onCloseRef.current()
+    }
+
+    function handleAnotherPanelOpened(event: Event) {
+      if ((event as CustomEvent<string>).detail !== panelId) onCloseRef.current()
+    }
+
     document.addEventListener('keydown', handleKeyDown)
+    if (presentation === 'panel') {
+      document.addEventListener('pointerdown', handlePanelPointerDown, true)
+      document.addEventListener('rhn:dialog-panel-opened', handleAnotherPanelOpened)
+      document.dispatchEvent(new CustomEvent('rhn:dialog-panel-opened', { detail: panelId }))
+    }
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      if (presentation !== 'drawer') {
+      document.removeEventListener('pointerdown', handlePanelPointerDown, true)
+      document.removeEventListener('rhn:dialog-panel-opened', handleAnotherPanelOpened)
+      if (presentation === 'dialog') {
         document.body.style.overflow = previousOverflow
         if (!applicationWasInert) applicationRoot?.removeAttribute('inert')
       }
-      previouslyFocused?.focus({ preventScroll: true })
+      if (presentation !== 'panel' || dialog?.contains(document.activeElement)) {
+        previouslyFocused?.focus({ preventScroll: true })
+      }
     }
-  }, [presentation])
+  }, [closeOnBackdrop, panelId, presentation])
 
   return <>
     <span ref={anchorRef} style={{ display: 'none' }} aria-hidden="true" />
-    {createPortal(<div className={`ui-dialog-backdrop ${presentation === 'drawer' ? 'ui-dialog-backdrop--drawer' : ''}`}
-      style={presentation === 'drawer' ? { ...drawerBounds, display: isPanelHidden ? 'none' : undefined } : undefined} onMouseDown={closeOnBackdrop ? onClose : undefined}>
+    {createPortal(<div className={`ui-dialog-backdrop ${presentation !== 'dialog' ? `ui-dialog-backdrop--${presentation}` : ''}`}
+      style={presentation === 'drawer' ? { ...drawerBounds, display: isPanelHidden ? 'none' : undefined } : undefined}
+      onMouseDown={presentation !== 'panel' && closeOnBackdrop ? onClose : undefined}>
       <div
         ref={dialogRef}
-        className={`ui-dialog ${presentation === 'drawer' ? 'ui-dialog--drawer' : ''} ${size !== 'default' ? `ui-dialog--${size}` : ''} ${className}`}
+        className={`ui-dialog ${presentation !== 'dialog' ? `ui-dialog--${presentation}` : ''} ${size !== 'default' ? `ui-dialog--${size}` : ''} ${className}`}
         role="dialog"
-        aria-modal={presentation !== 'drawer'}
+        aria-modal={presentation === 'dialog'}
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
@@ -564,7 +586,7 @@ export function Dialog({
             <h2 id={titleId}>{title}</h2>
           </div>
           {actions && <div className="ui-dialog__head-actions">{actions}</div>}
-          <IconButton icon="close" label={presentation === 'drawer' ? '关闭抽屉' : '关闭弹窗'} onClick={onClose} />
+          <IconButton icon="close" label={presentation === 'dialog' ? '关闭弹窗' : presentation === 'drawer' ? '关闭抽屉' : '关闭面板'} onClick={onClose} />
         </div>
         {description && <p className="ui-dialog__description" id={descriptionId}>{description}</p>}
         {children}

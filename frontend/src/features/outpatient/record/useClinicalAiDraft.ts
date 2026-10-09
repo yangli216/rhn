@@ -3,7 +3,7 @@ import type { UseFormReturn } from 'react-hook-form'
 import type { ClinicalAiDraftContext, ClinicalAiRecordDraft } from '../../../shared/api/clinicalAiApi'
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
 import type { Encounter } from '../../../shared/model'
-import { aiRecordDraftFields, clinicalAiContextFingerprint, mergeAiDiagnoses, mergeAiRecordDraft, type ClinicalAiDraftRequest } from '../ai/aiDraftAdapter'
+import { aiRecordDraftFields, clinicalAiContextFingerprint, mergeAiDiagnoses, mergeAiRecordDraft, stableClinicalAiFingerprint, type ClinicalAiDraftRequest } from '../ai/aiDraftAdapter'
 import { normalizeDiagnosisOrder, type RecordForm } from './clinicalRecordDraft'
 import { aiContextFromDraft, type ClinicalAiContextState } from './clinicalAiDraftContext'
 
@@ -71,11 +71,13 @@ export function useClinicalAiDraft({ encounter, form, diagnoses, setDiagnoses, a
       onNotice('AI 方案必须完成当前目录核对，本次未带入。请从方案核对入口重新操作。')
       onAiDraftConsumed(); return
     }
+    let applied = false
     if (aiDraft.recordDraft) {
       const previous = getValues()
       const next = mergeAiRecordDraft(previous, aiDraft.recordDraft, aiDraft.overwriteRecord === true)
       const changedFields = aiRecordDraftFields
         .filter((field) => previous[field] !== next[field])
+      applied = changedFields.length > 0
       if (changedFields.length) setAiRecordUndo({
         before: Object.fromEntries(changedFields.map((field) => [field, previous[field]])),
         after: Object.fromEntries(changedFields.map((field) => [field, next[field]])),
@@ -86,7 +88,12 @@ export function useClinicalAiDraft({ encounter, form, diagnoses, setDiagnoses, a
     }
     const diagnosesWithAi = aiDraft.diagnoses?.length
       ? mergeAiDiagnoses(diagnoses, aiDraft.diagnoses) : diagnoses
-    if (aiDraft.diagnoses?.length) setDiagnoses(normalizeDiagnosisOrder(diagnosesWithAi))
+    if (aiDraft.diagnoses?.length) {
+      const nextDiagnoses = normalizeDiagnosisOrder(diagnosesWithAi)
+      applied ||= stableClinicalAiFingerprint('diagnoses', diagnoses) !== stableClinicalAiFingerprint('diagnoses', nextDiagnoses)
+      setDiagnoses(nextDiagnoses)
+    }
+    if (applied) aiDraft.onApplied?.()
     onNotice(`已带入${aiDraft.sourceLabel}，内容仍是草稿，请逐项核对后保存和开立。`)
     onAiDraftConsumed()
   }, [aiDraft, allergies, allergyState, businessBusy, diagnoses, document, documentStatus, encounter,

@@ -421,6 +421,7 @@ describe('AiPlanTemplateDraftModal', () => {
     await user.click(screen.getByRole('option', { name: '口服' }))
     await user.click(confirmation.getByRole('combobox', { name: '用药频次' }))
     await user.click(screen.getByRole('option', { name: '每日三次' }))
+    await user.clear(confirmation.getByRole('spinbutton', { name: '药品数量' }))
     await user.type(confirmation.getByRole('spinbutton', { name: '药品数量' }), '2')
     await user.click(confirmation.getByRole('button', { name: '确认加入方案' }))
 
@@ -437,6 +438,9 @@ describe('AiPlanTemplateDraftModal', () => {
       name: '小儿积食咳嗽方案',
       narrative: '诊断与评估：小儿功能性消化不良；健康宣教：饮食清淡易消化。',
       sourceType: 'AI_INPUT',
+      noteTemplateContent: { chiefComplaint: '咳嗽3天' },
+      recordAnnotations: [{ field: 'chiefComplaint', text: '3天', start: 2, source: 'TEMPLATE', kind: 'VARIABLE',
+        binding: 'symptom.cough.duration', label: '咳嗽病程' }],
       reviewItems: [
         { kind: 'DIAGNOSIS', text: '小儿功能性消化不良 [K30]', origin: 'SUGGESTED' },
         { kind: 'EDUCATION', text: '饮食调整指导', details: '清淡易消化饮食，避免生冷油腻' },
@@ -474,7 +478,11 @@ describe('AiPlanTemplateDraftModal', () => {
     expect(screen.queryByText('适用条件')).not.toBeInTheDocument()
 
     // 验证宣教与随访项目直接展示可编辑文本框，而不是隐藏在 ⓘ 图标中
-    expect(screen.getByRole('region', { name: '配套病历书写模板' })).toBeInTheDocument()
+    const noteEditor = screen.getByRole('region', { name: '配套病历书写模板' })
+    expect(noteEditor).toBeInTheDocument()
+    const legend = screen.getByRole('complementary', { name: '病历标记说明' })
+    expect(noteEditor.lastElementChild).toBe(legend)
+    expect(legend).toHaveTextContent('红色：信息冲突')
     expect(screen.getByRole('textbox', { name: '随访复诊' })).toHaveValue('3天后若症状未缓解请及时复诊')
     expect(screen.queryByRole('button', { name: '查看 饮食调整指导 依据' })).not.toBeInTheDocument()
 
@@ -606,6 +614,7 @@ describe('AiPlanTemplateDraftModal', () => {
     expect(await screen.findByRole('dialog', { name: '确认药品用法与数量' })).toHaveTextContent('布洛芬缓释胶囊')
 
     const confirmation = within(screen.getByRole('dialog', { name: '确认药品用法与数量' }))
+    await user.clear(confirmation.getByRole('spinbutton', { name: '药品数量' }))
     await user.type(confirmation.getByRole('spinbutton', { name: '药品数量' }), '2')
     await user.click(confirmation.getByRole('button', { name: '确认加入方案' }))
 
@@ -613,11 +622,11 @@ describe('AiPlanTemplateDraftModal', () => {
     await user.click(screen.getByRole('button', { name: '添加检验/检查' }))
     const srvInput = screen.getByPlaceholderText(/输入项目名称搜索院内服务/)
     await user.type(srvInput, 'C反应蛋白')
-    await user.click(screen.getAllByRole('button', { name: '搜索' })[0])
+    const serviceSearchRegion = within(srvInput.closest<HTMLElement>('.ai-plan-inline-search')!)
+    await user.click(serviceSearchRegion.getByRole('button', { name: '搜索' }))
     expect(await screen.findByText('C反应蛋白测定')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '选用' }))
+    await user.click(serviceSearchRegion.getByRole('button', { name: '选用' }))
     const serviceConfirmation = within(screen.getByRole('dialog', { name: '确认项目数量与说明' }))
-    await user.type(serviceConfirmation.getByRole('spinbutton', { name: '项目数量' }), '1')
     await user.click(serviceConfirmation.getByRole('button', { name: '确认项目加入方案' }))
 
     // 宣教与随访进入配套病历模板，不创建第二套文字性方案任务。
@@ -752,4 +761,3 @@ it('opens and mounts cleanly when editingTemplate has null tasks, null diagnoses
   expect(screen.getByText('方案调整与明细微调')).toBeInTheDocument()
   expect(screen.getByDisplayValue('极简门诊方案')).toBeInTheDocument()
 })
-

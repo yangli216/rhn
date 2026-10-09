@@ -1,16 +1,18 @@
-import { Button, Popconfirm, StatusBadge } from '../../../shared/ui'
+import { Button, Icon, Popconfirm, StatusBadge } from '../../../shared/ui'
 import type { MedicationPlanDraft } from './medicationDraft'
 import { type ServicePlanDraft } from './orderDraftTypes'
 import { formatPackageUnit, resolveExecutingDepartment, formatServiceExecution, formatUnitPrice } from './orderPresentation'
 import { OrderTypeBadge, AdministrationGroupBracket } from './OrderRowDecorations'
 
-export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRemove, onAppendToGroup, currentDept }: {
+export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRemove, onAppendToGroup, onInspectMedication, currentDept }: {
   value: MedicationPlanDraft; isHead?: boolean; isTail?: boolean; isMid?: boolean; onEdit: () => void; onRemove: () => void
   onAppendToGroup?: (value: MedicationPlanDraft) => void
+  onInspectMedication?: (name: string) => void
   currentDept?: string
 }) {
   const spec = value.productSpec || value.preparationSpec
   const mfr = value.manufacturerName
+  const medName = value.productName || value.medicationName
   return <div className="doctor-unified-order-row is-draft is-editable" role="row" tabIndex={0}
     aria-label={`编辑待确认医嘱 ${value.medicationName}`} title="单击编辑医嘱" onClick={onEdit}
     onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onEdit() } }}>
@@ -21,7 +23,24 @@ export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRem
       <div className="doctor-unified-order-name-row">
         <AdministrationGroupBracket isHead={isHead} isTail={isTail} isMid={isMid} />
         <div className="doctor-unified-order-name-text">
-          <strong>{value.productName || value.medicationName}</strong>
+          <div className="doctor-order-name-with-action">
+            <strong>{medName}</strong>
+            {onInspectMedication && medName && (
+              <Button
+                type="button"
+                size="sm"
+                variant="text"
+                className="doctor-order-insert-btn"
+                title={`在临床知识库中查阅《${medName}》药品资料`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onInspectMedication(medName)
+                }}
+              >
+                <Icon name="pill" />说明书
+              </Button>
+            )}
+          </div>
           {(spec || mfr) && (
             <div className="doctor-unified-order-subtext">
               {spec && <span>{spec}</span>}

@@ -18,8 +18,39 @@ final class MedicationSpecificationEvidence {
                     + SPECIFICATION_END,
             Pattern.CASE_INSENSITIVE);
     private static final Pattern NUMBER = Pattern.compile("[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+");
+    private static final Pattern PLACEHOLDER = Pattern.compile(
+            "(?:建议)?规格\\s*[:：]\\s*(?:待确认|不明确|未知|未提供)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PER_UNIT = Pattern.compile(
+            "[0-9]+(?:\\.[0-9]+)?\\s*(?:mg|μg|ug|g|ml|mL)\\s*[/／]\\s*(?:粒|片|支|袋|包|瓶|枚|贴|管|吸)",
+            Pattern.CASE_INSENSITIVE);
 
     private MedicationSpecificationEvidence() {}
+
+    static String addSuggestedSpecification(String itemName, String details, String suggestedSpecification) {
+        if (suggestedSpecification == null || suggestedSpecification.isBlank()
+                || hasUsableSpecification(itemName) || hasUsableSpecification(details)) return details;
+        String suggestion = "建议规格：" + suggestedSpecification.trim();
+        String source = details == null ? "" : details.trim();
+        var placeholder = PLACEHOLDER.matcher(source);
+        if (placeholder.find()) return placeholder.replaceFirst(java.util.regex.Matcher.quoteReplacement(suggestion));
+        return source.isBlank() ? suggestion : suggestion + "；" + source;
+    }
+
+    static String catalogSpecification(String specification, String preparationUnit) {
+        if (specification == null || specification.isBlank() || preparationUnit == null || preparationUnit.isBlank()
+                || specification.matches(".*[/／].*")) return specification;
+        return specification.trim() + "/" + preparationUnit.trim();
+    }
+
+    private static boolean hasUsableSpecification(String value) {
+        if (value == null || value.isBlank()) return false;
+        var labels = LABELED.matcher(value);
+        while (labels.find()) {
+            String specification = labels.group(1).trim();
+            if (!specification.isBlank() && !PLACEHOLDER.matcher("规格：" + specification).matches()) return true;
+        }
+        return PER_UNIT.matcher(value).find();
+    }
 
     static String reviewReason(MedicationIntentParser.ParsedMedication intent, String catalogSpecification) {
         List<String> requested = new ArrayList<>();
@@ -52,7 +83,11 @@ final class MedicationSpecificationEvidence {
     static String reviewExplicitSpecification(String requestedSpecification, String catalogSpecification) {
         if (requestedSpecification == null || requestedSpecification.isBlank()) return null;
         if (catalogSpecification == null || catalogSpecification.isBlank()) return "来源包含明确规格，但目录规格缺失，未自动选择产品";
-        if (!canonical(requestedSpecification).equals(canonical(catalogSpecification))) {
+        String requested = canonical(requestedSpecification);
+        String catalog = canonical(catalogSpecification);
+        boolean sameStrengthWithoutRequestedPresentation = !requested.matches(".*[/／].*")
+                && catalog.matches(Pattern.quote(requested) + "[/／].+");
+        if (!requested.equals(catalog) && !sameStrengthWithoutRequestedPresentation) {
             return "来源规格与目录规格未确认一致，未替换规格或推算换算，请人工核对";
         }
         return null;

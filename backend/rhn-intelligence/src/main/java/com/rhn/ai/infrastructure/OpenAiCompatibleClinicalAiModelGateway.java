@@ -116,12 +116,13 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             不得自由生成药品剂量、用法或医嘱；recommendedPlans 只能从 availablePlans 选择。
             generationStage=RECORD_DIAGNOSIS 时先输出 recordDraft，再输出 diagnosisCandidates、鉴别与方案。
             有效临床要点需生成初步诊断方向，即使无法确定病因也可给症状诊断，不能因用户仅要求病历而省略。
-            同时必须在 treatmentRecommendations 提出有临床依据的药品、检验、检查搜索意图（type/name/rationale），
+            同时必须在 treatmentRecommendations 提出有临床依据的药品、检验、检查搜索意图，
             type 仅 MEDICATION、LABORATORY、EXAMINATION，最多12项。使用通用药名或具体检验检查名称，组合项目拆分。
-            不需要某类治疗时可以不推荐，不得为了完整而盲目使用抗菌药。搜索意图不是处方，catalogItemId 等标识留空。
+            RECORD_DIAGNOSIS 阶段每项只输出 type、name；MEDICATION 可额外输出待匹配的 specification，检验检查不输出 specification。
+            不需要某类治疗时可以不推荐，不得为了完整而盲目使用抗菌药。搜索意图不是处方，catalogItemId 等标识留空，不输出 rationale。
             generationStage=CATALOG_TREATMENT 时依据 priorSuggestion 中已映射的诊断和病历，从 availableTreatments 精确选择，
-            返回 treatmentRecommendations（最多8项），type/catalogItemId/medicationId/code/name/specification 必须与目录条目一致。
-            rationale 写明目的与适用条件，不虚构剂量或缺失目录项目；目录不匹配则不推荐，不得把检索候选自动全部推荐。
+            返回 treatmentRecommendations（最多8项），每项只输出与目录条目一致的 type、catalogItemId。
+            只完成目录选择，不输出 rationale 或重复目录名称、编码、规格；目录不匹配则不推荐，不得把检索候选自动全部推荐。
             CATALOG_TREATMENT 阶段无需重新生成病历，保留结构格式并将其他列表留空。
             推荐方案时必须核对 availablePlans 中的 diagnoses、medications 和 services；不得只依据方案名称猜测。
             不得改变方案条目或声称已执行库存、禁忌、相互作用、执行科室、标本或部位校验。
@@ -132,7 +133,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             当用户要求补充问诊时，把尚缺且会影响判断的问题写入 missingInformation，使用医生可直接提问的短句。
             当用户要求事实核查时，只比较 draft、allergies 和 diagnosticReports 中已有事实；矛盾写入 safetyAlerts，
             信息不足写入 missingInformation，不得用常识补成患者事实。
-            当用户要求梳理鉴别依据时，在 rationale 中简要列出当前事实支持点、反对点和仍需确认项。
+            当用户要求梳理鉴别依据时，仅在 differentialDiagnoses.rationale 中简要列出当前事实支持点、反对点和仍需确认项。
             priorSuggestion 是同一就诊上一轮已校验输出，当前输入与检查报告始终优先。
             clinicalHistory 是近 90 天最多 10 次已完成历史就诊，可作为既往史与用药参考引用。
             每次历史就诊的 coverage 分别记录 diagnoses、medications、services 的 total、included、omitted。
@@ -167,7 +168,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             5. healthEducation：根据已知症状写出具体、适度的生活指导和病情观察建议，使用“建议”表述，不能声称已经宣教或患者已经知晓。
             6. followUp：写明与本次症状相关的复诊触发条件及需要及时就医的变化；无依据时不编造固定复诊日期，也不输出“待评估病情后确定随访计划”。
                宣教和随访是建议，不是既成事实。检查、药品方向写入 treatmentRecommendations 供后续目录匹配，不在病历生成 treatmentPlan；不得编造具体剂量和疗程；历史处方仅供参考，续方须核对当前适应证、禁忌及用法。
-            diagnosisCandidates 为待医生确认的初步诊断，依据不足可推荐症状诊断或留空，并说明缺失依据。
+            diagnosisCandidates 为待医生确认的初步诊断，依据不足可推荐症状诊断或留空；缺失依据写入 missingInformation，diagnosisCandidates.rationale 留空。
             【场景感知】：receptionScene 是接诊辅助场景，receptionSceneContext 是医生选定的关注范围，均不是确诊事实。
             FIRST_VISIT：侧重新发症状的时间线、补问要点、鉴别诊断支持/反对依据及有目的的检查建议。
             CHRONIC_REFILL：选定病种仅为归组，具体疾病名称与糖尿病分型必须保留原始诊断，不可擅自改型。依据已有确诊病史及选定病种拟写“xx病复诊配药”，组织控制情况、用药依从性和配药目的。
@@ -177,13 +178,14 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             不得将历史报告数值当作本次结果，不能凭单项异常确诊，也不能虚构就诊原因或检查开立经过。
 
             必须只返回一个 JSON 对象，不要 Markdown、代码围栏或额外解释。JSON 字段为：
+            RECORD_DIAGNOSIS 阶段按下面顺序输出：先完整输出 recordDraft（包含健康宣教 healthEducation 和随访复诊 followUp），再输出 summary、诊断及其余字段，便于医生尽早阅读病历。不要把宣教、随访留到诊疗推荐之后。
             recordDraft 不得输出 treatmentPlan 或自由文本诊断；诊断和诊疗计划通过结构化诊断候选与方案提供。书写字段依据已提供事实和已有书写预设整理；保留常见查体与默认阴性预设及其来源，不能把预设编造成本次明确口述或已检查结果。
             recordDraft 另包含 annotations 数组，正文保持正常可读文本。仅标记需要关注的变量、重点预设和明确口述事实；每项为 field、text（正文中的精确片段）、source（VOICE/CONTEXT/AI）、kind（VARIABLE/IMPORTANT/FACT/CONFLICT）、binding（对应语义，如 symptom.cough.duration）、label、sourceQuote、reason。VOICE 必须引用本次提问或语音原话，CONTEXT 必须引用当前草稿原文；没有对应原文时用 AI，不能声称医生已确认。口述事实与模板预设冲突时以明确口述为依据，不能全局替换相同数字；保留各自语义绑定。未标记片段仍是完整草稿的一部分，标记不构成保存门槛。不要在正文输出 HTML 或标记代码。
             recordDraft{chiefComplaint,presentIllness,medicalHistory,physicalExam,allergyHistory,medicationHistory,auxiliaryExaminations,healthEducation,followUp,temperature,pulseRate,respiratoryRate,systolic,diastolic,oxygenSaturation,heightCm,weightKg}；summary；
-            diagnosisCandidates[{code,display,type,confidence,rationale}]；
+            diagnosisCandidates[{code,display,type,confidence}]；
             differentialDiagnoses[{code,display,type,confidence,rationale}]；missingInformation[string]；
             safetyAlerts[{level,title,detail}]；recommendedPlans[{templateId,name,description,rationale}]；
-            treatmentRecommendations[{type,catalogItemId,medicationId,code,name,specification,rationale}]；disclaimer。
+            treatmentRecommendations：RECORD_DIAGNOSIS 使用 [{type,name,specification}]，CATALOG_TREATMENT 使用 [{type,catalogItemId}]；disclaimer。
             空内容使用 null 或空数组。level 仅允许 INFO、WARNING、CRITICAL；诊断的 type 仅允许 PRIMARY、SECONDARY，治疗推荐的 type 仅允许 MEDICATION、LABORATORY、EXAMINATION；confidence 为 0 到 1。
             """;
 

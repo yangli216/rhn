@@ -1,7 +1,7 @@
 import type { MedicationKnowledge, ServiceCatalogItem } from '../../../shared/api/masterDataApi'
 import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
-import { ClinicalResourceSearch, Select, type ClinicalResource, type ClinicalResourceOption, type OrderSearchMode } from '../../../shared/ui'
+import { Button, ClinicalResourceSearch, Icon, Select, type ClinicalResource, type ClinicalResourceOption, type OrderSearchMode } from '../../../shared/ui'
 import type { DispensableProductOption } from './dispensableOptions'
 import type { OrderEntryType } from './orderDraftTypes'
 import { AdministrationGroupBracket } from './OrderRowDecorations'
@@ -10,7 +10,7 @@ import { focusResource } from './orderEditorControls'
 
 export function OrderComposerResource({
   entryType, changeType, hasEnteredOrder, isMedication, selectedProduct, grouping, api, encounter,
-  searchMode, changeSearchMode, medicationOption, service, handleOrderResourceSelect, disabled = false
+  searchMode, changeSearchMode, medicationOption, service, handleOrderResourceSelect, onInspectMedication, disabled = false
 }: {
   entryType: OrderEntryType
   disabled?: boolean
@@ -26,6 +26,7 @@ export function OrderComposerResource({
   medicationOption?: ClinicalResourceOption<MedicationKnowledge>
   service?: ClinicalResourceOption<ServiceCatalogItem>
   handleOrderResourceSelect: (option?: ClinicalResourceOption<ClinicalResource>) => void
+  onInspectMedication?: (name: string) => void
 }) {
   return <>
     <div className="doctor-inline-order-field doctor-inline-order-type">
@@ -90,15 +91,31 @@ export function OrderComposerResource({
           }
           onChange={handleOrderResourceSelect} />
       </div>
-      {isMedication && selectedProduct && (
+      {isMedication && (selectedProduct || medicationOption) && (
         <div className="doctor-inline-spec-hint"
-          title={`${selectedProduct.itemPackage?.packageSpec || selectedProduct.label}${selectedProduct.product.manufacturerName ? ` / ${selectedProduct.product.manufacturerName}` : ''}`}>
-          <span>{selectedProduct.itemPackage?.packageSpec || selectedProduct.label}</span>
-          {selectedProduct.product.manufacturerName && (
+          title={selectedProduct ? `${selectedProduct.itemPackage?.packageSpec || selectedProduct.label}${selectedProduct.product.manufacturerName ? ` / ${selectedProduct.product.manufacturerName}` : ''}` : (medicationOption as any)?.label}>
+          <span>{selectedProduct ? (selectedProduct.itemPackage?.packageSpec || selectedProduct.label) : (medicationOption as any)?.label}</span>
+          {selectedProduct?.product?.manufacturerName && (
             <>
               <span className="doctor-subtext-divider">/</span>
               <span>{selectedProduct.product.manufacturerName}</span>
             </>
+          )}
+          {onInspectMedication && (
+            <Button
+              type="button"
+              size="sm"
+              variant="text"
+              className="doctor-order-insert-btn"
+              title={`在临床知识库中查阅《${selectedProduct?.product?.name || (medicationOption as any)?.label || ''}》药品资料`}
+              onClick={(e) => {
+                e.stopPropagation()
+                const medName = selectedProduct?.product?.name || (medicationOption as any)?.label || ''
+                if (medName) onInspectMedication(medName)
+              }}
+            >
+              <Icon name="pill" />说明书
+            </Button>
           )}
         </div>
       )}

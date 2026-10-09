@@ -1,6 +1,7 @@
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
 import { ClinicalAiTreatmentRows } from './ClinicalAiTreatmentRows'
+import { MedicalInsertViewerModal } from './MedicalInsertViewerModal'
 import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { ClinicalAiCapabilities, ClinicalAiDraftContext, ClinicalAiRecordDraft,
@@ -31,8 +32,8 @@ export interface InlineAiSelection {
 
 /** One analysis session, rendered beside the clinical objects it can help edit. */
 export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, capability, suggestion, current, busy,
-  generating, inputBusy, preview, onView, disabled, canAdopt, error, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
-  onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults,  sceneAssessment, sceneLoading }: {
+  generating, inputBusy, preview, diagnosisBatchDismissed = false, onView, disabled, canAdopt, error, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
+  onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, onOpenEvidenceChain, sceneAssessment, sceneLoading }: {
   api: RhnApi
   encounter: Encounter
   surfaces: ClinicalAiSurfaces
@@ -44,6 +45,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   generating: boolean
   inputBusy: boolean
   preview: ClinicalAiPreview
+  diagnosisBatchDismissed?: boolean
   onView: () => void
   disabled: boolean
   canAdopt: boolean
@@ -64,22 +66,27 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   onOpenDetail?: () => void
   onOpenHistory?: () => void
   onOpenResults?: () => void
+  onOpenEvidenceChain?: (diagnosis: { code: string; display: string }) => void
   sceneAssessment?: ReceptionSceneAssessment
   sceneLoading?: boolean
 }) {
-  const session = context.encounterId
+  const session = `${context.encounterId}:${generating ? 'generating' : suggestion?.id ?? ''}`
+  const [viewingGuideline, setViewingGuideline] = useState<string | null>(null)
   const [diagnosisSelection, setDiagnosisSelection] = useState<{ session: string; excluded: string[] }>({ session: '', excluded: [] })
   const excludedDiagnoses = diagnosisSelection.session === session ? diagnosisSelection.excluded : []
   const alreadyEntered = (code: string) => context.diagnoses.some(diagnosis =>
     diagnosis.codeSystem === 'WHO.BD.CS.ICD10' && diagnosis.diagnosisDomain === 'WESTERN_MEDICINE'
     && diagnosis.code.trim().toUpperCase() === code.trim().toUpperCase())
-  const diagnoses = (suggestion?.diagnosisCandidates ?? []).filter((item) =>
+  const diagnosisCandidates = generating ? preview.diagnosisCandidates ?? []
+    : diagnosisBatchDismissed ? [] : suggestion?.diagnosisCandidates ?? []
+  const diagnoses = diagnosisCandidates.filter((item) =>
     !alreadyEntered(item.code))
   const selectedDiagnoses = diagnoses.filter((item) => !excludedDiagnoses.includes(item.code))
   const diagnosisFeature = capability.features.includes('TERMINOLOGY_VALIDATION')
   const planFeature = capability.features.includes('PLAN_RECOMMENDATIONS')
   const availableTreatmentItems = planFeature
-    ? (suggestion?.treatmentRecommendations ?? []).filter((item) => !existingTreatmentKeys.includes(treatmentKey(item))) : []
+    ? (generating ? preview.treatmentRecommendations ?? [] : suggestion?.treatmentRecommendations ?? [])
+      .filter((item) => !existingTreatmentKeys.includes(treatmentKey(item))) : []
   const portal = (node: ReactNode, target: HTMLDivElement | null, key: string) => target ? createPortal(node, target, key) : null
 
   return <>
@@ -119,39 +126,61 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
       'copilot-hub'
     )}
 
-    {current && diagnosisFeature && diagnoses.length > 0 && portal(
+    {(current || generating) && diagnosisFeature && diagnoses.length > 0 && portal(
       <div className="doctor-ai-diagnosis-suggestions" aria-label="AI 诊断待确认">
-        {suggestion!.diagnosisCandidates.map((item) => {
+        {diagnosisCandidates.map((item) => {
           const exists = alreadyEntered(item.code)
           if (exists) return null
           return <div className="doctor-diagnosis-row is-ai-suggestion" role="row" key={item.code}>
             <span className="doctor-diag-col-type"><label className="doctor-ai-order-select">
               <input type="checkbox" aria-label={`选择 ${item.display}`} checked={!excludedDiagnoses.includes(item.code)}
-                disabled={disabled || busy || !canAdopt} onChange={() => setDiagnosisSelection({ session,
+                disabled={disabled || busy || generating || !canAdopt} onChange={() => setDiagnosisSelection({ session,
                   excluded: excludedDiagnoses.includes(item.code) ? excludedDiagnoses.filter((code) => code !== item.code) : [...excludedDiagnoses, item.code] })} />
               <span className="doctor-ai-pending-badge">AI 建议</span></label></span>
             <span className="doctor-diag-col-main"><span className="doctor-diag-name-wrap">
-              <strong className="doctor-diag-name">{item.display}</strong><span className="doctor-diag-code-pill">{item.code}</span>
+              <strong className="doctor-diag-name">{item.display}</strong>
+              <span className="doctor-diag-code-pill">{item.code}</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="text"
+                className="doctor-order-insert-btn"
+                title={`在临床知识库中查阅《${item.display}》相关指南`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setViewingGuideline(item.display)
+                }}
+              >
+                <Icon name="clinical" />指南
+              </Button>
             </span></span>
             <span className="doctor-diag-col-domain"><span className="doctor-diag-badge is-secondary">待医生确认</span></span>
-            <span className="doctor-diag-col-management" title={item.rationale || undefined}>{item.rationale || '请结合当前病历核对。'}</span>
-            <span className="doctor-diag-col-actions"><Button size="sm" variant="secondary"
-              disabled={disabled || busy || !canAdopt || excludedDiagnoses.includes(item.code)}
-              onClick={() => onApply({ diagnoses: [{ code: item.code, display: item.display, type: item.type }] })}>确认录入</Button>
-              <Button size="sm" variant="text" onClick={onOpenDetail}>查看依据</Button></span>
+            <span className="doctor-diag-col-management">—</span>
+            <span className="doctor-diag-col-actions">
+              <Button size="sm" variant="text"
+                title="查看循证推导检查点清单与指南依据"
+                onClick={() => onOpenEvidenceChain ? onOpenEvidenceChain({ code: item.code, display: item.display }) : onOpenDetail?.()}>
+                <Icon name="info" />为什么推荐？
+              </Button></span>
           </div>
         })}
-        <div className="doctor-ai-order-batch is-diagnosis" role="row"><span>已选 {selectedDiagnoses.length} 项，核对后录入诊断。</span>
-          <Button size="sm" disabled={disabled || busy || !canAdopt || selectedDiagnoses.length === 0}
+        <div className="doctor-ai-order-batch is-diagnosis" role="row"><span>{generating ? '诊断建议已生成，正在整理医嘱，完成后可确认。' : `已选 ${selectedDiagnoses.length} 项，核对后录入诊断。`}</span>
+          <Button size="sm" disabled={disabled || busy || generating || !canAdopt || selectedDiagnoses.length === 0}
             onClick={() => onApply({ diagnoses: selectedDiagnoses.map(({ code, display, type }) => ({ code, display, type })) })}>
             <Icon name="check" />确认所选诊断（{selectedDiagnoses.length}）</Button></div>
       </div>, surfaces.diagnoses, 'diagnoses')}
 
-    {suggestion && planFeature && portal(
-      <div hidden={!current || !availableTreatmentItems.length}><ClinicalAiTreatmentRows key={context.encounterId} items={availableTreatmentItems}
-        api={api} encounter={encounter} disabled={disabled || busy || !canAdopt || !onReviewTreatment}
+    {(suggestion || generating) && planFeature && portal(
+      <div hidden={!(current || generating) || !availableTreatmentItems.length}><ClinicalAiTreatmentRows key={context.encounterId} items={availableTreatmentItems}
+        api={api} encounter={encounter} disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment}
         onReview={(items) => onReviewTreatment?.(items)} /></div>, surfaces.plans, 'treatments')}
 
+    <MedicalInsertViewerModal
+      isOpen={Boolean(viewingGuideline)}
+      onClose={() => setViewingGuideline(null)}
+      target={viewingGuideline ? { name: viewingGuideline, type: 'guideline' } : null}
+      api={api}
+    />
   </>
 }
 

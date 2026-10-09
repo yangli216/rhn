@@ -3,7 +3,7 @@ import type { TemplateServiceCandidate } from './templateCatalogSearch'
 
 export function serviceCandidateDraft(candidate: TemplateServiceCandidate): CompiledPlanServiceItem {
   return { catalogItemId: candidate.id, itemCode: candidate.code, itemName: candidate.name,
-    serviceType: candidate.serviceType, quantity: Number.NaN, unitCode: candidate.unitCode,
+    serviceType: candidate.serviceType, quantity: 1, unitCode: candidate.unitCode,
     priceType: 'SALE', pricingRequired: candidate.chargeable }
 }
 

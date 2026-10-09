@@ -8,6 +8,7 @@ import type { MedicationPlanDraft } from './medicationDraft'
 import { clinicalAiTreatmentKey, type AiOrderReviewCommand, type ServicePlanDraft } from './orderDraftTypes'
 import { resolveDispensableOptions } from './dispensableOptions'
 import { calculatePackageQuantity } from './medicationQuantity'
+import { defaultServiceExecutionDepartment, resolveOrderExecutionDepartment } from './orderExecutionDepartment'
 
 // Resolve a one-shot AI command against the live catalog before adding editable drafts.
 export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api,
@@ -148,11 +149,18 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
         const activePrice = pricing.price
         const quantity = item.orderDraft?.quantity ?? 1
         if (!Number.isFinite(quantity) || quantity <= 0) return { item, error: '请填写有效的项目总量' }
+        const performerOrganizationId = item.orderDraft?.performerOrganizationId ?? encounter.organizationId
+        const performerDepartmentId = item.orderDraft?.performerDepartmentId ?? defaultServiceExecutionDepartment(raw, encounter.departmentId)
+        if (performerOrganizationId !== encounter.organizationId || !performerDepartmentId) {
+          return { item, error: '请确认当前机构的执行科室' }
+        }
+        const department = await resolveOrderExecutionDepartment(performerDepartmentId, performerOrganizationId, api)
         const serviceDraft: ServicePlanDraft = {
           id: globalThis.crypto.randomUUID(), sequence: Date.now(), serviceType: raw.sdServiceType,
           catalogItemId: raw.id, itemCode: raw.code, itemName: raw.name, quantity, unitCode: raw.unitCode,
-          clinicalDescription: item.orderDraft?.instruction ?? (item.rationale || undefined), unitPrice: activePrice?.price,
+          clinicalDescription: item.orderDraft?.instruction?.trim() || undefined, unitPrice: activePrice?.price,
           currencyCode: activePrice?.currencyCode,
+          performerOrganizationId, performerDepartmentId: department.id, performerDepartmentName: department.name,
         }
         return { item, serviceDraft }
       }))
@@ -170,14 +178,14 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
         if (!failures.length) reviewState.current.onAiOrdersPrepared?.()
       }
       setValidationError(failures.length ? failures.map((value) => `${value.item.name}：${value.error}`).join('；') : '')
-    })().catch(() => {
-      if (canReview()) setValidationError('部分目录读取失败，请重试或在医嘱区检索。')
+    })().catch((error: unknown) => {
+      if (canReview()) setValidationError(error instanceof Error ? error.message : '部分目录读取失败，请重试或在医嘱区检索。')
     }).finally(() => {
       if (!cancelled) reviewState.current.onAiOrderReviewConsumed?.()
     })
     return () => { cancelled = true }
     // The review is a one-shot command. Mutable editor state is checked again after the catalog query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiOrderReview?.id, encounter.id, api])
+  }, [aiOrderReview?.id, encounter.id, encounter.organizationId, encounter.departmentId, api])
 
 }

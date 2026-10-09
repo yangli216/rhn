@@ -74,13 +74,6 @@ class ServiceRequestService implements ServiceRequestDirectory {
         LocalDate businessDate = input.businessDate() == null ? LocalDate.now() : input.businessDate();
         Long performerOrganizationId = input.performerOrganizationId() == null
                 ? encounter.organizationId() : input.performerOrganizationId();
-        Long performerDepartmentId = input.performerDepartmentId() == null
-                ? encounter.departmentId() : input.performerDepartmentId();
-        if (context.hasWorkContext() && (!context.canAccessOrganization(performerOrganizationId)
-                || !context.canAccessDepartment(performerDepartmentId))) {
-            throw badRequest("SERVICE_REQUEST_PERFORMER_CONTEXT_INVALID", "执行机构或科室不在当前可访问范围内");
-        }
-        organizationDirectory.requireDepartment(tenantId, performerOrganizationId, performerDepartmentId);
         String priceType = Strings.trimToNull(input.priceType()) == null ? "SALE" : Strings.trimToNull(input.priceType()).toUpperCase();
         boolean pricingRequired = input.pricingRequired() == null || input.pricingRequired();
 
@@ -93,6 +86,26 @@ class ServiceRequestService implements ServiceRequestDirectory {
         var item = catalog.item();
         if (!"SERVICE".equals(item.itemType())) {
             throw badRequest("SERVICE_REQUEST_ITEM_TYPE_INVALID", "门诊诊疗请求只能选择诊疗项目");
+        }
+        Long performerDepartmentId = input.performerDepartmentId();
+        if (performerDepartmentId == null) {
+            var defaultDepartment = com.rhn.platform.masterdata.api.ServiceExecutionDepartmentPolicy.resolve(
+                    item.serviceType(), item.examinationType(), catalog.adoption() == null ? null : catalog.adoption().defaultDepartmentId(),
+                    performerOrganizationId, organizationDirectory.listDepartments(tenantId, performerOrganizationId), businessDate);
+            performerDepartmentId = defaultDepartment == null ? encounter.departmentId() : defaultDepartment.departmentId();
+        }
+        if (performerDepartmentId == null) throw badRequest("SERVICE_REQUEST_EXECUTION_DEPARTMENT_REQUIRED",
+                "未匹配到唯一有效的执行科室，请选择执行科室或维护机构项目");
+        // Ordering authority is verified on the encounter. A same-organization lab is a destination,
+        // not an additional clinical work context for the requesting physician.
+        if (context.hasWorkContext() && (!context.canAccessOrganization(performerOrganizationId)
+                || (!performerOrganizationId.equals(encounter.organizationId()) && !context.canAccessDepartment(performerDepartmentId)))) {
+            throw badRequest("SERVICE_REQUEST_PERFORMER_CONTEXT_INVALID", "执行机构或科室不在当前可访问范围内");
+        }
+        var department = organizationDirectory.requireDepartment(tenantId, performerOrganizationId, performerDepartmentId);
+        if (!"ACTIVE".equals(department.sdOrgStatus()) || department.virtual() || department.validFrom().isAfter(businessDate)
+                || (department.validTo() != null && department.validTo().isBefore(businessDate))) {
+            throw badRequest("SERVICE_REQUEST_EXECUTION_DEPARTMENT_INVALID", "执行科室未启用或不在有效期内");
         }
         if (!"ACTIVE".equals(item.status()) || item.validFrom().isAfter(businessDate)
                 || (item.validTo() != null && item.validTo().isBefore(businessDate))) {
@@ -135,7 +148,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
 
         ServiceRequest value = repository.saveAndFlush(new ServiceRequest(tenantId, encounter.residentId(),
                 encounter.id(), nextRequestNo(), input.catalogItemId(), input.packageId(), performerOrganizationId,
-                performerDepartmentId, businessDate, context.subjectId(), Strings.trimToNull(input.reason()), item.code(),
+                performerDepartmentId, encounter.organizationId(), encounter.departmentId(), businessDate, context.subjectId(), Strings.trimToNull(input.reason()), item.code(),
                 item.name(), unitCode, adoption.localCode(), adoption.localName(), adoption.id(), adoption.revision(),
                 price == null ? null : price.id(), price == null ? null : price.revision(),
                 price == null ? null : price.sdPriceType(), price == null ? null : price.price(), totalAmount,

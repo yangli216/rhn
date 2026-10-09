@@ -41,6 +41,23 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
     com.rhn.platform.masterdata.infrastructure.MedicationRepository medicationRepository;
 
     @Test
+    void planPreviewAddsTheUniqueCurrentCatalogMedicationSpecification() throws Exception {
+        String actual = medicationRepository.findByIdAndTenantId(362387871000901L, Long.valueOf(TENANT))
+                .orElseThrow().preparationSpec();
+        when(modelGateway.compilePlan(any(), any())).thenReturn(new ClinicalAiModelGateway.PlanIntent(
+                "退热止痛方案", "待核对", List.of(new ClinicalAiModelGateway.PlanIntentItem(
+                "MEDICATION", "对乙酰氨基酚", "", "SUGGESTED",
+                "常规用法：每次0.5g 口服 PRN 疗程3天；适用条件：发热或疼痛")), null));
+
+        mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"naturalInput\":\"退热止痛方案\",\"scopeType\":\"PERSONAL\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reviewItems[0].details").value(
+                        org.hamcrest.Matchers.startsWith("建议规格：" + actual + "/片；")));
+    }
+
+    @Test
     void explicitSpecificationMustAgreeWithTheRealCatalogBeforeAnOrderIsCompiled() throws Exception {
         String actual = medicationRepository.findByIdAndTenantId(362387871000901L, Long.valueOf(TENANT))
                 .orElseThrow().preparationSpec();
@@ -107,7 +124,7 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
-    void investigationConversionRequiresExplicitQuantityInTheRealCatalogUnit() throws Exception {
+    void investigationConversionDefaultsAUniqueSingleProjectToOneButPreservesExplicitQuantity() throws Exception {
         searchEntryProjections.rebuildAll();
         for (String details : List.of("", "数量：2 次")) {
             boolean confirmedAmount = !details.isBlank();
@@ -117,8 +134,9 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                          "reviewItems":[{"kind":"LABORATORY","text":"血常规","origin":"SUGGESTED","details":"%s"}]}
                         """.formatted(details)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.services.length()").value(confirmedAmount ? 1 : 0))
-                    .andExpect(jsonPath("$.tasks[0].status").value(confirmedAmount ? "MATCHED" : "NEEDS_REVIEW"));
+                    .andExpect(jsonPath("$.services.length()").value(1))
+                    .andExpect(jsonPath("$.services[0].quantity").value(confirmedAmount ? 2 : 1))
+                    .andExpect(jsonPath("$.tasks[0].status").value("MATCHED"));
         }
         verifyNoInteractions(modelGateway, decisionGateway);
     }

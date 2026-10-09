@@ -2,6 +2,9 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ServiceDraftEditRow } from './ServiceDraftEditRow'
 import { useDraftRowInteractions } from './useDraftRowInteractions'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { RhnApi } from '../../../shared/rhnApi'
+import type { Encounter } from '../../../shared/model'
 
 type Handlers = Parameters<typeof useDraftRowInteractions>[0]
 function Harness(props: Handlers) {
@@ -70,16 +73,27 @@ describe('draft row interaction lifecycle', () => {
     expect(props.save).toHaveBeenCalledTimes(2)
   })
 
-  it('saves a service row once across the full outside-click sequence', () => {
+  it('saves a service row once across the full outside-click sequence', async () => {
     const onSave = vi.fn()
-    render(<><ServiceDraftEditRow value={{ id: 's1', catalogItemId: 'lab', itemCode: 'LAB',
-      itemName: '检验', quantity: 1 }} onSave={onSave} onCancel={vi.fn()} onRemove={vi.fn()} />
-      <button>外部</button></>)
+    const api = { organization: { departments: vi.fn().mockResolvedValue([
+      { id: 'dept', organizationId: 'org', name: '检验科', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01' },
+      { id: 'dept-2', organizationId: 'org', name: '检验中心', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01' },
+    ]) } } as unknown as RhnApi
+    render(<QueryClientProvider client={new QueryClient()}><ServiceDraftEditRow
+      encounter={{ organizationId: 'org', departmentId: 'dept' } as Encounter} api={api}
+      value={{ id: 's1', catalogItemId: 'lab', itemCode: 'LAB', itemName: '检验', quantity: 1 }}
+      onSave={onSave} onCancel={vi.fn()} onRemove={vi.fn()} />
+      <button>外部</button></QueryClientProvider>)
+    await screen.findByText('检验科')
+    fireEvent.click(screen.getByRole('combobox', { name: '编辑执行科室' }))
+    fireEvent.click(screen.getByRole('option', { name: '检验中心' }))
+    expect(onSave).not.toHaveBeenCalled()
     fireEvent.change(screen.getByLabelText('编辑项目数量'), { target: { value: '2' } })
     fireEvent.change(screen.getByLabelText('编辑临床说明'), { target: { value: '  空腹  ' } })
     const outside = screen.getByText('外部')
     fireEvent.pointerDown(outside); fireEvent.mouseDown(outside); fireEvent.click(outside)
     expect(onSave).toHaveBeenCalledTimes(1)
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ quantity: 2, clinicalDescription: '空腹' }))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ quantity: 2, clinicalDescription: '空腹',
+      performerOrganizationId: 'org', performerDepartmentId: 'dept-2', performerDepartmentName: '检验中心' }))
   })
 })

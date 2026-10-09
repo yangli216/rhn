@@ -6,6 +6,7 @@ import { Alert, Button, ClinicalResourceSearch, Icon, Panel, PanelHead, Popconfi
 import { diagnosisKey, moveDiagnosis, normalizeDiagnosisOrder } from './clinicalRecordDraft'
 import { diagnosisDomainLabel } from '../../../shared/presentation'
 import { diagnosisManagementFromCatalog, hasConfirmedDiagnosisManagement } from './diagnosisManagementEvidence'
+import { MedicalInsertViewerModal } from '../ai/MedicalInsertViewerModal'
 
 export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, editing, signed,
   actions, aiSuggestionSurfaceRef }: {
@@ -27,6 +28,7 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
   const [draggedDiagnosisKey, setDraggedDiagnosisKey] = useState<string>()
   const [diagnosisError, setDiagnosisError] = useState('')
   const [diagnosisHovered, setDiagnosisHovered] = useState(false)
+  const [viewingGuideline, setViewingGuideline] = useState<string | null>(null)
 
   useEffect(() => {
     if (!diagnosisComposerOpen && diagnoses.length > 0) return
@@ -145,6 +147,16 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
                 <div className="doctor-diag-name-wrap">
                   <strong className="doctor-diag-name">{item.display}</strong>
                   <span className="doctor-diag-code-pill" title={`ICD编码: ${item.code}`}>{item.code}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="text"
+                    className="doctor-diag-guide-btn"
+                    title={`在临床知识库中查阅《${item.display}》相关指南`}
+                    onClick={() => setViewingGuideline(item.display)}
+                  >
+                    <Icon name="clinical" />指南
+                  </Button>
                 </div>
               </span>
               <span className="doctor-diag-col-domain">
@@ -287,5 +299,11 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
           `${item.display}：${program.name}${program.managementType === 'DISEASE_REPORT' ? '（需生成报卡草稿）' : '（需确认是否纳入管理）'}`) ?? []))).join('；')}</span>
       </Alert>}
     </div>
+    <MedicalInsertViewerModal
+      isOpen={Boolean(viewingGuideline)}
+      onClose={() => setViewingGuideline(null)}
+      target={viewingGuideline ? { name: viewingGuideline, type: 'guideline' } : null}
+      api={api}
+    />
   </Panel>
 }

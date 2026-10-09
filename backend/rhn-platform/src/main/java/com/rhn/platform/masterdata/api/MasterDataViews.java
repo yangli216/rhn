@@ -49,7 +49,8 @@ public final class MasterDataViews {
             BigDecimal multiSitePrice, Integer freeSiteCount, Integer maxBodySiteCount,
             String mutualRecognitionCode, boolean pregnancyAlert, String attention, String examinationNotes,
             LaboratoryServiceView laboratory, ExaminationServiceView examination,
-            OrganizationAdoptionView organizationAdoption, List<PriceView> prices) {}
+            OrganizationAdoptionView organizationAdoption, List<PriceView> prices,
+            ServiceExecutionDepartmentPolicy.DefaultDepartment defaultExecutionDepartment) {}
 
     public record MedicationView(
             Long id, long revision, Long itemTypeId, Long itemMasterId, String code, String name, String aliasName,

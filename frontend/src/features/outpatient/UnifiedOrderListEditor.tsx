@@ -9,6 +9,7 @@ import { OrderComposerResource } from './orders/OrderComposerResource'
 import { type MedicationEntry, emptyMedicationEntry, withSkinTestExemption } from './orders/medicationEntry'
 import { SavedOrderList } from './orders/SavedOrderList'
 import { DraftOrderList } from './orders/DraftOrderList'
+import { MedicalInsertViewerModal } from './ai/MedicalInsertViewerModal'
 import { useAiOrderReview } from './orders/useAiOrderReview'
 import { savedOrderEntries, draftOrderEntries, findGroupingComposerTarget } from './orders/orderEntries'
 import { calculatePackageQuantity, resolveFrequencyTimesPerDay } from './orders/medicationQuantity'
@@ -19,7 +20,7 @@ import type { ItemGroup, MedicationKnowledge, ServiceCatalogItem } from '../../s
 import type { AllergyIntolerance } from '../../shared/api/residentsApi'
 import type { Encounter } from '../../shared/model'
 import type { RhnApi } from '../../shared/rhnApi'
-import { Alert, Button, Icon, StatusBadge, type ClinicalResource, type ClinicalResourceOption, type OrderSearchMode } from '../../shared/ui'
+import { Alert, Button, Icon, type ClinicalResource, type ClinicalResourceOption, type OrderSearchMode } from '../../shared/ui'
 import type { MedicationPlanDraft } from './orders/medicationDraft'
 import { resolveDispensableOptions } from './orders/dispensableOptions'
 import { orderDocuments, type OrderDocument } from './OrderDocuments'
@@ -100,6 +101,7 @@ export function UnifiedOrderListEditor({
   const [serviceQuantity, setServiceQuantity] = useState(1)
   const [serviceDescription, setServiceDescription] = useState('')
   const [validationError, setValidationError] = useState('')
+  const [inspectMedicationName, setInspectMedicationName] = useState<string | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
   const composerRef = useRef<HTMLDivElement>(null)
   const shouldFocusOnOpenRef = useRef(false)
@@ -597,6 +599,10 @@ export function UnifiedOrderListEditor({
       const pricing = resolveServicePricing(selected, encounter.organizationId)
       if (pricing.error) { setValidationError(pricing.error); return }
       const activePrice = pricing.price
+      const executionDepartment = selected.defaultExecutionDepartment
+      const performerDepartmentId = executionDepartment ? executionDepartment.departmentId
+        : selected.organizationAdoption?.defaultDepartmentId ?? encounter.departmentId
+      if (!performerDepartmentId) { setValidationError('项目执行科室未配置或存在多个候选，请维护机构项目'); return }
       setServiceDrafts((current) => [...current, {
         id: globalThis.crypto.randomUUID(), sequence: Date.now(), serviceType: selected.sdServiceType,
         catalogItemId: selected.id, itemCode: selected.code, itemName: selected.name,
@@ -604,6 +610,8 @@ export function UnifiedOrderListEditor({
         clinicalDescription: serviceDescription.trim() || undefined,
         unitPrice: activePrice?.price,
         currencyCode: activePrice?.currencyCode,
+        performerOrganizationId: encounter.organizationId, performerDepartmentId,
+        performerDepartmentName: executionDepartment?.departmentName ?? undefined,
       }])
       setComposerOpen(true)
       setService(undefined)
@@ -870,7 +878,8 @@ export function UnifiedOrderListEditor({
             isMedication={isMedication} selectedProduct={selectedProduct} grouping={Boolean(groupingSession)}
             api={api} encounter={encounter} searchMode={searchMode} changeSearchMode={changeSearchMode}
             disabled={busy || readOnly || groupImport.pending}
-            medicationOption={medicationEntry.medication} service={service} handleOrderResourceSelect={handleOrderResourceSelect} />
+            medicationOption={medicationEntry.medication} service={service} handleOrderResourceSelect={handleOrderResourceSelect}
+            onInspectMedication={setInspectMedicationName} />
 
           <OrderComposerDirections entryType={entryType} isMedication={isMedication} hasEnteredOrder={hasEnteredOrder}
             medicationEntry={medicationEntry} updateMedication={updateMedication} availableDoseUnits={availableDoseUnits}
@@ -924,9 +933,7 @@ export function UnifiedOrderListEditor({
           )}
 
           <div className="doctor-inline-order-status">
-            <StatusBadge tone={groupingSession || entryType === 'HERBAL' ? 'success' : 'info'}>
-              {groupingSession ? '成组中' : entryType === 'HERBAL' ? '组方中' : '录入中'}
-            </StatusBadge>
+            <span className="doctor-order-status-empty" aria-label="尚未形成医嘱">—</span>
           </div>
           <div className="doctor-inline-order-actions">
             <Button size="sm" variant="primary" className="doctor-unified-entry-add-btn" onClick={addCurrentEntry}
@@ -1035,6 +1042,7 @@ export function UnifiedOrderListEditor({
         onCancelService={onCancelService} onPrintService={onPrintService}
         onCancelMedication={onCancelMedication} onPrint={onPrint} skinTestByRequest={skinTestByRequest}
         groupingComposerTarget={groupingComposerTarget} groupingSession={groupingSession}
+        onInspectMedication={setInspectMedicationName}
         isComposerActive={isComposerActive} composer={renderComposer()} />
 
       {!readOnly && <DraftOrderList draftEntries={draftEntries}
@@ -1049,7 +1057,7 @@ export function UnifiedOrderListEditor({
         onEditDraft={(draft) => { setComposerOpen(false); setEditingDraft(draft) }}
         onSaveMedicationDraft={saveMedicationDraft} continueGroupingFromDraft={continueGroupingFromDraft}
         groupingSession={groupingSession} currentDept={currentDept} encounter={encounter} api={api}
-        allergies={allergies} skinTests={skinTests} />}
+        allergies={allergies} skinTests={skinTests} onInspectMedication={setInspectMedicationName} />}
 
       {!readOnly && isComposerActive && !groupingComposerTarget && !(entryType === 'HERBAL' && draftHerbalCount > 0) && renderComposer()}
       </div>
@@ -1068,5 +1076,12 @@ export function UnifiedOrderListEditor({
         </div>
       )}
     </div>
+
+    <MedicalInsertViewerModal
+      isOpen={Boolean(inspectMedicationName)}
+      onClose={() => setInspectMedicationName(null)}
+      target={inspectMedicationName ? { name: inspectMedicationName, type: 'medication' } : null}
+      api={api}
+    />
   </div>
 }

@@ -1,18 +1,20 @@
 import type { MedicationRequest, ServiceRequest } from '../../../shared/api/encountersApi'
 import type { SkinTestWorkItem } from '../../../shared/api/treatmentApi'
-import { Button, Popconfirm, StatusBadge } from '../../../shared/ui'
+import { Button, Icon, Popconfirm, StatusBadge } from '../../../shared/ui'
 import { formatPackageUnit, resolveExecutingDepartment, formatServiceExecution, orderStatusLabel, formatUnitPrice } from './orderPresentation'
 import { OrderTypeBadge, AdministrationGroupBracket } from './OrderRowDecorations'
 
-export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isTail, isMid, onCancel, currentDept, documentLink }: {
+export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isTail, isMid, onCancel, onInspectMedication, currentDept, documentLink }: {
   value: MedicationRequest; skinTest?: SkinTestWorkItem; busy: boolean; readOnly: boolean
   isHead?: boolean; isTail?: boolean; isMid?: boolean
   onCancel: () => void
+  onInspectMedication?: (name: string) => void
   documentLink?: { key: string; label: string; selected: boolean }
   currentDept?: string
 }) {
   const spec = value.packageSpec || value.preparationSpec
   const mfr = value.manufacturerName
+  const medName = value.itemName || value.medicationName
   return <div id={`order-${value.id}`} className={`doctor-unified-order-row${documentLink?.selected ? ' is-document-selected' : ''}`} role="row">
     <span className="doctor-unified-cell-type">
       <OrderTypeBadge type={value.medicationType === 'HERBAL' ? 'HERBAL'
@@ -22,7 +24,24 @@ export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isT
       <div className="doctor-unified-order-name-row">
         <AdministrationGroupBracket isHead={isHead} isTail={isTail} isMid={isMid} />
         <div className="doctor-unified-order-name-text">
-          <strong>{value.itemName || value.medicationName}</strong>
+          <div className="doctor-order-name-with-action">
+            <strong>{medName}</strong>
+            {onInspectMedication && medName && (
+              <Button
+                type="button"
+                size="sm"
+                variant="text"
+                className="doctor-order-insert-btn"
+                title={`在临床知识库中查阅《${medName}》药品资料`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onInspectMedication(medName)
+                }}
+              >
+                <Icon name="pill" />说明书
+              </Button>
+            )}
+          </div>
           {(spec || mfr) && (
             <div className="doctor-unified-order-subtext">
               {spec && <span>{spec}</span>}

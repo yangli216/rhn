@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -135,5 +136,33 @@ class ClinicalAiConfigurationTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("AI_CONFIGURATION_SCOPE_RESTRICTED"));
+    }
+
+    @Test
+    void knowledgeConfigurationSupportsProbingAndEnabling() throws Exception {
+        mockMvc.perform(post("/api/ai/administration/configuration/test").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "scope":"TENANT",
+                                  "target":"KNOWLEDGE",
+                                  "endpoint":"invalid-endpoint"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.target").value("KNOWLEDGE"))
+                .andExpect(jsonPath("$.success").value(false));
+
+        mockMvc.perform(put("/api/ai/administration/configuration").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"scope":"TENANT","settings":[
+                                  {"key":"knowledge-enabled","value":true},
+                                  {"key":"knowledge-endpoint","value":"http://127.0.0.1:8788/api/knowledge/search"},
+                                  {"key":"knowledge-max-results","value":5}
+                                ]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.settings[?(@.key == 'knowledge-enabled')].effectiveValue").value(true))
+                .andExpect(jsonPath("$.settings[?(@.key == 'knowledge-endpoint')].effectiveValue").value("http://127.0.0.1:8788/api/knowledge/search"))
+                .andExpect(jsonPath("$.runtime.knowledgeReady").value(true));
     }
 }

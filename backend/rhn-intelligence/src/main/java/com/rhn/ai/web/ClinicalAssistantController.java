@@ -80,7 +80,8 @@ class ClinicalAssistantController {
         try {
             // Remain on the authenticated request thread. The service transaction commits before 'complete'.
             Suggestion result = service.generate(encounterId, input,
-                    delta -> sendStreamEvent(response, "delta", java.util.Map.of("text", delta)));
+                    delta -> sendStreamEvent(response, "delta", java.util.Map.of("text", delta)),
+                    stage -> sendStreamEvent(response, "stage", stage));
             sendStreamEvent(response, "complete", result);
         } catch (RuntimeException exception) {
             if (!response.isCommitted()) {
@@ -119,6 +120,22 @@ class ClinicalAssistantController {
     KnowledgeSearch searchKnowledge(@PathVariable Long encounterId,
                                     @Valid @RequestBody KnowledgeSearchRequest input) {
         return service.searchKnowledge(encounterId, input);
+    }
+
+    @PostMapping("/encounters/{encounterId}/evidence-chain")
+    com.rhn.ai.application.ClinicalKnowledgeGateway.EvidenceChainResult evidenceChain(
+            @PathVariable Long encounterId,
+            @Valid @RequestBody EvidenceChainQuery input) {
+        return service.getEvidenceChain(encounterId, input);
+    }
+
+    @GetMapping("/wiki/doc")
+    com.rhn.ai.application.ClinicalKnowledgeGateway.WikiDocResult wikiDoc(
+            @RequestParam(name = "name", required = false) String name,
+            @RequestParam(name = "id", required = false) String id,
+            @RequestParam(name = "type", required = false) String type) {
+        String query = (name != null && !name.isBlank()) ? name : id;
+        return service.getWikiDoc(query, type);
     }
 
     @PostMapping("/encounters/{encounterId}/plan-templates/{templateId}/preflight")

@@ -7,12 +7,51 @@ export const planDurationUnits = [
   { value: '天', label: '天' }, { value: '日', label: '日' }, { value: '周', label: '周' }, { value: '月', label: '月' },
 ]
 
-export function medicationCandidateDraft(candidate: TemplateMedicationCandidate): CompiledPlanMedicationItem {
+function sourceDose(source: string): { doseValue: number; doseUnit: string } | undefined {
+  const matched = /(?:单次剂量|每次|一次|常规用法)[：:]?\s*([0-9]+(?:\.[0-9]+)?|\.[0-9]+)\s*(kg|mg|ug|μg|µg|ng|g|mL|ml|uL|μL|µL|L|千克|毫克|微克|纳克|克|毫升|微升|升|片|粒|支|袋|包)/i.exec(source)
+  if (!matched) return undefined
+  const units: Record<string, string> = { 千克: 'kg', 克: 'g', 毫克: 'mg', 微克: 'ug', 'μg': 'ug', 'µg': 'ug', 纳克: 'ng', 升: 'L', 毫升: 'mL', ml: 'mL', 微升: 'uL', 'μL': 'uL', 'µL': 'uL' }
+  return { doseValue: Number(matched[1]), doseUnit: units[matched[2]] ?? matched[2] }
+}
+
+function sourceDuration(source: string): { durationValue: number; durationUnit: string } | undefined {
+  const matched = /(?:疗程|连用|用药)[：:]?\s*([0-9]+(?:\.[0-9]+)?|\.[0-9]+)\s*(天|日|周|月)/.exec(source)
+  return matched ? { durationValue: Number(matched[1]), durationUnit: matched[2] } : undefined
+}
+
+function sourceFrequency(source: string): string | undefined {
+  const matched = /(?<![a-zA-Z0-9])(qid|tid|bid|qd|qn|prn)(?![a-zA-Z0-9])|(?:每日|一日)(一|二|两|三|四)次|每晚一次|必要时/i.exec(source)
+  if (!matched) return undefined
+  const token = matched[0].toLowerCase().replaceAll('.', '')
+  if (token === '必要时') return 'PRN'
+  if (token === '每晚一次') return 'QN'
+  if (/一次/.test(token)) return 'QD'
+  if (/(?:二|两)次/.test(token)) return 'BID'
+  if (/三次/.test(token)) return 'TID'
+  if (/四次/.test(token)) return 'QID'
+  return token.toUpperCase()
+}
+
+export function medicationCandidateDraft(candidate: TemplateMedicationCandidate, source = ''): CompiledPlanMedicationItem {
+  const unsafeSource = /(?:不要|不得|禁止|避免|无需|无须)\s*(?:再|继续)?\s*(?:口服|静脉滴注|静脉注射|肌内注射|外用|服用|使用|用药|给药|每次)/.test(source)
+    || /(?:单次剂量|每次|一次|疗程|连用|用药)[：:]?\s*[0-9.]+\s*(?:kg|mg|ug|μg|µg|ng|g|mL|ml|uL|μL|µL|L|天|日|周|月)?\s*(?:[-–~～至或/／]|到)\s*[0-9.]+/i.test(source)
+  const dose = unsafeSource ? undefined : sourceDose(source)
+  const duration = unsafeSource ? undefined : sourceDuration(source)
+  const frequency = unsafeSource ? undefined : sourceFrequency(source)
+  const useCatalogDefaults = !source || !unsafeSource
+  const doseValue = dose?.doseValue ?? (useCatalogDefaults ? candidate.defaultDose ?? undefined : undefined)
+  const doseUnit = doseValue == null ? undefined : dose?.doseUnit ?? candidate.doseUnit ?? undefined
   return {
     medicationId: candidate.medicationId,
     catalogItemId: candidate.isGenericOnly ? undefined : candidate.id,
     medicationName: candidate.name, preparationSpec: candidate.preparationSpec ?? undefined,
-    quantity: Number.NaN, quantityUnit: candidate.quantityUnit ?? undefined,
+    doseValue,
+    doseUnit,
+    routeCode: useCatalogDefaults ? candidate.defaultRoute ?? undefined : undefined,
+    frequencyCode: frequency ?? (useCatalogDefaults ? candidate.defaultFrequency ?? undefined : undefined),
+    durationValue: duration?.durationValue,
+    durationUnit: duration?.durationUnit,
+    quantity: 1, quantityUnit: candidate.quantityUnit ?? undefined,
     substitutionAllowed: true, selfProvided: false,
   }
 }

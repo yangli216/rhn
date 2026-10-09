@@ -66,7 +66,7 @@ rhn:
     speech-endpoint: ${RHN_AI_SPEECH_ENDPOINT:}
     speech-model: ${RHN_AI_SPEECH_MODEL:gpt-transcribe}
     max-audio-bytes: ${RHN_AI_MAX_AUDIO_BYTES:20971520}
-    knowledge-endpoint: ${RHN_AI_KNOWLEDGE_ENDPOINT:}
+    knowledge-endpoint: ${RHN_AI_KNOWLEDGE_ENDPOINT:http://127.0.0.1:8788/api/knowledge/search}
     knowledge-api-key: ${RHN_AI_KNOWLEDGE_API_KEY:}
     max-knowledge-results: ${RHN_AI_MAX_KNOWLEDGE_RESULTS:5}
     suggestion-ttl: ${RHN_AI_SUGGESTION_TTL:PT30M}

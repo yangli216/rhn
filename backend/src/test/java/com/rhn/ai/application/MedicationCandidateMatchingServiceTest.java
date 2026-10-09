@@ -13,6 +13,44 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class MedicationCandidateMatchingServiceTest {
+    @Test
+    void suggestsOnlyOneCatalogSpecificationAndIncludesItsPreparationUnit() {
+        var inventory = mock(OutpatientPrescriptionInventoryDirectory.class);
+        var first = medication("阿莫西林胶囊", List.of());
+        var second = medication("阿莫西林胶囊", List.of());
+        when(first.preparationSpec()).thenReturn("0.25g");
+        when(first.preparationUnit()).thenReturn("粒");
+        when(second.preparationSpec()).thenReturn("0.25g");
+        when(second.preparationUnit()).thenReturn("粒");
+        when(inventory.findOrderableMedicationCandidates(1L, 2L, 3L, "阿莫西林胶囊"))
+                .thenReturn(List.of(first, second));
+
+        var suggestion = new MedicationCandidateMatchingService(inventory)
+                .suggestPreparationSpecification(1L, 2L, 3L, "阿莫西林胶囊");
+
+        assertEquals(java.util.Optional.of("0.25g/粒"), suggestion);
+    }
+
+    @Test
+    void doesNotSuggestWhenCatalogCandidatesHaveDifferentOrMissingSpecifications() {
+        var inventory = mock(OutpatientPrescriptionInventoryDirectory.class);
+        var first = medication("阿莫西林胶囊", List.of());
+        var second = medication("阿莫西林胶囊", List.of());
+        when(first.preparationSpec()).thenReturn("0.125g");
+        when(first.preparationUnit()).thenReturn("粒");
+        when(second.preparationSpec()).thenReturn("0.25g");
+        when(second.preparationUnit()).thenReturn("粒");
+        when(inventory.findOrderableMedicationCandidates(1L, 2L, 3L, "阿莫西林胶囊"))
+                .thenReturn(List.of(first, second));
+        var service = new MedicationCandidateMatchingService(inventory);
+
+        assertEquals(java.util.Optional.empty(),
+                service.suggestPreparationSpecification(1L, 2L, 3L, "阿莫西林胶囊"));
+        when(second.preparationSpec()).thenReturn(null);
+        assertEquals(java.util.Optional.empty(),
+                service.suggestPreparationSpecification(1L, 2L, 3L, "阿莫西林胶囊"));
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({"10mg,NEEDS_REVIEW", "5.00 mg,UNIQUE_MATCH", ",NEEDS_REVIEW"})
     void explicitStrengthMustMatchConfirmedCatalogSpecification(String catalogSpec, MedicationCandidateMatchingService.Status expected) {

@@ -2085,11 +2085,11 @@ function CatalogLifecycleSession({ api, catalogItemId, itemName, organization, p
                 />
                 <StaticSelectField
                   name="defaultDepartmentId"
-                  label="默认科室"
+                  label={defaults.executable ? '默认执行科室' : '默认科室'}
                   required={false}
                   className="span-2"
                   defaultValue={adoptionSeed?.defaultDepartmentId}
-                  placeholder="请选择默认科室（选填）"
+                  placeholder={defaults.executable ? '未设置时检验检查自动匹配' : '请选择默认科室（选填）'}
                   disabled={!editable || !departmentsReady}
                   options={(departmentsReady ? departments.data : []).map((value) => ({
                     value: value.id,

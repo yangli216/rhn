@@ -15,7 +15,10 @@ describe('UnifiedOrderListEditor', () => {
     encounters: {
       orderableMedications: vi.fn().mockResolvedValue([]),
     },
-    organization: { department: vi.fn().mockResolvedValue({ department: { id: 'dept-1', organizationId: 'org-1', name: '真实执行科室', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null } }) },
+    organization: {
+      department: vi.fn().mockResolvedValue({ department: { id: 'dept-1', organizationId: 'org-1', name: '真实执行科室', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null } }),
+      departments: vi.fn().mockResolvedValue([{ id: 'dept-1', organizationId: 'org-1', name: '真实执行科室', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null }]),
+    },
     treatments: {
       skinTestWorklist: vi.fn().mockResolvedValue([]),
       validNegativeSkinTests: vi.fn().mockResolvedValue([]),
@@ -33,6 +36,17 @@ describe('UnifiedOrderListEditor', () => {
       searchServices: vi.fn().mockResolvedValue({ content: [] }),
       itemGroups: vi.fn().mockResolvedValue([]),
     },
+    clinicalAi: {
+      getWikiDoc: vi.fn().mockResolvedValue({
+        id: 'doc-1',
+        title: '阿莫西林克拉维酸钾片说明书',
+        docType: 'LABEL',
+        structuredData: {
+          commonName: '阿莫西林克拉维酸钾片',
+          indications: '本品适用于敏感菌引起的各种感染。',
+        },
+      }),
+    },
   } as unknown as RhnApi
 
   beforeEach(() => {
@@ -42,6 +56,9 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([])
     vi.mocked(mockApi.masterData.services).mockResolvedValue([])
     vi.mocked(mockApi.masterData.itemGroups).mockResolvedValue([])
+    vi.mocked(mockApi.organization.departments).mockResolvedValue([
+      { id: 'dept-1', organizationId: 'org-1', name: '真实执行科室', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null },
+    ] as never)
     vi.mocked(mockApi.masterData.activeOrderFrequencies).mockResolvedValue([{
       code: 'QD', name: '每日一次', executionTimes: ['08:00'], shortName: '每日一次',
         ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D',
@@ -78,7 +95,7 @@ describe('UnifiedOrderListEditor', () => {
     expect(mockApi.masterData.searchServices).toHaveBeenCalledWith('LAB001', 'LABORATORY', 'ACTIVE', 'org-1', 0, 100)
     expect(setServices).toHaveBeenCalledTimes(1)
     expect(setServices.mock.calls[0][0]([])).toEqual([expect.objectContaining({
-      catalogItemId: 'lab-1', itemName: '血常规', quantity: 1, clinicalDescription: '评估病因',
+      catalogItemId: 'lab-1', itemName: '血常规', quantity: 1, clinicalDescription: undefined,
     })])
     expect(setMedications).not.toHaveBeenCalled()
     expect(completed).toHaveBeenCalledWith(['LABORATORY:lab-1'])
@@ -311,6 +328,8 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByRole('button', { name: '新增医嘱' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
     expect(screen.getByText('搜索药品/项目名称或拼音')).toBeInTheDocument()
+    expect(screen.getByLabelText('尚未形成医嘱')).toHaveTextContent('—')
+    expect(screen.queryByText('录入中')).not.toBeInTheDocument()
     // 确保新接诊时空白行不自动激活弹出下拉框或抢夺焦点
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText('输入通用名、编码或别名')).not.toBeInTheDocument()
@@ -507,9 +526,9 @@ describe('UnifiedOrderListEditor', () => {
     // 点击加入医嘱，首药（组头药）加入待确认后，系统自动激活成组模式
     await user.click(screen.getByRole('button', { name: '加入医嘱' }))
 
-    // 验证成组模式已激活：出现“成组中”徽标、唯一的“组方完成”横条按钮和成组提示横条
-    expect(await screen.findByText('成组中')).toBeInTheDocument()
-    expect(screen.getByText(/成组录入模式/)).toBeInTheDocument()
+    // 成组是录入模式而非医嘱状态，仅在模式提示横条中展示。
+    expect(await screen.findByText(/成组录入模式/)).toBeInTheDocument()
+    expect(screen.queryByText('成组中')).not.toBeInTheDocument()
     expect(screen.getByText(/已关联首药：氯化钠注射液/)).toBeInTheDocument()
     // 操作按钮栏不再挤入重复的“组方完成”，整行仅有 banner 内唯一的“组方完成”按钮
     const finishBtns = screen.getAllByRole('button', { name: '组方完成' })
@@ -583,6 +602,9 @@ describe('UnifiedOrderListEditor', () => {
     renderComponent({ medicationDrafts: [mockMedicationDraft], setMedicationDrafts })
 
     await userEvent.click(screen.getByRole('row', { name: '编辑待确认医嘱 阿莫西林胶囊' }))
+    const editorRow = screen.getByRole('row', { name: '编辑待确认医嘱 阿莫西林胶囊' })
+    expect(within(editorRow).getByText('待确认')).toBeInTheDocument()
+    expect(within(editorRow).queryByText('编辑中')).not.toBeInTheDocument()
     expect(screen.getByLabelText('编辑单次剂量')).toHaveValue(0.5)
     expect(screen.getByLabelText('编辑用药嘱托')).toHaveValue('饭后服用')
     expect(screen.queryByLabelText('保存医嘱修改')).not.toBeInTheDocument()
@@ -758,6 +780,9 @@ describe('UnifiedOrderListEditor', () => {
       expect(screen.queryByText(guessed)).not.toBeInTheDocument()
     }
     await userEvent.click(screen.getByRole('row', { name: '编辑待确认医嘱 胸部正侧位片(DR)' }))
+    const serviceEditorRow = screen.getByRole('row', { name: '编辑待确认医嘱 胸部正侧位片(DR)' })
+    expect(within(serviceEditorRow).getByText('待确认')).toBeInTheDocument()
+    expect(within(serviceEditorRow).queryByText('编辑中')).not.toBeInTheDocument()
     expect(screen.getAllByText('执行科室待确认').length).toBeGreaterThan(0)
     expect(screen.queryByText('放射影像科')).not.toBeInTheDocument()
   })
@@ -1223,8 +1248,9 @@ describe('UnifiedOrderListEditor', () => {
     await user.click(await screen.findByRole('option', { name: /注射用头孢曲松钠/ }))
     await user.click(screen.getByRole('button', { name: '加入医嘱' }))
 
-    // 验证成组录入模式已激活
-    expect(await screen.findByText('成组中')).toBeInTheDocument()
+    // 验证成组录入模式已激活，但不占用医嘱状态列。
+    expect(await screen.findByText(/成组录入模式/)).toBeInTheDocument()
+    expect(screen.queryByText('成组中')).not.toBeInTheDocument()
 
     // 待确认列表中首药显示 ┏，正在录入的草稿行左侧显示 ┗，组合成 [
     const brackets = screen.getAllByLabelText('输液成组标识')
@@ -2389,12 +2415,48 @@ describe('UnifiedOrderListEditor', () => {
   })
   it('displays the verified execution department on imported service drafts and their editor', async () => {
     const user = userEvent.setup()
+    vi.mocked(mockApi.organization.departments).mockResolvedValue([
+      { id: 'actual-dept', organizationId: 'org-1', name: '医技中心二部', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null },
+    ] as never)
     renderComponent({ serviceDrafts: [{ ...mockServiceDraft, performerDepartmentId: 'actual-dept', performerDepartmentName: '医技中心二部' }] })
     const row = screen.getByRole('row', { name: `编辑待确认医嘱 ${mockServiceDraft.itemName}` })
     expect(within(row).getByText('医技中心二部')).toBeInTheDocument()
     await user.click(row)
-    expect(screen.getAllByText('医技中心二部')).toHaveLength(2)
+    await waitFor(() => expect(screen.getByRole('combobox', { name: '编辑执行科室' })).toHaveTextContent('医技中心二部'))
+  })
+
+  it('displays medication insert button and opens MedicalInsertViewerModal upon click', async () => {
+    const user = userEvent.setup()
+    renderComponent({
+      medications: [
+        {
+          id: 'med-saved-1',
+          prescriptionId: 'rx-1',
+          medicationCode: 'MED001',
+          medicationName: '阿莫西林克拉维酸钾片',
+          status: 'ACTIVE',
+          doseValue: 0.228,
+          doseUnit: 'g',
+          quantity: 1,
+          quantityUnit: '盒',
+        } as any,
+      ],
+      medicationDrafts: [
+        {
+          ...mockMedicationDraft,
+          medicationName: '布洛芬缓释胶囊',
+          productName: '布洛芬缓释胶囊',
+        },
+      ],
+    })
+
+    const insertButtons = screen.getAllByRole('button', { name: /说明书/ })
+    expect(insertButtons.length).toBeGreaterThanOrEqual(2)
+
+    await user.click(insertButtons[0])
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText(/药品说明书 · 阿莫西林克拉维酸钾片/)).toBeInTheDocument()
   })
 
 });
-

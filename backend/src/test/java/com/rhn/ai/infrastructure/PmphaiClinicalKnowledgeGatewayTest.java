@@ -82,17 +82,119 @@ class PmphaiClinicalKnowledgeGatewayTest {
         assertFalse(error.getMessage().contains("upstream-private-detail"));
     }
 
+    @Test
+    void evaluatesEvidenceChainThroughGatewayEndpoint() throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/gateway/api/knowledge/evidence-chain", exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] response = """
+                    {
+                      "success": true,
+                      "protocolId": "PROT-HTN-001",
+                      "protocolTitle": "原发性高血压门诊规范诊疗方案",
+                      "diagnosis": { "code": "I10", "name": "原发性高血压 2级" },
+                      "summary": "依据国家专科临床诊疗指南与规范，推导证据链确凿。",
+                      "checkpoints": [
+                        {
+                          "status": "MET", "type": "VITAL",
+                          "label": "诊室血压 168/102 mmHg ≥ 160/100 mmHg",
+                          "detail": "达到 2 级高血压门槛", "sourceQuote": "非同日3次诊室测量"
+                        }
+                      ],
+                      "gapOrders": [
+                        {
+                          "id": "gap-ecg", "name": "12导联心电图",
+                          "category": "EXAMINATION", "orderType": "EXAMINATION",
+                          "dept": "功能检查科", "indication": "排查左心室肥厚",
+                          "defaultChecked": true
+                        }
+                      ],
+                      "guidelines": [
+                        {
+                          "id": "SRC-CMA-CARD-2024-01",
+                          "title": "中国高血压防治指南（2024年修订版）",
+                          "chapter": "第4章", "authority": "中华医学会",
+                          "publishYear": "2024", "docPath": "sources/SRC-CMA-CARD-2024-01.md",
+                          "keyExcerpts": ["诊室血压≥140/90确立诊断"]
+                        }
+                      ]
+                    }
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+
+        var gateway = new PmphaiClinicalKnowledgeGateway(settings("test-key"), jsonCodec);
+        var req = new com.rhn.ai.application.ClinicalKnowledgeGateway.EvidenceChainRequest(
+                "原发性高血压 2级", "I10",
+                new com.rhn.ai.application.ClinicalKnowledgeGateway.EvidenceChainRequest.PatientContext(
+                        56, "男", "头晕2周", "伴晨起头胀", "吸烟史",
+                        Map.of("systolicBp", 168, "diastolicBp", 102)
+                )
+        );
+        var result = gateway.evaluateEvidenceChain(req, settings("test-key"));
+
+        assertTrue(result.success());
+        assertEquals("PROT-HTN-001", result.protocolId());
+        assertEquals(1, result.checkpoints().size());
+        assertEquals("MET", result.checkpoints().getFirst().status());
+        assertEquals("12导联心电图", result.gapOrders().getFirst().name());
+        assertEquals("中国高血压防治指南（2024年修订版）", result.guidelines().getFirst().title());
+        assertTrue(requestBody.get().contains("原发性高血压 2级"));
+    }
+
+    @Test
+    void lookupsWikiDocThroughGatewayEndpoint() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/gateway/api/knowledge/doc", exchange -> {
+            String query = exchange.getRequestURI().getQuery();
+            if (query != null && query.contains("厄贝沙坦片")) {
+                byte[] response = """
+                        {
+                          "id": "厄贝沙坦片",
+                          "title": "厄贝沙坦片 官方核准药品说明书",
+                          "type": "drug_insert",
+                          "genericName": "厄贝沙坦片",
+                          "atcCode": "C09CA04",
+                          "maxDailyDose": "300mg qd",
+                          "html": "<h1>厄贝沙坦片</h1>"
+                        }
+                        """.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, response.length);
+                exchange.getResponseBody().write(response);
+            } else {
+                exchange.sendResponseHeaders(404, -1);
+            }
+            exchange.close();
+        });
+        server.start();
+
+        var gateway = new PmphaiClinicalKnowledgeGateway(settings(null), jsonCodec);
+        var doc = gateway.lookupWikiDoc("厄贝沙坦片", "drug", settings(null));
+        org.junit.jupiter.api.Assertions.assertNotNull(doc);
+        assertEquals("厄贝沙坦片", doc.genericName());
+        assertEquals("300mg qd", doc.maxDailyDose());
+
+        var notFound = gateway.lookupWikiDoc("不存在的药物", "drug", settings(null));
+        org.junit.jupiter.api.Assertions.assertNull(notFound);
+    }
+
     private ClinicalAssistantSettings settings(String knowledgeApiKey) {
         return new ClinicalAssistantSettings("MODEL", "test-provider", "test-model", Duration.ofMinutes(30),
                 "http://127.0.0.1:9/v1/chat/completions", "model-secret", Duration.ofSeconds(5), 1200,
                 "", "gpt-transcribe", 20 * 1024 * 1024,
-                "http://127.0.0.1:" + server.getAddress().getPort() + "/v1/knowledge/pmphai/search",
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/gateway/api/knowledge/search",
                 knowledgeApiKey, 5);
     }
 
     private void startServer(com.sun.net.httpserver.HttpHandler handler) throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/v1/knowledge/pmphai/search", handler);
+        server.createContext("/gateway/api/knowledge/search", handler);
         server.start();
     }
 

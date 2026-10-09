@@ -1,5 +1,6 @@
-import { resolveExecutingDepartment, summarizeExecutingDepartments } from './orders/orderPresentation'
+import { formatPackageUnit, resolveExecutingDepartment, summarizeExecutingDepartments } from './orders/orderPresentation'
 import { AnnotatedRecordField } from './record/AnnotatedRecordField'
+import { RecordAnnotationLegend } from './record/RecordAnnotationLegend'
 import { rebaseAnnotations } from './record/recordAnnotations'
 import type { RecordTextField } from '../../shared/api/recordAnnotations'
 import { useClinicalAiDraft, type AiRecordUndo } from './record/useClinicalAiDraft'
@@ -19,7 +20,7 @@ import { completionModeKey, requireCompletionMode, requireCompletionOrderCount, 
   completionBillingSummary, requireCompletionPaymentOrders, hasPendingCompletionPayment, confirmCompletionFacts,
   type OutpatientCompletionMode } from './record/completionFacts'
 import { requirePaymentRounding } from '../../shared/billing/roundAmount'
-import { clinicalRecordContent, createRecordSchema, diagnosisDraftSignature,
+import { ClinicalRecordValidationError, clinicalRecordContent, createRecordSchema, diagnosisDraftSignature,
   normalizeDiagnosisOrder, structuredFormSignature, validateStructuredForm,
   type RecordForm } from './record/clinicalRecordDraft'
 import { usePrescriptionSplitPreview } from './orders/usePrescriptionSplitPreview'
@@ -958,7 +959,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                 onClick={() => setActiveTool(toggleTool(activeTool, 'plans'))} />}
             <ToolButton icon="roadmap" label="就诊历史" active={activeTool === 'history'} onClick={() => setActiveTool(toggleTool(activeTool, 'history'))} />
             <ToolButton icon="clinical" label="检验结果" active={activeTool === 'results'} onClick={() => setActiveTool(toggleTool(activeTool, 'results'))} />
-            <ToolButton icon="print" label="受控打印" active={activeTool === 'prints'} onClick={() => setActiveTool(toggleTool(activeTool, 'prints'))} />
+            <ToolButton icon="print" label="就诊文书" active={activeTool === 'prints'} onClick={() => setActiveTool(toggleTool(activeTool, 'prints'))} />
             {editing && <ToolButton icon="tasks" label="皮试管理" active={false}
               onClick={() => navigate(`/skin-tests?encounterId=${encounter.id}`)} />}
             {editing && <ToolButton icon="organization" label="协同业务" active={activeTool === 'coordination'} onClick={() => setActiveTool(toggleTool(activeTool, 'coordination'))} />}
@@ -1138,7 +1139,7 @@ function toggleTool(current: WorkTool | null, next: WorkTool): WorkTool | null {
 
 function toolLabel(value: WorkTool) {
   return ({ assistant: '智医助理', plans: '临床模板', history: '就诊历史', results: '检验检查结果', coordination: '协同业务',
-    allergy: '过敏信息', prints: '受控打印' } as const)[value]
+    allergy: '过敏信息', prints: '就诊文书' } as const)[value]
 }
 
 function ToolButton({ icon, label, active, onClick }: {
@@ -1650,6 +1651,17 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       respiratoryRate: undefined, heightCm: undefined, weightKg: undefined, oxygenSaturation: undefined },
   })
   const { handleSubmit, reset, getValues, watch, formState } = form
+  const recordFormRef = useRef<HTMLFormElement>(null)
+  const [recordErrorFocusRequest, setRecordErrorFocusRequest] = useState(0)
+  useEffect(() => {
+    if (!recordErrorFocusRequest) return
+    const frame = requestAnimationFrame(() => {
+      const control = recordFormRef.current?.querySelector<HTMLElement>('.is-invalid textarea, .is-invalid input, .is-invalid select')
+      control?.focus()
+      control?.scrollIntoView?.({ block: 'nearest' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [recordErrorFocusRequest])
   const documents = useQuery({ queryKey: ['doctor-document', encounter.id], queryFn: () => api.clinicalDocuments.byEncounter(encounter.id) })
   const noteForms = useQuery({ queryKey: ['outpatient-note-forms', 'GENERAL_PRACTICE'],
     queryFn: () => api.outpatientNoteForms.list('GENERAL_PRACTICE') })
@@ -2028,7 +2040,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
         {editing && aiRecordUndo && <Button size="sm" variant="text" disabled={!canUndoAiRecord}
           title={canUndoAiRecord ? '恢复本次采纳前的病历段落' : '相关段落已修改或保存，不能撤销此前采纳'}
           onClick={undoAiRecord}>撤销本次病历采纳</Button>}</div>}
-      {editing ? <form id="doctor-record-form" className="clinical-form doctor-record-form" noValidate onSubmit={handleRecordSubmit}>
+      {editing ? <form ref={recordFormRef} id="doctor-record-form" className="clinical-form doctor-record-form" noValidate onSubmit={handleRecordSubmit}>
         {aiPreConsultation && !signed && (
           <div className="ai-preconsultation-banner">
             <div className="ai-banner-content">
@@ -2092,6 +2104,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
               onClick={() => sign.mutate()}>签署当前版本</Button>
           </div>
         )}
+        {showRecordAnnotations && (recordValues.annotations?.length ?? 0) > 0 && <RecordAnnotationLegend />}
       </form> : <ClinicalRecordReadView value={recordValues} bmi={bmi} structuredForm={selectedNoteForm}
         structuredValues={structuredValues} />}
     </Panel>
@@ -2103,10 +2116,20 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       <OrdersPanel draftDiagnoses={diagnoses} onSaveClinicalDraft={async () => {
         if (!recordContentChanged && !diagnosesChanged && !structuredChanged
           && medicationDrafts.length === 0 && serviceDrafts.length === 0) return true
-        if (!await form.trigger()) throw new Error('请先补齐病历必填内容')
+        const valid = await form.trigger()
+        const structuredValidationErrors = validateStructuredForm(selectedNoteForm, structuredValues)
+        setStructuredErrors(structuredValidationErrors)
+        const parsed = recordSchema.safeParse(form.getValues())
+        if (!valid || !parsed.success || Object.keys(structuredValidationErrors).length) {
+          throw new ClinicalRecordValidationError([
+            ...(!parsed.success ? parsed.error.issues.map(issue => issue.message) : []),
+            ...Object.values(structuredValidationErrors),
+          ])
+        }
         await save.mutateAsync({ form: recordSchema.parse(form.getValues()), session: captureDraftSession() })
         return true
-      }} aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
+      }} onEditInvalidRecord={() => setRecordErrorFocusRequest(value => value + 1)}
+        aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
         onTreatmentKeysChange={onTreatmentKeysChange} encounter={encounter} allergies={allergies} api={api} editing={editing}
         aiSuggestionSurfaceRef={editing && !signed ? aiSurfaceRefs.plans : undefined}
         medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
@@ -3681,7 +3704,7 @@ function serviceReviewTitle(serviceType: ServiceRequest['serviceType'], index: n
   return `${prefix}${index}`
 }
 
-function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinicalDraft, allergies, api, medicationDrafts, setMedicationDrafts,
+function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinicalDraft, onEditInvalidRecord, allergies, api, medicationDrafts, setMedicationDrafts,
   serviceDrafts, setServiceDrafts, editing, onBusyChange, aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange,
   aiSuggestionSurfaceRef, currentDepartmentName, onOpenPrintCenter: _onOpenPrintCenter }: {
   aiOrderReview?: AiOrderReviewCommand | null
@@ -3691,6 +3714,7 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
   encounter: Encounter; allergies: AllergyIntolerance[]; api: RhnApi
   draftDiagnoses: DiagnosisInput[]
   onSaveClinicalDraft: () => Promise<boolean>
+  onEditInvalidRecord: () => void
   medicationDrafts: MedicationPlanDraft[]
   setMedicationDrafts: Dispatch<SetStateAction<MedicationPlanDraft[]>>
   serviceDrafts: ServicePlanDraft[]
@@ -4045,7 +4069,14 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
         {hasUnverifiedAllergyDraft && <Alert tone="warning">
           患者药物过敏信息尚未核验；本次提交是否允许继续由机构的过敏核验参数控制，请尽快补充核验记录。
         </Alert>}
-        {confirmPlan.error && <Alert>{errorMessage(confirmPlan.error)}</Alert>}
+        {confirmPlan.error instanceof ClinicalRecordValidationError ? <div role="alert" className="doctor-order-record-validation">
+          <span>{confirmPlan.error.message}</span>
+          <Button variant="secondary" size="sm" onClick={() => {
+            setReviewOpen(false)
+            confirmPlan.reset()
+            onEditInvalidRecord()
+          }}>返回病历补充</Button>
+        </div> : confirmPlan.error && <Alert>{errorMessage(confirmPlan.error)}</Alert>}
         {saveOnlyDocumentInfos.error && <Alert>{errorMessage(saveOnlyDocumentInfos.error)}</Alert>}
         {previewSafetyReview.error && <Alert>{errorMessage(previewSafetyReview.error)}</Alert>}
         {previewSafetyReview.isPending && <p className="doctor-safety-review-loading" role="status">
@@ -4156,7 +4187,7 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
                   frequencyDisplay(pi.item.frequencyCode),
                   pi.item.durationValue ? `${pi.item.durationValue}${pi.item.durationUnit || '单位待确认'}` : ''].filter(Boolean).join(' · '),
                 instruction: matchDraft?.request.medicationInstruction,
-                quantityText: `${pi.item.quantity} ${pi.item.quantityUnit || '单位待确认'}`,
+                quantityText: `${pi.item.quantity} ${pi.item.quantityUnit ? formatPackageUnit(matchDraft?.packageUnitName, pi.item.quantityUnit) : '单位待确认'}`,
                 isInfusionGroup: Boolean(pi.groupKey),
                 isGroupLeader: pi.groupLeader,
               }
@@ -4234,7 +4265,7 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
                   frequencyDisplay(m.frequencyCode, m.frequencyName),
                   m.durationValue ? `${m.durationValue}${m.durationUnit || '天'}` : ''].filter(Boolean).join(' · '),
                 instruction: m.medicationInstruction,
-                quantityText: `${m.quantity} ${m.quantityUnit || '盒'}`,
+                quantityText: `${m.quantity} ${m.quantityUnit ? formatPackageUnit(undefined, m.quantityUnit) : '单位待确认'}`,
               }))
               return (
                 <OrderDocumentReviewCard
@@ -4276,7 +4307,7 @@ function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinical
                     frequencyDisplay(m.frequencyCode, m.frequencyName),
                     m.durationValue ? `${m.durationValue}${m.durationUnit || '天'}` : ''].filter(Boolean).join(' · '),
                   instruction: m.medicationInstruction,
-                  quantityText: `${m.quantity} ${m.quantityUnit || '盒'}`,
+                  quantityText: `${m.quantity} ${m.quantityUnit ? formatPackageUnit(undefined, m.quantityUnit) : '单位待确认'}`,
                 }))
               : svc
               ? [{
@@ -4932,9 +4963,6 @@ function EncounterPrintPanel({
   const downloadRecord = useMutation({
     mutationFn: (record: PrintRecord) => api.printing.download(record),
   })
-  const directPrintRecord = useMutation({
-    mutationFn: (record: PrintRecord) => api.printing.printPdf(record.downloadUrl),
-  })
 
   const note = documents.data?.find((d) => d.documentType === 'OUTPATIENT_NOTE')
   const noteSigned = note?.status === 'SIGNED'
@@ -4948,23 +4976,23 @@ function EncounterPrintPanel({
   }
 
   return (
-    <Panel className="doctor-print-center-panel">
-      <PanelHead
-        title="门诊受控打印中心"
-        meta={`本次就诊 · ${encounter.encounterNo}`}
-        actions={
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            {(noteSigned || activeRxList.length > 0 || activeSvcList.length > 0) && (
-              <Button size="sm" variant="primary" onClick={() => setBatchPrintOpen(true)}>
-                <Icon name="print" />一键批量打印
-              </Button>
-            )}
-            <Button size="sm" variant="secondary" onClick={refreshRecords}>
-              <Icon name="refresh" />刷新记录
+    <div className="doctor-print-center-panel" aria-label="就诊文书与单据输出">
+      <div className="doctor-print-center-toolbar">
+        <div className="doctor-print-center-meta">
+          <span className="doctor-print-meta-label">本次就诊</span>
+          <code className="doctor-print-meta-no">{encounter.encounterNo}</code>
+        </div>
+        <div className="doctor-print-center-actions">
+          {(noteSigned || activeRxList.length > 0 || activeSvcList.length > 0) && (
+            <Button size="sm" variant="primary" onClick={() => setBatchPrintOpen(true)}>
+              <Icon name="print" />一键批量打印
             </Button>
-          </div>
-        }
-      />
+          )}
+          <Button size="sm" variant="secondary" onClick={refreshRecords}>
+            <Icon name="refresh" />刷新记录
+          </Button>
+        </div>
+      </div>
 
       <div className="doctor-print-center-content">
         <section className="doctor-print-section" aria-label="本次就诊可输出单据">
@@ -4977,16 +5005,22 @@ function EncounterPrintPanel({
             <article className="doctor-print-doc-item">
               <div className="doctor-print-doc-meta">
                 <span className="doctor-print-doc-title">门诊病历</span>
-                <small>{note ? (noteSigned ? `已签署 · V${note.currentVersion}` : `草稿 V${note.currentVersion}（未签署）`) : '尚未生成病历'}</small>
+                <small>
+                  {note
+                    ? (noteSigned
+                        ? `已签署 · V${note.currentVersion}`
+                        : `草稿 V${note.currentVersion}（待签署）`)
+                    : '尚未录入门诊病历'}
+                </small>
               </div>
-              <StatusBadge tone={noteSigned ? 'success' : 'warning'}>
-                {noteSigned ? '可打印' : '需签署'}
+              <StatusBadge tone={!note ? 'neutral' : noteSigned ? 'success' : 'warning'}>
+                {!note ? '未录入' : noteSigned ? '可打印' : '需签署'}
               </StatusBadge>
               <Button
                 size="sm"
                 variant={noteSigned ? 'secondary' : 'text'}
-                disabled={!note}
-                title={noteSigned ? '受控打印已签署门诊病历' : '门诊病历签署后方可打印'}
+                disabled={!noteSigned}
+                title={!note ? '门诊病历尚未录入' : noteSigned ? '受控打印已签署门诊病历' : '门诊病历签署后方可打印'}
                 onClick={() => {
                   if (onOpenNotePrint) onOpenNotePrint()
                   else setActiveNotePrint(true)
@@ -5055,8 +5089,11 @@ function EncounterPrintPanel({
               </article>
             ))}
 
-            {!note && activeRxList.length === 0 && draftRxList.length === 0 && activeSvcList.length === 0 && (
-              <EmptyState icon="clinical" title="暂无可打印单据" copy="病历录入或开立医嘱后，此处将展示可输出的单据。" />
+            {activeRxList.length === 0 && draftRxList.length === 0 && activeSvcList.length === 0 && (
+              <div className="doctor-print-empty-hint">
+                <Icon name="clinical" />
+                <span>暂无处方与申请单开立记录，开立医嘱后可在此输出。</span>
+              </div>
             )}
           </div>
         </section>
@@ -5093,20 +5130,11 @@ function EncounterPrintPanel({
                     <Button
                       size="sm"
                       variant="text"
-                      busy={directPrintRecord.isPending}
-                      onClick={() => directPrintRecord.mutate(record)}
-                      title="调起打印机再次打印"
-                    >
-                      打印
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="text"
                       busy={downloadRecord.isPending}
                       onClick={() => downloadRecord.mutate(record)}
                       title="下载不可变 PDF 文件"
                     >
-                      下载
+                      <Icon name="download" />下载
                     </Button>
                     <Button
                       size="sm"
@@ -5114,7 +5142,7 @@ function EncounterPrintPanel({
                       onClick={() => setReprintRecord(record)}
                       title="登记补打任务留痕并打印"
                     >
-                      补打
+                      <Icon name="print" />补打
                     </Button>
                   </div>
                 </article>
@@ -5181,7 +5209,7 @@ function EncounterPrintPanel({
           onPrinted={refreshRecords}
         />
       )}
-    </Panel>
+    </div>
   )
 }
 

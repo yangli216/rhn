@@ -715,8 +715,8 @@ export function AiPlanTemplateDraftModal({
     }
     const task = taskIndex === undefined ? undefined : compiledDraft.tasks?.[taskIndex]
     if (taskIndex !== undefined && !task) return
-    setPendingMedication({ api, context: medicationContext, taskIndex, item: medicationCandidateDraft(prod),
-      source: task ? [...new Set([task.text, task.sourceQuote, task.details].filter(Boolean))].join('\n') : undefined })
+    const source = task ? [...new Set([task.text, task.sourceQuote, task.details].filter(Boolean))].join('\n') : undefined
+    setPendingMedication({ api, context: medicationContext, taskIndex, item: medicationCandidateDraft(prod, source), source })
   }
 
   const confirmMedication = () => {
@@ -1783,7 +1783,7 @@ export function AiPlanTemplateDraftModal({
       </>}>
       <p><strong>{pendingMedication.item.medicationName}</strong> · {pendingMedication.item.preparationSpec || '规格未维护'}</p>
       {pendingMedication.source && <section aria-label="原始用药建议"><strong>原始用药建议</strong><p>{pendingMedication.source}</p></section>}
-      <p>请核对原始建议后填写用法与数量。未填写的可选信息保留为空，开立时确认。</p>
+      <p>已根据原始建议和目录默认值预填用法与数量，请核对后确认；实际开立时仍会再次校验。</p>
       {pendingMedicationValidation && <div role="alert" className="doctor-plan-pool-notice">{pendingMedicationValidation}</div>}
       {medicationStandards.isError && <div role="alert" className="doctor-plan-pool-notice">用法字典加载失败：{errorMessage(medicationStandards.error)}
         <Button variant="text" onClick={() => void medicationStandards.refetch()}>重新加载用法字典</Button></div>}

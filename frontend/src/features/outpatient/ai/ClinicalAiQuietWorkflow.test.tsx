@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import type { ClinicalAiDraftContext, ClinicalAiRecommendedPlan, ClinicalAiSuggestion, GenerateClinicalAiSuggestionInput } from '../../../shared/api/clinicalAiApi'
+import type { ClinicalAiStreamStage } from '../../../shared/api/clinicalAiStream'
+import type { ClinicalAiDraftRequest } from './aiDraftAdapter'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
 import { ClinicalAiAssistantPanel } from './ClinicalAiAssistantPanel'
@@ -21,8 +23,10 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
   plans?: ClinicalAiRecommendedPlan[], diagnoses: ClinicalAiDraftContext['diagnoses'] = []) {
   const reviewRecommendedPlan = vi.fn()
   const recommendPlans = vi.fn().mockResolvedValue(plans ?? [])
-  const recordEvent = vi.fn().mockResolvedValue(undefined), apply = vi.fn(), onFieldStream = vi.fn()
-  const api = { clinicalAi: { capabilities: vi.fn().mockResolvedValue({ available: true, mode: 'MODEL', provider: 'test',
+  const recordEvent = vi.fn().mockResolvedValue(undefined), apply = vi.fn((request: ClinicalAiDraftRequest) => request.onApplied?.()), onFieldStream = vi.fn()
+  const api = { organization: { departments: vi.fn().mockResolvedValue([
+    { id: 'dept', organizationId: 'org', name: '全科医疗科', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01' },
+  ]) }, clinicalAi: { capabilities: vi.fn().mockResolvedValue({ available: true, mode: 'MODEL', provider: 'test',
     features: ['BACKGROUND_DRAFT', 'STREAMING_DRAFT', 'RECORD_COMPLETENESS', 'PLAN_RECOMMENDATIONS', 'TERMINOLOGY_VALIDATION', 'AUDIT_TRAIL', 'VOICE_TRANSCRIPTION'] }),
     generateStream, recommendPlans, history: vi.fn().mockResolvedValue([]), recordEvent },
     masterData: { diseases: vi.fn().mockResolvedValue([
@@ -127,7 +131,7 @@ describe('quiet clinical AI workflow', () => {
     fireEvent.change(screen.getByLabelText('问诊要点或辅助要求'), { target: { value: '感冒发热3天，最高体温39度' } })
     fireEvent.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
     await advance(100)
-    expect(generateStream).toHaveBeenCalledWith(encounter.id, expect.objectContaining({ receptionScene: 'FIRST_VISIT' }), expect.anything(), expect.any(Function))
+    expect(generateStream).toHaveBeenCalledWith(encounter.id, expect.objectContaining({ receptionScene: 'FIRST_VISIT' }), expect.anything(), expect.any(Function), expect.any(Function))
     expect(apply).toHaveBeenCalledTimes(1)
     expect(apply.mock.calls[0][0]).toMatchObject({ overwriteRecord: true, recordDraft: { chiefComplaint: '发热3天', medicalHistory: '既往史待询问' } })
     expect(apply.mock.calls[0][0].diagnoses).toBeUndefined()
@@ -203,7 +207,10 @@ describe('quiet clinical AI workflow', () => {
     openHub()
     fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
     await advance(100)
-    expect(screen.getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
+    const treatmentSuggestions = screen.getByLabelText('AI 医嘱待确认')
+    expect(treatmentSuggestions).toHaveTextContent('血常规')
+    expect(treatmentSuggestions).not.toHaveTextContent('评估感染')
+    expect(treatmentSuggestions.querySelector('.doctor-unified-cell-instruction')).toHaveTextContent('—')
     fireEvent.click(screen.getByRole('button', { name: '确认所选（1）' }))
     await advance(100)
     expect(screen.queryByLabelText('AI 医嘱待确认')).not.toBeInTheDocument()
@@ -287,7 +294,7 @@ describe('quiet clinical AI workflow', () => {
     await advance(20); openHub()
     fireEvent.click(screen.getByRole('button', { name: '分析当前病历' })); await advance(100)
     if (domain === 'WESTERN_MEDICINE') expect(screen.queryByLabelText('AI 诊断待确认')).not.toBeInTheDocument()
-    else expect(screen.getByRole('button', { name: '确认录入' })).toBeEnabled()
+    else expect(screen.getByRole('button', { name: /确认所选诊断/ })).toBeEnabled()
   })
 
   it('adopts only the checked diagnosis candidates in a batch', async () => {
@@ -296,7 +303,7 @@ describe('quiet clinical AI workflow', () => {
         { code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY', rationale: '需核对' },
         { code: 'R50.9', display: '测试诊断乙', type: 'SECONDARY', rationale: '需核对' },
       ] }))
-    const { openHub, apply } = setup(generateStream)
+    const { openHub, apply, recordEvent } = setup(generateStream)
     await advance(20)
     openHub()
     fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
@@ -309,13 +316,76 @@ describe('quiet clinical AI workflow', () => {
         codeSystem: 'WHO.BD.CS.ICD10', diagnosisDomain: 'WESTERN_MEDICINE',
         managementResolutionStatus: 'CONFIRMED', managementPrograms: [] },
     ] }))
+    expect(screen.queryByLabelText('AI 诊断待确认')).not.toBeInTheDocument()
+    expect(recordEvent).toHaveBeenCalledWith('quiet-result', expect.objectContaining({ sectionCode: 'DIAGNOSIS' }))
+  })
+
+  it('keeps the entire diagnosis batch and selection when adoption fails, then dismisses it on retry success', async () => {
+    const generateStream = vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
+      diagnosisCandidates: [{ code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY' },
+        { code: 'R50.9', display: '测试诊断乙', type: 'SECONDARY' }],
+      treatmentRecommendations: [{ type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规' }] }))
+    const { openHub, apply, recordEvent } = setup(generateStream, true)
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await advance(100)
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 测试诊断乙' }))
+    recordEvent.mockRejectedValueOnce(new Error('留痕失败'))
+    fireEvent.click(screen.getByRole('button', { name: '确认所选诊断（1）' }))
+    await advance(100)
+    expect(apply).not.toHaveBeenCalled()
+    expect(screen.getByRole('checkbox', { name: '选择 测试诊断乙' })).not.toBeChecked()
+    expect(screen.getByLabelText('AI 诊断待确认')).toHaveTextContent('测试诊断甲')
+    fireEvent.click(screen.getByRole('button', { name: '确认所选诊断（1）' }))
+    await advance(100)
+    expect(apply).toHaveBeenCalledOnce()
+    expect(screen.queryByLabelText('AI 诊断待确认')).not.toBeInTheDocument()
+    expect(screen.getByText('血常规')).toBeInTheDocument()
+  })
+
+  it('shows diagnosis and order stages before completion, then enables confirmation without adopting orders', async () => {
+    let finish!: (value: ClinicalAiSuggestion) => void
+    let input!: GenerateClinicalAiSuggestionInput
+    let stage!: (value: ClinicalAiStreamStage) => void
+    let delta!: (value: string) => void
+    const generateStream = vi.fn().mockImplementation((_id, value, _abort, onDelta, onStage) => {
+      input = value; stage = onStage; delta = onDelta
+      return new Promise<ClinicalAiSuggestion>((resolve) => { finish = resolve })
+    })
+    const { openHub, apply, onFieldStream } = setup(generateStream, true)
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await advance(100)
+    await act(async () => delta('{"recordDraft":{"healthEducation":"建议休息","followUp":"症状加重'))
+    expect(onFieldStream).toHaveBeenLastCalledWith(expect.objectContaining({ recordDraft: { healthEducation: '建议休息', followUp: '症状加重' } }))
+    const content = { summary: '已整理', recordDraft: { healthEducation: '建议休息', followUp: '症状加重时复诊' },
+      diagnosisCandidates: [{ code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY' as const, confidence: 0.8 }], treatmentRecommendations: [] }
+    await act(async () => stage({ phase: 'DIAGNOSES', clientContextFingerprint: input.clientContextFingerprint, content }))
+    expect(screen.getByLabelText('AI 诊断待确认')).toHaveTextContent('测试诊断甲')
+    expect(screen.getByRole('button', { name: '确认所选诊断（1）' })).toBeDisabled()
+    expect(screen.getByText('诊断已生成，正在匹配医嘱')).toBeInTheDocument()
+    expect(screen.queryByText('血常规')).not.toBeInTheDocument()
+    const treatments = [{ type: 'LABORATORY' as const, catalogItemId: 'lab-1', code: 'LAB001', name: '血常规' }]
+    await act(async () => stage({ phase: 'TREATMENTS', clientContextFingerprint: input.clientContextFingerprint,
+      content: { ...content, treatmentRecommendations: treatments } }))
+    await advance(100)
+    expect(screen.getByText('血常规')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认所选（1）' })).toBeDisabled()
+    expect(apply).not.toHaveBeenCalled()
+    await act(async () => finish({ ...result(input), ...content, treatmentRecommendations: treatments }))
+    await advance(100)
+    expect(screen.getByRole('button', { name: '确认所选诊断（1）' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '确认所选（1）' })).toBeEnabled()
+    expect(apply).not.toHaveBeenCalled()
   })
 
   it('shows a partial draft early, keeps input editable, and discards a stale completion', async () => {
     let finish!: (value: ClinicalAiSuggestion) => void
     let input!: GenerateClinicalAiSuggestionInput, signal!: AbortSignal
-    const generateStream = vi.fn().mockImplementation((_id, value, abort, delta) => {
+    let stage!: (value: ClinicalAiStreamStage) => void
+    const generateStream = vi.fn().mockImplementation((_id, value, abort, delta, onStage) => {
       input = value; signal = abort
+      stage = onStage
       delta('{"summary":"正在整理合成内容","recordDraft":{"chiefComplaint":"未完成主诉')
       return new Promise<ClinicalAiSuggestion>((resolve) => { finish = resolve })
     })
@@ -332,6 +402,9 @@ describe('quiet clinical AI workflow', () => {
     fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '合成输入已变化，之前生成必须失效' } })
     await advance(20)
     expect(signal.aborted).toBe(true)
+    await act(async () => stage({ phase: 'DIAGNOSES', clientContextFingerprint: input.clientContextFingerprint,
+      content: { summary: '', recordDraft: {}, diagnosisCandidates: [{ code: 'J06.9', display: '迟到的诊断', type: 'PRIMARY', confidence: 0.8 }], treatmentRecommendations: [] } }))
+    expect(screen.queryByLabelText('AI 诊断待确认')).not.toBeInTheDocument()
     await act(async () => finish(result(input)))
     await advance(20)
     expect(screen.queryByText('建议已准备好')).not.toBeInTheDocument()
@@ -451,6 +524,40 @@ describe('quiet clinical AI workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
     await advance(100)
     expect(screen.getByRole('checkbox', { name: '选择 血常规' })).not.toBeChecked()
+  })
+
+  it('displays guideline and medication insert buttons in AI suggestion phase, and removes per-row confirm in favor of batch confirm', async () => {
+    const generateStream = vi.fn().mockImplementation(async (_id, input) => ({
+      ...result(input),
+      diagnosisCandidates: [
+        { code: 'J06.9', display: '急性上呼吸道感染', type: 'PRIMARY', rationale: '需核对' },
+      ],
+      treatmentRecommendations: [
+        { type: 'MEDICATION', catalogItemId: 'p-1', code: 'PARA001', name: '对乙酰氨基酚', medicationId: 'm-1', rationale: '解热镇痛' },
+      ],
+    }))
+    const { openHub } = setup(generateStream)
+    await advance(20)
+    openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await advance(100)
+
+    // 检查诊断行中存在“指南”按钮，不存在行级的“确认录入”按钮
+    expect(screen.getByRole('button', { name: /指南/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '确认录入' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认所选诊断（1）' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '为什么推荐？' })).toBeInTheDocument()
+    expect(screen.getByLabelText('AI 诊断待确认')).not.toHaveTextContent('需核对')
+    expect(screen.getByLabelText('AI 诊断待确认').querySelector('.doctor-diag-col-management')).toHaveTextContent('—')
+
+    // 检查药品建议行中存在“说明书”按钮
+    expect(screen.getByRole('button', { name: /说明书/ })).toBeInTheDocument()
+
+    // 点击诊断指南按钮弹出模态框
+    fireEvent.click(screen.getByRole('button', { name: /指南/ }))
+    await advance(20)
+    expect(screen.getByRole('dialog', { name: /临床指南 · 急性上呼吸道感染/ })).toBeInTheDocument()
+    expect(screen.getByText(/临床指南 · 急性上呼吸道感染/)).toBeInTheDocument()
   })
 
 })

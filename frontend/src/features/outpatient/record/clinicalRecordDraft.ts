@@ -45,6 +45,13 @@ export const createRecordSchema = (bloodPressureRequired: boolean) => z.object({
 })
 export type RecordForm = z.infer<ReturnType<typeof createRecordSchema>>
 
+export class ClinicalRecordValidationError extends Error {
+  constructor(messages: string[]) {
+    super(`病历尚未通过校验：${[...new Set(messages)].join('；')}。请返回病历补充或修正后再开立。`)
+    this.name = 'ClinicalRecordValidationError'
+  }
+}
+
 export function structuredFormSignature(formVersionId: string, values: Record<string, unknown>) {
   return JSON.stringify({ formVersionId, values: Object.fromEntries(
     Object.entries(values).filter(([, value]) => value !== undefined && value !== '')

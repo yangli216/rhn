@@ -1,25 +1,35 @@
 import { useDraftRowInteractions } from './useDraftRowInteractions'
 import { useRef, useState } from 'react'
-import { Button, Popconfirm, StatusBadge } from '../../../shared/ui'
+import { Button, Popconfirm, Select, StatusBadge } from '../../../shared/ui'
+import type { RhnApi } from '../../../shared/rhnApi'
+import type { Encounter } from '../../../shared/model'
+import { useOrderExecutionDepartments } from './useOrderExecutionDepartments'
 import { type ServicePlanDraft } from './orderDraftTypes'
-import { resolveExecutingDepartment, formatServiceExecution, formatUnitPrice } from './orderPresentation'
+import { formatServiceExecution, formatUnitPrice } from './orderPresentation'
 import { OrderTypeBadge } from './OrderRowDecorations'
 import { continueDraftOnEnter } from './orderEditorControls'
 
-export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, currentDept }: {
+export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, encounter, api }: {
   value: ServicePlanDraft; onSave: (value: ServicePlanDraft) => void; onCancel: () => void; onRemove: () => void
-  currentDept?: string
+  encounter: Encounter
+  api: RhnApi
 }) {
   const [description, setDescription] = useState(value.clinicalDescription ?? '')
   const [quantity, setQuantity] = useState(value.quantity)
+  const [departmentId, setDepartmentId] = useState(value.performerDepartmentId || encounter.departmentId)
+  const departments = useOrderExecutionDepartments(api, encounter.organizationId)
+  const selectedDepartment = departments.data?.find(department => department.id === departmentId)
 
   const hasSavedRef = useRef(false)
   const isRemovingRef = useRef(false)
   const save = () => {
     if (hasSavedRef.current || isRemovingRef.current) return
+    if (!selectedDepartment) return
     hasSavedRef.current = true
     if (quantity > 0) {
-      onSave({ ...value, quantity, clinicalDescription: description.trim() || undefined })
+      onSave({ ...value, quantity, clinicalDescription: description.trim() || undefined,
+        performerOrganizationId: encounter.organizationId,
+        performerDepartmentId: selectedDepartment.id, performerDepartmentName: selectedDepartment.name })
     } else {
       onCancel()
     }
@@ -44,16 +54,12 @@ export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, current
           onChange={(event) => setQuantity(Number(event.target.value))}
           onKeyDown={(event) => continueDraftOnEnter(event, `draft-service-note-${value.id}`)} /><small>{value.unitCode || '项'}</small></div>
       </div>
-      <div className="doctor-inline-order-static doctor-inline-order-dept">
-        <span className="doctor-direction-chip is-dept">
-          {resolveExecutingDepartment({
-            kind: 'service',
-            performerDepartmentId: value.performerDepartmentId,
-            performerDepartmentName: value.performerDepartmentName,
-            type: value.serviceType,
-            itemName: value.itemName,
-          }, currentDept)}
-        </span>
+      <div className="doctor-inline-order-field doctor-inline-order-dept">
+        <Select aria-label="编辑执行科室" value={departmentId} onChange={setDepartmentId}
+          disabled={departments.isPending || departments.isError}
+          placeholder={departments.isPending ? '加载科室…' : '请选择执行科室'}
+          options={(departments.data || []).map(department => ({ value: department.id, label: department.name }))} />
+        {departments.isError && <Button size="sm" variant="text" onClick={() => void departments.refetch()}>重试</Button>}
       </div>
       <div className="doctor-inline-order-field doctor-inline-order-instruction doctor-inline-order-service-note">
         <input id={`draft-service-note-${value.id}`} aria-label="编辑临床说明" value={description} placeholder="临床说明"
@@ -62,7 +68,7 @@ export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, current
           onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); save() } }} />
       </div>
       <div className="doctor-inline-order-static doctor-inline-order-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</div>
-      <div className="doctor-inline-order-status"><StatusBadge tone="warning">编辑中</StatusBadge></div>
+      <div className="doctor-inline-order-status"><StatusBadge tone="warning">待确认</StatusBadge></div>
       <div className="doctor-inline-order-actions">
         <Popconfirm
           title={`确认移除“${value.itemName || '该项目'}”？`}

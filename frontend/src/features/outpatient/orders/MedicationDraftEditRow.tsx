@@ -363,7 +363,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
           {value.request.pricingRequired === false ? '不计价' : formatUnitPrice(value.unitPrice, value.currencyCode)}
         </div>
         <div className="doctor-inline-order-status">
-          <StatusBadge tone="warning">编辑中</StatusBadge>
+          <StatusBadge tone="warning">待确认</StatusBadge>
         </div>
         <div className="doctor-inline-order-actions">
           {(executionType === 'INFUSION' || Boolean(administrationGroupKey)) && onAppendToGroup && (

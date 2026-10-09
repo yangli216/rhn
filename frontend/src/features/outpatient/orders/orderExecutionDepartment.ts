@@ -1,5 +1,21 @@
 import { z } from 'zod'
 import type { RhnApi } from '../../../shared/rhnApi'
+import type { Department } from '../../../shared/api/organizationApi'
+import type { ServiceCatalogItem } from '../../../shared/api/masterDataApi'
+
+export function defaultServiceExecutionDepartment(service: ServiceCatalogItem, encounterDepartmentId: string) {
+  if (service.defaultExecutionDepartment) return service.defaultExecutionDepartment.departmentId ?? undefined
+  return service.organizationAdoption?.defaultDepartmentId ?? encounterDepartmentId
+}
+
+export function isActiveExecutionDepartment(department: Department, organizationId: string) {
+  const at = new Date().toLocaleDateString('sv-SE')
+  return department.organizationId === organizationId && Boolean(department.id && department.name?.trim())
+    && department.sdOrgStatus === 'ACTIVE' && !department.virtual
+    && z.iso.date().safeParse(department.validFrom).success && department.validFrom <= at
+    && (department.validTo == null || (z.iso.date().safeParse(department.validTo).success
+      && department.validTo >= at && department.validTo >= department.validFrom))
+}
 
 export async function resolveOrderExecutionDepartment(id: string, organizationId: string, api: RhnApi) {
   const known = (value: unknown) => typeof value === 'string' && value.trim().length > 0

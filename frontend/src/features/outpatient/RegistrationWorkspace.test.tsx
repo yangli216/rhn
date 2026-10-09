@@ -141,9 +141,9 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     await screen.findByText(/健康档案号/)
-    await userEvent.type(await screen.findByPlaceholderText('10'), '10')
-    const confirmBtn = await screen.findByRole('button', { name: /确认挂号/ })
-    await userEvent.click(confirmBtn)
+    const cashInput = await screen.findByPlaceholderText('10') as HTMLInputElement
+    await waitFor(() => expect(cashInput.value).toBe('10'))
+    await userEvent.type(cashInput, '{Enter}')
 
     await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledWith(expect.objectContaining({
       residentId: resident.id,
@@ -383,8 +383,9 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     await screen.findByText(/健康档案号/)
-    await userEvent.type(await screen.findByPlaceholderText('10'), '10')
-    await userEvent.click(await screen.findByRole('button', { name: /确认挂号/ }))
+    const confirmBtn = await screen.findByRole('button', { name: /确认挂号/ })
+    await waitFor(() => expect(confirmBtn).toBeEnabled())
+    await userEvent.click(confirmBtn)
 
     // Thermal receipt modal should open automatically
     expect(await screen.findByRole('heading', { name: '门诊挂号热敏凭条' })).toBeInTheDocument()
@@ -444,8 +445,9 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     await screen.findByText(/健康档案号/)
-    await userEvent.type(await screen.findByPlaceholderText('10'), '10')
-    await userEvent.click(await screen.findByRole('button', { name: /确认挂号/ }))
+    const confirmBtn = await screen.findByRole('button', { name: /确认挂号/ })
+    await waitFor(() => expect(confirmBtn).toBeEnabled())
+    await userEvent.click(confirmBtn)
     expect(await screen.findByRole('heading', { name: '门诊挂号热敏凭条' })).toBeInTheDocument()
 
     const printBtn = screen.getByRole('button', { name: /立即打印小票/ })
@@ -458,9 +460,19 @@ describe('OutpatientRegistrationWorkspace', () => {
 
   it('displays today registration stream and supports cancelling a waiting registration', async () => {
     const cancelEncounter = vi.fn().mockResolvedValue({ completed: true, message: '退号成功', refundStatus: 'SUCCESS' })
+    const queueRecords: ReceptionQueueItem[] = [
+      { ...receipt, registrationId: 'registration-oldest', encounterId: 'encounter-oldest', registrationNo: 'REG000',
+        ticketNo: 'A000', residentName: '最早患者', status: 'COMPLETED', registeredAt: `${businessDate()}T01:00:00Z` },
+      { ...receipt, registrationId: 'registration-latest', encounterId: 'encounter-latest', registrationNo: 'REG004',
+        ticketNo: 'A004', residentName: '最新患者', status: 'COMPLETED', registeredAt: `${businessDate()}T06:00:00Z` },
+      { ...receipt, registrationId: 'registration-second', encounterId: 'encounter-second', registrationNo: 'REG003',
+        ticketNo: 'A003', residentName: '次新患者', status: 'COMPLETED', registeredAt: `${businessDate()}T05:00:00Z` },
+      { ...receipt, registeredAt: `${businessDate()}T03:00:00Z` },
+    ]
+    const receptionQueue = vi.fn().mockResolvedValue(queueRecords)
     const api = {
       residents: { get: vi.fn(), search: vi.fn(), profile: vi.fn() },
-      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([receipt]) },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue },
       dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
       billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
       encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: cancelEncounter },
@@ -480,10 +492,26 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    // Verify today's stream row
-    expect(await screen.findByText('本窗口今日挂号记录（最近流水）')).toBeInTheDocument()
+    // The ledger is expanded by default and only shows the latest three records, newest first.
+    const historyTitle = await screen.findByText('本窗口今日挂号记录（最近流水）')
+    const historyPanel = historyTitle.closest('details')
+    expect(historyPanel).toHaveAttribute('open')
+    expect(screen.queryByText('最近 3 条业务记录')).not.toBeInTheDocument()
+    await screen.findByText('最新患者')
+    const historyRows = screen.getByRole('table', { name: '今日挂号记录' }).querySelectorAll('tbody tr')
+    expect(historyRows).toHaveLength(3)
+    expect([...historyRows].map((row) => row.textContent)).toEqual([
+      expect.stringContaining('最新患者'),
+      expect.stringContaining('次新患者'),
+      expect.stringContaining('张三'),
+    ])
+    expect(screen.queryByText('最早患者')).not.toBeInTheDocument()
     expect(await screen.findByText('张三')).toBeInTheDocument()
     expect(screen.getByText('候诊中')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '刷新流水' }))
+    await waitFor(() => expect(receptionQueue).toHaveBeenCalledTimes(2))
+    expect(historyPanel).toHaveAttribute('open')
 
     // Click '退号'
     await userEvent.click(screen.getByRole('button', { name: '退号' }))
@@ -550,11 +578,9 @@ describe('OutpatientRegistrationWorkspace', () => {
     await userEvent.keyboard('{F8}')
     expect(createRegistrationIntent).not.toHaveBeenCalled()
     await userEvent.keyboard('1')
-    await userEvent.keyboard('{F8}')
-    expect(createRegistrationIntent).not.toHaveBeenCalled()
 
-    // 5. Explicitly confirm actual cash before F8 submission
-    await userEvent.type(await screen.findByPlaceholderText('10'), '10')
+    // 5. Switching back to cash restores the payable amount and allows shortcut submission.
+    expect(await screen.findByPlaceholderText('10')).toHaveValue(10)
     await userEvent.keyboard('{F8}')
     await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -601,6 +627,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(cashChip).toHaveClass('is-active')
 
     expect(screen.getByText('缴款金额：')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('10')).toHaveValue(10)
     expect(screen.getByText('¥0.00')).toBeInTheDocument()
 
     const preset20 = screen.getByRole('button', { name: '¥20' })
@@ -750,8 +777,8 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(await screen.findByText(/正在办理预约/)).toBeInTheDocument()
 
     // Confirm registration
-    await userEvent.type(await screen.findByPlaceholderText('10'), '10')
     const confirmBtn = await screen.findByRole('button', { name: /确认挂号/ })
+    await waitFor(() => expect(confirmBtn).toBeEnabled())
     await userEvent.click(confirmBtn)
 
     // Expect mutation to include the appointmentId
@@ -762,7 +789,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     })))
   })
 
-  it('smartly defaults to self-pay when insured patient is looked up manually, offers one-click switch, and requires explicit cash tendered input', async () => {
+  it('smartly defaults to self-pay and the payable cash amount when an insured patient is looked up manually', async () => {
     const insuredResident: Resident = { ...resident, id: 'insured-res-1', fullName: '王医保' }
     const insuredProfile = {
       resident: insuredResident,
@@ -832,9 +859,9 @@ describe('OutpatientRegistrationWorkspace', () => {
     // No blocking warning for self pay
     expect(screen.queryByText(/【医保接口未对接】/)).not.toBeInTheDocument()
 
-    // 4. Cash tendered remains unknown until explicitly entered
+    // 4. Cash tendered defaults to the payable amount for fast registration.
     const cashInput = screen.getByPlaceholderText('10') as HTMLInputElement
-    expect(cashInput.value).toBe('')
+    expect(cashInput.value).toBe('10')
     expect(screen.getByText('¥0.00')).toBeInTheDocument()
 
     // 5. Test one-click switch to insurance
