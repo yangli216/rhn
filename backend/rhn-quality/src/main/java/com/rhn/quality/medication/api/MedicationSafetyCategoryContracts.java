@@ -1,11 +1,14 @@
 package com.rhn.quality.medication.api;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.Instant;
 import java.util.List;
 
 public final class MedicationSafetyCategoryContracts {
     private MedicationSafetyCategoryContracts() {}
 
+    @Schema(name = "MedicationSafetyCategoryView")
     public record CategoryView(
             Long id,
             String code,
@@ -23,6 +26,7 @@ public final class MedicationSafetyCategoryContracts {
             boolean systemicOnly
     ) {}
 
+    @Schema(name = "MedicationSafetyCreateCategoryRequest")
     public record CreateCategoryRequest(
             String code,
             String name,
@@ -37,6 +41,7 @@ public final class MedicationSafetyCategoryContracts {
         }
     }
 
+    @Schema(name = "MedicationSafetyUpdateCategoryRequest")
     public record UpdateCategoryRequest(
             int expectedRevision,
             String name,
@@ -51,6 +56,7 @@ public final class MedicationSafetyCategoryContracts {
         }
     }
 
+    @Schema(name = "MedicationSafetyMemberView")
     public record MemberView(
             Long id,
             Long categoryId,
@@ -58,19 +64,21 @@ public final class MedicationSafetyCategoryContracts {
             String medicationCode,
             String medicationName,
             String preparationSpec,
-            String doseForm,
+            @com.rhn.platform.dictionary.api.DictionaryBinding(com.rhn.platform.masterdata.api.MasterDataDictionaryCodes.DOSE_FORM) String doseForm,
             Instant createdAt,
             boolean inherited
     ) {}
 
+    @Schema(name = "MedicationSafetyMemberItem")
     public record MemberItem(
             Long medicationId,
             String medicationCode,
             String medicationName,
             String preparationSpec,
-            String doseForm
+            @com.rhn.platform.dictionary.api.DictionaryBinding(com.rhn.platform.masterdata.api.MasterDataDictionaryCodes.DOSE_FORM) String doseForm
     ) {}
 
+    @Schema(name = "MedicationSafetyAddMembersRequest")
     public record AddMembersRequest(
             List<MemberItem> items
     ) {
@@ -79,6 +87,7 @@ public final class MedicationSafetyCategoryContracts {
         }
     }
 
+    @Schema(name = "MedicationSafetyStandardCatalogCategorySummary")
     public record StandardCatalogCategorySummary(
             String major,
             String sub,
@@ -86,18 +95,21 @@ public final class MedicationSafetyCategoryContracts {
             List<String> entryNames
     ) {}
 
+    @Schema(name = "MedicationSafetyCatalogImportRequest")
     public record CatalogImportRequest(
             String catalogMajor,
             String catalogSub,
             Boolean systemicOnly
     ) {}
 
+    @Schema(name = "MedicationSafetyCatalogImportResult")
     public record CatalogImportResult(
             int importedCount,
             int skippedCount,
             int totalCount
     ) {}
 
+    @Schema(name = "MedicationSafetyMedicationTagView")
     public record MedicationTagView(
             Long categoryId,
             String categoryCode,

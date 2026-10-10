@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { EncounterQueryItem } from '../../shared/api/encountersApi'
 import { REGISTRATION_SOURCE_LABELS } from '../../shared/api/schedulingApi'
 import { age } from '../../shared/format'

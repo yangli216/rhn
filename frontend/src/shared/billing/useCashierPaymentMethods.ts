@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../clinical/workContext'
 import type { RhnApi } from '../rhnApi'
 import { requirePaymentRounding } from './roundAmount'
 

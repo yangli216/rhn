@@ -1,0 +1,2353 @@
+{
+  "version": 1,
+  "baselineRevision": "467acbac78b4f12ecb5227b028adba807e5c60e5",
+  "generatedBy": "node scripts/ai-readiness-report.mjs",
+  "sourceHead": "467acbac78b4f12ecb5227b028adba807e5c60e5",
+  "attribution": "Working source statistics. sourceHead records HEAD at generation time, not a freshness requirement. Verification snapshots separately attribute tested content; counts do not prove visual or clinical quality.",
+  "hotspots": [
+    {
+      "file": "frontend/src/features/outpatient/DoctorWorkstation.tsx",
+      "beforeLines": 5599,
+      "lines": 163
+    },
+    {
+      "file": "frontend/src/features/settings/BasicDataManagement.tsx",
+      "beforeLines": 4059,
+      "lines": 389
+    },
+    {
+      "file": "frontend/src/features/settings/OperationalMasterDataPanel.tsx",
+      "beforeLines": 3299,
+      "lines": 96
+    },
+    {
+      "file": "frontend/src/features/pharmacy/PharmacyWorkspace.tsx",
+      "beforeLines": 2182,
+      "lines": 24
+    },
+    {
+      "file": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MasterDataApplicationService.java",
+      "beforeLines": 1216,
+      "lines": 1057,
+      "beforeCollaborators": 25,
+      "collaborators": 23
+    },
+    {
+      "file": "backend/rhn-intelligence/src/main/java/com/rhn/ai/application/ClinicalAssistantApplicationService.java",
+      "beforeLines": 1245,
+      "lines": 1147,
+      "beforeCollaborators": 21,
+      "collaborators": 18
+    }
+  ],
+  "hooksDebt": 79,
+  "uiFindings": 2483,
+  "uiRules": {
+    "css-important": 83,
+    "css-token": 1940,
+    "inline-appearance": 27,
+    "mobile-breakpoint": 17,
+    "shared-appearance": 161,
+    "shared-button": 172,
+    "shared-dialog": 5,
+    "shared-search": 5,
+    "shared-select": 24,
+    "shared-table": 39,
+    "shared-tabs": 10
+  },
+  "scopes": {
+    "frequency": {
+      "frontendTests": 15,
+      "backendTests": 3,
+      "coverage": [
+        "临床频次、医嘱录入和药房用药展示"
+      ],
+      "limitations": [
+        "仅覆盖维护的测试映射；跨领域、契约和迁移扩大检查，不能替代完整 CI。"
+      ]
+    },
+    "outpatient-draft": {
+      "frontendTests": 50,
+      "backendTests": 38,
+      "coverage": [
+        "门诊患者切换、病历草稿、诊毕和 AI 模板采纳"
+      ],
+      "limitations": [
+        "仅覆盖维护的测试映射；跨领域、契约和迁移扩大检查，不能替代完整 CI。"
+      ]
+    },
+    "round1": {
+      "frontendTests": 65,
+      "backendTests": 40,
+      "coverage": [
+        "门诊草稿与频次的联合回归"
+      ],
+      "limitations": [
+        "仅覆盖维护的测试映射；跨领域、契约和迁移扩大检查，不能替代完整 CI。"
+      ]
+    },
+    "knowledge-panel": {
+      "frontendTests": 3,
+      "backendTests": 0,
+      "coverage": [
+        "知识阅读、共享 Dialog 和文档展示"
+      ],
+      "limitations": [
+        "仅覆盖维护的测试映射；跨领域、契约和迁移扩大检查，不能替代完整 CI。"
+      ]
+    },
+    "billing": {
+      "frontendTests": 9,
+      "backendTests": 10,
+      "coverage": [
+        "收费展示、结算、退款、支付精度与门诊费用来源"
+      ],
+      "limitations": [
+        "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
+      ]
+    },
+    "master-data": {
+      "frontendTests": 12,
+      "backendTests": 13,
+      "coverage": [
+        "疾病、药品、产品、机构采用、标准关联、字典与请求契约"
+      ],
+      "limitations": [
+        "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
+      ]
+    },
+    "inventory": {
+      "frontendTests": 11,
+      "backendTests": 16,
+      "coverage": [
+        "库存台账、冻结、采购、盘点、调拨、效期及药房出入库"
+      ],
+      "limitations": [
+        "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
+      ]
+    },
+    "medication-safety": {
+      "frontendTests": 16,
+      "backendTests": 16,
+      "coverage": [
+        "药品安全规则、分类、知识生成评审发布、回放和药房反馈"
+      ],
+      "limitations": [
+        "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
+      ]
+    },
+    "ai-matching": {
+      "frontendTests": 10,
+      "backendTests": 14,
+      "coverage": [
+        "AI 通用意图到院内目录映射、规格、检验检查、历史方案和采纳"
+      ],
+      "limitations": [
+        "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
+      ]
+    }
+  },
+  "frontendComplexity": [
+    {
+      "file": "src/features/settings/OrganizationPersonnelManagement.tsx",
+      "lines": 2051,
+      "functions": [
+        {
+          "name": "OrganizationPersonnelManagement",
+          "line": 40,
+          "lines": 812,
+          "decisionNodes": 52
+        },
+        {
+          "name": "PractitionerWorkbench",
+          "line": 1071,
+          "lines": 323,
+          "decisionNodes": 6
+        },
+        {
+          "name": "PractitionerDialog",
+          "line": 1593,
+          "lines": 284,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/features/pharmacy/WarehouseOperations.tsx",
+      "lines": 1977,
+      "functions": [
+        {
+          "name": "PurchaseWorkbench",
+          "line": 109,
+          "lines": 657,
+          "decisionNodes": 13
+        },
+        {
+          "name": "(anonymous)",
+          "line": 442,
+          "lines": 146,
+          "decisionNodes": 11
+        },
+        {
+          "name": "(anonymous)",
+          "line": 589,
+          "lines": 158,
+          "decisionNodes": 12
+        },
+        {
+          "name": "MultiItemDialog",
+          "line": 872,
+          "lines": 358,
+          "decisionNodes": 4
+        },
+        {
+          "name": "DirectPurchaseReceiptDialog",
+          "line": 1283,
+          "lines": 286,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/app/AppShell.tsx",
+      "lines": 1944,
+      "functions": [
+        {
+          "name": "AppShell",
+          "line": 483,
+          "lines": 599,
+          "decisionNodes": 12
+        },
+        {
+          "name": "(anonymous)",
+          "line": 917,
+          "lines": 160,
+          "decisionNodes": 4
+        },
+        {
+          "name": "UserAccountMenu",
+          "line": 1179,
+          "lines": 192,
+          "decisionNodes": 5
+        },
+        {
+          "name": "WorkspaceTabs",
+          "line": 1563,
+          "lines": 233,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/templates/AiPlanTemplateDraftModal.tsx",
+      "lines": 1815,
+      "functions": [
+        {
+          "name": "AiPlanTemplateDraftModal",
+          "line": 171,
+          "lines": 1645,
+          "decisionNodes": 54
+        },
+        {
+          "name": "handleSend",
+          "line": 504,
+          "lines": 135,
+          "decisionNodes": 13
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/ParameterManagement.tsx",
+      "lines": 1786,
+      "functions": [
+        {
+          "name": "ParameterManagement",
+          "line": 39,
+          "lines": 578,
+          "decisionNodes": 37
+        },
+        {
+          "name": "ParameterDefinitionDialog",
+          "line": 642,
+          "lines": 303,
+          "decisionNodes": 37
+        },
+        {
+          "name": "ParameterValueDialog",
+          "line": 1046,
+          "lines": 143,
+          "decisionNodes": 23
+        }
+      ]
+    },
+    {
+      "file": "src/shared/api/masterDataApi.ts",
+      "lines": 1702,
+      "functions": [
+        {
+          "name": "createMasterDataApi",
+          "line": 1129,
+          "lines": 511,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/RegistrationWorkspace.tsx",
+      "lines": 1657,
+      "functions": [
+        {
+          "name": "ThermalReceiptModal",
+          "line": 264,
+          "lines": 140,
+          "decisionNodes": 1
+        },
+        {
+          "name": "OutpatientRegistrationWorkspace",
+          "line": 431,
+          "lines": 1185,
+          "decisionNodes": 33
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/triage/OutpatientTriageWorkspace.tsx",
+      "lines": 1617,
+      "functions": [
+        {
+          "name": "OutpatientTriageWorkspace",
+          "line": 115,
+          "lines": 1503,
+          "decisionNodes": 67
+        }
+      ]
+    },
+    {
+      "file": "src/features/quality/MedicationWorkbench.tsx",
+      "lines": 1590,
+      "functions": [
+        {
+          "name": "MedicationWorkbench",
+          "line": 64,
+          "lines": 1527,
+          "decisionNodes": 51
+        },
+        {
+          "name": "(anonymous)",
+          "line": 117,
+          "lines": 119,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/templates/PlanTemplatePanel.tsx",
+      "lines": 1443,
+      "functions": [
+        {
+          "name": "PlanTemplatePanel",
+          "line": 21,
+          "lines": 1423,
+          "decisionNodes": 55
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/ai/ClinicalAiAssistantPanel.tsx",
+      "lines": 1408,
+      "functions": [
+        {
+          "name": "ClinicalAiAssistantPanel",
+          "line": 45,
+          "lines": 895,
+          "decisionNodes": 38
+        },
+        {
+          "name": "SuggestionResult",
+          "line": 992,
+          "lines": 110,
+          "decisionNodes": 0
+        },
+        {
+          "name": "AiPlanReviewDialog",
+          "line": 1103,
+          "lines": 113,
+          "decisionNodes": 5
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/SchedulingWorkspace.tsx",
+      "lines": 1403,
+      "functions": [
+        {
+          "name": "SchedulingWorkspace",
+          "line": 148,
+          "lines": 802,
+          "decisionNodes": 15
+        },
+        {
+          "name": "ProfessionalSchedulingPanel",
+          "line": 1218,
+          "lines": 186,
+          "decisionNodes": 5
+        }
+      ]
+    },
+    {
+      "file": "src/shared/api/pharmacyApi.ts",
+      "lines": 1226,
+      "functions": [
+        {
+          "name": "createPharmacyApi",
+          "line": 774,
+          "lines": 453,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/billing/BillingWorkspace.tsx",
+      "lines": 1203,
+      "functions": [
+        {
+          "name": "BillingWorkspace",
+          "line": 87,
+          "lines": 1109,
+          "decisionNodes": 26
+        },
+        {
+          "name": "(anonymous)",
+          "line": 941,
+          "lines": 117,
+          "decisionNodes": 4
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/AiConfigurationManagement.tsx",
+      "lines": 1169,
+      "functions": [
+        {
+          "name": "AiConfigurationManagement",
+          "line": 98,
+          "lines": 816,
+          "decisionNodes": 14
+        },
+        {
+          "name": "(anonymous)",
+          "line": 478,
+          "lines": 342,
+          "decisionNodes": 16
+        },
+        {
+          "name": "SettingField",
+          "line": 915,
+          "lines": 199,
+          "decisionNodes": 26
+        }
+      ]
+    },
+    {
+      "file": "src/features/treatment/SkinTestManagementWorkspace.tsx",
+      "lines": 1164,
+      "functions": [
+        {
+          "name": "SkinTestManagementWorkspace",
+          "line": 56,
+          "lines": 267,
+          "decisionNodes": 4
+        },
+        {
+          "name": "SkinTestDetail",
+          "line": 324,
+          "lines": 635,
+          "decisionNodes": 43
+        },
+        {
+          "name": "SkinTestPatientSafetySidecar",
+          "line": 962,
+          "lines": 173,
+          "decisionNodes": 14
+        }
+      ]
+    },
+    {
+      "file": "src/features/quality/MedicationRuleCatalog.tsx",
+      "lines": 1133,
+      "functions": [
+        {
+          "name": "MedicationRuleCatalog",
+          "line": 112,
+          "lines": 735,
+          "decisionNodes": 17
+        },
+        {
+          "name": "CatalogActionDialog",
+          "line": 848,
+          "lines": 160,
+          "decisionNodes": 4
+        },
+        {
+          "name": "RuleDraftDialog",
+          "line": 1009,
+          "lines": 125,
+          "decisionNodes": 1
+        }
+      ]
+    },
+    {
+      "file": "src/features/pharmacy/workspace/usePharmacyWorkspace.ts",
+      "lines": 1121,
+      "functions": [
+        {
+          "name": "usePharmacyWorkspace",
+          "line": 12,
+          "lines": 1110,
+          "decisionNodes": 6
+        },
+        {
+          "name": "handleBatchDispenseF4",
+          "line": 590,
+          "lines": 112,
+          "decisionNodes": 19
+        },
+        {
+          "name": "processTraceCodeBatch",
+          "line": 791,
+          "lines": 106,
+          "decisionNodes": 18
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/AppointmentManagementWorkspace.tsx",
+      "lines": 1097,
+      "functions": [
+        {
+          "name": "AppointmentManagementWorkspace",
+          "line": 58,
+          "lines": 189,
+          "decisionNodes": 6
+        },
+        {
+          "name": "CreateAppointmentDialog",
+          "line": 366,
+          "lines": 692,
+          "decisionNodes": 31
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/UnifiedOrderListEditor.tsx",
+      "lines": 1087,
+      "functions": [
+        {
+          "name": "UnifiedOrderListEditor",
+          "line": 40,
+          "lines": 1048,
+          "decisionNodes": 7
+        },
+        {
+          "name": "addCurrentEntry",
+          "line": 594,
+          "lines": 205,
+          "decisionNodes": 34
+        },
+        {
+          "name": "renderComposer",
+          "line": 836,
+          "lines": 168,
+          "decisionNodes": 10
+        }
+      ]
+    },
+    {
+      "file": "src/features/quality/MedicationSafetyCategories.tsx",
+      "lines": 1067,
+      "functions": [
+        {
+          "name": "MedicationSafetyCategories",
+          "line": 36,
+          "lines": 1032,
+          "decisionNodes": 18
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/printing/EncounterPrintPanel.tsx",
+      "lines": 1048,
+      "functions": [
+        {
+          "name": "ControlledPrintDialog",
+          "line": 30,
+          "lines": 117,
+          "decisionNodes": 6
+        },
+        {
+          "name": "BatchPrintDialog",
+          "line": 250,
+          "lines": 312,
+          "decisionNodes": 5
+        },
+        {
+          "name": "EncounterPrintPanel",
+          "line": 563,
+          "lines": 486,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/DispenseRouteSettings.tsx",
+      "lines": 987,
+      "functions": [
+        {
+          "name": "DispenseRouteSettings",
+          "line": 153,
+          "lines": 607,
+          "decisionNodes": 11
+        },
+        {
+          "name": "RouteEditor",
+          "line": 761,
+          "lines": 227,
+          "decisionNodes": 1
+        }
+      ]
+    },
+    {
+      "file": "src/shared/api/inpatientApi.ts",
+      "lines": 892,
+      "functions": [
+        {
+          "name": "createInpatientApi",
+          "line": 657,
+          "lines": 236,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/residents/ResidentCenterWorkspace.tsx",
+      "lines": 873,
+      "functions": [
+        {
+          "name": "ResidentCenterWorkspace",
+          "line": 44,
+          "lines": 261,
+          "decisionNodes": 11
+        },
+        {
+          "name": "ResidentProfileDialog",
+          "line": 351,
+          "lines": 237,
+          "decisionNodes": 1
+        },
+        {
+          "name": "CreateResidentDialog",
+          "line": 685,
+          "lines": 189,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/operations/ClinicalServiceConfiguration.tsx",
+      "lines": 835,
+      "functions": [
+        {
+          "name": "ClinicalServiceConfigurationDialog",
+          "line": 15,
+          "lines": 127,
+          "decisionNodes": 8
+        },
+        {
+          "name": "ClinicalWorkspace",
+          "line": 143,
+          "lines": 289,
+          "decisionNodes": 16
+        },
+        {
+          "name": "LaboratoryProfileInlineEditor",
+          "line": 433,
+          "lines": 113,
+          "decisionNodes": 0
+        },
+        {
+          "name": "ExaminationProfileInlineEditor",
+          "line": 547,
+          "lines": 251,
+          "decisionNodes": 3
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/master-data/CatalogLifecycleDialog.tsx",
+      "lines": 807,
+      "functions": [
+        {
+          "name": "CatalogLifecycleSession",
+          "line": 27,
+          "lines": 522,
+          "decisionNodes": 26
+        },
+        {
+          "name": "OrganizationCatalogImportSession",
+          "line": 559,
+          "lines": 237,
+          "decisionNodes": 22
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/PrintTemplateManagement.tsx",
+      "lines": 802,
+      "functions": [
+        {
+          "name": "PrintTemplateManagement",
+          "line": 173,
+          "lines": 364,
+          "decisionNodes": 25
+        }
+      ]
+    },
+    {
+      "file": "src/features/inpatient/InpatientOrderWorkspace.tsx",
+      "lines": 786,
+      "functions": [
+        {
+          "name": "InpatientOrderWorkspace",
+          "line": 49,
+          "lines": 110,
+          "decisionNodes": 7
+        },
+        {
+          "name": "OrderComposer",
+          "line": 192,
+          "lines": 105,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/master-data/MedicationPresentation.tsx",
+      "lines": 771,
+      "functions": [
+        {
+          "name": "MedicationKnowledgeTable",
+          "line": 86,
+          "lines": 120,
+          "decisionNodes": 0
+        },
+        {
+          "name": "MedicationProductPopover",
+          "line": 240,
+          "lines": 170,
+          "decisionNodes": 1
+        },
+        {
+          "name": "MedicationProductQuickViewDialog",
+          "line": 411,
+          "lines": 197,
+          "decisionNodes": 2
+        },
+        {
+          "name": "MedicationProductTable",
+          "line": 609,
+          "lines": 101,
+          "decisionNodes": 1
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/templates/OutpatientPlanTemplatesWorkspace.tsx",
+      "lines": 759,
+      "functions": [
+        {
+          "name": "OutpatientPlanTemplatesWorkspace",
+          "line": 39,
+          "lines": 719,
+          "decisionNodes": 55
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/index.tsx",
+      "lines": 738,
+      "functions": [
+        {
+          "name": "Dialog",
+          "line": 408,
+          "lines": 211,
+          "decisionNodes": 11
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/operations/FrequencyMaintenance.tsx",
+      "lines": 734,
+      "functions": [
+        {
+          "name": "FrequencyConfigurationWorkbenchDialog",
+          "line": 32,
+          "lines": 425,
+          "decisionNodes": 11
+        },
+        {
+          "name": "FrequencyDialog",
+          "line": 538,
+          "lines": 197,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/DictionaryManagement.tsx",
+      "lines": 728,
+      "functions": [
+        {
+          "name": "DictionaryManagement",
+          "line": 15,
+          "lines": 348,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/StandardMappingWorkspace.tsx",
+      "lines": 690,
+      "functions": [
+        {
+          "name": "StandardMappingWorkspace",
+          "line": 48,
+          "lines": 642,
+          "decisionNodes": 23
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/record/ClinicalRecordPanel.tsx",
+      "lines": 685,
+      "functions": [
+        {
+          "name": "ClinicalRecordPanel",
+          "line": 47,
+          "lines": 639,
+          "decisionNodes": 27
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/OrdersPanel.tsx",
+      "lines": 684,
+      "functions": [
+        {
+          "name": "OrdersPanel",
+          "line": 22,
+          "lines": 663,
+          "decisionNodes": 17
+        }
+      ]
+    },
+    {
+      "file": "src/features/pharmacy/WarehouseManagement.tsx",
+      "lines": 670,
+      "functions": [
+        {
+          "name": "WarehouseManagement",
+          "line": 58,
+          "lines": 172,
+          "decisionNodes": 11
+        },
+        {
+          "name": "InventorySection",
+          "line": 280,
+          "lines": 118,
+          "decisionNodes": 3
+        }
+      ]
+    },
+    {
+      "file": "src/shared/api/billingApi.ts",
+      "lines": 670,
+      "functions": [
+        {
+          "name": "createBillingApi",
+          "line": 293,
+          "lines": 200,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/ai/ClinicalAiCopilotHub.tsx",
+      "lines": 645,
+      "functions": [
+        {
+          "name": "ClinicalAiCopilotHub",
+          "line": 47,
+          "lines": 599,
+          "decisionNodes": 31
+        }
+      ]
+    },
+    {
+      "file": "src/features/analytics/SemanticWorkbench.tsx",
+      "lines": 615,
+      "functions": [
+        {
+          "name": "SemanticWorkbench",
+          "line": 14,
+          "lines": 602,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/DictionaryAttributeConfiguration.tsx",
+      "lines": 608,
+      "functions": [
+        {
+          "name": "DictionaryAttributeConfiguration",
+          "line": 88,
+          "lines": 192,
+          "decisionNodes": 1
+        },
+        {
+          "name": "AttributeDefinitionDialog",
+          "line": 301,
+          "lines": 103,
+          "decisionNodes": 6
+        },
+        {
+          "name": "ItemAttributeDialog",
+          "line": 405,
+          "lines": 204,
+          "decisionNodes": 11
+        }
+      ]
+    },
+    {
+      "file": "src/features/inpatient/InpatientWorkspace.tsx",
+      "lines": 592,
+      "functions": [
+        {
+          "name": "AdmissionForm",
+          "line": 245,
+          "lines": 180,
+          "decisionNodes": 9
+        },
+        {
+          "name": "DischargeDialog",
+          "line": 450,
+          "lines": 113,
+          "decisionNodes": 13
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/Select.tsx",
+      "lines": 587,
+      "functions": [
+        {
+          "name": "Select",
+          "line": 68,
+          "lines": 439,
+          "decisionNodes": 14
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/workstation/PatientWorkspace.tsx",
+      "lines": 586,
+      "functions": [
+        {
+          "name": "PatientWorkspace",
+          "line": 55,
+          "lines": 512,
+          "decisionNodes": 27
+        }
+      ]
+    },
+    {
+      "file": "src/features/billing/RefundManagementWorkspace.tsx",
+      "lines": 581,
+      "functions": [
+        {
+          "name": "RefundManagementWorkspace",
+          "line": 29,
+          "lines": 553,
+          "decisionNodes": 27
+        }
+      ]
+    },
+    {
+      "file": "src/features/billing/BillingQueryWorkspace.tsx",
+      "lines": 570,
+      "functions": [
+        {
+          "name": "BillingQueryWorkspace",
+          "line": 51,
+          "lines": 448,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/shared/api/encountersApi.ts",
+      "lines": 567,
+      "functions": [
+        {
+          "name": "createEncountersApi",
+          "line": 327,
+          "lines": 136,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/DatePicker.tsx",
+      "lines": 558,
+      "functions": [
+        {
+          "name": "DatePicker",
+          "line": 85,
+          "lines": 474,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/features/pharmacy/workspace/PharmacyDispensingPanel.tsx",
+      "lines": 527,
+      "functions": [
+        {
+          "name": "PharmacyDispensingPanel",
+          "line": 9,
+          "lines": 519,
+          "decisionNodes": 11
+        },
+        {
+          "name": "(anonymous)",
+          "line": 250,
+          "lines": 139,
+          "decisionNodes": 1
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/waiting/DedicatedWaitingWorkspace.tsx",
+      "lines": 520,
+      "functions": [
+        {
+          "name": "DedicatedWaitingWorkspace",
+          "line": 36,
+          "lines": 485,
+          "decisionNodes": 15
+        },
+        {
+          "name": "(anonymous)",
+          "line": 304,
+          "lines": 196,
+          "decisionNodes": 24
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/PrescriptionListEditor.tsx",
+      "lines": 509,
+      "functions": [
+        {
+          "name": "PrescriptionEditorSection",
+          "line": 97,
+          "lines": 264,
+          "decisionNodes": 22
+        }
+      ]
+    },
+    {
+      "file": "src/features/inpatient/InpatientTemperatureChart.tsx",
+      "lines": 506,
+      "functions": []
+    },
+    {
+      "file": "src/shared/api/printingApi.ts",
+      "lines": 502,
+      "functions": [
+        {
+          "name": "createPrintingApi",
+          "line": 345,
+          "lines": 158,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/MedicationDraftEditRow.tsx",
+      "lines": 498,
+      "functions": [
+        {
+          "name": "MedicationDraftEditRow",
+          "line": 17,
+          "lines": 482,
+          "decisionNodes": 11
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/StandardMedicationCatalogPanel.tsx",
+      "lines": 493,
+      "functions": [
+        {
+          "name": "StandardMedicationCatalogPanel",
+          "line": 32,
+          "lines": 462,
+          "decisionNodes": 5
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/RemoteSearchSelect.tsx",
+      "lines": 482,
+      "functions": [
+        {
+          "name": "RemoteSearchSelect",
+          "line": 65,
+          "lines": 404,
+          "decisionNodes": 10
+        }
+      ]
+    },
+    {
+      "file": "src/shared/billing/AggregatedPaymentModal.tsx",
+      "lines": 450,
+      "functions": [
+        {
+          "name": "AggregatedPaymentModal",
+          "line": 32,
+          "lines": 419,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/shared/billing/SettlementPaymentPanel.tsx",
+      "lines": 435,
+      "functions": [
+        {
+          "name": "SettlementPaymentPanel",
+          "line": 62,
+          "lines": 362,
+          "decisionNodes": 34
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/ItemAttributeConfigurationPanel.tsx",
+      "lines": 423,
+      "functions": [
+        {
+          "name": "ItemAttributeConfigurationPanel",
+          "line": 14,
+          "lines": 140,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/pharmacy/WardDailySupplyPanel.tsx",
+      "lines": 422,
+      "functions": [
+        {
+          "name": "WardDailySupplyPanel",
+          "line": 26,
+          "lines": 206,
+          "decisionNodes": 3
+        },
+        {
+          "name": "BatchDetail",
+          "line": 233,
+          "lines": 143,
+          "decisionNodes": 12
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/templates/PlanTemplateClinicalEditor.tsx",
+      "lines": 419,
+      "functions": [
+        {
+          "name": "PlanTemplateClinicalEditor",
+          "line": 19,
+          "lines": 259,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/analytics/OutpatientRegistrationReport.tsx",
+      "lines": 412,
+      "functions": [
+        {
+          "name": "OutpatientRegistrationReport",
+          "line": 32,
+          "lines": 381,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/master-data/MedicationMaintenance.tsx",
+      "lines": 404,
+      "functions": [
+        {
+          "name": "MedicationDialog",
+          "line": 60,
+          "lines": 345,
+          "decisionNodes": 40
+        }
+      ]
+    },
+    {
+      "file": "src/shared/api/dictionaryApi.ts",
+      "lines": 397,
+      "functions": [
+        {
+          "name": "createDictionaryApi",
+          "line": 278,
+          "lines": 120,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/ai/ClinicalEvidenceDrawer.tsx",
+      "lines": 391,
+      "functions": [
+        {
+          "name": "ClinicalEvidenceDrawer",
+          "line": 43,
+          "lines": 349,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/BasicDataManagement.tsx",
+      "lines": 389,
+      "functions": [
+        {
+          "name": "BasicDataManagement",
+          "line": 50,
+          "lines": 338,
+          "decisionNodes": 27
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/AccessControlManagement.tsx",
+      "lines": 384,
+      "functions": [
+        {
+          "name": "AccessControlManagement",
+          "line": 20,
+          "lines": 304,
+          "decisionNodes": 13
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/record/ClinicalVitalsFields.tsx",
+      "lines": 380,
+      "functions": [
+        {
+          "name": "ClinicalVitalsFields",
+          "line": 11,
+          "lines": 323,
+          "decisionNodes": 31
+        }
+      ]
+    },
+    {
+      "file": "src/features/analytics/DynamicAnalysisLibrary.tsx",
+      "lines": 376,
+      "functions": [
+        {
+          "name": "DynamicAnalysisLibrary",
+          "line": 37,
+          "lines": 301,
+          "decisionNodes": 43
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/ClinicalResourceSearch.tsx",
+      "lines": 375,
+      "functions": [
+        {
+          "name": "ClinicalResourceSearch",
+          "line": 93,
+          "lines": 168,
+          "decisionNodes": 5
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/OrderDocuments.tsx",
+      "lines": 351,
+      "functions": [
+        {
+          "name": "OrderDocumentInlineEditor",
+          "line": 89,
+          "lines": 159,
+          "decisionNodes": 3
+        },
+        {
+          "name": "OrderDocumentEditor",
+          "line": 249,
+          "lines": 103,
+          "decisionNodes": 3
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/master-data/DiseaseMaintenance.tsx",
+      "lines": 349,
+      "functions": [
+        {
+          "name": "DiseaseManagementMembersEditor",
+          "line": 176,
+          "lines": 174,
+          "decisionNodes": 5
+        }
+      ]
+    },
+    {
+      "file": "src/shared/api/schedulingApi.ts",
+      "lines": 345,
+      "functions": [
+        {
+          "name": "createSchedulingApi",
+          "line": 244,
+          "lines": 102,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/RegistrationQueryWorkspace.tsx",
+      "lines": 335,
+      "functions": [
+        {
+          "name": "RegistrationQueryWorkspace",
+          "line": 70,
+          "lines": 238,
+          "decisionNodes": 8
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/PatientIdentitySearch.tsx",
+      "lines": 333,
+      "functions": [
+        {
+          "name": "PatientIdentitySearch",
+          "line": 91,
+          "lines": 243,
+          "decisionNodes": 5
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/EncounterQueryWorkspace.tsx",
+      "lines": 331,
+      "functions": [
+        {
+          "name": "EncounterQueryWorkspace",
+          "line": 72,
+          "lines": 260,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/operations/ItemGroupDialog.tsx",
+      "lines": 328,
+      "functions": [
+        {
+          "name": "GroupDialog",
+          "line": 20,
+          "lines": 309,
+          "decisionNodes": 8
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/triage/triageAssessmentRules.ts",
+      "lines": 327,
+      "functions": [
+        {
+          "name": "assessVitals",
+          "line": 102,
+          "lines": 226,
+          "decisionNodes": 45
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/TreePanel.tsx",
+      "lines": 325,
+      "functions": [
+        {
+          "name": "TreePanel",
+          "line": 47,
+          "lines": 195,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/operations/LaboratoryTubeSimulator.tsx",
+      "lines": 321,
+      "functions": [
+        {
+          "name": "LaboratoryTubeSimulator",
+          "line": 49,
+          "lines": 273,
+          "decisionNodes": 5
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/DraftOrderList.tsx",
+      "lines": 320,
+      "functions": [
+        {
+          "name": "DraftOrderList",
+          "line": 22,
+          "lines": 299,
+          "decisionNodes": 0
+        },
+        {
+          "name": "(anonymous)",
+          "line": 56,
+          "lines": 264,
+          "decisionNodes": 13
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/waiting/QueueCapsuleBar.tsx",
+      "lines": 314,
+      "functions": [
+        {
+          "name": "QueueCapsuleBar",
+          "line": 24,
+          "lines": 291,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/record/DiagnosisPanel.tsx",
+      "lines": 304,
+      "functions": [
+        {
+          "name": "DiagnosisPanel",
+          "line": 11,
+          "lines": 294,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/features/treatment/TreatmentExecutionWorkspace.tsx",
+      "lines": 301,
+      "functions": [
+        {
+          "name": "TreatmentExecutionWorkspace",
+          "line": 31,
+          "lines": 185,
+          "decisionNodes": 14
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/master-data/ProductMaintenance.tsx",
+      "lines": 282,
+      "functions": [
+        {
+          "name": "ProductDialog",
+          "line": 18,
+          "lines": 124,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/record/EncounterCompletionDialog.tsx",
+      "lines": 280,
+      "functions": [
+        {
+          "name": "EncounterCompletionDialog",
+          "line": 19,
+          "lines": 262,
+          "decisionNodes": 42
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/ClinicalMedicationStandardsPanel.tsx",
+      "lines": 280,
+      "functions": [
+        {
+          "name": "ClinicalMedicationStandardsPanel",
+          "line": 23,
+          "lines": 258,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/features/diagnostics/DiagnosticWorkspace.tsx",
+      "lines": 273,
+      "functions": [
+        {
+          "name": "DiagnosticWorkspace",
+          "line": 30,
+          "lines": 189,
+          "decisionNodes": 13
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/operations/SpecimenConfigurationDialog.tsx",
+      "lines": 272,
+      "functions": [
+        {
+          "name": "SpecimenDialog",
+          "line": 7,
+          "lines": 266,
+          "decisionNodes": 11
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/OrganizationCatalogManagement.tsx",
+      "lines": 267,
+      "functions": [
+        {
+          "name": "OrganizationCatalogWorkspace",
+          "line": 37,
+          "lines": 207,
+          "decisionNodes": 17
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/BusinessPartnerManagement.tsx",
+      "lines": 265,
+      "functions": [
+        {
+          "name": "BusinessPartnerManagement",
+          "line": 22,
+          "lines": 117,
+          "decisionNodes": 5
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/ai/MedicalInsertViewerModal.tsx",
+      "lines": 264,
+      "functions": [
+        {
+          "name": "MedicalInsertViewerModal",
+          "line": 68,
+          "lines": 197,
+          "decisionNodes": 4
+        }
+      ]
+    },
+    {
+      "file": "src/features/treatment/ClinicalPrintingWorkspace.tsx",
+      "lines": 255,
+      "functions": [
+        {
+          "name": "ClinicalPrintingWorkspace",
+          "line": 20,
+          "lines": 211,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/features/inpatient/InpatientMedicalRecordWorkspace.tsx",
+      "lines": 253,
+      "functions": [
+        {
+          "name": "InpatientMedicalRecordWorkspace",
+          "line": 57,
+          "lines": 197,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/analytics/OutpatientWorkloadReport.tsx",
+      "lines": 252,
+      "functions": [
+        {
+          "name": "OutpatientWorkloadReport",
+          "line": 14,
+          "lines": 239,
+          "decisionNodes": 1
+        }
+      ]
+    },
+    {
+      "file": "src/features/inpatient/InpatientBillingPanel.tsx",
+      "lines": 251,
+      "functions": [
+        {
+          "name": "InpatientBillingPanel",
+          "line": 12,
+          "lines": 213,
+          "decisionNodes": 18
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/GridAddressInput.tsx",
+      "lines": 246,
+      "functions": [
+        {
+          "name": "GridAddressInput",
+          "line": 33,
+          "lines": 206,
+          "decisionNodes": 17
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/triage/TriageTicketModal.tsx",
+      "lines": 243,
+      "functions": [
+        {
+          "name": "TriageTicketModal",
+          "line": 13,
+          "lines": 231,
+          "decisionNodes": 18
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/waiting/CallingControlHub.tsx",
+      "lines": 242,
+      "functions": [
+        {
+          "name": "CallingControlHub",
+          "line": 20,
+          "lines": 223,
+          "decisionNodes": 5
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/waiting/QueuePeekDrawer.tsx",
+      "lines": 241,
+      "functions": [
+        {
+          "name": "QueuePeekDrawer",
+          "line": 17,
+          "lines": 225,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/waiting/PreEncounterBriefingCard.tsx",
+      "lines": 238,
+      "functions": [
+        {
+          "name": "PreEncounterBriefingCard",
+          "line": 12,
+          "lines": 227,
+          "decisionNodes": 13
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/SavedOrderList.tsx",
+      "lines": 236,
+      "functions": [
+        {
+          "name": "SavedOrderList",
+          "line": 19,
+          "lines": 218,
+          "decisionNodes": 0
+        },
+        {
+          "name": "(anonymous)",
+          "line": 49,
+          "lines": 187,
+          "decisionNodes": 22
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/master-data/ServiceMaintenance.tsx",
+      "lines": 235,
+      "functions": [
+        {
+          "name": "ServiceTable",
+          "line": 11,
+          "lines": 114,
+          "decisionNodes": 2
+        },
+        {
+          "name": "ServiceDialog",
+          "line": 126,
+          "lines": 110,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/Popconfirm.tsx",
+      "lines": 232,
+      "functions": [
+        {
+          "name": "Popconfirm",
+          "line": 29,
+          "lines": 204,
+          "decisionNodes": 1
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/master-data/StandardMappingDialog.tsx",
+      "lines": 229,
+      "functions": [
+        {
+          "name": "StandardMappingSession",
+          "line": 21,
+          "lines": 188,
+          "decisionNodes": 9
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/MedicationStandardBindingDialog.tsx",
+      "lines": 227,
+      "functions": [
+        {
+          "name": "MedicationStandardBindingDialog",
+          "line": 58,
+          "lines": 170,
+          "decisionNodes": 13
+        }
+      ]
+    },
+    {
+      "file": "src/features/dashboard/Dashboard.tsx",
+      "lines": 225,
+      "functions": [
+        {
+          "name": "Dashboard",
+          "line": 17,
+          "lines": 149,
+          "decisionNodes": 4
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/DateRangePicker.tsx",
+      "lines": 224,
+      "functions": [
+        {
+          "name": "DateRangePicker",
+          "line": 27,
+          "lines": 198,
+          "decisionNodes": 3
+        }
+      ]
+    },
+    {
+      "file": "src/features/pharmacy/InventoryPeriodManagement.tsx",
+      "lines": 222,
+      "functions": [
+        {
+          "name": "InventoryPeriodManagement",
+          "line": 13,
+          "lines": 141,
+          "decisionNodes": 14
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/history/HistoryPanel.tsx",
+      "lines": 220,
+      "functions": [
+        {
+          "name": "HistoryPanel",
+          "line": 33,
+          "lines": 188,
+          "decisionNodes": 8
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/record/NoteTemplateBar.tsx",
+      "lines": 215,
+      "functions": [
+        {
+          "name": "NoteTemplateBar",
+          "line": 50,
+          "lines": 166,
+          "decisionNodes": 4
+        }
+      ]
+    },
+    {
+      "file": "src/features/pharmacy/InventoryAccuracyManagement.tsx",
+      "lines": 213,
+      "functions": [
+        {
+          "name": "InventoryAccuracyManagement",
+          "line": 18,
+          "lines": 136,
+          "decisionNodes": 26
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/HerbalPrescriptionMatrix.tsx",
+      "lines": 212,
+      "functions": [
+        {
+          "name": "HerbalPrescriptionMatrix",
+          "line": 22,
+          "lines": 191,
+          "decisionNodes": 0
+        },
+        {
+          "name": "(anonymous)",
+          "line": 66,
+          "lines": 132,
+          "decisionNodes": 8
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/MedicationStandardReadinessPanel.tsx",
+      "lines": 211,
+      "functions": [
+        {
+          "name": "MedicationStandardReadinessPanel",
+          "line": 43,
+          "lines": 169,
+          "decisionNodes": 3
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/useAiOrderReview.ts",
+      "lines": 210,
+      "functions": [
+        {
+          "name": "useAiOrderReview",
+          "line": 14,
+          "lines": 197,
+          "decisionNodes": 0
+        },
+        {
+          "name": "(anonymous)",
+          "line": 38,
+          "lines": 171,
+          "decisionNodes": 2
+        },
+        {
+          "name": "(anonymous)",
+          "line": 55,
+          "lines": 142,
+          "decisionNodes": 6
+        },
+        {
+          "name": "(anonymous)",
+          "line": 66,
+          "lines": 108,
+          "decisionNodes": 22
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/referrals/ReferralCoordination.tsx",
+      "lines": 208,
+      "functions": [
+        {
+          "name": "ReferralCoordinationPanel",
+          "line": 100,
+          "lines": 109,
+          "decisionNodes": 3
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/StandardCatalogPdfDialog.tsx",
+      "lines": 208,
+      "functions": [
+        {
+          "name": "StandardCatalogPdfDialog",
+          "line": 8,
+          "lines": 201,
+          "decisionNodes": 3
+        }
+      ]
+    },
+    {
+      "file": "src/shared/billing/FiscalReceiptModal.tsx",
+      "lines": 204,
+      "functions": [
+        {
+          "name": "FiscalReceiptModal",
+          "line": 70,
+          "lines": 135,
+          "decisionNodes": 8
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/GridAddressManagement.tsx",
+      "lines": 202,
+      "functions": [
+        {
+          "name": "GridAddressManagement",
+          "line": 18,
+          "lines": 111,
+          "decisionNodes": 9
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/ai/ClinicalAiTreatmentRows.tsx",
+      "lines": 201,
+      "functions": [
+        {
+          "name": "ClinicalAiTreatmentRows",
+          "line": 20,
+          "lines": 182,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/HerbalFormulaHeaderBar.tsx",
+      "lines": 200,
+      "functions": [
+        {
+          "name": "HerbalFormulaHeaderBar",
+          "line": 4,
+          "lines": 197,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/templates/ManualClinicalTemplateDialog.tsx",
+      "lines": 195,
+      "functions": [
+        {
+          "name": "ManualClinicalTemplateDialog",
+          "line": 28,
+          "lines": 168,
+          "decisionNodes": 22
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/PresenceManagement.tsx",
+      "lines": 195,
+      "functions": [
+        {
+          "name": "PresenceManagement",
+          "line": 16,
+          "lines": 150,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/ai/ClinicalAiInlineWorkspace.tsx",
+      "lines": 194,
+      "functions": [
+        {
+          "name": "ClinicalAiInlineWorkspace",
+          "line": 35,
+          "lines": 156,
+          "decisionNodes": 10
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/OrderDocumentReviewCard.tsx",
+      "lines": 186,
+      "functions": [
+        {
+          "name": "OrderDocumentReviewCard",
+          "line": 52,
+          "lines": 135,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/templates/resolveTemplateOrders.ts",
+      "lines": 180,
+      "functions": [
+        {
+          "name": "resolveTemplateOrders",
+          "line": 67,
+          "lines": 114,
+          "decisionNodes": 11
+        }
+      ]
+    },
+    {
+      "file": "src/features/pharmacy/workspace/PharmacyQueryPanel.tsx",
+      "lines": 180,
+      "functions": [
+        {
+          "name": "PharmacyQueryPanel",
+          "line": 10,
+          "lines": 171,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/OutpatientFlowWorkspace.tsx",
+      "lines": 177,
+      "functions": [
+        {
+          "name": "OutpatientFlowWorkspace",
+          "line": 43,
+          "lines": 114,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/shared/billing/PaymentMethodSelector.tsx",
+      "lines": 177,
+      "functions": [
+        {
+          "name": "PaymentMethodSelector",
+          "line": 27,
+          "lines": 151,
+          "decisionNodes": 9
+        }
+      ]
+    },
+    {
+      "file": "src/features/billing/CashierCloseWorkspace.tsx",
+      "lines": 174,
+      "functions": [
+        {
+          "name": "CashierCloseWorkspace",
+          "line": 22,
+          "lines": 153,
+          "decisionNodes": 8
+        }
+      ]
+    },
+    {
+      "file": "src/features/quality/MedicationKnowledgeDrafts.tsx",
+      "lines": 173,
+      "functions": [
+        {
+          "name": "MedicationKnowledgeDrafts",
+          "line": 37,
+          "lines": 134,
+          "decisionNodes": 10
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/record/completionBillingWrites.ts",
+      "lines": 171,
+      "functions": [
+        {
+          "name": "createCompletionBillingWriter",
+          "line": 69,
+          "lines": 103,
+          "decisionNodes": 0
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/PrintDeviceManagement.tsx",
+      "lines": 168,
+      "functions": [
+        {
+          "name": "PrintDeviceManagement",
+          "line": 14,
+          "lines": 135,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/ai/ClinicalAiCatalogReview.tsx",
+      "lines": 164,
+      "functions": [
+        {
+          "name": "ClinicalAiCatalogReview",
+          "line": 10,
+          "lines": 145,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/pharmacy/workspace/PharmacyOperationsPanel.tsx",
+      "lines": 164,
+      "functions": [
+        {
+          "name": "PharmacyOperationsPanel",
+          "line": 14,
+          "lines": 151,
+          "decisionNodes": 10
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/DoctorWorkstation.tsx",
+      "lines": 163,
+      "functions": [
+        {
+          "name": "DoctorWorkstation",
+          "line": 37,
+          "lines": 127,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/features/pharmacy/TraceCodeManagement.tsx",
+      "lines": 163,
+      "functions": [
+        {
+          "name": "TraceCodeManagement",
+          "line": 24,
+          "lines": 138,
+          "decisionNodes": 3
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/ai/historicalPrescriptionImport.ts",
+      "lines": 162,
+      "functions": [
+        {
+          "name": "resolveHistoricalPrescriptionImport",
+          "line": 59,
+          "lines": 104,
+          "decisionNodes": 5
+        }
+      ]
+    },
+    {
+      "file": "src/shared/ui/Tooltip.tsx",
+      "lines": 161,
+      "functions": [
+        {
+          "name": "Tooltip",
+          "line": 40,
+          "lines": 122,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/PrintBusinessMapping.tsx",
+      "lines": 159,
+      "functions": [
+        {
+          "name": "PrintBusinessMapping",
+          "line": 21,
+          "lines": 132,
+          "decisionNodes": 6
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/operations/SupplyDialog.tsx",
+      "lines": 159,
+      "functions": [
+        {
+          "name": "SupplyDialog",
+          "line": 6,
+          "lines": 154,
+          "decisionNodes": 1
+        }
+      ]
+    },
+    {
+      "file": "src/features/inpatient/InpatientShiftHandoffWorkspace.tsx",
+      "lines": 158,
+      "functions": [
+        {
+          "name": "WardShiftHandoffWorkspace",
+          "line": 19,
+          "lines": 123,
+          "decisionNodes": 13
+        }
+      ]
+    },
+    {
+      "file": "src/features/analytics/PilotWorkspace.tsx",
+      "lines": 152,
+      "functions": [
+        {
+          "name": "PilotWorkspace",
+          "line": 13,
+          "lines": 125,
+          "decisionNodes": 27
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/ai/ClinicalAiPipelineStepper.tsx",
+      "lines": 152,
+      "functions": [
+        {
+          "name": "ClinicalAiPipelineStepper",
+          "line": 49,
+          "lines": 104,
+          "decisionNodes": 1
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/record/AllergySafetyPanel.tsx",
+      "lines": 139,
+      "functions": [
+        {
+          "name": "AllergySafetyPanel",
+          "line": 8,
+          "lines": 115,
+          "decisionNodes": 11
+        }
+      ]
+    },
+    {
+      "file": "src/features/inpatient/InpatientNurseStation.tsx",
+      "lines": 138,
+      "functions": [
+        {
+          "name": "InpatientNurseStation",
+          "line": 18,
+          "lines": 119,
+          "decisionNodes": 2
+        }
+      ]
+    },
+    {
+      "file": "src/features/inpatient/WardMedicationReturnPanel.tsx",
+      "lines": 138,
+      "functions": [
+        {
+          "name": "WardMedicationReturnPanel",
+          "line": 18,
+          "lines": 107,
+          "decisionNodes": 1
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/StandardCatalogComparison.tsx",
+      "lines": 134,
+      "functions": [
+        {
+          "name": "StandardCatalogComparison",
+          "line": 28,
+          "lines": 107,
+          "decisionNodes": 10
+        }
+      ]
+    },
+    {
+      "file": "src/dev/schema-workbench/SchemaWorkbench.tsx",
+      "lines": 132,
+      "functions": [
+        {
+          "name": "SchemaWorkbench",
+          "line": 17,
+          "lines": 116,
+          "decisionNodes": 12
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/OrderComposerDirections.tsx",
+      "lines": 122,
+      "functions": [
+        {
+          "name": "OrderComposerDirections",
+          "line": 8,
+          "lines": 115,
+          "decisionNodes": 9
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/OrderComposerResource.tsx",
+      "lines": 118,
+      "functions": [
+        {
+          "name": "OrderComposerResource",
+          "line": 11,
+          "lines": 108,
+          "decisionNodes": 25
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/OrderComposerSafety.tsx",
+      "lines": 115,
+      "functions": [
+        {
+          "name": "OrderComposerSafety",
+          "line": 8,
+          "lines": 108,
+          "decisionNodes": 11
+        }
+      ]
+    },
+    {
+      "file": "src/features/settings/StandardCatalogSourceMaterialsDialog.tsx",
+      "lines": 111,
+      "functions": [
+        {
+          "name": "StandardCatalogSourceMaterialsDialog",
+          "line": 11,
+          "lines": 101,
+          "decisionNodes": 7
+        }
+      ]
+    },
+    {
+      "file": "src/features/outpatient/orders/OrderDocumentGroupHeader.tsx",
+      "lines": 109,
+      "functions": [
+        {
+          "name": "OrderDocumentGroupHeader",
+          "line": 5,
+          "lines": 105,
+          "decisionNodes": 1
+        }
+      ]
+    }
+  ]
+}

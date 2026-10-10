@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { RegistrationBillingIntent, Settlement } from '../../shared/api/billingApi'
 import { systemEnumItemName, systemEnumItems, type SystemEnumDefinition } from '../../shared/api/dictionaryApi'
 import type { Appointment } from '../../shared/api/appointmentsApi'

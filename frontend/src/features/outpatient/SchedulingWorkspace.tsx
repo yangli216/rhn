@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type {
   ProfessionalSlotMode, ScheduleDayPart, ScheduleExceptionType,
   ScheduleRegistrationScope, ServiceSchedule, UpdateScheduleInput,

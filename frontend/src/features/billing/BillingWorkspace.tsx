@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { AccountStatement, InsuranceSettlementView, ReceiptView } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'

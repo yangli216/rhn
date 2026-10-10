@@ -8,7 +8,7 @@ import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, PageHeader,
 import { permissionIdsFor, requireAccessPermissions, requireAccessRoles, requirePermissionReceipt } from './accessPermissionFacts'
 import { requireAccessRoleStatus, requireCreatedAccessRole, type CreateAccessRoleInput } from './accessRoleReceipt'
 import { requireAccessUsers, requireGrantedAssignment, requireRevokedAssignment, requireUserAssignments } from './accessAssignmentFacts'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 
 const apiScopes = new WeakMap<RhnApi, number>()
 let nextScope = 0

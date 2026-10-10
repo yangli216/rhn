@@ -19,9 +19,9 @@ public class MedicationSafetyCategoryStore {
 
     public List<CategoryView> findCategories(Long tenantId, String query, String ruleKind) {
         StringBuilder sql = new StringBuilder("""
-                select c.ID_SAFETY_CAT, c.CD_CAT, c.NA_CAT, c.SD_RULE_KIND, c.DES_RATIONALE,
+                select c.ID_SAFETY_CAT, c.CD_CAT, c.NA_CAT, c.SD_RULE_KIND, c.DES_RATNL,
                        c.FG_SYSTEM, c.SD_STATUS, c.REVISION, c.DT_CREATED, c.DT_UPDATED,
-                       c.CD_CAT_MAJOR, c.CD_CAT_SUB, c.FG_SYSTEMIC_ONLY,
+                       c.CD_CAT_MAJOR, c.CD_CAT_SUB, c.FG_SYSIC_ONLY,
                        (select count(*) from RHN_AUD_MED_SAFETY_CAT_MBR m where m.ID_SAFETY_CAT = c.ID_SAFETY_CAT and m.ID_TNT = c.ID_TNT) as MBR_COUNT
                   from RHN_AUD_MED_SAFETY_CAT c
                  where c.ID_TNT = ?
@@ -49,7 +49,7 @@ public class MedicationSafetyCategoryStore {
                     rs.getString("CD_CAT"),
                     rs.getString("NA_CAT"),
                     rs.getString("SD_RULE_KIND"),
-                    rs.getString("DES_RATIONALE"),
+                    rs.getString("DES_RATNL"),
                     rs.getBoolean("FG_SYSTEM"),
                     rs.getString("SD_STATUS"),
                     rs.getInt("MBR_COUNT"),
@@ -58,16 +58,16 @@ public class MedicationSafetyCategoryStore {
                     dtUpdated != null ? dtUpdated.toInstant() : Instant.now(),
                     rs.getString("CD_CAT_MAJOR"),
                     rs.getString("CD_CAT_SUB"),
-                    rs.getBoolean("FG_SYSTEMIC_ONLY")
+                    rs.getBoolean("FG_SYSIC_ONLY")
             );
         }, params.toArray());
     }
 
     public Optional<CategoryView> findCategoryById(Long tenantId, Long id) {
         String sql = """
-                select c.ID_SAFETY_CAT, c.CD_CAT, c.NA_CAT, c.SD_RULE_KIND, c.DES_RATIONALE,
+                select c.ID_SAFETY_CAT, c.CD_CAT, c.NA_CAT, c.SD_RULE_KIND, c.DES_RATNL,
                        c.FG_SYSTEM, c.SD_STATUS, c.REVISION, c.DT_CREATED, c.DT_UPDATED,
-                       c.CD_CAT_MAJOR, c.CD_CAT_SUB, c.FG_SYSTEMIC_ONLY,
+                       c.CD_CAT_MAJOR, c.CD_CAT_SUB, c.FG_SYSIC_ONLY,
                        (select count(*) from RHN_AUD_MED_SAFETY_CAT_MBR m where m.ID_SAFETY_CAT = c.ID_SAFETY_CAT and m.ID_TNT = c.ID_TNT) as MBR_COUNT
                   from RHN_AUD_MED_SAFETY_CAT c
                  where c.ID_TNT = ? and c.ID_SAFETY_CAT = ?
@@ -80,7 +80,7 @@ public class MedicationSafetyCategoryStore {
                     rs.getString("CD_CAT"),
                     rs.getString("NA_CAT"),
                     rs.getString("SD_RULE_KIND"),
-                    rs.getString("DES_RATIONALE"),
+                    rs.getString("DES_RATNL"),
                     rs.getBoolean("FG_SYSTEM"),
                     rs.getString("SD_STATUS"),
                     rs.getInt("MBR_COUNT"),
@@ -89,16 +89,16 @@ public class MedicationSafetyCategoryStore {
                     dtUpdated != null ? dtUpdated.toInstant() : Instant.now(),
                     rs.getString("CD_CAT_MAJOR"),
                     rs.getString("CD_CAT_SUB"),
-                    rs.getBoolean("FG_SYSTEMIC_ONLY")
+                    rs.getBoolean("FG_SYSIC_ONLY")
             );
         }, tenantId, id).stream().findFirst();
     }
 
     public Optional<CategoryView> findCategoryByCode(Long tenantId, String code) {
         String sql = """
-                select c.ID_SAFETY_CAT, c.CD_CAT, c.NA_CAT, c.SD_RULE_KIND, c.DES_RATIONALE,
+                select c.ID_SAFETY_CAT, c.CD_CAT, c.NA_CAT, c.SD_RULE_KIND, c.DES_RATNL,
                        c.FG_SYSTEM, c.SD_STATUS, c.REVISION, c.DT_CREATED, c.DT_UPDATED,
-                       c.CD_CAT_MAJOR, c.CD_CAT_SUB, c.FG_SYSTEMIC_ONLY,
+                       c.CD_CAT_MAJOR, c.CD_CAT_SUB, c.FG_SYSIC_ONLY,
                        (select count(*) from RHN_AUD_MED_SAFETY_CAT_MBR m where m.ID_SAFETY_CAT = c.ID_SAFETY_CAT and m.ID_TNT = c.ID_TNT) as MBR_COUNT
                   from RHN_AUD_MED_SAFETY_CAT c
                  where c.ID_TNT = ? and c.CD_CAT = ?
@@ -111,7 +111,7 @@ public class MedicationSafetyCategoryStore {
                     rs.getString("CD_CAT"),
                     rs.getString("NA_CAT"),
                     rs.getString("SD_RULE_KIND"),
-                    rs.getString("DES_RATIONALE"),
+                    rs.getString("DES_RATNL"),
                     rs.getBoolean("FG_SYSTEM"),
                     rs.getString("SD_STATUS"),
                     rs.getInt("MBR_COUNT"),
@@ -120,7 +120,7 @@ public class MedicationSafetyCategoryStore {
                     dtUpdated != null ? dtUpdated.toInstant() : Instant.now(),
                     rs.getString("CD_CAT_MAJOR"),
                     rs.getString("CD_CAT_SUB"),
-                    rs.getBoolean("FG_SYSTEMIC_ONLY")
+                    rs.getBoolean("FG_SYSIC_ONLY")
             );
         }, tenantId, code).stream().findFirst();
     }
@@ -129,8 +129,8 @@ public class MedicationSafetyCategoryStore {
         Long id = GlobalIds.next();
         String sql = """
                 insert into RHN_AUD_MED_SAFETY_CAT
-                    (ID_SAFETY_CAT, ID_TNT, CD_CAT, NA_CAT, SD_RULE_KIND, DES_RATIONALE, FG_SYSTEM, SD_STATUS, REVISION,
-                     CD_CAT_MAJOR, CD_CAT_SUB, FG_SYSTEMIC_ONLY,
+                    (ID_SAFETY_CAT, ID_TNT, CD_CAT, NA_CAT, SD_RULE_KIND, DES_RATNL, FG_SYSTEM, SD_STATUS, REVISION,
+                     CD_CAT_MAJOR, CD_CAT_SUB, FG_SYSIC_ONLY,
                      DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
                 values (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 0, ?, ?, ?, current_timestamp, ?, current_timestamp, ?)
                 """;
@@ -144,8 +144,8 @@ public class MedicationSafetyCategoryStore {
     public CategoryView updateCategory(Long tenantId, Long id, Long userId, UpdateCategoryRequest req) {
         String sql = """
                 update RHN_AUD_MED_SAFETY_CAT
-                   set NA_CAT = ?, DES_RATIONALE = ?, SD_STATUS = ?,
-                       CD_CAT_MAJOR = ?, CD_CAT_SUB = ?, FG_SYSTEMIC_ONLY = ?,
+                   set NA_CAT = ?, DES_RATNL = ?, SD_STATUS = ?,
+                       CD_CAT_MAJOR = ?, CD_CAT_SUB = ?, FG_SYSIC_ONLY = ?,
                        REVISION = REVISION + 1,
                        DT_UPDATED = current_timestamp, ID_USER_UPDATED = ?
                  where ID_TNT = ? and ID_SAFETY_CAT = ? and REVISION = ?
@@ -277,7 +277,7 @@ public class MedicationSafetyCategoryStore {
 
     public List<MedicationTagView> findCategoriesByMedication(Long tenantId, Long medicationId, String medName) {
         String sql = """
-                select distinct c.ID_SAFETY_CAT, c.CD_CAT, c.NA_CAT, c.SD_RULE_KIND, c.DES_RATIONALE
+                select distinct c.ID_SAFETY_CAT, c.CD_CAT, c.NA_CAT, c.SD_RULE_KIND, c.DES_RATNL
                   from RHN_AUD_MED_SAFETY_CAT_MBR m
                   join RHN_AUD_MED_SAFETY_CAT c on c.ID_SAFETY_CAT = m.ID_SAFETY_CAT and c.ID_TNT = m.ID_TNT
                  where m.ID_TNT = ? and c.SD_STATUS = 'ACTIVE'
@@ -289,7 +289,7 @@ public class MedicationSafetyCategoryStore {
                 rs.getString("CD_CAT"),
                 rs.getString("NA_CAT"),
                 rs.getString("SD_RULE_KIND"),
-                rs.getString("DES_RATIONALE")
+                rs.getString("DES_RATNL")
         ), tenantId, medicationId, medName != null ? medName.trim() : "");
     }
 

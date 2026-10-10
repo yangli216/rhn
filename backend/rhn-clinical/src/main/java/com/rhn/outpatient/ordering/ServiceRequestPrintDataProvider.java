@@ -81,7 +81,7 @@ class ServiceRequestPrintDataProvider implements PrintDataProvider {
                 "itemName", request.itemNameSnapshot(), "quantityText", quantityText,
                 "clinicalDescription", valueOrDash(request.clinicalDescription()))));
         return new PrintDataSnapshot("ServiceRequest", request.id(), request.revision(), request.residentId(),
-                request.encounterId(), request.performerOrganizationId(), request.performerDepartmentId(),
+                request.encounterId(), encounter.organizationId(), encounter.departmentId(),
                 documentName + "-" + request.requestNo() + ".pdf", payload);
     }
 

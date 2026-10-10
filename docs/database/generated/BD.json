@@ -1,5 +1,5 @@
 {
-  "fingerprint": "29033795aa43ffea288b26ca6e7fbda613f90ac95920280da8122dd5a636c9d6",
+  "fingerprint": "f063d67a50617528f23771eb8574e838be87e5d34172a7abfb93360bb607fdff",
   "tables": [
     {
       "logical": "bd.catalog_change_batch_row",
@@ -1160,7 +1160,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MasterDataApplicationService.java",
-          "line": 713
+          "line": 708
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/MedicationProduct.java",
@@ -13922,6 +13922,10 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
           "line": 95
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationSafetyCategoryStore.java",
+          "line": 234
         }
       ]
     },

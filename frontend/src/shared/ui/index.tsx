@@ -734,3 +734,5 @@ export * from './Switch'
 export * from './UnitNumberInput'
 export * from './BodySiteSelect'
 export * from './DatePicker'
+
+export { AnchoredPanel } from './AnchoredPanel'

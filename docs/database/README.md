@@ -31,18 +31,16 @@
 
 ## 数据库基线与开发样例
 
-数据库脚本已全面压平为 **1.84.0 单一全量基线**。规范文件位于：
-- `db/migration/B1_84_0__rhn_schema_and_metadata.sql` (PostgreSQL / H2 全量结构与标准元数据)
-- `db/oracle/B1_84_0__rhn_schema_and_metadata.sql` (Oracle 全量结构与标准元数据)
-- `db/local/V1_84_1__development_hospital.sql` 及 `db/oracle-local/` (开发医院样例数据)
-- `db/h2/V1_84_2__h2_clob_types.sql` (H2 CLOB 兼容适配)
+现有起点为 **1.84.0 全量基线**，其后仍有增量迁移；不能只执行三个基线/样例脚本或将旧的“下一版本”作为当前编号。实际文件位于 `backend/src/main/resources/db/`：
 
-基线完整性检查命令：
-```sh
-node scripts/rebuild-database.mjs --check
-```
+- `migration/B1_84_0__rhn_schema_and_metadata.sql` 与后续 `V*`：公共结构与元数据。
+- `oracle/`：Oracle 对等变更。
+- `local/` 与 `oracle-local/`：开发医院样例数据。
+- `h2/`：H2 兼容适配。
 
-自动化测试（`test` profile）通过 H2 内存库执行 1.84.0 基线与样例初始化；开发与人工验证（`oracle-local` profile）直连本地 Oracle 实例。后续业务结构变更请递增创建 `V1_85_0__*.sql` 迁移脚本并保持双目录对齐。
+Flyway 根据运行 profile 的 locations 执行基线与增量，当前版本和迁移清单以目录及采集报告为准。`node scripts/rebuild-database.mjs --check` 检查压平基线自身；完整增量另执行 `npm --prefix frontend run schema:refresh -- --source expected` 和 `npm --prefix frontend run schema:check`，禁止以压平脚本校验代替完整迁移验证。
+
+自动化测试使用 `test` profile 与随机 H2；人工验收使用主目录的 `oracle-local`。新增迁移先检查现有版本号和并行任务，保持公共/Oracle 对等目录与业务元数据同步，不改写已发布迁移。迁移协调与运行版本记录遵循 [协作指南](../../CONTRIBUTING.md)。
 
 ## 开发人员与 AI 协同
 

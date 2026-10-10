@@ -1,0 +1,25 @@
+.clinical-content-1 { font-size: var(--font-size-body); }
+.clinical-content-2 { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.clinical-content-3 { background-color: var(--specimen-cap-color); }
+.clinical-content-4 { font-size: var(--font-size-body); }
+.clinical-content-5 { font-size: var(--font-size-body); }
+.clinical-content-6 { font-size: var(--font-size-small); }
+.clinical-content-7 { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.clinical-content-8 { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.clinical-content-9 { font-size: var(--font-size-body); }
+.clinical-content-10 { font-size: var(--font-size-body); }
+.clinical-content-11 { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.clinical-content-12 { font-size: var(--font-size-body); }
+.clinical-content-13 { font-size: var(--font-size-small); }
+.clinical-content-14 { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.clinical-content-15 { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.clinical-content-16 { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.clinical-content-17 { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.clinical-content-18 { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.clinical-content-19 { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.clinical-content-20 { background-color: var(--specimen-cap-color); }
+.clinical-content-21 { font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
+.clinical-content-22 { font-weight: var(--font-weight-regular); color: var(--color-text-secondary); }
+.clinical-content-23 { background: var(--color-surface-subtle); border-bottom: 1px solid var(--color-border); font-size: var(--font-size-small); }
+.clinical-content-24 { background-color: var(--specimen-cap-color); }
+.clinical-content-25 { color: var(--color-text-secondary); font-size: var(--font-size-small); }

@@ -1,5 +1,10 @@
 import type { ApiClient } from './httpClient'
 import type { components } from './generated'
+// Explicit business projections inherit primitive wire fields from the generated contract.
+// Forms omit empty optional values; explicit wire null remains available in generated contracts.
+type FormWire<Wire> = { [Key in keyof Wire]: Exclude<Wire[Key], null> }
+type ContractProjection<Wire, Overrides extends Partial<Wire>> = Omit<FormWire<Wire>, keyof Overrides> & Overrides
+
 
 export interface MedicationIngredient {
   id: string; code: string; display: string; system: string; systemVersion: string; source: string
@@ -556,99 +561,19 @@ export interface DiseaseInput {
   aliases: string[]
 }
 
-export interface ServiceInput {
-  code: string
-  name: string
-  unitCode?: string
-  orderable: boolean
-  chargeable: boolean
+export type ServiceInput = ContractProjection<components['schemas']['MasterDataServiceRequest'], {
   sdStatus: MasterDataStatus
-  validFrom: string
-  validTo?: string
-  sdServiceType: string
-  serviceSubtype?: string
-  sdUsageType: string
-  medicalTechnology: boolean
-  combinationItem: boolean
-  singleOrder: boolean
-  specimenType?: string
-  examinationType?: string
-  accountingCategory?: string
-  sdDuplicateRule?: string
-  multiSitePrice?: number
-  freeSiteCount?: number
-  maxBodySiteCount?: number
-  mutualRecognitionCode?: string
-  pregnancyAlert: boolean
-  attention?: string
-  examinationNotes?: string
-}
+}>
 
-export interface MedicationInput {
-  standardSpecificationId?: string
-  code: string
-  name: string
-  aliasName?: string
-  sdMedicationType: string
-  sdDoseForm?: string
-  preparationSpec?: string
-  preparationUnit?: string
-  strengthValue?: number
-  strengthUnit?: string
-  sdStorageType?: string
-  prescriptionDrug: boolean
-  essentialDrug: boolean
-  antimicrobial: boolean
-  sdAntimicrobialLevel?: string
-  antimicrobialOutpatientAllowed?: boolean
-  antimicrobialConsultationRequired?: boolean
-  antimicrobialEmergencyAllowed?: boolean
-  antimicrobialMaxDays?: number
-  skinTestRequired: boolean
+export type MedicationInput = ContractProjection<components['schemas']['MasterDataMedicationRequest'], {
   skinTestMethod?: 'INTRADERMAL' | 'PRICK' | 'OTHER'
   skinTestSolutionMode?: 'ORIGINAL_SOLUTION' | 'DILUTED_SOLUTION'
-  skinTestObservationMinutes?: number
-  skinTestResultValidityHours?: number
-  skinTestInstructions?: string
-  defaultDose?: number
-  defaultDoseUnit?: string
-  defaultRoute?: string
-  defaultFrequency?: string
-  chronicDiseaseDrug: boolean
-  singleOrder: boolean
   sdStatus: MasterDataStatus
-}
+}>
 
-export interface ProductInput {
-  medicationId: string
-  manufacturerId: string
-  code: string
-  tradeName?: string
-  approvalCode?: string
-  traceCode?: string
-  approvalFrom?: string
-  approvalTo?: string
-  registrationCode?: string
-  registrationFrom?: string
-  registrationTo?: string
-  purchaseCode?: string
-  sdMarketStatus?: string
-  sdProductionPlace?: string
-  otc: boolean
-  centralPurchase: boolean
-  importAllowed: boolean
-  traceSplitRequired: boolean
-  orderable: boolean
-  chargeable: boolean
-  stocked: boolean
-  shelfLifeValue?: number
-  sdShelfLifeUnit?: string
+export type ProductInput = ContractProjection<components['schemas']['MasterDataProductRequest'], {
   sdStatus: MasterDataStatus
-  validFrom: string
-  validTo?: string
-  indication?: string
-  instruction?: string
-}
+}>
 
 export interface MedicationProductSetupInput {
   product: ProductInput
@@ -670,51 +595,17 @@ export interface ManufacturerInput {
   sdStatus: MasterDataStatus
 }
 
-export interface PackageInput {
-  basePackageId?: string
-  unitCode: string
-  unitName: string
-  packageSpec?: string
-  quantityFactor: number
-  sdUsageType: string
-  barcode?: string
-  defaultPurchase: boolean
-  defaultSale: boolean
-  defaultDispense: boolean
+export type PackageInput = ContractProjection<components['schemas']['MasterDataPackageRequest'], {
   sdStatus: MasterDataStatus
-  validFrom: string
-  validTo?: string
-}
+}>
 
-export interface AdoptionInput {
-  organizationId: string
-  defaultDepartmentId?: string
-  localCode?: string
-  localName?: string
-  orderable: boolean
-  executable: boolean
-  chargeable: boolean
-  purchasable: boolean
-  stocked: boolean
-  dispensable: boolean
-  returnable: boolean
+export type AdoptionInput = ContractProjection<components['schemas']['MasterDataAdoptionRequest'], {
   sdStatus: MasterDataStatus
-  validFrom: string
-  validTo?: string
-}
+}>
 
-export interface PriceInput {
-  organizationId?: string
-  packageId?: string
-  sdPriceType: string
-  price: number
-  currencyCode: string
-  priceDocumentCode?: string
-  priceReason?: string
-  validFrom: string
-  validTo?: string
+export type PriceInput = ContractProjection<components['schemas']['MasterDataPriceRequest'], {
   sdStatus: MasterDataStatus
-}
+}>
 
 export interface LifecycleAdoptionInput extends Omit<AdoptionInput, 'sdStatus'> {
   status: Extract<MasterDataStatus, 'ACTIVE' | 'SUSPENDED' | 'RETIRED'>

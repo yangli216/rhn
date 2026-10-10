@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'react-router-dom'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { InpatientEpisode } from '../../shared/api/inpatientApi'
 import { age, formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'

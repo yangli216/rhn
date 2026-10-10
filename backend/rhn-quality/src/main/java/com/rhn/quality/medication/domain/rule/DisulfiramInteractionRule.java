@@ -2,7 +2,7 @@ package com.rhn.quality.medication.domain.rule;
 
 import tools.jackson.databind.JsonNode;
 import com.rhn.outpatient.api.PrescriptionSafetySnapshot;
-import com.rhn.quality.medication.application.MedicationSafetyCategoryService;
+import com.rhn.quality.medication.domain.MedicationSafetyCategoryMembership;
 import com.rhn.quality.medication.domain.MedicationSafetyFinding;
 import com.rhn.quality.medication.domain.RuleVersion;
 import com.rhn.shared.id.GlobalIds;
@@ -36,13 +36,13 @@ public final class DisulfiramInteractionRule implements MedicationSafetyRule {
     );
 
     private final JsonCodec json;
-    private final MedicationSafetyCategoryService safetyCategories;
+    private final MedicationSafetyCategoryMembership safetyCategories;
 
     public DisulfiramInteractionRule(JsonCodec json) {
         this(json, null);
     }
 
-    public DisulfiramInteractionRule(JsonCodec json, MedicationSafetyCategoryService safetyCategories) {
+    public DisulfiramInteractionRule(JsonCodec json, MedicationSafetyCategoryMembership safetyCategories) {
         this.json = json;
         this.safetyCategories = safetyCategories;
     }

@@ -29,9 +29,9 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
         JsonNode request = json(mockMvc.perform(post("/api/encounters/{id}/service-requests", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"catalogItemId":"362387869795101","quantity":1,"priceType":"SALE",
-                                 "pricingRequired":true,"reason":"基层门诊血常规复查",
+                                 "performerDepartmentId":"%s","pricingRequired":true,"reason":"基层门诊血常规复查",
                                  "clinicalDescription":"发热三日，复查感染指标"}
-                                """))
+                                """.formatted(DEPARTMENT)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.serviceType").value("LABORATORY"))
                 .andReturn().getResponse().getContentAsString());
 

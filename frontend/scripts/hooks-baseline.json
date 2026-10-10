@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "revision": "467acbac78b4f12ecb5227b028adba807e5c60e5",
+  "reason": "冻结门禁引入前已存在的 exhaustive-deps 债务；禁止增加新条目或以基线掩盖修改后的问题。",
+  "owner": "前端平台维护角色",
+  "files": {
+    "src/app/AppShell.tsx": {
+      "3f5651004d25ed5fe0b5044f": 1
+    },
+    "src/features/analytics/DynamicAnalysisLibrary.tsx": {
+      "cc51c952b5e198172bf8bfc6": 1,
+      "5e914e6288c6f5f97708b133": 1,
+      "9a5ced242a558daf029f389b": 1
+    },
+    "src/features/analytics/OutpatientRegistrationReport.tsx": {
+      "1038470d97ddf9da01758d25": 1
+    },
+    "src/features/analytics/OutpatientWorkloadReport.tsx": {
+      "676083ff4a04a3804a36ec7e": 1
+    },
+    "src/features/analytics/PilotWorkspace.tsx": {
+      "d17b54ca09caadaaf92198de": 1,
+      "18bed54462fbccdbd4b6109c": 1
+    },
+    "src/features/billing/BillingWorkspace.tsx": {
+      "792b9b1e7dffb2c7edbe40c5": 1,
+      "ac9044b57486cf9714c82e33": 1,
+      "c4f2be281bbfd31612c75814": 1
+    },
+    "src/features/diagnostics/DiagnosticWorkspace.tsx": {
+      "72d26f37f527bbb80bc43b2f": 1,
+      "c265f924948fc8b9b9b4ed8f": 1
+    },
+    "src/features/inpatient/CanvasMedicalRecordEditor.tsx": {
+      "0550299ef63bd9d78f92ffbb": 1
+    },
+    "src/features/inpatient/InpatientMedicalRecordWorkspace.test.tsx": {
+      "0053c1fe8aa220425daf405f": 1
+    },
+    "src/features/inpatient/InpatientNurseStation.tsx": {
+      "20b8d6aedc0ddb1f967f85ec": 1
+    },
+    "src/features/inpatient/InpatientNursingWorkspace.tsx": {
+      "edf257e5a93b0a1dc253187c": 1
+    },
+    "src/features/inpatient/InpatientShiftHandoffWorkspace.tsx": {
+      "6ed31b9e9b9aa55488939724": 1,
+      "3cc741d95221e72b0c504439": 1
+    },
+    "src/features/inpatient/InpatientStationShared.tsx": {
+      "5a1df09f43ffdea832c7461a": 1
+    },
+    "src/features/inpatient/InpatientTemperatureChart.tsx": {
+      "44bea8243595597b3c414b6f": 1
+    },
+    "src/features/outpatient/UnifiedOrderListEditor.tsx": {
+      "0ae92d4346af4b7f4856b792": 1
+    },
+    "src/features/outpatient/ai/ClinicalAiAssistantPanel.tsx": {
+      "8ab5c38864cd8f337b48130d": 1,
+      "7fa9e6cfee14a3a9fe4313ed": 1,
+      "1fdfb9998b9aff22b51728d5": 1,
+      "fe2ce804047df38c87802cb0": 2
+    },
+    "src/features/outpatient/ai/ClinicalAiCopilotHub.tsx": {
+      "041275f05911de5a28aa8a53": 1
+    },
+    "src/features/outpatient/record/useAiPlanApplication.ts": {
+      "a794da66fa6ad917b63b8b44": 1
+    },
+    "src/features/outpatient/record/useClinicalAiDraft.ts": {
+      "c331d3b6cbf36c959688e66a": 1
+    },
+    "src/features/outpatient/templates/AiPlanTemplateDraftModal.tsx": {
+      "fb0a70671b162364d5a95ab9": 1,
+      "875d82ad763bff3fbbf2b32c": 1,
+      "11ab9de3dfa8c84a688805c6": 1
+    },
+    "src/features/outpatient/templates/PlanTemplateClinicalEditor.tsx": {
+      "d262023c81526bcb70932ba5": 1
+    },
+    "src/features/outpatient/triage/OutpatientTriageWorkspace.tsx": {
+      "eb5dfd3965e18ff79e30dd8d": 1,
+      "fe83303a75b865badb981b9d": 1,
+      "3a478f700f27effdeaa4e0c9": 1
+    },
+    "src/features/pharmacy/InventoryAccuracyManagement.tsx": {
+      "b70fb2c46d850c1c815b448d": 1,
+      "0b582cd9d7f68b67f5995884": 1
+    },
+    "src/features/pharmacy/TraceCodeManagement.tsx": {
+      "9b069905934ddba5c1d0b5c0": 1
+    },
+    "src/features/pharmacy/WarehouseManagement.tsx": {
+      "498bdcd0111e52ee2cb4639b": 1
+    },
+    "src/features/pharmacy/WarehouseOperations.tsx": {
+      "5b3726ae614708fe21a1940e": 1
+    },
+    "src/features/quality/MedicationKnowledgeDrafts.tsx": {
+      "32d283e3fa3c64a6fbfae4fe": 1,
+      "14d6afc0b5913b3bb885cab3": 1
+    },
+    "src/features/quality/MedicationKnowledgeFeedbackDialog.tsx": {
+      "66f2662a36f232819cf04195": 1
+    },
+    "src/features/quality/MedicationRuleCatalog.tsx": {
+      "2e37bff9bdcbabb5f88d7464": 1
+    },
+    "src/features/quality/MedicationSafetyCategories.tsx": {
+      "9e469b0dae2f4af9003e491c": 1,
+      "34daa74b2dd1e53551b00138": 1,
+      "702e40ec58bce393dadaf0a3": 1
+    },
+    "src/features/quality/MedicationWorkbench.tsx": {
+      "c562525eefff00d778267366": 1
+    },
+    "src/features/settings/DictionaryManagement.tsx": {
+      "854cb9e9d69991fe490436dd": 1
+    },
+    "src/features/settings/PrintBusinessMapping.tsx": {
+      "bed6cbb782cf9d8c61cf5ddd": 1,
+      "907b2ed3ebc66a668db7f1dc": 1
+    },
+    "src/features/settings/PrintDeviceManagement.tsx": {
+      "c8dbf923f75b275a5c697829": 1
+    },
+    "src/features/settings/PrintTemplateManagement.tsx": {
+      "fa3c8e4caf9bd19acc854c82": 1,
+      "1ad0fe73500c5507b73a38d2": 1
+    },
+    "src/features/treatment/SkinTestManagementWorkspace.tsx": {
+      "77de66ab7cfbd834173f36d4": 1
+    },
+    "src/features/treatment/TreatmentExecutionWorkspace.tsx": {
+      "193116b7e1a9ea448e4ec12f": 2
+    },
+    "src/shared/billing/SettlementPaymentPanel.tsx": {
+      "b308fba0134701f12fe50c1e": 1
+    },
+    "src/shared/ui/GridAddressInput.tsx": {
+      "b34aed406a5bfb8926acc882": 3,
+      "8679d39b4b7cb91788779e65": 1
+    },
+    "src/shared/ui/PatientIdentitySearch.tsx": {
+      "d1c0e1f86a6344ca4d44d1d8": 1,
+      "bc71353a1688a651aca87097": 1
+    },
+    "src/shared/ui/Popconfirm.tsx": {
+      "a705754ff6f62762f5a282da": 1
+    },
+    "src/shared/ui/RemoteSearchSelect.tsx": {
+      "26493f4eb48b986fbe014876": 1,
+      "6095e7090f314f38bf5919e2": 1
+    },
+    "src/shared/ui/Select.tsx": {
+      "cd123ce9f6b418a437610f8b": 1,
+      "d24bab02c146ae5f7b45930f": 1,
+      "8c606e28f688112d099456c2": 2,
+      "cbf2712a0bc34e87dae93e74": 1,
+      "060e2cd49f36508631512e44": 1,
+      "d9ad15b4aa93286bb5dc61f2": 1,
+      "d424f28a4110860b316101c3": 1
+    },
+    "src/shared/ui/Tooltip.tsx": {
+      "3e38fa34d9e20b37541eabbe": 1
+    },
+    "src/shared/ui/index.tsx": {
+      "ec9087e37f2e64be34c764cd": 1
+    }
+  }
+}

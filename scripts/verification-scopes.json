@@ -1,0 +1,462 @@
+{
+  "version": 1,
+  "scopes": {
+    "frequency": {
+      "coverage": [
+        "临床频次、医嘱录入和药房用药展示"
+      ],
+      "limitations": [
+        "仅覆盖维护的测试映射；跨领域、契约和迁移扩大检查，不能替代完整 CI。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/shared/clinical/frequencySemantics.test.ts",
+        "src/features/outpatient/orders/medicationQuantity.test.ts",
+        "src/features/outpatient/orders/orderEntries.test.ts",
+        "src/features/outpatient/orders/medicationEntry.test.ts",
+        "src/features/outpatient/orders/OrderComposerFields.test.tsx",
+        "src/features/outpatient/orders/useDraftRowInteractions.test.tsx",
+        "src/features/outpatient/orders/useAiOrderReview.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiTreatmentRows.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiCatalogReview.test.tsx",
+        "src/features/outpatient/ai/ClinicalEvidenceDrawer.test.tsx",
+        "src/shared/ui/Dialog.test.tsx",
+        "src/shared/ui/Select.test.tsx",
+        "src/features/outpatient/UnifiedOrderListEditor.test.tsx",
+        "src/features/pharmacy/medicationDisplay.test.ts",
+        "src/features/pharmacy/PharmacyWorkspace.test.tsx"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "ClinicalFrequencyContractTest",
+        "ClinicalSemanticPrimitivesTest"
+      ]
+    },
+    "outpatient-draft": {
+      "coverage": [
+        "门诊患者切换、病历草稿、诊毕和 AI 模板采纳"
+      ],
+      "limitations": [
+        "仅覆盖维护的测试映射；跨领域、契约和迁移扩大检查，不能替代完整 CI。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/outpatient/record/saveClinicalDraft.test.ts",
+        "src/features/outpatient/record/clinicalRecordReceipt.test.ts",
+        "src/features/outpatient/record/clinicalDocumentWorkflow.test.ts",
+        "src/features/outpatient/record/useClinicalDocumentSession.test.tsx",
+        "src/features/outpatient/record/useClinicalDraftSession.test.tsx",
+        "src/features/outpatient/record/completeEncounter.test.ts",
+        "src/features/outpatient/record/completionFacts.test.ts",
+        "src/features/outpatient/record/completionBillingWrites.test.ts",
+        "src/shared/billing/SettlementPaymentPanel.test.tsx",
+        "src/features/outpatient/record/DiagnosisPanel.test.tsx",
+        "src/features/outpatient/record/diagnosisManagementEvidence.test.ts",
+        "src/features/outpatient/record/ClinicalVitalsFields.test.tsx",
+        "src/features/outpatient/record/useClinicalAiDraft.test.tsx",
+        "src/features/outpatient/record/useAiPlanApplication.test.tsx",
+        "src/features/outpatient/record/NoteTemplateBar.test.tsx",
+        "src/features/outpatient/DoctorWorkstation.test.tsx",
+        "src/features/outpatient/orders/usePrescriptionSplitPreview.test.tsx",
+        "src/features/outpatient/orders/persistOrderDrafts.test.ts",
+        "src/features/outpatient/DoctorNoteTemplate.test.ts",
+        "src/features/outpatient/PrescriptionPackaging.test.ts",
+        "src/features/outpatient/ai/aiDraftAdapter.test.ts",
+        "src/features/outpatient/ai/canonicalAiDiagnoses.test.ts",
+        "src/features/outpatient/ai/ClinicalAiQuietWorkflow.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiAssistantPanel.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiPlanAdoption.test.tsx",
+        "src/features/outpatient/ai/HistoryPrescriptionReference.test.tsx",
+        "src/features/outpatient/ai/historicalPrescriptionImport.test.ts",
+        "src/features/outpatient/templates/templateApplicationReceipt.test.ts",
+        "src/features/outpatient/templates/noteTemplateSaveInput.test.ts",
+        "src/features/outpatient/templates/maintainedTemplateSave.test.ts",
+        "src/features/outpatient/templates/TemplateMaintenanceTruth.test.tsx",
+        "src/features/outpatient/templates/templateCatalogSearch.test.ts",
+        "src/features/outpatient/templates/useTemplateCatalogSearch.test.tsx",
+        "src/features/outpatient/templates/AiPlanCatalogSearch.test.tsx",
+        "src/features/outpatient/templates/ManualClinicalTemplateDialog.test.tsx",
+        "src/features/outpatient/templates/templateEditorFacts.test.ts",
+        "src/features/outpatient/templates/ManualTemplateEditorTruth.test.tsx",
+        "src/features/outpatient/templates/AiPlanTemplateDraftModal.test.tsx",
+        "src/features/outpatient/templates/convertedPlanFacts.test.ts",
+        "src/features/outpatient/templates/AiPlanConversionTruth.test.tsx",
+        "src/features/outpatient/templates/AiPlanMedicationTruth.test.tsx",
+        "src/features/outpatient/templates/AiPlanServiceTruth.test.tsx",
+        "src/features/outpatient/templates/aiPlanServiceFacts.test.ts",
+        "src/features/outpatient/templates/aiPlanMedicationFacts.test.ts",
+        "src/features/outpatient/templates/planMedicationPresentation.test.ts",
+        "src/features/outpatient/templates/OutpatientPlanTemplatesWorkspace.test.tsx",
+        "src/features/outpatient/templates/resolveTemplateOrders.test.ts",
+        "src/features/outpatient/templates/resolveTemplateOrders.api.test.ts",
+        "src/features/outpatient/templates/useTemplateApplication.test.tsx",
+        "src/features/outpatient/templates/historicalPlanSelection.test.ts"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "ClinicalAiModelModeTest",
+        "OutpatientDoctorWorkstationTest",
+        "ClinicalAiPlanPreflightTest",
+        "OutpatientNoteTemplateTest",
+        "OutpatientPlanTemplateTest",
+        "ClinicalAiPlanCompilationTest",
+        "TemplateCatalogPagingContractTest",
+        "ServiceOrderableCatalogCompletenessTest",
+        "com.rhn.ai.application.ClinicalTreatmentRecommendationServiceTest",
+        "com.rhn.platform.web.ApiExceptionHandlerTest",
+        "com.rhn.platform.masterdata.application.ItemGroupDirectoryServiceTest",
+        "com.rhn.ai.application.ClinicalPlanInvestigationTruthTest",
+        "com.rhn.ai.application.PlanInvestigationDecisionServiceTest",
+        "com.rhn.ai.application.ClinicalPlanMedicationTruthTest",
+        "com.rhn.ai.application.MedicationIntentParserTest",
+        "com.rhn.ai.application.MedicationSpecificationEvidenceTest",
+        "com.rhn.ai.application.MedicationCandidateMatchingServiceTest",
+        "com.rhn.ai.application.HistoricalPlanResolutionServiceTest",
+        "com.rhn.ai.application.HistoricalPlanComparisonServiceTest",
+        "com.rhn.ai.application.ClinicalPlanRetrievalServiceTest",
+        "ClinicalAiPlanIdentityTest",
+        "HistoricalPlanCoverageContractTest",
+        "HistoricalEncounterWindowTest",
+        "DiagnosisManagementEvidenceTest",
+        "DiagnosisDomainTruthTest",
+        "DiagnosisDomainMigrationTest",
+        "DiagnosisOwnershipPersistenceTest",
+        "com.rhn.outpatient.encounter.DiagnosisOwnershipValidationTest",
+        "com.rhn.outpatient.encounter.DiagnosisManagementSnapshotTest",
+        "com.rhn.pharmacy.application.OutpatientInventoryRoutingTruthTest",
+        "com.rhn.outpatient.ordering.JpaOutpatientClinicalHistoryDirectoryTest",
+        "OutpatientStructuredNoteFormTest",
+        "ClinicalDocumentFoundationTest",
+        "ServiceExecutionDepartmentDefaultTest",
+        "com.rhn.platform.masterdata.api.ServiceExecutionDepartmentPolicyTest",
+        "BillingSettlementTest",
+        "PaymentRoundingIntegrationTest"
+      ]
+    },
+    "round1": {
+      "coverage": [
+        "门诊草稿与频次的联合回归"
+      ],
+      "limitations": [
+        "仅覆盖维护的测试映射；跨领域、契约和迁移扩大检查，不能替代完整 CI。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/shared/clinical/frequencySemantics.test.ts",
+        "src/features/outpatient/orders/medicationQuantity.test.ts",
+        "src/features/outpatient/orders/orderEntries.test.ts",
+        "src/features/outpatient/orders/medicationEntry.test.ts",
+        "src/features/outpatient/orders/OrderComposerFields.test.tsx",
+        "src/features/outpatient/orders/useDraftRowInteractions.test.tsx",
+        "src/features/outpatient/orders/useAiOrderReview.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiTreatmentRows.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiCatalogReview.test.tsx",
+        "src/features/outpatient/ai/ClinicalEvidenceDrawer.test.tsx",
+        "src/shared/ui/Dialog.test.tsx",
+        "src/shared/ui/Select.test.tsx",
+        "src/features/outpatient/UnifiedOrderListEditor.test.tsx",
+        "src/features/pharmacy/medicationDisplay.test.ts",
+        "src/features/pharmacy/PharmacyWorkspace.test.tsx",
+        "src/features/outpatient/record/saveClinicalDraft.test.ts",
+        "src/features/outpatient/record/clinicalRecordReceipt.test.ts",
+        "src/features/outpatient/record/clinicalDocumentWorkflow.test.ts",
+        "src/features/outpatient/record/useClinicalDocumentSession.test.tsx",
+        "src/features/outpatient/record/useClinicalDraftSession.test.tsx",
+        "src/features/outpatient/record/completeEncounter.test.ts",
+        "src/features/outpatient/record/completionFacts.test.ts",
+        "src/features/outpatient/record/completionBillingWrites.test.ts",
+        "src/shared/billing/SettlementPaymentPanel.test.tsx",
+        "src/features/outpatient/record/DiagnosisPanel.test.tsx",
+        "src/features/outpatient/record/diagnosisManagementEvidence.test.ts",
+        "src/features/outpatient/record/ClinicalVitalsFields.test.tsx",
+        "src/features/outpatient/record/useClinicalAiDraft.test.tsx",
+        "src/features/outpatient/record/useAiPlanApplication.test.tsx",
+        "src/features/outpatient/record/NoteTemplateBar.test.tsx",
+        "src/features/outpatient/DoctorWorkstation.test.tsx",
+        "src/features/outpatient/orders/usePrescriptionSplitPreview.test.tsx",
+        "src/features/outpatient/orders/persistOrderDrafts.test.ts",
+        "src/features/outpatient/DoctorNoteTemplate.test.ts",
+        "src/features/outpatient/PrescriptionPackaging.test.ts",
+        "src/features/outpatient/ai/aiDraftAdapter.test.ts",
+        "src/features/outpatient/ai/canonicalAiDiagnoses.test.ts",
+        "src/features/outpatient/ai/ClinicalAiQuietWorkflow.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiAssistantPanel.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiPlanAdoption.test.tsx",
+        "src/features/outpatient/ai/HistoryPrescriptionReference.test.tsx",
+        "src/features/outpatient/ai/historicalPrescriptionImport.test.ts",
+        "src/features/outpatient/templates/templateApplicationReceipt.test.ts",
+        "src/features/outpatient/templates/noteTemplateSaveInput.test.ts",
+        "src/features/outpatient/templates/maintainedTemplateSave.test.ts",
+        "src/features/outpatient/templates/TemplateMaintenanceTruth.test.tsx",
+        "src/features/outpatient/templates/templateCatalogSearch.test.ts",
+        "src/features/outpatient/templates/useTemplateCatalogSearch.test.tsx",
+        "src/features/outpatient/templates/AiPlanCatalogSearch.test.tsx",
+        "src/features/outpatient/templates/ManualClinicalTemplateDialog.test.tsx",
+        "src/features/outpatient/templates/templateEditorFacts.test.ts",
+        "src/features/outpatient/templates/ManualTemplateEditorTruth.test.tsx",
+        "src/features/outpatient/templates/AiPlanTemplateDraftModal.test.tsx",
+        "src/features/outpatient/templates/convertedPlanFacts.test.ts",
+        "src/features/outpatient/templates/AiPlanConversionTruth.test.tsx",
+        "src/features/outpatient/templates/AiPlanMedicationTruth.test.tsx",
+        "src/features/outpatient/templates/AiPlanServiceTruth.test.tsx",
+        "src/features/outpatient/templates/aiPlanServiceFacts.test.ts",
+        "src/features/outpatient/templates/aiPlanMedicationFacts.test.ts",
+        "src/features/outpatient/templates/planMedicationPresentation.test.ts",
+        "src/features/outpatient/templates/OutpatientPlanTemplatesWorkspace.test.tsx",
+        "src/features/outpatient/templates/resolveTemplateOrders.test.ts",
+        "src/features/outpatient/templates/resolveTemplateOrders.api.test.ts",
+        "src/features/outpatient/templates/useTemplateApplication.test.tsx",
+        "src/features/outpatient/templates/historicalPlanSelection.test.ts"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "ClinicalFrequencyContractTest",
+        "ClinicalSemanticPrimitivesTest",
+        "ClinicalAiModelModeTest",
+        "OutpatientDoctorWorkstationTest",
+        "ClinicalAiPlanPreflightTest",
+        "OutpatientNoteTemplateTest",
+        "OutpatientPlanTemplateTest",
+        "ClinicalAiPlanCompilationTest",
+        "TemplateCatalogPagingContractTest",
+        "ServiceOrderableCatalogCompletenessTest",
+        "com.rhn.ai.application.ClinicalTreatmentRecommendationServiceTest",
+        "com.rhn.platform.web.ApiExceptionHandlerTest",
+        "com.rhn.platform.masterdata.application.ItemGroupDirectoryServiceTest",
+        "com.rhn.ai.application.ClinicalPlanInvestigationTruthTest",
+        "com.rhn.ai.application.PlanInvestigationDecisionServiceTest",
+        "com.rhn.ai.application.ClinicalPlanMedicationTruthTest",
+        "com.rhn.ai.application.MedicationIntentParserTest",
+        "com.rhn.ai.application.MedicationSpecificationEvidenceTest",
+        "com.rhn.ai.application.MedicationCandidateMatchingServiceTest",
+        "com.rhn.ai.application.HistoricalPlanResolutionServiceTest",
+        "com.rhn.ai.application.HistoricalPlanComparisonServiceTest",
+        "com.rhn.ai.application.ClinicalPlanRetrievalServiceTest",
+        "ClinicalAiPlanIdentityTest",
+        "HistoricalPlanCoverageContractTest",
+        "HistoricalEncounterWindowTest",
+        "DiagnosisManagementEvidenceTest",
+        "DiagnosisDomainTruthTest",
+        "DiagnosisDomainMigrationTest",
+        "DiagnosisOwnershipPersistenceTest",
+        "com.rhn.outpatient.encounter.DiagnosisOwnershipValidationTest",
+        "com.rhn.outpatient.encounter.DiagnosisManagementSnapshotTest",
+        "com.rhn.pharmacy.application.OutpatientInventoryRoutingTruthTest",
+        "com.rhn.outpatient.ordering.JpaOutpatientClinicalHistoryDirectoryTest",
+        "OutpatientStructuredNoteFormTest",
+        "ClinicalDocumentFoundationTest",
+        "ServiceExecutionDepartmentDefaultTest",
+        "com.rhn.platform.masterdata.api.ServiceExecutionDepartmentPolicyTest",
+        "BillingSettlementTest",
+        "PaymentRoundingIntegrationTest"
+      ]
+    },
+    "knowledge-panel": {
+      "coverage": [
+        "知识阅读、共享 Dialog 和文档展示"
+      ],
+      "limitations": [
+        "仅覆盖维护的测试映射；跨领域、契约和迁移扩大检查，不能替代完整 CI。"
+      ],
+      "frontend_only": true,
+      "frontend": [
+        "src/shared/ui/Dialog.test.tsx",
+        "src/features/outpatient/ai/ClinicalEvidenceDrawer.test.tsx",
+        "src/features/outpatient/ai/MedicalInsertViewerModal.test.tsx"
+      ],
+      "backend": []
+    },
+    "billing": {
+      "coverage": [
+        "收费展示、结算、退款、支付精度与门诊费用来源"
+      ],
+      "limitations": [
+        "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/billing/BillingQueryWorkspace.test.tsx",
+        "src/features/billing/BillingWorkspace.results.test.tsx",
+        "src/features/billing/BillingWorkspace.test.tsx",
+        "src/features/billing/CashierCloseWorkspace.test.tsx",
+        "src/features/billing/RefundManagementWorkspace.test.tsx",
+        "src/features/billing/RefundManagementWorkspace.truth.test.tsx",
+        "src/shared/billing/SettlementPaymentPanel.test.tsx",
+        "src/shared/billing/useCashierPaymentMethods.test.tsx",
+        "src/shared/billing/roundAmount.test.ts"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "BillingSettlementTest",
+        "BillingDisplayDictionaryTest",
+        "ChargeCategoryAccountingTest",
+        "PaymentRoundingIntegrationTest",
+        "RegistrationBillingIntegrationTest",
+        "InpatientBillingFlowTest",
+        "com.rhn.billing.application.BillingChargeDisplayTest",
+        "com.rhn.billing.application.BillingOrderOriginResolverTest",
+        "com.rhn.billing.application.MedicationReturnChargeTruthTest"
+      ]
+    },
+    "master-data": {
+      "coverage": [
+        "疾病、药品、产品、机构采用、标准关联、字典与请求契约"
+      ],
+      "limitations": [
+        "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/settings/BasicDataManagement.test.tsx",
+        "src/features/settings/BasicDataAttributes.test.tsx",
+        "src/features/settings/MedicationCompositionDialog.test.tsx",
+        "src/features/settings/ClinicalMedicationStandardsPanel.test.tsx",
+        "src/features/settings/StandardMedicationSetupDialog.test.tsx",
+        "src/features/settings/MedicationStandardReadinessPanel.test.tsx",
+        "src/features/settings/DiseaseManagementMembersDialog.test.tsx",
+        "src/features/settings/OrganizationCatalogImportDialog.test.tsx",
+        "src/features/settings/StandardMappingDialog.test.tsx",
+        "src/features/settings/CatalogLifecycleDialog.test.tsx",
+        "src/features/settings/ItemAttributeValueEditor.test.tsx",
+        "src/shared/ui/AnchoredPanel.test.tsx"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "MasterDataRequestContractTest",
+        "MedicalOperationsMasterDataTest",
+        "MedicationStandardsTest",
+        "MasterDataSearchIntegrationTest",
+        "MedicationCatalogIntegrityTest",
+        "RepresentativeMasterDataSeedTest",
+        "MedicationStandardBindingTest",
+        "MedicationStandardRevisionTest",
+        "ServiceExecutionDepartmentDefaultTest",
+        "ServiceCatalogSearchCompletenessTest",
+        "ItemAliasMasterDataTest",
+        "CatalogLifecycleReceiptTest"
+      ]
+    },
+    "inventory": {
+      "coverage": [
+        "库存台账、冻结、采购、盘点、调拨、效期及药房出入库"
+      ],
+      "limitations": [
+        "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/pharmacy/PharmacyWorkspace.test.tsx",
+        "src/features/pharmacy/WarehouseManagement.test.tsx",
+        "src/features/pharmacy/WarehousePurchase.test.tsx",
+        "src/features/pharmacy/WarehouseProductCandidates.test.tsx",
+        "src/features/pharmacy/InventoryAccuracyManagement.test.tsx",
+        "src/features/pharmacy/InventoryPeriodManagement.test.tsx",
+        "src/features/pharmacy/InventoryPriceAdjustmentManagement.test.tsx",
+        "src/features/pharmacy/inventoryLedgerTruth.test.ts",
+        "src/features/pharmacy/procurementTruth.test.ts",
+        "src/features/pharmacy/warehousePrices.test.ts",
+        "src/shared/ui/ActionMenu.test.tsx"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "InventoryLedgerReservationTest",
+        "OutpatientPrescriptionInventoryFreezeIntegrationTest",
+        "InventoryProcurementWorkflowTest",
+        "InventoryTraceCodeTest",
+        "InventoryPriceAdjustmentWorkflowTest",
+        "InventoryPeriodCloseWorkflowTest",
+        "StockCountWorkflowTest",
+        "StockTransferWorkflowTest",
+        "StockRequisitionWorkflowTest",
+        "PharmacyOrganizationFoundationTest",
+        "PharmacyIntakeReviewTest",
+        "com.rhn.pharmacy.application.InventoryPackageFactsTest",
+        "com.rhn.pharmacy.application.PharmacyFlowTruthTest",
+        "com.rhn.pharmacy.application.MedicationFulfillmentTruthTest",
+        "com.rhn.pharmacy.application.OutpatientInventoryRoutingTruthTest"
+      ]
+    },
+    "medication-safety": {
+      "coverage": [
+        "药品安全规则、分类、知识生成评审发布、回放和药房反馈"
+      ],
+      "limitations": [
+        "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/quality/MedicationFeedbackImprovementDialog.test.tsx",
+        "src/features/quality/MedicationKnowledgeDeploymentDialog.test.tsx",
+        "src/features/quality/MedicationKnowledgeDrafts.test.tsx",
+        "src/features/quality/MedicationKnowledgeExamplesDialog.test.tsx",
+        "src/features/quality/MedicationKnowledgeExtractionDialog.test.tsx",
+        "src/features/quality/MedicationKnowledgeFeedbackDialog.test.tsx",
+        "src/features/quality/MedicationKnowledgePublicationDialog.test.tsx",
+        "src/features/quality/MedicationKnowledgeReplayDialog.test.tsx",
+        "src/features/quality/MedicationKnowledgeReviewDialog.test.tsx",
+        "src/features/quality/MedicationKnowledgeRuleDialog.test.tsx",
+        "src/features/quality/MedicationKnowledgeTestDialog.test.tsx",
+        "src/features/quality/MedicationRuleIntake.test.tsx",
+        "src/features/quality/MedicationSafetyCategories.test.tsx",
+        "src/features/quality/MedicationWorkbench.test.tsx",
+        "src/features/pharmacy/PharmacyMedicationSafety.test.tsx",
+        "src/features/pharmacy/PharmacyKnowledgeImprovement.test.tsx"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "MedicationSafetyFoundationTest",
+        "MedicationSafetyGovernanceTest",
+        "MedicationSafetySemanticIntegrationTest",
+        "MedicationSafetyCategoryTest",
+        "MedicationWorkbenchTest",
+        "MedicationKnowledgeDraftTest",
+        "MedicationKnowledgeReviewTest",
+        "MedicationKnowledgeRuleCompilerTest",
+        "MedicationKnowledgePublicationTest",
+        "MedicationKnowledgeDeploymentTest",
+        "MedicationKnowledgeReplayTest",
+        "MedicationFeedbackImprovementTest",
+        "com.rhn.quality.MedicationSafetyEngineTest",
+        "com.rhn.quality.QmedCommonClinicalRulesTest",
+        "com.rhn.quality.QmedExistingRuleMigrationTest"
+      ]
+    },
+    "ai-matching": {
+      "coverage": [
+        "AI 通用意图到院内目录映射、规格、检验检查、历史方案和采纳"
+      ],
+      "limitations": [
+        "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/outpatient/ai/ClinicalAiCatalogReview.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiTreatmentRows.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiPlanAdoption.test.tsx",
+        "src/features/outpatient/ai/aiDraftAdapter.test.ts",
+        "src/features/outpatient/ai/canonicalAiDiagnoses.test.ts",
+        "src/features/outpatient/ai/historicalPrescriptionImport.test.ts",
+        "src/features/outpatient/record/useAiPlanApplication.test.tsx",
+        "src/features/outpatient/templates/aiPlanMedicationFacts.test.ts",
+        "src/features/outpatient/templates/aiPlanServiceFacts.test.ts",
+        "src/features/outpatient/templates/resolveTemplateOrders.api.test.ts"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "ClinicalAiPlanPreflightTest",
+        "ClinicalAiPlanCompilationTest",
+        "TemplateCatalogPagingContractTest",
+        "ServiceOrderableCatalogCompletenessTest",
+        "com.rhn.ai.application.ClinicalTreatmentRecommendationServiceTest",
+        "com.rhn.ai.application.TreatmentCatalogDecisionServiceTest",
+        "com.rhn.ai.application.MedicationCandidateMatchingServiceTest",
+        "com.rhn.ai.application.MedicationIntentParserTest",
+        "com.rhn.ai.application.MedicationSpecificationEvidenceTest",
+        "com.rhn.ai.application.ClinicalPlanInvestigationTruthTest",
+        "com.rhn.ai.application.PlanInvestigationDecisionServiceTest",
+        "com.rhn.ai.application.HistoricalPlanResolutionServiceTest",
+        "com.rhn.ai.application.HistoricalPlanComparisonServiceTest"
+      ]
+    }
+  }
+}

@@ -9,7 +9,7 @@ import { LoginScreen } from '../features/auth/LoginScreen'
 import { Dashboard } from '../features/dashboard/Dashboard'
 import { requirePortalSummary } from '../features/dashboard/portalSummary'
 import { requirePortalNotifications } from './portalNotificationTruth'
-import type { Department, Organization, Session } from '../shared/model'
+import type { Department, Session } from '../shared/model'
 import { createRhnApi, createRhnSessionApi, errorMessage, type Credentials, type RhnApi, type WorkContextOption, type WorkContextType } from '../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, Icon, IconButton, LoadingState, PlannedPage, StatusBadge, type IconName } from '../shared/ui'
 import { formatTime } from '../shared/format'
@@ -114,10 +114,8 @@ const PresenceManagement = lazy(() => import('../features/settings/PresenceManag
 const DispenseRouteSettings = lazy(() => import('../features/settings/DispenseRouteSettings')
   .then((module) => ({ default: module.DispenseRouteSettings })))
 
-export interface ClinicalContext {
-  organization: Organization
-  department: Department
-}
+export type { ClinicalContext } from '../shared/clinical/workContext'
+import type { ClinicalContext } from '../shared/clinical/workContext'
 
 export type ThemeColor = 'emerald' | 'ocean-blue' | 'cobalt-indigo' | 'forest-pine'
 

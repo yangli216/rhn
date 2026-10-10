@@ -1,5 +1,6 @@
 package com.rhn.ai.application;
 
+import com.rhn.ai.application.ClinicalAiContextAssembler.ServerContext;
 import com.rhn.ai.api.ClinicalAssistantContracts.Capabilities;
 import com.rhn.ai.api.ClinicalAssistantContracts.TreatmentMatch;
 import com.rhn.ai.api.ClinicalAssistantContracts.TreatmentMatchRequest;
@@ -26,14 +27,11 @@ import com.rhn.ai.domain.AiSuggestionEvent;
 import com.rhn.ai.domain.AiSuggestionStatus;
 import com.rhn.ai.infrastructure.AiSuggestionEventRepository;
 import com.rhn.ai.infrastructure.AiSuggestionRepository;
-import com.rhn.diagnostics.api.DiagnosticReportDirectory;
 import com.rhn.diagnostics.api.DiagnosticReportResponse;
 import com.rhn.healthcore.api.AllergyDirectory;
-import com.rhn.healthcore.api.ClinicalDocumentDirectory;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.OutpatientPlanTemplateDirectory;
-import com.rhn.outpatient.api.OutpatientClinicalHistoryDirectory;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
@@ -73,7 +71,6 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 public class ClinicalAssistantApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ClinicalAssistantApplicationService.class);
     private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
-    private static final String OUTPATIENT_NOTE = "OUTPATIENT_NOTE";
     private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V11";
     private static final String LOCAL_PROMPT_VERSION = "local-assist-v2";
     private static final String DISCLAIMER = "本结果仅为本地规则辅助生成的待核对建议，不构成诊断或处方；系统不会自动保存病历、确认诊断、开立医嘱或完成诊毕，须由医生独立判断并确认。";
@@ -85,15 +82,11 @@ public class ClinicalAssistantApplicationService {
 
     private final ClinicalAiRuntimePolicy runtimePolicy;
     private final EncounterDirectory encounterDirectory;
-    private final AllergyDirectory allergyDirectory;
-    private final ClinicalDocumentDirectory clinicalDocumentDirectory;
-    private final DiagnosticReportDirectory diagnosticReportDirectory;
     private final ResidentDirectory residentDirectory;
     private final TerminologyDirectory terminologyDirectory;
     private final OutpatientPlanTemplateDirectory planDirectory;
     private final DiagnosisNormalizationService diagnosisNormalizer;
     private final ClinicalPlanRetrievalService planRetrieval;
-    private final OutpatientClinicalHistoryDirectory historyDirectory;
     private final ExecutionContextProvider contextProvider;
     private final AiSuggestionRepository suggestions;
     private final AiSuggestionEventRepository events;
@@ -105,17 +98,18 @@ public class ClinicalAssistantApplicationService {
     private final ClinicalTreatmentRecommendationService treatmentService;
     private final TransactionTemplate transactionTemplate;
 
-    public ClinicalAssistantApplicationService(ClinicalAiRuntimePolicy runtimePolicy,
+    private final ClinicalAiContextAssembler contextAssembler;
+
+    public ClinicalAssistantApplicationService(ClinicalAiContextAssembler contextAssembler,
+                                        ClinicalAiRuntimePolicy runtimePolicy,
                                                EncounterDirectory encounterDirectory,
-                                               AllergyDirectory allergyDirectory,
-                                               ClinicalDocumentDirectory clinicalDocumentDirectory,
-                                               DiagnosticReportDirectory diagnosticReportDirectory,
+
                                                ResidentDirectory residentDirectory,
                                                TerminologyDirectory terminologyDirectory,
                                                OutpatientPlanTemplateDirectory planDirectory,
                                                DiagnosisNormalizationService diagnosisNormalizer,
                                                ClinicalPlanRetrievalService planRetrieval,
-                                               OutpatientClinicalHistoryDirectory historyDirectory,
+
                                                ExecutionContextProvider contextProvider,
                                                AiSuggestionRepository suggestions,
                                                AiSuggestionEventRepository events,
@@ -125,17 +119,14 @@ public class ClinicalAssistantApplicationService {
                                                ClinicalKnowledgeGateway knowledgeGateway,
                                                ClinicalAiMetrics metrics, ClinicalTreatmentRecommendationService treatmentService,
                                                PlatformTransactionManager transactionManager) {
+        this.contextAssembler = contextAssembler;
         this.runtimePolicy = runtimePolicy;
         this.encounterDirectory = encounterDirectory;
-        this.allergyDirectory = allergyDirectory;
-        this.clinicalDocumentDirectory = clinicalDocumentDirectory;
-        this.diagnosticReportDirectory = diagnosticReportDirectory;
         this.residentDirectory = residentDirectory;
         this.terminologyDirectory = terminologyDirectory;
         this.planDirectory = planDirectory;
         this.diagnosisNormalizer = diagnosisNormalizer;
         this.planRetrieval = planRetrieval;
-        this.historyDirectory = historyDirectory;
         this.contextProvider = contextProvider;
         this.suggestions = suggestions;
         this.events = events;
@@ -325,7 +316,7 @@ public class ClinicalAssistantApplicationService {
         if (matches.isEmpty()) return List.of();
         if (runtime.mode() != ClinicalAssistantSettings.Mode.MODEL) return recommendedPlans(matches);
         requireAvailable(runtime, access.context());
-        var context = loadServerContext(access, false);
+        var context = contextAssembler.load(access.context(), access.encounter(), false);
         var ids = matches.stream().map(match -> match.plan().id()).toList();
         var candidates = planDirectory.visibleByIds(ids).stream()
                 .sorted(Comparator.comparingInt(plan -> ids.indexOf(plan.id()))).toList();
@@ -369,7 +360,7 @@ public class ClinicalAssistantApplicationService {
         Access access = requireAccess(encounterId, true);
         Instant now = Instant.now();
         var temporalContext = new ClinicalAiModelGateway.TemporalContext(now, access.encounter().registeredAt());
-        ServerContext serverContext = loadServerContext(access);
+        ServerContext serverContext = contextAssembler.load(access.context(), access.encounter(), true);
         timing.contextLoadMs = elapsedMillis(phaseStarted);
 
         phaseStarted = System.nanoTime();
@@ -511,7 +502,7 @@ public class ClinicalAssistantApplicationService {
             expiredAdoption = "ADOPTED".equals(input.eventType());
         } else {
             if ("ADOPTED".equals(eventType)
-                    && !value.serverContextHash().equals(loadServerContext(access).hash())) {
+                    && !value.serverContextHash().equals(contextAssembler.load(access.context(), access.encounter(), true).hash())) {
                 metrics.recordSuggestionEvent(eventType, "REJECTED_SERVER_CONTEXT_CHANGED");
                 return EventRecordingOutcome.ADOPTION_REJECTED_SERVER_CONTEXT_CHANGED;
             }
@@ -1090,89 +1081,6 @@ public class ClinicalAssistantApplicationService {
         return sha256(canonical);
     }
 
-    private ServerContext loadServerContext(Access access) {
-        return loadServerContext(access, true);
-    }
-
-    private ServerContext loadServerContext(Access access, boolean includePlans) {
-        ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(access.encounter().residentId());
-        List<AllergyDirectory.AllergySnapshot> allergies = allergyDirectory
-                .activeForResident(access.encounter().residentId()).stream()
-                .filter(value -> "ALLERGY".equals(value.assertionType()))
-                .sorted(Comparator.comparing(AllergyDirectory.AllergySnapshot::id,
-                        Comparator.nullsLast(Comparator.naturalOrder())))
-                .toList();
-        ClinicalDocumentDirectory.EncounterDocumentAnchor document = clinicalDocumentDirectory
-                .findEncounterDocumentAnchor(access.encounter().id(), OUTPATIENT_NOTE).orElse(null);
-        List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> plans = includePlans ? planDirectory.searchIndexForCurrentContext() : List.of();
-        Instant historySince = Instant.now().minus(java.time.Duration.ofDays(90));
-        List<OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot> clinicalHistory = historyDirectory
-                .recentForResident(access.encounter().residentId(), access.encounter().id(), historySince, 10);
-        List<DiagnosticReportResponse> reportCandidates = new ArrayList<>(diagnosticReportDirectory
-                .listByEncounter(access.encounter().id()));
-        Instant reportSince = Instant.now().minus(java.time.Duration.ofDays(14));
-        clinicalHistory.stream().filter(value -> value.registeredAt() != null && !value.registeredAt().isBefore(reportSince))
-                .forEach(value -> reportCandidates.addAll(diagnosticReportDirectory.listByEncounter(value.encounterId())));
-        List<DiagnosticReportResponse> reports = currentReports(reportCandidates);
-
-        Map<String, Object> canonical = new LinkedHashMap<>();
-        canonical.put("tenantId", access.context().tenantId());
-        canonical.put("encounterId", access.encounter().id());
-        canonical.put("encounterRevision", access.encounter().revision());
-        canonical.put("encounterStatus", access.encounter().status());
-        Map<String, Object> documentAnchor = new LinkedHashMap<>();
-        documentAnchor.put("present", document != null);
-        if (document != null) {
-            documentAnchor.put("id", document.id());
-            documentAnchor.put("version", document.version());
-            documentAnchor.put("status", document.status());
-        }
-        canonical.put("outpatientNote", documentAnchor);
-        canonical.put("resident", Map.of("id", resident.id(), "gender", safe(resident.gender()),
-                "birthDate", resident.birthDate() == null ? "" : resident.birthDate().toString(),
-                "deceased", resident.deceased()));
-        canonical.put("allergies", allergies.stream().map(this::allergyFact).toList());
-        canonical.put("availablePlans", plans.stream().sorted(Comparator.comparing(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot::id)).map(value -> Map.of(
-                "id", value.id(), "name", safe(value.name()), "description", safe(value.description()),
-                "diagnoses", value.diagnoses(), "medications", value.medications(),
-                "services", value.services(), "tasks", value.tasks(),
-                "contentHash", value.searchProfile() == null ? "" : value.searchProfile().contentHash())).toList());
-        canonical.put("diagnosticReports", reports.stream().map(value -> Map.of(
-                "id", value.id(), "version", value.reportVersion(), "status", safe(value.status()),
-                "digest", safe(value.contentDigest()), "issuedAt", value.issuedAt() == null ? "" : value.issuedAt().toString()))
-                .toList());
-        canonical.put("clinicalHistory", clinicalHistory);
-        return new ServerContext(resident, allergies, plans, reports, clinicalHistory, sha256(canonical));
-    }
-
-    private List<DiagnosticReportResponse> currentReports(List<DiagnosticReportResponse> values) {
-        Map<String, DiagnosticReportResponse> current = new LinkedHashMap<>();
-        for (DiagnosticReportResponse value : values) {
-            if (value == null) continue;
-            String key = value.requestId() + "|" + safe(value.reportCode());
-            DiagnosticReportResponse previous = current.get(key);
-            if (previous == null || value.reportVersion() > previous.reportVersion()) current.put(key, value);
-        }
-        return current.values().stream().filter(value -> !"CANCELLED".equals(value.status()))
-                .sorted(Comparator.comparing(DiagnosticReportResponse::issuedAt,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
-                .limit(50).toList();
-    }
-
-    private Map<String, Object> allergyFact(AllergyDirectory.AllergySnapshot value) {
-        Map<String, Object> fact = new LinkedHashMap<>();
-        fact.put("id", value.id());
-        fact.put("assertionType", value.assertionType());
-        fact.put("categoryCode", value.categoryCode());
-        fact.put("criticalityCode", value.criticalityCode());
-        fact.put("reactionSeverity", value.reactionSeverity());
-        fact.put("substanceCodeSystemUri", value.substanceCodeSystemUri());
-        fact.put("substanceCode", value.substanceCode());
-        fact.put("substanceDisplay", value.substanceDisplay());
-        fact.put("reactionText", value.reactionText());
-        return fact;
-    }
-
     private List<String> presentInputFields(GenerateRequest input) {
         List<String> fields = new ArrayList<>();
         if (!blank(input.question())) fields.add("question");
@@ -1232,12 +1140,6 @@ public class ClinicalAssistantApplicationService {
     private static boolean blank(String value) { return value == null || value.isBlank(); }
 
     private record Access(ExecutionContext context, EncounterDirectory.EncounterSnapshot encounter) {}
-    private record ServerContext(ResidentDirectory.ResidentSnapshot resident,
-                                 List<AllergyDirectory.AllergySnapshot> allergies,
-                                 List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> plans,
-                                 List<DiagnosticReportResponse> reports,
-                                 List<OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot> clinicalHistory,
-                                 String hash) {}
     private record Analysis(SuggestionContent content, String riskLevel) {}
     public enum EventRecordingOutcome {
         RECORDED, ADOPTION_REJECTED_EXPIRED, ADOPTION_REJECTED_SERVER_CONTEXT_CHANGED

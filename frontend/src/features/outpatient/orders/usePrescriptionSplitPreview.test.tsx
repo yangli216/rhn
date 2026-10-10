@@ -10,7 +10,7 @@ const item: BatchOrderMedicationItem = { medicationId: '1', catalogItemId: '11',
 const plan: SplitPrescriptionPlan = { categoryCode: 'WESTERN', title: '西药处方', stockSiteId: '10',
   stockSiteName: '实际药房', routeGroupType: 'NON_INFUSION', ruleReasons: ['分类分方'], items: [{ item, groupLeader: false }] }
 const encounter = { id: 'e', residentId: 'r', organizationId: 'org', departmentId: 'dept' }
-function wrapper({ children }: { children: ReactNode }) {
+function Wrapper({ children }: { children: ReactNode }) {
   const [client] = useState(() => new QueryClient())
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
@@ -31,7 +31,7 @@ describe('verified split preview', () => {
   })
   it('blocks failed preview, supports retry and suppresses stale plans while refetching', async () => {
     const api = { autoSplitPreview: vi.fn().mockRejectedValueOnce(new Error('未配置路由')).mockResolvedValue([plan]) }
-    const view = renderHook(usePrescriptionSplitPreview, { wrapper, initialProps: { api, encounter, items: [item], enabled: true } })
+    const view = renderHook(usePrescriptionSplitPreview, { wrapper: Wrapper, initialProps: { api, encounter, items: [item], enabled: true } })
     await waitFor(() => expect(view.result.current.isError).toBe(true))
     expect(view.result.current.plans).toEqual([])
     expect(() => view.result.current.requireReady()).toThrow('尚未确认')
@@ -49,7 +49,7 @@ describe('verified split preview', () => {
     let release!: (value: SplitPrescriptionPlan[]) => void
     const api = { autoSplitPreview: vi.fn().mockImplementation(() => new Promise(resolve => { release = resolve })) }
     const initialProps = { api, encounter, items: [item], enabled: true }
-    const view = renderHook(usePrescriptionSplitPreview, { wrapper, initialProps })
+    const view = renderHook(usePrescriptionSplitPreview, { wrapper: Wrapper, initialProps })
     const oldRelease = release
     if (field === 'api') view.rerender({ ...initialProps, api: { autoSplitPreview: vi.fn().mockReturnValue(new Promise(() => {})) } })
     else if (field === 'items') view.rerender({ ...initialProps, items: [{ ...item, quantity: 3 }] })
@@ -60,7 +60,7 @@ describe('verified split preview', () => {
   })
   it('does not need a medication preview for service-only orders', () => {
     const api = { autoSplitPreview: vi.fn() }
-    const view = renderHook(usePrescriptionSplitPreview, { wrapper, initialProps: { api, encounter, items: [], enabled: true } })
+    const view = renderHook(usePrescriptionSplitPreview, { wrapper: Wrapper, initialProps: { api, encounter, items: [], enabled: true } })
     expect(view.result.current.ready).toBe(true)
     expect(api.autoSplitPreview).not.toHaveBeenCalled()
   })

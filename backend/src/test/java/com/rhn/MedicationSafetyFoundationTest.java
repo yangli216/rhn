@@ -207,6 +207,6 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
                             row.getString("column_name").toUpperCase(java.util.Locale.ROOT), row.getString("remarks")), name);
             assertEquals(expected, actual, name);
         }
-        assertEquals(19, checked); // Includes knowledge drafts, extraction, replay and compiled candidate audit tables.
+        assertEquals(21, checked); // Includes knowledge governance and safety-category/member tables.
     }
 }

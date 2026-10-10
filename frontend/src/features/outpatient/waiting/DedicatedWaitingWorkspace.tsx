@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { ClinicalContext } from '../../../app/AppShell'
+import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type { ReceptionQueueScope } from '../../../shared/api/schedulingApi'
 import { Button, EmptyState, Icon, StatusBadge } from '../../../shared/ui'
 import { CallingControlHub } from './CallingControlHub'

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import '../../styles/features/outpatient-doctor.css'
 import { useEffect, useState, type FormEvent } from 'react'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, Icon, LoadingState, PageHeader, Panel, PanelHead, StatusBadge } from '../../shared/ui'

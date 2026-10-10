@@ -4,7 +4,7 @@
 
 - 字段整体不超过 30 字符；按下划线分词，每段不超过 7 字符。只允许大写字母、数字与下划线，不能有空词段。
 - 完整名称 `REVISION` 是已登记的乐观锁例外；带前后缀的名称不继承此例外。
-- 词典中的 `REVISION → REV` 用于组合名称，例如 `NO_REVISION → NO_REV`；152 个完整 `REVISION` 字段继续沿用原名。
+- 词典中的 `REVISION → REV` 用于组合名称，例如 `NO_REVISION → NO_REV`；156 个完整 `REVISION` 字段继续沿用原名。
 - 长词必须先登记缩写及完整词，不得机械截断。复用已有同义缩写；不同含义不得分配相同的新缩写。
 - 逻辑名、Java/API 属性和枚举值保持原有业务契约。物理表名、约束名不参与本轮字段改名。
 - 本词典登记本轮长词治理使用的缩写；已有合规短词沿用物理目录。扩展时同时核对目录中的已有含义，并校验表内字段无重名。
@@ -133,6 +133,7 @@
 | FREQUENT | FREQNT |
 | GENERATED | GEND |
 | GUARDIAN | GUARD |
+| GUIDELINE | GDLN |
 | HANDOVER | HNDOVR |
 | HEARTBEAT | HRTBT |
 | HORIZONTAL | HORIZ |
@@ -214,6 +215,7 @@
 | PURPOSES | PURPS |
 | QUALIFICATION | QUALIF |
 | QUANTITY | QTY |
+| RATIONALE | RATNL |
 | REACTION | REACT |
 | RECEIVED | RECVD |
 | RECIPIENT | RCPNT |
@@ -285,6 +287,7 @@
 | SUPERSEDED | SPRSDD |
 | SURVIVING | SURV |
 | SYMPTOMS | SYMPT |
+| SYSTEMIC | SYSIC |
 | SYSTOLIC | SBP |
 | TECHNOLOGY | TECH |
 | TEMPERATURE | TEMP |

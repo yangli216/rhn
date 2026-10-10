@@ -195,6 +195,25 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.delivery.status").value("QUEUED"))
                 .andReturn().getResponse().getContentAsString());
         assertPdf(download(applicationReceipt));
+        assertEquals(Long.valueOf(ORGANIZATION), jdbcTemplate.queryForObject(
+                "select ID_ORG from RHN_SYS_PRINT_OUTPUT where ID_PRINT_OUTPUT = ?", Long.class,
+                Long.valueOf(applicationReceipt.get("outputId").asString())));
+        assertEquals(Long.valueOf(DEPARTMENT), jdbcTemplate.queryForObject(
+                "select ID_DEPT from RHN_SYS_PRINT_OUTPUT where ID_PRINT_OUTPUT = ?", Long.class,
+                Long.valueOf(applicationReceipt.get("outputId").asString())));
+        var otherDepartment = (org.springframework.test.web.servlet.request.RequestPostProcessor) request -> {
+            rhn().postProcessRequest(request);
+            request.addHeader("X-Organization-Id", ORGANIZATION);
+            request.addHeader("X-Department-Id", "362387869898501");
+            return request;
+        };
+        mockMvc.perform(post("/api/encounters/{encounterId}/service-requests/{requestId}/print-jobs",
+                                encounterId, serviceRequestId).with(otherDepartment)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"purpose\":\"CLINICAL_USE\",\"copies\":1}"))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("ENCOUNTER_FORBIDDEN"));
+        mockMvc.perform(get(applicationReceipt.get("downloadUrl").asString()).with(otherDepartment))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("PRINT_SOURCE_FORBIDDEN"));
+
         JsonNode applicationBridgeJob = json(mockMvc.perform(post(
                                 "/api/platform/printing/bridge/devices/{code}/jobs/claim",
                                 applicationPrinter.get("deviceCode").asString()).with(rhnWorkContext()))

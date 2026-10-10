@@ -22,6 +22,7 @@ import com.rhn.platform.masterdata.application.CatalogLifecycleService.AdoptionI
 import com.rhn.platform.masterdata.application.CatalogLifecycleService.PriceInput;
 import com.rhn.shared.api.PageResult;
 import com.rhn.shared.text.Strings;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
@@ -233,28 +234,29 @@ public class MasterDataController {
                 .findFirst().orElseThrow();
     }
 
+    @Schema(name = "MasterDataServiceRequest")
     record ServiceRequest(
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 300) String name,
-            @Size(max = 64) String unitCode,
-            boolean orderable, boolean chargeable,
+            @Schema(nullable = true) @Size(max = 64) String unitCode,
+            @NotNull Boolean orderable, @NotNull Boolean chargeable,
             @NotBlank @Size(max = 32) String sdStatus,
-            @NotNull LocalDate validFrom, LocalDate validTo,
+            @NotNull LocalDate validFrom, @Schema(nullable = true) LocalDate validTo,
             @NotBlank @Size(max = 64) String sdServiceType,
-            @Size(max = 64) String serviceSubtype,
+            @Schema(nullable = true) @Size(max = 64) String serviceSubtype,
             @NotBlank @Size(max = 32) String sdUsageType,
-            boolean medicalTechnology, boolean combinationItem, boolean singleOrder,
-            @Size(max = 64) String specimenType,
-            @Size(max = 64) String examinationType,
-            @Size(max = 64) String accountingCategory,
-            @Size(max = 64) String sdDuplicateRule,
-            @DecimalMin("0") BigDecimal multiSitePrice,
-            @Min(0) Integer freeSiteCount,
-            @Min(1) Integer maxBodySiteCount,
-            @Size(max = 128) String mutualRecognitionCode,
-            boolean pregnancyAlert,
-            @Size(max = 2000) String attention,
-            @Size(max = 2000) String examinationNotes) {
+            @NotNull Boolean medicalTechnology, @NotNull Boolean combinationItem, @NotNull Boolean singleOrder,
+            @Schema(nullable = true) @Size(max = 64) String specimenType,
+            @Schema(nullable = true) @Size(max = 64) String examinationType,
+            @Schema(nullable = true) @Size(max = 64) String accountingCategory,
+            @Schema(nullable = true) @Size(max = 64) String sdDuplicateRule,
+            @Schema(nullable = true) @DecimalMin("0") BigDecimal multiSitePrice,
+            @Schema(nullable = true) @Min(0) Integer freeSiteCount,
+            @Schema(nullable = true) @Min(1) Integer maxBodySiteCount,
+            @Schema(nullable = true) @Size(max = 128) String mutualRecognitionCode,
+            @NotNull Boolean pregnancyAlert,
+            @Schema(nullable = true) @Size(max = 2000) String attention,
+            @Schema(nullable = true) @Size(max = 2000) String examinationNotes) {
         ServiceCommand command() { return new ServiceCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(unitCode), orderable,
                 chargeable, sdStatus, validFrom, validTo, sdServiceType, Strings.trimToNull(serviceSubtype), sdUsageType,
                 medicalTechnology, combinationItem, singleOrder, Strings.trimToNull(specimenType), Strings.trimToNull(examinationType),
@@ -263,29 +265,30 @@ public class MasterDataController {
                 Strings.trimToNull(attention), Strings.trimToNull(examinationNotes)); }
     }
 
+    @Schema(name = "MasterDataUpdateServiceRequest")
     record UpdateServiceRequest(
             @NotNull @Min(0) BigInteger expectedRevision,
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 300) String name,
-            @Size(max = 64) String unitCode,
-            boolean orderable, boolean chargeable,
+            @Schema(nullable = true) @Size(max = 64) String unitCode,
+            @NotNull Boolean orderable, @NotNull Boolean chargeable,
             @NotBlank @Size(max = 32) String sdStatus,
-            @NotNull LocalDate validFrom, LocalDate validTo,
+            @NotNull LocalDate validFrom, @Schema(nullable = true) LocalDate validTo,
             @NotBlank @Size(max = 64) String sdServiceType,
-            @Size(max = 64) String serviceSubtype,
+            @Schema(nullable = true) @Size(max = 64) String serviceSubtype,
             @NotBlank @Size(max = 32) String sdUsageType,
-            boolean medicalTechnology, boolean combinationItem, boolean singleOrder,
-            @Size(max = 64) String specimenType,
-            @Size(max = 64) String examinationType,
-            @Size(max = 64) String accountingCategory,
-            @Size(max = 64) String sdDuplicateRule,
-            @DecimalMin("0") BigDecimal multiSitePrice,
-            @Min(0) Integer freeSiteCount,
-            @Min(1) Integer maxBodySiteCount,
-            @Size(max = 128) String mutualRecognitionCode,
-            boolean pregnancyAlert,
-            @Size(max = 2000) String attention,
-            @Size(max = 2000) String examinationNotes) {
+            @NotNull Boolean medicalTechnology, @NotNull Boolean combinationItem, @NotNull Boolean singleOrder,
+            @Schema(nullable = true) @Size(max = 64) String specimenType,
+            @Schema(nullable = true) @Size(max = 64) String examinationType,
+            @Schema(nullable = true) @Size(max = 64) String accountingCategory,
+            @Schema(nullable = true) @Size(max = 64) String sdDuplicateRule,
+            @Schema(nullable = true) @DecimalMin("0") BigDecimal multiSitePrice,
+            @Schema(nullable = true) @Min(0) Integer freeSiteCount,
+            @Schema(nullable = true) @Min(1) Integer maxBodySiteCount,
+            @Schema(nullable = true) @Size(max = 128) String mutualRecognitionCode,
+            @NotNull Boolean pregnancyAlert,
+            @Schema(nullable = true) @Size(max = 2000) String attention,
+            @Schema(nullable = true) @Size(max = 2000) String examinationNotes) {
         ServiceCommand command() { return new ServiceCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(unitCode), orderable,
                 chargeable, sdStatus, validFrom, validTo, sdServiceType, Strings.trimToNull(serviceSubtype), sdUsageType,
                 medicalTechnology, combinationItem, singleOrder, Strings.trimToNull(specimenType), Strings.trimToNull(examinationType),
@@ -294,32 +297,33 @@ public class MasterDataController {
                 Strings.trimToNull(attention), Strings.trimToNull(examinationNotes)); }
     }
 
+    @Schema(name = "MasterDataMedicationRequest")
     record MedicationRequest(
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 300) String name,
-            @Size(max = 300) String aliasName,
+            @Schema(nullable = true) @Size(max = 300) String aliasName,
             @NotBlank @Size(max = 32) String sdMedicationType,
-            @Size(max = 64) String sdDoseForm,
-            @Size(max = 300) String preparationSpec,
-            @Size(max = 64) String preparationUnit,
-            @DecimalMin(value = "0", inclusive = false) BigDecimal strengthValue,
-            @Size(max = 64) String strengthUnit,
-            @Size(max = 32) String sdStorageType,
-            boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
-            @Size(max = 64) String sdAntimicrobialLevel,
-            Boolean antimicrobialOutpatientAllowed, Boolean antimicrobialConsultationRequired,
-            Boolean antimicrobialEmergencyAllowed, @Min(1) @Max(90) Integer antimicrobialMaxDays,
-            boolean skinTestRequired, @Size(max = 32) String skinTestMethod,
-            @Size(max = 32) String skinTestSolutionMode,
-            @Min(1) @Max(120) Integer skinTestObservationMinutes,
-            @Min(1) @Max(8760) Integer skinTestResultValidityHours,
-            @Size(max = 1000) String skinTestInstructions,
-            @DecimalMin(value = "0", inclusive = false) BigDecimal defaultDose,
-            @Size(max = 64) String defaultDoseUnit,
-            @Size(max = 64) String defaultRoute,
-            @Size(max = 64) String defaultFrequency,
-            boolean chronicDiseaseDrug, boolean singleOrder,
-            @NotBlank @Size(max = 32) String sdStatus, @Size(max = 64) String standardSpecificationId) {
+            @Schema(nullable = true) @Size(max = 64) String sdDoseForm,
+            @Schema(nullable = true) @Size(max = 300) String preparationSpec,
+            @Schema(nullable = true) @Size(max = 64) String preparationUnit,
+            @Schema(nullable = true) @DecimalMin(value = "0", inclusive = false) BigDecimal strengthValue,
+            @Schema(nullable = true) @Size(max = 64) String strengthUnit,
+            @Schema(nullable = true) @Size(max = 32) String sdStorageType,
+            @NotNull Boolean prescriptionDrug, @NotNull Boolean essentialDrug, @NotNull Boolean antimicrobial,
+            @Schema(nullable = true) @Size(max = 64) String sdAntimicrobialLevel,
+            @Schema(nullable = true) Boolean antimicrobialOutpatientAllowed, @Schema(nullable = true) Boolean antimicrobialConsultationRequired,
+            @Schema(nullable = true) Boolean antimicrobialEmergencyAllowed, @Schema(nullable = true) @Min(1) @Max(90) Integer antimicrobialMaxDays,
+            @NotNull Boolean skinTestRequired, @Schema(nullable = true) @Size(max = 32) String skinTestMethod,
+            @Schema(nullable = true) @Size(max = 32) String skinTestSolutionMode,
+            @Schema(nullable = true) @Min(1) @Max(120) Integer skinTestObservationMinutes,
+            @Schema(nullable = true) @Min(1) @Max(8760) Integer skinTestResultValidityHours,
+            @Schema(nullable = true) @Size(max = 1000) String skinTestInstructions,
+            @Schema(nullable = true) @DecimalMin(value = "0", inclusive = false) BigDecimal defaultDose,
+            @Schema(nullable = true) @Size(max = 64) String defaultDoseUnit,
+            @Schema(nullable = true) @Size(max = 64) String defaultRoute,
+            @Schema(nullable = true) @Size(max = 64) String defaultFrequency,
+            @NotNull Boolean chronicDiseaseDrug, @NotNull Boolean singleOrder,
+            @NotBlank @Size(max = 32) String sdStatus, @Schema(nullable = true) @Size(max = 64) String standardSpecificationId) {
         MedicationCommand command() { return new MedicationCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(aliasName),
                 sdMedicationType, Strings.trimToNull(sdDoseForm), Strings.trimToNull(preparationSpec), Strings.trimToNull(preparationUnit),
                 strengthValue, Strings.trimToNull(strengthUnit), Strings.trimToNull(sdStorageType), prescriptionDrug, essentialDrug,
@@ -331,33 +335,34 @@ public class MasterDataController {
                 chronicDiseaseDrug, singleOrder, sdStatus, Strings.trimToNull(standardSpecificationId)); }
     }
 
+    @Schema(name = "MasterDataUpdateMedicationRequest")
     record UpdateMedicationRequest(
             @NotNull @Min(0) BigInteger expectedRevision,
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 300) String name,
-            @Size(max = 300) String aliasName,
+            @Schema(nullable = true) @Size(max = 300) String aliasName,
             @NotBlank @Size(max = 32) String sdMedicationType,
-            @Size(max = 64) String sdDoseForm,
-            @Size(max = 300) String preparationSpec,
-            @Size(max = 64) String preparationUnit,
-            @DecimalMin(value = "0", inclusive = false) BigDecimal strengthValue,
-            @Size(max = 64) String strengthUnit,
-            @Size(max = 32) String sdStorageType,
-            boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
-            @Size(max = 64) String sdAntimicrobialLevel,
-            Boolean antimicrobialOutpatientAllowed, Boolean antimicrobialConsultationRequired,
-            Boolean antimicrobialEmergencyAllowed, @Min(1) @Max(90) Integer antimicrobialMaxDays,
-            boolean skinTestRequired, @Size(max = 32) String skinTestMethod,
-            @Size(max = 32) String skinTestSolutionMode,
-            @Min(1) @Max(120) Integer skinTestObservationMinutes,
-            @Min(1) @Max(8760) Integer skinTestResultValidityHours,
-            @Size(max = 1000) String skinTestInstructions,
-            @DecimalMin(value = "0", inclusive = false) BigDecimal defaultDose,
-            @Size(max = 64) String defaultDoseUnit,
-            @Size(max = 64) String defaultRoute,
-            @Size(max = 64) String defaultFrequency,
-            boolean chronicDiseaseDrug, boolean singleOrder,
-            @NotBlank @Size(max = 32) String sdStatus, @Size(max = 64) String standardSpecificationId) {
+            @Schema(nullable = true) @Size(max = 64) String sdDoseForm,
+            @Schema(nullable = true) @Size(max = 300) String preparationSpec,
+            @Schema(nullable = true) @Size(max = 64) String preparationUnit,
+            @Schema(nullable = true) @DecimalMin(value = "0", inclusive = false) BigDecimal strengthValue,
+            @Schema(nullable = true) @Size(max = 64) String strengthUnit,
+            @Schema(nullable = true) @Size(max = 32) String sdStorageType,
+            @NotNull Boolean prescriptionDrug, @NotNull Boolean essentialDrug, @NotNull Boolean antimicrobial,
+            @Schema(nullable = true) @Size(max = 64) String sdAntimicrobialLevel,
+            @Schema(nullable = true) Boolean antimicrobialOutpatientAllowed, @Schema(nullable = true) Boolean antimicrobialConsultationRequired,
+            @Schema(nullable = true) Boolean antimicrobialEmergencyAllowed, @Schema(nullable = true) @Min(1) @Max(90) Integer antimicrobialMaxDays,
+            @NotNull Boolean skinTestRequired, @Schema(nullable = true) @Size(max = 32) String skinTestMethod,
+            @Schema(nullable = true) @Size(max = 32) String skinTestSolutionMode,
+            @Schema(nullable = true) @Min(1) @Max(120) Integer skinTestObservationMinutes,
+            @Schema(nullable = true) @Min(1) @Max(8760) Integer skinTestResultValidityHours,
+            @Schema(nullable = true) @Size(max = 1000) String skinTestInstructions,
+            @Schema(nullable = true) @DecimalMin(value = "0", inclusive = false) BigDecimal defaultDose,
+            @Schema(nullable = true) @Size(max = 64) String defaultDoseUnit,
+            @Schema(nullable = true) @Size(max = 64) String defaultRoute,
+            @Schema(nullable = true) @Size(max = 64) String defaultFrequency,
+            @NotNull Boolean chronicDiseaseDrug, @NotNull Boolean singleOrder,
+            @NotBlank @Size(max = 32) String sdStatus, @Schema(nullable = true) @Size(max = 64) String standardSpecificationId) {
         MedicationCommand command() { return new MedicationCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(aliasName),
                 sdMedicationType, Strings.trimToNull(sdDoseForm), Strings.trimToNull(preparationSpec), Strings.trimToNull(preparationUnit),
                 strengthValue, Strings.trimToNull(strengthUnit), Strings.trimToNull(sdStorageType), prescriptionDrug, essentialDrug,
@@ -369,53 +374,56 @@ public class MasterDataController {
                 chronicDiseaseDrug, singleOrder, sdStatus, Strings.trimToNull(standardSpecificationId)); }
     }
 
+    @Schema(name = "MasterDataManufacturerRequest")
     record ManufacturerRequest(
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 300) String name,
-            @Size(max = 160) String shortName,
+            @Schema(nullable = true) @Size(max = 160) String shortName,
             @NotBlank @Size(max = 32) String sdManufacturerType,
-            @Size(max = 32) String sdProductionPlace,
-            @Size(max = 32) String countryCode,
-            @Size(max = 1000) String address,
+            @Schema(nullable = true) @Size(max = 32) String sdProductionPlace,
+            @Schema(nullable = true) @Size(max = 32) String countryCode,
+            @Schema(nullable = true) @Size(max = 1000) String address,
             @NotBlank @Size(max = 32) String sdStatus) {
         ManufacturerCommand command() { return new ManufacturerCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(shortName),
                 sdManufacturerType, Strings.trimToNull(sdProductionPlace), Strings.trimToNull(countryCode), Strings.trimToNull(address), sdStatus); }
     }
 
+    @Schema(name = "MasterDataUpdateManufacturerRequest")
     record UpdateManufacturerRequest(
             @NotNull @Min(0) BigInteger expectedRevision,
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 300) String name,
-            @Size(max = 160) String shortName,
+            @Schema(nullable = true) @Size(max = 160) String shortName,
             @NotBlank @Size(max = 32) String sdManufacturerType,
-            @Size(max = 32) String sdProductionPlace,
-            @Size(max = 32) String countryCode,
-            @Size(max = 1000) String address,
+            @Schema(nullable = true) @Size(max = 32) String sdProductionPlace,
+            @Schema(nullable = true) @Size(max = 32) String countryCode,
+            @Schema(nullable = true) @Size(max = 1000) String address,
             @NotBlank @Size(max = 32) String sdStatus) {
         ManufacturerCommand command() { return new ManufacturerCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(shortName),
                 sdManufacturerType, Strings.trimToNull(sdProductionPlace), Strings.trimToNull(countryCode), Strings.trimToNull(address), sdStatus); }
     }
 
+    @Schema(name = "MasterDataProductRequest")
     record ProductRequest(
             @NotNull Long medicationId, @NotNull Long manufacturerId,
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
-            @Size(max = 300) String tradeName,
-            @Size(max = 128) String approvalCode,
-            @Pattern(regexp = "^[0-9]{7}$", message = "追溯码应为7位数字") String traceCode,
-            LocalDate approvalFrom, LocalDate approvalTo,
-            @Size(max = 128) String registrationCode,
-            LocalDate registrationFrom, LocalDate registrationTo,
-            @Size(max = 128) String purchaseCode,
-            @Size(max = 32) String sdMarketStatus,
-            @Size(max = 32) String sdProductionPlace,
-            boolean otc, boolean centralPurchase, boolean importAllowed, boolean traceSplitRequired,
-            boolean orderable, boolean chargeable, boolean stocked,
-            @DecimalMin(value = "0", inclusive = false) BigDecimal shelfLifeValue,
-            @Size(max = 32) String sdShelfLifeUnit,
+            @Schema(nullable = true) @Size(max = 300) String tradeName,
+            @Schema(nullable = true) @Size(max = 128) String approvalCode,
+            @Schema(nullable = true) @Pattern(regexp = "^[0-9]{7}$", message = "追溯码应为7位数字") String traceCode,
+            @Schema(nullable = true) LocalDate approvalFrom, @Schema(nullable = true) LocalDate approvalTo,
+            @Schema(nullable = true) @Size(max = 128) String registrationCode,
+            @Schema(nullable = true) LocalDate registrationFrom, @Schema(nullable = true) LocalDate registrationTo,
+            @Schema(nullable = true) @Size(max = 128) String purchaseCode,
+            @Schema(nullable = true) @Size(max = 32) String sdMarketStatus,
+            @Schema(nullable = true) @Size(max = 32) String sdProductionPlace,
+            @NotNull Boolean otc, @NotNull Boolean centralPurchase, @NotNull Boolean importAllowed, @NotNull Boolean traceSplitRequired,
+            @NotNull Boolean orderable, @NotNull Boolean chargeable, @NotNull Boolean stocked,
+            @Schema(nullable = true) @DecimalMin(value = "0", inclusive = false) BigDecimal shelfLifeValue,
+            @Schema(nullable = true) @Size(max = 32) String sdShelfLifeUnit,
             @NotBlank @Size(max = 32) String sdStatus,
-            @NotNull LocalDate validFrom, LocalDate validTo,
-            @Size(max = 4000) String indication,
-            String instruction) {
+            @NotNull LocalDate validFrom, @Schema(nullable = true) LocalDate validTo,
+            @Schema(nullable = true) @Size(max = 4000) String indication,
+            @Schema(nullable = true) String instruction) {
         ProductCommand command() { return new ProductCommand(medicationId, manufacturerId, Strings.trim(code),
                 Strings.trimToNull(tradeName), Strings.trimToNull(approvalCode), Strings.trimToNull(traceCode), approvalFrom, approvalTo,
                 Strings.trimToNull(registrationCode), registrationFrom, registrationTo, Strings.trimToNull(purchaseCode),
@@ -424,26 +432,27 @@ public class MasterDataController {
                 sdStatus, validFrom, validTo, Strings.trimToNull(indication), Strings.trimToNull(instruction)); }
     }
 
+    @Schema(name = "MasterDataUpdateProductRequest")
     record UpdateProductRequest(
             @NotNull @Min(0) BigInteger expectedRevision,
             @NotNull Long manufacturerId,
-            @Size(max = 300) String tradeName,
-            @Size(max = 128) String approvalCode,
-            @Pattern(regexp = "^[0-9]{7}$", message = "追溯码应为7位数字") String traceCode,
-            LocalDate approvalFrom, LocalDate approvalTo,
-            @Size(max = 128) String registrationCode,
-            LocalDate registrationFrom, LocalDate registrationTo,
-            @Size(max = 128) String purchaseCode,
-            @Size(max = 32) String sdMarketStatus,
-            @Size(max = 32) String sdProductionPlace,
-            boolean otc, boolean centralPurchase, boolean importAllowed, boolean traceSplitRequired,
-            boolean orderable, boolean chargeable, boolean stocked,
-            @DecimalMin(value = "0", inclusive = false) BigDecimal shelfLifeValue,
-            @Size(max = 32) String sdShelfLifeUnit,
+            @Schema(nullable = true) @Size(max = 300) String tradeName,
+            @Schema(nullable = true) @Size(max = 128) String approvalCode,
+            @Schema(nullable = true) @Pattern(regexp = "^[0-9]{7}$", message = "追溯码应为7位数字") String traceCode,
+            @Schema(nullable = true) LocalDate approvalFrom, @Schema(nullable = true) LocalDate approvalTo,
+            @Schema(nullable = true) @Size(max = 128) String registrationCode,
+            @Schema(nullable = true) LocalDate registrationFrom, @Schema(nullable = true) LocalDate registrationTo,
+            @Schema(nullable = true) @Size(max = 128) String purchaseCode,
+            @Schema(nullable = true) @Size(max = 32) String sdMarketStatus,
+            @Schema(nullable = true) @Size(max = 32) String sdProductionPlace,
+            @NotNull Boolean otc, @NotNull Boolean centralPurchase, @NotNull Boolean importAllowed, @NotNull Boolean traceSplitRequired,
+            @NotNull Boolean orderable, @NotNull Boolean chargeable, @NotNull Boolean stocked,
+            @Schema(nullable = true) @DecimalMin(value = "0", inclusive = false) BigDecimal shelfLifeValue,
+            @Schema(nullable = true) @Size(max = 32) String sdShelfLifeUnit,
             @NotBlank @Size(max = 32) String sdStatus,
-            @NotNull LocalDate validFrom, LocalDate validTo,
-            @Size(max = 4000) String indication,
-            String instruction) {
+            @NotNull LocalDate validFrom, @Schema(nullable = true) LocalDate validTo,
+            @Schema(nullable = true) @Size(max = 4000) String indication,
+            @Schema(nullable = true) String instruction) {
         ProductCommand command() { return new ProductCommand(null, manufacturerId, null,
                 Strings.trimToNull(tradeName), Strings.trimToNull(approvalCode), Strings.trimToNull(traceCode), approvalFrom, approvalTo,
                 Strings.trimToNull(registrationCode), registrationFrom, registrationTo, Strings.trimToNull(purchaseCode),
@@ -452,37 +461,40 @@ public class MasterDataController {
                 sdStatus, validFrom, validTo, Strings.trimToNull(indication), Strings.trimToNull(instruction)); }
     }
 
+    @Schema(name = "MasterDataProductSetupRequest")
     record ProductSetupRequest(
             @NotNull @Valid ProductRequest product,
             @NotNull @Valid PackageRequest packaging,
             @NotNull @Valid AdoptionRequest organization,
             @NotNull @DecimalMin("0") BigDecimal purchasePrice,
             @NotNull @DecimalMin("0") BigDecimal salePrice,
-            @Size(max = 128) String priceDocumentCode) {}
+            @Schema(nullable = true) @Size(max = 128) String priceDocumentCode) {}
 
+    @Schema(name = "MasterDataPackageRequest")
     record PackageRequest(
-            Long basePackageId,
+            @Schema(nullable = true) Long basePackageId,
             @NotBlank @Size(max = 64) String unitCode,
             @NotBlank @Size(max = 160) String unitName,
-            @Size(max = 300) String packageSpec,
+            @Schema(nullable = true) @Size(max = 300) String packageSpec,
             @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantityFactor,
             @NotBlank @Size(max = 32) String sdUsageType,
-            @Size(max = 256) String barcode,
-            boolean defaultPurchase, boolean defaultSale, boolean defaultDispense,
+            @Schema(nullable = true) @Size(max = 256) String barcode,
+            @NotNull Boolean defaultPurchase, @NotNull Boolean defaultSale, @NotNull Boolean defaultDispense,
             @NotBlank @Size(max = 32) String sdStatus,
-            @NotNull LocalDate validFrom, LocalDate validTo) {
+            @NotNull LocalDate validFrom, @Schema(nullable = true) LocalDate validTo) {
         PackageCommand command() { return new PackageCommand(basePackageId, Strings.trim(unitCode), Strings.trim(unitName),
                 Strings.trimToNull(packageSpec), quantityFactor, sdUsageType, Strings.trimToNull(barcode), defaultPurchase, defaultSale,
                 defaultDispense, sdStatus, validFrom, validTo); }
     }
 
+    @Schema(name = "MasterDataAdoptionRequest")
     record AdoptionRequest(
-            @NotNull Long organizationId, Long defaultDepartmentId,
-            @Size(max = 64) String localCode, @Size(max = 300) String localName,
-            boolean orderable, boolean executable, boolean chargeable, boolean purchasable,
-            boolean stocked, boolean dispensable, boolean returnable,
+            @NotNull Long organizationId, @Schema(nullable = true) Long defaultDepartmentId,
+            @Schema(nullable = true) @Size(max = 64) String localCode, @Schema(nullable = true) @Size(max = 300) String localName,
+            @NotNull Boolean orderable, @NotNull Boolean executable, @NotNull Boolean chargeable, @NotNull Boolean purchasable,
+            @NotNull Boolean stocked, @NotNull Boolean dispensable, @NotNull Boolean returnable,
             @NotBlank @Size(max = 32) String sdStatus,
-            @NotNull LocalDate validFrom, LocalDate validTo) {
+            @NotNull LocalDate validFrom, @Schema(nullable = true) LocalDate validTo) {
         AdoptionCommand command() { return new AdoptionCommand(organizationId, defaultDepartmentId,
                 Strings.trimToNull(localCode), Strings.trimToNull(localName), orderable, executable, chargeable, purchasable, stocked,
                 dispensable, returnable, sdStatus, validFrom, validTo); }
@@ -491,14 +503,15 @@ public class MasterDataController {
                 dispensable, returnable, sdStatus, validFrom, validTo); }
     }
 
+    @Schema(name = "MasterDataPriceRequest")
     record PriceRequest(
-            Long organizationId, Long packageId,
+            @Schema(nullable = true) Long organizationId, @Schema(nullable = true) Long packageId,
             @NotBlank @Size(max = 32) String sdPriceType,
             @NotNull @DecimalMin("0") BigDecimal price,
             @NotBlank @Size(max = 16) String currencyCode,
-            @Size(max = 128) String priceDocumentCode,
-            @Size(max = 1000) String priceReason,
-            @NotNull LocalDate validFrom, LocalDate validTo,
+            @Schema(nullable = true) @Size(max = 128) String priceDocumentCode,
+            @Schema(nullable = true) @Size(max = 1000) String priceReason,
+            @NotNull LocalDate validFrom, @Schema(nullable = true) LocalDate validTo,
             @NotBlank @Size(max = 32) String sdStatus) {
         PriceCommand command() { return new PriceCommand(organizationId, packageId, sdPriceType, price,
                 Strings.trim(currencyCode), Strings.trimToNull(priceDocumentCode), Strings.trimToNull(priceReason), validFrom, validTo, sdStatus); }
@@ -506,6 +519,7 @@ public class MasterDataController {
                 Strings.trim(currencyCode), Strings.trimToNull(priceDocumentCode), Strings.trimToNull(priceReason), validFrom, validTo, sdStatus); }
     }
 
+    @Schema(name = "MasterDataStatusRequest")
     record StatusRequest(@NotNull @Min(0) BigInteger expectedRevision,
                          @NotBlank @Size(max = 32) String sdStatus) {}
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --config vite.config.ts",
     "build": "tsc -b && vite build --config vite.config.ts",
-    "check": "npm run ui:check && npm run schema:test && npm run test && npm run build",
+    "check": "npm run code:check && npm run ui:check && npm run schema:test && npm run test && npm run build",
     "test": "vitest run",
     "ui:check": "npm run ui:policy:test && node scripts/check-ui-standards.mjs",
     "ui:policy": "node scripts/check-ui-policy.mjs",
@@ -16,7 +16,10 @@
     "schema:context": "node ../scripts/schema-workbench/cli.mjs context",
     "schema:check": "node ../scripts/schema-workbench/cli.mjs check",
     "schema:test": "node --test ../scripts/schema-workbench/*.test.mjs",
-    "preview": "vite preview --config vite.config.ts"
+    "preview": "vite preview --config vite.config.ts",
+    "code:policy:test": "node --test scripts/code-quality.node-test.mjs",
+    "code:check": "npm run code:policy:test && node scripts/check-code-quality.mjs",
+    "code:report": "node scripts/check-code-quality.mjs --report"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -39,10 +42,13 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.0",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^29.1.1",
     "openapi-typescript": "^7.13.0",
     "postcss": "8.5.26",
     "typescript": "^5.9.0",
+    "typescript-eslint": "^8.71.1",
     "vite": "^8.2.0",
     "vitest": "^4.1.11"
   }

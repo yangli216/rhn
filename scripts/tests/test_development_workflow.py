@@ -204,6 +204,8 @@ class SnapshotTest(unittest.TestCase):
         scripts.mkdir()
         shutil.copyfile(ROOT / "scripts/verify-scope.sh", scripts / "verify-scope.sh")
         shutil.copyfile(SNAPSHOT, scripts / SNAPSHOT.name)
+        for name in ("verification-scope-plan.py", "verification-scopes.json"):
+            shutil.copyfile(ROOT / "scripts" / name, scripts / name)
         for name in ("src/shared/ui/Dialog.test.tsx",
                      "src/features/outpatient/ai/ClinicalEvidenceDrawer.test.tsx",
                      "src/features/outpatient/ai/MedicalInsertViewerModal.test.tsx"):
@@ -256,6 +258,9 @@ class SnapshotTest(unittest.TestCase):
         timing = next((self.repo / ".runtime/verification").glob("*/timings.tsv")).read_text()
         self.assertIn("frontend-tests\tFAIL", timing)
         self.assertIn("source-check\tINVALID", timing)
+        summary = json.loads(next((self.repo / ".runtime/verification").glob("*/summary.json")).read_text())
+        self.assertEqual(summary["status"], "INVALID")
+        self.assertEqual(summary["plan"]["scopes"], ["knowledge-panel"])
 
     def test_list_is_read_only(self):
         environment = self.fixture_scope()
@@ -264,6 +269,84 @@ class SnapshotTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("[frontend-tests]", result.stdout)
         self.assertFalse((self.repo / ".runtime").exists())
+
+
+class ScopePlanTest(unittest.TestCase):
+    def setUp(self):
+        module = runpy.run_path(str(ROOT / "scripts/verification-scope-plan.py"))
+        self.plan = module["plan"]
+        self.summary = module["result_summary"]
+
+    def test_all_maintained_scopes_reference_real_tests(self):
+        scopes = json.loads((ROOT / "scripts/verification-scopes.json").read_text())["scopes"]
+        self.assertEqual(set(scopes), {"frequency", "outpatient-draft", "round1", "knowledge-panel",
+                                      "billing", "master-data", "inventory", "medication-safety", "ai-matching"})
+        for scope in scopes:
+            with self.subTest(scope=scope):
+                planned = self.plan(ROOT, scope)
+                self.assertTrue(planned["frontend_tests"])
+                self.assertTrue(planned["coverage"])
+                self.assertTrue(planned["limitations"])
+
+    def test_combined_scopes_deduplicate_checks_and_keep_backend_coverage(self):
+        planned = self.plan(ROOT, "knowledge-panel,billing,master-data,billing")
+        self.assertEqual(planned["scopes"], ["knowledge-panel", "billing", "master-data"])
+        self.assertFalse(planned["frontend_only"])
+        self.assertEqual(planned["backend_tests"].count("ArchitectureTest"), 1)
+        self.assertEqual(len(planned["frontend_tests"]), len(set(planned["frontend_tests"])))
+        self.assertEqual(len(planned["backend_tests"]), len(set(planned["backend_tests"])))
+
+    def test_frontend_only_is_explicit_or_applies_to_all_selected_scopes(self):
+        self.assertTrue(self.plan(ROOT, "knowledge-panel")["frontend_only"])
+        self.assertFalse(self.plan(ROOT, "knowledge-panel,frequency")["frontend_only"])
+        planned = self.plan(ROOT, "billing,master-data", True)
+        self.assertTrue(planned["frontend_only"])
+        self.assertEqual(planned["backend_tests"], [])
+
+    def test_full_checks_expand_to_both_suites_without_frontend_only(self):
+        planned = self.plan(ROOT, "knowledge-panel,master-data", full=True)
+        self.assertTrue(planned["full"])
+        self.assertFalse(planned["frontend_only"])
+        focused = self.plan(ROOT, "knowledge-panel,master-data")
+        self.assertTrue(set(focused["frontend_tests"]).issubset(planned["frontend_tests"]))
+        self.assertGreater(len(planned["backend_tests"]), len(focused["backend_tests"]))
+        with self.assertRaisesRegex(ValueError, "do not combine"):
+            self.plan(ROOT, "master-data", frontend_only=True, full=True)
+
+    def test_full_shell_plan_executes_suites_once_and_lists_without_mutation(self):
+        result = subprocess.run(["bash", "scripts/verify-scope.sh", "master-data,inventory", "--full", "--list"],
+                                cwd=ROOT, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.count("[frontend-tests]"), 1)
+        self.assertEqual(result.stdout.count("[backend-tests]"), 1)
+        self.assertIn("npm run test", result.stdout)
+        self.assertIn("verify", result.stdout)
+        self.assertNotIn("-Dtest=", result.stdout)
+
+    def test_unknown_empty_and_stale_scopes_fail(self):
+        for name in ("", "billing,", "unknown", "../billing"):
+            with self.assertRaises(ValueError):
+                self.plan(ROOT, name)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "scripts").mkdir()
+            data = {"version": 1, "scopes": {"example": {"coverage": ["example"], "limitations": [],
+                    "frontend_only": True, "frontend": ["src/missing.test.ts"], "backend": []}}}
+            (root / "scripts/verification-scopes.json").write_text(json.dumps(data))
+            with self.assertRaisesRegex(ValueError, "Missing/invalid frontend test"):
+                self.plan(root, "example")
+
+    def test_summary_requires_stable_source_and_all_stages_to_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "source-before.json").write_text(json.dumps({"head": "fixture", "source_sha256": "fixture"}))
+            (root / "source-after.json").write_text(json.dumps({"comparison": {"status": "STABLE"}}))
+            (root / "timings.tsv").write_text("stage\tstatus\tseconds\nfrontend-tests\tPASS\t1\n")
+            self.assertEqual(self.summary(root, {})["status"], "PASS")
+            (root / "timings.tsv").write_text("stage\tstatus\tseconds\nfrontend-tests\tFAIL\t1\n")
+            self.assertEqual(self.summary(root, {})["status"], "FAIL")
+            (root / "source-after.json").write_text(json.dumps({"comparison": {"status": "SOURCE_CHANGED"}}))
+            self.assertEqual(self.summary(root, {})["status"], "INVALID")
 
 
 if __name__ == "__main__":

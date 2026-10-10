@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import { age, formatTime } from '../../shared/format'
 import type { InpatientBed, InpatientDischargeDiagnosis, InpatientEpisode } from '../../shared/api/inpatientApi'
 import { diagnosisDomainLabel } from '../../shared/presentation'

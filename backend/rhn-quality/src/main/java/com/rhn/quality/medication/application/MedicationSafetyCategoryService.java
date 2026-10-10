@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static com.rhn.shared.api.BusinessErrors.*;
 
 @Service
-public class MedicationSafetyCategoryService {
+public class MedicationSafetyCategoryService implements com.rhn.quality.medication.domain.MedicationSafetyCategoryMembership {
     private final MedicationSafetyCategoryStore store;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import type { ClinicalContext } from '../../../app/AppShell'
+import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type {
   CreateTriageInput,
   DepartmentRecommendation,

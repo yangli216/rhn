@@ -1,6 +1,5 @@
 package com.rhn.platform.masterdata.application;
 
-import com.rhn.platform.dictionary.api.DictionaryDirectory;
 import com.rhn.platform.masterdata.api.MasterDataCommands.AdoptionCommand;
 import com.rhn.platform.masterdata.api.MasterDataCommands.ManufacturerCommand;
 import com.rhn.platform.masterdata.api.MasterDataCommands.MedicationCommand;
@@ -25,8 +24,6 @@ import com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView;
 import com.rhn.platform.masterdata.api.MasterDataViews.PackageView;
 import com.rhn.platform.masterdata.api.MasterDataViews.PriceView;
 import com.rhn.platform.masterdata.api.MasterDataViews.ServiceView;
-import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
-import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
 import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
 import com.rhn.platform.masterdata.domain.CatalogPrice;
 import com.rhn.platform.masterdata.domain.ItemPackage;
@@ -62,7 +59,6 @@ import com.rhn.platform.search.application.SearchEntryProjectionService;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.api.PageResult;
-import com.rhn.shared.text.Strings;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -102,18 +98,18 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     private final ServiceVariantRepository serviceVariantRepository;
     private final OrganizationCatalogItemRepository adoptionRepository;
     private final CatalogPriceRepository priceRepository;
-    private final DictionaryDirectory dictionaryDirectory;
     private final OrganizationDirectory organizationDirectory;
     private final ExecutionContextProvider contextProvider;
-    private final OrderFrequencyDirectory orderFrequencyDirectory;
-    private final MedicationRouteDirectory medicationRouteDirectory;
     private final MedicationTerminologyDirectory medicationTerminologyDirectory;
     private final MedicationSemanticsService medicationSemantics;
     private final MedicationStandardService medicationStandards;
     private final MasterDataSearchDirectory searchDirectory;
     private final SearchEntryProjectionService searchProjections;
 
-    public MasterDataApplicationService(ServiceCatalogItemRepository serviceRepository,
+    private final CatalogCommandValidation validation;
+
+    public MasterDataApplicationService(CatalogCommandValidation validation,
+                                        ServiceCatalogItemRepository serviceRepository,
                                         SupplyItemRepository supplyRepository,
                                         MedicationRepository medicationRepository,
                                         ManufacturerRepository manufacturerRepository,
@@ -128,15 +124,15 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                                         ServiceVariantRepository serviceVariantRepository,
                                         OrganizationCatalogItemRepository adoptionRepository,
                                         CatalogPriceRepository priceRepository,
-                                        DictionaryDirectory dictionaryDirectory,
+
                                         OrganizationDirectory organizationDirectory,
                                         ExecutionContextProvider contextProvider,
-                                        OrderFrequencyDirectory orderFrequencyDirectory,
-                                        MedicationRouteDirectory medicationRouteDirectory,
+
                                         MedicationTerminologyDirectory medicationTerminologyDirectory, MedicationSemanticsService medicationSemantics,
                                         MedicationStandardService medicationStandards,
                                         MasterDataSearchDirectory searchDirectory,
                                         SearchEntryProjectionService searchProjections) {
+        this.validation = validation;
         this.medicationStandards = medicationStandards;
         this.searchDirectory = searchDirectory;
         this.searchProjections = searchProjections;
@@ -156,11 +152,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         this.serviceVariantRepository = serviceVariantRepository;
         this.adoptionRepository = adoptionRepository;
         this.priceRepository = priceRepository;
-        this.dictionaryDirectory = dictionaryDirectory;
         this.organizationDirectory = organizationDirectory;
         this.contextProvider = contextProvider;
-        this.orderFrequencyDirectory = orderFrequencyDirectory;
-        this.medicationRouteDirectory = medicationRouteDirectory;
         this.medicationTerminologyDirectory = medicationTerminologyDirectory;
     }
 
@@ -323,7 +316,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional
     public ServiceView createService(ServiceCommand command, Long organizationId) {
         ExecutionContext context = current();
-        validateService(command);
+        validation.validateService(command);
         if (serviceRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
             throw conflict("SERVICE_CODE_DUPLICATE", "当前租户已存在相同诊疗项目编码");
         }
@@ -346,7 +339,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional(readOnly = true)
     public void validateServiceForImport(ServiceCommand command) {
         ExecutionContext context = current();
-        validateService(command);
+        validation.validateService(command);
         if (serviceRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
             throw conflict("SERVICE_CODE_DUPLICATE", "当前租户已存在相同诊疗项目编码");
         }
@@ -355,7 +348,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional
     public ServiceView updateService(Long id, long expectedRevision, ServiceCommand command, Long organizationId) {
         ExecutionContext context = current();
-        validateService(command);
+        validation.validateService(command);
         ServiceCatalogItem item = requireService(context.tenantId(), id);
         requireRevision(item.revision(), expectedRevision, "SERVICE_REVISION_STALE", "诊疗项目已被其他用户修改，请刷新后重试");
         if (!item.serviceType().equals(command.serviceType())) {
@@ -377,7 +370,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional
     public ServiceView changeServiceStatus(Long id, long expectedRevision, String status, Long organizationId) {
         ExecutionContext context = current();
-        requireCode(MasterDataDictionaryCodes.STATUS, status);
+        validation.requireCode(MasterDataDictionaryCodes.STATUS, status);
         ServiceCatalogItem item = requireService(context.tenantId(), id);
         requireRevision(item.revision(), expectedRevision, "SERVICE_REVISION_STALE", "诊疗项目已被其他用户修改，请刷新后重试");
         item.changeStatus(expectedRevision, context.subjectId(), status);
@@ -464,9 +457,9 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional
     public MedicationView createMedication(MedicationCommand command, Long organizationId) {
         ExecutionContext context = current();
-        validateMedication(command);
-        var frequency = resolveMedicationFrequency(context, command.defaultFrequency(), organizationId);
-        var route = resolveMedicationRoute(context, command.defaultRoute());
+        validation.validateMedication(command);
+        var frequency = validation.resolveMedicationFrequency(context, command.defaultFrequency(), organizationId);
+        var route = validation.resolveMedicationRoute(context, command.defaultRoute());
         medicationStandards.validateNew(context.tenantId(), command);
         if (medicationRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
             throw conflict("MEDICATION_CODE_DUPLICATE", "当前租户已存在相同通用药品编码");
@@ -476,11 +469,11 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.aliasName(), command.medicationType(), command.doseForm(),
                 command.preparationSpec(), command.preparationUnit(), command.strengthValue(), command.strengthUnit(),
                 command.storageType(), command.prescriptionDrug(), command.essentialDrug(), command.antimicrobial(),
-                command.antimicrobialLevel(), antimicrobialOutpatientAllowed(command),
-                antimicrobialConsultationRequired(command), antimicrobialEmergencyAllowed(command),
-                antimicrobialMaxDays(command), command.skinTestRequired(), skinTestMethod(command),
-                skinTestSolutionMode(command), skinTestObservationMinutes(command),
-                skinTestResultValidityHours(command), skinTestInstructions(command), command.defaultDose(),
+                command.antimicrobialLevel(), validation.antimicrobialOutpatientAllowed(command),
+                validation.antimicrobialConsultationRequired(command), validation.antimicrobialEmergencyAllowed(command),
+                validation.antimicrobialMaxDays(command), command.skinTestRequired(), validation.skinTestMethod(command),
+                validation.skinTestSolutionMode(command), validation.skinTestObservationMinutes(command),
+                validation.skinTestResultValidityHours(command), validation.skinTestInstructions(command), command.defaultDose(),
                 command.defaultDoseUnit(), route == null ? null : route.code(), frequency == null ? null : frequency.id(),
                 frequency == null ? null : frequency.code(),
                 command.chronicDiseaseDrug(), command.singleOrder(), command.status());
@@ -499,10 +492,10 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional(readOnly = true)
     public void validateMedicationForImport(MedicationCommand command) {
         ExecutionContext context = current();
-        validateMedication(command);
+        validation.validateMedication(command);
         medicationStandards.validateNew(context.tenantId(), command);
-        resolveMedicationRoute(context, command.defaultRoute());
-        resolveMedicationFrequency(context, command.defaultFrequency(), null);
+        validation.resolveMedicationRoute(context, command.defaultRoute());
+        validation.resolveMedicationFrequency(context, command.defaultFrequency(), null);
         if (medicationRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
             throw conflict("MEDICATION_CODE_DUPLICATE", "当前租户已存在相同通用药品编码");
         }
@@ -522,21 +515,21 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         if (!item.medicationType().equals(command.medicationType())) {
             throw badRequest("MEDICATION_TYPE_IMMUTABLE", "药品类型创建后不允许直接修改，请新建正确类型的药品主档");
         }
-        validateMedication(command);
+        validation.validateMedication(command);
         medicationStandards.validateUpdate(context.tenantId(), id, command);
-        var frequency = resolveMedicationFrequency(context, command.defaultFrequency(), organizationId);
-        var route = resolveMedicationRoute(context, command.defaultRoute());
+        var frequency = validation.resolveMedicationFrequency(context, command.defaultFrequency(), organizationId);
+        var route = validation.resolveMedicationRoute(context, command.defaultRoute());
         medicationSemantics.captureMedication(item);
         item.update(expectedRevision, context.subjectId(), MasterDataItemTypes.forMedication(command.medicationType()),
                 command.name(), command.aliasName(),
                 command.medicationType(), command.doseForm(), command.preparationSpec(), command.preparationUnit(),
                 command.strengthValue(), command.strengthUnit(), command.storageType(), command.prescriptionDrug(),
                 command.essentialDrug(), command.antimicrobial(), command.antimicrobialLevel(),
-                antimicrobialOutpatientAllowed(command), antimicrobialConsultationRequired(command),
-                antimicrobialEmergencyAllowed(command), antimicrobialMaxDays(command),
-                command.skinTestRequired(), skinTestMethod(command), skinTestSolutionMode(command),
-                skinTestObservationMinutes(command), skinTestResultValidityHours(command),
-                skinTestInstructions(command), command.defaultDose(), command.defaultDoseUnit(),
+                validation.antimicrobialOutpatientAllowed(command), validation.antimicrobialConsultationRequired(command),
+                validation.antimicrobialEmergencyAllowed(command), validation.antimicrobialMaxDays(command),
+                command.skinTestRequired(), validation.skinTestMethod(command), validation.skinTestSolutionMode(command),
+                validation.skinTestObservationMinutes(command), validation.skinTestResultValidityHours(command),
+                validation.skinTestInstructions(command), command.defaultDose(), command.defaultDoseUnit(),
                 route == null ? null : route.code(), frequency == null ? null : frequency.id(),
                 frequency == null ? null : frequency.code(), command.chronicDiseaseDrug(),
                 command.singleOrder(), command.status());
@@ -549,7 +542,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional
     public MedicationView changeMedicationStatus(Long id, long expectedRevision, String status, Long organizationId) {
         ExecutionContext context = current();
-        requireCode(MasterDataDictionaryCodes.STATUS, status);
+        validation.requireCode(MasterDataDictionaryCodes.STATUS, status);
         Medication item = requireMedication(context.tenantId(), id);
         requireRevision(item.revision(), expectedRevision, "MEDICATION_REVISION_STALE", "药品知识已被其他用户修改，请刷新后重试");
         medicationSemantics.captureMedication(item);
@@ -570,11 +563,11 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional
     public ManufacturerView createManufacturer(ManufacturerCommand command) {
         ExecutionContext context = current();
-        requireCode(MasterDataDictionaryCodes.MANUFACTURER_TYPE, command.manufacturerType());
+        validation.requireCode(MasterDataDictionaryCodes.MANUFACTURER_TYPE, command.manufacturerType());
         if (!blank(command.productionPlace())) {
-            requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
+            validation.requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
         }
-        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        validation.requireCode(MasterDataDictionaryCodes.STATUS, command.status());
         if (manufacturerRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
             throw conflict("MANUFACTURER_CODE_DUPLICATE", "当前租户已存在相同生产企业编码");
         }
@@ -586,9 +579,9 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional
     public ManufacturerView updateManufacturer(Long id, long expectedRevision, ManufacturerCommand command) {
         ExecutionContext context = current();
-        requireCode(MasterDataDictionaryCodes.MANUFACTURER_TYPE, command.manufacturerType());
-        if (!blank(command.productionPlace())) requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
-        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        validation.requireCode(MasterDataDictionaryCodes.MANUFACTURER_TYPE, command.manufacturerType());
+        if (!blank(command.productionPlace())) validation.requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
+        validation.requireCode(MasterDataDictionaryCodes.STATUS, command.status());
         Manufacturer value = manufacturerRepository.findByIdAndTenantId(id, context.tenantId())
                 .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
         requireRevision(value.revision(), expectedRevision, "MANUFACTURER_REVISION_STALE", "生产企业已被其他用户修改，请刷新后重试");
@@ -603,7 +596,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
 
     @Transactional
     public ManufacturerView changeManufacturerStatus(Long id, long expectedRevision, String status) {
-        ExecutionContext context = current(); requireCode(MasterDataDictionaryCodes.STATUS, status);
+        ExecutionContext context = current(); validation.requireCode(MasterDataDictionaryCodes.STATUS, status);
         Manufacturer value = manufacturerRepository.findByIdAndTenantId(id, context.tenantId())
                 .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
         requireRevision(value.revision(), expectedRevision, "MANUFACTURER_REVISION_STALE", "生产企业已被其他用户修改，请刷新后重试");
@@ -619,17 +612,17 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         medicationStandards.requireLinked(context.tenantId(), medication.id());
         Manufacturer manufacturer = manufacturerRepository.findByIdAndTenantId(command.manufacturerId(), context.tenantId())
                 .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
-        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        validation.requireCode(MasterDataDictionaryCodes.STATUS, command.status());
         if (!blank(command.marketStatus())) {
-            requireCode(MasterDataDictionaryCodes.PRODUCT_MARKET_STATUS, command.marketStatus());
+            validation.requireCode(MasterDataDictionaryCodes.PRODUCT_MARKET_STATUS, command.marketStatus());
         }
         if (!blank(command.productionPlace())) {
-            requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
+            validation.requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
         }
         if (!blank(command.shelfLifeUnit())) {
-            requireCode(MasterDataDictionaryCodes.SHELF_LIFE_UNIT, command.shelfLifeUnit());
+            validation.requireCode(MasterDataDictionaryCodes.SHELF_LIFE_UNIT, command.shelfLifeUnit());
         }
-        requirePair(command.shelfLifeValue(), command.shelfLifeUnit(), "MEDICATION_PRODUCT_SHELF_LIFE_REQUIRED",
+        validation.requirePair(command.shelfLifeValue(), command.shelfLifeUnit(), "MEDICATION_PRODUCT_SHELF_LIFE_REQUIRED",
                 "产品有效期数值和单位必须同时填写");
         if (productRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
             throw conflict("MEDICATION_PRODUCT_CODE_DUPLICATE", "当前租户已存在相同药品产品编码");
@@ -684,17 +677,17 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         Medication medication = requireMedication(context.tenantId(), product.medicationId());
         Manufacturer manufacturer = manufacturerRepository.findByIdAndTenantId(command.manufacturerId(), context.tenantId())
                 .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
-        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        validation.requireCode(MasterDataDictionaryCodes.STATUS, command.status());
         if (!blank(command.marketStatus())) {
-            requireCode(MasterDataDictionaryCodes.PRODUCT_MARKET_STATUS, command.marketStatus());
+            validation.requireCode(MasterDataDictionaryCodes.PRODUCT_MARKET_STATUS, command.marketStatus());
         }
         if (!blank(command.productionPlace())) {
-            requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
+            validation.requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
         }
         if (!blank(command.shelfLifeUnit())) {
-            requireCode(MasterDataDictionaryCodes.SHELF_LIFE_UNIT, command.shelfLifeUnit());
+            validation.requireCode(MasterDataDictionaryCodes.SHELF_LIFE_UNIT, command.shelfLifeUnit());
         }
-        requirePair(command.shelfLifeValue(), command.shelfLifeUnit(), "MEDICATION_PRODUCT_SHELF_LIFE_REQUIRED",
+        validation.requirePair(command.shelfLifeValue(), command.shelfLifeUnit(), "MEDICATION_PRODUCT_SHELF_LIFE_REQUIRED",
                 "产品有效期数值和单位必须同时填写");
         product.update(expectedRevision, context.subjectId(), manufacturer.id(), medication.name(),
                 medication.preparationUnit(), command.tradeName(), command.approvalCode(), command.traceCode(),
@@ -730,8 +723,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     public PackageView createPackage(Long catalogItemId, PackageCommand command) {
         ExecutionContext context = current();
         requireProduct(context.tenantId(), catalogItemId);
-        requireCode(MasterDataDictionaryCodes.PACKAGE_USE, command.usageType());
-        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        validation.requireCode(MasterDataDictionaryCodes.PACKAGE_USE, command.usageType());
+        validation.requireCode(MasterDataDictionaryCodes.STATUS, command.status());
         validatePackageBase(catalogItemId, null, command.basePackageId());
         ItemPackage value = packageRepository.save(new ItemPackage(context.tenantId(), catalogItemId,
                 command.basePackageId(), command.unitCode(), command.unitName(), command.packageSpec(),
@@ -745,8 +738,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         ExecutionContext context = current();
         ItemPackage value = packageRepository.findByIdAndTenantId(id, context.tenantId())
                 .orElseThrow(() -> notFound("PACKAGE_NOT_FOUND", "未找到产品包装"));
-        requireCode(MasterDataDictionaryCodes.PACKAGE_USE, command.usageType());
-        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        validation.requireCode(MasterDataDictionaryCodes.PACKAGE_USE, command.usageType());
+        validation.requireCode(MasterDataDictionaryCodes.STATUS, command.status());
         validatePackageBase(value.catalogItemId(), id, command.basePackageId());
         value.update(command.basePackageId(), command.unitCode(), command.unitName(), command.packageSpec(),
                 command.quantityFactor(), command.usageType(), command.barcode(), command.defaultPurchase(),
@@ -763,7 +756,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         if (command.defaultDepartmentId() != null) {
             organizationDirectory.requireDepartment(context.tenantId(), command.organizationId(), command.defaultDepartmentId());
         }
-        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        validation.requireCode(MasterDataDictionaryCodes.STATUS, command.status());
         if (adoptionRepository.findFirstByTenantIdAndOrganizationIdAndCatalogItemIdOrderByValidFromDesc(
                 context.tenantId(), command.organizationId(), catalogItemId).isPresent()) {
             throw conflict("ORGANIZATION_CATALOG_ITEM_EXISTS", "该机构已经采用此目录项，请在后续版本中维护状态");
@@ -790,8 +783,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
             if (!packaging.catalogItemId().equals(catalogItemId))
                 throw badRequest("ITEM_PACKAGE_CATALOG_MISMATCH", "价格包装必须属于当前产品");
         }
-        requireCode(MasterDataDictionaryCodes.PRICE_TYPE, command.priceType());
-        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        validation.requireCode(MasterDataDictionaryCodes.PRICE_TYPE, command.priceType());
+        validation.requireCode(MasterDataDictionaryCodes.STATUS, command.status());
         return priceView(priceRepository.save(new CatalogPrice(context.tenantId(), context.subjectId(),
                 catalogItemId, command.organizationId(), command.packageId(), command.priceType(), command.price(),
                 command.currencyCode(), command.priceDocumentCode(), command.priceReason(), command.validFrom(),
@@ -1003,158 +996,6 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     }
 
     private String nameOf(Manufacturer value) { return value == null ? "未知厂家" : value.name(); }
-
-    private void validateService(ServiceCommand command) {
-        requireCode(MasterDataDictionaryCodes.SERVICE_TYPE, command.serviceType());
-        requireCode(MasterDataDictionaryCodes.SERVICE_USE, command.usageType());
-        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
-        if (!blank(command.duplicateRule())) {
-            requireCode(MasterDataDictionaryCodes.SERVICE_DUPLICATE_RULE, command.duplicateRule());
-        }
-        if (!command.singleOrder() && command.orderable() && !command.combinationItem()) {
-            throw badRequest("SERVICE_SINGLE_ORDER_CONFLICT", "非单开项目不能作为普通独立开立项");
-        }
-    }
-
-    private void validateMedication(MedicationCommand command) {
-        requireCode(MasterDataDictionaryCodes.MEDICATION_TYPE, command.medicationType());
-        boolean western = "WESTERN".equals(command.medicationType());
-        boolean herbal = "HERBAL".equals(command.medicationType());
-        boolean vaccine = "VACCINE".equals(command.medicationType());
-        if (!blank(command.doseForm())) requireCode(MasterDataDictionaryCodes.DOSE_FORM, command.doseForm());
-        if (!blank(command.storageType())) requireCode(MasterDataDictionaryCodes.STORAGE_TYPE, command.storageType());
-        if (!blank(command.antimicrobialLevel())) {
-            requireCode(MasterDataDictionaryCodes.ANTIMICROBIAL_LEVEL, command.antimicrobialLevel());
-        }
-        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
-        if (command.strengthValue() != null && blank(command.strengthUnit())) {
-            throw badRequest("MEDICATION_STRENGTH_UNIT_REQUIRED", "填写药品含量时必须同时填写含量单位");
-        }
-        requirePair(command.defaultDose(), command.defaultDoseUnit(), "MEDICATION_DEFAULT_DOSE_UNIT_REQUIRED",
-                "填写默认剂量时必须同时填写剂量单位");
-        if (!command.antimicrobial() && !blank(command.antimicrobialLevel())) {
-            throw badRequest("MEDICATION_ANTIMICROBIAL_LEVEL_CONFLICT", "非抗菌药物不能设置抗菌药等级");
-        }
-        if (command.antimicrobial() && blank(command.antimicrobialLevel())) {
-            throw badRequest("MEDICATION_ANTIMICROBIAL_LEVEL_REQUIRED", "抗菌药物必须设置分级管理等级");
-        }
-        if (!western && (command.antimicrobial() || !blank(command.antimicrobialLevel()))) {
-            throw badRequest("MEDICATION_ANTIMICROBIAL_TYPE_INVALID", "仅西药和化学药可维护抗菌药物及抗菌药等级");
-        }
-        if (!western && command.skinTestRequired()) {
-            throw badRequest("MEDICATION_SKIN_TEST_TYPE_INVALID", "仅西药和化学药可维护药品皮试属性");
-        }
-        if (command.antimicrobial()) {
-            if (command.antimicrobialMaxDays() != null
-                    && (command.antimicrobialMaxDays() < 1 || command.antimicrobialMaxDays() > 90)) {
-                throw badRequest("MEDICATION_ANTIMICROBIAL_MAX_DAYS_INVALID", "抗菌药门诊疗程上限应为 1 至 90 天");
-            }
-            if ("SPECIAL".equals(command.antimicrobialLevel()) && antimicrobialOutpatientAllowed(command)) {
-                throw badRequest("MEDICATION_SPECIAL_ANTIMICROBIAL_OUTPATIENT_INVALID", "特殊使用级抗菌药不得配置为门诊常规可用");
-            }
-            if ("SPECIAL".equals(command.antimicrobialLevel()) && !antimicrobialConsultationRequired(command)) {
-                throw badRequest("MEDICATION_SPECIAL_ANTIMICROBIAL_CONSULT_REQUIRED", "特殊使用级抗菌药必须配置会诊或审批要求");
-            }
-        }
-        if (command.skinTestRequired()) {
-            if (blank(command.skinTestMethod()) || blank(command.skinTestSolutionMode())
-                    || command.skinTestObservationMinutes() == null || command.skinTestResultValidityHours() == null) {
-                throw badRequest("MEDICATION_SKIN_TEST_CONFIGURATION_REQUIRED", "需皮试药品必须明确维护皮试方式、试液方式、观察时长和结果有效期");
-            }
-            if (!Set.of("INTRADERMAL", "PRICK", "OTHER").contains(skinTestMethod(command))) {
-                throw badRequest("MEDICATION_SKIN_TEST_METHOD_INVALID", "皮试方式不正确");
-            }
-            if (!Set.of("ORIGINAL_SOLUTION", "DILUTED_SOLUTION").contains(skinTestSolutionMode(command))) {
-                throw badRequest("MEDICATION_SKIN_TEST_SOLUTION_MODE_INVALID", "皮试液配置方式不正确");
-            }
-            if (skinTestObservationMinutes(command) < 1 || skinTestObservationMinutes(command) > 120) {
-                throw badRequest("MEDICATION_SKIN_TEST_OBSERVATION_INVALID", "皮试观察时长应为 1 至 120 分钟");
-            }
-            if (skinTestResultValidityHours(command) < 1 || skinTestResultValidityHours(command) > 8760) {
-                throw badRequest("MEDICATION_SKIN_TEST_VALIDITY_INVALID", "皮试结果有效期应为 1 至 8760 小时");
-            }
-        }
-        if (herbal && (command.strengthValue() != null || !blank(command.strengthUnit()))) {
-            throw badRequest("MEDICATION_HERBAL_STRENGTH_INVALID", "草药饮片不维护制剂含量，请使用炮制规格和默认剂量");
-        }
-        if ((herbal || vaccine) && command.chronicDiseaseDrug()) {
-            throw badRequest("MEDICATION_CHRONIC_TYPE_INVALID", "草药饮片和疫苗不维护慢病用药属性");
-        }
-        if (vaccine && !blank(command.defaultFrequency())) {
-            throw badRequest("MEDICATION_VACCINE_FREQUENCY_INVALID", "疫苗接种程序应通过类型扩展属性维护，不能使用普通给药频次");
-        }
-    }
-
-    private void requirePair(Object value, String unit, String code, String message) {
-        if ((value == null) != blank(unit)) throw badRequest(code, message);
-    }
-
-    private boolean antimicrobialOutpatientAllowed(MedicationCommand command) {
-        if (!command.antimicrobial()) return false;
-        if (command.antimicrobialOutpatientAllowed() != null) return command.antimicrobialOutpatientAllowed();
-        return !"SPECIAL".equals(command.antimicrobialLevel());
-    }
-
-    private boolean antimicrobialConsultationRequired(MedicationCommand command) {
-        if (!command.antimicrobial()) return false;
-        if (command.antimicrobialConsultationRequired() != null) return command.antimicrobialConsultationRequired();
-        return "SPECIAL".equals(command.antimicrobialLevel());
-    }
-
-    private boolean antimicrobialEmergencyAllowed(MedicationCommand command) {
-        return command.antimicrobial() && Boolean.TRUE.equals(command.antimicrobialEmergencyAllowed());
-    }
-
-    private Integer antimicrobialMaxDays(MedicationCommand command) {
-        return command.antimicrobial() && antimicrobialOutpatientAllowed(command)
-                ? command.antimicrobialMaxDays() : null;
-    }
-
-    private String skinTestMethod(MedicationCommand command) {
-        return command.skinTestRequired() ? defaultIfBlank(command.skinTestMethod(), null) : null;
-    }
-
-    private String skinTestSolutionMode(MedicationCommand command) {
-        return command.skinTestRequired() ? defaultIfBlank(command.skinTestSolutionMode(), null) : null;
-    }
-
-    private Integer skinTestObservationMinutes(MedicationCommand command) {
-        return command.skinTestRequired()
-                ? command.skinTestObservationMinutes() : null;
-    }
-
-    private Integer skinTestResultValidityHours(MedicationCommand command) {
-        return command.skinTestRequired()
-                ? command.skinTestResultValidityHours() : null;
-    }
-
-    private String skinTestInstructions(MedicationCommand command) {
-        return command.skinTestRequired() ? Strings.trimToNull(command.skinTestInstructions()) : null;
-    }
-
-    private String defaultIfBlank(String value, String defaultValue) {
-        return blank(value) ? defaultValue : value.trim().toUpperCase(Locale.ROOT);
-    }
-
-    private OrderFrequencyDirectory.FrequencySnapshot resolveMedicationFrequency(ExecutionContext context,
-            String code, Long organizationId) {
-        if (blank(code)) return null;
-        Long org = organizationId == null ? context.organizationId() : organizationId;
-        return orderFrequencyDirectory.requireActive(context.tenantId(), code, org, context.departmentId(),
-                "OUTPATIENT", "MEDICATION", LocalDate.now());
-    }
-
-    private MedicationRouteDirectory.RouteSnapshot resolveMedicationRoute(ExecutionContext context, String code) {
-        if (blank(code)) return null;
-        return medicationRouteDirectory.requireActive(context.tenantId(), code, "MASTER_DATA", LocalDate.now());
-    }
-
-    private void requireCode(String dictionary, String code) {
-        if (blank(code) || dictionaryDirectory.resolveActiveItems(current().tenantId(), dictionary).stream()
-                .noneMatch(value -> value.code().equals(code))) {
-            throw badRequest("MASTER_DATA_CODE_INVALID", "代码 " + code + " 不属于字典 " + dictionary);
-        }
-    }
 
     private void requireCatalogItem(Long tenantId, Long id) {
         if (serviceRepository.findByIdAndTenantIdAndItemType(id, tenantId, "SERVICE").isEmpty()

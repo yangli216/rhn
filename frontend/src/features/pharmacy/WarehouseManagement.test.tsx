@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { InventoryBalance, InventoryTransactionPage, StockSite } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { WarehouseManagement } from './WarehouseManagement'

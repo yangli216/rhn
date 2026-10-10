@@ -1,0 +1,18 @@
+[
+  {
+    "file": "src/features/inpatient/InpatientOrderWorkspace.tsx",
+    "specifier": "../outpatient/PrescriptionListEditor",
+    "owner": "临床医嘱维护角色",
+    "reason": "既存住院医嘱复用处方编辑器，需先抽离临床共享编辑契约，保留住院开立与患者上下文回归。",
+    "expires": "2027-01-31",
+    "removal": "处方编辑器迁至 shared/clinical 后删除；禁止扩展为对 outpatient 目录的整体依赖。"
+  },
+  {
+    "file": "src/features/pharmacy/PharmacyKnowledgeImprovement.tsx",
+    "specifier": "../quality/MedicationFeedbackImprovementDialog",
+    "owner": "合理用药与药房集成角色",
+    "reason": "既存药房反馈复用合理用药改进弹窗，复核和发布仍由 quality 负责。",
+    "expires": "2027-01-31",
+    "removal": "反馈编辑迁至共享能力或改用明确的 quality 公开入口后删除，不得据此放行其他跨域导入。"
+  }
+]

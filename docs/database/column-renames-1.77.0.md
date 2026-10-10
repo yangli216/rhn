@@ -1,6 +1,6 @@
 # 字段命名优化 · 1.77.0 逐表清单
 
-范围：251 张表、893 个物理字段、292 个长词。保留逻辑字段名、Java/API 属性及枚举值。
+范围：251 张表、893 个物理字段、295 个长词。保留逻辑字段名、Java/API 属性及枚举值。
 
 权威清单：`column-renames-1.77.0.json`。PostgreSQL / Oracle 使用配对的 `V1_77_0__governed_column_abbreviations.sql`，原位改名；不覆盖历史迁移。
 

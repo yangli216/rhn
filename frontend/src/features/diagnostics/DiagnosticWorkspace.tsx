@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { DiagnosticExecutionTask, DiagnosticTaskStatus, LocalDiagnosticReportInput } from '../../shared/api/diagnosticsApi'
 import { diagnosticReportStatusPresentation } from '../../shared/presentation'
 import { formatTime } from '../../shared/format'

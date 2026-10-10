@@ -1,5 +1,8 @@
 package com.rhn;
 
+import com.rhn.ai.application.ClinicalKnowledgeGateway;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,8 +25,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Tag("outpatient-main-flow")
+@TestPropertySource(properties = {"rhn.ai.knowledge-endpoint=", "rhn.ai.speech-endpoint="})
 class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbcTemplate;
+    @MockitoBean ClinicalKnowledgeGateway knowledgeGateway;
 
     @Test
     void speechTranscriptionIsUnavailableUnlessModelSpeechEndpointIsConfigured() throws Exception {
@@ -42,6 +47,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                         .content("{\"query\":\"高血压\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("AI_KNOWLEDGE_UNAVAILABLE"));
+        org.mockito.Mockito.verifyNoInteractions(knowledgeGateway);
     }
 
     @Test

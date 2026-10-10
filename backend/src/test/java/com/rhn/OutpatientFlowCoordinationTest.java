@@ -219,8 +219,8 @@ class OutpatientFlowCoordinationTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/encounters/{id}/service-requests", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"catalogItemId":"%s","quantity":1,"priceType":"SALE","pricingRequired":true,
-                                 "reason":"%s","clinicalDescription":"%s"}
-                                """.formatted(catalogItemId, reason, clinicalDescription)))
+                                 "performerDepartmentId":"%s","reason":"%s","clinicalDescription":"%s"}
+                                """.formatted(catalogItemId, DEPARTMENT, reason, clinicalDescription)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andReturn().getResponse().getContentAsString());
     }

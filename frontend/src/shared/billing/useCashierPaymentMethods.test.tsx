@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../clinical/workContext'
 import type { RhnApi } from '../rhnApi'
 import { useCashierPaymentMethods } from './useCashierPaymentMethods'
 

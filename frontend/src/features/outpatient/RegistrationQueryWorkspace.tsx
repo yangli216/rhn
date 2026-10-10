@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import { systemEnumItemName } from '../../shared/api/dictionaryApi'
 import type { CancelEncounterResult } from '../../shared/api/encountersApi'
 import { REGISTRATION_SOURCE_LABELS, SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem } from '../../shared/api/schedulingApi'

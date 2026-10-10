@@ -1,5 +1,5 @@
 {
-  "fingerprint": "29033795aa43ffea288b26ca6e7fbda613f90ac95920280da8122dd5a636c9d6",
+  "fingerprint": "f063d67a50617528f23771eb8574e838be87e5d34172a7abfb93360bb607fdff",
   "tables": [
     {
       "logical": "ins.insurance_claim_line",
@@ -565,7 +565,7 @@
           "ordinal": 17,
           "comment": "金额来源：REPORTED按原回执保留缺失与零；LEGACY_UNVERIFIED历史来源待核实",
           "logical": "amount_source",
-          "catalogComment": "金额来源；REPORTED按原回执保留缺失与零，LEGACY_UNVERIFIED历史来源待核实"
+          "catalogComment": "金额来源：REPORTED按原回执保留缺失与零；LEGACY_UNVERIFIED历史来源待核实"
         }
       ],
       "previousPhysical": "RHN_INS_CLAIM_RESPONS",

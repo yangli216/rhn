@@ -5,7 +5,7 @@ import { StrictMode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { GenerateClinicalAiSuggestionInput, ClinicalAiSuggestion } from '../../shared/api/clinicalAiApi'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { Encounter, Resident } from '../../shared/model'
 import type { ClinicalDocument } from '../../shared/api/clinicalDocumentsApi'
 import type { ClinicalRecordInput } from '../../shared/api/encountersApi'
@@ -381,9 +381,10 @@ function createMockApi({
 
 function renderStation(api: RhnApi) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
+  const view = render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
     <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
   </MemoryRouter></QueryClientProvider>)
+  return { ...view, client }
 }
 
 function receiptTestPlan(): OutpatientPlanTemplate {
@@ -3136,4 +3137,23 @@ describe('DoctorWorkstation controlled printing workflow', () => {
     const batchModal = await screen.findByRole('dialog', { name: '批量受控打印' })
     expect(batchModal).toBeInTheDocument()
   })
+})
+
+
+it("keeps the doctor's deselected template diagnosis after a refresh with the same plan identity", async () => {
+  const user = userEvent.setup(), api = createMockApi(), plan = receiptTestPlan()
+  vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([plan])
+  const view = renderStation(api)
+  await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+  await user.click(screen.getByRole('button', { name: '临床模板' }))
+  const checkbox = await screen.findByRole('checkbox', { name: '选择诊断 回执测试诊断' })
+  expect(checkbox).toBeChecked()
+  await user.click(checkbox)
+  expect(checkbox).not.toBeChecked()
+  const previousCalls = vi.mocked(api.outpatientPlanTemplates.list).mock.calls.length
+  vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([{ ...plan, name: '刷新后的回执核对方案' }])
+  await act(async () => { await view.client.invalidateQueries({ queryKey: ['outpatient-plan-templates'] }) })
+  await waitFor(() => expect(api.outpatientPlanTemplates.list).toHaveBeenCalledTimes(previousCalls + 1))
+  await waitFor(() => expect(screen.queryAllByText('刷新后的回执核对方案').length).toBeGreaterThan(0))
+  expect(screen.getByRole('checkbox', { name: '选择诊断 回执测试诊断' })).not.toBeChecked()
 })

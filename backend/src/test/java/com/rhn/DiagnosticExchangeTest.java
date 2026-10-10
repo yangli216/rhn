@@ -300,8 +300,8 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/encounters/{id}/service-requests", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"catalogItemId":"%s","quantity":1,"priceType":"SALE",
-                                 "businessDate":"2026-08-27","reason":"%s","clinicalDescription":"门诊检查检验申请"}
-                                """.formatted(catalogItemId, reason)))
+                                 "performerDepartmentId":"%s","businessDate":"2026-08-27","reason":"%s","clinicalDescription":"门诊检查检验申请"}
+                                """.formatted(catalogItemId, DEPARTMENT, reason)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
 

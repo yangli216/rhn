@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { AccessRole, RhnApi } from '../../shared/rhnApi'
 import { AccessControlManagement } from './AccessControlManagement'
 const role: AccessRole = { id: 'role1', code: 'ROLE1', name: '审核角色', roleType: 'BUSINESS', status: 'ACTIVE', version: 2, permissionCodes: ['TASK.READ'] }

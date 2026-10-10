@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "29033795aa43ffea288b26ca6e7fbda613f90ac95920280da8122dd5a636c9d6",
+  "fingerprint": "f063d67a50617528f23771eb8574e838be87e5d34172a7abfb93360bb607fdff",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -21,7 +21,7 @@
     {
       "code": "AUD",
       "name": "审计与质量",
-      "count": 22
+      "count": 24
     },
     {
       "code": "BD",
@@ -2329,6 +2329,20 @@
       "domain": "BD",
       "comment": "标准目录逐条转录核对事件，一行代表一个租户对特定目录版本中一个条目的不可变核对操作；不替代来源审批与临床审核",
       "columns": 6
+    },
+    {
+      "physical": "RHN_AUD_MED_SAFETY_CAT",
+      "logical": "aud.medication_safety_category",
+      "domain": "AUD",
+      "comment": "合理用药安全分类；一行代表一个租户下的一项安全规则分类",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_AUD_MED_SAFETY_CAT_MBR",
+      "logical": "aud.medication_safety_category_member",
+      "domain": "AUD",
+      "comment": "合理用药安全分类成员；一行代表一个租户下某安全分类关联的一条药品成员",
+      "columns": 11
     }
   ]
 }

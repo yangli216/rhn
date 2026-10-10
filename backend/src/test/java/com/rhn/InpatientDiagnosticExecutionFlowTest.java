@@ -29,6 +29,7 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
     @Test
     void verified_inpatient_laboratory_order_uses_diagnostic_queue_reports_and_one_execution_charge()
             throws Exception {
+        configureExecutionDepartment();
         JsonNode admission = postJson("/api/inpatient/admissions", """
                 {"residentId":"%s","bedId":"%s","admissionTypeCode":"GENERAL",
                  "admissionSourceCode":"DIRECT","admissionReason":"住院检验执行闭环测试",
@@ -164,6 +165,7 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
 
     @Test
     void inpatient_critical_value_is_visible_and_can_be_closed_by_the_current_ward() throws Exception {
+        configureExecutionDepartment();
         JsonNode admission = postJson("/api/inpatient/admissions", """
                 {"residentId":"%s","bedId":"%s","admissionTypeCode":"GENERAL",
                  "admissionSourceCode":"DIRECT","admissionReason":"住院危急值闭环测试",
@@ -254,6 +256,15 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
             }
         }
         throw new AssertionError("未找到治疗执行任务：" + sourceId);
+    }
+
+    // This suite verifies execution/isolation, independently of destination fallback policy.
+    // @ResetDatabaseBeforeEachTestMethod restores the adoption row between scenarios.
+    private void configureExecutionDepartment() {
+        jdbcTemplate.update("update RHN_BD_ORG_CATALOG_ITEM set ID_DEPT_DEFAULT = ? "
+                        + "where ID_TNT = ? and ID_ORG = ? and ID_CATALOG_ITEM = ?",
+                Long.valueOf(DEPARTMENT), Long.valueOf(TENANT), Long.valueOf(ORGANIZATION),
+                Long.valueOf(SERVICE_ITEM));
     }
 
     private RequestPostProcessor wardWorkContext() {

@@ -1,5 +1,9 @@
 import type { ApiClient } from './httpClient'
 import type { components } from './generated'
+// Explicit business projections inherit primitive wire fields from the generated contract.
+type ContractProjection<Wire, Overrides extends Partial<Wire>> = Omit<Wire, keyof Overrides> & Overrides
+type RequiredWireView<Wire, Keys extends keyof Wire> = Omit<Wire, Keys> & { [Key in Keys]-?: NonNullable<Wire[Key]> }
+
 
 export interface BillingWorkItem {
   encounterId: string
@@ -23,126 +27,34 @@ export interface BillingWorkItem {
   accountBalance: number
 }
 
-export interface ChargeItem extends Pick<components['schemas']['ChargeItemView'], 'accountingCategoryText' | 'ordering'> {
-  id: string
-  patientAccountId: string
-  residentId: string
-  encounterId: string
-  requestId?: string
-  catalogItemId: string
+export type ChargeItem = ContractProjection<RequiredWireView<components['schemas']['ChargeItemView'], 'id' | 'patientAccountId' | 'residentId' | 'encounterId' | 'catalogItemId' | 'sourceId' | 'requestCode' | 'status' | 'quantity' | 'unitCode' | 'unitPrice' | 'totalAmount' | 'currencyCode' | 'itemCode' | 'itemName' | 'occurredAt'>, {
   sourceType: 'REGISTRATION' | 'DIRECT_VISIT_SERVICE' | 'SERVICE_REQUEST' | 'SERVICE_REQUEST_REVERSAL'
     | 'MEDICATION_REQUEST' | 'MEDICATION_REQUEST_REVERSAL' | 'MEDICATION_DISPENSE' | 'MEDICATION_RETURN'
     | 'INPATIENT_ORDER_TASK' | 'INPATIENT_BED_DAY' | 'INPATIENT_BED_DAY_REVERSAL'
-  sourceId: string
-  requestCode: string
-  status: string
-  quantity: number
-  unitCode: string
-  unitName?: string
-  packageSpec?: string
-  manufacturerName?: string
-  unitPrice: number
-  totalAmount: number
-  currencyCode: string
-  priceId?: string
-  priceRevision?: number
-  priceType?: string
-  itemCode: string
-  itemName: string
-  occurredAt: string
-  reversesChargeItemId?: string
-  accountingCategory?: string
-}
+}>
 
-export interface InvoiceLine { id: string; chargeItemId: string; lineNo: number; amount: number }
+export type InvoiceLine = RequiredWireView<components['schemas']['InvoiceLineView'], 'id' | 'chargeItemId' | 'lineNo' | 'amount'>
 
-export interface Invoice {
-  id: string
-  patientAccountId: string
-  invoiceNo: string
+export type Invoice = ContractProjection<RequiredWireView<components['schemas']['InvoiceView'], 'id' | 'patientAccountId' | 'invoiceNo' | 'status' | 'currencyCode' | 'grossAmount' | 'discountAmount' | 'netAmount' | 'paidAmount' | 'outstandingAmount' | 'issuedAt' | 'issuedBy'>, {
   invoiceType: 'STANDARD' | 'CREDIT'
-  status: string
-  currencyCode: string
-  grossAmount: number
-  discountAmount: number
-  netAmount: number
-  paidAmount: number
-  outstandingAmount: number
-  issuedAt: string
-  issuedBy: string
   lines: InvoiceLine[]
-}
+}>
 
-export interface SettlementLine {
-  id: string
-  chargeItemId: string
-  lineNo: number
-  settledQuantity: number
-  grossAmount: number
-  discountAmount: number
-  insuranceAmount: number
-  patientAmount: number
-  otherAmount: number
-  netAmount: number
-}
+export type SettlementLine = RequiredWireView<components['schemas']['SettlementLineView'], 'id' | 'chargeItemId' | 'lineNo' | 'settledQuantity' | 'grossAmount' | 'discountAmount' | 'insuranceAmount' | 'patientAmount' | 'otherAmount' | 'netAmount'>
 
-export interface SettlementTender {
-  id: string
-  paymentId?: string
-  claimResponseId?: string
-  lineNo: number
-  tenderType: string
-  payerCode?: string
-  payerName?: string
-  amount: number
-  currencyCode: string
-}
+export type SettlementTender = RequiredWireView<components['schemas']['SettlementTenderView'], 'id' | 'lineNo' | 'tenderType' | 'amount' | 'currencyCode'>
 
-export interface SettlementEvent {
-  id: string
-  eventType: string
-  statusFrom?: string
-  statusTo: string
-  commandCode: string
-  actorId?: string
-  errorCode?: string
-  errorMessage?: string
-  occurredAt: string
-}
+export type SettlementEvent = RequiredWireView<components['schemas']['SettlementEventView'], 'id' | 'eventType' | 'statusTo' | 'commandCode' | 'occurredAt'>
 
-export interface Settlement {
-  id: string
-  revision: number
-  patientAccountId: string
-  reversesSettlementId?: string
-  legacyInvoiceId?: string
-  settlementNo: string
-  commandCode: string
+export type Settlement = ContractProjection<RequiredWireView<components['schemas']['SettlementView'], 'id' | 'revision' | 'patientAccountId' | 'settlementNo' | 'commandCode' | 'grossAmount' | 'discountAmount' | 'insuranceAmount' | 'patientAmount' | 'otherAmount' | 'roundingAmount' | 'netAmount' | 'tenderedAmount' | 'outstandingAmount' | 'currencyCode' | 'createdBy' | 'createdAt'>, {
   settlementType: 'NORMAL' | 'REVERSAL' | 'SUPPLEMENT'
   settlementScene: 'REGISTRATION' | 'OUTPATIENT' | 'INPATIENT' | 'HOME_BED' | 'PHARMACY'
   terminalScene: 'CASHIER' | 'DOCTOR_STATION' | 'SELF_SERVICE' | 'MOBILE' | 'ONLINE'
   status: 'DRAFT' | 'PRICED' | 'PAYMENT_PENDING' | 'PARTIAL' | 'SETTLED' | 'REVERSING' | 'REVERSED' | 'FAILED'
-  grossAmount: number
-  discountAmount: number
-  insuranceAmount: number
-  patientAmount: number
-  otherAmount: number
-  roundingAmount: number
-  netAmount: number
-  tenderedAmount: number
-  outstandingAmount: number
-  currencyCode: string
-  terminalCode?: string
-  createdBy: string
-  createdAt: string
-  finalizedBy?: string
-  finalizedAt?: string
-  errorCode?: string
-  errorMessage?: string
   lines: SettlementLine[]
   tenders: SettlementTender[]
   events: SettlementEvent[]
-}
+}>
 
 export interface SettlementRecord {
   id: string
@@ -175,24 +87,9 @@ export interface SettlementRecord {
   finalizedAt?: string
 }
 
-export interface Payment {
-  id: string
-  patientAccountId: string
-  invoiceId?: string
-  paymentOrderId?: string
-  paymentNo: string
+export type Payment = ContractProjection<RequiredWireView<components['schemas']['PaymentView'], 'id' | 'patientAccountId' | 'paymentNo' | 'paymentMethodCode' | 'status' | 'amount' | 'currencyCode' | 'paidAt' | 'enteredBy'>, {
   paymentType: 'PAYMENT' | 'REFUND'
-  paymentMethodCode: string
-  paymentSceneCode?: string
-  status: string
-  amount: number
-  currencyCode: string
-  paidAt: string
-  externalTransactionNo?: string
-  reversesPaymentId?: string
-  enteredBy: string
-  description?: string
-}
+}>
 
 export interface PaymentOrderEvent {
   id: string

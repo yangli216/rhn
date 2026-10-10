@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { EncounterPageView, EncounterQueryItem } from '../../shared/api/encountersApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { EncounterQueryWorkspace } from './EncounterQueryWorkspace'

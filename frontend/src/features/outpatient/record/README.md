@@ -1,6 +1,8 @@
 # 门诊病历与草稿边界
 
-从用例选入口，不需要每次读取完整 DoctorWorkstation：
+从用例选入口，不需要每次读取完整 DoctorWorkstation。根入口只负责队列、导航和兼容导出；患者会话/草稿协调在 `../workstation/PatientWorkspace.tsx`，转诊在 `../referrals/ReferralCoordination.tsx`，诊毕在 `EncounterCompletionDialog.tsx`，过敏在 `AllergySafetyPanel.tsx`，病历 UI 在 `ClinicalRecordPanel.tsx`，模板选择在 `../templates/PlanTemplatePanel.tsx`，打印及历史分别在 `../printing/`、`../history/`。
+
+患者会话由 `useContextSession` 随患者/上下文身份及 API 会话生成；异步失效和草稿保存仍复用既有协调器。相同模板/历史身份的查询刷新保留医生勾选，身份变化再初始化。上述边界的组合回归仍由 `DoctorWorkstation.test.tsx` 覆盖，不能仅测纯函数推断工作流正常：
 
 | 修改内容 | 入口 | 定向测试 |
 | --- | --- | --- |

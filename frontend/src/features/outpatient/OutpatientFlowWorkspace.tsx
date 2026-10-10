@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { OutpatientFlowStage, OutpatientFlowStatus, OutpatientFlowVisit } from '../../shared/api/outpatientFlowApi'
 import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'

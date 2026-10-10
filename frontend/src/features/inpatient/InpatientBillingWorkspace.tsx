@@ -1,4 +1,4 @@
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import '../../styles/features/inpatient.css'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, EmptyState, PageHeader } from '../../shared/ui'

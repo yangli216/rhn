@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { InpatientBed } from '../../shared/api/inpatientApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, PageHeader, Tabs } from '../../shared/ui'

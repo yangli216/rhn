@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ClinicalContext } from '../../app/AppShell'
+import type { ClinicalContext } from '../../shared/clinical/workContext'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, PageHeader, Tabs } from '../../shared/ui'
 import { prefetchCanvasEditor } from './CanvasMedicalRecordEditor'
