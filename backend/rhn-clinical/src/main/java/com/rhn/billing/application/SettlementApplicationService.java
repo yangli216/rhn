@@ -123,12 +123,19 @@ public class SettlementApplicationService {
                 context.tenantId(), value.id(), category.code(), category.name(), money(amount), invoice.issuedAt())));
         events.save(new SettlementEvent(context.tenantId(), value.id(), "CREATE", null, value.status().name(),
                 "CREATE-" + invoice.invoiceNo(), context.subjectId(), invoice.issuedAt()));
+        if ("NORMAL".equals(type) && value.netAmount().signum() == 0) {
+            String previous = value.applyPaidAmount(BigDecimal.ZERO.setScale(6), context.subjectId(), invoice.issuedAt());
+            events.save(new SettlementEvent(context.tenantId(), value.id(), "FINALIZE", previous,
+                    value.status().name(), "ZERO-AMOUNT-" + value.id(), context.subjectId(), invoice.issuedAt()));
+            publishStatusTransition(context, value, invoice.id(), previous, invoice.issuedAt());
+        }
         return value;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
     void applyInpatientPrepayments(ExecutionContext context, Settlement settlement, List<Payment> payments) {
         if (!"INPATIENT".equals(settlement.settlementScene()) || settlement.netAmount().signum() < 0) return;
+        if (settlement.status() == SettlementStatus.SETTLED) return;
         if (settlement.netAmount().signum() == 0) {
             Instant occurredAt = Instant.now();
             String previous = settlement.applyPaidAmount(BigDecimal.ZERO.setScale(6), context.subjectId(), occurredAt);
@@ -263,11 +270,16 @@ public class SettlementApplicationService {
         if (!finalized && !reversed) return;
         PatientAccount account = accounts.findByIdAndTenantId(settlement.patientAccountId(), context.tenantId())
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
-        List<Map<String, Object>> medicationRequests = lines
+        List<ChargeItem> settledCharges = lines
                 .findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), settlement.id()).stream()
                 .map(line -> chargeItems.findByIdAndTenantId(line.chargeItemId(), context.tenantId()).orElse(null))
-                .filter(java.util.Objects::nonNull)
+                .filter(java.util.Objects::nonNull).toList();
+        Map<Long, BigDecimal> requestAmounts = settledCharges.stream()
+                .filter(charge -> charge.requestId() != null)
+                .collect(java.util.stream.Collectors.toMap(ChargeItem::requestId, ChargeItem::totalAmount, BigDecimal::add));
+        List<Map<String, Object>> medicationRequests = settledCharges.stream()
                 .filter(charge -> charge.requestId() != null && charge.totalAmount().signum() > 0
+                        && requestAmounts.get(charge.requestId()).signum() > 0
                         && charge.sourceType().startsWith("MEDICATION_"))
                 .map(charge -> {
                     Map<String, Object> item = new LinkedHashMap<>();
@@ -276,11 +288,9 @@ public class SettlementApplicationService {
                     item.put("departmentId", account.departmentId());
                     return Map.copyOf(item);
                 }).distinct().toList();
-        List<Map<String, Object>> serviceRequests = lines
-                .findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), settlement.id()).stream()
-                .map(line -> chargeItems.findByIdAndTenantId(line.chargeItemId(), context.tenantId()).orElse(null))
-                .filter(java.util.Objects::nonNull)
+        List<Map<String, Object>> serviceRequests = settledCharges.stream()
                 .filter(charge -> charge.requestId() != null && charge.totalAmount().signum() > 0
+                        && requestAmounts.get(charge.requestId()).signum() > 0
                         && "SERVICE_REQUEST".equals(charge.sourceType()))
                 .map(charge -> {
                     Map<String, Object> item = new LinkedHashMap<>();

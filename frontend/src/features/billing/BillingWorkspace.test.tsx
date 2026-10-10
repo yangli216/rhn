@@ -140,6 +140,80 @@ describe('BillingWorkspace deep link', () => {
     })))
   })
 
+  it.each([
+    { name: 'full reversal', amounts: [86, -86], otherAmount: 0 },
+    { name: 'decimal offsets', amounts: [0.1, 0.2, -0.3], otherAmount: 0 },
+    { name: 'selected offsets with other pending fees', amounts: [86, -86], otherAmount: 12 },
+  ])('settles $name without a payment method or payment order', async ({ amounts, otherAmount }) => {
+    const user = userEvent.setup()
+    const charges = amounts.map((totalAmount, index) => ({
+      id: `charge-${index}`, patientAccountId: 'account-1', residentId: 'resident-1', encounterId: 'encounter-1',
+      catalogItemId: 'catalog-1', sourceType: totalAmount < 0 ? 'MEDICATION_CANCELLED' : 'MEDICATION_REQUEST',
+      sourceId: `source-${index}`, requestCode: `REQ-${index}`, status: 'POSTED',
+      quantity: totalAmount < 0 ? -1 : 1, unitCode: '盒', unitPrice: Math.abs(totalAmount), totalAmount,
+      currencyCode: 'CNY', itemCode: `ITEM-${index}`, itemName: `费用${index}`,
+      occurredAt: '2026-10-10T01:00:00Z',
+    }))
+    const other = { ...charges[0], id: 'other-charge', sourceId: 'other-source', requestCode: 'OTHER',
+      itemName: '其他待结费用', quantity: 1, unitPrice: otherAmount, totalAmount: otherAmount }
+    const allCharges = otherAmount > 0 ? [...charges, other] : charges
+    const invoice = { id: 'invoice-zero', patientAccountId: 'account-1', invoiceNo: 'INV-ZERO',
+      invoiceType: 'STANDARD', status: 'ISSUED', currencyCode: 'CNY', netAmount: 0, paidAmount: 0,
+      outstandingAmount: 0, lines: charges.map((charge, index) => ({
+        id: `invoice-line-${index}`, chargeItemId: charge.id, lineNo: index + 1, amount: charge.totalAmount,
+      })) }
+    const settlement = { id: 'settlement-zero', legacyInvoiceId: invoice.id, settlementNo: 'INV-ZERO',
+      settlementType: 'NORMAL', status: 'SETTLED', netAmount: 0, outstandingAmount: 0, currencyCode: 'CNY',
+      lines: charges.map(charge => ({ chargeItemId: charge.id })), tenders: [], events: [] }
+    let issued = false
+    const statement = vi.fn().mockImplementation(async () => ({
+      accountId: 'account-1', revision: issued ? 2 : 1, residentId: 'resident-1', encounterId: 'encounter-1',
+      organizationId: 'org-1', departmentId: 'dept-1', accountType: 'OUTPATIENT', currencyCode: 'CNY',
+      status: 'OPEN', chargeAmount: otherAmount, invoicedAmount: 0, uninvoicedAmount: otherAmount,
+      paymentAmount: 0, refundAmount: 0, accountBalance: otherAmount, charges: allCharges,
+      invoices: issued ? [invoice] : [], settlements: issued ? [settlement] : [], payments: [], ledgerEntries: [],
+    }))
+    const issueInvoice = vi.fn().mockImplementation(async () => { issued = true; return invoice })
+    const createPaymentOrder = vi.fn()
+    const api = { billing: {
+      worklist: vi.fn().mockImplementation(async () => [{
+        encounterId: 'encounter-1', residentId: 'resident-1', residentName: '零额结算患者',
+        accountId: 'account-1', status: issued && otherAmount === 0 ? 'SETTLED' : 'PENDING_INVOICE',
+        sourceEventCount: allCharges.length, chargedEventCount: allCharges.length,
+        chargeAmount: otherAmount, accountBalance: otherAmount, currencyCode: 'CNY',
+      }]),
+      statement, issueInvoice, createPaymentOrder, paymentOrders: vi.fn().mockResolvedValue([]),
+      settlementReceipts: vi.fn().mockResolvedValue([]),
+    }, dictionaries: { applicable: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi
+    const clinicalContext = { organization: { id: 'org-1', name: '机构' },
+      department: { id: 'dept-1', name: '全科门诊' } } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const { container } = render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
+    </QueryClientProvider>)
+
+    if (otherAmount > 0) await user.click(await screen.findByLabelText('勾选项目 其他待结费用'))
+    const button = await screen.findByRole('button', { name: '结算开票 (Ctrl+Enter)' })
+    await waitFor(() => expect(button).toBeEnabled())
+    expect(await screen.findByText('本次无需收款')).toBeInTheDocument()
+    expect(container.querySelector('.billing-payment-panel')).toHaveTextContent('¥0.00')
+    if (amounts.length === 2 && otherAmount === 0) {
+      await user.click(screen.getByLabelText('勾选项目 费用0'))
+      expect(button).toBeDisabled() // A credit alone must not enter the normal collection flow.
+      await user.click(screen.getByLabelText('勾选项目 费用0'))
+      await waitFor(() => expect(button).toBeEnabled())
+    }
+    await user.click(button)
+    await waitFor(() => expect(issueInvoice).toHaveBeenCalledWith(
+      'account-1', expect.stringMatching(/^INV-/), undefined, expect.arrayContaining(charges.map(charge => charge.id)),
+    ))
+    await waitFor(() => expect(screen.queryByLabelText('勾选项目 费用0')).not.toBeInTheDocument())
+    expect(createPaymentOrder).not.toHaveBeenCalled()
+    expect(issueInvoice).toHaveBeenCalledTimes(1)
+    expect(issueInvoice.mock.calls[0][3]).toHaveLength(charges.length)
+    if (otherAmount > 0) expect(screen.getByLabelText('勾选项目 其他待结费用')).toBeInTheDocument()
+  })
+
   it('does not stay stuck in loading state when queue is empty, displays empty prompt', async () => {
     const api = {
       billing: {

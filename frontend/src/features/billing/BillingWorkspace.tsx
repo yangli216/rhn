@@ -420,10 +420,11 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
   }
 
   const selectedChargesAmount = useMemo(() => {
-    if (!statement.data) return 0
-    return activeCharges
+    const total = activeCharges
       .filter((c) => selectedChargeIds.has(c.id) && !invoicedChargeIds.has(c.id))
       .reduce((sum, c) => sum + c.totalAmount, 0)
+    // Match the ledger's six decimal places, so offsetting decimal amounts remain exactly zero.
+    return Number(total.toFixed(6))
   }, [activeCharges, selectedChargeIds, invoicedChargeIds])
 
   const totalUninvoicedCount = useMemo(() => {
@@ -436,7 +437,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     settlement.settlementType === 'NORMAL' && settlement.outstandingAmount > 0) ?? [], [statement.data])
 
   const settlementOptions = useMemo(() => [
-    ...(canInvoice && statement.data && selectedChargesAmount > 0 ? [{
+    ...(canInvoice && statement.data && selectedChargesAmount >= 0 ? [{
       id: draftSettlementId,
       code: `本次勾选结算 (${selectedChargeIds.size} 项)`,
       outstandingAmount: selectedChargesAmount,
@@ -1077,7 +1078,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
       </Panel>
       <CashierPanel className="billing-payment-panel" title="收费结算"
         amountLabel="待支付金额"
-        amount={money(selectedChargesAmount || statement.data?.accountBalance || 0, currency)}
+        amount={money(canInvoice ? selectedChargesAmount : statement.data?.accountBalance ?? 0, currency)}
         meta={selected ? (settlementMode === 'MEDICAL_INSURANCE' ? '医保实时结算' : '自费结算') : '待选择患者'}>
         {!selected ? (
           <EmptyState icon="billing" title="请先选择患者" copy="选定患者并确认费用明细后在此办理结算与支付。" />

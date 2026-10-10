@@ -216,6 +216,54 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void cancelled_order_offsets_finalize_zero_settlement_without_payment_and_replay_safely() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        String encounterId = createActiveEncounter(createResident(suffix));
+        JsonNode request = json(mockMvc.perform(post("/api/encounters/{id}/service-requests", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"catalogItemId":"362387869795105","quantity":1,"priceType":"SALE",
+                                 "pricingRequired":true,"reason":"零额结算回归","clinicalDescription":"开立后取消"}
+                                """))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        mockMvc.perform(post("/api/encounters/{id}/service-requests/{requestId}/cancel",
+                        encounterId, request.get("id").asString()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"expectedRevision":%d,"reason":"未执行，取消收费"}
+                                """.formatted(request.get("revision").asLong())))
+                .andExpect(status().isOk());
+        JsonNode before = json(mockMvc.perform(get("/api/billing/encounters/{id}/statement", encounterId)
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(2, before.get("charges").size());
+        assertTrue(before.at("/charges/0/totalAmount").decimalValue().signum() > 0);
+        assertEquals(0, before.get("chargeAmount").decimalValue().signum());
+        String accountId = before.get("accountId").asString();
+        List<Long> chargeIds = java.util.stream.StreamSupport.stream(before.get("charges").spliterator(), false)
+                .map(charge -> charge.get("id").asLong()).toList();
+        JsonNode invoice = issueInvoice(accountId, "ZERO-INV-" + suffix, chargeIds);
+        assertEquals(0, invoice.get("netAmount").decimalValue().signum());
+        assertEquals(2, invoice.get("lines").size());
+        assertEquals(invoice.get("id").asString(), issueInvoice(accountId, "ZERO-INV-" + suffix, chargeIds).get("id").asString());
+        JsonNode settled = json(mockMvc.perform(get("/api/billing/settlements/{id}", invoice.get("id").asString()).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SETTLED"))
+                .andExpect(jsonPath("$.outstandingAmount").value(0))
+                .andExpect(jsonPath("$.tenders").isEmpty())
+                .andReturn().getResponse().getContentAsString());
+        assertEquals(1L, java.util.stream.StreamSupport.stream(settled.get("events").spliterator(), false)
+                .filter(event -> "FINALIZE".equals(event.get("eventType").asString())).count());
+        mockMvc.perform(get("/api/billing/encounters/{id}/statement", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.payments").isEmpty())
+                .andExpect(jsonPath("$.invoices.length()").value(1))
+                .andExpect(jsonPath("$.uninvoicedAmount").value(0));
+        var finalized = returnEvents.findByAggregateIdOrderByRecordedAt(invoice.get("id").asLong()).stream()
+                .filter(event -> "BILLING_SETTLEMENT_FINALIZED".equals(event.eventType())).toList();
+        assertEquals(1, finalized.size());
+        var payload = finalized.getFirst().envelope(returnJson).payload();
+        assertEquals(List.of(), payload.get("serviceRequests"));
+        assertEquals(List.of(), payload.get("medicationRequests"));
+    }
+
+    @Test
     void partialSettlementWithSpecificChargeItemIdsLeavesRemainingUninvoiced() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
         PharmacyFixture pharmacy = createPharmacy(suffix);
