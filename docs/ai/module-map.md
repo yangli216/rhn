@@ -6,8 +6,8 @@
 | 用例 | 前端入口 | 后端入口，相对各模块 src/main/java/com/rhn | 验证入口 |
 | --- | --- | --- | --- |
 | AI / 团队协作、任务隔离、CI 与验证证据 | [协作与集成约定](../../CONTRIBUTING.md)、根 AGENTS.md；`.github/workflows/ci.yml` | `scripts/verify-scope.sh`、`scripts/verification-snapshot.py` | `python3 -B -m unittest discover -s scripts/tests -p 'test_development_workflow.py' -v`；业务与共享资产变化另选相应检查 |
-| 表结构、设计规范、业务语义与人机共建 | [数据库协作入口](../database/README.md)、`/schema-workbench.html`；开发端 `src/dev/schema-workbench/`；统计端 `features/analytics/SemanticWorkbench.tsx` | 开发采集与文件服务：`scripts/schema-workbench/`；统计资产：rhn-analytics 的 `semantic/outpatient-ontology.v1.yaml` | `cd frontend && npm run schema:test && npm run schema:check`；UI 用 `npm run check`；统计资产变化追加 semantic 模块测试 |
-| 新增页面、布局、基础组件与 UI 一致性 | [前端开发入口](frontend-ui.md)、[组件目录](../../frontend/src/shared/ui/README.md)、[可运行页面模板](../../frontend/src/shared/ui/templates/README.md) | 仅 UI 改动无需读取后端；涉及业务按下列领域继续定位 | `cd frontend && npm run check`；模板及门禁变更见前端入口 |
+| 表结构、设计规范、业务语义与人机共建 | [数据库协作入口](../database/README.md)、`/schema-workbench.html`；开发端 `src/dev/schema-workbench/`；统计端 `features/analytics/SemanticWorkbench.tsx` | 开发采集与文件服务：`scripts/schema-workbench/`；统计资产：rhn-analytics 的 `semantic/outpatient-ontology.v1.yaml` | `cd frontend && npm run schema:test && npm run schema:check`；UI 追加门禁、受影响前端回归与构建；统计资产变化追加 semantic 模块测试 |
+| 新增页面、布局、基础组件与 UI 一致性 | [前端开发入口](frontend-ui.md)、[组件目录](../../frontend/src/shared/ui/README.md)、[可运行页面模板](../../frontend/src/shared/ui/templates/README.md) | 仅 UI 改动无需读取后端；涉及业务按下列领域继续定位 | 选业务 scope 的 `--frontend-only`；共享组件追加消费者，完整 CI 保留 |
 | 门诊病历、诊断、草稿保存 | [record/README](../../frontend/src/features/outpatient/record/README.md)、DoctorWorkstation.tsx | rhn-clinical/outpatient/encounter/EncounterService.java | `./scripts/verify-scope.sh outpatient-draft` |
 | 频次、医嘱行编辑／分组、AI 医嘱草稿 | [frequencySemantics](../../frontend/src/shared/clinical/frequencySemantics.ts)、[orders/README](../../frontend/src/features/outpatient/orders/README.md) | rhn-platform/platform/masterdata/api/ClinicalFrequencySemantics.java；application/OrderFrequencyService.java | `./scripts/verify-scope.sh frequency`；涉及工作站集成用 `round1` |
 | 药房审方、发药、退药 | [药房边界](../../frontend/src/features/pharmacy/workspace/README.md)、medicationDisplay.ts | rhn-clinical/pharmacy/application/PharmacyApplicationService.java、DispenseApplicationService.java | `./scripts/verify-scope.sh inventory`；涉及医嘱或合理用药再组合对应 scope |
@@ -22,6 +22,7 @@
 
 ## 检索与输出
 
+- 纯文档/AI 入口改动只检查差异、链接和一致性；修改可执行配置、规则实现或 CI 时另选对应基础设施验证。已读且未变的规范复用，按本次变更定位，不全量重读历史记录。
 - 先 `rg --files` 找路径，再 `rg -n` 定位符号，最后读取必要片段。
 - 常规实现搜索限制在相关 src 目录，排除 generated.ts、构建产物；契约任务按 schema 名定位生成类型。
 - OpenAPI、药品目录和物理表映射是权威数据／生成资产，保留在仓库，避免为普通 UI 改动整文件读取。

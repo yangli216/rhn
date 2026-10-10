@@ -1,0 +1,7 @@
+---
+description: Shared project standards and focused verification
+alwaysApply: true
+---
+
+Before working, read repository-root `AGENTS.md`, the shared agent instruction source.
+Then use `docs/ai/module-map.md` to read only relevant standards and code. Do not reload all guides or run full verification by default.
