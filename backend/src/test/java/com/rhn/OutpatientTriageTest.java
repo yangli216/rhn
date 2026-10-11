@@ -22,6 +22,19 @@ class OutpatientTriageTest extends RhnIntegrationTestSupport {
     private JdbcTemplate jdbcTemplate;
 
     @Test
+    void decisionEndpointIsDisabledByDefaultAndValidatesInput() throws Exception {
+        mockMvc.perform(post("/api/outpatient/triage/assessments/decision").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"chiefComplaint\":\"咳嗽\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.mode").value("DISABLED"))
+                .andExpect(jsonPath("$.department").doesNotExist())
+                .andExpect(jsonPath("$.supplements").isEmpty());
+        mockMvc.perform(post("/api/outpatient/triage/assessments/decision").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(
+                                java.util.Map.of("chiefComplaint", "x".repeat(1001)))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void shouldPreserveUnassessedConsciousnessAndPainAsUnknown() throws Exception {
         String response = mockMvc.perform(post("/api/outpatient/triage")
                         .with(rhnWorkContext())

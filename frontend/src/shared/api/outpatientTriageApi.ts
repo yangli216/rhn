@@ -1,4 +1,5 @@
 import type { ApiClient } from './httpClient'
+import type { components } from './generated'
 
 export type TriageLevel = 'LEVEL_1_CRITICAL' | 'LEVEL_2_URGENT' | 'LEVEL_3_ROUTINE_URGENT' | 'LEVEL_4_NON_URGENT'
 
@@ -158,12 +159,16 @@ export interface TriageAssessmentInput {
   aiEnhancement?: boolean
 }
 
+export type TriageDecisionAssessment = components['schemas']['DecisionAssessment']
+export type TriageDecisionDepartment = components['schemas']['DecisionDepartment']
+
 export interface TriageAssessment {
   ruleLevel: TriageLevel
   suggestedLevel: TriageLevel
   source: 'RULE' | 'LOCAL_ASSIST' | 'AI_ENHANCED' | 'AI_FALLBACK'
   aiMode: 'DISABLED' | 'LOCAL_ASSIST' | 'MODEL'
   aiApplied: boolean
+  decisionMode?: components['schemas']['AssessmentResponse']['decisionMode']
   summary: string
   ruleReasons: string[]
   dangerSigns: string[]
@@ -213,6 +218,7 @@ export interface OutpatientTriageApi {
   statistics: (date?: string, organizationId?: string) => Promise<TriageStatistics>
   pendingEncounters: (date?: string) => Promise<PendingEncounter[]>
   assess: (input: TriageAssessmentInput) => Promise<TriageAssessment>
+  decide: (input: TriageAssessmentInput) => Promise<TriageDecisionAssessment>
   recommendDepartments: (params: {
     chiefComplaint?: string
     symptoms?: string
@@ -264,6 +270,10 @@ export function createOutpatientTriageApi(client: ApiClient): OutpatientTriageAp
       `/api/outpatient/triage/pending-encounters${date ? `?date=${date}` : ''}`
     ),
     assess: (input) => client.request<TriageAssessment>('/api/outpatient/triage/assessments', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+    decide: (input) => client.request<TriageDecisionAssessment>('/api/outpatient/triage/assessments/decision', {
       method: 'POST',
       body: JSON.stringify(input),
     }),

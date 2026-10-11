@@ -324,7 +324,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public List<ReceptionQueueItem> queue(LocalDate dateFrom, LocalDate dateTo, ReceptionQueueScope scope) {
         ExecutionContext context = requireOrganizationContext(null);
         ReceptionQueueScope resolvedScope = scope == null ? ReceptionQueueScope.DEPARTMENT : scope;
-        boolean organizationScope = resolvedScope == ReceptionQueueScope.ORGANIZATION;
+        boolean registeredByMe = resolvedScope == ReceptionQueueScope.REGISTERED_BY_ME;
+        boolean organizationScope = resolvedScope == ReceptionQueueScope.ORGANIZATION || registeredByMe;
         requireDepartmentContextForDepartmentScope(context, organizationScope);
         QueueWindow window = resolveWindow(dateFrom, dateTo);
         final LocalDate start = window.start();
@@ -332,14 +333,21 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         Instant from = window.from();
         Instant to = window.to();
 
-        int validityDays = validityPolicy.resolveValidityDays(context.tenantId(), context.subjectId(),
-                context.organizationId(), context.departmentId());
-        Instant queryFrom = start.minusDays(validityDays).atStartOfDay(BUSINESS_ZONE).toInstant();
-        if (queryFrom.isAfter(from)) {
-            queryFrom = from;
+        Instant queryFrom = from;
+        if (!registeredByMe) {
+            int validityDays = validityPolicy.resolveValidityDays(context.tenantId(), context.subjectId(),
+                    context.organizationId(), context.departmentId());
+            queryFrom = start.minusDays(validityDays).atStartOfDay(BUSINESS_ZONE).toInstant();
+            if (queryFrom.isAfter(from)) queryFrom = from;
         }
 
-        List<PatientRegistration> registrations = organizationScope
+        // Registration history uses the authenticated account and exact registration dates,
+        // independently of clinical queue ownership and registration validity.
+        List<PatientRegistration> registrations = registeredByMe
+                ? registrationRepository
+                    .findByTenantIdAndOrganizationIdAndRegisteredByAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
+                            context.tenantId(), context.organizationId(), context.subjectId(), from, to)
+                : organizationScope
                 ? registrationRepository
                     .findByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
                             context.tenantId(), context.organizationId(), queryFrom, to)
@@ -369,8 +377,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         final boolean doctorHasPersonalSchedule = hasPersonalSchedule;
 
         return registrations.stream()
-                .filter(reg -> matchesQueue(reg, tickets, context, start, end, now))
-                .filter(registration -> isVisibleInQueue(
+                .filter(reg -> registeredByMe || matchesQueue(reg, tickets, context, start, end, now))
+                .filter(registration -> registeredByMe || isVisibleInQueue(
                         registration, schedules, encounters, tickets, context, resolvedScope, doctorHasPersonalSchedule
                 )).map(registration -> toQueueItem(registration, tickets, schedules, encounters, context,
                         queueOperatorCache, queueDepartmentCache, clinicianNameCache))

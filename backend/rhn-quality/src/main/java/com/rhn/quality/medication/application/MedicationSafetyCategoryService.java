@@ -355,10 +355,21 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
             return entry.data();
         }
 
-        Set<String> freshDirect = store.findMemberNamesByCategory(tenantId, categoryCode);
-        Optional<CategoryView> catOpt = store.findCategoryByCode(tenantId, categoryCode);
+        Optional<CategoryView> catOpt = store.findCategoryByCodeOrName(tenantId, categoryCode);
+        String actualCode = catOpt.map(CategoryView::code).orElse(categoryCode);
+        Set<String> freshDirect = store.findMemberNamesByCategory(tenantId, actualCode);
         String catalogSub = catOpt.map(CategoryView::catalogSub).orElse(null);
         boolean systemicOnly = catOpt.map(CategoryView::systemicOnly).orElse(false);
+
+        if (catalogSub == null) {
+            String target = categoryCode.trim();
+            for (String sub : genericNamesBySubCategory.keySet()) {
+                if (sub.contains(target) || target.contains(sub)) {
+                    catalogSub = sub;
+                    break;
+                }
+            }
+        }
         List<String> catalogNames = catalogSub != null ? genericNamesBySubCategory.getOrDefault(catalogSub, List.of()) : List.of();
 
         CachedCategoryData data = new CachedCategoryData(freshDirect, catalogSub, systemicOnly, catalogNames);

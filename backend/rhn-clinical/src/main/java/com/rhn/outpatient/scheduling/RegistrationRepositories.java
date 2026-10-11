@@ -48,4 +48,6 @@ interface PatientRegistrationRepository extends JpaRepository<PatientRegistratio
             Long tenantId, Long organizationId, Long departmentId, Instant fromInclusive, Instant toExclusive);
     List<PatientRegistration> findByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
             Long tenantId, Long organizationId, Instant fromInclusive, Instant toExclusive);
+    List<PatientRegistration> findByTenantIdAndOrganizationIdAndRegisteredByAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
+            Long tenantId, Long organizationId, Long registeredBy, Instant fromInclusive, Instant toExclusive);
 }

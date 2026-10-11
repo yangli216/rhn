@@ -1,3 +1,4 @@
+import { MedicationEvaluationLog } from './MedicationEvaluationLog'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -5,14 +6,14 @@ import { errorMessage } from '../../shared/rhnApi'
 import type {
   ActiveRuleView,
   ActiveRuleTrialRun,
-  EvaluationSummary,
   MedicationCandidate,
   MedicationKnowledge,
   PrescriptionPreview,
   MedicationTrialItem,
   MedicationTrialRun
 } from '../../shared/api/medicationWorkbenchApi'
-import { Alert, Button, DataTable, Dialog, FormField, IconButton, Icon, PageHeader, SearchField, Select, StatusBadge, Tabs, tableCellClass } from '../../shared/ui'
+import { Alert, Button, ClinicalResourceSearch, Dialog, FormField, IconButton, Icon, PageHeader, SearchField, Select, StatusBadge, Tabs, type ClinicalResourceOption } from '../../shared/ui'
+import type { MedicationKnowledge as MasterMedicationKnowledge } from '../../shared/api/masterDataApi'
 import { medicationCandidateStatusPresentation } from '../../shared/presentation'
 import './medication-workbench.css'
 import { MedicationRuleIntake, type IntakeSeed } from './MedicationRuleIntake'
@@ -61,9 +62,29 @@ export const usageScopeName = (value: string) => value
 const genderOptions = [{ value: '男', label: '男' }, { value: '女', label: '女' }, { value: '未知', label: '未知' }]
 type ClinicalSelectOption = { value: string; label: string; secondaryText?: string; searchKeywords?: string[] }
 
+function simulationMedicationValue(item: MedicationTrialItem, medications: MedicationKnowledge[]): ClinicalResourceOption<MasterMedicationKnowledge> | undefined {
+  if (!item.medicationId) return undefined
+  const current = medications.find(m => m.medication.id === item.medicationId)?.medication
+  // Imported names/specifications remain historical facts until the user selects a replacement.
+  const name = item.name ?? current?.name ?? '药品名称缺失'
+  const spec = item.name !== undefined ? item.spec : current?.preparationSpec
+  return { value: item.medicationId, label: spec ? `${name} (${spec})` : name, code: '' }
+}
+
+function simulationMedicationPatch(option?: ClinicalResourceOption<MasterMedicationKnowledge>): Partial<MedicationTrialItem> {
+  const medication = option?.raw
+  return {
+    medicationId: medication?.id ?? null,
+    name: medication?.name,
+    spec: medication?.preparationSpec,
+    routeCode: medication?.defaultRoute || null,
+    frequencyCode: medication?.defaultFrequency || null
+  }
+}
+
 export function MedicationWorkbench({ api }: { api: RhnApi }) {
   const [tab, setTab] = useState<TabKey>('catalog')
-  const [factoryMode, setFactoryMode] = useState<'intake' | 'template'>('intake')
+  const [factoryMode, setFactoryMode] = useState<'intake' | 'knowledge' | 'template'>('intake')
   const [intakeSeed, setIntakeSeed] = useState<IntakeSeed>()
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
@@ -78,8 +99,6 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
   const [activeSandboxRun, setActiveSandboxRun] = useState<ActiveRuleTrialRun | null>(null)
 
   // 2. 处方质量评价记录 (异步加载)
-  const [evaluations, setEvaluations] = useState<EvaluationSummary[]>([])
-  const [evalsLoading, setEvalsLoading] = useState(false)
 
   // 3. AI 工坊与候选规则 (异步解耦探测)
   const [ai, setAi] = useState<{ available: boolean; model: string | null; message: string } | null>(null)
@@ -184,22 +203,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
         console.warn('activeOrderFrequencies error:', err)
       })
 
-    // D. 处方质量评价历史记录并发异步拉取
-    setEvalsLoading(true)
-    api.medicationWorkbench.evaluations()
-      .then(evalList => {
-        if (current !== epoch.current) return
-        setEvaluations(evalList)
-      })
-      .catch(err => {
-        if (current !== epoch.current) return
-        setError(prev => prev ? `${prev}；评价日志: ${errorMessage(err)}` : `评价日志: ${errorMessage(err)}`)
-      })
-      .finally(() => {
-        if (current === epoch.current) setEvalsLoading(false)
-      })
-
-    // E. 药品全量目录并发异步拉取
+    // E. 候选规则适用范围的首批药品；模拟处方独立检索主档。
     setMedsLoading(true)
     api.medicationWorkbench.medications()
       .then(medList => {
@@ -230,7 +234,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
       })
 
     return () => {
-      epoch.current++
+      epoch.current = current + 1
     }
   }, [api])
 
@@ -302,10 +306,19 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
 
   async function generate() {
     const current = epoch.current
+    let targetMeds = selectedMeds
+    if (targetMeds.length === 0 && requirement.trim()) {
+      const reqLower = requirement.toLowerCase()
+      const autoMatched = meds.filter(m => reqLower.includes(m.medication.name.toLowerCase()))
+      if (autoMatched.length > 0) {
+        targetMeds = autoMatched.slice(0, 3)
+        setSelectedMeds(targetMeds)
+      }
+    }
     const reply = await api.medicationWorkbench.generate(
       requirement,
       source,
-      selectedMeds.map(m => m.medication.id),
+      targetMeds.map(m => m.medication.id),
       candidate?.id ?? null
     )
     if (current !== epoch.current) return
@@ -500,14 +513,12 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
               disabled={!!busy}
               onClick={() =>
                 action('刷新状态', async () => {
-                  const [aiStatus, rules, evals] = await Promise.allSettled([
+                  const [aiStatus, rules] = await Promise.allSettled([
                     api.medicationWorkbench.status(),
-                    api.medicationWorkbench.activeRules(),
-                    api.medicationWorkbench.evaluations()
+                    api.medicationWorkbench.activeRules()
                   ])
                   if (aiStatus.status === 'fulfilled') setAi(aiStatus.value)
                   if (rules.status === 'fulfilled') setActiveRules(rules.value)
-                  if (evals.status === 'fulfilled') setEvaluations(evals.value)
                 })
               }
             >
@@ -519,19 +530,26 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
       />
 
       {error && <Alert tone="error">{error}</Alert>}
-      {notice && <Alert>{notice}</Alert>}
+      {notice && (
+        <Alert
+          tone="info"
+          duration={3500}
+          onDismiss={() => setNotice('')}
+        >
+          {notice}
+        </Alert>
+      )}
 
       <Tabs
-        value={tab}
+        value={tab === 'knowledge' ? 'factory' : tab}
         label="工作台主导航"
         variant="workspace"
         items={[
           { value: 'catalog', label: '在行规则目录' },
           { value: 'safetyCategories', label: '安全分类维护' },
-          { value: 'evaluations', label: '处方质量审查日志', meta: evaluations.length },
+          { value: 'evaluations', label: '处方质量审查日志' },
           { value: 'sandbox', label: '内置规则验证沙箱', meta: '单条 / 全部' },
           { value: 'factory', label: 'AI 规则工坊与候选孵化', meta: candidates.length },
-          { value: 'knowledge', label: '规则知识草稿' },
         ]}
         onChange={(value) => value === 'sandbox' ? openActiveSandbox('ALL') : setTab(value as TabKey)}
       />
@@ -545,19 +563,28 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
             onError={msg => setError(msg)}
           />
         )}
-        {tab === 'knowledge' && <MedicationKnowledgeDrafts api={api} initialIntake={intakeSeed} onIntakeConsumed={() => setIntakeSeed(undefined)} />}
         {/* Tab 1: 在行生效规则库 */}
         {tab === 'catalog' && (
-          <MedicationRuleCatalog api={api} onOpenCandidate={(value) => { setCandidate(value); setFactoryMode('template'); setTab('factory') }} onBuiltinTrial={(code) => { const found=activeRules.find(rule => rule.ruleCode===code); if(found) openActiveSandbox('SINGLE', found) }} />
+          <MedicationRuleCatalog
+            api={api}
+            onOpenCandidate={(value) => { setCandidate(value); setFactoryMode('template'); setTab('factory') }}
+            onBuiltinTrial={(code) => { const found=activeRules.find(rule => rule.ruleCode===code); if(found) openActiveSandbox('SINGLE', found) }}
+            onOpenFactory={(mode) => { setFactoryMode(mode || 'knowledge'); setTab('factory') }}
+          />
         )}
 
       {/* Tab: 内置规则验证沙箱 */}
       {tab === 'sandbox' && (
         <div className="qmed-active-sandbox-view">
           <div className="qmed-active-sandbox-head">
-            <div>
+            <div className="qmed-title-with-help">
               <h3>内置规则验证沙箱</h3>
-              <p>此处验证内置规则基线，不代表当前机构、科室的全部生效规则。知识生成的候选请在“在行规则目录 → 人工验证样例”中验证；实际生效范围与模式以该规则的发布设置为准。沙箱结果不写入临床处方。</p>
+              <span
+                className="qmed-guide-help"
+                title="此处验证内置规则基线，不代表当前机构、科室的全部生效规则。知识生成的候选请在“在行规则目录 → 人工验证样例”中验证；实际生效范围与模式以该规则的发布设置为准。沙箱结果不写入临床处方。"
+              >
+                <Icon name="info" />
+              </span>
             </div>
             <div className="qmed-sandbox-scope-controls">
               <FormField label="验证范围">
@@ -631,33 +658,19 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   <span className="qmed-meta-text">处方只存在于本次验证请求，不会保存为真实医嘱</span>
                 </div>
                 {items.map((item, i) => {
-                  const medicationOptions = meds.map(m => ({
-                    value: m.medication.id,
-                    label: m.medication.name,
-                    secondaryText: m.medication.preparationSpec || m.medication.doseForm || '规格待维护',
-                    description: m.classifications?.[0]?.display,
-                    trailingText: m.medication.code,
-                    searchKeywords: [m.medication.code, m.classifications?.[0]?.display || '']
-                  }))
                   return (
                     <div className="qmed-trial-row qmed-active-trial-row" key={i}>
                       <span className="row-num">{i + 1}</span>
                       <div className="qmed-med-picker-col">
-                        <Select aria-label={`沙箱第${i + 1}行药品`} value={item.medicationId || ''}
-                          options={medicationOptions} placeholder="选择模拟处方药品" clearable
-                          onChange={value => {
-                            const selected = meds.find(m => m.medication.id === value)
-                            updateItem(i, selected ? {
-                              medicationId: selected.medication.id,
-                              routeCode: selected.medication.defaultRoute,
-                              frequencyCode: selected.medication.defaultFrequency,
-                              name: selected.medication.name,
-                              spec: selected.medication.preparationSpec || undefined
-                            } : { medicationId: value || null })
+                        <ClinicalResourceSearch<MasterMedicationKnowledge> api={api} resource="medication"
+                          aria-label={`沙箱第${i + 1}行药品`} value={simulationMedicationValue(item, meds)}
+                          placeholder="选择模拟处方药品" clearable
+                          onChange={option => {
+                            updateItem(i, simulationMedicationPatch(option))
                             setActiveSandboxRun(null)
                           }} />
                       </div>
-                      <span className="qmed-row-tag is-in-scope">{meds.find(m => m.medication.id === item.medicationId)?.classifications?.[0]?.display || '待选药品'}</span>
+                      <span className="qmed-row-tag is-in-scope">{meds.find(m => m.medication.id === item.medicationId)?.classifications?.[0]?.display || (item.medicationId ? '已选药品' : '待选药品')}</span>
                       <Select className="qmed-select-route" aria-label={`沙箱第${i + 1}行给药途径`}
                         value={item.routeCode || ''} options={routeOptions} placeholder="给药途径" clearable={false}
                         onChange={value => { updateItem(i, { routeCode: value }); setActiveSandboxRun(null) }} />
@@ -725,99 +738,71 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
       )}
 
       {/* Tab 2: 处方质量审查日志 */}
-      {tab === 'evaluations' && (
-        <div className="qmed-evaluations-view">
-          <div className="qmed-eval-header">
-            <div>
-              <h3>真实处方审查结果</h3>
-              <p>展示处方实际记录的审查模式、结论及命中项；旁路观察和正式审查分别标示。</p>
-            </div>
+      {tab === 'evaluations' && <MedicationEvaluationLog api={api} />}
+
+      {/* 规则工坊与知识孵化 (统一合并：澄清 ➔ 知识草稿 ➔ 模板候选与历史) */}
+      {(tab === 'factory' || tab === 'knowledge') && (
+        <div className="qmed-factory-container">
+          <div className="qmed-intake-switch" role="group" aria-label="规则工坊流转阶段">
             <Button
-              disabled={!!busy}
-              onClick={() =>
-                action('刷新评价流水', async () => {
-                  setEvaluations(await api.medicationWorkbench.evaluations())
-                })
-              }
+              variant={factoryMode === 'intake' ? 'primary' : 'secondary'}
+              onClick={() => setFactoryMode('intake')}
             >
-              刷新日志
+              需求分析与澄清
+            </Button>
+            <Button
+              variant={factoryMode === 'knowledge' ? 'primary' : 'secondary'}
+              onClick={() => setFactoryMode('knowledge')}
+            >
+              循证知识草稿
+            </Button>
+            <Button
+              variant={factoryMode === 'template' ? 'primary' : 'secondary'}
+              onClick={() => setFactoryMode('template')}
+            >
+              模板候选与历史
             </Button>
           </div>
 
-          <div className="qmed-table-wrap">
-            <DataTable className="qmed-table" aria-label="处方质量审查记录">
-              <thead>
-                <tr>
-                  <th>评价 ID</th>
-                  <th>评价时间</th>
-                  <th>处方 ID</th>
-                  <th>就诊 ID</th>
-                  <th>规则集</th>
-                  <th className={tableCellClass('status')}>模式</th>
-                  <th className={tableCellClass('status')}>评价结论</th>
-                  <th className={tableCellClass('numeric')}>风险项数</th>
-                </tr>
-              </thead>
-              <tbody>
-                {evalsLoading ? (
-                  <tr>
-                    <td colSpan={8} className="qmed-empty-cell">
-                      <span className="ui-spinner qmed-loading-spinner" />
-                      <span>正在拉取真实处方审查流水记录…</span>
-                    </td>
-                  </tr>
-                ) : evaluations.map(ev => {
-                  const dec = decisionMap[ev.decision] || { label: ev.decision, tone: 'muted' }
-                  return (
-                    <tr key={ev.evaluationId}>
-                      <td><code>{ev.evaluationId}</code></td>
-                      <td>{ev.completedAt ? new Date(ev.completedAt).toLocaleString() : '—'}</td>
-                      <td>{ev.prescriptionId}</td>
-                      <td>{ev.encounterId}</td>
-                      <td><small>{ev.ruleSetVersion}</small></td>
-                      <td className={tableCellClass('status')}><span className="qmed-tag">{ev.mode === 'ENFORCED' ? '正式审查' : ev.mode === 'SHADOW' ? '旁路观察' : ev.mode || '模式待核对'}</span></td>
-                      <td className={tableCellClass('status')}><span className={`qmed-dec-badge dec-${dec.tone}`}>{dec.label}</span></td>
-                      <td className={tableCellClass('numeric')}>
-                        {ev.findingCount > 0 ? (
-                          <strong className="text-danger">{ev.findingCount} 项风险</strong>
-                        ) : (
-                          <span className="text-muted">未记录命中项</span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-                {evaluations.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="qmed-empty-cell">
-                      暂无处方安全评价流水记录。在门诊开立处方或在 AI 工坊中执行 HIS 旁路验证后将在此记录。
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </DataTable>
-          </div>
-        </div>
-      )}
+          {factoryMode === 'intake' && (
+            <MedicationRuleIntake
+              api={api}
+              onStartKnowledge={seed => {
+                setIntakeSeed(seed)
+                setFactoryMode('knowledge')
+              }}
+              onDraftRule={(draftReq, catName) => {
+                setRequirement(draftReq)
+                setSource(`来源于临床需求分析【${catName}】`)
+                setFactoryMode('template')
+              }}
+            />
+          )}
 
-      {/* Tab 3: AI 规则工坊与候选孵化 (规范化 QMED-5) */}
-      {tab === 'factory' && <><div className="qmed-intake-switch"><Button variant={factoryMode === 'intake' ? 'primary' : 'secondary'} onClick={() => setFactoryMode('intake')}>需求分析与澄清</Button><Button variant={factoryMode === 'template' ? 'primary' : 'secondary'} onClick={() => setFactoryMode('template')}>模板候选与历史</Button></div>{factoryMode === 'intake' && <MedicationRuleIntake api={api} onStartKnowledge={seed => { setIntakeSeed(seed); setTab('knowledge') }} />}</>}
-      {tab === 'factory' && factoryMode === 'template' && (
-        <div className="qmed-factory-layout">
-          {/* 单行高密度向导与场景工具条 (高度压缩至 36px，移除常驻长文本) */}
-          <div className="qmed-wizard-bar">
-            <div className="qmed-wizard-left">
-              <div className="qmed-wizard-title">
-                <Icon name="clinical" />
-                <span>规则孵化向导</span>
-                <Button size="sm" variant="secondary" onClick={() => setTab('knowledge')}>重复用药 / 相互作用知识提取</Button>
-                <span
-                  className="qmed-guide-help"
-                  title="遵循医疗合规审计要求，大模型输出严禁直接介入临床生产阻断；须经【起草规则串 ➔ 结构化解析 ➔ 模拟门诊就诊测试 ➔ 离线单测/处方回放 ➔ 专家批准】五步闭环后进入旁路监控。"
-                >
-                  <Icon name="info" />
-                </span>
-              </div>
+          {factoryMode === 'knowledge' && (
+            <MedicationKnowledgeDrafts
+              api={api}
+              initialIntake={intakeSeed}
+              onIntakeConsumed={() => setIntakeSeed(undefined)}
+            />
+          )}
+
+          {factoryMode === 'template' && (
+            <div className="qmed-factory-layout">
+              {/* 单行高密度向导与场景工具条 (高度压缩至 36px，移除常驻长文本) */}
+              <div className="qmed-wizard-bar">
+                <div className="qmed-wizard-left">
+                  <div className="qmed-wizard-title">
+                    <Icon name="clinical" />
+                    <span>规则孵化向导</span>
+                    <Button size="sm" variant="secondary" onClick={() => setFactoryMode('knowledge')}>提取与维护知识草稿</Button>
+                    <span
+                      className="qmed-guide-help"
+                      title="遵循医疗合规审计要求，大模型输出严禁直接介入临床生产阻断；须经【起草规则串 ➔ 结构化解析 ➔ 模拟门诊就诊测试 ➔ 离线单测/处方回放 ➔ 专家批准】五步闭环后进入旁路监控。"
+                    >
+                      <Icon name="info" />
+                    </span>
+                  </div>
 
               <div className="qmed-stepper">
                 <div className={`qmed-step-item ${requirement.trim() ? 'is-done' : 'is-active'}`}>
@@ -938,14 +923,21 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
 
               {/* 标准药品定义候选规则的明确适用范围，不只是展示参考。 */}
               <div className="qmed-med-select-header">
-                <h4>
-                  规则适用药品范围 <small>({selectedMeds.length > 0 ? `已明确 ${selectedMeds.length} 种` : '生成时自动语义匹配'})</small>
-                </h4>
+                <div className="qmed-title-with-help">
+                  <h4>
+                    规则适用药品范围 <small>({selectedMeds.length > 0 ? `已明确 ${selectedMeds.length} 种` : '生成时自动语义匹配'})</small>
+                  </h4>
+                  <span
+                    className="qmed-guide-help"
+                    title="候选规则绑定标准规格及版本。请先关联标准参考目录；AI 可编写候选，不能自行创造药品身份或剂量上限。"
+                  >
+                    <Icon name="info" />
+                  </span>
+                </div>
                 {selectedMeds.length > 0 && (
                   <Button variant="text" size="sm" onClick={() => setSelectedMeds([])}>清空筛选</Button>
                 )}
               </div>
-              <p className="qmed-med-scope-help">候选规则绑定标准规格及版本。请先关联标准参考目录；AI 可编写候选，不能自行创造药品身份或剂量上限。</p>
               <form className="qmed-med-search-box" onSubmit={e => {
                 e.preventDefault()
                 void action('搜索药品', async () => setMeds(await api.medicationWorkbench.medications(query)))
@@ -1081,7 +1073,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   </div>
 
                   <div className="qmed-scenario-cards-grid">
-                    <Button variant="text" className="qmed-scenario-card" onClick={loadAgeContraindicationPreset}>
+                    <Button variant="secondary" className="qmed-scenario-card" onClick={loadAgeContraindicationPreset}>
                       <div className="qmed-scenario-header">
                         <span className="qmed-scenario-tag tag-blue">儿童用药禁忌</span>
                         <span className="qmed-scenario-action">一键装配 ➔</span>
@@ -1096,7 +1088,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                       </div>
                     </Button>
 
-                    <Button variant="text" className="qmed-scenario-card" onClick={loadNsaidPreset}>
+                    <Button variant="secondary" className="qmed-scenario-card" onClick={loadNsaidPreset}>
                       <div className="qmed-scenario-header">
                         <span className="qmed-scenario-tag tag-blue">基药重复用药</span>
                         <span className="qmed-scenario-action">一键装配 ➔</span>
@@ -1111,7 +1103,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                       </div>
                     </Button>
 
-                    <Button variant="text" className="qmed-scenario-card" onClick={loadAntimicrobialPreset}>
+                    <Button variant="secondary" className="qmed-scenario-card" onClick={loadAntimicrobialPreset}>
                       <div className="qmed-scenario-header">
                         <span className="qmed-scenario-tag tag-teal">抗菌药专项质控</span>
                         <span className="qmed-scenario-action">一键装配 ➔</span>
@@ -1229,10 +1221,15 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   <div className="qmed-sandbox-panel">
                     <div className="qmed-sim-cabin-header">
                       <div className="qmed-cabin-title">
-                        <h4><Icon name="clinical" /> 模拟门诊就诊测试舱</h4>
-                        <p className="qmed-muted qmed-cabin-description">
-                          设定虚拟患者画像并模拟门诊医生开方，调用候选模板解释器验证结构化参数的判定效果；表达式用于审阅，不直接执行自由文本。
-                        </p>
+                        <div className="qmed-title-with-help">
+                          <h4><Icon name="clinical" /> 模拟门诊就诊测试舱</h4>
+                          <span
+                            className="qmed-guide-help"
+                            title="设定虚拟患者画像并模拟门诊医生开方，调用候选模板解释器验证结构化参数的判定效果；表达式用于审阅，不直接执行自由文本。"
+                          >
+                            <Icon name="info" />
+                          </span>
+                        </div>
                       </div>
                       <div className="qmed-cabin-quick-actions">
                         <Button
@@ -1385,33 +1382,14 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
 
                       {items.map((item, i) => {
                         const inRuleScope = !!item.medicationId && candidate.medications.some(m => m.medication.id === item.medicationId)
-                        const medicationOptions = meds.filter(m => !item.name || m.medication.id !== item.medicationId).map(m => ({
-                          value: m.medication.id,
-                          label: m.medication.name,
-                          secondaryText: m.medication.preparationSpec || m.medication.doseForm || '规格待维护',
-                          description: m.classifications?.[0]?.display,
-                          trailingText: m.medication.code,
-                          searchKeywords: [m.medication.code, m.classifications?.[0]?.display || '']
-                        }))
-                        if (item.medicationId && !medicationOptions.some(option => option.value === item.medicationId)) {
-                          medicationOptions.unshift({ value: item.medicationId, label: item.name || '药品名称缺失', secondaryText: item.spec || '规格未提供', description: '', trailingText: '', searchKeywords: [] })
-                        }
                         return (
                           <div className="qmed-trial-row" key={i}>
                             <span className="row-num">{i + 1}</span>
                             <div className="qmed-med-picker-col">
-                              <Select aria-label={`第${i + 1}行药品`} value={item.medicationId || ''}
-                                options={medicationOptions} placeholder="录入药品名称/拼音/编码搜索..." clearable showValue
-                                onChange={value => {
-                                  const selected = meds.find(m => m.medication.id === value)
-                                  updateItem(i, selected ? {
-                                    medicationId: selected.medication.id,
-                                    routeCode: selected.medication.defaultRoute || null,
-                                    frequencyCode: selected.medication.defaultFrequency || null,
-                                    name: selected.medication.name,
-                                    spec: selected.medication.preparationSpec || undefined
-                                  } : { medicationId: value || null, name: undefined, spec: undefined, routeCode: null, frequencyCode: null })
-                                }} />
+                              <ClinicalResourceSearch<MasterMedicationKnowledge> api={api} resource="medication"
+                                aria-label={`第${i + 1}行药品`} value={simulationMedicationValue(item, meds)}
+                                placeholder="选择模拟处方药品" clearable
+                                onChange={option => updateItem(i, simulationMedicationPatch(option))} />
                             </div>
                             <span className={`qmed-row-tag ${inRuleScope ? 'is-in-scope' : 'is-out-of-scope'}`} title={inRuleScope ? '该药已绑定到候选规则适用范围' : '该药不在候选规则适用范围，原始处方旁路核对时不会参与此规则判定'}>
                               {inRuleScope ? '规则范围内' : '不在规则范围'}
@@ -1561,8 +1539,10 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                       >
                         <div className="qmed-his-modal-content">
                           <div className="qmed-his-import-note">
-                            <Icon name="info" />
-                            <p><strong>调入与核对分为两步。</strong>载入后可查看或调整沙舱表单；调整后的内容走“模拟门诊就诊审查”。如需验证真实历史处方，请使用“原始处方旁路核对”，系统会重新读取不可变快照，不会把表单修改冒充真实处方。</p>
+                            <span className="qmed-guide-help" title="调入与核对分为两步：载入后可查看或调整沙舱表单，调整后的内容走“模拟门诊就诊审查”；如需验证真实历史处方，请使用“原始处方旁路核对”，系统会重新读取不可变快照，不会把表单修改冒充真实处方。">
+                              <Icon name="info" />
+                            </span>
+                            <span>调入后可调整表单做模拟审查；历史真实验证请执行“原始处方旁路核对”。</span>
                           </div>
                           <div className="qmed-his-inputs-row">
                             <FormField label="就诊标识" required className="qmed-his-input-field">
@@ -1582,6 +1562,8 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
               )}
             </div>
           </div>
+            </div>
+          )}
         </div>
       )}
       </div>

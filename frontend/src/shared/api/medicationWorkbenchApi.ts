@@ -1,3 +1,4 @@
+import type { components } from './generated'
 import type { KnowledgeRuleCandidate } from './medicationKnowledgeDraftApi'
 import type { MedicationStandardReference } from './masterDataApi'
 import type { ApiClient } from './httpClient'
@@ -118,6 +119,12 @@ export function createMedicationWorkbenchApi(client:ApiClient) {
     activeRules:()=>client.request<ActiveRuleView[]>(root+'/active-rules'),
     activeRuleTrial:(ruleCodes:string[],items:MedicationTrialItem[],patientContext?:PatientSimulationContext)=>post<ActiveRuleTrialRun>('/active-rules/trial',{ruleCodes,items,patientContext}),
     evaluations:()=>client.request<EvaluationSummary[]>(root+'/evaluations'),
+    evaluationRecords: (filter: { mode?: string; decision?: string; prescriptionId?: string; from: string; to: string; page: number }) => {
+      const params = new URLSearchParams({ size: '20' })
+      Object.entries(filter).forEach(([key, value]) => { if (value !== '') params.set(key, String(value)) })
+      return client.request<components['schemas']['PageResultEvaluationSummary']>(`${root}/evaluation-records?${params}`)
+    },
+    evaluationDetail: (id: string) => client.request<components['schemas']['EvaluationDetail']>(`${root}/evaluation-records/${encodeURIComponent(id)}`),
     approve:(id:string)=>post<MedicationCandidate>('/candidates/'+id+'/approve'),
     generate:(requirement:string,source:string,medicationIds?:string[],parentId?:string|null)=>post<{status:string;message:string;candidate:MedicationCandidate|null}>('/generate',{requirement,source,medicationIds: medicationIds || [],parentId: parentId || null}),
     suite:(id:string)=>post<MedicationTrialRun>('/candidates/'+id+'/suite'),

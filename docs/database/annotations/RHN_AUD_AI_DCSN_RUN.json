@@ -1,0 +1,41 @@
+{
+  "table": "RHN_AUD_AI_DCSN_RUN",
+  "revision": 0,
+  "owner": "rhn-intelligence",
+  "purpose": "共用决策运行观察；一行代表一次有触发的决策尝试，包括旁路及回退",
+  "grain": "一次到达决策服务的尝试，含禁用、回退、旁路与辅助；不是一个患者",
+  "lifecycle": "追加不可变事实；历史不覆盖；归档策略另行制定",
+  "writeEntry": "DecisionObservationRecorder.record → DecisionObservationStore.append",
+  "notes": "按租户、当前机构及科室隔离。人工研判不改变临床处置；统计不代表临床准确率。详情权限与字段口径见 docs/ai/decision-observation.md。",
+  "reviewState": "draft",
+  "reviewer": "",
+  "reviewedAt": null,
+  "relations": [],
+  "fieldNotes": [
+    {
+      "column": "SD_SCENE",
+      "meaning": "共用决策场景，与代码枚举一致",
+      "dictionary": "DecisionScene：ASSISTANT_RECOMMENDATIONS / PLAN_COMPILATION / OUTPATIENT_TRIAGE"
+    },
+    {
+      "column": "SD_MODE",
+      "meaning": "本次决策运行模式",
+      "dictionary": "DecisionModelSettings.Mode：DISABLED / SHADOW / ASSIST"
+    },
+    {
+      "column": "SD_COMPARE",
+      "meaning": "只有可确认选择与确定性基线同时存在才能比较",
+      "dictionary": "COMPARABLE / MANUAL_REVIEW / NOT_APPLICABLE"
+    },
+    {
+      "column": "NO_LATENCY",
+      "meaning": "本次服务尝试总耗时，单位毫秒；不包含留痕写入耗时，不等同供应商响应耗时",
+      "dictionary": ""
+    },
+    {
+      "column": "JSON_RUN",
+      "meaning": "DecisionObservationContracts.DecisionRun 不可变快照，包含版本及限定输入/判断；临床自由文本受详情权限保护，不保存密钥或异常正文",
+      "dictionary": ""
+    }
+  ]
+}

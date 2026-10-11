@@ -10902,6 +10902,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/outpatient/triage/assessments/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/administration/decision-observations/{id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["review_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/evaluation-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["evaluationPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-workbench/evaluation-records/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["evaluationDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/administration/decision-observations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_26"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/administration/decision-observations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -19553,6 +19649,8 @@ export interface components {
             dangerSigns?: string[];
             departmentRecommendations?: components["schemas"]["DepartmentRecommendation"][];
             fallbackReason?: string;
+            /** @enum {string} */
+            decisionMode?: "DISABLED" | "SHADOW" | "ASSIST";
         };
         DepartmentRecommendation: {
             /** @example 824633720832983041 */
@@ -25160,6 +25258,175 @@ export interface components {
             model?: string;
             message?: string;
             features?: string[];
+        };
+        DecisionAssessment: {
+            /** @enum {string} */
+            mode?: "DISABLED" | "SHADOW" | "ASSIST";
+            /** @enum {string} */
+            status?: "DISABLED" | "SHADOW" | "ASSIST" | "UNCERTAIN" | "NO_INPUT" | "CONFIGURATION_INCOMPLETE" | "CANDIDATE_LIMIT" | "FAILED";
+            department?: components["schemas"]["DecisionDepartment"];
+            supplements?: components["schemas"]["SupplementPrompt"][];
+            message?: string;
+            traceId?: string;
+            model?: string;
+            version?: string;
+            inputHash?: string;
+            /** Format: int32 */
+            latencyMs?: number;
+            /** Format: double */
+            minConfidence?: number;
+        };
+        DecisionDepartment: {
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            departmentName?: string;
+            /** Format: int32 */
+            availableScheduleCount?: number;
+            scheduledToday?: boolean;
+            /** Format: double */
+            confidence?: number;
+            /** Format: double */
+            probability?: number;
+        };
+        SupplementPrompt: {
+            /** @enum {string} */
+            topic?: "ONSET" | "COURSE" | "ASSOCIATED_SYMPTOMS" | "HISTORY";
+            message?: string;
+            /** Format: double */
+            confidence?: number;
+        };
+        DecisionReviewRequest: {
+            verdict: string;
+            reason: string;
+        };
+        DecisionReview: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            runId?: string;
+            verdict?: string;
+            reason?: string;
+            actor?: string;
+            /** Format: date-time */
+            time?: string;
+        };
+        PageResultEvaluationSummary: {
+            content?: components["schemas"]["EvaluationSummary"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        EvaluationDetail: {
+            summary?: components["schemas"]["EvaluationSummary"];
+            input?: components["schemas"]["JsonNode"];
+            result?: components["schemas"]["JsonNode"];
+        };
+        DecisionObservation: {
+            records?: components["schemas"]["PageResultDecisionRow"];
+            statistics?: components["schemas"]["DecisionStatistics"];
+            scenes?: components["schemas"]["DecisionSceneState"][];
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            auditVersion?: string;
+        };
+        DecisionRow: {
+            /** @example 824633720832983041 */
+            id?: string;
+            scene?: string;
+            mode?: string;
+            outcome?: string;
+            /** Format: date-time */
+            time?: string;
+            traceId?: string;
+            model?: string;
+            /** Format: int32 */
+            latencyMs?: number;
+            comparison?: string;
+            equal?: boolean;
+            review?: components["schemas"]["DecisionReview"];
+            uncertain?: boolean;
+            modelCalled?: boolean;
+        };
+        DecisionSceneState: {
+            scene?: string;
+            label?: string;
+            mode?: string;
+            state?: string;
+            /** Format: date-time */
+            lastTriggeredAt?: string;
+        };
+        DecisionStatistics: {
+            /** Format: int32 */
+            total?: number;
+            outcomes?: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            comparable?: number;
+            /** Format: int32 */
+            equal?: number;
+            /** Format: int32 */
+            reviewed?: number;
+            /** Format: double */
+            averageLatencyMs?: number;
+            /** Format: int32 */
+            p95LatencyMs?: number;
+            /** Format: int32 */
+            modelCalls?: number;
+            /** Format: int32 */
+            judged?: number;
+            /** Format: int32 */
+            uncertain?: number;
+        };
+        PageResultDecisionRow: {
+            content?: components["schemas"]["DecisionRow"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        DecisionDetail: {
+            run?: components["schemas"]["DecisionRun"];
+            reviews?: components["schemas"]["DecisionReview"][];
+        };
+        DecisionRun: {
+            /** @example 824633720832983041 */
+            id?: string;
+            scene?: string;
+            mode?: string;
+            outcome?: string;
+            /** Format: date-time */
+            time?: string;
+            correlationId?: string;
+            traceId?: string;
+            model?: string;
+            version?: string;
+            inputHash?: string;
+            /** Format: int32 */
+            latencyMs?: number;
+            /** Format: double */
+            threshold?: number;
+            comparison?: string;
+            equal?: boolean;
+            input?: components["schemas"]["JsonNode"];
+            answers?: components["schemas"]["JsonNode"];
+            selected?: string[];
+            baseline?: string[];
+            exceptionType?: string;
+            modelCalled?: boolean;
+            judged?: boolean;
+            uncertain?: boolean;
         };
     };
     responses: never;
@@ -51245,6 +51512,210 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    decide: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DecisionAssessment"];
+                };
+            };
+        };
+    };
+    review_3: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DecisionReview"];
+                };
+            };
+        };
+    };
+    evaluationPage: {
+        parameters: {
+            query?: {
+                mode?: string;
+                decision?: string;
+                prescriptionId?: string;
+                from?: string;
+                to?: string;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultEvaluationSummary"];
+                };
+            };
+        };
+    };
+    evaluationDetail: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EvaluationDetail"];
+                };
+            };
+        };
+    };
+    list_26: {
+        parameters: {
+            query?: {
+                scene?: string;
+                mode?: string;
+                outcome?: string;
+                from?: string;
+                to?: string;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DecisionObservation"];
+                };
+            };
+        };
+    };
+    detail_6: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DecisionDetail"];
+                };
             };
         };
     };

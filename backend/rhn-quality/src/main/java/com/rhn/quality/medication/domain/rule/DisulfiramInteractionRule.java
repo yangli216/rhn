@@ -116,8 +116,8 @@ public final class DisulfiramInteractionRule implements MedicationSafetyRule {
     }
 
     private boolean isDisulfiramInducer(Long tenantId, Long medId, String name) {
-        if (safetyCategories != null && safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_DISULFIRAM_INDUCER)) {
-            return true;
+        if (safetyCategories != null) {
+            return safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_DISULFIRAM_INDUCER);
         }
         if (name == null || name.isBlank()) return false;
         for (String inducer : FALLBACK_INDUCERS) {

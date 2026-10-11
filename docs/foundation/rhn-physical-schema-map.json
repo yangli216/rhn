@@ -28859,5 +28859,123 @@
         "comment": "创建用户标识"
       }
     ]
+  },
+  {
+    "logical": "aud.ai_decision_run",
+    "legacy": "ai_decision_runs",
+    "physical": "RHN_AUD_AI_DCSN_RUN",
+    "domain": "AUD",
+    "comment": "共用决策运行观察；一行代表一次有触发的决策尝试，包括旁路及回退",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RUN",
+        "comment": "运行记录主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "机构标识"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "科室标识"
+      },
+      {
+        "logical": "scene",
+        "physical": "SD_SCENE",
+        "comment": "决策场景"
+      },
+      {
+        "logical": "mode",
+        "physical": "SD_MODE",
+        "comment": "运行模式"
+      },
+      {
+        "logical": "outcome",
+        "physical": "SD_OUTCOME",
+        "comment": "运行结果"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "记录时间"
+      },
+      {
+        "logical": "comparison",
+        "physical": "SD_COMPARE",
+        "comment": "基线可比较状态"
+      },
+      {
+        "logical": "equal",
+        "physical": "FG_EQUAL",
+        "comment": "与基线一致标志；无基线时为空"
+      },
+      {
+        "logical": "latency_ms",
+        "physical": "NO_LATENCY",
+        "comment": "总耗时毫秒"
+      },
+      {
+        "logical": "model_called",
+        "physical": "FG_CALL",
+        "comment": "是否实际发起模型调用；仅配置检查不计调用"
+      },
+      {
+        "logical": "judged",
+        "physical": "FG_JUDGED",
+        "comment": "是否得到有效判断；失败或格式错误不计判断样本"
+      },
+      {
+        "logical": "uncertain",
+        "physical": "FG_UNCERT",
+        "comment": "有效判断中是否存在低置信度或无可匹配候选"
+      },
+      {
+        "logical": "run_snapshot",
+        "physical": "JSON_RUN",
+        "comment": "不可变输入及判断快照；仅有权限的详情读取"
+      }
+    ]
+  },
+  {
+    "logical": "aud.ai_decision_review",
+    "legacy": "ai_decision_reviews",
+    "physical": "RHN_AUD_AI_DCSN_REVIEW",
+    "domain": "AUD",
+    "comment": "共用决策人工研判；一行代表一次追加的人工意见，不改变临床处置",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_REVIEW",
+        "comment": "研判记录主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "run_id",
+        "physical": "ID_RUN",
+        "comment": "关联运行记录"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "研判时间"
+      },
+      {
+        "logical": "review_snapshot",
+        "physical": "JSON_REVIEW",
+        "comment": "研判结果原因和操作者快照；历史追加保留"
+      }
+    ]
   }
 ]

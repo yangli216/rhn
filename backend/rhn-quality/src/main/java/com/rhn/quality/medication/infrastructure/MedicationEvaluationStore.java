@@ -81,5 +81,33 @@ public class MedicationEvaluationStore {
         }, tenantId, limit);
     }
 
+    public com.rhn.shared.api.PageResult<EvaluationSummary> page(com.rhn.shared.context.ExecutionContext c,String mode,String decision,
+            Long prescriptionId,java.time.Instant from,java.time.Instant to,int page,int size) {
+        var where=new StringBuilder(" where e.ID_TNT=? and e.ID_ORG=? and e.ID_DEPT=? and e.DT_CMPLD>=? and e.DT_CMPLD<?");
+        var args=new java.util.ArrayList<Object>(java.util.List.of(c.tenantId(),c.organizationId(),c.departmentId(),from.atOffset(ZoneOffset.UTC),to.atOffset(ZoneOffset.UTC)));
+        if(mode!=null&&!mode.isBlank()){where.append(" and e.SD_MODE=?");args.add(mode);}
+        if(decision!=null&&!decision.isBlank()){where.append(" and e.SD_DCSN=?");args.add(decision);}
+        if(prescriptionId!=null){where.append(" and e.ID_RX=?");args.add(prescriptionId);}
+        long total=jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL e"+where,Long.class,args.toArray());
+        args.add(page*size);args.add(size);
+        var rows=jdbc.query("""
+            select e.ID_EVAL,e.ID_RX,e.ID_ENC,e.ID_PAT,e.ID_ORG,e.ID_DEPT,e.CD_RULE_SET_VER,e.SD_MODE,e.SD_DCSN,e.DT_CMPLD,
+            (select count(*) from RHN_AUD_MED_FINDING f where f.ID_EVAL=e.ID_EVAL) CNT_FINDINGS
+            from RHN_AUD_MED_EVAL e
+            """+where+" order by e.ID_EVAL desc offset ? rows fetch next ? rows only",(r,n)->summary(r),args.toArray());
+        return new com.rhn.shared.api.PageResult<>(rows,total,(int)((total+size-1)/size),page,size);
+    }
+    public Optional<com.rhn.quality.medication.api.MedicationWorkbenchContracts.EvaluationDetail> detail(com.rhn.shared.context.ExecutionContext c,Long id) {
+        return jdbc.query("""
+            select e.*,(select count(*) from RHN_AUD_MED_FINDING f where f.ID_EVAL=e.ID_EVAL) CNT_FINDINGS
+            from RHN_AUD_MED_EVAL e where e.ID_TNT=? and e.ID_ORG=? and e.ID_DEPT=? and e.ID_EVAL=?
+            """,(r,n)->new com.rhn.quality.medication.api.MedicationWorkbenchContracts.EvaluationDetail(summary(r),json.readTree(r.getString("JSON_INPUT")),json.readTree(r.getString("JSON_RESULT"))),
+                c.tenantId(),c.organizationId(),c.departmentId(),id).stream().findFirst();
+    }
+    private EvaluationSummary summary(java.sql.ResultSet r) throws java.sql.SQLException {
+        var time=r.getObject("DT_CMPLD",OffsetDateTime.class);
+        return new EvaluationSummary(r.getLong("ID_EVAL"),r.getLong("ID_RX"),r.getLong("ID_ENC"),r.getLong("ID_PAT"),r.getLong("ID_ORG"),r.getLong("ID_DEPT"),r.getString("CD_RULE_SET_VER"),r.getString("SD_MODE"),r.getString("SD_DCSN"),time==null?null:time.toInstant(),r.getInt("CNT_FINDINGS"));
+    }
+
     public record StoredDecision(Long organizationId, Long departmentId, MedicationSafetyDecision decision) {}
 }

@@ -126,6 +126,46 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void registration_history_filters_the_authenticated_operator_and_exact_business_day() throws Exception {
+        String suffix = Long.toString(GlobalIds.next()).substring(13);
+        JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"fullName":"本人挂号流水%s","identifiers":[{"system":"9","value":"REG-SELF-%s","useType":"SECONDARY"}],
+                                 "gender":"FEMALE","birthDate":"1990-01-02","phone":"13800138086"}
+                                """.formatted(suffix, suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        JsonNode encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"residentId":"%s","organizationId":"%s","departmentId":"%s","idempotencyCode":"REG-SELF-%s"}
+                                """.formatted(resident.get("id").asString(), ORGANIZATION, DEPARTMENT, suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        String registrationId = encounter.get("registrationId").asString();
+        LocalDate date = LocalDate.now(BUSINESS_ZONE);
+        Instant start = date.atStartOfDay(BUSINESS_ZONE).toInstant();
+        Long operatorId = jdbcTemplate.queryForObject("select ID_USER_REGD from RHN_SC_PAT_REG where ID_PAT_REG = ?",
+                Long.class, Long.valueOf(registrationId));
+        Long otherOperatorId = GlobalIds.next();
+        jdbcTemplate.update("""
+                insert into RHN_SYS_USER_ACCT (ID_USER, ID_TNT, CD_USRNM, HASH_PWD, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
+                select ?, ID_TNT, ?, HASH_PWD, SD_STATUS, DT_CREATED, DT_UPDATED, 0 from RHN_SYS_USER_ACCT where ID_USER = ?
+                """, otherOperatorId, "registration-other-" + suffix, operatorId);
+        jdbcTemplate.update("update RHN_SC_PAT_REG set DT_REGD = ? where ID_PAT_REG = ?", start, Long.valueOf(registrationId));
+        assertTrue(containsRegistration(registrationHistory(date), registrationId));
+        jdbcTemplate.update("update RHN_SC_PAT_REG set ID_USER_REGD = ? where ID_PAT_REG = ?", otherOperatorId, Long.valueOf(registrationId));
+        assertFalse(containsRegistration(registrationHistory(date), registrationId));
+        assertTrue(containsRegistration(queue(date), registrationId)); // Clinical queue ownership is independent.
+        jdbcTemplate.update("update RHN_SC_PAT_REG set ID_USER_REGD = ?, DT_REGD = ? where ID_PAT_REG = ?",
+                operatorId, start.minusSeconds(1), Long.valueOf(registrationId));
+        assertFalse(containsRegistration(registrationHistory(date), registrationId));
+        assertTrue(containsRegistration(registrationHistory(date.minusDays(1)), registrationId));
+        jdbcTemplate.update("update RHN_SC_PAT_REG set DT_REGD = ? where ID_PAT_REG = ?",
+                date.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant(), Long.valueOf(registrationId));
+        assertFalse(containsRegistration(registrationHistory(date), registrationId));
+        assertTrue(containsRegistration(registrationHistory(date.plusDays(1)), registrationId));
+        jdbcTemplate.update("update RHN_SC_PAT_REG set DT_REGD = ? where ID_PAT_REG = ?", start, Long.valueOf(registrationId));
+    }
+
+    @Test
     void page_supports_pagination_and_filters() throws Exception {
         String suffix = Long.toString(GlobalIds.next()).substring(13);
         JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
@@ -316,6 +356,12 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                         .queryParam("date", date.toString()))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString());
+    }
+
+    private JsonNode registrationHistory(LocalDate date) throws Exception {
+        return json(mockMvc.perform(get("/api/outpatient/reception/queue").with(rhnWorkContext())
+                        .queryParam("date", date.toString()).queryParam("scope", "REGISTERED_BY_ME"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
     }
 
     private boolean containsRegistration(JsonNode registrations, String registrationId) {

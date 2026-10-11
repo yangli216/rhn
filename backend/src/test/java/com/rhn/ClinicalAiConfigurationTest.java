@@ -20,6 +20,13 @@ class ClinicalAiConfigurationTest extends RhnIntegrationTestSupport {
     @Autowired com.rhn.ai.application.ClinicalAiRuntimePolicy runtimePolicy;
 
     @Test
+    void triageDecisionSceneIsDisabledByDefault() throws Exception {
+        mockMvc.perform(get("/api/ai/administration/configuration").param("scope", "TENANT").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-scene-outpatient-triage-enabled')].effectiveValue").value(false));
+    }
+
+    @Test
     void decisionConfigurationIsDisabledByDefaultAndHasIndependentEncryptedKey() throws Exception {
         mockMvc.perform(get("/api/ai/administration/configuration").param("scope", "TENANT").with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -60,7 +67,7 @@ class ClinicalAiConfigurationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/ai/administration/configuration").param("scope", "TENANT").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scope").value("TENANT"))
-                .andExpect(jsonPath("$.settings.length()").value(24))
+                .andExpect(jsonPath("$.settings.length()").value(25))
                 .andExpect(jsonPath("$.encryptionAvailable").value(true));
 
         JsonNode saved = json(mockMvc.perform(put("/api/ai/administration/configuration").with(rhnWorkContext())

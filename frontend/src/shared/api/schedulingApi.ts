@@ -216,7 +216,8 @@ export interface ReceptionQueueItem {
   completedAt?: string
 }
 
-export type ReceptionQueueScope = 'PERSONAL' | 'DEPARTMENT' | 'ORGANIZATION'
+// PERSONAL is clinical queue ownership; REGISTERED_BY_ME is the authenticated registration operator.
+export type ReceptionQueueScope = 'PERSONAL' | 'DEPARTMENT' | 'ORGANIZATION' | 'REGISTERED_BY_ME'
 
 export const REGISTRATION_SOURCE_LABELS: Record<ReceptionQueueItem['registrationSource'], string> = {
   WINDOW: '窗口挂号',

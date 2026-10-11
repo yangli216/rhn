@@ -112,11 +112,13 @@ function getRuleStatusTone(rule: RuleCatalogEntry): 'neutral' | 'warning' | 'inf
 export function MedicationRuleCatalog({
   api,
   onOpenCandidate,
-  onBuiltinTrial
+  onBuiltinTrial,
+  onOpenFactory
 }: {
   api: RhnApi
   onOpenCandidate: (candidate: MedicationCandidate) => void
   onBuiltinTrial: (code: string) => void
+  onOpenFactory?: (mode?: 'intake' | 'template' | 'knowledge') => void
 }) {
   const [data, setData] = useState<RuleCatalog>()
   const [selected, setSelected] = useState('')
@@ -319,9 +321,9 @@ export function MedicationRuleCatalog({
             <Icon name="refresh" />
             <span>刷新目录</span>
           </Button>
-          <Button variant="primary" onClick={() => setDraft({})}>
+          <Button variant="primary" onClick={() => onOpenFactory ? onOpenFactory('intake') : setDraft({})}>
             <Icon name="add" />
-            <span>新建规则草稿</span>
+            <span>去规则工坊起草</span>
           </Button>
         </div>
       </div>
@@ -1024,6 +1026,58 @@ function RuleDraftDialog({
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  // 循证依据结构化状态
+  const [sourceType, setSourceType] = useState('药品说明书')
+  const [sourceTitle, setSourceTitle] = useState('')
+  const [sourceLocator, setSourceLocator] = useState('')
+  const [sourceContent, setSourceContent] = useState(parent?.source ?? '')
+
+  // 安全分类快捷载入
+  const [safetyCategories, setSafetyCategories] = useState<{ id: string; name: string; code: string; memberCount: number }[]>([])
+  const [selectedCatId, setSelectedCatId] = useState('')
+  const [catLoading, setCatLoading] = useState(false)
+
+  useEffect(() => {
+    const service = api.medicationWorkbench as any
+    if (typeof service?.listSafetyCategories === 'function') {
+      service.listSafetyCategories('', '')
+        .then((cats: any[]) => {
+          setSafetyCategories(cats.map(c => ({ id: c.id, name: c.name, code: c.code, memberCount: c.memberCount })))
+        })
+        .catch(() => {})
+    }
+  }, [api])
+
+  async function handleLoadCategoryMembers(catId: string) {
+    if (!catId) return
+    setSelectedCatId(catId)
+    setCatLoading(true)
+    setError('')
+    try {
+      const service = api.medicationWorkbench as any
+      if (typeof service?.listSafetyCategoryMembers === 'function') {
+        const result = await service.listSafetyCategoryMembers(catId)
+        const memberIds = (result?.members ?? []).map((m: any) => String(m.medicationId)).slice(0, 10)
+        // 查找或合并已有药品
+        const matched = await api.medicationWorkbench.medications('')
+        const validMeds = matched.filter(m => memberIds.includes(String(m.medication.id)) && m.standardReference?.status === 'LINKED')
+        if (validMeds.length > 0) {
+          setMeds(prev => {
+            const map = new Map<string, MedicationKnowledge>()
+            prev.forEach(item => map.set(item.medication.id, item))
+            validMeds.forEach(item => map.set(item.medication.id, item))
+            return Array.from(map.values())
+          })
+          setIds(validMeds.map(m => m.medication.id))
+        }
+      }
+    } catch (e) {
+      setError(`从安全分类载入药品失败: ${errorMessage(e)}`)
+    } finally {
+      setCatLoading(false)
+    }
+  }
+
   async function search() {
     try {
       setMeds(await api.medicationWorkbench.medications(query))
@@ -1033,7 +1087,7 @@ function RuleDraftDialog({
   }
 
   return (
-    <Dialog title={parent ? '创建规则新版本' : '新建规则草稿'} onClose={onClose}>
+    <Dialog title={parent ? '创建规则新版本' : '新建规则草稿 (受限候选)'} onClose={onClose}>
       <form
         className="qmed-governance__form"
         onSubmit={async e => {
@@ -1042,11 +1096,17 @@ function RuleDraftDialog({
           setError('')
           const f = new FormData(e.currentTarget)
           const text = (key: string) => String(f.get(key) ?? '').trim()
+
+          // 组合标准化循证依据文本
+          const compositeSource = sourceTitle.trim()
+            ? `【${sourceType}】${sourceTitle.trim()}${sourceLocator.trim() ? ` · 定位/指纹: ${sourceLocator.trim()}` : ''}。依据说明: ${sourceContent.trim()}`
+            : (sourceContent.trim() || text('source'))
+
           try {
             const value = await api.medicationWorkbench.createDraft({
               parentId: parent?.id,
               requirement: text('requirement'),
-              source: text('source'),
+              source: compositeSource,
               medicationIds: ids,
               rule: {
                 template,
@@ -1066,6 +1126,10 @@ function RuleDraftDialog({
           }
         }}
       >
+        <Alert tone="info">
+          <strong>候选规则准入须知：</strong>此入口起草的内容作为“候选规则（Candidate）”保存，必须通过回归套件验证、药学专家审核并在指定科室完成旁路观察（SHADOW）后方可正式生效阻断。如需基于指南或说明书建立通用知识，推荐使用【AI 规则工坊】进行标准提取。
+        </Alert>
+
         {error && <Alert tone="error">{error}</Alert>}
         <FormField label="规则名称" required>
           <input name="name" required maxLength={120} defaultValue={parent?.rule.name} placeholder="例如：儿童及特定年龄禁用用药核对" />
@@ -1098,10 +1162,68 @@ function RuleDraftDialog({
         <FormField label="命中提示" required>
           <input name="message" required maxLength={500} defaultValue={parent?.rule.message} placeholder="医生开立处方命中规则时弹出的提示文案…" />
         </FormField>
-        <FormField label="起草依据">
-          <textarea name="source" maxLength={8000} rows={2} defaultValue={parent?.source} placeholder="指南、说明书或制度依据说明…" />
-        </FormField>
+
+        {/* 规范化起草依据字段 */}
+        <fieldset className="qmed-governance__evidence-fieldset">
+          <legend>循证依据溯源 (严格审计)</legend>
+          <div className="qmed-governance__form-grid">
+            <FormField label="依据来源类型">
+              <Select
+                value={sourceType}
+                onChange={setSourceType}
+                options={[
+                  { value: '药品说明书', label: '国家法定药品说明书' },
+                  { value: '临床指南/共识', label: '中华医学会等权威指南' },
+                  { value: '国家法规规范', label: '《处方管理办法》等法规' },
+                  { value: '院内药事会制度', label: '医院药事委员会红头批文' },
+                  { value: 'medical-llm-wiki', label: 'medical-llm-wiki 权威词条' }
+                ]}
+              />
+            </FormField>
+            <FormField label="依据名称 / 版次 / 文号">
+              <input
+                value={sourceTitle}
+                onChange={e => setSourceTitle(e.target.value)}
+                maxLength={300}
+                placeholder="例如: 《中国高血压防治指南(2024版)》或说明书版次"
+              />
+            </FormField>
+          </div>
+          <FormField label="原文定位 / 文件指纹 (SHA-256)">
+            <input
+              value={sourceLocator}
+              onChange={e => setSourceLocator(e.target.value)}
+              maxLength={256}
+              placeholder="例如: 【禁忌】章节或 SHA-256 文件哈希"
+            />
+          </FormField>
+          <FormField label="依据详细说明 / 原文节选">
+            <textarea
+              name="source"
+              value={sourceContent}
+              onChange={e => setSourceContent(e.target.value)}
+              maxLength={8000}
+              rows={2}
+              placeholder="粘贴支持本规则的权威原文段落或院内制度具体条文…"
+            />
+          </FormField>
+        </fieldset>
+
         <div className="qmed-governance__meds-box">
+          {safetyCategories.length > 0 && (
+            <div className="qmed-governance__cat-loader">
+              <span className="qmed-governance__cat-loader-label">从安全分类快速载入:</span>
+              <Select
+                value={selectedCatId}
+                onChange={val => void handleLoadCategoryMembers(val)}
+                options={[
+                  { value: '', label: '选择安全分类快速填入药品…' },
+                  ...safetyCategories.map(c => ({ value: c.id, label: `${c.name} (${c.code}, ${c.memberCount} 药)` }))
+                ]}
+              />
+              {catLoading && <span className="qmed-governance__cat-loader-status">载入中…</span>}
+            </div>
+          )}
           <div className="qmed-governance__meds-filter">
             <SearchField label="检索已关联标准药品" value={query} onChange={setQuery} onSearch={() => void search()} placeholder="检索已关联标准药品（回车或点击检索）" />
             <Button variant="secondary" size="sm" onClick={() => void search()}>检索药品</Button>
@@ -1124,7 +1246,7 @@ function RuleDraftDialog({
         <div className="qmed-governance__form-actions">
           <Button variant="secondary" onClick={onClose}>取消</Button>
           <Button type="submit" variant="primary" disabled={busy || !ids.length || ids.length > 10}>
-            保存草稿
+            {busy ? '正在保存…' : '保存为候选草稿'}
           </Button>
         </div>
       </form>

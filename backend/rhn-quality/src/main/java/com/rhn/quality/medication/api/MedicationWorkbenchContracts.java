@@ -81,6 +81,7 @@ public final class MedicationWorkbenchContracts {
                                  String status, String severity, String decision, String overridePolicy,
                                  Instant effectiveFrom, Instant effectiveTo,
                                  List<com.rhn.outpatient.api.MedicationSafetyDecision.Evidence> evidence) {}
+    public record EvaluationDetail(EvaluationSummary summary, tools.jackson.databind.JsonNode input, tools.jackson.databind.JsonNode result) {}
     public record EvaluationSummary(Long evaluationId, Long prescriptionId, Long encounterId, Long residentId,
                                     Long organizationId, Long departmentId, String ruleSetVersion, String mode,
                                     String decision, Instant completedAt, int findingCount) {}

@@ -1,5 +1,5 @@
 {
-  "fingerprint": "f063d67a50617528f23771eb8574e838be87e5d34172a7abfb93360bb607fdff",
+  "fingerprint": "4c9be68bf2bc572d723de47d7e9ff7594083a94c65b67dae3eec3a14e3a48d7f",
   "tables": [
     {
       "logical": "aud.audit_log",
@@ -1696,6 +1696,18 @@
           "line": 69
         },
         {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
+          "line": 91
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
+          "line": 96
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
+          "line": 103
+        },
+        {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationKnowledgeReplayStore.java",
           "line": 22
         },
@@ -1971,6 +1983,14 @@
         {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
           "line": 68
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
+          "line": 95
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
+          "line": 102
         }
       ]
     },
@@ -5317,9 +5337,552 @@
           "line": 308
         }
       ]
+    },
+    {
+      "logical": "aud.ai_decision_run",
+      "legacy": "ai_decision_runs",
+      "physical": "RHN_AUD_AI_DCSN_RUN",
+      "domain": "AUD",
+      "comment": "共用决策运行观察；一行代表一次有触发的决策尝试，包括旁路及回退",
+      "columns": [
+        {
+          "physical": "ID_RUN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "运行记录主键",
+          "logical": "id",
+          "catalogComment": "运行记录主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "SD_SCENE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "决策场景",
+          "logical": "scene",
+          "catalogComment": "决策场景"
+        },
+        {
+          "physical": "SD_MODE",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "运行模式",
+          "logical": "mode",
+          "catalogComment": "运行模式"
+        },
+        {
+          "physical": "SD_OUTCOME",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "运行结果",
+          "logical": "outcome",
+          "catalogComment": "运行结果"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "记录时间",
+          "logical": "created_at",
+          "catalogComment": "记录时间"
+        },
+        {
+          "physical": "SD_COMPARE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "基线可比较状态",
+          "logical": "comparison",
+          "catalogComment": "基线可比较状态"
+        },
+        {
+          "physical": "FG_EQUAL",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "与基线一致标志；无基线时为空",
+          "logical": "equal",
+          "catalogComment": "与基线一致标志；无基线时为空"
+        },
+        {
+          "physical": "NO_LATENCY",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "总耗时毫秒",
+          "logical": "latency_ms",
+          "catalogComment": "总耗时毫秒"
+        },
+        {
+          "physical": "FG_CALL",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "是否实际发起模型调用；仅配置检查不计调用",
+          "logical": "model_called",
+          "catalogComment": "是否实际发起模型调用；仅配置检查不计调用"
+        },
+        {
+          "physical": "FG_JUDGED",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "是否得到有效判断；失败或格式错误不计判断样本",
+          "logical": "judged",
+          "catalogComment": "是否得到有效判断；失败或格式错误不计判断样本"
+        },
+        {
+          "physical": "FG_UNCERT",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "有效判断中是否存在低置信度或无可匹配候选",
+          "logical": "uncertain",
+          "catalogComment": "有效判断中是否存在低置信度或无可匹配候选"
+        },
+        {
+          "physical": "JSON_RUN",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "不可变输入及判断快照；仅有权限的详情读取",
+          "logical": "run_snapshot",
+          "catalogComment": "不可变输入及判断快照；仅有权限的详情读取"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RUN"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_AI_DCSN_RUN_TNT",
+          "columns": [
+            "ID_RUN",
+            "ID_TNT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IX_AI_DCSN_RUN_SCENE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SD_SCENE",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "ID_RUN",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_AI_DCSN_RUN_SCOPE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_918",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RUN",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_AI_DCSN_RUN_TNT_INDEX_9",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RUN",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "共用决策运行观察；一行代表一次有触发的决策尝试，包括旁路及回退",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "table": "RHN_AUD_AI_DCSN_RUN",
+        "revision": 0,
+        "owner": "rhn-intelligence",
+        "purpose": "共用决策运行观察；一行代表一次有触发的决策尝试，包括旁路及回退",
+        "grain": "一次到达决策服务的尝试，含禁用、回退、旁路与辅助；不是一个患者",
+        "lifecycle": "追加不可变事实；历史不覆盖；归档策略另行制定",
+        "writeEntry": "DecisionObservationRecorder.record → DecisionObservationStore.append",
+        "notes": "按租户、当前机构及科室隔离。人工研判不改变临床处置；统计不代表临床准确率。详情权限与字段口径见 docs/ai/decision-observation.md。",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": [
+          {
+            "column": "SD_SCENE",
+            "meaning": "共用决策场景，与代码枚举一致",
+            "dictionary": "DecisionScene：ASSISTANT_RECOMMENDATIONS / PLAN_COMPILATION / OUTPATIENT_TRIAGE"
+          },
+          {
+            "column": "SD_MODE",
+            "meaning": "本次决策运行模式",
+            "dictionary": "DecisionModelSettings.Mode：DISABLED / SHADOW / ASSIST"
+          },
+          {
+            "column": "SD_COMPARE",
+            "meaning": "只有可确认选择与确定性基线同时存在才能比较",
+            "dictionary": "COMPARABLE / MANUAL_REVIEW / NOT_APPLICABLE"
+          },
+          {
+            "column": "NO_LATENCY",
+            "meaning": "本次服务尝试总耗时，单位毫秒；不包含留痕写入耗时，不等同供应商响应耗时",
+            "dictionary": ""
+          },
+          {
+            "column": "JSON_RUN",
+            "meaning": "DecisionObservationContracts.DecisionRun 不可变快照，包含版本及限定输入/判断；临床自由文本受详情权限保护，不保存密钥或异常正文",
+            "dictionary": ""
+          }
+        ]
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/infrastructure/DecisionObservationStore.java",
+          "line": 22
+        },
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/infrastructure/DecisionObservationStore.java",
+          "line": 42
+        },
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/infrastructure/DecisionObservationStore.java",
+          "line": 46
+        },
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/infrastructure/DecisionObservationStore.java",
+          "line": 52
+        },
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/infrastructure/DecisionObservationStore.java",
+          "line": 59
+        }
+      ]
+    },
+    {
+      "logical": "aud.ai_decision_review",
+      "legacy": "ai_decision_reviews",
+      "physical": "RHN_AUD_AI_DCSN_REVIEW",
+      "domain": "AUD",
+      "comment": "共用决策人工研判；一行代表一次追加的人工意见，不改变临床处置",
+      "columns": [
+        {
+          "physical": "ID_REVIEW",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "研判记录主键",
+          "logical": "id",
+          "catalogComment": "研判记录主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RUN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "关联运行记录",
+          "logical": "run_id",
+          "catalogComment": "关联运行记录"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "研判时间",
+          "logical": "created_at",
+          "catalogComment": "研判时间"
+        },
+        {
+          "physical": "JSON_REVIEW",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "研判结果原因和操作者快照；历史追加保留",
+          "logical": "review_snapshot",
+          "catalogComment": "研判结果原因和操作者快照；历史追加保留"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_REVIEW"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_AI_DCSN_REVIEW_RUN_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RUN",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_AI_DCSN_REVIEW_RUN",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RUN",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_REVIEW",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_3A7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_REVIEW",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "共用决策人工研判；一行代表一次追加的人工意见，不改变临床处置",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "table": "RHN_AUD_AI_DCSN_REVIEW",
+        "revision": 0,
+        "owner": "rhn-intelligence",
+        "purpose": "共用决策人工研判；一行代表一次追加的人工意见，不改变临床处置",
+        "grain": "一次追加人工研判；同一运行可有多个历史意见",
+        "lifecycle": "追加不可变事实；历史不覆盖；归档策略另行制定",
+        "writeEntry": "DecisionObservationService.review → DecisionObservationStore.appendReview",
+        "notes": "按租户、当前机构及科室隔离。人工研判不改变临床处置；统计不代表临床准确率。详情权限与字段口径见 docs/ai/decision-observation.md。",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": [
+          {
+            "column": "JSON_REVIEW",
+            "meaning": "DecisionReview：结果、原因、操作者和时间；每次追加保留，统计只计最新意见",
+            "dictionary": "APPROPRIATE / INAPPROPRIATE / UNCERTAIN"
+          }
+        ]
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/infrastructure/DecisionObservationStore.java",
+          "line": 58
+        },
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/infrastructure/DecisionObservationStore.java",
+          "line": 67
+        },
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/infrastructure/DecisionObservationStore.java",
+          "line": 71
+        },
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/infrastructure/DecisionObservationStore.java",
+          "line": 76
+        }
+      ]
     }
   ],
   "relations": [
+    {
+      "id": "FK_AI_DCSN_REVIEW_RUN",
+      "sourceTable": "RHN_AUD_AI_DCSN_REVIEW",
+      "sourceColumns": [
+        "ID_RUN",
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_RUN",
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_AI_DCSN_RUN",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
     {
       "id": "FK_AUD_CRYPTO_EVI_AUD_CRYP_CRY",
       "sourceTable": "RHN_AUD_CRYPTO_EVID",

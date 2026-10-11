@@ -457,6 +457,58 @@
         "com.rhn.ai.application.HistoricalPlanResolutionServiceTest",
         "com.rhn.ai.application.HistoricalPlanComparisonServiceTest"
       ]
+    },
+    "triage": {
+      "coverage": [
+        "预检分诊规则、共用决策科室建议/资料提示、场景配置、人工采纳与患者输入隔离"
+      ],
+      "limitations": [
+        "旁路试用需本地临床样例评估与人工视觉验收；API/配置迁移另检契约和数据库结构，完整 CI 保留。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/outpatient/triage/triageAssessmentRules.test.ts",
+        "src/features/outpatient/triage/OutpatientTriageWorkspace.test.tsx",
+        "src/features/outpatient/triage/TriageDecisionAdvice.test.tsx",
+        "src/features/outpatient/triage/TriageTicketModal.test.tsx",
+        "src/features/settings/AiConfigurationManagement.test.tsx"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "OutpatientTriageTest",
+        "ClinicalAiConfigurationTest",
+        "com.rhn.outpatient.triage.OutpatientTriageServiceTest",
+        "com.rhn.ai.application.ClinicalTriageAssessmentServiceTest",
+        "com.rhn.ai.application.ClinicalTriageDecisionServiceTest",
+        "com.rhn.ai.infrastructure.JevDecisionModelGatewayTest"
+      ]
+    },
+    "decision-observation": {
+      "coverage": [
+        "决策持久化、旁路观察查询/研判、合理用药日志分页及详情、机构科室隔离与物理目录"
+      ],
+      "limitations": [
+        "运行次数、可比较一致性和人工研判不是临床准确率；部署、真实模型试用和视觉验收另行确认。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/settings/DecisionRunObservation.test.tsx",
+        "src/features/settings/AiConfigurationManagement.test.tsx",
+        "src/features/quality/MedicationEvaluationLog.test.tsx",
+        "src/features/quality/MedicationWorkbench.test.tsx",
+        "src/features/outpatient/triage/OutpatientTriageWorkspace.test.tsx",
+        "src/features/outpatient/ai/ClinicalAiCatalogReview.test.tsx"
+      ],
+      "backend": [
+        "DecisionObservationTest",
+        "RhnPhysicalSchemaGovernanceTest",
+        "com.rhn.ai.application.ClinicalTriageDecisionServiceTest",
+        "com.rhn.ai.application.TreatmentCatalogDecisionServiceTest",
+        "com.rhn.ai.application.PlanInvestigationDecisionServiceTest",
+        "com.rhn.ai.application.ClinicalTreatmentRecommendationServiceTest",
+        "com.rhn.quality.MedicationWorkbenchShadowTest",
+        "ClinicalAiConfigurationTest"
+      ]
     }
   }
 }

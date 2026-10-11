@@ -1,0 +1,235 @@
+.medication-evaluation-log {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.medication-evaluation-log > .ui-page-template__pane-frame {
+  flex: 1;
+  min-height: 0;
+}
+
+.medication-evaluation-log__filters {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-2);
+}
+.medication-evaluation-log__filters > .ui-field {
+  min-width: 0;
+  margin: 0;
+  flex: none;
+}
+.medication-evaluation-log__filter-field--mode { width: 9rem; }
+.medication-evaluation-log__filter-field--decision { width: 10rem; }
+.medication-evaluation-log__filter-field--rx { width: 12rem; }
+.medication-evaluation-log__filter-field--date { width: 23.5rem; }
+
+.medication-evaluation-log__filter-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.medication-evaluation-log__filter-actions .ui-button {
+  height: var(--control-height-md);
+}
+
+/* 详情弹窗结构化展示 */
+.medication-evaluation-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.medication-evaluation-detail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.medication-evaluation-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.medication-evaluation-detail__meta strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.medication-evaluation-detail__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+.medication-evaluation-detail__badge--success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+.medication-evaluation-detail__badge--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+.medication-evaluation-detail__badge--error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+.medication-evaluation-detail__badge--neutral {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.medication-evaluation-detail__failures {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-text);
+  font-size: var(--font-size-small);
+}
+
+.medication-evaluation-detail__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.medication-evaluation-detail__section-title {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.medication-evaluation-detail__section-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: var(--color-brand-primary);
+  border-radius: var(--radius-sm);
+}
+
+.medication-evaluation-findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.medication-evaluation-finding-card {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-left-width: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.medication-evaluation-finding-card.is-critical {
+  border-left-color: var(--color-brand-strong);
+  background: var(--color-surface-subtle);
+}
+.medication-evaluation-finding-card.is-high {
+  border-left-color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+.medication-evaluation-finding-card.is-moderate {
+  border-left-color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+.medication-evaluation-finding-card.is-low,
+.medication-evaluation-finding-card.is-info {
+  border-left-color: var(--color-info);
+  background: var(--color-surface-subtle);
+}
+
+.medication-evaluation-finding-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+}
+.medication-evaluation-finding-card__severity {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-small);
+}
+.is-critical .medication-evaluation-finding-card__severity {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+}
+.is-high .medication-evaluation-finding-card__severity {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+.is-moderate .medication-evaluation-finding-card__severity {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+.is-low .medication-evaluation-finding-card__severity,
+.is-info .medication-evaluation-finding-card__severity {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.medication-evaluation-finding-card__category {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+.medication-evaluation-finding-card__title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+.medication-evaluation-finding-card__msg {
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-normal);
+}
+.medication-evaluation-finding-card__action {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-normal);
+}
+.medication-evaluation-finding-card__evidence {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  line-height: var(--line-height-normal);
+}
+
+.medication-evaluation-detail__empty-findings {
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  background: var(--color-surface-subtle);
+}
+
+.item-spec {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}

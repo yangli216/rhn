@@ -1,0 +1,21 @@
+{
+  "table": "RHN_AUD_AI_DCSN_REVIEW",
+  "revision": 0,
+  "owner": "rhn-intelligence",
+  "purpose": "共用决策人工研判；一行代表一次追加的人工意见，不改变临床处置",
+  "grain": "一次追加人工研判；同一运行可有多个历史意见",
+  "lifecycle": "追加不可变事实；历史不覆盖；归档策略另行制定",
+  "writeEntry": "DecisionObservationService.review → DecisionObservationStore.appendReview",
+  "notes": "按租户、当前机构及科室隔离。人工研判不改变临床处置；统计不代表临床准确率。详情权限与字段口径见 docs/ai/decision-observation.md。",
+  "reviewState": "draft",
+  "reviewer": "",
+  "reviewedAt": null,
+  "relations": [],
+  "fieldNotes": [
+    {
+      "column": "JSON_REVIEW",
+      "meaning": "DecisionReview：结果、原因、操作者和时间；每次追加保留，统计只计最新意见",
+      "dictionary": "APPROPRIATE / INAPPROPRIATE / UNCERTAIN"
+    }
+  ]
+}

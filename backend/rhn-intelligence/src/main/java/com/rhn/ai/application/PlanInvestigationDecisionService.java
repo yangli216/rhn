@@ -151,7 +151,7 @@ public class PlanInvestigationDecisionService {
         }
         if (groups.isEmpty()) return resolved;
         var attempt = decisions.match(groups, context, DecisionScene.PLAN_COMPILATION);
-        decisions.compare(attempt, List.of(), context, DecisionScene.PLAN_COMPILATION);
+        // These are unresolved intents: the deterministic baseline requires manual review, not an empty match set.
         String detail = attempt.alerts().stream().map(alert -> alert.detail()).findFirst().orElse("");
         for (int index = 0; index < pending.size(); index++) {
             var intent = pending.get(index);

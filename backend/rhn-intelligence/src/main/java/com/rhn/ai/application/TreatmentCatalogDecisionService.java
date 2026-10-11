@@ -18,8 +18,13 @@ public class TreatmentCatalogDecisionService {
     private final ClinicalAiRuntimePolicy policy;
     private final DecisionModelGateway gateway;
     private final JsonCodec json;
+    private final DecisionObservationRecorder observations;
     public TreatmentCatalogDecisionService(ClinicalAiRuntimePolicy policy, DecisionModelGateway gateway, JsonCodec json) {
-        this.policy = policy; this.gateway = gateway; this.json = json;
+        this(policy,gateway,json,null);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public TreatmentCatalogDecisionService(ClinicalAiRuntimePolicy policy, DecisionModelGateway gateway, JsonCodec json, DecisionObservationRecorder observations) {
+        this.policy = policy; this.gateway = gateway; this.json = json; this.observations=observations;
     }
     public record Group(TreatmentRecommendation intent, List<TreatmentRecommendation> candidates) {
         public Group { candidates = List.copyOf(candidates); }
@@ -45,6 +50,12 @@ public class TreatmentCatalogDecisionService {
         long started = System.nanoTime();
         String outcome = "UNEXPECTED_ERROR";
         String exceptionType = "NONE";
+        DecisionModelSettings settings=null;
+        DecisionModelGateway.Request request=null;
+        DecisionModelGateway.Result result=null;
+        List<String> selectedIds=List.of();
+        boolean modelCalled=false;
+        String inputHash=null;
         try {
             if ("DISABLED".equalsIgnoreCase(policy.text(context.tenantId(), "decision-mode", "DISABLED"))) {
                 outcome = "MODE_DISABLED"; return empty();
@@ -52,7 +63,7 @@ public class TreatmentCatalogDecisionService {
             if (!policy.booleanValue(context.tenantId(), scene.settingKey(), scene.defaultEnabled())) {
                 outcome = "SCENE_DISABLED"; return empty();
             }
-            var settings = DecisionModelSettings.current(policy, context.tenantId());
+            settings = DecisionModelSettings.current(policy, context.tenantId());
             if (settings.mode() == DecisionModelSettings.Mode.DISABLED) { outcome = "MODE_DISABLED"; return empty(); }
             if (!settings.ready()) { outcome = "CONFIGURATION_INCOMPLETE"; return fallback("决策模型配置未完整，已使用原有匹配流程。"); }
             if (groups.isEmpty() || groups.stream().flatMap(group -> group.candidates().stream()).map(TreatmentCatalogDecisionService::key)
@@ -80,8 +91,10 @@ public class TreatmentCatalogDecisionService {
                                 + "必须保留意图明确指定的剂型、给药途径和规格；无法唯一确定时选择 NONE。", criteria));
                 byQuestion.put(id, candidates);
             }
-            var request = new DecisionModelGateway.Request(VERSION + ":" + scene.name(), json.readTree(json.write(states)), questions);
-            var result = gateway.decide(request, settings);
+            request = new DecisionModelGateway.Request(VERSION + ":" + scene.name(), json.readTree(json.write(states)), questions);
+            inputHash=inputHash(request);
+            modelCalled=true;
+            result = gateway.decide(request, settings);
             var selected = new LinkedHashMap<String, TreatmentRecommendation>();
             boolean confident = true;
             for (var entry : byQuestion.entrySet()) {
@@ -92,6 +105,7 @@ public class TreatmentCatalogDecisionService {
                 if (item == null) { confident = false; continue; }
                 selected.putIfAbsent(key(item), item);
             }
+            selectedIds=List.copyOf(selected.keySet());
             boolean shadow = settings.mode() == DecisionModelSettings.Mode.SHADOW;
             boolean applied = !shadow && confident;
             outcome = shadow ? "SHADOW" : applied ? "APPLIED" : "UNCONFIRMED_MATCH";
@@ -114,6 +128,8 @@ public class TreatmentCatalogDecisionService {
             exceptionType = e.getClass().getSimpleName();
             return fallback("决策模型未完成或返回不可用，已回退原有匹配流程。");
         } finally {
+            if(observations!=null) observations.record(context,scene,settings==null?"DISABLED":settings.mode().name(),outcome,VERSION,inputHash,started,modelCalled,
+                    settings==null?null:settings.minConfidence(),settings==null?null:settings.model(),request,result,selectedIds,List.of(),"MANUAL_REVIEW",exceptionType);
             log.info("clinical_ai_decision_timing correlationId={} scene={} outcome={} groupCount={} totalMs={} exceptionType={}",
                     context.correlationId(), scene, outcome, groups.size(), (System.nanoTime() - started) / 1_000_000, exceptionType);
         }
@@ -124,7 +140,7 @@ public class TreatmentCatalogDecisionService {
     }
 
     public void compare(Attempt attempt, List<TreatmentRecommendation> baseline, ExecutionContext context, DecisionScene scene) {
-        if (attempt.raw() == null || !attempt.shadow()) return;
+        if (attempt.raw() == null || !attempt.shadow() || baseline.isEmpty()) return;
         var modelIds = attempt.items().stream().map(TreatmentCatalogDecisionService::key).sorted().toList();
         var baselineIds = baseline.stream().map(TreatmentCatalogDecisionService::key).distinct().sorted().toList();
         log.info("catalog_decision_comparison tenant={} scene={} trace={} jev={} baseline={} equal={}", context.tenantId(),

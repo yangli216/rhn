@@ -33,6 +33,45 @@ const ruleKindNameMap: Record<string, string> = {
   DOSAGE_ROUTE_CHECK: '给药途径/用法核对'
 }
 
+const DOSE_FORM_TEXT_MAP: Record<string, string> = {
+  TABLET: '片剂',
+  CAPSULE: '胶囊剂',
+  INJECTION: '注射剂',
+  GRANULE: '颗粒剂',
+  PILL: '丸剂',
+  TINCTURE: '酊剂',
+  SYRUP: '糖浆剂',
+  OINTMENT: '软膏剂',
+  CREAM: '乳膏剂',
+  GEL: '凝胶剂',
+  LOTION: '洗剂',
+  SUPPOSITORY: '栓剂',
+  SPRAY: '喷雾剂',
+  AEROSOL: '气雾剂',
+  POWDER: '散剂',
+  EYE_DROPS: '滴眼剂',
+  EYE_OINTMENT: '眼膏剂',
+  NASAL_DROPS: '滴鼻剂',
+  EAR_DROPS: '滴耳剂',
+  ORAL_SOLUTION: '口服溶液剂',
+  ORAL_LIQUID: '口服液体剂',
+  SUSPENSION: '混悬剂',
+  EMULSION: '乳剂',
+  PLASTER: '贴膏剂',
+  PATCH: '贴剂',
+  DECOCTION: '汤剂',
+  EXTRACT: '流浸膏剂',
+  LINIMENT: '搽剂',
+  DROPS: '滴剂',
+  MIXTURE: '合剂',
+}
+
+export function formatDoseForm(doseForm?: string | null): string {
+  if (!doseForm) return ''
+  const trimmed = doseForm.trim()
+  return DOSE_FORM_TEXT_MAP[trimmed.toUpperCase()] || trimmed
+}
+
 export function MedicationSafetyCategories({ api, onNotice, onError }: MedicationSafetyCategoriesProps) {
   const [categories, setCategories] = useState<MedicationSafetyCategoryView[]>([])
   const [loading, setLoading] = useState(false)
@@ -78,6 +117,8 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
   const [medQuery, setMedQuery] = useState('')
   const [medSearching, setMedSearching] = useState(false)
   const [medCandidates, setMedCandidates] = useState<MedicationKnowledge[]>([])
+  const [hasSearchedMeds, setHasSearchedMeds] = useState(false)
+  const [lastSearchedQuery, setLastSearchedQuery] = useState('')
   const [selectedMedItems, setSelectedMedItems] = useState<SafetyCategoryMemberItem[]>([])
   const [addingMeds, setAddingMeds] = useState(false)
 
@@ -276,6 +317,8 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
   const handleOpenAddMedModal = () => {
     setMedQuery('')
     setMedCandidates([])
+    setHasSearchedMeds(false)
+    setLastSearchedQuery('')
     setSelectedMedItems([])
 
     const defaultSub = selectedCategory?.catalogSub || (standardCatalogs.length > 0 ? standardCatalogs[0].sub : '')
@@ -316,9 +359,18 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
 
   // 搜索主数据药品
   const handleSearchMeds = async (queryStr: string) => {
+    const q = queryStr.trim()
+    if (!q) {
+      setHasSearchedMeds(false)
+      setLastSearchedQuery('')
+      setMedCandidates([])
+      return
+    }
     setMedSearching(true)
+    setHasSearchedMeds(true)
+    setLastSearchedQuery(q)
     try {
-      const results = await api.masterData.medications(queryStr, '', 'ACTIVE')
+      const results = await api.masterData.medications(q, '', 'ACTIVE')
       const existingMedIds = new Set(members.map(m => String(m.medicationId)))
       const candidates = (results || []).filter(m => !existingMedIds.has(String(m.id)))
       setMedCandidates(candidates)
@@ -337,12 +389,13 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
       if (exists) {
         return prev.filter(item => String(item.medicationId) !== medId)
       } else {
+        const rawForm = med.sdDoseFormText || med.sdDoseForm || med.doseForm
         return [...prev, {
           medicationId: med.id ?? med.medicationId!,
           medicationCode: med.code ?? med.medicationCode ?? '',
           medicationName: med.name ?? med.medicationName ?? '',
           preparationSpec: med.preparationSpec || undefined,
-          doseForm: med.sdDoseFormText || med.sdDoseForm || med.doseForm || undefined
+          doseForm: formatDoseForm(rawForm) || undefined
         }]
       }
     })
@@ -356,7 +409,11 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
     } else {
       setSelectedMedItems(currentList.map(med => {
         if ('medicationId' in med) {
-          return med
+          const item = med as SafetyCategoryMemberItem
+          return {
+            ...item,
+            doseForm: formatDoseForm(item.doseForm) || undefined
+          }
         }
         const m = med as MedicationKnowledge
         return {
@@ -364,7 +421,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
           medicationCode: m.code,
           medicationName: m.name,
           preparationSpec: m.preparationSpec || undefined,
-          doseForm: m.sdDoseFormText || m.sdDoseForm || undefined
+          doseForm: formatDoseForm(m.sdDoseFormText || m.sdDoseForm) || undefined
         }
       }))
     }
@@ -610,7 +667,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                             </td>
                             <td className="qmed-text-muted">{mbr.preparationSpec || '-'}</td>
                             <td>
-                              <span className="qmed-dose-pill">{mbr.doseForm || '-'}</span>
+                              <span className="qmed-dose-pill">{formatDoseForm(mbr.doseForm) || '-'}</span>
                             </td>
                             <td className="qmed-text-muted qmed-font-mono qmed-text-time">
                               {mbr.inherited ? '动态继承生效' : (mbr.createdAt ? mbr.createdAt.substring(0, 19).replace('T', ' ') : '-')}
@@ -743,7 +800,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
       {/* 弹窗 2：纳入药品弹窗 */}
       {showAddMedModal && (
         <Dialog
-          title={`纳入药品成员 · ${selectedCategory?.name}`}
+          title={`纳入药品 · ${selectedCategory?.name}`}
           onClose={() => setShowAddMedModal(false)}
           className="qmed-add-med-dialog"
           size="xwide"
@@ -768,6 +825,10 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                 onClick={() => {
                   setAddMedMode('manual')
                   setSelectedMedItems([])
+                  setMedQuery('')
+                  setMedCandidates([])
+                  setHasSearchedMeds(false)
+                  setLastSearchedQuery('')
                 }}
               >
                 <Icon name="search" /> 按药品名称/代码检索录入
@@ -804,13 +865,13 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                           searchCatalogCandidates(catalogSubToImport, val)
                         }}
                       />
-                      <span>仅全身剂型（自动排除眼耳鼻局部制剂、外用软膏等）</span>
+                      <span>仅全身给药剂型（排除外用制剂）</span>
                     </label>
 
                     {currentCatalogSummary && currentCatalogSummary.entryNames && currentCatalogSummary.entryNames.length > 0 && (
                       <div className="qmed-catalog-names-preview">
                         <span className="qmed-catalog-names-label">
-                          基药收录标准通用名 ({currentCatalogSummary.entryNames.length} 种)：
+                          基药收录通用名 ({currentCatalogSummary.entryNames.length})：
                         </span>
                         <div className="qmed-catalog-names-chips">
                           {currentCatalogSummary.entryNames.slice(0, 16).map(name => (
@@ -826,7 +887,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                     )}
                   </div>
 
-                  {/* 彻底解决行内错位的独立全量导入卡片 */}
+                  {/* 独立的结构化全量导入卡片 */}
                   <div className="qmed-batch-import-hero">
                     <div className="qmed-batch-import-hero-title">
                       <span>一键全量纳管</span>
@@ -834,9 +895,6 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                         {catalogCandidates.length} 药待入库
                       </span>
                     </div>
-                    <p className="qmed-batch-import-hero-desc">
-                      将当前标准分类下全院在库且尚未纳管的所有匹配药品一次性全量纳入本安全分类。无需逐一勾选。
-                    </p>
                     <div className="qmed-batch-import-btn-wrap">
                       <Button
                         variant="primary"
@@ -854,7 +912,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                 <div className="qmed-catalog-main-results">
                   <div className="qmed-add-med-results-header">
                     <div className="qmed-add-med-header-left">
-                      <span>在库未纳管候选药 ({catalogCandidates.length})</span>
+                      <span>在库未纳管药品 ({catalogCandidates.length})</span>
                       {selectedMedItems.length > 0 && (
                         <span className="qmed-selected-pill">
                           已勾选 {selectedMedItems.length} 药
@@ -880,6 +938,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                     <div className="qmed-add-med-list">
                       {catalogCandidates.map(med => {
                         const isChecked = selectedMedItems.some(i => String(i.medicationId) === String(med.medicationId))
+                        const doseFormText = formatDoseForm(med.doseForm)
                         return (
                           <div
                             key={med.medicationId}
@@ -894,7 +953,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                             <div className="qmed-add-med-row-main">
                               <div className="qmed-add-med-name-row">
                                 <span className="qmed-add-med-name">{med.medicationName}</span>
-                                {med.doseForm && <span className="qmed-dose-pill">{med.doseForm}</span>}
+                                {doseFormText && <span className="qmed-dose-pill">{doseFormText}</span>}
                               </div>
                               <div className="qmed-add-med-meta-row">
                                 <span className="qmed-add-med-code">{med.medicationCode}</span>
@@ -909,17 +968,19 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                 </div>
               </div>
             ) : (
-              /* 模式2：主数据药名检索 */
+              /* 模式2：主数据药名检索（回车触发） */
               <div className="qmed-manual-search-pane">
                 <div className="qmed-add-med-search-bar">
                   <SearchField
                     label="检索主数据药品"
-                    placeholder="输入药品通用名、拼音缩写或代码检索主数据药品..."
+                    placeholder="输入药品通用名/拼音码/编码，按回车开始查询..."
                     value={medQuery}
                     onChange={val => {
                       setMedQuery(val)
-                      if (val.trim().length >= 1) {
-                        handleSearchMeds(val.trim())
+                      if (!val.trim()) {
+                        setHasSearchedMeds(false)
+                        setLastSearchedQuery('')
+                        setMedCandidates([])
                       }
                     }}
                     onSearch={handleSearchMeds}
@@ -936,7 +997,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                 <div className="qmed-add-med-results">
                   <div className="qmed-add-med-results-header">
                     <div className="qmed-add-med-header-left">
-                      <span>候选药品清单 ({medCandidates.length})</span>
+                      <span>{hasSearchedMeds ? `候选药品清单 (${medCandidates.length})` : '候选药品清单'}</span>
                       {selectedMedItems.length > 0 && (
                         <span className="qmed-selected-pill">
                           已勾选 {selectedMedItems.length} 药
@@ -954,14 +1015,19 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                     <div className="qmed-add-med-loading">
                       <LoadingState label="检索中..." />
                     </div>
+                  ) : !hasSearchedMeds ? (
+                    <div className="qmed-add-med-empty">
+                      请输入药品通用名、拼音码或代码，按回车开始搜索
+                    </div>
                   ) : medCandidates.length === 0 ? (
                     <div className="qmed-add-med-empty">
-                      {medQuery ? '未找到符合条件的未纳管药品' : '请输入药品名称或代码开始搜索'}
+                      未找到与 &quot;{lastSearchedQuery}&quot; 匹配的未纳管药品
                     </div>
                   ) : (
                     <div className="qmed-add-med-list">
                       {medCandidates.map(med => {
                         const isChecked = selectedMedItems.some(i => String(i.medicationId) === String(med.id))
+                        const doseFormText = formatDoseForm(med.sdDoseFormText || med.sdDoseForm)
                         return (
                           <div
                             key={med.id}
@@ -976,8 +1042,8 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                             <div className="qmed-add-med-row-main">
                               <div className="qmed-add-med-name-row">
                                 <span className="qmed-add-med-name">{med.name}</span>
-                                {(med.sdDoseFormText || med.sdDoseForm) && (
-                                  <span className="qmed-dose-pill">{med.sdDoseFormText || med.sdDoseForm}</span>
+                                {doseFormText && (
+                                  <span className="qmed-dose-pill">{doseFormText}</span>
                                 )}
                               </div>
                               <div className="qmed-add-med-meta-row">
@@ -994,9 +1060,11 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
               </div>
             )}
 
-            <div className="qmed-add-med-selected-summary">
-              <span>已选 <strong>{selectedMedItems.length}</strong> 种药品准备纳入该分类</span>
-            </div>
+            {selectedMedItems.length > 0 && (
+              <div className="qmed-add-med-selected-summary">
+                <span>已选 <strong>{selectedMedItems.length}</strong> 种药品准备纳入该分类</span>
+              </div>
+            )}
           </div>
 
           <div className="qmed-dialog-footer">

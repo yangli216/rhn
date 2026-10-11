@@ -1,4 +1,4 @@
-.knowledge-workspace { padding: 12px; min-width: 0; }
+.knowledge-workspace { padding: 0; min-width: 0; }
 .knowledge-heading, .knowledge-toolbar, .knowledge-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .knowledge-heading h3, .knowledge-pane h4 { margin: 6px 0; }
 .knowledge-heading p, .knowledge-pane p { color: var(--color-text-secondary); line-height: 1.6; }

@@ -5,7 +5,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: var(--layout-workspace-gutter);
+  padding: 0;
   gap: var(--layout-panel-gap);
   box-sizing: border-box;
   color: var(--color-text-primary);
@@ -687,6 +687,18 @@
   color: var(--color-brand-primary);
 }
 
+.qmed-title-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.qmed-factory-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 .qmed-wizard-bar .qmed-stepper {
   display: flex;
   align-items: center;
@@ -1212,40 +1224,50 @@
 
 .qmed-scenario-cards-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
 }
 
 .qmed-scenario-card {
+  height: auto;
+  min-height: auto;
+  min-width: 0;
+  width: 100%;
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 12px 14px;
+  border-radius: var(--radius-md);
   background: var(--color-surface);
+  color: var(--color-text-primary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--motion-fast) var(--ease-standard);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
   box-shadow: var(--shadow-sm);
 }
 
 .qmed-scenario-card:hover {
   border-color: var(--color-brand-primary);
+  background: var(--color-surface-subtle);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-hover);
+  box-shadow: var(--shadow-panel);
 }
 
 .qmed-scenario-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
 }
 
 .qmed-scenario-tag {
   font-size: var(--font-size-small);
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-weight: 500;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .qmed-scenario-tag.tag-blue {
@@ -1260,32 +1282,33 @@
 
 .qmed-scenario-action {
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-brand-primary);
 }
 
 .qmed-scenario-title {
-  margin: 2px 0;
-  font-size: 13px;
-  font-weight: 600;
+  margin: var(--space-1) 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
 }
 
 .qmed-scenario-desc {
   margin: 0;
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-  line-height: 1.45;
+  line-height: var(--line-height-base);
 }
 
 .qmed-scenario-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-  margin-top: 4px;
-  padding-top: 6px;
+  margin-top: auto;
+  padding-top: var(--space-2);
   border-top: 1px dashed var(--color-border);
 }
 
@@ -2282,6 +2305,22 @@
   width: 100%;
   min-width: 0;
   gap: var(--space-1);
+  text-align: left;
+  white-space: normal;
+}
+
+.qmed-candidate-item {
+  height: auto;
+  min-height: auto;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  padding: var(--space-2) var(--space-3);
 }
 
 /* ==========================================================================
@@ -2707,26 +2746,29 @@
   border-top: 1px solid var(--color-border);
 }
 
-/* 纳入药品弹窗 (PC 宽屏适配) */
+/* 纳入药品弹窗 (PC 宽屏适配 & 固定尺寸防跳动) */
 .qmed-add-med-dialog {
-  max-width: 1040px;
-  width: min(1040px, 94vw);
+  max-width: 1000px;
+  width: min(1000px, 95vw);
 }
 
 .qmed-add-med-content {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-0);
-  max-height: 75vh;
-  min-height: 520px;
+  padding: var(--space-2) var(--space-0) var(--space-0);
+  height: 560px;
+  max-height: 560px;
+  min-height: 560px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .qmed-catalog-split-pane {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: 360px 1fr;
   gap: var(--space-4);
   overflow: hidden;
 }
@@ -2847,6 +2889,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  overflow: hidden;
 }
 
 .qmed-add-med-search-bar {
@@ -2866,8 +2909,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 240px;
   flex: 1;
+  min-height: 0;
 }
 
 .qmed-add-med-results-header {
@@ -2899,13 +2942,19 @@
 
 .qmed-add-med-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  max-height: 440px;
 }
 
 .qmed-add-med-loading,
 .qmed-add-med-empty {
-  padding: var(--space-8) var(--space-4);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
   text-align: center;
   color: var(--color-text-secondary);
   font-size: var(--font-size-body);
@@ -2940,7 +2989,6 @@
 .qmed-add-med-name-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
 }
 

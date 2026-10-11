@@ -1,3 +1,4 @@
+import { createDecisionObservationApi } from './decisionObservationApi'
 import { createStandardCatalogEditionApi } from './standardCatalogEditionApi'
 export * from './standardCatalogEditionApi'
 import { createClinicalSemanticImpactApi } from './clinicalSemanticImpactApi'
@@ -73,6 +74,7 @@ export * from './outpatientNoteTemplatesApi'
 export * from './outpatientNoteFormsApi'
 export * from './outpatientReferralsApi'
 export * from './clinicalAiApi'
+export * from './decisionObservationApi'
 export * from './inpatientApi'
 export * from './queueingApi'
 export * from './clinicalSafetyApi'
@@ -116,6 +118,7 @@ function createApiModules(client: ApiClient) {
     outpatientNoteForms: createOutpatientNoteFormsApi(client),
     outpatientReferrals: createOutpatientReferralsApi(client),
     clinicalAi: createClinicalAiApi(client),
+    decisionObservations: createDecisionObservationApi(client),
     inpatient: createInpatientApi(client),
     queueing: createQueueingApi(client),
     clinicalSafety: createClinicalSafetyApi(client),

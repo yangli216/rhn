@@ -461,6 +461,10 @@ describe('OutpatientRegistrationWorkspace', () => {
   it('displays today registration stream and supports cancelling a waiting registration', async () => {
     const cancelEncounter = vi.fn().mockResolvedValue({ completed: true, message: '退号成功', refundStatus: 'SUCCESS' })
     const queueRecords: ReceptionQueueItem[] = [
+      { ...receipt, registrationId: 'registration-yesterday', residentName: '前日患者',
+        registeredAt: new Date(Date.parse(`${businessDate()}T00:00:00+08:00`) - 1).toISOString() },
+      { ...receipt, registrationId: 'registration-tomorrow', residentName: '次日患者',
+        registeredAt: new Date(Date.parse(`${businessDate()}T00:00:00+08:00`) + 86_400_000).toISOString() },
       { ...receipt, registrationId: 'registration-oldest', encounterId: 'encounter-oldest', registrationNo: 'REG000',
         ticketNo: 'A000', residentName: '最早患者', status: 'COMPLETED', registeredAt: `${businessDate()}T01:00:00Z` },
       { ...receipt, registrationId: 'registration-latest', encounterId: 'encounter-latest', registrationNo: 'REG004',
@@ -493,7 +497,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     // The ledger is expanded by default and only shows the latest three records, newest first.
-    const historyTitle = await screen.findByText('本窗口今日挂号记录（最近流水）')
+    const historyTitle = await screen.findByText('本人今日挂号流水（最近 3 条）')
     const historyPanel = historyTitle.closest('details')
     expect(historyPanel).toHaveAttribute('open')
     expect(screen.queryByText('最近 3 条业务记录')).not.toBeInTheDocument()
@@ -506,6 +510,11 @@ describe('OutpatientRegistrationWorkspace', () => {
       expect.stringContaining('张三'),
     ])
     expect(screen.queryByText('最早患者')).not.toBeInTheDocument()
+    expect(screen.queryByText('前日患者')).not.toBeInTheDocument()
+    expect(screen.queryByText('次日患者')).not.toBeInTheDocument()
+    expect(historyPanel).toHaveTextContent('今日已挂号 4 人')
+    expect(historyRows[0]).toHaveTextContent(`${businessDate()} 14:00`)
+    expect(receptionQueue).toHaveBeenCalledWith(businessDate(), undefined, 'REGISTERED_BY_ME')
     expect(await screen.findByText('张三')).toBeInTheDocument()
     expect(screen.getByText('候诊中')).toBeInTheDocument()
 
@@ -700,7 +709,7 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    expect(await screen.findByText('本窗口今日挂号记录（最近流水）')).toBeInTheDocument()
+    expect(await screen.findByText('本人今日挂号流水（最近 3 条）')).toBeInTheDocument()
     expect(await screen.findByText('张建国')).toBeInTheDocument()
 
     // The unified queue status is presented as a concise Chinese label.

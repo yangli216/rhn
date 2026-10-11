@@ -3,12 +3,44 @@ import { useQuery } from '@tanstack/react-query'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { RuleIntakeRun, IntakeImprovementOrigin } from '../../shared/api/medicationKnowledgeDraftApi'
-import { Alert, Button, FormField, Pagination, StatusBadge } from '../../shared/ui'
+import { Alert, Button, FormField, Icon, Pagination, StatusBadge } from '../../shared/ui'
 import './medication-rule-intake.css'
 
 export interface IntakeSeed { kind: string; run: RuleIntakeRun; knowledgeId?: string }
 const scopes: Record<string, string> = { ALL_DRUGS: '全部药品', NAMED_DRUGS: '指定药品', CLASS: '药品类别', INGREDIENT: '成分范围', UNSPECIFIED: '范围待明确' }
 const states: Record<string, string> = { ANALYZED: '分析已留存', INVALID_OUTPUT: '输出待核查', MODEL_ERROR: '模型调用失败' }
+
+function deriveQuestionOptions(text: string): string[] {
+  const colonIndex = Math.max(text.indexOf('：'), text.indexOf(':'))
+  if (colonIndex > 0) {
+    const afterColon = text.slice(colonIndex + 1).replace(/[？?。！!]/g, '')
+    const parts = afterColon.split(/[、,，/]|还是/).map(s => s.trim()).filter(Boolean)
+    if (parts.length >= 2 && parts.length <= 6 && parts.every(p => p.length <= 15)) {
+      return parts
+    }
+  }
+  const lower = text.toLowerCase()
+  if (lower.includes('人群') || lower.includes('年龄') || lower.includes('儿童') || lower.includes('未成年')) {
+    return ['仅限未成年人 (<18岁)', '仅限老年人 (≥65岁)', '适用于全年龄段患者']
+  }
+  if (lower.includes('途径') || lower.includes('口服') || lower.includes('注射')) {
+    return ['仅限口服制剂', '仅限静脉输液/注射', '不限给药途径（全部剂型）']
+  }
+  if (lower.includes('动作') || lower.includes('阻断') || lower.includes('拦截') || lower.includes('提示') || lower.includes('级别') || lower.includes('严重')) {
+    return ['绝对拦截 (禁止开具)', '预警核对 (知晓即可)', '阻断需理由 (必填说明)']
+  }
+  if (lower.includes('疗程') || lower.includes('天数') || lower.includes('单次') || lower.includes('上限')) {
+    return ['门诊常规上限 (7天)', '急诊单次上限 (3天)', '慢性病长处方 (30天)']
+  }
+  if (lower.includes('范围') || lower.includes('处方') || lower.includes('门诊') || lower.includes('急诊')) {
+    return ['同一张门诊处方内', '包含门急诊所有处方', '单次就诊周期内']
+  }
+  if (text.startsWith('是否') || text.includes('是否')) {
+    return ['是 (确认适用)', '否 (予以排除)']
+  }
+  return ['仅限本品', '包含同类药物', '确认无例外情况']
+}
+
 function sameImprovement(a: IntakeImprovementOrigin, b: IntakeImprovementOrigin) {
   if (a.pharmacy || b.pharmacy) return !!a.pharmacy && !!b.pharmacy && a.pharmacy.taskId === b.pharmacy.taskId && a.pharmacy.review.id === b.pharmacy.review.id && a.pharmacy.finding?.findingId === b.pharmacy.finding?.findingId
   return a.feedback.id === b.feedback.id && a.feedback.basis.fingerprint === b.feedback.basis.fingerprint
@@ -31,7 +63,7 @@ export function IntakeSource({ run, api }: { run: RuleIntakeRun; api?: RhnApi })
   const origin = useQuery({ queryKey: ['intake-feedback-origin', run.id], queryFn: () => api!.medicationKnowledgeDrafts.intakeFeedbackOrigin(run.id), enabled: !!api, retry: false })
   return <section className="rule-intake__source"><>{api && origin.error && <Alert tone="error">改进来源读取失败：{errorMessage(origin.error)}</Alert>}{api && !origin.isError && origin.data && <IntakeFeedbackSource origin={origin.data} />}</><strong>需求分析 {run.id} · {run.actor} · {new Date(run.createdAt).toLocaleString()}</strong><p>这是业务需求来源，不是药学证据。分析时能力范围已留存，当前可用能力仍会单独检查。模型：{run.model}。</p><blockquote>{run.input.requirement}</blockquote>{run.input.clarifications.map((a, i) => <details key={i}><summary>澄清 {i + 1} · {a.question}</summary><p>{a.answer}</p><small>来源分析 {a.analysisId}</small></details>)}</section>
 }
-export function MedicationRuleIntake({ api, onStartKnowledge, improvement, onBusy }: { api: RhnApi; onStartKnowledge: (seed: IntakeSeed) => void; improvement?: IntakeImprovementOrigin; onBusy?: (busy: boolean) => void }) {
+export function MedicationRuleIntake({ api, onStartKnowledge, onDraftRule, improvement, onBusy }: { api: RhnApi; onStartKnowledge: (seed: IntakeSeed) => void; onDraftRule?: (req: string, source?: string) => void; improvement?: IntakeImprovementOrigin; onBusy?: (busy: boolean) => void }) {
   const instance = useId(), [requirement, setRequirement] = useState(improvement ? `请核查“${improvement.title}”的适用范围与例外，形成待人工核对的知识改进需求。请填写具体问题与需保留的条件。` : ''), [run, setRun] = useState<RuleIntakeRun>(), [answers, setAnswers] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [page, setPage] = useState(0), [historical, setHistorical] = useState(false)
   const capabilities = useQuery({ queryKey: ['rule-intake-capabilities', instance], queryFn: () => api.medicationKnowledgeDrafts.intakeCapabilities(), retry: false })
@@ -52,8 +84,8 @@ export function MedicationRuleIntake({ api, onStartKnowledge, improvement, onBus
       setRun(value); setAnswers({}); if (page) setPage(0); else await history.refetch()
     } catch (e) { setRun(previous); setHistorical(true); throw e }
   }) }
-  return <section className="rule-intake" aria-label="AI 规则需求分析"><Alert>先明确控制目标、标准范围与缺口，再建立有来源的知识。无需先勾选药品；分析不会生成候选、审批或启用规则。</Alert>
-    {improvement && <IntakeFeedbackSource origin={improvement} />}{error && <Alert tone="error">{error}</Alert>}<div className="rule-intake__layout"><aside className="rule-intake__pane"><h3>描述需求</h3><FormField label="待分析的用药规则需求"><textarea aria-label="待分析的用药规则需求" rows={6} maxLength={4000} disabled={busy} value={requirement} onChange={e => { setConfirmed(false); setRequirement(e.target.value); setRun(undefined); setAnswers({}); setHistorical(false); setError('') }} placeholder="例如：同一处方重复开立同一标准药品时提示；请保留例外、人群与跨处方要求。" /></FormField>
+  return <section className="rule-intake" aria-label="AI 规则需求分析">
+    {improvement && <IntakeFeedbackSource origin={improvement} />}{error && <Alert tone="error">{error}</Alert>}<div className="rule-intake__layout"><aside className="rule-intake__pane"><div className="qmed-title-with-help"><h3>描述需求</h3><span className="qmed-guide-help" title="先明确控制目标与标准范围；无需先勾选药品，分析后可一键带入生成规则配置初稿。"><Icon name="info" /></span></div><FormField label="待分析的用药规则需求"><textarea aria-label="待分析的用药规则需求" rows={3} maxLength={4000} disabled={busy} value={requirement} onChange={e => { setConfirmed(false); setRequirement(e.target.value); setRun(undefined); setAnswers({}); setHistorical(false); setError('') }} placeholder="例如：同一处方重复开立同一标准药品时提示；请保留例外、人群与跨处方要求。" /></FormField>
       {improvement && <label><input type="checkbox" checked={confirmed} disabled={busy} onChange={e => setConfirmed(e.target.checked)} />已核对反馈与待发送文本，确认仅将需求及澄清发送给模型</label>}
       <div className="rule-intake__actions">{!improvement && <Button variant="secondary" disabled={busy} onClick={() => { setRequirement('所有药品单次用量超过3倍制剂规格用量时警告'); setRun(undefined); setAnswers({}); setHistorical(false) }}>填入剂量需求示例</Button>}<Button disabled={busy || !requirement.trim() || !status.data?.available || (!!improvement && !confirmed)} onClick={() => analyze(false)}>{busy ? '正在处理…' : '分析需求与能力缺口'}</Button></div>
       <p>{status.isPending ? '正在检查模型配置…' : status.isError ? errorMessage(status.error) : status.data?.available ? `模型已配置：${status.data.model}` : status.data?.message}</p>
@@ -67,12 +99,23 @@ export function MedicationRuleIntake({ api, onStartKnowledge, improvement, onBus
         <div className="rule-intake__intents">{run.result.intents.map((i, index) => {
           const current = capabilities.isError ? undefined : capabilities.data?.find(c => c.kind === i.kind)
           return <section className="rule-intake__intent" key={`${i.kind}-${index}`}><h4>建议分类：{i.name}</h4><blockquote>{i.citation.quote}</blockquote><p>{scopes[i.scope]}{i.scopeCitation && `：${i.scopeCitation.quote}`}</p>{i.conditions.map((c, n) => <p key={n}>条件原文：{c.citation.quote}</p>)}<p>{i.capability.boundary}</p><strong>需明确的标准与知识</strong><ul>{i.capability.prerequisites.map(p => <li key={p}>{p}</li>)}</ul>
-            {valid && current?.knowledgeWorkflow && i.capability.knowledgeWorkflow && <Button disabled={busy} onClick={() => onStartKnowledge({ kind: i.kind, run, ...(improvement?.knowledgeId ? { knowledgeId: improvement.knowledgeId } : {}) })}>以此需求建立{i.name}知识草稿</Button>}
-            {!i.capability.knowledgeWorkflow && <StatusBadge tone="warning">保留为能力建设需求</StatusBadge>}
+            <div className="rule-intake__intent-actions">
+              {valid && current?.knowledgeWorkflow && i.capability.knowledgeWorkflow && <Button disabled={busy} onClick={() => onStartKnowledge({ kind: i.kind, run, ...(improvement?.knowledgeId ? { knowledgeId: improvement.knowledgeId } : {}) })}>以此需求建立{i.name}知识草稿</Button>}
+              {valid && onDraftRule && <Button variant="secondary" size="sm" disabled={busy} onClick={() => onDraftRule(i.citation?.quote || run.input.requirement, i.name)}>以此生成规则初稿</Button>}
+              {!i.capability.knowledgeWorkflow && <StatusBadge tone="warning">保留为能力建设需求</StatusBadge>}
+            </div>
           </section>
         })}</div>
         {valid && run.result.status !== 'ANALYZED' && <Button disabled={busy || !status.data?.available || (!!improvement && !confirmed)} onClick={() => analyze(true)}>保留澄清重试分析</Button>}
-        {valid && run.result.questions.length > 0 && <fieldset disabled={busy}><h4>补充回答后重新分析</h4><p>回答只说明业务意图，不能代替来源原文。每次澄清生成新记录，保留原分析。</p>{run.result.questions.map(q => <FormField key={q.id} label={`${q.origin === 'AI' ? 'AI 提问' : '系统检查'}：${q.text}`}><textarea aria-label={q.text} rows={2} maxLength={1000} value={answers[q.id] ?? ''} onChange={e => { setConfirmed(false); setAnswers(old => ({ ...old, [q.id]: e.target.value })) }} /></FormField>)}<Button disabled={!Object.values(answers).some(v => v.trim()) || !status.data?.available || (!!improvement && !confirmed)} onClick={() => analyze(true)}>结合回答重新分析</Button></fieldset>}
+        {valid && run.result.questions.length > 0 && <fieldset disabled={busy}><div className="qmed-title-with-help"><h4>补充回答后重新分析</h4><span className="qmed-guide-help" title="可点击快捷选项或输入说明；回答只说明业务意图，不能代替来源原文。每次澄清生成新记录，保留原分析。"><Icon name="info" /></span></div>{run.result.questions.map(q => {
+          const options = deriveQuestionOptions(q.text)
+          return <div key={q.id} className="rule-intake__question-block">
+            <FormField label={`${q.origin === 'AI' ? 'AI 提问' : '系统检查'}：${q.text}`}>
+              <textarea aria-label={q.text} rows={1} maxLength={1000} value={answers[q.id] ?? ''} placeholder="可点击下方快捷选项或在此输入补充说明..." onChange={e => { setConfirmed(false); setAnswers(old => ({ ...old, [q.id]: e.target.value })) }} />
+            </FormField>
+            <div className="rule-intake__quick-options"><span className="rule-intake__quick-label">快捷选项:</span>{options.map(opt => <Button key={opt} variant="text" size="sm" className={`rule-intake__chip-btn ${answers[q.id] === opt ? 'is-selected' : ''}`} onClick={() => { setConfirmed(false); setAnswers(old => ({ ...old, [q.id]: opt })) }}>{opt}</Button>)}</div>
+          </div>
+        })}<Button disabled={!Object.values(answers).some(v => v.trim()) || !status.data?.available || (!!improvement && !confirmed)} onClick={() => analyze(true)}>结合回答重新分析</Button></fieldset>}
         {historical && origin.data && !canResume && <p>该记录关联业务反馈。请从原反馈的“转为 AI 改进需求”入口核对后继续。</p>}{historical && canResume && <Button variant="secondary" disabled={busy} onClick={() => { setRequirement(run.input.requirement); setHistorical(false) }}>基于此记录继续澄清</Button>}
       </>}
     </main></div>

@@ -121,8 +121,8 @@ public final class AgeContraindicationRule implements MedicationSafetyRule {
             }
         }
 
-        if (safetyCategories != null && safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_QUINOLONE, doseForm)) {
-            return true;
+        if (safetyCategories != null) {
+            return safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_QUINOLONE, doseForm);
         }
 
         for (String quinolone : FALLBACK_QUINOLONES) {
@@ -141,8 +141,8 @@ public final class AgeContraindicationRule implements MedicationSafetyRule {
             }
         }
 
-        if (safetyCategories != null && safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_ASPIRIN)) {
-            return true;
+        if (safetyCategories != null) {
+            return safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_ASPIRIN, doseForm);
         }
 
         return name.contains("阿司匹林") || name.contains("乙酰水杨酸") || name.contains("巴米尔");

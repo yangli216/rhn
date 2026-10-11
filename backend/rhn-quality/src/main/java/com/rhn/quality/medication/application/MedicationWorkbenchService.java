@@ -34,22 +34,26 @@ public class MedicationWorkbenchService {
     private final MedicationEvaluationStore evaluationStore;
     private final JsonCodec json;
     private final MedicationCandidateEvaluator evaluator=new MedicationCandidateEvaluator();
+    private final MedicationSafetyCategoryService safetyCategories;
     private final MedicationSafetyEngine activeRuleEngine;
 
     public MedicationWorkbenchService(MedicationRuleAuthoringAi ai, MedicationKnowledgeDirectory knowledge,
             PrescriptionSafetySnapshotDirectory prescriptions, ExecutionContextProvider contexts,
             MedicationWorkbenchStore store, JsonCodec json) {
-        this(ai, knowledge, prescriptions, contexts, store, null, null, json);
+        this(ai, knowledge, prescriptions, contexts, store, null, null, null, json);
     }
 
     @Autowired
     public MedicationWorkbenchService(MedicationRuleAuthoringAi ai, MedicationKnowledgeDirectory knowledge,
             PrescriptionSafetySnapshotDirectory prescriptions, ExecutionContextProvider contexts,
             MedicationWorkbenchStore store, MedicationRuleRegistry registry,
-            MedicationEvaluationStore evaluationStore, JsonCodec json) {
+            MedicationEvaluationStore evaluationStore,
+            @Autowired(required = false) MedicationSafetyCategoryService safetyCategories,
+            JsonCodec json) {
         this.ai=ai; this.knowledge=knowledge; this.prescriptions=prescriptions; this.contexts=contexts;
-        this.store=store; this.registry=registry; this.evaluationStore=evaluationStore; this.json=json;
-        this.activeRuleEngine=MedicationSafetyEngine.standard(json);
+        this.store=store; this.registry=registry; this.evaluationStore=evaluationStore;
+        this.safetyCategories=safetyCategories; this.json=json;
+        this.activeRuleEngine=MedicationSafetyEngine.standard(json, safetyCategories);
     }
     private void access() {
         if (!contexts.requireCurrent().hasAuthority("MASTER_DATA.MANAGE"))
@@ -86,6 +90,25 @@ public class MedicationWorkbenchService {
         access();
         if (evaluationStore == null) return List.of();
         return evaluationStore.findRecent(contexts.requireCurrent().tenantId(), 50);
+    }
+
+    public com.rhn.shared.api.PageResult<EvaluationSummary> evaluationPage(String mode,String decision,Long prescriptionId,Instant from,Instant to,int page,int size) {
+        evaluationContext();
+        if(page<0||page>100000||size<1||size>100)throw badRequest("QMED_EVAL_PAGE","分页参数无效");
+        if(mode!=null&&!mode.isBlank()&&!Set.of("SHADOW","ENFORCED").contains(mode))throw badRequest("QMED_EVAL_MODE","审查模式无效");
+        if(decision!=null&&!decision.isBlank()&&!Set.of("PASS","WARN","REQUIRE_OVERRIDE","BLOCK","UNAVAILABLE").contains(decision))throw badRequest("QMED_EVAL_DECISION","审查结论无效");
+        if(from==null)from=Instant.now().minus(7,java.time.temporal.ChronoUnit.DAYS);
+        if(to==null)to=Instant.now().plusSeconds(1);
+        if(!from.isBefore(to)||java.time.Duration.between(from,to).compareTo(java.time.Duration.ofDays(90))>0)throw badRequest("QMED_EVAL_RANGE","请选择不超过90天的有效时间范围");
+        return evaluationStore.page(contexts.requireCurrent(),mode,decision,prescriptionId,from,to,page,size);
+    }
+    public EvaluationDetail evaluationDetail(Long id) {
+        evaluationContext();return evaluationStore.detail(contexts.requireCurrent(),id).orElseThrow(()->notFound("QMED_EVAL_NOT_FOUND","当前机构科室未找到该审查记录"));
+    }
+    private void evaluationContext() {
+        access();var c=contexts.requireCurrent();
+        if(c.organizationId()==null||c.departmentId()==null)throw badRequest("QMED_EVAL_CONTEXT","请先选择机构和科室");
+        if(evaluationStore==null)throw badRequest("QMED_EVAL_UNAVAILABLE","审查记录服务不可用");
     }
 
     public ActiveRuleTrialRun activeRuleTrial(ActiveRuleTrialRequest request) {
@@ -192,7 +215,9 @@ public class MedicationWorkbenchService {
             2. ANTIMICROBIAL_MAX_DAYS：对 antimicrobial=true 的药品，将处方疗程天数与该药 HIS 主数据 antimicrobialMaxDays 比较；不允许用户或模型改写上限。duplicateCount 固定为 2（此模板忽略它）。
             3. AGE_CONTRAINDICATION：患者年龄禁忌（如18岁以下儿童禁用某些药物）。需输出 minAge=18，以及适用的 categoryName。
             4. CATEGORY_DUPLICATE：同分类药物（如解热镇痛抗炎药）在单张处方中出现数量 >= duplicateCount（2..10）时预警。
+            5. CATEGORY_CONFLICT：分类配伍冲突或相互作用（如强心苷类与钙剂配伍冲突、双重RAS阻断）。需输出适用的 categoryName。
             规则仅适用于输入中明确选择的标准规格及其版本，不得根据药名猜测分类或扩大适用范围。categoryName 仅是所选标准规格组的显示标签。
+            若需求包含连续变量动态阶梯计算（如根据eGFR梯级减量）、复杂联合检验指标计算等当前底座未覆盖的模板，返回 UNSUPPORTED，并在 message 中明确说明：当前底座仅支持人群年龄禁忌、通用名/分类重复用药与配伍冲突模板，暂不支持此类动态检验计算执行器；rule=null。
             不支持、语义歧义、缺少数据、用户要求 BLOCK/生产发布时，返回 UNSUPPORTED 或 CLARIFY，并解释原因；rule=null。
             对疗程模板，所选药品必须至少包含一项具有正整数 antimicrobialMaxDays 的抗菌药；没有则 CLARIFY。
             decision 只允许 WARN；不能宣称临床安全通过。用户未提供权威来源时不得编造指南或证据。
@@ -234,7 +259,7 @@ public class MedicationWorkbenchService {
         return new Generation("READY","候选规则已保存。已生成规则串并支持门诊沙盒模拟验证。",candidate);
     }
     public static void validateRule(RuleSpec rule) {
-        if(rule==null || !Set.of("EXACT_GENERIC_DUPLICATE","ANTIMICROBIAL_MAX_DAYS","AGE_CONTRAINDICATION","CATEGORY_DUPLICATE").contains(Objects.toString(rule.template(),""))
+        if(rule==null || !Set.of("EXACT_GENERIC_DUPLICATE","ANTIMICROBIAL_MAX_DAYS","AGE_CONTRAINDICATION","CATEGORY_DUPLICATE","CATEGORY_CONFLICT").contains(Objects.toString(rule.template(),""))
                 || !"WARN".equals(rule.decision()) || rule.maxAge()!=null
                 || "AGE_CONTRAINDICATION".equals(rule.template()) && (rule.minAge()==null || rule.minAge()<0 || rule.minAge()>150)
                 || rule.duplicateCount()<2 || rule.duplicateCount()>10
@@ -248,18 +273,25 @@ public class MedicationWorkbenchService {
         var candidate=require(id);validateRule(candidate.rule());
         if(request==null || request.items()==null || request.items().size()>100 || request.items().stream().anyMatch(Objects::isNull))
             throw badRequest("QMED_TRIAL_INVALID","模拟处方最多 100 条，条目不能为空");
-        var facts=facts(candidate);
+        var facts = new HashMap<>(facts(candidate));
+        var identities = new HashMap<>(identities(candidate));
         for (int index = 0; index < request.items().size(); index++) {
             var item = request.items().get(index);
             if (item.medicationId() != null && !facts.containsKey(item.medicationId())) {
                 try {
-                    knowledge.require(item.medicationId());
+                    var k = knowledge.require(item.medicationId());
+                    facts.put(k.medication().id(), k.medication());
+                    if (k.standardReference() != null && k.standardReference().linked()) {
+                        var ref = k.standardReference();
+                        identities.put(k.medication().id(), String.join("|", ref.catalogId(), ref.catalogVersion(), ref.contentHash(), ref.specificationId()));
+                    }
                 } catch (BusinessException exception) {
                     throw badRequest("QMED_TRIAL_INVALID", "第 " + (index + 1) + " 行药品不存在、已停用或不属于当前租户");
                 }
             }
         }
-        var result=evaluator.evaluate(candidate.rule(),scope(candidate),request.items(),facts,request.patientContext(), identities(candidate));
+        Long tenantId = contexts.requireCurrent().tenantId();
+        var result=evaluator.evaluate(candidate.rule(),scope(candidate),request.items(),facts,request.patientContext(), identities, tenantId, safetyCategories);
         String caseName = request.patientContext() != null && request.patientContext().patientAgeYears() != null
                 ? "模拟门诊审查（患者 " + request.patientContext().patientAgeYears() + " 岁）"
                 : "自定义模拟就诊审查";
@@ -319,7 +351,8 @@ public class MedicationWorkbenchService {
         return runCase(c, name, expected, input, facts, null);
     }
     private CaseResult runCase(Candidate c, String name, String expected, List<TrialItem> input, Map<Long, MedicationSnapshot> facts, PatientSimulationContext patientContext) {
-        var result = evaluator.evaluate(c.rule(), scope(c), input, facts, patientContext, identities(c));
+        Long tenantId = contexts.requireCurrent().tenantId();
+        var result = evaluator.evaluate(c.rule(), scope(c), input, facts, patientContext, identities(c), tenantId, safetyCategories);
         return new CaseResult(name, expected, result.decision(), expected.equals(result.decision()), result.matchedRows(), result.reasons(), input);
     }
     public PrescriptionPreview prescriptionPreview(ShadowRequest request) {
@@ -382,7 +415,8 @@ public class MedicationWorkbenchService {
         if(!Set.of("DRAFT","ACTIVE").contains(snapshot.prescriptionStatus())) reasons.add("处方状态不支持旁路评价");
         var patient = snapshot.patientContext();
         var patientContext = patient == null ? null : new PatientSimulationContext(patient.patientAgeYears(), patient.gender(), List.of());
-        var result=evaluator.evaluate(candidate.rule(),scope(candidate),inputs,facts,patientContext,historicalIdentities);
+        Long tenantId = contexts.requireCurrent().tenantId();
+        var result=evaluator.evaluate(candidate.rule(),scope(candidate),inputs,facts,patientContext,historicalIdentities,tenantId,safetyCategories);
         reasons.addAll(result.reasons());
         String actual=reasons.size()>result.reasons().size()?"UNAVAILABLE":result.decision();
         var output=new CaseResult("HIS 处方旁路",null,actual,false,result.matchedRows(),reasons,inputs);

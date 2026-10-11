@@ -246,4 +246,45 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
             assertTrue(c.path("passed").asBoolean(), c.toString());
         }
     }
+
+    @Test void child_age_contraindication_only_intercepts_target_category_and_passes_unrelated_drugs() throws Exception {
+        var amoxicillin = medication(); // 阿莫西林胶囊
+        var levofloxacin = "362387880000128"; // 左氧氟沙星片
+
+        // 1. 在行规则沙箱：14岁儿童开具非喹诺酮类（阿莫西林），AGE_CONTRAINDICATION 必须 PASS（不拦截）
+        var amoxRequest = """
+                {"ruleCodes":["QMED.AGE_CONTRAINDICATION"],
+                 "items":[{"medicationId":"%s","status":"DRAFT","durationDays":3}],
+                 "patientContext":{"patientAgeYears":14,"gender":"男","activeAllergies":[]}}
+                """.formatted(amoxicillin);
+        mockMvc.perform(post(ROOT+"/active-rules/trial").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(amoxRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases[0].decision").value("PASS"));
+
+        // 2. 在行规则沙箱：14岁儿童开具全身性喹诺酮（左氧氟沙星片），AGE_CONTRAINDICATION 动态阻断
+        var levoRequest = """
+                {"ruleCodes":["QMED.AGE_CONTRAINDICATION"],
+                 "items":[{"medicationId":"%s","status":"DRAFT","durationDays":3}],
+                 "patientContext":{"patientAgeYears":14,"gender":"男","activeAllergies":[]}}
+                """.formatted(levofloxacin);
+        mockMvc.perform(post(ROOT+"/active-rules/trial").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(levoRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases[0].decision").value("BLOCK"))
+                .andExpect(jsonPath("$.cases[0].matchedRows[0]").value(1));
+
+        // 3. 在行规则沙箱：混合处方（第1行阿莫西林，第2行左氧氟沙星），必须精准命中第2行，不误伤第1行
+        var mixedRequest = """
+                {"ruleCodes":["QMED.AGE_CONTRAINDICATION"],
+                 "items":[
+                   {"medicationId":"%s","status":"DRAFT","durationDays":3},
+                   {"medicationId":"%s","status":"DRAFT","durationDays":3}
+                 ],
+                 "patientContext":{"patientAgeYears":14,"gender":"男","activeAllergies":[]}}
+                """.formatted(amoxicillin, levofloxacin);
+        mockMvc.perform(post(ROOT+"/active-rules/trial").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(mixedRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases[0].decision").value("BLOCK"))
+                .andExpect(jsonPath("$.cases[0].matchedRows.length()").value(1))
+                .andExpect(jsonPath("$.cases[0].matchedRows[0]").value(2));
+    }
 }

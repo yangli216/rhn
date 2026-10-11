@@ -1,6 +1,7 @@
 package com.rhn.ai.application;
 
 import com.rhn.ai.api.ClinicalTriageContracts.AssessmentRequest;
+import com.rhn.ai.api.ClinicalTriageContracts.DecisionMode;
 import com.rhn.ai.api.ClinicalTriageContracts.AssessmentResponse;
 import com.rhn.ai.api.ClinicalTriageContracts.DepartmentRecommendation;
 import com.rhn.outpatient.api.OutpatientTriageAssessmentDirectory;
@@ -52,7 +53,7 @@ public class ClinicalTriageAssessmentService {
                         value.rationale(), value.availableSlotCount(), value.alertNotice(), "LOCAL_ASSIST",
                         value.scheduledToday())).toList();
 
-        if (Boolean.FALSE.equals(input.aiEnhancement()) || runtime.mode() != ClinicalAssistantSettings.Mode.MODEL
+        if (decisionMode(context) == DecisionMode.ASSIST || Boolean.FALSE.equals(input.aiEnhancement()) || runtime.mode() != ClinicalAssistantSettings.Mode.MODEL
                 || !runtime.availableFor(context)) {
             String source = runtime.mode() == ClinicalAssistantSettings.Mode.LOCAL_ASSIST
                     && runtime.availableFor(context) ? "LOCAL_ASSIST" : "RULE";
@@ -85,12 +86,23 @@ public class ClinicalTriageAssessmentService {
         }
     }
 
-    private static AssessmentResponse response(BaselineAssessment baseline, String level, String source,
+    private AssessmentResponse response(BaselineAssessment baseline, String level, String source,
                                                String mode, boolean aiApplied, String summary,
                                                List<String> dangerSigns, List<DepartmentRecommendation> departments,
                                                String fallbackReason) {
         return new AssessmentResponse(baseline.rule().level(), level, source, mode, aiApplied, summary,
-                baseline.rule().reasons(), dangerSigns, departments, fallbackReason);
+                baseline.rule().reasons(), dangerSigns, departments, fallbackReason, decisionMode(contextProvider.requireCurrent()));
+    }
+
+    private DecisionMode decisionMode(ExecutionContext context) {
+        if (!runtimePolicy.booleanValue(context.tenantId(), DecisionScene.OUTPATIENT_TRIAGE.settingKey(), false)) {
+            return DecisionMode.DISABLED;
+        }
+        try {
+            return DecisionMode.valueOf(runtimePolicy.text(context.tenantId(), "decision-mode", "DISABLED").toUpperCase(java.util.Locale.ROOT));
+        } catch (RuntimeException exception) {
+            return DecisionMode.DISABLED;
+        }
     }
 
     private static List<DepartmentRecommendation> mergeRecommendations(

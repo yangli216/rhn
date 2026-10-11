@@ -27,7 +27,7 @@ export function createMedicationKnowledgeDraftApi(client: ApiClient) {
   const improvementRoot = (origin: IntakeImprovementOrigin) => origin.pharmacy ? pharmacyRoot(origin.pharmacy.taskId, origin.pharmacy.review.id) : `${feedbackRoot(origin.feedback.basis.candidateId, origin.feedback.basis.deploymentId, origin.feedback.basis.runId)}/improvement-intakes`
   return {
     examples: () => client.request<KnowledgeExample[]>(`${root}/examples`),
-    intakeFeedbackOrigin: (id: string) => client.request<IntakeImprovementOrigin | null>(`${intakeRoot}/${encodeURIComponent(id)}/feedback-origin`),
+    intakeFeedbackOrigin: (id: string) => client.request<IntakeImprovementOrigin | null>(`${intakeRoot}/${encodeURIComponent(id)}/feedback-origin`).then(res => res ?? null),
     feedbackImprovementHistory: (origin: IntakeImprovementOrigin, page = 0) => client.request<KnowledgeReplayPage<{ id: string; parentId: string | null; requirement: string; status: string; actor: string; createdAt: string }>>(`${improvementRoot(origin)}?page=${page}`),
     analyzeFeedbackImprovement: (origin: IntakeImprovementOrigin, input: { requirement: string; parentId?: string; answers: { questionId: string; value: string }[] }) => client.request<RuleIntakeRun>(improvementRoot(origin), { method: 'POST', body: JSON.stringify(origin.pharmacy ? { intake: input, findingId: origin.pharmacy.finding?.findingId ?? null, confirmed: true } : { intake: input, feedbackId: origin.feedback.id, expectedBasisHash: origin.feedback.basis.fingerprint, confirmed: true }) }),
     pharmacyImprovementSource: (task: string, review: string, finding?: string) => client.request<PharmacyIntakeOrigin>(`${pharmacyRoot(task, review)}/source${finding ? `?findingId=${encodeURIComponent(finding)}` : ''}`),

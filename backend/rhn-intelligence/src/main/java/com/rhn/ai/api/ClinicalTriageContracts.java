@@ -33,5 +33,17 @@ public final class ClinicalTriageContracts {
                                      boolean aiApplied, String summary, List<String> ruleReasons,
                                      List<String> dangerSigns,
                                      List<DepartmentRecommendation> departmentRecommendations,
-                                     String fallbackReason) { }
+                                     String fallbackReason, DecisionMode decisionMode) { }
+
+    public enum DecisionMode { DISABLED, SHADOW, ASSIST }
+    public enum DecisionStatus { DISABLED, SHADOW, ASSIST, UNCERTAIN, NO_INPUT, CONFIGURATION_INCOMPLETE, CANDIDATE_LIMIT, FAILED }
+    public enum SupplementTopic { ONSET, COURSE, ASSOCIATED_SYMPTOMS, HISTORY }
+
+    public record DecisionDepartment(Long departmentId, String departmentName, int availableScheduleCount,
+                                     boolean scheduledToday, double confidence, double probability) { }
+    public record SupplementPrompt(SupplementTopic topic, String message, double confidence) { }
+    public record DecisionAssessment(DecisionMode mode, DecisionStatus status, DecisionDepartment department,
+                                     List<SupplementPrompt> supplements, String message, String traceId,
+                                     String model, String version, String inputHash, Integer latencyMs,
+                                     Double minConfidence) { }
 }

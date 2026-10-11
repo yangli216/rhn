@@ -280,7 +280,7 @@ class ScopePlanTest(unittest.TestCase):
     def test_all_maintained_scopes_reference_real_tests(self):
         scopes = json.loads((ROOT / "scripts/verification-scopes.json").read_text())["scopes"]
         self.assertEqual(set(scopes), {"frequency", "outpatient-draft", "round1", "knowledge-panel",
-                                      "billing", "master-data", "inventory", "medication-safety", "ai-matching"})
+                                      "billing", "master-data", "inventory", "medication-safety", "ai-matching", "triage", "decision-observation"})
         for scope in scopes:
             with self.subTest(scope=scope):
                 planned = self.plan(ROOT, scope)

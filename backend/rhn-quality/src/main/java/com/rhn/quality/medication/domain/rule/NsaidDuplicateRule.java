@@ -110,8 +110,8 @@ public final class NsaidDuplicateRule implements MedicationSafetyRule {
             }
         }
 
-        if (safetyCategories != null && safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_SYSTEMIC_NSAID, doseForm)) {
-            return true;
+        if (safetyCategories != null) {
+            return safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_SYSTEMIC_NSAID, doseForm);
         }
 
         for (String stem : FALLBACK_NSAID_STEMS) {

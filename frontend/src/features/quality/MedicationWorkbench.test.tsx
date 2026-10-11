@@ -153,6 +153,8 @@ function setup(available: boolean, saved: unknown[] = []) {
       }]
     }),
     evaluations: vi.fn().mockResolvedValue(mockEvaluations),
+    evaluationRecords: vi.fn().mockResolvedValue({ content: mockEvaluations, totalElements: mockEvaluations.length, totalPages: 1, page: 0, size: 20 }),
+    evaluationDetail: vi.fn().mockResolvedValue({ summary: mockEvaluations[0], input: {}, result: {} }),
     approve: vi.fn().mockImplementation((id: string) =>
       Promise.resolve({ ...candidate, id, status: 'APPROVED_FOR_SHADOW' })
     ),
@@ -254,8 +256,12 @@ describe('MedicationWorkbench', () => {
     await importHisPrescription(user)
     const drug = screen.getByRole('combobox', { name: '第1行药品' })
     expect(drug).toHaveTextContent('历史阿莫西林')
+    expect(drug).toHaveTextContent('历史规格 0.125g')
     await user.click(drug)
-    expect(await screen.findByText('历史规格 0.125g')).toBeInTheDocument()
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '阿莫西林')
+    await screen.findByRole('option', { name: /阿莫西林/ })
+    expect(drug).toHaveTextContent('历史阿莫西林')
+    expect(drug).toHaveTextContent('历史规格 0.125g')
     await user.keyboard('{Escape}')
     expect(screen.getByLabelText('药物过敏史')).toHaveValue('青霉素')
     expect(screen.getByRole('combobox', { name: '性别' })).toHaveTextContent('女')
@@ -314,14 +320,14 @@ describe('MedicationWorkbench', () => {
   })
   it('shows formal review as formal and does not equate zero findings with absence of risk', async () => {
     const api = setup(true)
-    api.evaluations.mockResolvedValue([{ ...mockEvaluations[0], mode: 'ENFORCED', findingCount: 0, decision: 'UNAVAILABLE' }])
+    api.evaluationRecords.mockResolvedValue({ content: [{ ...mockEvaluations[0], mode: 'ENFORCED', findingCount: 0, decision: 'UNAVAILABLE' }], totalElements: 1, totalPages: 1, page: 0, size: 20 })
     const user = userEvent.setup()
     await user.click(await screen.findByRole('tab', { name: /处方质量审查日志/ }))
     await user.click(screen.getByRole('button', { name: '刷新日志' }))
     expect(await screen.findByText('正式审查')).toBeInTheDocument()
     expect(screen.getByText('未记录命中项')).toBeInTheDocument()
     expect(screen.queryByText('无风险')).not.toBeInTheDocument()
-    expect(screen.getByText('数据不足无法评价')).toBeInTheDocument()
+    expect(screen.getByText('不可评价')).toBeInTheDocument()
   })
 
   it('opens requirement clarification first while retaining the explicit template history entry', async () => {
@@ -361,7 +367,8 @@ describe('MedicationWorkbench', () => {
     expect(await screen.findByRole('heading', { name: '内置规则验证沙箱' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: '验证范围' })).toBeInTheDocument()
     await user.click(screen.getByRole('combobox', { name: '沙箱第1行药品' }))
-    await user.click(await screen.findByText('阿莫西林'))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '阿莫西林')
+    await user.click(await screen.findByRole('option', { name: /阿莫西林/ }))
     await user.click(screen.getByRole('button', { name: '验证所选单条规则' }))
     await waitFor(() => expect(api.activeRuleTrial).toHaveBeenCalledWith(
       ['QMED.EXACT_GENERIC_DUPLICATE'],
@@ -369,6 +376,66 @@ describe('MedicationWorkbench', () => {
       expect.objectContaining({ patientAgeYears: 35 })
     ))
     expect(await screen.findByText('同一通用药出现 2 次')).toBeInTheDocument()
+  })
+
+  it('searches active master medications outside the initial workbench list and clears the selected dosing facts', async () => {
+    const api = setup(false)
+    const outside = { ...med.medication, id: '987654321012345678', code: 'MASTER-ONLY', name: '主档新增药品',
+      preparationSpec: '10mg', defaultRoute: 'ORAL', defaultFrequency: 'TID' }
+    api.masterData.medications.mockResolvedValue([outside])
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('tab', { name: /内置规则验证沙箱/ }))
+    expect(api.masterData.medications).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('combobox', { name: '沙箱第1行药品' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), outside.code)
+    await user.click(await screen.findByRole('option', { name: /主档新增药品/ }))
+    expect(api.masterData.medications).toHaveBeenCalledWith(outside.code, '', 'ACTIVE', undefined)
+    expect(screen.getByRole('combobox', { name: '沙箱第1行药品' })).toHaveTextContent('主档新增药品 (10mg)')
+    expect(screen.getByRole('combobox', { name: '沙箱第1行给药途径' })).toHaveTextContent('口服')
+    expect(screen.getByRole('combobox', { name: '沙箱第1行给药频次' })).toHaveTextContent('每日三次')
+    await user.click(screen.getByRole('button', { name: '验证全部内置规则' }))
+    await waitFor(() => expect(api.activeRuleTrial).toHaveBeenCalledWith([], [expect.objectContaining({
+      medicationId: outside.id, name: outside.name, spec: '10mg', routeCode: 'ORAL', frequencyCode: 'TID'
+    })], expect.any(Object)))
+    await user.click(screen.getByRole('combobox', { name: '沙箱第1行药品' }))
+    await user.click(screen.getByRole('button', { name: '清空选择' }))
+    expect(screen.getByRole('combobox', { name: '沙箱第1行药品' })).toHaveTextContent('选择模拟处方药品')
+    expect(screen.getByRole('combobox', { name: '沙箱第1行给药途径' })).not.toHaveTextContent('口服')
+    expect(screen.getByRole('combobox', { name: '沙箱第1行给药频次' })).not.toHaveTextContent('每日三次')
+    expect(screen.queryByText('同一通用药出现 2 次')).not.toBeInTheDocument()
+  })
+
+  it('shows a failed master search instead of offering drugs from the initial list', async () => {
+    const api = setup(true)
+    api.masterData.medications.mockRejectedValue(new Error('药品主档查询失败'))
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('tab', { name: /内置规则验证沙箱/ }))
+    await user.click(screen.getByRole('combobox', { name: '沙箱第1行药品' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '阿莫西林')
+    expect(await screen.findByRole('alert')).toHaveTextContent('药品主档查询失败')
+    expect(screen.queryByRole('option', { name: /阿莫西林/ })).not.toBeInTheDocument()
+    expect(api.medications).toHaveBeenCalledTimes(1)
+    expect(api.activeRuleTrial).not.toHaveBeenCalled()
+  })
+
+  it('allows candidate simulation to select active master medications outside its bound rule scope', async () => {
+    const api = setup(true, [candidate])
+    const outside = { ...med.medication, id: '987654321012345678', code: 'MASTER-ONLY', name: '主档新增药品',
+      preparationSpec: '10mg', defaultRoute: 'ORAL', defaultFrequency: 'TID' }
+    api.masterData.medications.mockResolvedValue([outside])
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('tab', { name: /AI 规则工坊与候选孵化/ }))
+    await user.click(screen.getByRole('button', { name: '模板候选与历史' }))
+    await user.click(await screen.findByRole('button', { name: /候选版本 重复核对/ }))
+    await user.click(screen.getByRole('combobox', { name: '第1行药品' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), outside.name)
+    await user.click(await screen.findByRole('option', { name: /主档新增药品/ }))
+    expect(api.masterData.medications).toHaveBeenCalledWith(outside.name, '', 'ACTIVE', undefined)
+    expect(screen.getByText('不在规则范围')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '模拟门诊就诊审查' }))
+    await waitFor(() => expect(api.trial).toHaveBeenCalledWith(candidate.id, [expect.objectContaining({
+      medicationId: outside.id, name: outside.name, spec: '10mg', routeCode: 'ORAL', frequencyCode: 'TID'
+    })], expect.any(Object)))
   })
 
   it('navigates to evaluations tab and displays prescription audit records', async () => {

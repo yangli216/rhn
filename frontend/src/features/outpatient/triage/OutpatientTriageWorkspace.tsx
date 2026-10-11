@@ -35,6 +35,7 @@ import {
 } from '../../../shared/ui'
 import '../../../styles/features/outpatient-triage.css'
 import { TriageTicketModal } from './TriageTicketModal'
+import { TriageDecisionAdvice } from './TriageDecisionAdvice'
 import {
   COMMON_SYMPTOM_TAGS,
   GREEN_CHANNEL_OPTIONS,
@@ -235,21 +236,36 @@ export function OutpatientTriageWorkspace({
 
   // 先返回确定性规则结果；仅在 MODEL 模式下静默启动较慢的模型增强。
   const baseAssessmentQuery = useQuery({
-    queryKey: ['outpatient-triage-assessment-base', activeEncounterId, patientName, debouncedAssessmentInput],
+    queryKey: ['outpatient-triage-assessment-base', clinicalContext.organization.id, clinicalContext.department.id, activeResidentId, activeEncounterId, patientName, debouncedAssessmentInput],
     queryFn: () => api.outpatientTriage.assess({ ...debouncedAssessmentInput, aiEnhancement: false }),
     enabled: hasAssessmentInput,
     staleTime: 30_000,
   })
   const aiAssessmentQuery = useQuery({
-    queryKey: ['outpatient-triage-assessment-ai', activeEncounterId, patientName, debouncedAssessmentInput],
+    queryKey: ['outpatient-triage-assessment-ai', clinicalContext.organization.id, clinicalContext.department.id, activeResidentId, activeEncounterId, patientName, debouncedAssessmentInput],
     queryFn: () => api.outpatientTriage.assess({ ...debouncedAssessmentInput, aiEnhancement: true }),
-    enabled: hasAssessmentInput && baseAssessmentQuery.data?.aiMode === 'MODEL',
+    enabled: hasAssessmentInput && baseAssessmentQuery.data?.aiMode === 'MODEL'
+      && baseAssessmentQuery.data?.decisionMode !== 'ASSIST',
     staleTime: 30_000,
     retry: false,
   })
-  const triageAssessment = aiAssessmentQuery.data?.aiApplied
-    ? aiAssessmentQuery.data
-    : baseAssessmentQuery.data
+  const decisionQuery = useQuery({
+    queryKey: ['outpatient-triage-decision', clinicalContext.organization.id, clinicalContext.department.id,
+      activeResidentId, activeEncounterId, patientName, debouncedAssessmentInput, baseAssessmentQuery.data?.decisionMode],
+    queryFn: () => api.outpatientTriage.decide(debouncedAssessmentInput),
+    enabled: hasAssessmentInput && Boolean(baseAssessmentQuery.data?.decisionMode)
+      && baseAssessmentQuery.data?.decisionMode !== 'DISABLED',
+    staleTime: 30_000,
+    retry: false,
+  })
+  // Hide old advice immediately during debounce, patient switches and refetches; never adopt stale input.
+  const decisionEnabled = baseAssessmentQuery.data?.decisionMode === 'ASSIST'
+    || baseAssessmentQuery.data?.decisionMode === 'SHADOW'
+  const decisionFresh = decisionEnabled && assessmentInput === debouncedAssessmentInput && !decisionQuery.isFetching
+  const decisionAdvice = decisionFresh ? decisionQuery.data : undefined
+  const triageAssessment = assessmentInput !== debouncedAssessmentInput ? undefined
+    : baseAssessmentQuery.data?.decisionMode !== 'ASSIST' && aiAssessmentQuery.data?.aiApplied
+      ? aiAssessmentQuery.data : baseAssessmentQuery.data
   const departmentRecommendations = triageAssessment?.departmentRecommendations ?? []
   const assessmentSourceLabel = triageAssessment?.source === 'AI_ENHANCED'
     ? 'AI增强'
@@ -321,11 +337,11 @@ export function OutpatientTriageWorkspace({
       setTriageReason((current) => current || triageAssessment.summary)
     }
     const first = triageAssessment.departmentRecommendations[0]
-    if (!targetDepartmentId && first) {
+    if (baseAssessmentQuery.data?.decisionMode !== 'ASSIST' && !targetDepartmentId && first) {
       setTargetDepartmentId(first.departmentId)
       setTargetDepartmentName(first.departmentName)
     }
-  }, [triageAssessment, targetDepartmentId, triageLevel])
+  }, [triageAssessment, targetDepartmentId, triageLevel, baseAssessmentQuery.data?.decisionMode])
 
   // 切换患者清空或回填
   const resetForm = useCallback(() => {
@@ -509,7 +525,7 @@ export function OutpatientTriageWorkspace({
       setTriageReason((r) => r || dept.rationale)
     }
     setFeedback({
-      message: `已采纳推荐科室：${dept.departmentName}（匹配度 ${dept.score}%）`,
+      message: `已采纳推荐科室：${dept.departmentName}（参考分 ${dept.score}）`,
       tone: 'success',
     })
   }
@@ -1448,6 +1464,17 @@ export function OutpatientTriageWorkspace({
               )}
             </div>
 
+            <TriageDecisionAdvice assessment={decisionAdvice}
+              loading={decisionQuery.isFetching && assessmentInput === debouncedAssessmentInput}
+              failed={decisionQuery.isError && decisionFresh}
+              canAdopt={canEdit && queueTab === 'ARRIVAL'} targetDepartmentId={targetDepartmentId || undefined}
+              onAdopt={(department) => {
+                if (!decisionFresh || !department.departmentId || !department.departmentName) return
+                setTargetDepartmentId(department.departmentId)
+                setTargetDepartmentName(department.departmentName)
+                setFeedback({ message: `已人工采纳科室建议：${department.departmentName}`, tone: 'success' })
+              }} />
+
             {queueTab === 'ARRIVAL' ? (
               <>
                 <div className="triage-assist-section-title">
@@ -1472,7 +1499,7 @@ export function OutpatientTriageWorkspace({
                           {rec.departmentName}
                           {rec.source === 'AI' && <small className="triage-recommendation-card__source">AI增强</small>}
                         </span>
-                        <span className="triage-recommendation-card__score">匹配度 {rec.score}%</span>
+                        <span className="triage-recommendation-card__score">{rec.source === 'AI' ? 'AI参考分' : '规则参考分'} {rec.score}</span>
                       </div>
                       <p className="triage-recommendation-card__reason">{rec.rationale}</p>
                       {rec.alertNotice && (
@@ -1524,7 +1551,7 @@ export function OutpatientTriageWorkspace({
                       <Icon name="info" />
                       <div>
                         <strong>疑似错科提醒，仅供护士复核</strong>
-                        <span>当前挂号为{targetDepartmentName}，症状更匹配{topDepartmentRecommendation.departmentName}（{topDepartmentRecommendation.score}%）。必要时按院内流程转诊，不直接改号。</span>
+                        <span>当前挂号为{targetDepartmentName}，症状更匹配{topDepartmentRecommendation.departmentName}（参考分 {topDepartmentRecommendation.score}）。必要时按院内流程转诊，不直接改号。</span>
                       </div>
                     </div>
                   )}

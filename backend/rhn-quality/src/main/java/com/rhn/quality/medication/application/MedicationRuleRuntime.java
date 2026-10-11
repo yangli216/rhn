@@ -19,13 +19,14 @@ import static com.rhn.outpatient.api.MedicationSafetyDecision.*;
 public class MedicationRuleRuntime {
     private final MedicationRuleGovernanceStore store; private final JsonCodec json; private final com.rhn.quality.medication.infrastructure.MedicationKnowledgePublicationStore publications;
     private final MedicationSafetyEngine engine; private final MedicationCandidateEvaluator templates=new MedicationCandidateEvaluator();
+    private final MedicationSafetyCategoryService safetyCategories;
     public MedicationRuleRuntime(MedicationRuleGovernanceStore store,JsonCodec json,com.rhn.quality.medication.infrastructure.MedicationKnowledgePublicationStore publications) {
         this(store, json, publications, null);
     }
     @org.springframework.beans.factory.annotation.Autowired
     public MedicationRuleRuntime(MedicationRuleGovernanceStore store,JsonCodec json,com.rhn.quality.medication.infrastructure.MedicationKnowledgePublicationStore publications,
                                  @org.springframework.beans.factory.annotation.Autowired(required = false) MedicationSafetyCategoryService safetyCategories) {
-        this.store=store;this.json=json;this.publications=publications;this.engine=MedicationSafetyEngine.standard(json, safetyCategories);
+        this.store=store;this.json=json;this.publications=publications;this.safetyCategories=safetyCategories;this.engine=MedicationSafetyEngine.standard(json, safetyCategories);
     }
     public record Selected(String key,Deployment deployment) {}
     public record Plan(List<RuleVersion> baseline,List<Selected> shadow,List<Selected> enforced) {}
@@ -127,7 +128,7 @@ public class MedicationRuleRuntime {
         if(!missing.isEmpty()) return new MedicationSafetyEngine.Result(List.of(),List.of(new RuleExecution(rule.definition().code(),rule.version(),"UNAVAILABLE",missing.getFirst())),missing.stream().distinct().toList());
         if(trial.isEmpty()) return new MedicationSafetyEngine.Result(List.of(),List.of(new RuleExecution(rule.definition().code(),rule.version(),"NOT_APPLICABLE",null)),List.of());
         var patient=snapshot.patientContext();var context=patient==null?null:new PatientSimulationContext(patient.patientAgeYears(),patient.gender(),List.of());
-        var result=templates.evaluate(c.rule(),List.of(),trial,facts,context,identities);
+        var result=templates.evaluate(c.rule(),List.of(),trial,facts,context,identities,snapshot.tenantId(),safetyCategories);
         if("UNAVAILABLE".equals(result.decision())) return new MedicationSafetyEngine.Result(List.of(),List.of(new RuleExecution(rule.definition().code(),rule.version(),"UNAVAILABLE","REQUIRED_INPUT_MISSING")),List.of("REQUIRED_INPUT_MISSING"));
         var findings=result.matchedRows().isEmpty()?List.<MedicationSafetyFinding>of():List.of(new MedicationSafetyFinding(GlobalIds.next(),rule,
                 c.rule().message()+"；"+String.join("；",result.reasons()),result.matchedRows().stream().map(i->rows.get(i-1).medicationRequestId()).toList(),"请核对规则证据及处方；按已审核的执行动作处理。"));

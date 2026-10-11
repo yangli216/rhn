@@ -1565,3 +1565,9 @@
     border: none;
   }
 }
+
+.triage-decision-advice { flex-shrink: 0; display: grid; gap: var(--layout-panel-gap); }
+.triage-decision-advice h3 { margin: 0; }
+.triage-decision-advice__body { display: grid; gap: var(--layout-panel-gap); }
+.triage-decision-advice__body p { margin: 0; }
+.triage-decision-advice__body ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }

@@ -14,3 +14,9 @@
 .rule-intake h3, .rule-intake h4 { margin: 8px 0; }
 .rule-intake fieldset { border: 0; padding: 0; display: grid; gap: 12px; }
 .rule-intake summary { cursor: pointer; }
+.rule-intake__intent-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; margin-top: var(--space-2); }
+.rule-intake__quick-options { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; margin-top: var(--space-1); margin-bottom: var(--space-2); }
+.rule-intake__quick-label { font-size: var(--font-size-small); color: var(--color-text-secondary); margin-right: var(--space-1); }
+.rule-intake__chip-btn { display: inline-flex; align-items: center; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary); font-size: var(--font-size-small); cursor: pointer; transition: all 0.15s ease; }
+.rule-intake__chip-btn:hover { background: var(--color-brand-soft); border-color: var(--color-brand-primary); color: var(--color-brand-primary); }
+.rule-intake__chip-btn.is-selected { background: var(--color-brand-soft); border-color: var(--color-brand-primary); color: var(--color-brand-primary); font-weight: var(--font-weight-semibold); }

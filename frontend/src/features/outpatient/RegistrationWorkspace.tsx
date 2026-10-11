@@ -24,12 +24,12 @@ import '../../styles/features/scheduling-registration.css'
 export { getCashPresets }
 export type { PatientIntakeChannel, PatientIntakeMeta }
 
-const businessDate = () => new Intl.DateTimeFormat('en-CA', {
+const businessDate = (value = new Date()) => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-}).format(new Date())
+}).format(value)
 
 function clock(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+  return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false })
     .format(new Date(value))
 }
 
@@ -435,7 +435,16 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 }) {
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
-  const today = useMemo(businessDate, [])
+  const [today, setToday] = useState(businessDate)
+  useEffect(() => {
+    const updateDay = () => setToday(businessDate())
+    const timer = window.setInterval(updateDay, 60_000)
+    window.addEventListener('focus', updateDay)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', updateDay)
+    }
+  }, [])
   const [selected, setSelected] = useState<Resident | null>(null)
   const [scheduleId, setScheduleId] = useState('')
   const [visitType, setVisitType] = useState<'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY'>('GENERAL')
@@ -537,8 +546,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     queryFn: () => api.scheduling.schedules(today, today),
   })
   const todayQueue = useQuery({
-    queryKey: ['outpatient-reception-queue', clinicalContext.organization.id, clinicalContext.department.id, today],
-    queryFn: () => api.scheduling.receptionQueue(today, undefined, 'ORGANIZATION'),
+    queryKey: ['outpatient-reception-queue', 'REGISTERED_BY_ME', clinicalContext.organization.id, clinicalContext.department.id, today],
+    queryFn: () => api.scheduling.receptionQueue(today, undefined, 'REGISTERED_BY_ME'),
   })
   const visitTypes = useQuery({
     queryKey: ['system-enum', SCHEDULING_SYSTEM_ENUM.visitType],
@@ -980,7 +989,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       .reduce((sum, value) => sum + value.amount, 0),
     otherFundAmount: currentSettlement?.otherAmount }] : []
 
-  const todayRecords = todayQueue.data ?? []
+  const todayRecords = (todayQueue.data ?? []).filter((item) =>
+    Number.isFinite(Date.parse(item.registeredAt)) && businessDate(new Date(item.registeredAt)) === today)
   const todayList = [...todayRecords].sort((left, right) => {
     const leftRegisteredAt = Date.parse(left.registeredAt)
     const rightRegisteredAt = Date.parse(right.registeredAt)
@@ -1544,7 +1554,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       <details className="registration-history-panel" open>
         <summary>
           <span className="registration-history-summary-main">
-            <strong>本窗口今日挂号记录（最近流水）</strong> · 今日已挂号 {todayRecords.length} 人 · {todayWaitingCount} 人候诊中
+            <strong>本人今日挂号流水（最近 3 条）</strong> · 今日已挂号 {todayRecords.length} 人 · {todayWaitingCount} 人候诊中
           </span>
           <span className="registration-history-summary-actions">
             <Button size="sm" variant="text" onClick={(event) => {
@@ -1558,9 +1568,11 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
           </span>
         </summary>
         <div className="registration-history-content">
-          {todayList.length === 0 ? (
+          {todayQueue.isPending ? <LoadingState label="正在加载挂号流水…" />
+            : todayQueue.isError ? <Alert tone="error">挂号流水加载失败，请刷新重试。</Alert>
+            : todayList.length === 0 ? (
             <div className="registration-history-empty">
-              今日尚无挂号流水记录。
+              今日尚无本人办理的挂号记录。
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
@@ -1587,7 +1599,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                       <td>{item.healthRecordNo}</td>
                       <td>{item.serviceName} · {item.practitionerName || '普通门诊'}</td>
                       <td>{item.sdDayPartText || '当日'}</td>
-                      <td>{clock(item.registeredAt)}</td>
+                      <td>{businessDate(new Date(item.registeredAt))} {clock(item.registeredAt)}</td>
                       <td className={tableCellClass('status')}><StatusBadge tone={statusTone(item)}>{statusLabel(item, receptionStatuses.data)}</StatusBadge></td>
                       <td className={tableCellClass('actions')}>
                         <div style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { KnowledgeAssessment, KnowledgeBody, KnowledgeCase, KnowledgeDetail, KnowledgeRoutes, KnowledgeVersion } from '../../shared/api/medicationKnowledgeDraftApi'
-import { Alert, Button, Dialog, FormField, Pagination, SearchField, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, FormField, Icon, Pagination, SearchField, Select, StatusBadge } from '../../shared/ui'
 import { MedicationKnowledgeExtractionDialog } from './MedicationKnowledgeExtractionDialog'
 import { MedicationKnowledgeRuleDialog } from './MedicationKnowledgeRuleDialog'
 import { MedicationKnowledgeReplayDialog } from './MedicationKnowledgeReplayDialog'
@@ -97,7 +97,7 @@ export function MedicationKnowledgeDrafts({ api, initialIntake, onIntakeConsumed
     {body[key].map((t, index) => <div className="knowledge-target" key={`${t.level}-${t.specificationId}-${index}`}><div>{labels[t.specificationId] ?? t.specificationId}<small>{t.level === 'ENTRY' ? '标准条目全部规格' : '仅指定规格'} · {t.catalogVersion}</small></div><Button variant="secondary" size="sm" onClick={() => change({ [key]: body[key].filter((_, i) => i !== index) })}>移除</Button></div>)}</section>
   return <section className="knowledge-workspace" aria-label="规则知识草稿工作台">
     {intakeId && <details className="knowledge-intake-origin"><summary>关联需求分析 · 非药学证据</summary>{intake.error && <Alert tone="error">{errorMessage(intake.error)}</Alert>}{!intake.isError && intake.data && <IntakeSource run={intake.data} api={api} />}</details>}
-    <div className="knowledge-heading"><div><h3>规则知识草稿</h3><p>标准身份 → 来源与适用条件 → 结构校验 → 合成样例。当前保存为草稿，结构完整不等于证据已核验。</p></div><div className="knowledge-toolbar"><Button variant="secondary" disabled={!!busy} onClick={() => setExamplesOpen(true)}>重复用药与相互作用验收样例</Button><Button disabled={!!busy} onClick={() => { setExtractionRecord(undefined); setExtractionOpen(true) }}>AI 从原文提取知识</Button><StatusBadge tone="warning">草稿未生效 · 发布在统一目录</StatusBadge></div></div>
+    <div className="knowledge-heading"><div className="qmed-title-with-help"><h3>规则知识草稿</h3><span className="qmed-guide-help" title="标准身份 → 来源与适用条件 → 结构校验 → 合成样例。当前保存为草稿，结构完整不等于证据已核验。"><Icon name="info" /></span></div><div className="knowledge-toolbar"><Button variant="secondary" disabled={!!busy} onClick={() => setExamplesOpen(true)}>重复用药与相互作用验收样例</Button><Button disabled={!!busy} onClick={() => { setExtractionRecord(undefined); setExtractionOpen(true) }}>AI 从原文提取知识</Button><StatusBadge tone="warning">草稿未生效 · 发布在统一目录</StatusBadge></div></div>
     {error && <Alert tone="error">{error}</Alert>}{notice && <Alert>{notice}</Alert>}
     <div className="knowledge-columns">
       <aside className="knowledge-pane knowledge-queue"><h4>知识目录</h4><div className="knowledge-toolbar"><Button size="sm" disabled={!!busy} onClick={() => create('DUPLICATE_THERAPY')}>新建重复用药</Button><Button size="sm" disabled={!!busy} onClick={() => create('DRUG_INTERACTION')}>新建相互作用</Button></div>

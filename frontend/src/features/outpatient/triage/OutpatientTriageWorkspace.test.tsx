@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -138,6 +138,7 @@ function buildMockApi(): RhnApi {
         departmentRecommendations: mockRecommendations,
         fallbackReason: null,
       })),
+      decide: vi.fn().mockResolvedValue({ mode: 'DISABLED', status: 'DISABLED', supplements: [] }),
       recommendDepartments: vi.fn().mockResolvedValue(mockRecommendations),
       create: vi.fn().mockResolvedValue(mockTriageRecord),
       update: vi.fn().mockResolvedValue(mockTriageRecord),
@@ -460,4 +461,92 @@ describe('OutpatientTriageWorkspace', () => {
     await waitFor(() => expect(api.outpatientTriage.create).toHaveBeenCalled())
     expect(api.outpatientTriage.update).not.toHaveBeenCalled()
   })
+  it('分诊辅助开关关闭时不额外调用决策接口', async () => {
+    const user = userEvent.setup()
+    const api = buildMockApi()
+    renderWorkspace(api)
+    await user.click(await screen.findByText('发热/发烧'))
+    await waitFor(() => expect(api.outpatientTriage.assess).toHaveBeenCalled())
+    expect(api.outpatientTriage.decide).not.toHaveBeenCalled()
+  })
+
+  it('辅助模式只展示待采纳科室，输入变化立即使旧建议失效且不调用生成式增强', async () => {
+    const user = userEvent.setup()
+    const api = buildMockApi()
+    const baseline = await api.outpatientTriage.assess({})
+    vi.mocked(api.outpatientTriage.assess).mockClear()
+    vi.mocked(api.outpatientTriage.assess).mockResolvedValue({ ...baseline, aiMode: 'MODEL', decisionMode: 'ASSIST' })
+    vi.mocked(api.outpatientTriage.decide).mockResolvedValue({
+      mode: 'ASSIST', status: 'ASSIST', message: '科室建议需人工采纳',
+      department: { departmentId: 'dept-resp', departmentName: '呼吸内科', confidence: 0.99,
+        probability: 0.995, availableScheduleCount: 3, scheduledToday: true },
+      supplements: [{ topic: 'ONSET', message: '请核实开始时间。', confidence: 0.99 }],
+    })
+    renderWorkspace(api)
+    await user.click(screen.getByRole('tab', { name: /到院初筛/ }))
+    await user.click(await screen.findByText('发热/发烧'))
+    const adopt = await screen.findByRole('button', { name: '人工采纳科室建议' })
+    expect(screen.getByText('待选择科室')).toBeInTheDocument()
+    expect(vi.mocked(api.outpatientTriage.assess).mock.calls.every(([input]) => input.aiEnhancement === false)).toBe(true)
+    await user.click(adopt)
+    expect(screen.getByRole('button', { name: '当前科室与建议一致' })).toBeDisabled()
+    const complaint = screen.getByPlaceholderText(/例如：突发胸痛胸闷伴大汗2小时/)
+    fireEvent.change(complaint, { target: { value: '新主诉' } })
+    expect(screen.queryByText('请核实开始时间。')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '人工采纳科室建议' })).not.toBeInTheDocument()
+  })
+
+  it('切换患者后迟到的决策不能显示为当前患者建议', async () => {
+    const user = userEvent.setup()
+    const api = buildMockApi()
+    const baseline = await api.outpatientTriage.assess({})
+    vi.mocked(api.outpatientTriage.assess).mockResolvedValue({ ...baseline, decisionMode: 'ASSIST' })
+    const second = { ...mockPendingEncounter, encounterId: 'enc-002', registrationId: 'reg-002',
+      residentId: 'resident-102', residentName: '李春梅' }
+    vi.mocked(api.outpatientTriage.pendingEncounters).mockResolvedValue([mockPendingEncounter, second])
+    let resolveFirst: (value: Awaited<ReturnType<typeof api.outpatientTriage.decide>>) => void = () => {}
+    vi.mocked(api.outpatientTriage.decide).mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
+    renderWorkspace(api)
+    await screen.findByRole('heading', { name: '周建国', level: 3 })
+    await user.click(screen.getByText('发热/发烧'))
+    await waitFor(() => expect(api.outpatientTriage.decide).toHaveBeenCalled())
+    await user.click(screen.getByText('李春梅'))
+    await screen.findByRole('heading', { name: '李春梅', level: 3 })
+    resolveFirst({ mode: 'ASSIST', status: 'ASSIST', message: '上一患者的建议',
+      department: { departmentId: 'dept-resp', departmentName: '呼吸内科' },
+      supplements: [{ topic: 'ONSET', message: '上一患者待核实资料。' }] })
+    await waitFor(() => expect(screen.queryByText('上一患者的建议')).not.toBeInTheDocument())
+    expect(screen.queryByText('上一患者待核实资料。')).not.toBeInTheDocument()
+  })
+
+  it('关闭场景隐藏缓存建议，切换辅助模式不复用生成式评估缓存', async () => {
+    const user = userEvent.setup()
+    const api = buildMockApi()
+    const baseline = await api.outpatientTriage.assess({})
+    vi.mocked(api.outpatientTriage.assess).mockResolvedValue({ ...baseline, decisionMode: 'ASSIST' })
+    vi.mocked(api.outpatientTriage.decide).mockResolvedValue({
+      mode: 'ASSIST', status: 'ASSIST', message: '科室建议需人工采纳',
+      department: { departmentId: 'dept-resp', departmentName: '呼吸内科' }, supplements: [],
+    })
+    const { queryClient } = renderWorkspace(api)
+    await user.click(screen.getByRole('tab', { name: /到院初筛/ }))
+    await user.click(await screen.findByText('发热/发烧'))
+    await screen.findByRole('button', { name: '人工采纳科室建议' })
+    const baseKey = queryClient.getQueryCache().findAll({ queryKey: ['outpatient-triage-assessment-base'] })
+      .find((query) => query.state.data)?.queryKey
+    expect(baseKey).toBeDefined()
+    const aiKey = ['outpatient-triage-assessment-ai', ...baseKey!.slice(1)]
+    act(() => {
+      queryClient.setQueryData(baseKey!, { ...baseline, decisionMode: 'DISABLED' })
+    })
+    await waitFor(() => expect(screen.queryByRole('button', { name: '人工采纳科室建议' })).not.toBeInTheDocument())
+    act(() => {
+      queryClient.setQueryData(aiKey, { ...baseline, aiApplied: true, source: 'AI_ENHANCED', summary: '旧生成式评估',
+        departmentRecommendations: [{ departmentId: 'old-dept', departmentName: '旧模型科室', score: 99 }] })
+      queryClient.setQueryData(baseKey!, { ...baseline, decisionMode: 'ASSIST' })
+    })
+    await screen.findByRole('button', { name: '人工采纳科室建议' })
+    expect(screen.queryByText('旧模型科室')).not.toBeInTheDocument()
+  })
+
 })

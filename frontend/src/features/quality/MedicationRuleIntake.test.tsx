@@ -82,3 +82,13 @@ it('a routed draft links requirement provenance but keeps dosage, scope and evid
   await waitFor(() => expect(knowledgeApi.save).toHaveBeenCalledWith(undefined, 0, expect.objectContaining({ minimumOrders: null, exposureScope: '', matchMode: '', conditions: expect.objectContaining({ ageMode: 'UNSPECIFIED', additionalConditions: expect.stringContaining('尚待逐项结构化') }) }), '保留需求待核查', undefined, '50'))
   expect(consume).toHaveBeenCalled()
 })
+it('clicking quick option chip fills answer and enables re-analysis', async () => {
+  const { api } = setup()
+  await analyze()
+  const chip = await screen.findByRole('button', { name: '同一张门诊处方内' })
+  await userEvent.click(chip)
+  expect(screen.getByLabelText('是否只检查同一处方？')).toHaveValue('同一张门诊处方内')
+  await userEvent.click(screen.getByRole('button', { name: '结合回答重新分析' }))
+  await waitFor(() => expect(api.analyzeIntake).toHaveBeenLastCalledWith({ requirement: run.input.requirement, parentId: '50', answers: [{ questionId: 'Q1', value: '同一张门诊处方内' }] }))
+})
+

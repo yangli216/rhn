@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "f063d67a50617528f23771eb8574e838be87e5d34172a7abfb93360bb607fdff",
+  "fingerprint": "4c9be68bf2bc572d723de47d7e9ff7594083a94c65b67dae3eec3a14e3a48d7f",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -21,7 +21,7 @@
     {
       "code": "AUD",
       "name": "审计与质量",
-      "count": 24
+      "count": 26
     },
     {
       "code": "BD",
@@ -2343,6 +2343,20 @@
       "domain": "AUD",
       "comment": "合理用药安全分类成员；一行代表一个租户下某安全分类关联的一条药品成员",
       "columns": 11
+    },
+    {
+      "physical": "RHN_AUD_AI_DCSN_RUN",
+      "logical": "aud.ai_decision_run",
+      "domain": "AUD",
+      "comment": "共用决策运行观察；一行代表一次有触发的决策尝试，包括旁路及回退",
+      "columns": 15
+    },
+    {
+      "physical": "RHN_AUD_AI_DCSN_REVIEW",
+      "logical": "aud.ai_decision_review",
+      "domain": "AUD",
+      "comment": "共用决策人工研判；一行代表一次追加的人工意见，不改变临床处置",
+      "columns": 5
     }
   ]
 }

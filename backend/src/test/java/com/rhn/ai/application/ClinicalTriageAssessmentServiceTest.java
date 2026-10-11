@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -108,6 +109,29 @@ class ClinicalTriageAssessmentServiceTest {
 
         assertThat(result.source()).isEqualTo("RULE");
         verify(gateway, never()).assess(any(), any());
+    }
+
+    @Test
+    void triageAssistUsesRulesAndDoesNotDuplicateGenerativeDepartmentAdvice() {
+        when(runtimePolicy.current(context)).thenReturn(settings("MODEL"));
+        when(runtimePolicy.booleanValue(1L, DecisionScene.OUTPATIENT_TRIAGE.settingKey(), false)).thenReturn(true);
+        when(runtimePolicy.text(1L, "decision-mode", "DISABLED")).thenReturn("ASSIST");
+        var result = service.assess(request(true));
+        assertThat(result.decisionMode()).isEqualTo(com.rhn.ai.api.ClinicalTriageContracts.DecisionMode.ASSIST);
+        assertThat(result.suggestedLevel()).isEqualTo(result.ruleLevel());
+        verifyNoInteractions(gateway);
+    }
+
+    @Test
+    void triageShadowPreservesExistingModelAssessment() {
+        when(runtimePolicy.current(context)).thenReturn(settings("MODEL"));
+        when(runtimePolicy.booleanValue(1L, DecisionScene.OUTPATIENT_TRIAGE.settingKey(), false)).thenReturn(true);
+        when(runtimePolicy.text(1L, "decision-mode", "DISABLED")).thenReturn("SHADOW");
+        when(gateway.assess(any(), any())).thenReturn(new ClinicalTriageAiGateway.Result(
+                "LEVEL_1_CRITICAL", "原有评估", List.of(), List.of()));
+        var result = service.assess(request(true));
+        assertThat(result.aiApplied()).isTrue();
+        verify(gateway).assess(any(), any());
     }
 
     private static AssessmentRequest request(boolean aiEnhancement) {

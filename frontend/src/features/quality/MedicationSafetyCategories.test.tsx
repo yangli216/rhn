@@ -157,20 +157,26 @@ describe('MedicationSafetyCategories', () => {
     })
   })
 
-  it('supports adding medications from master data to the category', async () => {
+  it('supports adding medications from master data to the category via Enter search', async () => {
     const api = createMockApi()
     const onNotice = vi.fn()
     const user = userEvent.setup()
     render(<MedicationSafetyCategories api={api} onNotice={onNotice} />)
 
     await user.click(await screen.findByRole('button', { name: /纳入药品/ }))
-    expect(await screen.findByText(/纳入药品成员 · 双硫仑样反应致敏抗菌药物/)).toBeInTheDocument()
+    expect(await screen.findByText(/纳入药品 · 双硫仑样反应致敏抗菌药物/)).toBeInTheDocument()
 
-    const searchInput = screen.getByPlaceholderText(/输入药品通用名、拼音缩写或代码/)
+    const searchInput = screen.getByPlaceholderText(/输入药品通用名/)
+    // 打字时不应触发搜索，也不应提前弹出“未找到”提示
     await user.type(searchInput, '替硝唑')
-    await user.click(screen.getByRole('button', { name: '搜索药品' }))
+    expect(api.masterData.medications).not.toHaveBeenCalled()
+    expect(screen.getByText('请输入药品通用名、拼音码或代码，按回车开始搜索')).toBeInTheDocument()
+    expect(screen.queryByText(/未找到/)).not.toBeInTheDocument()
 
+    // 按回车键触发检索
+    await user.keyboard('{Enter}')
     expect(await screen.findByText('替硝唑注射液')).toBeInTheDocument()
+    expect(api.masterData.medications).toHaveBeenCalledWith('替硝唑', '', 'ACTIVE')
 
     // 勾选候选药品并确认添加
     await user.click(screen.getByText('替硝唑注射液'))
@@ -219,7 +225,7 @@ describe('MedicationSafetyCategories', () => {
     render(<MedicationSafetyCategories api={api} onNotice={onNotice} />)
 
     await user.click(await screen.findByRole('button', { name: /纳入药品/ }))
-    expect(await screen.findByText(/纳入药品成员 · 双硫仑样反应致敏抗菌药物/)).toBeInTheDocument()
+    expect(await screen.findByText(/纳入药品 · 双硫仑样反应致敏抗菌药物/)).toBeInTheDocument()
 
     // 切换到标准目录批量导入 Tab
     await user.click(screen.getByRole('button', { name: /按国家基药标准目录批量导入/ }))

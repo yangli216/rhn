@@ -1,3 +1,4 @@
+import { DecisionRunObservation } from './DecisionRunObservation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import {
@@ -97,6 +98,7 @@ const MODEL_PRESETS = [
 
 export function AiConfigurationManagement({ api }: { api: RhnApi }) {
   const queryClient = useQueryClient()
+  const [observing, setObserving] = useState(false)
   const [scope, setScope] = useState<ClinicalAiConfigurationScope>('TENANT')
   const [draft, setDraft] = useState<Record<string, DraftValue>>({})
   const [secrets, setSecrets] = useState<Record<string, string>>({})
@@ -323,6 +325,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
       title="AI 助理配置中心"
       description="统一治理平台全局基线与租户个性化参数。敏感凭据由 AES-256-GCM 加密，热加载配置保存后立即生效。"
       actions={<div className="ai-config-actions">
+        <Button variant="secondary" onClick={() => setObserving(true)}>决策运行观察</Button>
         {updates.length > 0 && <>
           <span className="ai-config-dirty-badge" title="有尚未提交到服务端的配置变更">
             <span className="ai-config-dirty-dot" />
@@ -909,6 +912,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
         </div>
       </Panel>
     </div>}
+    {observing && <DecisionRunObservation api={api} onClose={() => setObserving(false)} />}
   </div>
 }
 
