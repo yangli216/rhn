@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: classpath:business-numbering.yml
   application:
     name: rhn-application
   datasource:

@@ -1,0 +1,102 @@
+# Packaged defaults for the common generator; consumer migration is tracked in docs/ai/business-numbering.md.
+# Missing rule fields default to: suffix="", date-format=yyMMdd, sequence-width=5, scope=TENANT.
+# One counter per business code + scope identity + business day; no database configuration tables.
+rhn:
+  business-numbering:
+    redis-key-prefix: rhn:business-number
+    zone-id: Asia/Shanghai
+    rules:
+      resident-record:
+        prefix: RHN
+      outpatient-encounter:
+        prefix: OP
+        suffix: ""
+        date-format: yyMMdd
+        sequence-width: 5
+        scope: TENANT
+      outpatient-appointment:
+        prefix: AP
+      outpatient-registration:
+        prefix: RG
+      outpatient-triage:
+        prefix: TR
+      medication-request:
+        prefix: MR
+      service-request:
+        prefix: SR
+      prescription:
+        prefix: RX
+      inpatient-encounter:
+        prefix: IPE
+      inpatient-episode:
+        prefix: IP
+      inpatient-deposit:
+        prefix: IPD
+      invoice:
+        prefix: INV
+      settlement:
+        prefix: ST
+      payment-order:
+        prefix: PO
+      refund-order:
+        prefix: RO
+      payment:
+        prefix: PAY
+      refund:
+        prefix: RF
+      receipt:
+        prefix: RC
+      insurance-claim:
+        prefix: IC
+      cashier-close:
+        prefix: CC
+      cashier-reopen:
+        prefix: CR
+      reconciliation-batch:
+        prefix: RB
+      treatment-task:
+        prefix: TX
+      diagnostic-task:
+        prefix: DX
+      stock-purchase-order:
+        prefix: PO
+      stock-goods-receipt:
+        prefix: GR
+      stock-transaction:
+        prefix: IT
+      stock-transfer:
+        prefix: TR
+      stock-requisition:
+        prefix: REQ
+      stock-count:
+        prefix: CT
+      stock-price-adjustment:
+        prefix: PA
+      stock-period-close:
+        prefix: PC
+      stock-reconciliation:
+        prefix: REC
+      medication-supply-batch:
+        prefix: MS
+      pharmacy-dispense-task:
+        prefix: DT
+      pharmacy-review:
+        prefix: PR
+      pharmacy-return:
+        prefix: RET-
+      ward-delivery:
+        prefix: WD
+      ward-medication-return:
+        prefix: WMR
+      inpatient-care-request:
+        prefix: IP
+      outpatient-referral:
+        prefix: RF
+      schedule-resource:
+        prefix: SR-
+      schedule-template:
+        prefix: ST-
+      schedule:
+        prefix: SCH-
+      schedule-slot-pool:
+        prefix: SP-
