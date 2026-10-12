@@ -242,7 +242,8 @@ public final class ClinicalAssistantContracts {
     public record TreatmentRecommendation(String type, Long catalogItemId, Long medicationId,
                                           String code, String name, String specification, String rationale) {}
 
-    /** Unresolved intents remain distinct from executable catalog recommendations. */
+    /** suggestedItem is the unique highest-probability actual catalog candidate for physician preview.
+     * choice/confidence retain the original Jev judgment, including NONE; neither confirms an order. */
     public record TreatmentDecisionReview(String status, String model, String mode, Double confidence,
                                           Double threshold, TreatmentRecommendation suggestedItem,
                                           String choice, String traceId, Long latencyMs, String detail) {}

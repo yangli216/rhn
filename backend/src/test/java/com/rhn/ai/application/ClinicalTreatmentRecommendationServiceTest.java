@@ -320,4 +320,34 @@ class ClinicalTreatmentRecommendationServiceTest {
         assertTrue(result.items().isEmpty()); assertEquals("AMBIGUOUS", result.matches().getFirst().status());
         verify(services, never()).findOrderableServicesByIds(any(), any(), any());
     }
+    @Test void noneJudgmentStillProvidesTheHighestActualCandidateWithoutApplyingIt() {
+        var first = lab(101, "血常规（三分类）", "血常规");
+        var second = lab(102, "血常规（五分类）", "血常规");
+        when(services.searchOrderableServices(eq("血常规"), eq("LABORATORY"), eq(3L), any())).thenReturn(List.of(second, first));
+        var raw = new DecisionModelGateway.Result("trace", "jev-1.13.0", java.util.Map.of("intent_0",
+                new DecisionModelGateway.ChoiceAnswer("NONE", java.util.Map.of("NONE", .95, "LABORATORY|101", .04, "LABORATORY|102", .01), .925)), 25);
+        when(decisions.match(anyList(), any())).thenReturn(new TreatmentCatalogDecisionService.Attempt(false, List.of(), List.of(), raw, true, "SHADOW", .9));
+        var result = service.recommend(List.of(intent("LABORATORY", "血常规")), request, null);
+        assertTrue(result.items().isEmpty()); assertEquals("AMBIGUOUS", result.matches().getFirst().status());
+        var review = result.matches().getFirst().decisionReview();
+        assertEquals("NONE", review.choice()); assertEquals(.925, review.confidence());
+        assertEquals(101L, review.suggestedItem().catalogItemId());
+        assertTrue(review.detail().contains("未确认等价项"));
+    }
+    @Test void tiedOrInvalidCandidateProbabilitiesCannotSelectAnArbitraryCatalogItem() {
+        var first = lab(101, "血常规（三分类）", "血常规");
+        var second = lab(102, "血常规（五分类）", "血常规");
+        when(services.searchOrderableServices(eq("血常规"), eq("LABORATORY"), eq(3L), any())).thenReturn(List.of(first, second));
+        for (var probabilities : List.of(java.util.Map.of("NONE", .96, "LABORATORY|101", .02, "LABORATORY|102", .02),
+                java.util.Map.of("NONE", 1.0, "LABORATORY|101", 0.0, "LABORATORY|102", 0.0),
+                java.util.Map.of("NONE", .95, "LABORATORY|999", .05),
+                java.util.Map.of("NONE", .95, "LABORATORY|101", Double.NaN))) {
+            var raw = new DecisionModelGateway.Result("trace", "jev-1.13.0", java.util.Map.of("intent_0",
+                    new DecisionModelGateway.ChoiceAnswer("NONE", probabilities, .925)), 25);
+            when(decisions.match(anyList(), any())).thenReturn(new TreatmentCatalogDecisionService.Attempt(false, List.of(), List.of(), raw, true, "SHADOW", .9));
+            var matches = service.resolve(List.of(intent("LABORATORY", "血常规")), LocalDate.now());
+            assertNull(matches.getFirst().decisionReview().suggestedItem());
+            assertEquals("NONE", matches.getFirst().decisionReview().choice());
+        }
+    }
 }

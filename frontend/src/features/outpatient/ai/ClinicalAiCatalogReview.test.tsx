@@ -96,19 +96,60 @@ describe('unresolved AI catalog intents', () => {
     expect(onResolved).not.toHaveBeenCalled()
   })
 
-  it('shows raw low confidence without auto selecting, and keeps confirmation outside the row', async () => {
+  it('preselects the Jev candidate below threshold but requires explicit confirmation', async () => {
     const match = { ...ambiguous, decisionReview: { status: 'COMPLETED' as const, model: 'jev-1.13.0', mode: 'SHADOW',
       confidence: .73, threshold: .9, suggestedItem: candidates[1], detail: '仅核查目录语义匹配，需医生确认。' } }
     const onResolved = vi.fn()
     render(<ClinicalAiCatalogReview matches={[match]} api={checkedApi()} encounterId="e1" disabled={false} onResolved={onResolved} />)
-    expect(screen.getByText('Jev 置信度 73.0%')).toBeInTheDocument()
+    expect(screen.getByText('Jev 目录判断置信度 73.0%')).toBeInTheDocument()
     const row = screen.getByRole('row')
     await userEvent.click(within(row).getByRole('button', { name: '核对目录 血常规' }))
     const panel = screen.getByRole('dialog')
     expect(row).not.toContainElement(panel)
     expect(within(panel).getByText(/当前阈值 90%/)).toBeInTheDocument()
-    expect(within(panel).getByRole('button', { name: '确认匹配' })).toBeDisabled()
+    expect(within(panel).getByRole('button', { name: '确认匹配' })).toBeEnabled()
+    expect(within(panel).getByRole('combobox', { name: '匹配 血常规' })).toHaveTextContent(candidates[1].name)
     expect(onResolved).not.toHaveBeenCalled()
+  })
+
+  it('preselects the highest actual candidate even for NONE, preserves its warning and validates the ID on confirmation', async () => {
+    const user = userEvent.setup(), onResolved = vi.fn(), api = checkedApi(candidates[1])
+    const match = { ...ambiguous, intent: { ...ambiguous.intent, rationale: '结合本次已知异常评估感染线索' }, decisionReview: { status: 'COMPLETED' as const, choice: 'NONE', confidence: .925,
+      threshold: .9, suggestedItem: candidates[1], detail: 'Jev 未确认等价项，最高概率备选需人工核对。' } }
+    render(<ClinicalAiCatalogReview matches={[match]} api={api} encounterId="e1" disabled={false} onResolved={onResolved} />)
+    expect(screen.getByRole('checkbox', { name: '选择 血常规' })).toBeDisabled()
+    expect(screen.getByText(candidates[1].name)).toBeInTheDocument()
+    expect(screen.getByText(/未确认等价项/)).toBeInTheDocument()
+    expect(onResolved).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    expect(screen.getByRole('combobox', { name: '匹配 血常规' })).toHaveTextContent(candidates[1].name)
+    expect(screen.getByText('推荐依据：结合本次已知异常评估感染线索')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '确认匹配' }))
+    expect(api.clinicalAi.resolveTreatments).toHaveBeenCalledWith('e1', [expect.objectContaining({ catalogItemId: 'three' })])
+    expect(onResolved).toHaveBeenCalledWith(['cbc'], [{ ...candidates[1], aiOriginalName: '血常规' }])
+  })
+
+  it('respects clearing a default instead of silently restoring it', async () => {
+    const user = userEvent.setup(), onResolved = vi.fn()
+    const match = { ...ambiguous, decisionReview: { status: 'COMPLETED' as const, confidence: .73,
+      suggestedItem: candidates[1], detail: '需核对' } }
+    render(<ClinicalAiCatalogReview matches={[match]} api={checkedApi()} encounterId="e1" disabled={false} onResolved={onResolved} />)
+    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    await user.click(screen.getByRole('combobox', { name: '匹配 血常规' }))
+    await user.click(screen.getByRole('button', { name: '清空选择' }))
+    expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
+    expect(onResolved).not.toHaveBeenCalled()
+  })
+
+  it('does not default to a suggested identity outside the actual candidate list', async () => {
+    const match = { ...ambiguous, decisionReview: { status: 'COMPLETED' as const, confidence: .99,
+      suggestedItem: { ...candidates[0], catalogItemId: 'foreign' }, detail: '核对' } }
+    render(<ClinicalAiCatalogReview matches={[match]} api={checkedApi()} encounterId="e1" disabled={false} onResolved={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
   })
 
   it('uses the organization-scoped order-entry search and validates the chosen ID', async () => {

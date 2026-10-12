@@ -174,6 +174,7 @@ export interface ClinicalAiTreatmentMatch {
     mode?: string | null
     confidence?: number | null
     threshold?: number | null
+    /** Unique highest-probability actual candidate; choice/confidence still describe the original judgment (possibly NONE). */
     suggestedItem?: ClinicalAiTreatmentRecommendation | null
     choice?: string | null
     traceId?: string | null

@@ -43,15 +43,18 @@ public class ClinicalTreatmentRecommendationService {
             var index = withCandidates.indexOf(match);
             var raw = attempt == null ? null : attempt.raw();
             var answer = raw == null || index < 0 ? null : raw.answers().get("intent_" + index);
-            var suggested = answer == null ? null : match.candidates().stream()
+            var chosen = answer == null ? null : match.candidates().stream()
                     .filter(item -> TreatmentCatalogDecisionService.key(item).equals(answer.choice())).findFirst().orElse(null);
             boolean valid = answer != null && Double.isFinite(answer.confidence())
                     && answer.confidence() >= 0 && answer.confidence() <= 1
-                    && ("NONE".equals(answer.choice()) || suggested != null);
+                    && ("NONE".equals(answer.choice()) || chosen != null);
+            var suggested = valid ? highestCandidate(match.candidates(), answer) : null;
             String status = match.candidates().isEmpty() ? "NO_CANDIDATES" : valid ? "COMPLETED"
                     : attempt != null && attempt.alerts().isEmpty() && raw == null ? "DISABLED" : "UNAVAILABLE";
             String detail = "NO_CANDIDATES".equals(status) ? "暂无院内候选可供 Jev 核查。"
-                    : "COMPLETED".equals(status) ? "仅核查目录语义匹配，不代表临床适用性；需医生确认。"
+                    : "COMPLETED".equals(status) ? ("NONE".equals(answer.choice())
+                        ? "Jev 未确认等价项；最高概率院内备选仅供预选核对，不代表已匹配或临床适用。"
+                        : "最高概率院内候选仅供预选，仍需医生确认；目录匹配不代表临床适用性。")
                     : "DISABLED".equals(status) ? "Jev 核查未启用。" : "Jev 核查未完成，保留人工匹配。";
             reviews.put(match.key(), new TreatmentDecisionReview(status, raw == null ? null : raw.model(),
                     attempt == null ? null : attempt.mode(), valid ? answer.confidence() : null,
@@ -61,6 +64,20 @@ public class ClinicalTreatmentRecommendationService {
         }
         return matches.stream().map(match -> new TreatmentMatch(match.key(), match.intent(), match.status(),
                 match.reason(), match.candidates(), reviews.get(match.key()))).toList();
+    }
+
+    /** Rank actual catalog candidates separately from the provider's NONE judgment. */
+    private TreatmentRecommendation highestCandidate(List<TreatmentRecommendation> candidates,
+                                                      DecisionModelGateway.ChoiceAnswer answer) {
+        var ranked = candidates.stream().filter(item -> {
+            var probability = answer.probabilities().get(TreatmentCatalogDecisionService.key(item));
+            return probability != null && Double.isFinite(probability) && probability > 0 && probability <= 1;
+        }).toList();
+        double highest = ranked.stream().mapToDouble(item -> answer.probabilities().get(
+                TreatmentCatalogDecisionService.key(item))).max().orElse(0);
+        var top = ranked.stream().filter(item -> Math.abs(answer.probabilities().get(
+                TreatmentCatalogDecisionService.key(item)) - highest) < 1e-9).toList();
+        return top.size() == 1 ? top.getFirst() : null;
     }
 
     public Result recommend(List<TreatmentRecommendation> intents, ClinicalAiModelGateway.ModelRequest request,

@@ -242,7 +242,9 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         AtomicReference<String> authorization = new AtomicReference<>();
         SuggestionContent modelContent = new SuggestionContent("结构化分析完成",
                 new RecordDraft(null, "现病史草稿", null, null, null), List.of(), List.of(),
-                List.of("补问持续时间"), List.of(), List.of(), "模型原始声明");
+                List.of("补问持续时间"), List.of(), List.of(), "模型原始声明",
+                List.of(new com.rhn.ai.api.ClinicalAssistantContracts.TreatmentRecommendation("LABORATORY", null, null, null,
+                        "血常规", null, "结合本次已知异常评估感染线索")));
         startServer(exchange -> {
             requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
@@ -264,6 +266,7 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
 
         assertEquals("结构化分析完成", result.summary());
         assertEquals("现病史草稿", result.recordDraft().presentIllness());
+        assertEquals("结合本次已知异常评估感染线索", result.treatmentRecommendations().getFirst().rationale());
         assertEquals("Bearer secret-key", authorization.get());
         assertTrue(requestBody.get().contains("RHN-CLINICAL-ASSISTANT-V9"));
         assertTrue(requestBody.get().contains("语音转写内容"));
@@ -307,6 +310,13 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(writingPrompt.contains("不输出 rationale 或重复目录名称、编码、规格"));
         assertTrue(writingPrompt.contains("diagnosisCandidates[{code,display,type,confidence}]"));
         assertTrue(writingPrompt.contains("CATALOG_TREATMENT 使用 [{type,catalogItemId}]"));
+        assertTrue(writingPrompt.contains("RECORD_DIAGNOSIS 使用 [{type,name,specification,rationale}]"));
+        assertTrue(writingPrompt.contains("已有结果能覆盖本次目的时优先复用"));
+        assertFalse(writingPrompt.contains("同时必须在 treatmentRecommendations"));
+        assertTrue(writingPrompt.contains("没有依据时返回空数组"));
+        assertTrue(writingPrompt.contains("最多12项是数量上限，不是推荐目标"));
+        assertTrue(writingPrompt.contains("每项必须有独立检查目的"));
+        assertTrue(writingPrompt.contains("不引用目录匹配置信度证明临床适宜性"));
         assertFalse(writingPrompt.contains("有有效临床输入时生成五个段落"));
         assertFalse(writingPrompt.contains("没有事实且没有既有预设时写"));
         assertTrue(requestBody.get().contains("FEMALE"));

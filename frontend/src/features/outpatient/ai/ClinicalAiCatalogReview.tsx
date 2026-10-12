@@ -17,7 +17,7 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
   onResolved: (keys: string[], items: ClinicalAiTreatmentRecommendation[]) => void
 }) {
   const [retries, setRetries] = useState<Record<string, ClinicalAiTreatmentMatch[]>>({})
-  const [choices, setChoices] = useState<Record<string, ClinicalAiTreatmentRecommendation | undefined>>({})
+  const [choices, setChoices] = useState<Record<string, ClinicalAiTreatmentRecommendation | null>>({})
   const [resource, setResource] = useState<ClinicalResourceOption>()
   const [products, setProducts] = useState<Array<ClinicalAiTreatmentRecommendation & { selectionLabel: string }>>([])
   const [searchType, setSearchType] = useState('LABORATORY')
@@ -39,10 +39,12 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
     setEditingKey(match.key); setError(''); setBusy(false); setResource(undefined); setProducts([])
     setSearchType(match.candidates[0]?.type ?? (['MEDICATION', 'LABORATORY', 'EXAMINATION'].includes(match.intent.type) ? match.intent.type : 'LABORATORY'))
   }
-  const candidate = active ? choices[active.key] ?? (active.status === 'MATCHED' ? active.candidates[0] : undefined) : undefined
+  const chosenCandidate = (match: ClinicalAiTreatmentMatch) => choices[match.key] !== undefined
+    ? choices[match.key] ?? undefined : defaultCandidate(match)
+  const candidate = active ? chosenCandidate(active) : undefined
   const selectResource = (option?: ClinicalResourceOption<ClinicalResource>) => {
     if (!active) return
-    setResource(option); setProducts([]); setChoices(previous => ({ ...previous, [active.key]: undefined })); setError('')
+    setResource(option); setProducts([]); setChoices(previous => ({ ...previous, [active.key]: null })); setError('')
     if (!option?.raw) return
     if ('sdServiceType' in option.raw) {
       const item = option.raw as ServiceCatalogItem
@@ -77,7 +79,7 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
     if (!active || !candidate || disabled || busy) return
     const requestEpoch = epoch.current
     const group = rows.filter(match => match.sourceKey === active.sourceKey)
-    const selected = group.map(match => choices[match.key] ?? (match.status === 'MATCHED' ? match.candidates[0] : undefined))
+    const selected = group.map(chosenCandidate)
     if (selected.some(item => !item)) { setError('请为拆分后的每个项目选择院内目录。'); return }
     setBusy(true); setError('')
     try {
@@ -99,6 +101,7 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
     <div className="doctor-ai-catalog-review__intro"><small>虚线项目尚未完成院内目录核对，暂不可勾选；核对后可带入医嘱。</small></div>
     {rows.map(match => {
       const status = clinicalAiTreatmentMatchPresentation(match.status)
+      const preview = chosenCandidate(match)
       return <div key={match.key} className="doctor-ai-treatment-item">
         <div className="doctor-unified-order-row is-ai-suggestion is-catalog-pending" role="row" aria-label={`${match.intent.name} · ${status.label}`}>
           <span className="doctor-unified-cell-type"><label className="doctor-ai-order-select">
@@ -106,9 +109,9 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
             <span className="doctor-ai-pending-badge">{match.intent.type === 'MEDICATION' ? '药品' : match.intent.type === 'LABORATORY' ? '检验' : '检查'}</span>
           </label></span>
           <span className="doctor-unified-cell-name"><span className="doctor-ai-catalog-review__name">
-            <strong>{match.intent.name}</strong><Button size="sm" variant="text" disabled={disabled}
+            <strong>{preview?.name ?? match.intent.name}</strong><Button size="sm" variant="text" disabled={disabled}
               aria-label={`核对目录 ${match.intent.name}`} onClick={() => open(match)}>匹配</Button>
-          </span><small>{match.intent.specification ? `建议规格：${match.intent.specification}` : '待核对院内目录'}</small>
+          </span>{preview && <small>AI 原建议：{match.intent.name} · 待确认院内项目</small>}<small>{match.intent.specification ? `建议规格：${match.intent.specification}` : '待核对院内目录'}</small>
             <DecisionReview review={match.decisionReview} />
           </span>
           <span className="doctor-unified-cell-directions" title={match.reason}><span className="doctor-ai-catalog-review__reason">{match.reason}</span></span>
@@ -126,17 +129,17 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
         <Button size="sm" variant="primary" disabled={disabled || busy || !candidate} onClick={() => void confirm()}>{busy ? '核对中…' : '确认匹配'}</Button>
       </>}>
       <div className="doctor-ai-catalog-panel__body">
-        <div><strong>AI 原建议：{active.intent.name}</strong><p>{active.reason}</p><DecisionReview review={active.decisionReview} detailed /></div>
+        <div><strong>AI 原建议：{active.intent.name}</strong>{active.intent.rationale && <p>推荐依据：{active.intent.rationale}</p>}<p>{active.reason}</p><DecisionReview review={active.decisionReview} detailed /></div>
         {active.candidates.length > 0 && <FormField label="已有院内候选">
           <Select aria-label={`匹配 ${active.intent.name}`} disabled={busy} placeholder="请选择院内项目"
             value={candidate ? `${candidate.type}:${candidate.catalogItemId}` : ''}
             options={active.candidates.map(item => ({ value: `${item.type}:${item.catalogItemId}`, label: [item.name, item.specification].filter(Boolean).join(' · ') }))}
             onChange={value => { setResource(undefined); setProducts([]); setChoices(previous => ({ ...previous,
-              [active.key]: active.candidates.find(item => `${item.type}:${item.catalogItemId}` === value) })) }} />
+              [active.key]: active.candidates.find(item => `${item.type}:${item.catalogItemId}` === value) ?? null })) }} />
         </FormField>}
         <FormField label="检索类型"><Select aria-label="匹配检索类型" value={searchType} disabled={busy} clearable={false} searchable={false}
           options={[{ value: 'MEDICATION', label: '药品' }, { value: 'LABORATORY', label: '检验' }, { value: 'EXAMINATION', label: '检查' }]}
-          onChange={value => { setSearchType(value); setResource(undefined); setProducts([]); setChoices(previous => ({ ...previous, [active.key]: undefined })) }} /></FormField>
+          onChange={value => { setSearchType(value); setResource(undefined); setProducts([]); setChoices(previous => ({ ...previous, [active.key]: null })) }} /></FormField>
         <FormField label="院内目录检索（与医嘱开立相同）"><ClinicalResourceSearch key={searchType} api={api}
           organizationId={organizationId} encounterId={encounterId} resource={searchType === 'MEDICATION' ? 'medication' : 'service'}
           aria-label={`检索 ${active.intent.name}`} disabled={busy} value={resource} openOnFocus={false}
@@ -145,7 +148,7 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
           placeholder="搜索名称、编码或拼音" onChange={selectResource} /></FormField>
         {products.length > 1 && <FormField label="院内药品产品"><Select aria-label="选择院内药品产品" value={candidate?.catalogItemId ?? ''} disabled={busy}
           options={products.map(item => ({ value: item.catalogItemId, label: item.selectionLabel }))}
-          onChange={id => setChoices(previous => ({ ...previous, [active.key]: products.find(item => item.catalogItemId === id) }))} /></FormField>}
+          onChange={id => setChoices(previous => ({ ...previous, [active.key]: products.find(item => item.catalogItemId === id) ?? null }))} /></FormField>}
         {candidate && <div><strong>所选院内项目：{candidate.name}</strong><small>{candidate.specification}</small></div>}
         {error && <div role="alert">{error}</div>}
       </div>
@@ -153,12 +156,24 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
   </div>
 }
 
+/** Preselect only a Jev candidate that still belongs to this current catalog result. */
+function defaultCandidate(match: ClinicalAiTreatmentMatch) {
+  if (match.status === 'MATCHED') return match.candidates[0]
+  const review = match.decisionReview
+  if (review?.status !== 'COMPLETED' || typeof review.confidence !== 'number' || !Number.isFinite(review.confidence)
+    || review.confidence < 0 || review.confidence > 1 || !review.suggestedItem) return undefined
+  return match.candidates.find(item => item.type === review.suggestedItem?.type
+    && item.catalogItemId === review.suggestedItem.catalogItemId)
+}
+
 function DecisionReview({ review, detailed = false }: { review?: ClinicalAiTreatmentMatch['decisionReview']; detailed?: boolean }) {
   if (!review) return <small>Jev 待核查</small>
   if (review.status !== 'COMPLETED' || typeof review.confidence !== 'number') return <small>{review.detail}</small>
-  return <small title={review.detail}>Jev 置信度 {(review.confidence * 100).toFixed(1)}%
-    {!detailed && !review.suggestedItem && <> · 无等价候选</>}
-    {detailed && <> · {review.suggestedItem ? `建议匹配：${review.suggestedItem.name}` : '无等价候选'}
+  const noEquivalent = review.choice === 'NONE'
+  return <small title={review.detail}>Jev 目录判断置信度 {(review.confidence * 100).toFixed(1)}%
+    {noEquivalent && <> · 未确认等价项</>}
+    {detailed && <> · {review.suggestedItem ? `最高概率院内候选：${review.suggestedItem.name}` : '无唯一可预选候选'}
       {typeof review.threshold === 'number' && <> · 当前阈值 {(review.threshold * 100).toFixed(0)}%</>}
+      {typeof review.threshold === 'number' && review.confidence < review.threshold && <> · 低于阈值，需人工核对</>}
       <br />{review.detail}</>}</small>
 }

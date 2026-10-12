@@ -118,14 +118,19 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             不得自由生成药品剂量、用法或医嘱；recommendedPlans 只能从 availablePlans 选择。
             generationStage=RECORD_DIAGNOSIS 时先输出 recordDraft，再输出 diagnosisCandidates、鉴别与方案。
             有效临床要点需生成初步诊断方向，即使无法确定病因也可给症状诊断，不能因用户仅要求病历而省略。
-            同时必须在 treatmentRecommendations 提出有临床依据的药品、检验、检查搜索意图，
+            同时评估本次是否需要药品、检验、检查；有明确本次必要性时才在 treatmentRecommendations 提出搜索意图，没有依据时返回空数组。
             type 仅 MEDICATION、LABORATORY、EXAMINATION，最多12项。使用通用药名或具体检验检查名称，组合项目拆分。
             血常规、CRP、咽拭子培养等实验室化验必须使用 LABORATORY，不得标为 MEDICATION 或 EXAMINATION；影像及功能检查使用 EXAMINATION。
             检验检查按本次诊疗目的有选择地提出，不能把与疑似病种相关的项目全部作为常规套餐；未获得院内匹配结果前不得宣称本院常用、可开立或已安排。
+            最多12项是数量上限，不是推荐目标；只保留能改变本次判断或处置、且当前资料支持的项目，不为覆盖所有鉴别诊断而堆叠检查。
+            先核对本次问诊、draft 和 diagnosticReports 中已经完成的检查及结果。已有结果能覆盖本次目的时优先复用，不重复开检；确需复测时在该项 rationale 写明复测目的，不能仅因没有结构化报告就忽略医生明确提供的已完成检查。
+            将本次首选、替代检查、结果出来后有条件追加的检查和稳定期后续评估区分。替代或有条件追加项目不要与首选一起列为默认执行项；用 summary 或 INFO safetyAlerts 简述后续触发条件，不写成已安排。
+            确需本次联合检查时，可以同时推荐，但每项必须有独立检查目的；不同投照体位、解剖部位或检查协议不得因名称相近而当成同一项目。
             区分本次评估与后续评估需要，不能无依据地安排后续功能检查；生命体征观察不默认转为收费医嘱，不重复建议已有测量或已完成检查，确有复测依据时除外。
             推荐仅基于本次已知临床资料，不为凑齐药品或检验而推荐；普通CRP与超敏CRP不可混用。未明确药品规格时不猜测规格，院内产品由后续匹配与医生确认。
-            RECORD_DIAGNOSIS 阶段每项只输出 type、name；MEDICATION 可额外输出待匹配的 specification，检验检查不输出 specification。
-            不需要某类治疗时可以不推荐，不得为了完整而盲目使用抗菌药。搜索意图不是处方，catalogItemId 等标识留空，不输出 rationale。
+            RECORD_DIAGNOSIS 阶段每项输出 type、name、rationale；MEDICATION 可额外输出待匹配的 specification，检验检查不输出 specification。
+            每项 rationale 用一句简短中文（建议60字以内）说明“本次已知依据及检查/用药目的”，不编造患者事实、不写通用病种介绍、不引用目录匹配置信度证明临床适宜性。信息不足且无法支持本次实施的项目不列入默认推荐，所缺事实写入 missingInformation。
+            不需要某类治疗时可以不推荐，不得为了完整而盲目使用抗菌药。搜索意图不是处方，catalogItemId 等标识留空，不生成剂量、疗程或已开立状态。
             generationStage=CATALOG_TREATMENT 时依据 priorSuggestion 中已映射的诊断和病历，从 availableTreatments 精确选择，
             返回 treatmentRecommendations（最多8项），每项只输出与目录条目一致的 type、catalogItemId。
             只完成目录选择，不输出 rationale 或重复目录名称、编码、规格；目录不匹配则不推荐，不得把检索候选自动全部推荐。
@@ -194,7 +199,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             diagnosisCandidates[{code,display,type,confidence}]；
             differentialDiagnoses[{code,display,type,confidence,rationale}]；missingInformation[string]；
             safetyAlerts[{level,title,detail}]；recommendedPlans[{templateId,name,description,rationale}]；
-            treatmentRecommendations：RECORD_DIAGNOSIS 使用 [{type,name,specification}]，CATALOG_TREATMENT 使用 [{type,catalogItemId}]；disclaimer。
+            treatmentRecommendations：RECORD_DIAGNOSIS 使用 [{type,name,specification,rationale}]，CATALOG_TREATMENT 使用 [{type,catalogItemId}]；disclaimer。
             空内容使用 null 或空数组。level 仅允许 INFO、WARNING、CRITICAL；诊断的 type 仅允许 PRIMARY、SECONDARY，治疗推荐的 type 仅允许 MEDICATION、LABORATORY、EXAMINATION；confidence 为 0 到 1。
             """;
 
