@@ -137,14 +137,6 @@
   margin-right: var(--space-1);
 }
 
-.medication-readiness__toolbar {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(200px, 260px) auto auto;
-  gap: calc(var(--space-1) * 2.5);
-  align-items: center;
-  flex: none;
-}
-
 .medication-readiness__content {
   display: flex;
   flex-direction: column;

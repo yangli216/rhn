@@ -530,9 +530,9 @@ export function DispenseRouteSettings({
         )}
 
         {/* 综合过滤与即时检索工具栏 */}
-        <div className="master-data-toolbar dispense-route-toolbar">
+        <div className="master-data-toolbar dispense-route-toolbar ui-query-filters">
           <SearchField
-            className="master-data-toolbar__search"
+
             label="搜索发药路由"
             value={search}
             onChange={setSearch}

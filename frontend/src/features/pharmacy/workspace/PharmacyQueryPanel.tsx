@@ -36,8 +36,8 @@ export function PharmacyQueryPanel({ model }: { model: ReturnType<typeof usePhar
         copy="请在顶部工作上下文切换到门诊或住院药房；若仍无可选站点，请由管理员完成药房库存配置。" /></Panel>}
       {!sites.isPending && !inbox.isPending && eligibleSites.length > 0 && <>
         <section className="pharmacy-query-filters" aria-label="发药查询条件">
-          <div className="pharmacy-query-filters__row">
-            <label className="pharmacy-query-field pharmacy-query-field--keyword">
+          <div className="ui-query-filters">
+            <label className="pharmacy-query-field ui-query-filter--keyword">
               <span>患者或处方</span>
               <div className="pharmacy-query-field__input">
                 <Icon name="search" />
@@ -58,7 +58,7 @@ export function PharmacyQueryPanel({ model }: { model: ReturnType<typeof usePhar
                 onChange={(value) => setPharmacyQueryDraft((previous) => ({ ...previous, status: value as PharmacyQueryStatus }))}
                 clearable={false} searchable={false} options={pharmacyQueryStatusOptions} />
             </label>
-            <div className="pharmacy-query-field pharmacy-query-field--date">
+            <div className="pharmacy-query-field ui-query-filter--date">
               <span>发药日期</span>
               <DateRangePicker
                 value={{ from: pharmacyQueryDraft.startDate, to: pharmacyQueryDraft.endDate }}
@@ -68,7 +68,7 @@ export function PharmacyQueryPanel({ model }: { model: ReturnType<typeof usePhar
                 endAriaLabel="发药结束日期"
               />
             </div>
-            <div className="pharmacy-query-filters__actions">
+            <div className="ui-query-filters__actions">
               <Button onClick={applyPharmacyQuery}><Icon name="search" />查询</Button>
               <Button variant="secondary" onClick={resetPharmacyQuery}>重置</Button>
             </div>

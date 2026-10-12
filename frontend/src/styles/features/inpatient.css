@@ -49,9 +49,7 @@
 .inpatient-handover__identity small, .inpatient-handover__summary, .inpatient-handover__counts small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .inpatient-handover__counts { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .inpatient-handover__counts small { padding: .15rem .4rem; border-radius: var(--radius-sm); background: var(--color-surface-muted); }
-.inpatient-toolbar { margin-bottom: var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
-.inpatient-toolbar form { min-width: min(28rem, 55%); display: flex; gap: var(--space-2); }
-.inpatient-toolbar form .ui-search-field { flex: 1; }
+.inpatient-toolbar { margin-bottom: var(--space-3);     }
 .inpatient-toolbar nav { padding: .2rem; display: flex; border-radius: var(--radius-md); background: var(--color-surface-muted); }
 .inpatient-toolbar nav button { min-height: 2rem; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); color: var(--color-text-secondary); background: transparent; cursor: pointer; }
 .inpatient-toolbar nav button.is-active { color: var(--color-brand-primary); background: var(--color-surface); box-shadow: var(--shadow-sm); font-weight: var(--font-weight-semibold); }
@@ -374,8 +372,7 @@
   .inpatient-handover__metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .inpatient-handover__patients > button { grid-template-columns: minmax(11rem, 1fr) auto; }
   .inpatient-handover__summary, .inpatient-handover__counts { grid-column: 1 / -1; }
-  .inpatient-toolbar { align-items: stretch; flex-direction: column; }
-  .inpatient-toolbar form { min-width: 0; }
+  .inpatient-toolbar {  flex-direction: column; }
   .inpatient-station-context__search { grid-template-columns: 1fr; }
   .inpatient-station-context__picker { grid-template-columns: 1fr; }
   .inpatient-station-context__summary { grid-template-columns: 1fr; }

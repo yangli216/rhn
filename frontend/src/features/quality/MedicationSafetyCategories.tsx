@@ -621,7 +621,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                     <h3>已纳管药品清单</h3>
                     <span className="qmed-cat-members-count">共 {members.length} 种</span>
                   </div>
-                  <div className="qmed-cat-members-search">
+                  <div className="ui-query-filters__group">
                     <SearchField
                       label="过滤纳管药品"
                       placeholder="在纳管药品中快速过滤..."
@@ -970,7 +970,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
             ) : (
               /* 模式2：主数据药名检索（回车触发） */
               <div className="qmed-manual-search-pane">
-                <div className="qmed-add-med-search-bar">
+                <div className="ui-query-filters">
                   <SearchField
                     label="检索主数据药品"
                     placeholder="输入药品通用名/拼音码/编码，按回车开始查询..."

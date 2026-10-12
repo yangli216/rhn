@@ -5,11 +5,20 @@
 四个模板均直接复用 shared/ui，不引入另一套按钮、表格或页签。它们固定结构、留白和滚动边界，业务负责数据、权限和异步状态。源码为 `PageTemplates.tsx`，CSS 随组件导入。
 
 ```tsx
-import { DataTable, SearchField } from '../../shared/ui'
+import { Button, DataTable, FormField, SearchField, Select } from '../../shared/ui'
 import { ListPage } from '../../shared/ui/templates/PageTemplates'
 
 <ListPage title="业务查询"
-  filters={<SearchField label="搜索业务" value={query} onChange={setQuery} />}
+  filters={<>
+    <SearchField label="搜索业务" value={query} onChange={setQuery} />
+    <FormField label="业务状态">
+      <Select value={status} onChange={setStatus} options={statusOptions} />
+    </FormField>
+    <div className="ui-query-filters__actions">
+      <Button onClick={applyFilters}>查询</Button>
+      <Button variant="secondary" onClick={resetFilters}>重置</Button>
+    </div>
+  </>}
   footer={pagination}>
   <DataTable aria-label="业务结果">{/* thead + tbody，按 tableCellClass 声明列语义 */}</DataTable>
 </ListPage>
@@ -23,6 +32,10 @@ import { ListPage } from '../../shared/ui/templates/PageTemplates'
 | FormPage | title、onSubmit、footer、children | 正文滚动；footer 保持可见，主提交仅放此处 |
 
 完整可复制的用法在 `src/dev/PageTemplateGallery.tsx`，分别是 ListExample、MasterDetailExample、WorkbenchExample、FormExample。演示包含模拟状态、搜索清空、选择对象、保存失败与重试，不访问 API。迁入业务模块时接入真实查询/写入、鉴权及并发策略，不保留模拟状态选择器或模拟延时。
+
+列表工具栏默认遵循 [UI 规范第 5.5 节](../../../../../docs/用户界面设计与开发规范.md#55-列表查询条件的默认布局)，直接复用 [共享查询栏定义](../README.md#横向列表查询栏)，不在模板重复定义尺寸。`SearchField`、`FormField` 与日期范围自动使用 `--layout-query-*` 令牌；普通输入的关键词字段标记 `ui-query-filter--keyword`。查询与重置放在 `ui-query-filters__actions` 中，紧随条件并整体换行。通过 Fragment 传入并列条件；业务可按内容调整字段尺寸，按钮组不使用 `margin-left: auto` 推远。主从页侧栏搜索、录入表单保持各自布局。
+
+2026-10-12 用户认可发药查询、收费查询的筛选栏试点并指定为全局默认；模板搜索框同步取消无限铺满。该认可不代表模板页或其他既存页面已完成所有视口及字号的视觉验收。
 
 打开运行中的 Vite 开发服务 `/ui-templates.html` 即可查看；不需要新起服务。演示有独立 HTML 入口，未接入 AppShell 路由、生产菜单或默认构建入口。使用浏览器实际视口 1280/1440/1920px 验收；演示保留侧栏占位以反映医疗工作站可用宽度，并有长数据开关。
 

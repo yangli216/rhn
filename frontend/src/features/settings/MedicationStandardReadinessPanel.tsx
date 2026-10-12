@@ -81,15 +81,15 @@ export function MedicationStandardReadinessPanel({ api, organizationId, onOpenCa
         {label} · {value.summary.matchingStatuses?.[status] ?? 0}
       </Button>)}
     </div>}
-    <form className="medication-readiness__toolbar" onSubmit={event => { event.preventDefault(); setSearch(draft.trim()); setPage(0) }}>
+    <form className="ui-query-filters" onSubmit={event => { event.preventDefault(); setSearch(draft.trim()); setPage(0) }}>
       <SearchField label="搜索标准建设药品" value={draft} onChange={setDraft} onSearch={val => { setSearch(val.trim()); setPage(0) }} placeholder="药品名称、编码或规格（回车或点击查询）" />
-      <Select aria-label="标准建设筛选" value={filter} onChange={value => { setFilter(value || 'ALL'); setPage(0) }} options={[
+      <Select className="ui-query-filter--wide" aria-label="标准建设筛选" value={filter} onChange={value => { setFilter(value || 'ALL'); setPage(0) }} options={[
         { value: 'ALL', label: '全部关联状态' }, ...Object.entries(statuses).map(([value, label]) => ({ value, label })),
         ...Object.entries(matchingLabels).map(([value, label]) => ({ value, label })),
         { value: 'SOURCE_UNVERIFIED', label: '关联后来源待核验' }, { value: 'CLINICAL_CONVERSION_UNAVAILABLE', label: '关联后含量换算待补' }, { value: 'CONCENTRATION_AVAILABLE', label: '已支持浓度换算' },
       ]} />
-      <Button type="submit" variant="primary">查询</Button>
-      <Button type="button" variant="secondary" onClick={() => { void query.refetch() }} disabled={query.isFetching}>重新核查</Button>
+      <div className="ui-query-filters__actions"><Button type="submit" variant="primary">查询</Button>
+      <Button type="button" variant="secondary" onClick={() => { void query.refetch() }} disabled={query.isFetching}>重新核查</Button></div>
     </form>
     {query.error && <Alert>{errorMessage(query.error)}</Alert>}
     {!value && query.isPending ? <LoadingState label="正在核查药品标准关联…" /> : value && <div className={`medication-readiness__content ${query.isFetching ? 'is-fetching' : ''}`}>

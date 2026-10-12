@@ -239,8 +239,8 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
           { value: 'product', label: '产品包装' },
           { value: 'rules', label: '用药规则' },
         ]} />}
-      {tab !== 'attribute' && tab !== 'operations' && !(tab === 'medication' && ['standard', 'semantics', 'readiness', 'rules'].includes(medicationMode)) && <div className="master-data-toolbar">
-        <SearchField className="master-data-toolbar__search" label="搜索基础数据" value={keyword} onChange={setKeyword}
+      {tab !== 'attribute' && tab !== 'operations' && !(tab === 'medication' && ['standard', 'semantics', 'readiness', 'rules'].includes(medicationMode)) && <div className="master-data-toolbar ui-query-filters">
+        <SearchField  label="搜索基础数据" value={keyword} onChange={setKeyword}
           onSearch={handleSearch}
           placeholder={tab === 'disease' && diseaseMode === 'management' ? '管理项目名称、编码或说明（回车或点击查询）'
             : tab === 'disease' ? '名称、别名、编码或检索码（回车或点击查询）'
@@ -250,8 +250,8 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
         <Select value={typeFilter} onChange={setTypeFilter} placeholder="全部类型" options={typeOptions} />
         <Select value={statusFilter} onChange={setStatusFilter} placeholder="全部状态"
           options={options(dictionaries.data, 'BD_MASTER_STATUS')} />
-        <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
-        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
+        <div className="ui-query-filters__actions"><Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
+        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button></div>
         {tab === 'service' && <div className="service-density-switcher" role="group" aria-label="列表密度">
           <Button type="button"
             className={`service-density-btn ${serviceDensity === 'two-line' ? 'is-active' : ''}`}

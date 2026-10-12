@@ -138,8 +138,8 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
       {error && <Alert tone="warning">{error}</Alert>}
 
       {/* 顶部多维筛选工具条 */}
-      <div className="analytics-filter-strip">
-        <div className="analytics-filter-group">
+      <div className="analytics-filter-strip ui-query-filters">
+        <div className="ui-query-filter ui-query-filter--date">
           <label className="analytics-filter-label">统计周期：</label>
           <DateRangePicker
             compact
@@ -149,10 +149,10 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
           />
         </div>
 
-        <div className="analytics-filter-group">
+        <div className="ui-query-filter ui-query-filter--wide">
           <label className="analytics-filter-label">机构与科室范围：</label>
           <Select
-            className="analytics-scope-select"
+
             value={scope}
             onChange={(value) => setScope(value as 'AUTHORIZED' | 'CURRENT')}
             aria-label="科室统计范围"

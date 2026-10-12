@@ -335,8 +335,8 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
     if (page >= totalPages) setPage(totalPages - 1)
   }, [page, totalPages])
   return <section className="warehouse-section warehouse-inventory-list">
-    <div className="warehouse-inventory-filters">
-      <div className="warehouse-inventory-filters__left">
+    <div className="warehouse-inventory-filters ui-query-filters">
+      <div className="ui-query-filters__group">
         <SearchField label="搜索库存" value={query} onChange={setQuery} placeholder="搜索药品名称、编码或批号" />
         <Select value={stockFilter} onChange={setStockFilter} showValue options={[
           { value: 'ALL', label: '全部库存' }, { value: 'IN_STOCK', label: '有库存' },
@@ -450,7 +450,7 @@ function InventoryLedgerDialog({ api, siteId, item, summary, bins, onClose }: {
       <div><span>当前可用</span><strong>{summary ? formatWarehouseQuantity(summary.available) : '—'}</strong><small>{item.baseUnitCode}</small></div>
       <div><span>批次 / 库位</span><strong>{summary?.activeLots ?? '—'} / {summary?.binCount ?? '—'}</strong><small>当前有效</small></div>
       <div><span>{debouncedQuery ? '查询结果' : '历史记账'}</span><strong>{history.isSuccess ? totalElements : '—'}</strong><small>笔</small></div></div>
-    <div className="warehouse-ledger-filters">
+    <div className="warehouse-ledger-filters ui-query-filters">
       <SearchField label="查询库存流水" value={query} onChange={setQuery}
         placeholder="搜索来源单据、流水号、批号、库位或备注" />
     </div>
@@ -616,7 +616,7 @@ export function ItemDialog({ api, organizationId, stockSiteType, existingItems, 
       <Button variant="secondary" onClick={onClose}>取消</Button><Button busy={busy} disabled={!ready} onClick={submit}>
       批量调入{selectedProducts.length ? `（${selectedProducts.length}）` : ''}</Button></>}>
     {(error || productsQuery.error) && <Alert>{errorMessage(error || productsQuery.error)}</Alert>}
-    <div className="warehouse-batch-toolbar"><label><span>检索药品</span><input autoFocus className="ui-field__control"
+    <div className="warehouse-batch-toolbar ui-query-filters"><label className="ui-query-filter--keyword"><span>检索药品</span><input autoFocus className="ui-field__control"
       value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索名称、编码、生产厂家或批准文号" /></label>
       <label className="warehouse-batch-select-all"><input type="checkbox" checked={allVisibleSelected}
         onChange={(event) => toggleVisible(event.target.checked)} disabled={!visibleProducts.length} />

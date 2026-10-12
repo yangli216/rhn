@@ -243,9 +243,9 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
     />
     {error && <Alert>{errorMessage(error)}</Alert>}
 
-    {/* 检索区：统一采用固定宽度组件与标准高度按钮 */}
-    <form className="billing-query-filters" onSubmit={handleSearch} aria-label="收费查询条件">
-      <FormField label="姓名/门诊号" className="billing-filter-field--keyword">
+    {/* 检索区：关键词有限伸缩，其他条件保持内容宽度，操作紧随条件 */}
+    <form className="billing-query-filters ui-query-filters" onSubmit={handleSearch} aria-label="收费查询条件">
+      <FormField label="姓名/门诊号" className="billing-filter-field--keyword ui-query-filter--keyword">
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
@@ -264,7 +264,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
         <Select value={settlementType} options={typeOptions} onChange={setSettlementType} />
       </FormField>
 
-      <div className="billing-filter-actions">
+      <div className="ui-query-filters__actions">
         <Button type="submit" variant="secondary" busy={records.isFetching}>
           <Icon name="search" />查询
         </Button>

@@ -22,7 +22,7 @@ export function DecisionRunObservation({ api, onClose }: { api: RhnApi; onClose:
   return <Dialog title="决策运行观察" size="xwide" onClose={onClose}>
     <div className="decision-observation">
       <WorkspacePane label="决策运行记录" scroll="content" header={<div className="decision-observation__header">
-        <div className="decision-observation__filters">
+        <div className="decision-observation__filters ui-query-filters">
           <FormField label="决策场景" className="decision-observation__filter-field--scene">
             <Select aria-label="决策场景" value={scene} onChange={setScene} options={options(decisionScenes)} placeholder="全部场景" />
           </FormField>
@@ -35,7 +35,7 @@ export function DecisionRunObservation({ api, onClose }: { api: RhnApi; onClose:
           <FormField label="日期范围" className="decision-observation__filter-field--date">
             <DateRangePicker value={dates} onChange={setDates} />
           </FormField>
-          <div className="decision-observation__filter-actions">
+          <div className="ui-query-filters__actions">
             <Button disabled={!valid || query.isFetching} onClick={() => {
               setFilter({ scene, mode, outcome, ...observationDates(dates.from, dates.to), page: 0 })
               setSelected(undefined)

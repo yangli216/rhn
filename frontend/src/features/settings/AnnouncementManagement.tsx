@@ -65,7 +65,7 @@ export function AnnouncementManagement({ api, clinicalContext }: { api: RhnApi; 
       actions={<Button onClick={() => setEditor('create')}><Icon name="add" />新建公告</Button>} />
     {feedback && <Alert tone="success">{feedback}</Alert>}
     {(announcements.error || operationError) && <Alert>{errorMessage(announcements.error || operationError)}</Alert>}
-    <div className="announcement-management-toolbar">
+    <div className="announcement-management-toolbar ui-query-filters">
       <Select aria-label="公告状态" value={statusFilter} onChange={setStatusFilter} placeholder="全部状态"
         options={Object.entries(statusText).map(([value, label]) => ({ value, label }))} />
       <span>共 {announcements.data?.length ?? 0} 条公告</span>

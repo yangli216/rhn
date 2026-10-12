@@ -179,13 +179,13 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
     </section>
 
     <Panel className="appointment-filter-panel">
-      <form className="appointment-filter-form" onSubmit={search}>
+      <form className="appointment-filter-form ui-query-filters" onSubmit={search}>
         <FormField label="预约日期范围">
           <DateRangePicker value={dateRange} onChange={setDateRange} presets={FUTURE_QUERY_PRESETS} />
         </FormField>
         <FormField label="预约状态"><Select value={status} options={statusOptions}
           onChange={(value) => setStatus(value as AppointmentStatus | '')} searchable={false} clearable={false} /></FormField>
-        <FormField label="居民或预约号"><input value={query} onChange={(event) => setQuery(event.target.value)}
+        <FormField label="居民或预约号" className="ui-query-filter--keyword"><input value={query} onChange={(event) => setQuery(event.target.value)}
           placeholder="姓名、档案号、预约号" /></FormField>
         <Button type="submit" variant="secondary" busy={appointments.isFetching}><Icon name="search" />查询</Button>
       </form>

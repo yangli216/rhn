@@ -15,44 +15,22 @@
   overflow: hidden;
 }
 
-/* 查询栏右侧操作 */
-.qmed-governance__filter-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
 /* 单行紧凑筛选条 (严格控制桌面端宽度，杜绝换行) */
 .qmed-governance__filters {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+
+
   min-height: 42px;
   padding: 4px 10px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  flex-shrink: 0;
-  flex-wrap: nowrap;
-}
 
-.qmed-governance__filters > .ui-search-field {
-  width: 280px;
-  min-width: 160px;
-  flex: 0 1 280px;
-}
 
-.qmed-governance__filters > .ui-select {
-  width: 140px;
-  min-width: 110px;
-  flex: 0 1 140px;
 }
 
 .qmed-governance__filters-count {
-  margin-left: auto;
+
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -845,16 +823,6 @@
   border-radius: var(--radius-md);
   padding: var(--space-3);
   background: var(--color-surface-subtle);
-}
-
-.qmed-governance__meds-filter {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.qmed-governance__meds-filter .ui-search-field {
-  flex: 1;
 }
 
 .qmed-governance__meds {

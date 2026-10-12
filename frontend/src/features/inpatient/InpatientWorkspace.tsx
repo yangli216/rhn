@@ -107,7 +107,7 @@ export function InpatientAdmissionQueryWorkspace({ api, clinicalContext }: {
     <PageHeader eyebrow="住院医疗 · 登记管理" title="入院登记查询"
       description="集中查询当前及历史入院登记，核对住院号、床位和登记详情。" />
     {bootstrap.error && <Alert>{errorMessage(bootstrap.error)}</Alert>}
-    <div className="inpatient-toolbar"><form onSubmit={(event) => {
+    <div className="inpatient-toolbar ui-query-filters"><form className="ui-query-filters__group" onSubmit={(event) => {
       event.preventDefault(); setSubmittedKeyword(keyword.trim())
     }}><SearchField value={keyword} onChange={setKeyword} label="搜索入院登记"
       placeholder="姓名 / 健康档案号 / 住院号 / 床号" /><Button type="submit" variant="secondary">查询</Button></form>
@@ -307,7 +307,7 @@ function AdmissionForm({ api, beds, onSuccess }: {
     event.preventDefault(); if (canSubmit) admit.mutate()
   }}>
     {admit.error && <div className="inpatient-admission-error-banner"><Alert>{errorMessage(admit.error)}</Alert></div>}
-    
+
     <div className="inpatient-admission-sidebar">
       <Panel className="inpatient-admission-section">
         <header className="inpatient-section-head">
@@ -534,7 +534,7 @@ export function DischargeDialog({ api, episode, onClose, onSuccess }: {
       <strong>{diagnoses.length ? `${diagnoses.length} 条` : '尚未录入'}</strong></div>
       <Button size="sm" variant="secondary" busy={saveDiagnoses.isPending}
         disabled={!primaryDiagnosis || diagnoses.length === 0} onClick={() => saveDiagnoses.mutate()}>保存诊断</Button></header>
-      <form onSubmit={(event) => { event.preventDefault(); setDiagnosisSearch(diagnosisQuery.trim()) }}>
+      <form className="ui-query-filters__group" onSubmit={(event) => { event.preventDefault(); setDiagnosisSearch(diagnosisQuery.trim()) }}>
         <input aria-label="搜索出院诊断" value={diagnosisQuery} onChange={(event) => setDiagnosisQuery(event.target.value)}
           placeholder="输入疾病名称、ICD 编码或拼音码" /><Button type="submit" size="sm" variant="secondary"
           disabled={diagnosisQuery.trim().length < 2}>查询</Button>

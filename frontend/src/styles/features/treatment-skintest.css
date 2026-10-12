@@ -1893,9 +1893,7 @@
 
 .partner-feedback { margin: calc(-1 * var(--space-2)) 0 var(--space-5); }
 .partner-panel { min-width: 0; overflow: hidden; }
-.partner-toolbar { min-height: 4.75rem; padding: var(--space-4) var(--space-6); display: flex; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
-.partner-toolbar__search { min-width: 16rem; max-width: 32rem; flex: 1; }
-.partner-toolbar .ui-select { width: 10rem; }
+.partner-toolbar { min-height: 4.75rem; padding: var(--space-4) var(--space-6);    border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
 .partner-toolbar__count { margin-left: auto; color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
 .partner-table { min-width: 62rem; }
 .partner-table td:first-child { min-width: 15rem; }
@@ -1908,8 +1906,6 @@
 /* 发药药房设置：四维 KPI 概览与标准管理页 */
 .dispense-header-actions { display: flex; align-items: center; gap: var(--space-2); }
 .dispense-route-summary { margin-bottom: var(--space-4); grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.dispense-route-page .master-data-toolbar { flex-wrap: wrap; gap: var(--space-2); }
-.dispense-route-page .master-data-toolbar > .ui-select { width: auto; min-width: 8.5rem; }
 
 /* 路由试算沙盒 */
 .dispense-route-simulator { margin: var(--space-3) var(--space-4); padding: var(--space-4); border: 1px solid color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-surface)); display: grid; gap: var(--space-3); }
@@ -1971,7 +1967,6 @@
 .master-data-row-actions { display: flex; align-items: center; justify-content: flex-start; gap: var(--space-1); flex-wrap: wrap; }
 .master-data-row-actions .ui-button { white-space: nowrap; }
 .disease-management-member-dialog { margin-top: var(--space-5); }
-.disease-management-member-toolbar { display: grid; grid-template-columns: minmax(20rem, 1fr) 12rem auto; align-items: end; gap: var(--space-3); }
 .disease-management-member-toolbar .ui-field { margin: 0; }
 .disease-management-member-toolbar > span { min-height: var(--control-height-md); display: flex; align-items: center; color: var(--color-text-secondary); white-space: nowrap; }
 .disease-management-member-list { max-height: 34rem; margin-top: var(--space-4); overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); scrollbar-gutter: auto; }

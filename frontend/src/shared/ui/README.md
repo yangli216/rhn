@@ -41,6 +41,35 @@
 
 `SearchField` 可传 `inputRef`，用于 F1、Alt+K 等业务快捷键聚焦；清空后焦点仍回到同一输入框。有内容时也保持稳定的可访问名称，页面不需另写搜索外壳和清空按钮。
 
+### 横向列表查询栏
+
+统一布局定义在 `query-filters.css`，随 shared/ui 导入；尺寸的唯一来源是 `styles/tokens.css` 的 `--layout-query-*`。在现有 `form` / `div` / `section` 上添加 `ui-query-filters` 即可，保留原有提交、回车、清空与筛选事件，不另建查询状态模型。
+
+| 类名 | 用途 |
+| --- | --- |
+| `ui-query-filters` | 容器底部对齐、统一间距、自然换行，固定于结果正文之外 |
+| `ui-query-filters__group` | 同一查询栏中的子组，内部使用相同字段规则；容器不足时可收缩换行 |
+| `ui-query-filter--keyword` | 普通 FormField / 自定义标签中的关键词；SearchField 直接子项自动使用有限搜索宽度 |
+| `ui-query-filter--date` | 自定义日期范围外层；直接 DateRangePicker 或包含它的 FormField 自动识别 |
+| `ui-query-filter--wide` | 需要容纳长字典文案的条件，使用共享宽字段令牌 |
+| `ui-query-filter--toggle` | 复选条件按内容宽度显示 |
+| `ui-query-filter` | 自定义“标签 + 控件”字段，使用标准字段宽度和上下排列 |
+| `ui-query-filters__actions` | 紧随条件的按钮组，查询、重置等操作不拆开换行 |
+
+```tsx
+<form className="ui-query-filters" onSubmit={search}>
+  <SearchField label="搜索业务" value={keyword} onChange={setKeyword} />
+  <FormField label="业务状态"><Select value={status} options={statusOptions} onChange={setStatus} /></FormField>
+  <FormField label="日期范围"><DateRangePicker value={dates} onChange={setDates} /></FormField>
+  <div className="ui-query-filters__actions">
+    <Button type="submit">查询</Button>
+    <Button type="button" variant="secondary" onClick={reset}>重置</Button>
+  </div>
+</form>
+```
+
+业务 CSS 仅保留面板表面、外层留白及确有内容依据的专用尺寸；不再重复定义默认搜索/日期/状态宽度、Flex 排列和按钮组间距。`ListPage` 自动接入相同定义，传入并列条件即可。主从页侧栏搜索、录入表单、扫码操作区不套用横向查询栏规则。
+
 业务枚举的文案和颜色不能写在功能组件中，应集中到 `shared/presentation.ts`，再传给 `StatusBadge`。
 
 字体统一使用 `styles/tokens.css`：页面标题 20/24px，弹窗标题 18/22px，面板标题 16/20px，正文/表格/表单值/标签/按钮 14/16px，辅助信息 12/14px（标准/大字）。详见 UI 规范第 4.2 节；标题语义级别不等同于视觉字号。`FontSizeControl` 提供即时切换与浏览器本地保存，应用入口通过 `useFontSizePreference` 恢复设置，屏幕上以根节点 `data-font-size` 切换令牌。弹窗 Portal 继承根令牌，打印不随屏幕档位放大。

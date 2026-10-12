@@ -1,0 +1,60 @@
+/* 横向列表查询栏：共享尺寸由 tokens.css 定义，业务仅负责外层表面与留白。 */
+.ui-query-filters,
+.ui-query-filters__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex: none;
+  min-width: 0;
+}
+
+:is(.ui-query-filters, .ui-query-filters__group) > :is(.ui-field, .ui-select, label, .ui-query-filter) {
+  flex: none;
+  width: var(--layout-query-field-width);
+  min-width: 0;
+  margin: 0;
+}
+
+:is(.ui-query-filters, .ui-query-filters__group) > .ui-query-filter {
+  display: grid;
+  gap: var(--space-1);
+}
+
+:is(.ui-query-filters, .ui-query-filters__group) > :is(.ui-search-field, .ui-query-filter--keyword) {
+  flex: 0 1 auto;
+  width: var(--layout-query-keyword-width);
+  min-width: var(--layout-query-keyword-min-width);
+}
+
+:is(.ui-query-filters, .ui-query-filters__group) > :is(.ui-date-range-picker, .ui-field:has(.ui-date-range-picker), .ui-query-filter--date) {
+  flex: none;
+  width: var(--layout-query-date-width);
+}
+
+:is(.ui-query-filters, .ui-query-filters__group) > .ui-query-filter--wide {
+  width: var(--layout-query-wide-field-width);
+}
+
+:is(.ui-query-filters, .ui-query-filters__group) > .ui-query-filter--toggle {
+  width: auto;
+  white-space: nowrap;
+}
+
+.ui-query-filters__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.ui-query-filters__group {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.ui-query-filter > :is(.ui-select, .ui-date-range-picker) {
+  width: 100%;
+  min-width: 0;
+}

@@ -104,11 +104,11 @@ export function PresenceManagement({ api, clinicalContext, canReadTrend = false,
     </Panel>
     <Panel className="presence-users-panel">
       <PanelHead title="在线用户" meta={usersValue ? `共 ${usersValue.total} 个在线工作上下文` : '在线名单待核实'} />
-      <form className="presence-toolbar" onSubmit={search}>
-        <label><span className="visually-hidden">搜索账号、机构或科室</span>
+      <form className="presence-toolbar ui-query-filters" onSubmit={search}>
+        <label className="ui-query-filter--keyword"><span className="visually-hidden">搜索账号、机构或科室</span>
           <Icon name="search" /><input value={draftQuery} onChange={(event) => setDraftQuery(event.target.value)}
             placeholder="搜索账号、机构或科室" /></label>
-        <label className="presence-active-filter"><input type="checkbox" checked={activeOnly}
+        <label className="presence-active-filter ui-query-filter--toggle"><input type="checkbox" checked={activeOnly}
           onChange={(event) => setActiveOnly(event.target.checked)} />只看活跃用户</label>
         <Button type="submit" variant="secondary">查询</Button>
       </form>

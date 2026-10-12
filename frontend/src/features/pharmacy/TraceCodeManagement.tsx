@@ -81,8 +81,8 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
   }, [list, safePage, pageSize])
 
   return <section className="warehouse-section warehouse-trace">
-    <div className="warehouse-inventory-filters">
-      <div className="warehouse-inventory-filters__left">
+    <div className="warehouse-inventory-filters ui-query-filters">
+      <div className="ui-query-filters__group">
         <SearchField
           label="搜索追溯码台账"
           value={keyword}
@@ -99,8 +99,8 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
             ...Object.entries(statusText).map(([value, label]) => ({ value, label, secondaryText: value })),
           ]}
         />
-        <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
-        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
+        <div className="ui-query-filters__actions"><Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
+        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button></div>
       </div>
       <div className="warehouse-metrics-inline">
         <span className="warehouse-metric-chip">全库 <strong>{metrics.total}</strong></span>

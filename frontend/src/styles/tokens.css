@@ -1,6 +1,12 @@
 :root {
   color-scheme: light;
 
+  --layout-query-keyword-min-width: 20rem;
+  --layout-query-keyword-width: clamp(20rem, 22vw, 30rem);
+  --layout-query-field-width: 10rem;
+  --layout-query-date-width: 24rem;
+  --layout-query-wide-field-width: 20rem;
+
   /* 默认：松石翡翠 (Emerald Jade) */
   --color-brand-primary: #0b6b62;
   --color-brand-strong: #064f49;

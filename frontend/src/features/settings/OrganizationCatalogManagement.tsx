@@ -210,11 +210,11 @@ function OrganizationCatalogWorkspace({ api, organization, canManage, scope }: {
       <Tabs value={catalogType} onChange={handleCatalogTypeChange} label="机构目录类型" variant="workspace"
         items={[{ value: 'SERVICE', label: '诊疗项目', meta: '开立 · 执行 · 收费' },
           { value: 'MED_PRODUCT', label: '药品产品', meta: '采购 · 库存 · 发药' }]} />
-      <div className="master-data-toolbar">
-        <SearchField className="master-data-toolbar__search" label="搜索中心目录" value={keyword}
+      <div className="master-data-toolbar ui-query-filters">
+        <SearchField  label="搜索中心目录" value={keyword}
           onChange={setKeyword} onSearch={handleSearch} placeholder="项目名称或编码（回车或点击查询）" />
-        <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
-        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
+        <div className="ui-query-filters__actions"><Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
+        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button></div>
         <span className="master-data-count">{candidatesReady ? `${candidates.data.totalElements} 条` : '数量待确认'}</span>
       </div>
       {!sourceReady ? <EmptyState icon="clinical" title="请先确认目录来源" copy="目录来源确认后读取机构项目。" />

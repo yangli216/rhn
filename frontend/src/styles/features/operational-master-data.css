@@ -1478,9 +1478,7 @@
 .master-data-panel { min-width: 0; overflow: hidden; }
 .master-data-body { min-width: 0; }
 .disease-management-mode { min-height: 2.75rem; padding: 0 var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
-.master-data-toolbar { min-height: 3.5rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
-.master-data-toolbar > .ui-select { width: 9.5rem; }
-.master-data-toolbar__search { min-width: 16rem; max-width: 32rem; flex: 1; }
+.master-data-toolbar { min-height: 3.5rem; padding: var(--space-2) var(--space-4);    border-bottom: 1px solid var(--color-border); }
 .master-data-count { margin-left: auto; color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
 .master-data-table-wrap { min-width: 0; overflow-x: auto; }
 .master-data-table { min-width: 62rem; }
@@ -1536,7 +1534,7 @@
 .attribute-config-center__toolbar p, .attribute-config-detail p, .attribute-config-assignments__header p,
 .attribute-config-form section header p { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: var(--line-height-body); }
 .attribute-config-center > .ui-alert { margin-top: var(--space-4); }
-.attribute-config-filters { margin-top: var(--space-5); display: grid; grid-template-columns: 13rem 18rem minmax(22rem, 1fr) auto; gap: var(--space-3); align-items: center; }
+.attribute-config-filters { margin-top: var(--space-5);     }
 .attribute-config-layout { margin-top: var(--space-4); min-height: 34rem; display: grid; grid-template-columns: 22rem minmax(42rem, 1fr); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-surface); }
 .attribute-config-definitions { max-height: 48rem; overflow-y: auto; border-right: 1px solid var(--color-border); background: var(--color-surface-subtle); }
 .attribute-config-definitions > button { width: 100%; padding: var(--space-4); display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); border: 0; border-bottom: 1px solid var(--color-border); color: var(--color-text-primary); background: transparent; text-align: left; cursor: pointer; }
@@ -1851,8 +1849,6 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 .master-data-package-list__empty { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 
 @media (max-width: 1050px) {
-  .master-data-toolbar { align-items: stretch; flex-wrap: wrap; }
-  .master-data-toolbar__search { max-width: none; flex-basis: 100%; }
   .master-data-count { margin-left: 0; }
   .medication-card > header .master-data-row-actions { width: 100%; justify-content: flex-start; }
 }
@@ -1863,7 +1859,6 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 }
 
 @media (max-width: 700px) {
-  .master-data-toolbar > .ui-select { width: calc(50% - var(--space-2)); }
   .master-data-count { order: 5; }
   .master-data-form-grid { grid-template-columns: 1fr; }
   .master-data-form-grid .span-2, .master-data-form-grid .span-3 { grid-column: auto; }

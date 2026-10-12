@@ -20,6 +20,7 @@ import {
   type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
+import './query-filters.css'
 import { Icon, type IconName } from './Icon'
 import { Tooltip, type TooltipProps } from './Tooltip'
 import type { SemanticTone } from '../presentation'

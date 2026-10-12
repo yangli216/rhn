@@ -43,7 +43,7 @@ export function ListPage({ filters, footer, resetScrollKey, children, ...page }:
   children: ReactNode
 }) {
   return <PageFrame {...page}>
-    <div className="ui-page-template__toolbar">{filters}</div>
+    <div className="ui-page-template__toolbar ui-query-filters">{filters}</div>
     <Panel className="ui-page-template__results">
       <TableShell footer={footer} scrollLabel={`${page.title}结果`} resetScrollKey={resetScrollKey}>{children}</TableShell>
     </Panel>

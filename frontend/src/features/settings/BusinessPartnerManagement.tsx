@@ -102,16 +102,16 @@ export function BusinessPartnerManagement({ api, organization }: { api: RhnApi; 
           <Button onClick={() => tab === 'manufacturers' ? setManufacturerDialog(null) : setSupplierDialog(null)}
             disabled={tab === 'manufacturers' && !dictionaries.data}><Icon name="add" />
             新增{tab === 'manufacturers' ? '生产企业' : '供应商'}</Button>} />
-      <div className="partner-toolbar">
-        <SearchField className="partner-toolbar__search" label="搜索业务主体" value={keyword} onChange={setKeyword}
+      <div className="partner-toolbar ui-query-filters">
+        <SearchField  label="搜索业务主体" value={keyword} onChange={setKeyword}
           onSearch={handleSearch}
           placeholder={tab === 'manufacturers' ? '搜索企业名称、简称或编码（回车或点击查询）' : '搜索供应商、编码、证照或联系人（回车或点击查询）'} />
         <Select value={status} onChange={setStatus} placeholder="全部状态" options={[
           { value: 'ACTIVE', label: '已启用' }, { value: 'SUSPENDED', label: '已禁用' },
           { value: 'RETIRED', label: '已停用' },
         ]} />
-        <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
-        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
+        <div className="ui-query-filters__actions"><Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
+        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button></div>
         <span className="partner-toolbar__count">{count} 条</span>
       </div>
       {tab === 'manufacturers' ? <ManufacturerTable values={visibleManufacturers} loading={manufacturers.isPending}

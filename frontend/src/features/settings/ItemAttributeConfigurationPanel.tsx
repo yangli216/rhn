@@ -82,13 +82,13 @@ export function ItemAttributeConfigurationPanel({ api }: { api: RhnApi }) {
     {feedback && <Alert tone="success">{feedback}</Alert>}
     {(operationError || configuration.error || dictionaries.error) && <Alert>
       {operationError || errorMessage(configuration.error || dictionaries.error)}</Alert>}
-    <div className="attribute-config-filters">
+    <div className="attribute-config-filters ui-query-filters">
       <Select value={subjectType} onChange={(value) => setSubjectType(value as SubjectType)}
         options={[{ value: 'MEDICATION', label: '药品知识' }, { value: 'CATALOG_ITEM', label: '诊疗与目录项目' }]} />
-      <Select value={itemTypeId} onChange={setItemTypeId} placeholder="全部项目类型"
+      <Select className="ui-query-filter--wide" value={itemTypeId} onChange={setItemTypeId} placeholder="全部项目类型"
         options={(values?.itemTypes ?? []).map((value) => ({ value: value.id, label: value.name,
           secondaryText: value.code }))} />
-      <SearchField className="attribute-config-filters__search" label="搜索属性" value={query}
+      <SearchField  label="搜索属性" value={query}
         onChange={setQuery} placeholder="搜索属性名称、编码或说明" />
       <span className="master-data-count">{definitions.length} 项属性</span>
     </div>
@@ -285,7 +285,7 @@ function AssignmentDialog({ api, configuration, definition, value, onClose, onSa
     description={`将“${definition.name}”装配到项目类型；子类型配置优先于父类型。`} onClose={onClose}>
     <form className="attribute-config-form" onSubmit={submit}>
       <div className="attribute-config-form__grid">
-        <FormField label="项目类型" required className="span-2"><Select value={itemTypeId} onChange={setItemTypeId}
+        <FormField label="项目类型" required className="span-2"><Select className="ui-query-filter--wide" value={itemTypeId} onChange={setItemTypeId}
           disabled={Boolean(value)} options={eligibleTypes.map((item) => ({ value: item.id, label: item.name,
             secondaryText: item.code }))} /></FormField>
         <FormField label="维护控件" required><Select value={widgetType} onChange={setWidgetType}

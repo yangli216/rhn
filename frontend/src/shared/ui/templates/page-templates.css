@@ -13,8 +13,6 @@
 
 .ui-page-template > .ui-page-header { flex: none; margin: 0; }
 .ui-page-template > :not(.ui-page-template__master-detail, .ui-page-template__workbench, .ui-page-template__results, .ui-page-template__form) { flex-shrink: 0; }
-.ui-page-template__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); flex: none; }
-.ui-page-template__toolbar > .ui-search-field { flex: 1; min-width: 16rem; }
 .ui-page-template__results { flex: 1; min-height: 0; }
 .ui-page-template__master-detail { flex: 1 1 0%; min-height: 0; grid-template-columns: clamp(17rem, 22%, 21rem) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .ui-page-template__pane-frame { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }

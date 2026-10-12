@@ -177,17 +177,10 @@
   background: var(--color-surface);
 }
 
-.pharmacy-query-filters__row {
-  display: grid;
-  grid-template-columns: minmax(20rem, 1.3fr) 11rem minmax(24rem, 1.7fr) auto;
-  align-items: end;
-  gap: var(--space-3);
-}
-
 .pharmacy-query-field {
   display: grid;
   gap: var(--space-1);
-  min-width: 0;
+
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
@@ -231,12 +224,6 @@
   background: transparent;
   font: inherit;
   font-weight: var(--font-weight-regular);
-}
-
-.pharmacy-query-filters__actions {
-  display: flex;
-  gap: var(--space-2);
-  white-space: nowrap;
 }
 
 .pharmacy-query-results {

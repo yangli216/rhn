@@ -192,7 +192,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
 
     <div className="standard-medication__toolbar-row">
       <form
-        className="standard-medication__toolbar"
+        className="ui-query-filters"
         onSubmit={(e) => {
           e.preventDefault()
           handleSearch()
@@ -235,7 +235,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
             { value: 'SCOPE', label: '范围条目' },
           ]}
         />
-        <div className="standard-medication__toolbar-actions">
+        <div className="ui-query-filters__actions">
           <Button variant="primary" type="submit" aria-label="查询标准药品">查询</Button>
           <Button variant="secondary" type="button" onClick={handleReset} aria-label="重置查询">重置</Button>
         </div>

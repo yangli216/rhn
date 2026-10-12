@@ -383,8 +383,6 @@
 .thermal-receipt-feedback { font-size: var(--font-size-small); color: var(--color-brand-primary); margin-right: auto; }
 
 
-
-
 /* Registration workstation: patient strip over schedules and the shared cashier. */
 .registration-workspace-layout { min-width: 0; min-height: 0; display: flex; flex: 1 1 0; flex-direction: column; align-items: stretch; gap: var(--layout-panel-gap); margin-bottom: 0; }
 .registration-intake-strip {
@@ -719,8 +717,7 @@
 .registration-order-actions { min-height: 4.5rem; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: flex-end; gap: var(--space-4); border-top: 1px solid var(--color-border); background: var(--color-surface-subtle); }
 .registration-order-actions > span { margin-right: auto; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .registration-query-filter-panel { margin-bottom: var(--space-4); flex: none; }
-.registration-query-filter-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(23.5rem, max-content) 11rem minmax(14rem, 1fr) auto; align-items: end; gap: var(--space-3); }
-.registration-query-filter-form .ui-field { min-width: 0; margin: 0; }
+.registration-query-filter-form { padding: var(--space-3) var(--space-4);     }
 .registration-query-filter-form > .ui-field > input, .registration-query-filter-form input:not(.ui-date-range-input) { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); }
 .registration-query-filter-form > .ui-field > input:focus, .registration-query-filter-form input:not(.ui-date-range-input):focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
 .registration-query-list-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -755,8 +752,7 @@
 }
 .appointment-metrics { margin-bottom: var(--layout-section-gap); }
 .appointment-filter-panel { margin-bottom: var(--layout-panel-gap); flex: none; }
-.appointment-filter-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(23.5rem, max-content) 11rem minmax(14rem, 1fr) auto; align-items: end; gap: var(--space-3); }
-.appointment-filter-form .ui-field { min-width: 0; margin: 0; }
+.appointment-filter-form { padding: var(--space-3) var(--space-4);     }
 .appointment-filter-form > .ui-field > input, .appointment-filter-form input:not(.ui-date-range-input), .appointment-booking-form textarea { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); }
 .appointment-filter-form > .ui-field > input:focus, .appointment-filter-form input:not(.ui-date-range-input):focus, .appointment-booking-form textarea:focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
 .appointment-list-panel { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -1916,12 +1912,9 @@
 .encounter-query-filter-panel { margin-bottom: var(--space-4); flex: none; }
 .encounter-query-filter-form {
   padding: var(--space-3) var(--space-4);
-  display: grid;
-  grid-template-columns: minmax(23.5rem, max-content) 9.5rem 9rem minmax(12rem, 1fr) auto;
-  align-items: end;
-  gap: var(--space-3);
+
+
 }
-.encounter-query-filter-form .ui-field { min-width: 0; margin: 0; }
 .encounter-query-filter-form > .ui-field > input,
 .encounter-query-filter-form input:not(.ui-date-range-input) {
   width: 100%;

@@ -106,14 +106,14 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
         <span>流程完成</span><strong>{summary?.completedCount ?? 0}</strong><small>完成、转科、终止或取消</small></button>
     </section>}
     <Panel className="outpatient-flow-board">
-      <header className="outpatient-flow-toolbar">
+      <header className="outpatient-flow-toolbar ui-query-filters">
         <div><h2>患者去向</h2><span>{clinicalContext.department.name} · {available ? `${values.length} 人` : '人数待确认'}</span></div>
         <nav aria-label="流转状态筛选">{([
           ['ACTIVE', '诊前诊中'], ['DOWNSTREAM', '诊后待办'], ['EXCEPTION', '异常'], ['COMPLETED', '已完成'], ['ALL', '全部'],
         ] as [FlowFilter, string][]).map(([value, label]) => <button type="button" key={value}
           className={filter === value ? 'is-active' : ''} onClick={() => setFilter(value)}>{label}</button>)}</nav>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
-        <div className="outpatient-flow-search-box">
+        <div className="ui-query-filters__group">
           <SearchField
             label="搜索患者"
             value={keyword}
@@ -121,8 +121,8 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
             onSearch={handleSearch}
             placeholder="姓名 / 档案号 / 就诊号（回车或点击查询）"
           />
-          <Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
-          <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button>
+          <div className="ui-query-filters__actions"><Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
+          <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button></div>
         </div>
       </header>
       {(board.isPending || board.isFetching) && <LoadingState label="正在汇总门诊各环节状态…" />}

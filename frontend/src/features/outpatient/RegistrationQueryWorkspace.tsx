@@ -183,14 +183,14 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
       {cancellationResult.refundStatus ? `（退款状态：${cancellationResult.refundStatus}）` : ''}</Alert>}
 
     <Panel className="registration-query-filter-panel">
-      <form className="registration-query-filter-form" onSubmit={search}>
+      <form className="registration-query-filter-form ui-query-filters" onSubmit={search}>
         <FormField label="挂号日期范围">
           <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
         </FormField>
         <FormField label="接诊状态"><Select value={status} options={statusOptions} placeholder="全部状态"
           searchable={false} clearable={false}
           onChange={(value) => handleStatusChange(value as ReceptionQueueItem['status'] | '')} /></FormField>
-        <FormField label="挂号记录关键词"><input value={query} onChange={(event) => setQuery(event.target.value)}
+        <FormField label="挂号记录关键词" className="ui-query-filter--keyword"><input value={query} onChange={(event) => setQuery(event.target.value)}
           placeholder="姓名、档案号、挂号单、候诊号、科室或挂号员" /></FormField>
         <Button type="submit" variant="secondary" busy={registrations.isFetching}>
           <Icon name="search" />查询</Button>

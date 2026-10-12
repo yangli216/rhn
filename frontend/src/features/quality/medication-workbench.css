@@ -2666,10 +2666,6 @@
   color: var(--color-text-secondary);
 }
 
-.qmed-cat-members-search {
-  width: 240px;
-}
-
 .qmed-cat-members-table-wrap {
   flex: 1;
   min-height: 0;
@@ -2890,16 +2886,6 @@
   flex-direction: column;
   gap: var(--space-3);
   overflow: hidden;
-}
-
-.qmed-add-med-search-bar {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.qmed-add-med-search-bar .ui-field {
-  flex: 1;
 }
 
 .qmed-add-med-results {

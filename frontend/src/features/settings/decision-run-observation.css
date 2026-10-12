@@ -4,27 +4,14 @@
 .decision-observation__header { display: flex; flex-direction: column; gap: var(--space-3); }
 
 .decision-observation__filters {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+
+
   padding: var(--space-3);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
 }
-.decision-observation__filters > .ui-field { min-width: 0; margin: 0; flex: none; }
-.decision-observation__filter-field--scene { width: 11rem; }
-.decision-observation__filter-field--mode { width: 8.5rem; }
-.decision-observation__filter-field--outcome { width: 9.5rem; }
-.decision-observation__filter-field--date { width: 23.5rem; }
-.decision-observation__filter-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-left: auto;
-}
-.decision-observation__filter-actions .ui-button { height: var(--control-height-md); }
+
 
 .decision-observation__meta-bar {
   display: flex;

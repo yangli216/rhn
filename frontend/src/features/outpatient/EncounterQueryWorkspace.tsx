@@ -152,7 +152,7 @@ export function EncounterQueryWorkspace({ api, clinicalContext, onNavigate }: {
     {encounters.error && <Alert className="ui-page-feedback">{errorMessage(encounters.error)}</Alert>}
 
     <Panel className="encounter-query-filter-panel">
-      <form className="encounter-query-filter-form" onSubmit={search}>
+      <form className="encounter-query-filter-form ui-query-filters" onSubmit={search}>
         <FormField label="就诊日期范围">
           <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
         </FormField>
@@ -176,7 +176,7 @@ export function EncounterQueryWorkspace({ api, clinicalContext, onNavigate }: {
             onChange={(value) => handleScopeChange(value as string)}
           />
         </FormField>
-        <FormField label="就诊关键词">
+        <FormField label="就诊关键词" className="ui-query-filter--keyword">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}

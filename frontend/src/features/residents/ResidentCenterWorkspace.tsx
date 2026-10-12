@@ -128,8 +128,8 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
         <Button onClick={() => setShowCreate(true)}><Icon name="add" />新建居民</Button></>} />
 
     <Panel className="resident-filter-panel">
-      <form className="resident-filter-form" onSubmit={handleSearch}>
-        <FormField label="居民检索">
+      <form className="resident-filter-form ui-query-filters" onSubmit={handleSearch}>
+        <FormField label="居民检索" className="ui-query-filter--keyword">
           <input
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -166,7 +166,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
             onChange={(val) => { setDeceasedFilter(val as any); setPage(0) }}
           />
         </FormField>
-        <div className="resident-filter-actions">
+        <div className="ui-query-filters__actions">
           <Button type="submit" variant="secondary" busy={residentsPageQuery.isFetching}>
             <Icon name="search" />查询
           </Button>

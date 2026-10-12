@@ -50,20 +50,20 @@ export function MedicationEvaluationLog({ api }: { api: RhnApi }) {
   const query = useQuery({ queryKey: ['medication-evaluation-records', scopeKey, filter], queryFn: () => api.medicationWorkbench.evaluationRecords(filter), retry: false })
   const data = query.isError ? undefined : query.data
   return <div className="medication-evaluation-log"><WorkspacePane label="真实处方审查结果" scroll="content" header={<>
-    <div className="medication-evaluation-log__filters">
+    <div className="medication-evaluation-log__filters ui-query-filters">
       <FormField label="审查模式" className="medication-evaluation-log__filter-field--mode">
         <Select aria-label="审查模式" value={mode} onChange={setMode} options={[{ value: 'SHADOW', label: '旁路观察' }, { value: 'ENFORCED', label: '正式审查' }]} placeholder="全部模式" />
       </FormField>
       <FormField label="评价结论" className="medication-evaluation-log__filter-field--decision">
         <Select aria-label="评价结论" value={decision} onChange={setDecision} options={Object.entries(medicationEvaluationDecisions).map(([value, label]) => ({ value, label }))} placeholder="全部结论" />
       </FormField>
-      <FormField label="处方 ID" className="medication-evaluation-log__filter-field--rx">
+      <FormField label="处方 ID" className="ui-query-filter--keyword">
         <input aria-label="处方 ID" value={prescriptionId} onChange={e => setPrescriptionId(e.target.value)} inputMode="numeric" />
       </FormField>
       <FormField label="审查日期范围" className="medication-evaluation-log__filter-field--date">
         <DateRangePicker value={dates} onChange={setDates} />
       </FormField>
-      <div className="medication-evaluation-log__filter-actions">
+      <div className="ui-query-filters__actions">
         <Button disabled={!dates.from || !dates.to || dates.from > dates.to || query.isFetching || Boolean(prescriptionId && !/^\d+$/.test(prescriptionId))}
           onClick={() => { setFilter({ ...observationDates(dates.from, dates.to), mode, decision, prescriptionId, page: 0 }); setSelected(undefined) }}>查询</Button>
         <Button variant="secondary" disabled={query.isFetching} onClick={() => void query.refetch()}>刷新日志</Button>

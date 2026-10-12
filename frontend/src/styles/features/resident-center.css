@@ -9,11 +9,9 @@
 .reception-ticket { width: 2.75rem; height: 2.75rem; display: grid; place-items: center; border-radius: var(--radius-md); color: var(--color-brand-primary); background: var(--color-brand-soft); font-size: var(--font-size-h3); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
 
 .resident-filter-panel { margin-bottom: var(--space-4); flex: none; }
-.resident-filter-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(15rem, 1fr) 8.5rem 9rem 9.5rem auto; gap: var(--space-3); align-items: end; }
-.resident-filter-form .ui-field { min-width: 0; margin: 0; }
+.resident-filter-form { padding: var(--space-3) var(--space-4);     }
 .resident-filter-form > .ui-field > input, .resident-filter-form input { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); font-size: var(--font-size-body); }
 .resident-filter-form > .ui-field > input:focus, .resident-filter-form input:focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
-.resident-filter-actions { display: flex; align-items: center; gap: var(--space-2); }
 .resident-filter-actions .ui-button { min-height: var(--control-height-md); white-space: nowrap; }
 .resident-roster-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; margin-bottom: 0; }
 .resident-roster-panel > .ui-panel__head { flex: none; }
@@ -203,10 +201,6 @@
   .registration-order-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .registration-schedule-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .registration-schedule-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .registration-query-filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .registration-query-filter-form .ui-button { justify-self: end; }
-  .appointment-filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .appointment-filter-form .ui-button { justify-self: end; }
   .resident-profile-array-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -273,10 +267,7 @@
   .registration-order-actions { align-items: stretch; flex-direction: column; }
   .registration-order-actions > span { margin-right: 0; }
   .registration-order-actions .ui-button { width: 100%; }
-  .registration-query-filter-form { grid-template-columns: 1fr; }
-  .registration-query-filter-form .ui-button { width: 100%; justify-self: stretch; }
   .appointment-filter-form, .appointment-create-grid { grid-template-columns: 1fr; }
-  .appointment-filter-form .ui-button { width: 100%; justify-self: stretch; }
   .appointment-create-grid { min-height: 0; }
   .appointment-resident-picker .registration-resident-list { max-height: 13rem; }
   .quick-schedule-field > div { flex-wrap: wrap; }

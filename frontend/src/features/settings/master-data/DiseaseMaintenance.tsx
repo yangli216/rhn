@@ -310,15 +310,15 @@ export function DiseaseManagementMembersEditor({ program, api, dictionaries, cod
           <Button variant="text" size="sm" onClick={() => setExceptions((current) => {
             const next = new Map(current); next.delete(item.conceptId); return next
           })}>移除</Button></div>)}</div>}
-        <div className="disease-management-member-toolbar">
+        <div className="disease-management-member-toolbar ui-query-filters">
           <SearchField label="查找精确疾病" value={keyword} onChange={value => {
             setKeyword(value); setQuery(''); setPage(0); setAttempt(current => current + 1); setSelectionError('')
           }} onSearch={handleSearch} placeholder="至少输入 2 个字符（回车或点击检索）" />
           <Select aria-label="检索诊断体系" value={domain} onChange={(val) => {
             setDomain(val); setPage(0); setAttempt(current => current + 1); setSelectionError('')
           }} placeholder="全部诊断体系" options={domainOptions} />
-          <Button size="sm" variant="primary" type="button" onClick={handleSearch}>检索</Button>
-          <Button size="sm" variant="secondary" type="button" onClick={handleReset}>重置</Button>
+          <div className="ui-query-filters__actions"><Button size="sm" variant="primary" type="button" onClick={handleSearch}>检索</Button>
+          <Button size="sm" variant="secondary" type="button" onClick={handleReset}>重置</Button></div>
           <span>{query.length < 2 ? '输入关键词后检索' : search.isFetching ? '正在检索…'
             : searchReady ? `共 ${search.data.totalElements} 条` : '数量未确认'}</span>
         </div>
