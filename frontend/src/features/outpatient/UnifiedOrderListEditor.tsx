@@ -185,7 +185,6 @@ export function UnifiedOrderListEditor({
     setValidationError('')
     setEntryType('WESTERN')
     focusResource('WESTERN')
-    setSuccessToast(`已关联输液组【${session.headMedicationName}】，请继续录入同组药品`)
   }
 
   function changeSearchMode(next: OrderSearchMode) {

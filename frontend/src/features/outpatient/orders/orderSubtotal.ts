@@ -60,6 +60,6 @@ export function formatOrderSubtotal(value: OrderSubtotal): string {
     const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2)) + (Number(fraction[2] ?? 0) >= 5 ? 1n : 0n)
     // A real small positive amount must not look like a free order.
     const shown = cents === 0n && /[1-9]/.test(amount) ? amount : `${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`
-    return `${currencyCode} ${shown}`
+    return `${currencyCode === 'CNY' ? '¥' : `${currencyCode} `}${shown}`
   }).join('；')
 }

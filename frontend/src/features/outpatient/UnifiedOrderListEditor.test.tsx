@@ -2117,10 +2117,10 @@ describe('UnifiedOrderListEditor', () => {
     // 验证处方底栏整行已彻底移除，无冗余堆叠
     expect(document.querySelector('.doctor-herbal-summary-bar')).not.toBeInTheDocument()
 
-    // 验证单据栏小计金额精确计算且格式化为标准2位小数（CNY 38.60），无 38.598 等多余小数或浮点长尾
+    // 验证单据栏小计金额精确计算且格式化为标准2位小数（¥38.60），无 38.598 等多余小数或浮点长尾
     const subtotal = document.querySelector('.doctor-group-subtotal')
     expect(subtotal).toBeInTheDocument()
-    expect(subtotal).toHaveTextContent('CNY 38.60')
+    expect(subtotal).toHaveTextContent('¥38.60')
     expect(subtotal?.textContent).not.toContain('0000000000003')
 
     // 验证单据栏标题精简为“中药处方”，无冗余的“门诊”或“（待开立）”
@@ -2354,14 +2354,14 @@ describe('UnifiedOrderListEditor', () => {
     ] })
     const header = screen.getByLabelText('检验申请分组')
     expect(header).toHaveTextContent('小计 待确认')
-    expect(header).not.toHaveTextContent('CNY 10')
+    expect(header).not.toHaveTextContent('¥10')
   })
   it('shows zero-priced draft lines and separates currencies in the header', () => {
     renderComponent({ serviceDrafts: [
       { ...mockServiceDraft, id: 's1', unitPrice: 0, currencyCode: 'CNY' },
       { ...mockServiceDraft, id: 's2', quantity: 2, unitPrice: 3, currencyCode: 'USD' },
     ] })
-    expect(screen.getByLabelText('检验申请分组')).toHaveTextContent('CNY 0.00；USD 6.00')
+    expect(screen.getByLabelText('检验申请分组')).toHaveTextContent('¥0.00；USD 6.00')
   })
   it.each([undefined, 3.5])('uses saved service amount snapshots without inventing a value: %s', totalAmount => {
     renderComponent({ services: [{ id: 'saved-price', serviceType: 'LABORATORY', itemName: '保存项目',

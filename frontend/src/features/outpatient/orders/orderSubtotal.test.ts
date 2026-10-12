@@ -15,17 +15,17 @@ describe('order subtotal facts', () => {
   it('keeps separate currencies and preserves genuine zero and small amounts', () => {
     const result = draftOrderSubtotal([{ unitPrice: 0, quantity: 2, currencyCode: 'CNY' },
       { unitPrice: 0.000001, quantity: 3, currencyCode: 'USD' }])
-    expect(formatOrderSubtotal(result)).toBe('CNY 0.00；USD 0.000003')
+    expect(formatOrderSubtotal(result)).toBe('¥0.00；USD 0.000003')
   })
   it('adds decimal products exactly before rounding the subtotal display', () => {
     const result = draftOrderSubtotal([{ unitPrice: 0.18, quantity: 70.7, currencyCode: 'CNY' },
       { unitPrice: 0.2, quantity: 70, currencyCode: 'CNY' }, { unitPrice: 0.16, quantity: 74.2, currencyCode: 'CNY' }])
     expect(result).toEqual({ status: 'known', totals: [{ currencyCode: 'CNY', amount: '38.598' }] })
-    expect(formatOrderSubtotal(result)).toBe('CNY 38.60')
-    expect(formatOrderSubtotal(draftOrderSubtotal([{ unitPrice: 1.005, quantity: 1, currencyCode: 'CNY' }]))).toBe('CNY 1.01')
+    expect(formatOrderSubtotal(result)).toBe('¥38.60')
+    expect(formatOrderSubtotal(draftOrderSubtotal([{ unitPrice: 1.005, quantity: 1, currencyCode: 'CNY' }]))).toBe('¥1.01')
   })
   it('handles scientific notation without producing infinity or a fake zero', () => {
-    expect(formatOrderSubtotal(draftOrderSubtotal([{ unitPrice: 1e-25, quantity: 1e20, currencyCode: 'CNY' }]))).toBe('CNY 0.00001')
+    expect(formatOrderSubtotal(draftOrderSubtotal([{ unitPrice: 1e-25, quantity: 1e20, currencyCode: 'CNY' }]))).toBe('¥0.00001')
     expect(formatOrderSubtotal(draftOrderSubtotal([{ unitPrice: 1e200, quantity: 1e200, currencyCode: 'CNY' }]))).not.toContain('Infinity')
   })
   it('uses saved amount snapshots instead of recomputing from base quantity and package price', () => {
@@ -39,7 +39,7 @@ describe('order subtotal facts', () => {
   })
   it('distinguishes cancelled-only documents and unknown states from zero-priced active orders', () => {
     expect(formatOrderSubtotal(savedOrderSubtotal([{ status: 'CANCELLED' }]))).toBe('无有效计价明细')
-    expect(formatOrderSubtotal(savedOrderSubtotal([{ status: 'ACTIVE', totalAmount: 0, currencyCode: 'CNY' }]))).toBe('CNY 0.00')
+    expect(formatOrderSubtotal(savedOrderSubtotal([{ status: 'ACTIVE', totalAmount: 0, currencyCode: 'CNY' }]))).toBe('¥0.00')
     expect(formatOrderSubtotal(savedOrderSubtotal([{ status: 'UNKNOWN', totalAmount: 2, currencyCode: 'CNY' }]))).toBe('待确认')
   })
 })

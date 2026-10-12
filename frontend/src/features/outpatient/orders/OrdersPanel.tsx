@@ -17,7 +17,7 @@ import { Alert, Button, Dialog, FormField, IconButton, LoadingState, Panel, Pane
 import type { MedicationPlanDraft } from "./medicationDraft";
 import { UnifiedOrderListEditor, type AiOrderReviewCommand, type ServicePlanDraft } from "../UnifiedOrderListEditor";
 import { needsMedicationSafetyAcknowledgement, medicationSafetyReviewKey, medicationSafetyBlocksSubmission, medicationSafetyNeedsReason, medicationSafetySeverityLabel, medicationSafetyDecisionLabel, medicationSafetyRuleNames, prescriptionReviewTitle, serviceReviewTitle } from '../workstation/workstationShared'
-import { money, ControlledPrintDialog, prescriptionCategoryLabel, serviceApplicationLabel, BatchPrintDialog } from '../printing/EncounterPrintPanel'
+import { ControlledPrintDialog, prescriptionCategoryLabel, serviceApplicationLabel, BatchPrintDialog } from '../printing/EncounterPrintPanel'
 
 export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinicalDraft, onEditInvalidRecord, allergies, api, medicationDrafts, setMedicationDrafts,
   serviceDrafts, setServiceDrafts, editing, onBusyChange, aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange,
@@ -98,8 +98,6 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
   const treatmentKeySignature = treatmentKeys.join('|')
   const stableTreatmentKeys = useMemo(() => treatmentKeySignature ? [...new Set(treatmentKeySignature.split('|'))] : [], [treatmentKeySignature])
   useEffect(() => onTreatmentKeysChange?.(stableTreatmentKeys), [onTreatmentKeysChange, stableTreatmentKeys])
-  const statement = useQuery({ queryKey: ['doctor-billing-statement', encounter.id],
-    queryFn: () => api.billing.statement(encounter.id), retry: false })
   const refresh = () => Promise.all([
     queryClient.invalidateQueries({ queryKey: ['doctor-prescriptions', encounter.id] }),
     queryClient.invalidateQueries({ queryKey: ['doctor-services', encounter.id] }),
@@ -320,8 +318,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
     }}
     onMouseEnter={() => setOrdersHovered(true)}
     onMouseLeave={() => setOrdersHovered(false)}>
-    <PanelHead title="医嘱和费用" meta={<>{orderCount} 项已开立
-      {statement.data ? ` · ${money(statement.data.chargeAmount, statement.data.currencyCode)}` : ''}</>}
+    <PanelHead title="医嘱和费用"
       actions={<div className="doctor-order-head-actions">
         {hasActivePrintable && (
           <IconButton icon="print" label="批量打印"
