@@ -303,13 +303,13 @@ describe('DedicatedWaitingWorkspace interactive features', () => {
     expect(screen.getByText('李翠华')).toBeInTheDocument()
     expect(screen.getByText('王振华')).toBeInTheDocument()
 
-    // Click "回诊看结果" tab
-    await user.click(screen.getByText('回诊看结果'))
+    // Click "回诊" tab
+    await user.click(screen.getByRole('tab', { name: /回诊/ }))
     expect(screen.getByRole('button', { name: '查看 李翠华' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '查看 张建国' })).not.toBeInTheDocument()
 
-    // Click "优抚绿通" tab
-    await user.click(screen.getByText('优抚绿通'))
+    // Click "绿通" tab
+    await user.click(screen.getByRole('tab', { name: /绿通/ }))
     expect(screen.getByRole('button', { name: '查看 王振华' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '查看 李翠华' })).not.toBeInTheDocument()
 

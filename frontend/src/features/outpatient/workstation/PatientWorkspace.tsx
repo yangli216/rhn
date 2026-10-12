@@ -364,30 +364,30 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
         }] : []),
         { label: '过敏信息', value: <AllergyContextValue allergies={allergies.data ?? []}
           loading={allergies.isPending} error={allergies.error} disabled={!encounter}
-          onClick={() => setActiveTool(toggleTool(activeTool, 'allergy'))} /> }]}
-      support={<div className="doctor-context-support">
-        <div className="doctor-context-phone"><span>联系电话</span><strong>{resident.phone || '未登记'}</strong></div>
-          {encounter && enhancedQueueItems.length > 0 && (
-            <QueueCapsuleBar
-              items={enhancedQueueItems}
-              currentEncounterId={encounter.id}
-              currentResidentName={resident.fullName}
-              canEdit={canEdit}
-              onCallAndEnterNext={(targetItem) => {
-                void (async () => {
-                  await onQueueAction?.(targetItem, 'call')
-                  onSwitchPatient?.(targetItem)
-                })()
-              }}
-              onRecallCurrent={currentCalledItem && onQueueAction
-                ? () => { void onQueueAction(currentCalledItem, 'recall') } : undefined}
-              onSkipAndPostpone={currentCalledItem && onQueueAction
-                ? () => { void onQueueAction(currentCalledItem, 'miss') } : undefined}
-              onSuspendCurrent={() => requestAction('suspend')}
-              onOpenPeekDrawer={() => setPeekDrawerOpen?.(true)}
-            />
-          )}
-      </div>}
+          onClick={() => setActiveTool(toggleTool(activeTool, 'allergy'))} /> },
+        { label: '联系电话', value: <strong>{resident.phone || '未登记'}</strong> }]}
+      support={encounter && enhancedQueueItems.length > 0 ? (
+        <div className="doctor-context-support">
+          <QueueCapsuleBar
+            items={enhancedQueueItems}
+            currentEncounterId={encounter.id}
+            currentResidentName={resident.fullName}
+            canEdit={canEdit}
+            onCallAndEnterNext={(targetItem) => {
+              void (async () => {
+                await onQueueAction?.(targetItem, 'call')
+                onSwitchPatient?.(targetItem)
+              })()
+            }}
+            onRecallCurrent={currentCalledItem && onQueueAction
+              ? () => { void onQueueAction(currentCalledItem, 'recall') } : undefined}
+            onSkipAndPostpone={currentCalledItem && onQueueAction
+              ? () => { void onQueueAction(currentCalledItem, 'miss') } : undefined}
+            onSuspendCurrent={() => requestAction('suspend')}
+            onOpenPeekDrawer={() => setPeekDrawerOpen?.(true)}
+          />
+        </div>
+      ) : null}
       actions={<div className="doctor-context-actions">
         {entryIntent === 'READ' && !editing && (
           <Button size="sm" variant="secondary" aria-label="返回患者列表"

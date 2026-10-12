@@ -273,7 +273,7 @@ describe('OutpatientTriageWorkspace', () => {
     expect(screen.getByRole('button', { name: '清空更换' })).toHaveClass('ui-button--md')
   })
 
-  it('输入异常生命体征时，应当实时触发越界报警并计算四级分诊建议等级', async () => {
+  it('体温失焦及其他异常生命体征更新时，应当显示对应预警', async () => {
     const api = buildMockApi()
     renderWorkspace(api)
 
@@ -284,6 +284,7 @@ describe('OutpatientTriageWorkspace', () => {
     // 录入体温 39.2℃
     const tempInput = await screen.findByRole('spinbutton', { name: '体温' })
     fireEvent.change(tempInput, { target: { value: '39.2' } })
+    fireEvent.blur(tempInput)
 
     // 录入收缩压 185 mmHg
     const sysInput = screen.getByRole('spinbutton', { name: '收缩压' })
@@ -294,6 +295,133 @@ describe('OutpatientTriageWorkspace', () => {
       expect(screen.getByText('高热预警')).toBeInTheDocument()
       expect(screen.getByText('高血压危象')).toBeInTheDocument()
     })
+  })
+
+  it('体温逐字输入及输入停顿均不评估，失焦后仅使用完整数值', async () => {
+    const api = buildMockApi(), user = userEvent.setup()
+    renderWorkspace(api)
+    await screen.findByRole('heading', { name: '周建国', level: 3 })
+    const input = screen.getByRole('spinbutton', { name: '体温' })
+    await user.type(input, '3')
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 350)) })
+    expect(api.outpatientTriage.assess).not.toHaveBeenCalled()
+    expect(screen.queryByText('危象预警：')).not.toBeInTheDocument()
+    expect(screen.getByText('非急症').closest('button')).toHaveAttribute('aria-pressed', 'true')
+    await user.type(input, '7.2')
+    expect(input).toHaveValue(37.2)
+    expect(api.outpatientTriage.assess).not.toHaveBeenCalled()
+    await user.tab()
+    await waitFor(() => expect(api.outpatientTriage.assess).toHaveBeenCalledWith(
+      expect.objectContaining({ temperature: 37.2 }),
+    ))
+    expect(vi.mocked(api.outpatientTriage.assess).mock.calls.every(([value]) => value.temperature === 37.2)).toBe(true)
+    expect(screen.queryByText('危象预警：')).not.toBeInTheDocument()
+  })
+
+  it('体温修正和清空后同步更新危象、自动分级、发热标记和自动依据', async () => {
+    renderWorkspace(buildMockApi())
+    await screen.findByRole('heading', { name: '周建国', level: 3 })
+    const input = screen.getByRole('spinbutton', { name: '体温' })
+    const reason = screen.getByPlaceholderText(/如：胸痛心电图异常/)
+    fireEvent.change(input, { target: { value: '41' } })
+    fireEvent.blur(input)
+    expect(screen.getByText('体温危象')).toBeInTheDocument()
+    expect(screen.getByText('濒危').closest('button')).toHaveAttribute('aria-pressed', 'true')
+    expect(reason).toHaveValue('体温超危象 (41℃)')
+    fireEvent.change(input, { target: { value: '40.5' } })
+    expect(reason).toHaveValue('体温超危象 (41℃)')
+    fireEvent.blur(input)
+    expect(reason).toHaveValue('体温超危象 (40.5℃)')
+    fireEvent.change(input, { target: { value: '36.8' } })
+    fireEvent.blur(input)
+    expect(screen.queryByText('危象预警：')).not.toBeInTheDocument()
+    expect(screen.queryByText('体温危象')).not.toBeInTheDocument()
+    expect(screen.getByText('非急症').closest('button')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('switch', { name: '发热筛查 (≥37.3℃)' })).not.toBeChecked()
+    expect(reason).toHaveValue('')
+    fireEvent.change(input, { target: { value: '38.6' } })
+    fireEvent.blur(input)
+    expect(screen.getByText('高热预警')).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: '发热筛查 (≥37.3℃)' })).toBeChecked()
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.blur(input)
+    expect(screen.queryByText('高热预警')).not.toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: '发热筛查 (≥37.3℃)' })).not.toBeChecked()
+    expect(reason).toHaveValue('')
+  })
+
+  it('体温恢复正常时保留其他生命体征的危象和最低安全级别', async () => {
+    renderWorkspace(buildMockApi())
+    await screen.findByRole('heading', { name: '周建国', level: 3 })
+    const input = screen.getByRole('spinbutton', { name: '体温' })
+    fireEvent.change(input, { target: { value: '41' } })
+    fireEvent.blur(input)
+    fireEvent.change(screen.getByRole('spinbutton', { name: '脉搏' }), { target: { value: '135' } })
+    fireEvent.change(input, { target: { value: '36.8' } })
+    fireEvent.blur(input)
+    expect(screen.getByText('危象预警：').closest('[role="alert"]')).toHaveTextContent('心率严重异常 (135 次/分)')
+    expect(screen.getByText('危象预警：').closest('[role="alert"]')).not.toHaveTextContent('体温超危象')
+    expect(screen.getByText('濒危').closest('button')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByPlaceholderText(/如：胸痛心电图异常/)).toHaveValue('心率严重异常 (135 次/分)')
+  })
+
+  it('修正体温只撤回自动提示，保留护士手工选择的级别、依据和发热筛查', async () => {
+    renderWorkspace(buildMockApi())
+    await screen.findByRole('heading', { name: '周建国', level: 3 })
+    fireEvent.click(screen.getByText('危重').closest('button')!)
+    fireEvent.change(screen.getByPlaceholderText(/如：胸痛心电图异常/), { target: { value: '现场复评需优先处置' } })
+    fireEvent.click(screen.getByRole('switch', { name: '发热筛查 (≥37.3℃)' }))
+    const input = screen.getByRole('spinbutton', { name: '体温' })
+    fireEvent.change(input, { target: { value: '41' } })
+    fireEvent.blur(input)
+    expect(screen.getByText('濒危').closest('button')).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.change(input, { target: { value: '36.8' } })
+    fireEvent.blur(input)
+    expect(screen.getByText('危重').closest('button')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByPlaceholderText(/如：胸痛心电图异常/)).toHaveValue('现场复评需优先处置')
+    expect(screen.getByRole('switch', { name: '发热筛查 (≥37.3℃)' })).toBeChecked()
+  })
+
+  it('点击保存时先失焦提交正在编辑的体温，保存最新数值和对应分级', async () => {
+    const api = buildMockApi(), user = userEvent.setup()
+    renderWorkspace(api)
+    await screen.findByRole('heading', { name: '周建国', level: 3 })
+    await user.type(screen.getByRole('spinbutton', { name: '体温' }), '39.2')
+    await user.click(screen.getByText('保存并打印'))
+    await waitFor(() => expect(api.outpatientTriage.create).toHaveBeenCalledWith(
+      expect.objectContaining({ temperature: 39.2, fever: true, triageLevel: 'LEVEL_3_ROUTINE_URGENT' }),
+    ))
+  })
+
+  it('旧异常体温评估晚到时不能恢复已撤回的危象和自动依据', async () => {
+    const api = buildMockApi()
+    const normal = await api.outpatientTriage.assess({})
+    let resolveOld!: (value: typeof normal) => void
+    vi.mocked(api.outpatientTriage.assess).mockClear().mockImplementation(input => input.temperature === 41
+      ? new Promise(resolve => { resolveOld = resolve }) : Promise.resolve(normal))
+    renderWorkspace(api)
+    await screen.findByRole('heading', { name: '周建国', level: 3 })
+    const input = screen.getByRole('spinbutton', { name: '体温' })
+    fireEvent.change(input, { target: { value: '41' } })
+    fireEvent.blur(input)
+    await waitFor(() => expect(api.outpatientTriage.assess).toHaveBeenCalledWith(expect.objectContaining({ temperature: 41 })))
+    fireEvent.change(input, { target: { value: '36.8' } })
+    fireEvent.blur(input)
+    await waitFor(() => expect(api.outpatientTriage.assess).toHaveBeenCalledWith(expect.objectContaining({ temperature: 36.8 })))
+    await act(async () => { resolveOld({ ...normal, suggestedLevel: 'LEVEL_1_CRITICAL', summary: '旧体温危象', dangerSigns: ['旧体温危象'] }) })
+    expect(screen.getByText('非急症').closest('button')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByPlaceholderText(/如：胸痛心电图异常/)).toHaveValue('')
+    expect(screen.queryByText('旧体温危象')).not.toBeInTheDocument()
+  })
+
+  it('清空患者时也清空尚未失焦的体温编辑值', async () => {
+    renderWorkspace(buildMockApi())
+    await screen.findByRole('heading', { name: '周建国', level: 3 })
+    const input = screen.getByRole('spinbutton', { name: '体温' })
+    fireEvent.change(input, { target: { value: '3' } })
+    fireEvent.click(screen.getByRole('button', { name: '清空更换' }))
+    expect(input).toHaveValue(null)
+    expect(screen.queryByText('危象预警：')).not.toBeInTheDocument()
   })
 
   it('挂号前点击高频症状标签时应当自动带入主诉，并支持采纳智能推荐科室', async () => {

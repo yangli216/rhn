@@ -148,6 +148,7 @@ export function OutpatientTriageWorkspace({
 
   // 生命体征录入
   const [temperature, setTemperature] = useState<number | ''>('')
+  const [temperatureInput, setTemperatureInput] = useState('')
   const [pulseRate, setPulseRate] = useState<number | ''>('')
   const [respiratoryRate, setRespiratoryRate] = useState<number | ''>('')
   const [systolic, setSystolic] = useState<number | ''>('')
@@ -158,7 +159,8 @@ export function OutpatientTriageWorkspace({
   const [consciousness, setConsciousness] = useState<TriageConsciousness | ''>('')
 
   // 发热与流行病排查
-  const [fever, setFever] = useState(false)
+  const [manualFever, setFever] = useState<boolean | null>(null)
+  const fever = manualFever ?? (typeof temperature === 'number' && temperature >= 37.3)
   const [hasRespiratorySymptom, setHasRespiratorySymptom] = useState(false)
   const [hasDiarrheaSymptom, setHasDiarrheaSymptom] = useState(false)
   const [hasRashSymptom, setHasRashSymptom] = useState(false)
@@ -169,8 +171,8 @@ export function OutpatientTriageWorkspace({
   const [selectedSymptomTags, setSelectedSymptomTags] = useState<string[]>([])
 
   // 分诊定级与去向
-  const [triageLevel, setTriageLevel] = useState<TriageLevel>('LEVEL_4_NON_URGENT')
-  const [triageReason, setTriageReason] = useState('')
+  const [selectedTriageLevel, setTriageLevel] = useState<TriageLevel>('LEVEL_4_NON_URGENT')
+  const [enteredTriageReason, setTriageReason] = useState('')
   const [targetDepartmentId, setTargetDepartmentId] = useState('')
   const [targetDepartmentName, setTargetDepartmentName] = useState('')
   const [targetDoctorId, setTargetDoctorId] = useState('')
@@ -286,8 +288,17 @@ export function OutpatientTriageWorkspace({
       consciousness: consciousness || undefined,
     })
   }, [temperature, pulseRate, respiratoryRate, systolic, diastolic, oxygenSaturation, bloodGlucose, painScore, consciousness])
-  const suggestedLevel = triageAssessment?.suggestedLevel ?? vitalsAssessment.suggestedLevel
+  const useLocalRisk = !triageAssessment
+    || TRIAGE_LEVEL_URGENCY[vitalsAssessment.suggestedLevel] < TRIAGE_LEVEL_URGENCY[triageAssessment.suggestedLevel]
+  const suggestedLevel = useLocalRisk ? vitalsAssessment.suggestedLevel : triageAssessment!.suggestedLevel
   const hasRiskAssessment = Boolean(triageAssessment) || vitalsAssessment.hasData
+  // Automatic risk follows the latest assessed input; explicit/saved choices remain the baseline.
+  const triageLevel = TRIAGE_LEVEL_URGENCY[suggestedLevel] < TRIAGE_LEVEL_URGENCY[selectedTriageLevel]
+    ? suggestedLevel : selectedTriageLevel
+  const automaticReason = vitalsAssessment.hasCritical
+    || TRIAGE_LEVEL_URGENCY[suggestedLevel] < TRIAGE_LEVEL_URGENCY[selectedTriageLevel]
+    ? useLocalRisk ? vitalsAssessment.suggestedReason : triageAssessment!.summary : ''
+  const triageReason = enteredTriageReason || automaticReason
   const suggestedLevelText = hasRiskAssessment
     ? `${TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].codeName} ${TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].label}`
     : '待评估'
@@ -319,29 +330,14 @@ export function OutpatientTriageWorkspace({
     : baseAssessmentQuery.isError ? '风险评估失败，请重新评估'
       : hasAssessmentInput ? '正在形成风险判断…' : '尚未采集评估资料'
 
-  // 当体征产生危象时自动提示或自动联动等级
-  useEffect(() => {
-    if (vitalsAssessment.hasCritical) {
-      setTriageLevel('LEVEL_1_CRITICAL')
-      setTriageReason((prev) => prev || vitalsAssessment.suggestedReason)
-    }
-    if (typeof temperature === 'number' && temperature >= 37.3) {
-      setFever(true)
-    }
-  }, [vitalsAssessment, temperature])
-
   useEffect(() => {
     if (!triageAssessment) return
-    if (TRIAGE_LEVEL_URGENCY[triageAssessment.suggestedLevel] < TRIAGE_LEVEL_URGENCY[triageLevel]) {
-      setTriageLevel(triageAssessment.suggestedLevel)
-      setTriageReason((current) => current || triageAssessment.summary)
-    }
     const first = triageAssessment.departmentRecommendations[0]
     if (baseAssessmentQuery.data?.decisionMode !== 'ASSIST' && !targetDepartmentId && first) {
       setTargetDepartmentId(first.departmentId)
       setTargetDepartmentName(first.departmentName)
     }
-  }, [triageAssessment, targetDepartmentId, triageLevel, baseAssessmentQuery.data?.decisionMode])
+  }, [triageAssessment, targetDepartmentId, baseAssessmentQuery.data?.decisionMode])
 
   // 切换患者清空或回填
   const resetForm = useCallback(() => {
@@ -361,6 +357,7 @@ export function OutpatientTriageWorkspace({
     setArrivalMethod('WALK_IN')
     setCompanionType('NONE')
     setTemperature('')
+    setTemperatureInput('')
     setPulseRate('')
     setRespiratoryRate('')
     setSystolic('')
@@ -369,7 +366,7 @@ export function OutpatientTriageWorkspace({
     setBloodGlucose('')
     setPainScore('')
     setConsciousness('')
-    setFever(false)
+    setFever(null)
     setHasRespiratorySymptom(false)
     setHasDiarrheaSymptom(false)
     setHasRashSymptom(false)
@@ -432,6 +429,7 @@ export function OutpatientTriageWorkspace({
     setArrivalMethod(record.arrivalMethod)
     setCompanionType(record.companionType)
     setTemperature(record.temperature != null ? record.temperature : '')
+    setTemperatureInput(record.temperature != null ? String(record.temperature) : '')
     setPulseRate(record.pulseRate != null ? record.pulseRate : '')
     setRespiratoryRate(record.respiratoryRate != null ? record.respiratoryRate : '')
     setSystolic(record.systolic != null ? record.systolic : '')
@@ -1032,8 +1030,12 @@ export function OutpatientTriageWorkspace({
                       aria-label="体温"
                       placeholder="未测"
                       className="triage-vital-field"
-                      value={temperature}
-                      onChange={(e) => setTemperature(e.target.value === '' ? '' : Number.parseFloat(e.target.value))}
+                      value={temperatureInput}
+                      onChange={(e) => setTemperatureInput(e.target.value)}
+                      onBlur={(e) => {
+                        const value = e.currentTarget.value
+                        setTemperature(value !== '' && Number.isFinite(Number(value)) ? Number(value) : '')
+                      }}
                     />
                   </div>
                   <div className="triage-vital-hint">

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type { ReceptionQueueScope } from '../../../shared/api/schedulingApi'
-import { Button, EmptyState, Icon, StatusBadge } from '../../../shared/ui'
+import { Button, EmptyState, Icon, IconButton, StatusBadge, Switch } from '../../../shared/ui'
 import { CallingControlHub } from './CallingControlHub'
 import { PreEncounterBriefingCard } from './PreEncounterBriefingCard'
 import {
@@ -141,50 +141,7 @@ export function DedicatedWaitingWorkspace({
 
   return (
     <div className="dedicated-waiting-workspace">
-      {/* 1. 科室全景状态栏 */}
-      <div className="waiting-workspace-topbar">
-        <div className="topbar-info">
-          <span className="topbar-chip">
-            <Icon name="hospital" /> 科室：<strong>{clinicalContext.department.name}</strong>
-          </span>
-          <span className="topbar-chip">
-            <Icon name="clinical" /> 诊室：<strong>1号诊室</strong>
-          </span>
-          <span className="topbar-chip">
-            <Icon name="user" /> 接诊状态：
-            <button
-              type="button"
-              className={`doctor-status-toggle ${doctorStatus === 'ACTIVE' ? 'is-active' : 'is-paused'}`}
-              onClick={() => setDoctorStatus(doctorStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}
-              title="点击切换接诊与暂停状态"
-              aria-label={`当前接诊状态：${doctorStatus === 'ACTIVE' ? '接诊中' : '暂停接诊'}，点击切换`}
-            >
-              <span className="doctor-status-dot" aria-hidden="true" />
-              <span>{doctorStatus === 'ACTIVE' ? '接诊中' : '暂停接诊'}</span>
-            </button>
-          </span>
-        </div>
-        <div className="topbar-actions">
-          <div className="queue-scope-control" role="group" aria-label="患者数据视角">
-            {([
-              ['PERSONAL', '本人'],
-              ['DEPARTMENT', '本科室'],
-              ['ORGANIZATION', '本院'],
-            ] as const).map(([value, label]) => (
-              <button key={value} type="button"
-                className={queueScope === value ? 'is-active' : ''}
-                aria-pressed={queueScope === value}
-                onClick={() => onQueueScopeChange?.(value)}>{label}</button>
-            ))}
-          </div>
-          <Button variant="secondary" size="sm" onClick={onRefresh}>
-            <Icon name="refresh" />
-            <span>刷新队列</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* 2. 全局叫号中枢条 */}
+      {/* 1. 全局叫号中枢条 */}
       <CallingControlHub
         callingState={callingState}
         nextCandidate={nextCandidateResult}
@@ -199,93 +156,138 @@ export function DedicatedWaitingWorkspace({
         busy={busy}
       />
 
-      {/* 3. 多队列分流 Tab 栏与搜索过滤 */}
+      {/* 2. 统一工作台环境与多队列筛选总控栏 */}
       <div className="waiting-filter-bar">
-        <div className="waiting-tabs" role="tablist" aria-label="候诊队列分类">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'ALL'}
-            className={`waiting-tab-btn ${activeTab === 'ALL' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('ALL')}
-          >
-            全部待诊 <span className="tab-badge">{tabCounts.ALL}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'INITIAL'}
-            className={`waiting-tab-btn ${activeTab === 'INITIAL' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('INITIAL')}
-          >
-            初诊待诊 <span className="tab-badge">{tabCounts.INITIAL}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'RETURN_VISIT'}
-            className={`waiting-tab-btn waiting-tab-btn--return ${activeTab === 'RETURN_VISIT' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('RETURN_VISIT')}
-          >
-            回诊看结果 <span className="tab-badge tab-badge--purple">{tabCounts.RETURN_VISIT}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'PRIORITY'}
-            className={`waiting-tab-btn waiting-tab-btn--priority ${activeTab === 'PRIORITY' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('PRIORITY')}
-          >
-            优抚绿通 <span className="tab-badge tab-badge--gold">{tabCounts.PRIORITY}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'SUSPENDED'}
-            className={`waiting-tab-btn ${activeTab === 'SUSPENDED' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('SUSPENDED')}
-          >
-            已暂挂 <span className="tab-badge">{tabCounts.SUSPENDED}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'SKIPPED'}
-            className={`waiting-tab-btn ${activeTab === 'SKIPPED' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('SKIPPED')}
-          >
-            过号 <span className="tab-badge">{tabCounts.SKIPPED}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'COMPLETED'}
-            className={`waiting-tab-btn waiting-tab-btn--completed ${activeTab === 'COMPLETED' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('COMPLETED')}
-          >
-            已接诊 <span className="tab-badge">{tabCounts.COMPLETED}</span>
-          </button>
-        </div>
+        <div className="waiting-filter-left">
+          <div className="waiting-context-chips">
+            <span
+              className="waiting-context-chip"
+              title={`执业科室：${clinicalContext.department.name} · 1号诊室`}
+            >
+              <Icon name="hospital" />
+              <strong>{clinicalContext.department.name}</strong>
+              <span className="chip-sep" aria-hidden="true">·</span>
+              <span>1号诊室</span>
+            </span>
 
-        <div className="waiting-search-box">
-          <Icon name="search" />
-          <input
-            type="search"
-            placeholder="搜索姓名 / 排队号 / 档案号..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="搜索门诊患者"
-          />
-          {searchQuery && (
+            <div className="waiting-doctor-status" title="切换医生接诊与暂停状态">
+              <Switch
+                size="sm"
+                checked={doctorStatus === 'ACTIVE'}
+                onChange={(checked) => setDoctorStatus(checked ? 'ACTIVE' : 'PAUSED')}
+                checkedText="接诊中"
+                uncheckedText="暂停"
+                aria-label="医生接诊状态切换"
+              />
+            </div>
+          </div>
+
+          <span className="waiting-bar-divider" aria-hidden="true" />
+
+          <div className="queue-scope-control" role="group" aria-label="患者数据视角">
+            {([
+              ['PERSONAL', '本人'],
+              ['DEPARTMENT', '本科室'],
+              ['ORGANIZATION', '本院'],
+            ] as const).map(([value, label]) => (
+              <button key={value} type="button"
+                className={queueScope === value ? 'is-active' : ''}
+                aria-pressed={queueScope === value}
+                onClick={() => onQueueScopeChange?.(value)}>{label}</button>
+            ))}
+          </div>
+
+          <span className="waiting-bar-divider" aria-hidden="true" />
+
+          <div className="waiting-tabs" role="tablist" aria-label="候诊队列分类">
             <button
               type="button"
-              className="clear-search-btn"
-              onClick={() => setSearchQuery('')}
-              aria-label="清空搜索"
+              role="tab"
+              aria-selected={activeTab === 'ALL'}
+              className={`waiting-tab-btn ${activeTab === 'ALL' ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('ALL')}
             >
-              <Icon name="close" />
+              全部待诊 <span className="tab-badge">{tabCounts.ALL}</span>
             </button>
-          )}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'INITIAL'}
+              className={`waiting-tab-btn ${activeTab === 'INITIAL' ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('INITIAL')}
+            >
+              初诊 <span className="tab-badge">{tabCounts.INITIAL}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'RETURN_VISIT'}
+              className={`waiting-tab-btn waiting-tab-btn--return ${activeTab === 'RETURN_VISIT' ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('RETURN_VISIT')}
+            >
+              回诊 <span className="tab-badge tab-badge--purple">{tabCounts.RETURN_VISIT}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'PRIORITY'}
+              className={`waiting-tab-btn waiting-tab-btn--priority ${activeTab === 'PRIORITY' ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('PRIORITY')}
+            >
+              绿通 <span className="tab-badge tab-badge--gold">{tabCounts.PRIORITY}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'SUSPENDED'}
+              className={`waiting-tab-btn ${activeTab === 'SUSPENDED' ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('SUSPENDED')}
+            >
+              暂挂 <span className="tab-badge">{tabCounts.SUSPENDED}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'SKIPPED'}
+              className={`waiting-tab-btn ${activeTab === 'SKIPPED' ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('SKIPPED')}
+            >
+              过号 <span className="tab-badge">{tabCounts.SKIPPED}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'COMPLETED'}
+              className={`waiting-tab-btn waiting-tab-btn--completed ${activeTab === 'COMPLETED' ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('COMPLETED')}
+            >
+              已接诊 <span className="tab-badge">{tabCounts.COMPLETED}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="waiting-filter-tools">
+          <div className="waiting-search-box">
+            <Icon name="search" />
+            <input
+              type="search"
+              placeholder="搜索姓名 / 排队号 / 档案号..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="搜索门诊患者"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="clear-search-btn"
+                onClick={() => setSearchQuery('')}
+                aria-label="清空搜索"
+              >
+                <Icon name="close" />
+              </button>
+            )}
+          </div>
+          <IconButton icon="refresh" label="刷新队列" onClick={onRefresh} />
         </div>
       </div>
 
