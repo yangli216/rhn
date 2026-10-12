@@ -99,6 +99,7 @@ describe('MedicationSafetyCategories', () => {
         deleteSafetyCategory: vi.fn().mockResolvedValue(undefined),
         addSafetyCategoryMembers: vi.fn().mockResolvedValue(1),
         removeSafetyCategoryMember: vi.fn().mockResolvedValue(undefined),
+        clearSafetyCategoryMembers: vi.fn().mockResolvedValue(2),
         listStandardCatalogCategories: vi.fn().mockResolvedValue([
           { major: '一、抗微生物药', sub: '（八）喹诺酮类', entryCount: 15, entryNames: ['左氧氟沙星'] }
         ]),
@@ -243,5 +244,151 @@ describe('MedicationSafetyCategories', () => {
       )
       expect(onNotice).toHaveBeenCalledWith(expect.stringContaining('成功从标准目录批量导入'))
     })
+  })
+
+  it('supports filtering candidates by standard drug chip and importing specific drug specifications', async () => {
+    const api = createMockApi()
+    const onNotice = vi.fn()
+    const user = userEvent.setup()
+    render(<MedicationSafetyCategories api={api} onNotice={onNotice} />)
+
+    await user.click(await screen.findByRole('button', { name: /纳入药品/ }))
+    await user.click(screen.getByRole('button', { name: /按国家基药标准目录批量导入/ }))
+
+    // 点击“左氧氟沙星”芯片进行品种筛选
+    const chip = await screen.findByRole('button', { name: '左氧氟沙星' })
+    await user.click(chip)
+
+    expect(screen.getByText('已筛选品种：左氧氟沙星')).toBeInTheDocument()
+    const singleDrugImportBtn = screen.getByRole('button', { name: /仅导入【左氧氟沙星】全规格/ })
+    expect(singleDrugImportBtn).toBeInTheDocument()
+
+    // 点击仅导入该品种
+    await user.click(singleDrugImportBtn)
+
+    await waitFor(() => {
+      expect(api.medicationWorkbench.addSafetyCategoryMembers).toHaveBeenCalledWith(
+        '101',
+        expect.arrayContaining([
+          expect.objectContaining({
+            medicationId: '501',
+            medicationName: '盐酸左氧氟沙星胶囊'
+          })
+        ])
+      )
+      expect(onNotice).toHaveBeenCalledWith(expect.stringContaining('已成功将标准药品【左氧氟沙星】下的 1 种在库规格药品导入'))
+    })
+  })
+
+  it('displays bound rules indicator and section when category has active rules', async () => {
+    const api = createMockApi()
+    api.medicationWorkbench.listSafetyCategories = vi.fn().mockResolvedValue([
+      {
+        id: '105',
+        code: 'PREGNANCY_CONTRA_CATEGORY_X',
+        name: '妊娠期禁用致畸高危药物',
+        ruleKind: 'SPECIAL_POPULATION_CONTRAINDICATION',
+        rationale: '人类胚胎致畸毒性',
+        isSystem: true,
+        status: 'ACTIVE',
+        memberCount: 3,
+        revision: 0
+      }
+    ])
+    render(<MedicationSafetyCategories api={api} />)
+
+    expect(await screen.findByText(/已配规则 \(1\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/关联在行合理用药质控规则/)).toBeInTheDocument()
+    expect(screen.getByText('QMED.PREGNANCY_CONTRA')).toBeInTheDocument()
+    expect(screen.getByText('育龄期及妊娠期妇女禁用高危致畸药物核对')).toBeInTheDocument()
+  })
+
+  it('supports one-click clearing all manual category members', async () => {
+    const api = createMockApi()
+    const onNotice = vi.fn()
+    const user = userEvent.setup()
+    render(<MedicationSafetyCategories api={api} onNotice={onNotice} />)
+
+    const clearBtn = await screen.findByRole('button', { name: /一键清空 \(2\)/ })
+    expect(clearBtn).toBeInTheDocument()
+
+    await user.click(clearBtn)
+    expect(await screen.findByText('一键清空手工纳管药品确认')).toBeInTheDocument()
+    expect(screen.getByText(/确定要清空安全分类/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '确认清空全部手工药品' }))
+
+    await waitFor(() => {
+      expect(api.medicationWorkbench.clearSafetyCategoryMembers).toHaveBeenCalledWith('101')
+      expect(onNotice).toHaveBeenCalledWith(expect.stringContaining('已成功清空分类'))
+    })
+  })
+
+  it('supports quick standard catalog binding and unbinding from detail header', async () => {
+    const api = createMockApi()
+    const onNotice = vi.fn()
+    const user = userEvent.setup()
+    render(<MedicationSafetyCategories api={api} onNotice={onNotice} />)
+
+    // 分类 101 初始未绑定目录，展示绑定入口
+    const bindPromptBtn = await screen.findByRole('button', { name: /绑定基药标准目录（推荐）/ })
+    expect(bindPromptBtn).toBeInTheDocument()
+
+    await user.click(bindPromptBtn)
+    expect(await screen.findByText(/绑定国家基药标准目录 · 双硫仑样反应致敏抗菌药物/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '仅保存目录级联绑定' }))
+
+    await waitFor(() => {
+      expect(api.medicationWorkbench.updateSafetyCategory).toHaveBeenCalledWith(
+        '101',
+        expect.objectContaining({
+          catalogSub: '（八）喹诺酮类',
+          catalogMajor: '一、抗微生物药'
+        })
+      )
+      expect(onNotice).toHaveBeenCalledWith(expect.stringContaining('已成功将分类'))
+    })
+  })
+
+  it('renders standard catalog as a hierarchical tree and natural numeral order in bind dialog', async () => {
+    const api = createMockApi()
+    api.medicationWorkbench.listStandardCatalogCategories = vi.fn().mockResolvedValue([
+      { major: '一、内科用药', sub: '（七）扶正剂', entryCount: 30, entryNames: ['人参归脾丸'] },
+      { major: '一、内科用药', sub: '（二）泻下剂', entryCount: 1, entryNames: ['麻仁润肠丸'] },
+      { major: '一、内科用药', sub: '（一）解表剂', entryCount: 10, entryNames: ['感冒清热颗粒'] },
+      { major: '一、抗微生物药', sub: '（三）氨基糖苷类', entryCount: 2, entryNames: ['阿米卡星', '庆大霉素'] }
+    ])
+
+    const user = userEvent.setup()
+    render(<MedicationSafetyCategories api={api} />)
+
+    const bindPromptBtn = await screen.findByRole('button', { name: /绑定基药标准目录（推荐）/ })
+    await user.click(bindPromptBtn)
+
+    const combobox = screen.getByRole('combobox', { name: '选择国家基药标准目录' })
+    await user.click(combobox)
+
+    expect(screen.getByRole('tree')).toBeInTheDocument()
+    expect(screen.getByRole('treeitem', { name: /一、抗微生物药/ })).toBeInTheDocument()
+    expect(screen.getByRole('treeitem', { name: /一、内科用药/ })).toBeInTheDocument()
+
+    // 验证子项自动随选中项展开，且按自然中文序号排序（一）->（二）->（七）
+    const jieBiaoNode = screen.getByRole('treeitem', { name: /（一）解表剂/ })
+    const xieXiaNode = screen.getByRole('treeitem', { name: /（二）泻下剂/ })
+    const fuZhengNode = screen.getByRole('treeitem', { name: /（七）扶正剂/ })
+
+    expect(jieBiaoNode).toBeInTheDocument()
+    expect(xieXiaNode).toBeInTheDocument()
+    expect(fuZhengNode).toBeInTheDocument()
+
+    const allTreeitems = screen.getAllByRole('treeitem')
+    const labels = allTreeitems.map(t => t.textContent || '')
+    const jieBiaoIdx = labels.findIndex(l => l.includes('（一）解表剂'))
+    const xieXiaIdx = labels.findIndex(l => l.includes('（二）泻下剂'))
+    const fuZhengIdx = labels.findIndex(l => l.includes('（七）扶正剂'))
+
+    expect(jieBiaoIdx).toBeLessThan(xieXiaIdx)
+    expect(xieXiaIdx).toBeLessThan(fuZhengIdx)
   })
 })

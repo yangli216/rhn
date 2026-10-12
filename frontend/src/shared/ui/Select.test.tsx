@@ -161,4 +161,20 @@ describe('Select', () => {
     await user.click(screen.getByRole('treeitem', { name: /^夫/ }))
     expect(onChange).toHaveBeenCalledWith('11', expect.objectContaining({ value: '11', label: '夫' }))
   })
+
+  it('displays hierarchical breadcrumb path in trigger when showHierarchyInLabel is enabled', async () => {
+    render(<Select
+      aria-label="层级选择"
+      value="11"
+      showHierarchyInLabel
+      leafOnly
+      options={[
+        { value: '1', label: '抗微生物药' },
+        { value: '11', label: '青霉素类', parentValue: '1' },
+      ]}
+    />)
+
+    const trigger = screen.getByRole('combobox', { name: '层级选择' })
+    expect(trigger).toHaveTextContent('抗微生物药 / 青霉素类')
+  })
 })

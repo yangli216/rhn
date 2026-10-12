@@ -314,19 +314,32 @@
 .qmed-active-sandbox-head {
   flex: 0 0 auto;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 12px 14px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
-.qmed-active-sandbox-head h3,
+.qmed-active-sandbox-head .qmed-title-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.qmed-active-sandbox-head h3 {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-body);
+}
+
 .qmed-active-result-head h3 {
-  margin: 0 0 4px;
-  font-size: 14px;
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-body);
   color: var(--color-text-primary);
 }
 
@@ -334,22 +347,40 @@
 .qmed-active-result-head p {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
 }
 
 .qmed-sandbox-scope-controls {
-  display: grid;
-  grid-template-columns: 190px minmax(300px, 430px);
-  gap: 10px;
-  align-items: end;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   flex: 0 0 auto;
 }
 
 .qmed-sandbox-scope-controls > .ui-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   width: auto;
   min-width: 0;
   margin: 0;
+}
+
+.qmed-sandbox-scope-controls .ui-field__label-row {
+  margin: 0;
+  min-height: auto;
+  white-space: nowrap;
+}
+
+.qmed-sandbox-scope-controls .ui-select {
+  width: auto;
+  min-width: 180px;
+}
+
+.qmed-sandbox-scope-controls .qmed-sandbox-rule-field .ui-select {
+  min-width: 260px;
+  max-width: 420px;
 }
 
 .qmed-active-sandbox-grid {
@@ -2798,6 +2829,22 @@
   color: var(--color-text-secondary);
 }
 
+.qmed-catalog-names-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.qmed-catalog-clear-filter-btn {
+  font-size: var(--font-size-caption);
+  color: var(--color-brand-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-0);
+}
+
 .qmed-catalog-names-chips {
   display: flex;
   flex-wrap: wrap;
@@ -2817,11 +2864,24 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.qmed-catalog-name-chip:hover {
+  border-color: var(--color-border-strong);
+}
+
+.qmed-catalog-name-chip.is-active {
+  background: var(--color-brand-soft);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-medium);
 }
 
 .qmed-catalog-name-chip.is-more {
   font-style: italic;
   color: var(--color-text-secondary);
+  cursor: default;
 }
 
 .qmed-batch-import-hero {
@@ -3022,6 +3082,32 @@
   margin-top: var(--space-1);
 }
 
+.qmed-cat-catalog-badge-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+}
+
+.qmed-cat-catalog-unbind-prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.qmed-cat-unbind-tip {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.qmed-cat-members-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .qmed-cat-systemic-pill {
   display: inline-flex;
   align-items: center;
@@ -3073,3 +3159,164 @@
   color: var(--color-text-primary);
   cursor: pointer;
 }
+
+/* 分类关联在行规则样式 */
+.qmed-cat-tag.is-rule-bound {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-medium);
+}
+
+.qmed-cat-bound-rules-section {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.qmed-cat-bound-rules-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.qmed-cat-bound-rules-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.qmed-cat-bound-rule-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-caption);
+}
+
+.qmed-cat-bound-rule-pill .bound-rule-code {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.qmed-cat-bound-rule-pill .bound-rule-name {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+/* 沙箱结果过滤切换标签 */
+.qmed-active-filter-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* 沙箱命中处方药品高亮标签 */
+.qmed-hit-drugs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.qmed-hit-drug-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
+  border: 1px solid var(--color-danger-soft);
+  font-size: var(--font-size-caption);
+}
+
+.qmed-hit-drug-pill .pill-index {
+  font-weight: var(--font-weight-bold);
+  opacity: 0.8;
+}
+
+.qmed-hit-drug-pill .pill-name {
+  font-weight: var(--font-weight-medium);
+}
+
+/* 处方行命中强调高亮 */
+.qmed-trial-row.is-hit-row {
+  border-color: var(--color-danger-soft);
+  background: var(--color-danger-soft);
+}
+
+.row-num.is-hit {
+  background: var(--color-danger-strong);
+  color: var(--color-surface);
+}
+
+/* 对话框内联确认警告卡片 */
+.qmed-confirm-warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-soft);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+}
+
+.qmed-confirm-warning-icon {
+  color: var(--color-danger-strong);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding-top: var(--space-1);
+}
+
+.qmed-confirm-warning-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.qmed-confirm-warning-title {
+  margin: var(--space-0);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-body);
+}
+
+.qmed-confirm-warning-desc {
+  margin: var(--space-0);
+  font-size: var(--font-size-caption);
+  color: var(--color-danger-strong);
+  line-height: var(--line-height-body);
+}
+
+.qmed-clear-confirm-body {
+  padding: var(--space-3) var(--space-0);
+}
+
+.qmed-clear-catalog-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-info-soft);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-caption);
+  color: var(--color-info-strong);
+  line-height: var(--line-height-body);
+}
+
+

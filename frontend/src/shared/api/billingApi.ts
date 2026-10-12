@@ -85,6 +85,9 @@ export interface SettlementRecord {
   terminalCode?: string
   createdAt: string
   finalizedAt?: string
+  finalizedBy?: string
+  cashierName?: string
+  cashierUsername?: string
 }
 
 export type Payment = ContractProjection<RequiredWireView<components['schemas']['PaymentView'], 'id' | 'patientAccountId' | 'paymentNo' | 'paymentMethodCode' | 'status' | 'amount' | 'currencyCode' | 'paidAt' | 'enteredBy'>, {
@@ -301,9 +304,9 @@ export function createBillingApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify({ requestCode }),
       },
     ),
-    issueInvoice: (accountId: string, invoiceNo: string, settlementScene?: string, chargeItemIds?: string[]) => client.request<Invoice>(
+    issueInvoice: (accountId: string, invoiceNo: string, settlementScene?: string, chargeItemIds?: string[], terminalScene: Settlement['terminalScene'] = 'CASHIER', terminalCode = 'CASHIER-WEB') => client.request<Invoice>(
       `/api/billing/accounts/${accountId}/invoices`, {
-        method: 'POST', body: JSON.stringify({ invoiceNo, settlementScene, chargeItemIds }),
+        method: 'POST', body: JSON.stringify({ invoiceNo, settlementScene, chargeItemIds, terminalScene, terminalCode }),
       },
     ),
     collect: (invoiceId: string, input: {
@@ -364,9 +367,11 @@ export function createBillingApi(client: ApiClient) {
     settlement: (settlementId: string) => client.request<Settlement>(
       `/api/billing/settlements/${settlementId}`,
     ),
-    settlementRecords: (limit = 200) => client.request<SettlementRecord[]>(
-      `/api/billing/settlement-records?limit=${encodeURIComponent(limit)}`,
-    ),
+    settlementRecords: (limit = 200, filter?: { from: string; to: string; cashier?: string }) => {
+      const params = new URLSearchParams({ limit: String(limit) })
+      if (filter) { params.set('from', filter.from); params.set('to', filter.to); if (filter.cashier) params.set('cashier', filter.cashier) }
+      return client.request<SettlementRecord[]>(`/api/billing/settlement-records?${params}`)
+    },
     paymentOrders: (accountId: string) => client.request<PaymentOrder[]>(
       `/api/billing/accounts/${accountId}/payment-orders`,
     ),

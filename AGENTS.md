@@ -11,7 +11,9 @@
 
 ## Task isolation and integration
 
-- Follow `CONTRIBUTING.md` for independent task branches/worktrees, shared assets and serial integration. Reuse the current task's worktree; preserve others' changes. Never stash/reset their work or build unrelated in-flight changes in the main checkout.
+- Follow `CONTRIBUTING.md`: reuse by default, isolate by risk. Do not create a worktree for every turn, follow-up or small task. Low-risk edits may use the current checkout when target files have no other task's changes and verification will not include unrelated in-flight source.
+- Reuse one owned worktree for serial maintenance, including its dependencies and caches. Continue related edits in the same workspace; keep each task's scope and verification separate. Archive it when the maintenance session ends or it is no longer needed, not automatically after each commit.
+- Use a separate task branch/worktree for parallel writers, overlapping files, API contracts, migrations, permissions, inventory/billing logic or shared infrastructure changes. Check existing ownership before creating or reusing a workspace; do not take over another chat's worktree. Preserve others' changes: never stash/reset their work or build unrelated in-flight changes in the main checkout.
 - Record scope/base and integration responsibility briefly in the chat or PR, including UI, API/generated files, migrations, permissions/config and CI when affected. No separate task file or scripted workflow is required.
 - Do not infer authorization to message other threads, commit or push from project rules. Commit/push only when explicitly requested for the task.
 
@@ -21,7 +23,7 @@
 - For code changes, use `./scripts/verify-scope.sh <scope> --list` to select maintained checks, then run the applicable scope. Combine scopes to deduplicate tests/gates/builds; do not repeat those stages individually after they pass.
 - Pure frontend changes may use `--frontend-only`; never use it for backend, API contracts, migrations, permissions, inventory or billing logic. `knowledge-panel` covers knowledge viewing; shared Dialog or workstation changes need affected consumers too.
 - Contracts, migrations, permissions, inventory/billing or shared infrastructure need broader checks. Explain why full local verification is needed before running it; scope checks do not replace complete CI.
-- Verify fixed source in the task/integration worktree. Scope scripts record source fingerprints; exit 2 means invalid attribution/setup, not a business regression. Reuse passing evidence only for unchanged relevant source/config/environment; after a change/failure, rerun affected checks and expand for uncertain consumers.
+- Verify fixed source in the selected task/integration working directory (current checkout or worktree, following the isolation rules). Scope scripts record source fingerprints; exit 2 means invalid attribution/setup, not a business regression. Reuse passing evidence only for unchanged relevant source/config/environment; after a change/failure, rerun affected checks and expand for uncertain consumers.
 - Store full logs in ignored `.runtime/verification/`; read summaries/failing sections first and `timings.tsv` for costs. Report actual checks and pending manual acceptance; DOM tests/health checks do not prove visual or deployed-version correctness.
 
 ## Preserve manual services and test isolation

@@ -63,6 +63,11 @@ public class MedicationSafetyCategoryController {
         service.removeMember(id, memberId);
     }
 
+    @DeleteMapping("/{id}/members")
+    public int clearMembers(@PathVariable Long id) {
+        return service.clearMembers(id);
+    }
+
     @GetMapping("/by-medication")
     public List<MedicationTagView> listTags(
             @RequestParam(required = false) Long medicationId,

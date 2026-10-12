@@ -8,7 +8,7 @@ import type {
   StandardCatalogCategorySummary
 } from '../../shared/api/medicationWorkbenchApi'
 import type { MedicationKnowledge } from '../../shared/api/masterDataApi'
-import { Alert, Button, DataTable, Dialog, FormField, Icon, LoadingState, SearchField, Select, StatusBadge } from '../../shared/ui'
+import { Button, DataTable, Dialog, FormField, Icon, LoadingState, SearchField, Select, StatusBadge } from '../../shared/ui'
 
 interface MedicationSafetyCategoriesProps {
   api: RhnApi
@@ -18,19 +18,22 @@ interface MedicationSafetyCategoriesProps {
 
 const ruleKindOptions = [
   { value: '', label: '全部规则类型' },
-  { value: 'INTERACTION_CONTRAINDICATION', label: '药物相互作用 / 双硫仑禁忌' },
-  { value: 'EXACT_GENERIC_DUPLICATE', label: '同类重复用药 / NSAID等' },
+  { value: 'INTERACTION_CONTRAINDICATION', label: '药物相互作用 / 配伍禁忌' },
+  { value: 'DUPLICATE_THERAPY', label: '同类重复用药' },
+  { value: 'DRUG_INTERACTION', label: '药物相互作用' },
   { value: 'AGE_CONTRAINDICATION', label: '年龄与儿童青少年禁忌' },
-  { value: 'SPECIAL_POPULATION_CONTRAINDICATION', label: '特殊人群 / 肝肾功能禁忌' },
-  { value: 'DOSAGE_ROUTE_CHECK', label: '剂型与用法用量核查' }
+  { value: 'SPECIAL_POPULATION_CONTRAINDICATION', label: '特殊人群 / 肝肾禁忌' },
+  { value: 'DOSAGE_ROUTE_CHECK', label: '给药途径与用法用量' }
 ]
 
 const ruleKindNameMap: Record<string, string> = {
-  INTERACTION_CONTRAINDICATION: '药物相互作用 / 配伍禁忌',
-  EXACT_GENERIC_DUPLICATE: '同类重复用药',
+  DUPLICATE_THERAPY: '同类重复用药',
+  DRUG_INTERACTION: '药物相互作用',
   AGE_CONTRAINDICATION: '年龄禁忌',
   SPECIAL_POPULATION_CONTRAINDICATION: '特殊人群禁忌',
-  DOSAGE_ROUTE_CHECK: '给药途径/用法核对'
+  DOSAGE_ROUTE_CHECK: '给药途径/用量',
+  EXACT_GENERIC_DUPLICATE: '同类重复用药',
+  INTERACTION_CONTRAINDICATION: '药物相互作用 / 配伍禁忌'
 }
 
 const DOSE_FORM_TEXT_MAP: Record<string, string> = {
@@ -70,6 +73,82 @@ export function formatDoseForm(doseForm?: string | null): string {
   if (!doseForm) return ''
   const trimmed = doseForm.trim()
   return DOSE_FORM_TEXT_MAP[trimmed.toUpperCase()] || trimmed
+}
+
+// 国家基药目录自然中文数字解析（将“一、”、“（三）”、“二十一、”等解析为自然阿拉伯数字）
+export function parseChineseNumeral(text: string): number {
+  if (!text) return 9999
+  const match = text.match(/[（(]?([一二三四五六七八九十]+)[）) 、]/) || text.match(/^[（(]?([一二三四五六七八九十]+)[）)]?/)
+  if (!match) return 9999
+  const s = match[1]
+  if (s === '十') return 10
+  const digits: Record<string, number> = {
+    '一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+    '六': 6, '七': 7, '八': 8, '九': 9
+  }
+  if (s.startsWith('十')) {
+    return 10 + (digits[s.charAt(1)] || 0)
+  }
+  if (s.includes('十')) {
+    const parts = s.split('十')
+    const tens = digits[parts[0]] || 1
+    const ones = digits[parts[1]] || 0
+    return tens * 10 + ones
+  }
+  return digits[s] || 9999
+}
+
+export function getMajorOrder(major: string): number {
+  if (!major) return 99999
+  const num = parseChineseNumeral(major)
+  const isTcm = major.includes('内科用药') || major.includes('外科用药') || major.includes('妇科用药')
+    || major.includes('骨伤科用药') || (num <= 7 && (major.includes('眼科用药') || major.includes('耳鼻喉科用药') || major.includes('儿科用药')) && !major.includes('二十'))
+  return isTcm ? 2000 + num : 1000 + num
+}
+
+export interface BoundRuleSummary {
+  code: string
+  name: string
+  decision: 'BLOCK' | 'REQUIRE_OVERRIDE' | 'WARN'
+}
+
+export const CATEGORY_BOUND_RULES_MAP: Record<string, BoundRuleSummary[]> = {
+  PPI_DUPLICATE_THERAPY: [
+    { code: 'QMED.PPI_DUPLICATE', name: '质子泵抑制剂（PPI）同方或重复用药核对', decision: 'REQUIRE_OVERRIDE' }
+  ],
+  RASI_DUPLICATE_THERAPY: [
+    { code: 'QMED.RASI_DUPLICATE', name: 'ACEI与ARB类降压药重复用药核对', decision: 'BLOCK' }
+  ],
+  SEDATIVE_HYPNOTIC_DUPLICATE: [
+    { code: 'QMED.SEDATIVE_HYPNOTIC_DUPLICATE', name: '镇静催眠类及抗焦虑药物重复用药核对', decision: 'REQUIRE_OVERRIDE' }
+  ],
+  TETRACYCLINE_PEDIATRIC_CONTRA: [
+    { code: 'QMED.TETRACYCLINE_PEDIATRIC', name: '儿童青少年禁用四环素类抗生素核对', decision: 'BLOCK' }
+  ],
+  AMINOGLYCOSIDE_PEDIATRIC_CONTRA: [
+    { code: 'QMED.AMINOGLYCOSIDE_PEDIATRIC', name: '儿童及特定年龄禁用氨基糖苷类抗生素核对', decision: 'BLOCK' }
+  ],
+  MACROLIDE_STATIN_INTERACTION: [
+    { code: 'QMED.MACROLIDE_STATIN_INTERACTION', name: '大环内酯类抗菌药与他汀类相互作用核对', decision: 'BLOCK' }
+  ],
+  STATIN_LIPID_LOWERING: [
+    { code: 'QMED.MACROLIDE_STATIN_INTERACTION', name: '大环内酯类抗菌药与他汀类相互作用核对', decision: 'BLOCK' }
+  ],
+  PREGNANCY_CONTRA_CATEGORY_X: [
+    { code: 'QMED.PREGNANCY_CONTRA', name: '育龄期及妊娠期妇女禁用高危致畸药物核对', decision: 'BLOCK' }
+  ],
+  SYSTEMIC_NSAID: [
+    { code: 'QMED.NSAID_DUPLICATE', name: '非甾体抗炎药（NSAIDs）同方或联合用药重复核对', decision: 'REQUIRE_OVERRIDE' }
+  ],
+  QUINOLONE_PEDIATRIC: [
+    { code: 'QMED.AGE_CONTRAINDICATION', name: '儿童及特定年龄禁忌用药核对', decision: 'BLOCK' }
+  ],
+  DISULFIRAM_ANTIMICROBIAL: [
+    { code: 'QMED.DISULFIRAM_INTERACTION', name: '双硫仑样反应配伍禁忌核对', decision: 'BLOCK' }
+  ],
+  ALCOHOL_EXCIPIENT: [
+    { code: 'QMED.DISULFIRAM_INTERACTION', name: '双硫仑样反应配伍禁忌核对', decision: 'BLOCK' }
+  ]
 }
 
 export function MedicationSafetyCategories({ api, onNotice, onError }: MedicationSafetyCategoriesProps) {
@@ -112,6 +191,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
   const [catalogCandidates, setCatalogCandidates] = useState<SafetyCategoryMemberItem[]>([])
   const [catalogSearching, setCatalogSearching] = useState(false)
   const [importingFromCatalog, setImportingFromCatalog] = useState(false)
+  const [selectedStandardDrugName, setSelectedStandardDrugName] = useState('')
 
   // 模式2：主数据药名检索状态
   const [medQuery, setMedQuery] = useState('')
@@ -121,6 +201,22 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
   const [lastSearchedQuery, setLastSearchedQuery] = useState('')
   const [selectedMedItems, setSelectedMedItems] = useState<SafetyCategoryMemberItem[]>([])
   const [addingMeds, setAddingMeds] = useState(false)
+
+  // 独立目录绑定弹窗状态
+  const [showBindCatalogModal, setShowBindCatalogModal] = useState(false)
+  const [bindCatalogSub, setBindCatalogSub] = useState('')
+  const [bindCatalogSystemicOnly, setBindCatalogSystemicOnly] = useState(false)
+  const [savingBindCatalog, setSavingBindCatalog] = useState(false)
+
+  // 纳入药品弹窗中同步建立级联绑定的勾选项
+  const [syncBindCatalogOnImport, setSyncBindCatalogOnImport] = useState(true)
+
+  // 一键清空状态
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState(false)
+  const [clearingMembers, setClearingMembers] = useState(false)
+
+  // 手工直属纳管成员数量（排除目录继承项）
+  const directMembersCount = useMemo(() => members.filter(m => !m.inherited).length, [members])
 
   // 删除确认弹窗
   const [deletingCategory, setDeletingCategory] = useState<MedicationSafetyCategoryView | null>(null)
@@ -135,19 +231,60 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
     }
   }, [])
 
-  // 标准目录下拉选项
-  const standardCatalogOptions = useMemo(() => {
-    const list = [
-      { value: '', label: '不绑定标准目录（纯手工纳管维护）' }
-    ]
-    for (const item of standardCatalogs) {
-      list.push({
-        value: item.sub,
-        label: `${item.major ? `${item.major} / ` : ''}${item.sub} (${item.entryCount} 种通用名)`
-      })
+  // 树形国家基药标准目录选项（自然中文序号排序，大类为根节点，亚类为叶子节点）
+  const standardCatalogTreeOptions = useMemo(() => {
+    if (!standardCatalogs.length) return []
+    // 1. 自然中文数字排序：西药 1~25 排在前，中成药 1~7 排在后，大类与亚类均按自然序
+    const sorted = [...standardCatalogs].sort((a, b) => {
+      const ma = getMajorOrder(a.major)
+      const mb = getMajorOrder(b.major)
+      if (ma !== mb) return ma - mb
+      const sa = parseChineseNumeral(a.sub)
+      const sb = parseChineseNumeral(b.sub)
+      if (sa !== sb) return sa - sb
+      return a.sub.localeCompare(b.sub, 'zh-Hans')
+    })
+
+    // 2. 按大类组织层级树
+    const majorMap = new Map<string, StandardCatalogCategorySummary[]>()
+    for (const item of sorted) {
+      const major = item.major || '未分类'
+      if (!majorMap.has(major)) {
+        majorMap.set(major, [])
+      }
+      majorMap.get(major)!.push(item)
     }
-    return list
+
+    const options = []
+    for (const [major, subList] of majorMap.entries()) {
+      const majorId = `major:${major}`
+      const totalDrugs = subList.reduce((acc, s) => acc + (s.entryCount || 0), 0)
+      options.push({
+        value: majorId,
+        label: major,
+        trailingText: `共 ${subList.length} 亚类 (${totalDrugs} 药)`
+      })
+      for (const s of subList) {
+        options.push({
+          value: s.sub,
+          parentValue: majorId,
+          label: s.sub,
+          trailingText: `${s.entryCount} 种通用名`,
+          description: s.entryNames && s.entryNames.length > 0
+            ? s.entryNames.slice(0, 4).join('、') + (s.entryNames.length > 4 ? '…' : '')
+            : undefined,
+          searchKeywords: [major, ...(s.entryNames || [])]
+        })
+      }
+    }
+    return options
   }, [standardCatalogs])
+
+  // 带“不绑定标准目录”根选项的树形选项
+  const standardCatalogTreeOptionsWithNone = useMemo(() => [
+    { value: '', label: '不绑定标准目录（纯手工纳管维护）' },
+    ...standardCatalogTreeOptions
+  ], [standardCatalogTreeOptions])
 
   // 加载分类列表
   const fetchCategories = async () => {
@@ -341,17 +478,55 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
     setImportingFromCatalog(true)
     try {
       const foundMajor = standardCatalogs.find(s => s.sub === catalogSubToImport)?.major || ''
+      // 若勾选了同步建立级联绑定，且当前分类尚未绑定该目录，则先同步更新分类属性
+      if (syncBindCatalogOnImport && selectedCategory && (selectedCategory.catalogSub !== catalogSubToImport || selectedCategory.systemicOnly !== catalogSystemicOnly)) {
+        await api.medicationWorkbench.updateSafetyCategory(selectedCategoryId, {
+          expectedRevision: selectedCategory.revision,
+          name: selectedCategory.name,
+          rationale: selectedCategory.rationale,
+          status: selectedCategory.status,
+          catalogMajor: foundMajor || null,
+          catalogSub: catalogSubToImport,
+          systemicOnly: catalogSystemicOnly
+        })
+      }
       const result = await api.medicationWorkbench.importSafetyCategoryMembersFromCatalog(selectedCategoryId, {
         catalogMajor: foundMajor,
         catalogSub: catalogSubToImport,
         systemicOnly: catalogSystemicOnly
       })
-      onNotice?.(`成功从标准目录批量导入 ${result.importedCount} 种药品（自动跳过 ${result.skippedCount} 种已纳管项）`)
+      onNotice?.(`成功从标准目录批量导入 ${result.importedCount} 种药品${syncBindCatalogOnImport ? '，并已将安全分类同步绑定至该标准目录' : ''}（自动跳过 ${result.skippedCount} 种已纳管项）`)
       setShowAddMedModal(false)
       fetchMembers(selectedCategoryId, memberSearch)
       fetchCategories()
     } catch (e) {
       onError?.(`批量导入失败: ${errorMessage(e)}`)
+    } finally {
+      setImportingFromCatalog(false)
+    }
+  }
+
+  // 仅建立标准目录级联绑定（无需导入明细，在库新药自动动态继承）
+  const handleOnlyBindCatalog = async () => {
+    if (!selectedCategoryId || !catalogSubToImport || !selectedCategory) return
+    setImportingFromCatalog(true)
+    try {
+      const foundMajor = standardCatalogs.find(s => s.sub === catalogSubToImport)?.major || ''
+      const updated = await api.medicationWorkbench.updateSafetyCategory(selectedCategoryId, {
+        expectedRevision: selectedCategory.revision,
+        name: selectedCategory.name,
+        rationale: selectedCategory.rationale,
+        status: selectedCategory.status,
+        catalogMajor: foundMajor || null,
+        catalogSub: catalogSubToImport,
+        systemicOnly: catalogSystemicOnly
+      })
+      onNotice?.(`已成功将分类 "${updated.name}" 绑定至标准目录【${catalogSubToImport}】，全院在库及后续新增药品自动级联继承生效！`)
+      setShowAddMedModal(false)
+      fetchMembers(selectedCategoryId, memberSearch)
+      fetchCategories()
+    } catch (e) {
+      onError?.(`绑定标准目录失败: ${errorMessage(e)}`)
     } finally {
       setImportingFromCatalog(false)
     }
@@ -458,7 +633,119 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
     }
   }
 
+  // 打开独立目录绑定快捷弹窗
+  const handleOpenBindCatalogModal = () => {
+    if (!selectedCategory) return
+    const defaultSub = selectedCategory.catalogSub || (standardCatalogs.length > 0 ? standardCatalogs[0].sub : '')
+    setBindCatalogSub(defaultSub)
+    setBindCatalogSystemicOnly(!!selectedCategory.systemicOnly)
+    setShowBindCatalogModal(true)
+  }
+
+  // 保存目录绑定
+  const handleSaveBindCatalog = async (importDrugsAfterBind = false) => {
+    if (!selectedCategory || !bindCatalogSub) return
+    setSavingBindCatalog(true)
+    try {
+      const foundMajor = standardCatalogs.find(s => s.sub === bindCatalogSub)?.major || ''
+      const updated = await api.medicationWorkbench.updateSafetyCategory(selectedCategory.id, {
+        expectedRevision: selectedCategory.revision,
+        name: selectedCategory.name,
+        rationale: selectedCategory.rationale,
+        status: selectedCategory.status,
+        catalogMajor: foundMajor || null,
+        catalogSub: bindCatalogSub,
+        systemicOnly: bindCatalogSystemicOnly
+      })
+      if (importDrugsAfterBind) {
+        const result = await api.medicationWorkbench.importSafetyCategoryMembersFromCatalog(selectedCategory.id, {
+          catalogMajor: foundMajor,
+          catalogSub: bindCatalogSub,
+          systemicOnly: bindCatalogSystemicOnly
+        })
+        onNotice?.(`已成功将分类 "${updated.name}" 绑定至标准目录【${bindCatalogSub}】，并导入了 ${result.importedCount} 种在库药品！`)
+      } else {
+        onNotice?.(`已成功将分类 "${updated.name}" 绑定至标准目录【${bindCatalogSub}】，全院在库同类药品自动级联继承生效！`)
+      }
+      setShowBindCatalogModal(false)
+      fetchCategories()
+      fetchMembers(selectedCategory.id, memberSearch)
+    } catch (e) {
+      onError?.(`绑定标准目录失败: ${errorMessage(e)}`)
+    } finally {
+      setSavingBindCatalog(false)
+    }
+  }
+
+  // 解除目录绑定
+  const handleUnbindCatalog = async () => {
+    if (!selectedCategory) return
+    try {
+      const updated = await api.medicationWorkbench.updateSafetyCategory(selectedCategory.id, {
+        expectedRevision: selectedCategory.revision,
+        name: selectedCategory.name,
+        rationale: selectedCategory.rationale,
+        status: selectedCategory.status,
+        catalogMajor: null,
+        catalogSub: null,
+        systemicOnly: false
+      })
+      onNotice?.(`已成功解除分类 "${updated.name}" 与标准目录的级联绑定`)
+      fetchCategories()
+      fetchMembers(selectedCategory.id, memberSearch)
+    } catch (e) {
+      onError?.(`解除目录绑定失败: ${errorMessage(e)}`)
+    }
+  }
+
+  // 一键清空分类下全部手工纳管药品明细
+  const handleConfirmClearMembers = async () => {
+    if (!selectedCategoryId) return
+    setClearingMembers(true)
+    try {
+      const count = await api.medicationWorkbench.clearSafetyCategoryMembers(selectedCategoryId)
+      onNotice?.(`已成功清空分类 "${selectedCategory?.name}" 下的 ${count} 种手工纳管药品明细`)
+      setShowClearConfirmModal(false)
+      fetchMembers(selectedCategoryId, memberSearch)
+      fetchCategories()
+    } catch (e) {
+      onError?.(`清空药品失败: ${errorMessage(e)}`)
+    } finally {
+      setClearingMembers(false)
+    }
+  }
+
   const currentCatalogSummary = standardCatalogs.find(s => s.sub === catalogSubToImport)
+
+  const displayedCatalogCandidates = useMemo(() => {
+    if (!selectedStandardDrugName) return catalogCandidates
+    const term = selectedStandardDrugName.trim().toLowerCase()
+    return catalogCandidates.filter(c => c.medicationName.toLowerCase().includes(term))
+  }, [catalogCandidates, selectedStandardDrugName])
+
+  // 导入选中的单个标准药品品种下的全部在库规格
+  const handleImportSelectedStandardDrug = async () => {
+    if (!selectedCategoryId || !selectedStandardDrugName || displayedCatalogCandidates.length === 0) return
+    setImportingFromCatalog(true)
+    try {
+      const items = displayedCatalogCandidates.map(c => ({
+        medicationId: c.medicationId,
+        medicationCode: c.medicationCode,
+        medicationName: c.medicationName,
+        preparationSpec: c.preparationSpec,
+        doseForm: c.doseForm
+      }))
+      const count = await api.medicationWorkbench.addSafetyCategoryMembers(selectedCategoryId, items)
+      onNotice?.(`已成功将标准药品【${selectedStandardDrugName}】下的 ${count} 种在库规格药品导入到分类 "${selectedCategory?.name}"`)
+      setShowAddMedModal(false)
+      fetchMembers(selectedCategoryId, memberSearch)
+      fetchCategories()
+    } catch (e) {
+      onError?.(`导入标准药品规格失败: ${errorMessage(e)}`)
+    } finally {
+      setImportingFromCatalog(false)
+    }
+  }
 
   return (
     <div className="qmed-safety-cat-pane">
@@ -512,9 +799,17 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                 >
                   <div className="qmed-cat-item-top">
                     <span className="qmed-cat-item-name">{cat.name}</span>
-                    <span className="qmed-cat-item-badge">
-                      {cat.memberCount} 药
-                    </span>
+                    {(() => {
+                      const effectiveCount = (cat.id === selectedCategoryId && members.length > 0) ? members.length : cat.memberCount
+                      if (!effectiveCount || effectiveCount <= 0) {
+                        return null
+                      }
+                      return (
+                        <span className="qmed-cat-item-badge">
+                          {effectiveCount} 药
+                        </span>
+                      )
+                    })()}
                   </div>
                   <div className="qmed-cat-item-code">{cat.code}</div>
                   <div className="qmed-cat-item-tags">
@@ -526,6 +821,17 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                         目录绑定
                       </span>
                     )}
+                    {(() => {
+                      const bound = CATEGORY_BOUND_RULES_MAP[cat.code]
+                      if (bound && bound.length > 0) {
+                        return (
+                          <span className="qmed-cat-tag is-rule-bound" title={`已绑定生效规则：${bound.map(r => r.name).join('、')}`}>
+                            已配规则 ({bound.length})
+                          </span>
+                        )
+                      }
+                      return null
+                    })()}
                     {cat.isSystem && (
                       <span className="qmed-cat-tag is-system">
                         系统预置
@@ -562,21 +868,66 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                       )}
                     </div>
 
-                    {selectedCategory.catalogSub && (
+                    {selectedCategory.catalogSub ? (
                       <div className="qmed-cat-catalog-badge">
                         <Icon name="database" />
                         <span>标准目录关联：<strong>{selectedCategory.catalogMajor ? `${selectedCategory.catalogMajor} / ` : ''}{selectedCategory.catalogSub}</strong></span>
                         {selectedCategory.systemicOnly && (
                           <span className="qmed-cat-systemic-pill">仅全身剂型</span>
                         )}
+                        <div className="qmed-cat-catalog-badge-actions">
+                          <Button size="sm" variant="text" onClick={handleOpenBindCatalogModal}>
+                            更换目录
+                          </Button>
+                          <Button size="sm" variant="text" onClick={handleUnbindCatalog}>
+                            解除绑定
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="qmed-cat-catalog-unbind-prompt">
+                        <Button size="sm" variant="secondary" onClick={handleOpenBindCatalogModal}>
+                          <Icon name="database" /> 绑定基药标准目录（推荐）
+                        </Button>
+                        <span className="qmed-cat-unbind-tip">
+                          尚未绑定标准目录。绑定后全院同类药品自动级联继承，后续主档新药自动动态生效！
+                        </span>
                       </div>
                     )}
 
                     <div className="qmed-cat-detail-meta">
                       <span>规则类别: <strong>{ruleKindNameMap[selectedCategory.ruleKind] || selectedCategory.ruleKind}</strong></span>
-                      <span>纳管药品数: <strong>{selectedCategory.memberCount} 种</strong></span>
+                      <span>纳管药品数: <strong>{(() => {
+                        const effectiveCount = members.length > 0 ? members.length : selectedCategory.memberCount
+                        if (effectiveCount > 0) return `${effectiveCount} 种`
+                        if (selectedCategory.catalogSub) return '目录级联生效'
+                        return '暂未纳管'
+                      })()}</strong></span>
                       <span>版本修订: <strong>rev.{selectedCategory.revision}</strong></span>
                     </div>
+
+                    {(() => {
+                      const bound = CATEGORY_BOUND_RULES_MAP[selectedCategory.code]
+                      if (!bound || bound.length === 0) return null
+                      return (
+                        <div className="qmed-cat-bound-rules-section">
+                          <div className="qmed-cat-bound-rules-title">
+                            <Icon name="check" /> 关联在行合理用药质控规则（{bound.length} 条）
+                          </div>
+                          <div className="qmed-cat-bound-rules-list">
+                            {bound.map(r => (
+                              <div key={r.code} className="qmed-cat-bound-rule-pill">
+                                <span className="bound-rule-code">{r.code}</span>
+                                <span className="bound-rule-name">{r.name}</span>
+                                <StatusBadge tone={r.decision === 'BLOCK' ? 'danger' : 'warning'}>
+                                  {r.decision === 'BLOCK' ? '绝对拦截 (BLOCK)' : '阻断需理由'}
+                                </StatusBadge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
 
                   <div className="qmed-cat-detail-actions">
@@ -621,13 +972,25 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                     <h3>已纳管药品清单</h3>
                     <span className="qmed-cat-members-count">共 {members.length} 种</span>
                   </div>
-                  <div className="ui-query-filters__group">
-                    <SearchField
-                      label="过滤纳管药品"
-                      placeholder="在纳管药品中快速过滤..."
-                      value={memberSearch}
-                      onChange={setMemberSearch}
-                    />
+                  <div className="qmed-cat-members-toolbar-right">
+                    <div className="ui-query-filters__group">
+                      <SearchField
+                        label="过滤纳管药品"
+                        placeholder="在纳管药品中快速过滤..."
+                        value={memberSearch}
+                        onChange={setMemberSearch}
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={directMembersCount === 0 || clearingMembers}
+                      busy={clearingMembers}
+                      onClick={() => setShowClearConfirmModal(true)}
+                      title={directMembersCount === 0 ? '当前没有手工纳管的药品明细' : `一键清空全部手工添加的 ${directMembersCount} 种药品明细`}
+                    >
+                      <Icon name="close" /> 一键清空 ({directMembersCount})
+                    </Button>
                   </div>
                 </div>
 
@@ -743,15 +1106,18 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
             <FormField label="绑定国家基药标准目录（推荐，支持级联继承与一键导入）">
               <Select
                 value={categoryForm.catalogSub}
-                onChange={val => {
-                  const found = standardCatalogs.find(s => s.sub === val)
+                onChange={(val, opt) => {
+                  const major = opt?.parentValue ? opt.parentValue.replace(/^major:/, '') : standardCatalogs.find(s => s.sub === val)?.major || ''
                   setCategoryForm({
                     ...categoryForm,
                     catalogSub: val,
-                    catalogMajor: found?.major || ''
+                    catalogMajor: major
                   })
                 }}
-                options={standardCatalogOptions}
+                options={standardCatalogTreeOptionsWithNone}
+                leafOnly
+                showHierarchyInLabel
+                placeholder="选择绑定标准目录（支持树形展开与检索）"
               />
             </FormField>
             {categoryForm.catalogSub && (
@@ -848,10 +1214,10 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                           setCatalogSubToImport(val)
                           searchCatalogCandidates(val, catalogSystemicOnly)
                         }}
-                        options={standardCatalogs.map(s => ({
-                          value: s.sub,
-                          label: `${s.major ? `${s.major} / ` : ''}${s.sub} (${s.entryCount} 种通用名)`
-                        }))}
+                        options={standardCatalogTreeOptions}
+                        leafOnly
+                        showHierarchyInLabel
+                        placeholder="请选择标准分类（支持树形展开与检索）"
                       />
                     </FormField>
 
@@ -870,14 +1236,41 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
 
                     {currentCatalogSummary && currentCatalogSummary.entryNames && currentCatalogSummary.entryNames.length > 0 && (
                       <div className="qmed-catalog-names-preview">
-                        <span className="qmed-catalog-names-label">
-                          基药收录通用名 ({currentCatalogSummary.entryNames.length})：
-                        </span>
+                        <div className="qmed-catalog-names-header">
+                          <span className="qmed-catalog-names-label">
+                            {selectedStandardDrugName ? `已筛选品种：${selectedStandardDrugName}` : `基药收录通用名 (${currentCatalogSummary.entryNames.length})：`}
+                          </span>
+                          {selectedStandardDrugName && (
+                            <Button
+                              variant="text"
+                              size="sm"
+                              className="qmed-catalog-clear-filter-btn"
+                              onClick={() => setSelectedStandardDrugName('')}
+                            >
+                              清除品种筛选
+                            </Button>
+                          )}
+                        </div>
                         <div className="qmed-catalog-names-chips">
-                          {currentCatalogSummary.entryNames.slice(0, 16).map(name => (
-                            <span key={name} className="qmed-catalog-name-chip">{name}</span>
+                          {currentCatalogSummary.entryNames.slice(0, 20).map(name => (
+                            <span
+                              key={name}
+                              role="button"
+                              tabIndex={0}
+                              className={`qmed-catalog-name-chip ${selectedStandardDrugName === name ? 'is-active' : ''}`}
+                              onClick={() => setSelectedStandardDrugName(prev => prev === name ? '' : name)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setSelectedStandardDrugName(prev => prev === name ? '' : name)
+                                }
+                              }}
+                              title={`点击${selectedStandardDrugName === name ? '取消筛选' : '筛选并一键导入'}标准药品【${name}】的全部规格`}
+                            >
+                              {name}
+                            </span>
                           ))}
-                          {currentCatalogSummary.entryNames.length > 16 && (
+                          {currentCatalogSummary.entryNames.length > 20 && (
                             <span className="qmed-catalog-name-chip is-more">
                               ...等 {currentCatalogSummary.entryNames.length} 种
                             </span>
@@ -890,19 +1283,48 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                   {/* 独立的结构化全量导入卡片 */}
                   <div className="qmed-batch-import-hero">
                     <div className="qmed-batch-import-hero-title">
-                      <span>一键全量纳管</span>
+                      <span>目录级联与全量纳管</span>
                       <span className="qmed-batch-import-hero-count">
                         {catalogCandidates.length} 药待入库
                       </span>
                     </div>
-                    <div className="qmed-batch-import-btn-wrap">
+
+                    <label className="qmed-checkbox-label" style={{ marginTop: 'var(--space-1)' }}>
+                      <input
+                        type="checkbox"
+                        checked={syncBindCatalogOnImport}
+                        onChange={e => setSyncBindCatalogOnImport(e.target.checked)}
+                      />
+                      <span><strong>同时将此标准目录绑定至当前分类</strong>（推荐：后续主档新药自动级联继承）</span>
+                    </label>
+
+                    <div className="qmed-batch-import-btn-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                      {selectedStandardDrugName && (
+                        <Button
+                          variant="primary"
+                          busy={importingFromCatalog}
+                          disabled={displayedCatalogCandidates.length === 0}
+                          onClick={handleImportSelectedStandardDrug}
+                          title={`一键将标准药品【${selectedStandardDrugName}】下的全部 ${displayedCatalogCandidates.length} 种在库规格药品导入`}
+                        >
+                          <Icon name="database" /> 仅导入【{selectedStandardDrugName}】全规格 ({displayedCatalogCandidates.length} 药)
+                        </Button>
+                      )}
                       <Button
-                        variant="primary"
+                        variant={selectedStandardDrugName ? 'secondary' : 'primary'}
                         busy={importingFromCatalog}
                         disabled={!catalogSubToImport || catalogCandidates.length === 0}
                         onClick={handleImportAllFromCatalog}
                       >
-                        <Icon name="database" /> 一键全量导入 ({catalogCandidates.length} 药)
+                        <Icon name="database" /> 一键全量导入全目录 ({catalogCandidates.length} 药)
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        disabled={!catalogSubToImport || importingFromCatalog}
+                        onClick={handleOnlyBindCatalog}
+                        title="仅将该安全分类与国家基药目录绑定，所有药品通过目录级联自动继承，无需额外存储明细记录"
+                      >
+                        仅建立目录级联绑定（无需导入明细）
                       </Button>
                     </div>
                   </div>
@@ -912,16 +1334,20 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                 <div className="qmed-catalog-main-results">
                   <div className="qmed-add-med-results-header">
                     <div className="qmed-add-med-header-left">
-                      <span>在库未纳管药品 ({catalogCandidates.length})</span>
+                      <span>
+                        {selectedStandardDrugName
+                          ? `【${selectedStandardDrugName}】在库未纳管规格 (${displayedCatalogCandidates.length})`
+                          : `在库未纳管药品 (${catalogCandidates.length})`}
+                      </span>
                       {selectedMedItems.length > 0 && (
                         <span className="qmed-selected-pill">
                           已勾选 {selectedMedItems.length} 药
                         </span>
                       )}
                     </div>
-                    {catalogCandidates.length > 0 && (
+                    {displayedCatalogCandidates.length > 0 && (
                       <Button size="sm" variant="secondary" onClick={handleToggleSelectAllCandidates}>
-                        {selectedMedItems.length === catalogCandidates.length ? '取消全选' : '全选候选药'}
+                        {selectedMedItems.length === displayedCatalogCandidates.length ? '取消全选' : '全选候选药'}
                       </Button>
                     )}
                   </div>
@@ -930,13 +1356,15 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                     <div className="qmed-add-med-loading">
                       <LoadingState label="匹配候选药品中..." />
                     </div>
-                  ) : catalogCandidates.length === 0 ? (
+                  ) : displayedCatalogCandidates.length === 0 ? (
                     <div className="qmed-add-med-empty">
-                      当前标准目录下未发现可导入的未纳管药品（可能已全部纳入）
+                      {selectedStandardDrugName
+                        ? `标准药品【${selectedStandardDrugName}】在库规格已全部纳管或暂无符合条件的药品`
+                        : '当前标准目录下未发现可导入的未纳管药品（可能已全部纳入）'}
                     </div>
                   ) : (
                     <div className="qmed-add-med-list">
-                      {catalogCandidates.map(med => {
+                      {displayedCatalogCandidates.map(med => {
                         const isChecked = selectedMedItems.some(i => String(i.medicationId) === String(med.medicationId))
                         const doseFormText = formatDoseForm(med.doseForm)
                         return (
@@ -1089,11 +1517,20 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
           title="删除分类确认"
           onClose={() => setDeletingCategory(null)}
         >
-          <div style={{ padding: '16px 0' }}>
-            <Alert tone="error">
-              确定要删除分类 <strong>{deletingCategory.name}</strong> ({deletingCategory.code}) 吗？
-              删除后该分类及与其关联的药品安全映射将一并移除，此操作不可逆。
-            </Alert>
+          <div className="qmed-clear-confirm-body">
+            <div className="qmed-confirm-warning-box">
+              <div className="qmed-confirm-warning-icon">
+                <Icon name="warning" />
+              </div>
+              <div className="qmed-confirm-warning-content">
+                <p className="qmed-confirm-warning-title">
+                  确定要删除分类 <strong>{deletingCategory.name}</strong> ({deletingCategory.code}) 吗？
+                </p>
+                <p className="qmed-confirm-warning-desc">
+                  删除后该分类及与其关联的药品安全映射将一并移除，此操作不可逆。
+                </p>
+              </div>
+            </div>
           </div>
           <div className="qmed-dialog-footer">
             <Button variant="secondary" onClick={() => setDeletingCategory(null)}>
@@ -1126,6 +1563,109 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
             </Button>
             <Button variant="danger" onClick={handleConfirmRemoveMember}>
               确认移出
+            </Button>
+          </div>
+        </Dialog>
+      )}
+
+      {/* 弹窗 5：独立绑定基药标准目录 */}
+      {showBindCatalogModal && selectedCategory && (
+        <Dialog
+          title={`绑定国家基药标准目录 · ${selectedCategory.name}`}
+          onClose={() => setShowBindCatalogModal(false)}
+          className="qmed-cat-dialog"
+        >
+          <div className="qmed-dialog-form">
+            <FormField label="选择国家基药标准目录" required>
+              <Select
+                value={bindCatalogSub}
+                onChange={setBindCatalogSub}
+                options={standardCatalogTreeOptions}
+                leafOnly
+                showHierarchyInLabel
+                placeholder="请选择标准目录（点击大类展开层级）"
+              />
+            </FormField>
+
+            <div style={{ padding: '0 var(--space-1)' }}>
+              <label className="qmed-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={bindCatalogSystemicOnly}
+                  onChange={e => setBindCatalogSystemicOnly(e.target.checked)}
+                />
+                <span>仅纳管全身剂型（自动排除眼耳鼻局部制剂、外用软膏、凝胶贴膏等）</span>
+              </label>
+            </div>
+
+            <div className="qmed-cat-rationale-box" style={{ marginTop: 'var(--space-2)' }}>
+              <div className="qmed-cat-rationale-title">
+                <Icon name="info" /> 标准目录级联继承说明
+              </div>
+              <div className="qmed-cat-rationale-body">
+                绑定后，全院在库属于该目录的药品均自动纳入规则计算，主档新增同类药品也将自动生效，无需逐一手工维护药品明细。
+              </div>
+            </div>
+          </div>
+          <div className="qmed-dialog-footer">
+            <Button variant="secondary" onClick={() => setShowBindCatalogModal(false)}>
+              取消
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={!bindCatalogSub}
+              busy={savingBindCatalog}
+              onClick={() => handleSaveBindCatalog(false)}
+            >
+              仅保存目录级联绑定
+            </Button>
+            <Button
+              variant="primary"
+              disabled={!bindCatalogSub}
+              busy={savingBindCatalog}
+              onClick={() => handleSaveBindCatalog(true)}
+            >
+              保存绑定并全量导入当前药品
+            </Button>
+          </div>
+        </Dialog>
+      )}
+
+      {/* 弹窗 6：一键清空药品确认 */}
+      {showClearConfirmModal && selectedCategory && (
+        <Dialog
+          title="一键清空手工纳管药品确认"
+          onClose={() => setShowClearConfirmModal(false)}
+        >
+          <div className="qmed-clear-confirm-body">
+            <div className="qmed-confirm-warning-box">
+              <div className="qmed-confirm-warning-icon">
+                <Icon name="warning" />
+              </div>
+              <div className="qmed-confirm-warning-content">
+                <p className="qmed-confirm-warning-title">
+                  确定要清空安全分类 <strong>{selectedCategory.name}</strong> 下的所有手工纳管药品吗？
+                </p>
+                <p className="qmed-confirm-warning-desc">
+                  将立即移出共 <strong>{directMembersCount}</strong> 种已纳管的药品明细。此操作不可撤销。
+                </p>
+              </div>
+            </div>
+            {selectedCategory.catalogSub && (
+              <div className="qmed-clear-catalog-hint">
+                <Icon name="info" />
+                <span>
+                  💡 提示：该分类已绑定国家基药标准目录【{selectedCategory.catalogSub}】，由目录动态级联继承生效的药品规则不会受到影响。
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="qmed-dialog-footer">
+            <Button variant="secondary" onClick={() => setShowClearConfirmModal(false)}>
+              取消
+            </Button>
+            <Button variant="danger" busy={clearingMembers} onClick={handleConfirmClearMembers}>
+              确认清空全部手工药品
             </Button>
           </div>
         </Dialog>

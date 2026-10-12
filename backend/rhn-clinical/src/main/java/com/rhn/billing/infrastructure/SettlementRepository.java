@@ -31,6 +31,31 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
                                          @Param("status") SettlementStatus status,
                                          Pageable pageable);
 
+    @Query("""
+            select value from Settlement value
+            where value.tenantId = :tenantId and value.status = :status
+              and coalesce(value.finalizedAt, value.createdAt) >= :from
+              and coalesce(value.finalizedAt, value.createdAt) < :to
+              and (:filterCashier = false or value.finalizedBy in :cashierIds)
+              and exists (select account.id from PatientAccount account
+                          where account.id = value.patientAccountId and account.tenantId = :tenantId
+                            and account.organizationId = :organizationId)
+            order by value.finalizedAt desc, value.createdAt desc, value.id desc
+            """)
+    List<Settlement> findCompletedInRange(Long tenantId, Long organizationId, SettlementStatus status,
+            java.time.Instant from, java.time.Instant to, boolean filterCashier, java.util.Collection<Long> cashierIds,
+            Pageable pageable);
+
+    @Query("""
+            select distinct value.finalizedBy from Settlement value
+            where value.tenantId = :tenantId and value.status = :status and value.finalizedBy is not null
+              and coalesce(value.finalizedAt, value.createdAt) >= :from
+              and coalesce(value.finalizedAt, value.createdAt) < :to
+              and value.organizationId = :organizationId
+            """)
+    List<Long> findFinalizersInRange(Long tenantId, Long organizationId, SettlementStatus status,
+            java.time.Instant from, java.time.Instant to);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from Settlement value where value.id = :id and value.tenantId = :tenantId")
     Optional<Settlement> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);

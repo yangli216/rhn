@@ -18,6 +18,15 @@ public final class MedicationSafetyEngine {
     public static final String VERSION = "qmed-engine-2";
     public static final String LEGACY_RULE_SET = "qmed-foundation-shadow-v1";
     public static final String RULE_SET = "qmed-standard-shadow-v2";
+    public static final java.util.Set<String> LEGACY_RULE_CODES = java.util.Set.of(
+            "QMED.EXACT_GENERIC_DUPLICATE",
+            "QMED.ANTIMICROBIAL_OUTPATIENT",
+            "QMED.DRUG_ALLERGY",
+            "QMED.SKIN_TEST",
+            "QMED.NSAID_DUPLICATE",
+            "QMED.AGE_CONTRAINDICATION",
+            "QMED.DISULFIRAM_INTERACTION"
+    );
     private final Map<String, MedicationSafetyRule> rules;
     private final java.util.Set<String> ruleCodes;
 
@@ -41,7 +50,14 @@ public final class MedicationSafetyEngine {
                 new com.rhn.quality.medication.domain.rule.SkinTestRequirementRule(json),
                 new com.rhn.quality.medication.domain.rule.NsaidDuplicateRule(json, safetyCategories),
                 new com.rhn.quality.medication.domain.rule.AgeContraindicationRule(json, safetyCategories),
-                new com.rhn.quality.medication.domain.rule.DisulfiramInteractionRule(json, safetyCategories)));
+                new com.rhn.quality.medication.domain.rule.DisulfiramInteractionRule(json, safetyCategories),
+                com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.ppiDuplicate(json, safetyCategories),
+                com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.rasiDuplicate(json, safetyCategories),
+                com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.sedativeHypnoticDuplicate(json, safetyCategories),
+                com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.tetracyclinePediatric(json, safetyCategories),
+                com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.aminoglycosidePediatric(json, safetyCategories),
+                com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.macrolideStatinConflict(json, safetyCategories),
+                com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.pregnancyContraindication(json, safetyCategories)));
     }
 
     public Result evaluate(PrescriptionSafetySnapshot input, List<RuleVersion> versions, Instant time) {
@@ -65,9 +81,13 @@ public final class MedicationSafetyEngine {
         }
         var codes = versions.stream().map(version -> version.definition().code()).toList();
         var selectedCodes = java.util.Set.copyOf(codes);
+        boolean isLegacy = versions.stream().allMatch(v -> LEGACY_RULE_SET.equals(v.ruleSetVersion()));
+        java.util.Set<String> expectedCodes = isLegacy && ruleCodes.containsAll(LEGACY_RULE_CODES)
+                ? LEGACY_RULE_CODES
+                : ruleCodes;
         if (codes.isEmpty() || codes.size() != codes.stream().distinct().count()
                 || !ruleCodes.containsAll(selectedCodes)
-                || requireCompleteRuleSet && !ruleCodes.equals(selectedCodes)) {
+                || requireCompleteRuleSet && !expectedCodes.equals(selectedCodes)) {
             return new Result(List.of(), List.of(), List.of("RULE_SET_INCOMPLETE"));
         }
         for (var version : versions.stream().sorted(java.util.Comparator.comparing(v -> v.definition().code())).toList()) {

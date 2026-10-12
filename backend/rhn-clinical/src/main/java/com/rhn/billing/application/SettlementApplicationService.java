@@ -70,6 +70,8 @@ public class SettlementApplicationService {
     private final ResidentDirectory residentDirectory;
     private final EncounterDirectory encounterDirectory;
     private final ChargeCategoryResolver categoryResolver;
+    private final BillingCashierResolver cashierResolver;
+    private final com.rhn.billing.infrastructure.PaymentOrderRepository paymentOrders;
 
     public SettlementApplicationService(SettlementRepository settlements, SettlementLineRepository lines,
                                         SettlementTenderRepository tenders, SettlementEventRepository events,
@@ -79,7 +81,7 @@ public class SettlementApplicationService {
                                         DomainEventPublisher eventPublisher, ResidentDirectory residentDirectory,
                                         EncounterDirectory encounterDirectory) {
         this(settlements, lines, tenders, events, categories, accounts, chargeItems, ledger, contextProvider,
-                eventPublisher, residentDirectory, encounterDirectory, new ChargeCategoryResolver(null));
+                eventPublisher, residentDirectory, encounterDirectory, new ChargeCategoryResolver(null), null, null);
     }
 
     @Autowired
@@ -90,12 +92,15 @@ public class SettlementApplicationService {
                                         LedgerEntryRepository ledger, ExecutionContextProvider contextProvider,
                                         DomainEventPublisher eventPublisher, ResidentDirectory residentDirectory,
                                         EncounterDirectory encounterDirectory,
-                                        ChargeCategoryResolver categoryResolver) {
+                                        ChargeCategoryResolver categoryResolver, BillingCashierResolver cashierResolver,
+                                        com.rhn.billing.infrastructure.PaymentOrderRepository paymentOrders) {
         this.settlements = settlements; this.lines = lines; this.tenders = tenders; this.events = events;
         this.categories = categories; this.accounts = accounts; this.chargeItems = chargeItems;
         this.ledger = ledger; this.contextProvider = contextProvider; this.eventPublisher = eventPublisher;
         this.residentDirectory = residentDirectory; this.encounterDirectory = encounterDirectory;
         this.categoryResolver = categoryResolver != null ? categoryResolver : new ChargeCategoryResolver(null);
+        this.cashierResolver = cashierResolver;
+        this.paymentOrders = paymentOrders;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -182,6 +187,16 @@ public class SettlementApplicationService {
                 payment.amount(), payment.currencyCode()));
         String previous = value.applyPaidAmount(money(tenders.totalTendered(context.tenantId(), value.id())),
                 context.subjectId(), payment.paidAt());
+        if (value.status() == SettlementStatus.SETTLED && payment.paymentOrderId() != null && paymentOrders != null) {
+            paymentOrders.findByIdAndTenantId(payment.paymentOrderId(), context.tenantId()).ifPresent(order -> {
+                String source = switch (order.paymentSceneCode()) {
+                    case "CASHIER" -> "CASHIER";
+                    case "CLINIC_SETTLE" -> "DOCTOR_STATION";
+                    default -> null; // Other entry points retain their explicitly recorded scene until their payment flow is implemented.
+                };
+                if (source != null) value.recordFinalizationTerminal(source, order.terminalCode());
+            });
+        }
         String eventType = value.status() == SettlementStatus.SETTLED ? "FINALIZE" : "PARTIAL_PAY";
         events.save(new SettlementEvent(context.tenantId(), value.id(), eventType, previous, value.status().name(),
                 "PAYMENT-" + payment.id(), context.subjectId(), payment.paidAt()));
@@ -343,6 +358,34 @@ public class SettlementApplicationService {
         int boundedLimit = Math.max(1, Math.min(limit, 500));
         List<Settlement> values = settlements.findRecentCompleted(context.tenantId(), context.organizationId(),
                 SettlementStatus.SETTLED, PageRequest.of(0, boundedLimit));
+        return recordViews(context, values);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SettlementRecordView> completedInRange(int limit, java.time.LocalDate from, java.time.LocalDate to, String cashier) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        if (!context.hasWorkContext()) throw forbidden("SETTLEMENT_QUERY_CONTEXT_REQUIRED", "收费查询需要机构工作上下文");
+        if (from == null || to == null || from.isAfter(to)) throw com.rhn.shared.api.BusinessErrors.badRequest("SETTLEMENT_QUERY_DATE_REQUIRED", "结算开始日期和结束日期不能为空，且开始日期不能晚于结束日期");
+        var zone = java.time.ZoneId.of("Asia/Shanghai");
+        var start = from.atStartOfDay(zone).toInstant();
+        var end = to.plusDays(1).atStartOfDay(zone).toInstant();
+        String text = Strings.trimToNull(cashier);
+        List<Long> ids = new java.util.ArrayList<>();
+        if (text != null) {
+            var search = text.toLowerCase(java.util.Locale.ROOT);
+            for (Long id : settlements.findFinalizersInRange(context.tenantId(), context.organizationId(), SettlementStatus.SETTLED, start, end)) {
+                var person = cashierResolver.resolve(context.tenantId(), id);
+                if (java.util.stream.Stream.of(person.name(), person.username(), id.toString()).filter(java.util.Objects::nonNull)
+                        .anyMatch(v -> v.toLowerCase(java.util.Locale.ROOT).contains(search))) ids.add(id);
+            }
+            if (ids.isEmpty()) return List.of();
+        }
+        return recordViews(context, settlements.findCompletedInRange(context.tenantId(), context.organizationId(), SettlementStatus.SETTLED,
+                start, end, text != null, ids.isEmpty() ? List.of(-1L) : ids, PageRequest.of(0, Math.max(1, Math.min(limit, 500)))));
+    }
+
+    private List<SettlementRecordView> recordViews(ExecutionContext context, List<Settlement> values) {
+        Map<Long, BillingCashierResolver.Cashier> cashiers = new HashMap<>();
         Collection<Long> accountIds = values.stream().map(Settlement::patientAccountId).collect(Collectors.toSet());
         Map<Long, PatientAccount> accountById = accountIds.isEmpty() ? Map.of() : accounts
                 .findByTenantIdAndIdIn(context.tenantId(), accountIds).stream()
@@ -358,6 +401,8 @@ public class SettlementApplicationService {
             ResidentSnapshot resident = residentById.computeIfAbsent(account.residentId(),
                     residentId -> residentDirectory.requireSnapshot(context.tenantId(), residentId));
             EncounterSnapshot encounter = account.encounterId() == null ? null : encounterById.get(account.encounterId());
+            var cashier = value.finalizedBy() == null || cashierResolver == null ? new BillingCashierResolver.Cashier(null, null)
+                    : cashiers.computeIfAbsent(value.finalizedBy(), id -> cashierResolver.resolve(context.tenantId(), id));
             return new SettlementRecordView(value.id(), account.id(), account.residentId(), account.encounterId(),
                     account.departmentId(), resident.fullName(), resident.healthRecordNo(), resident.gender(),
                     resident.birthDate(), encounter == null ? null : encounter.encounterNo(),
@@ -365,7 +410,7 @@ public class SettlementApplicationService {
                     value.settlementNo(), value.settlementType(), value.settlementScene(),
                     value.terminalScene(), value.status().name(), value.grossAmount(), value.discountAmount(),
                     value.insuranceAmount(), value.patientAmount(), value.otherAmount(), value.roundingAmount(),
-                    value.netAmount(), value.currencyCode(), value.terminalCode(), value.createdAt(), value.finalizedAt());
+                    value.netAmount(), value.currencyCode(), value.terminalCode(), value.createdAt(), value.finalizedAt(), value.finalizedBy(), cashier.name(), cashier.username());
         }).filter(java.util.Objects::nonNull).toList();
     }
 

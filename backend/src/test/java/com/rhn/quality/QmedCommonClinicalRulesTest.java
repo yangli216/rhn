@@ -139,12 +139,35 @@ class QmedCommonClinicalRulesTest {
         assertTrue(result3.findings().stream().anyMatch(f -> f.rule().definition().code().equals(AgeContraindicationRule.CODE)
                 && f.message().contains("不满12周岁") && f.message().contains("瑞氏综合征")));
 
-        // 4. 年龄未提供（null） -> 安全跳过，不报异常
-        var unknownAgeContext = new PatientSafetyContext(true, true, null, List.of());
+        // 4. 7岁儿童开立四环素类（多西环素片） -> 触发 8 岁以下四环素牙禁忌阻断
+        String doxycycline = """
+                {"id":2003,"code":"DOXY","name":"盐酸多西环素片","doseForm":"片剂"}
+                """;
+        var doxyItem = createItem(3, 2003L, doxycycline);
         var snapshot4 = new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION, 1L, 10L, 0,
-                20L, 30L, 1L, 1L, "DRAFT", List.of(levoItem, aspirinItem), unknownAgeContext);
+                20L, 30L, 1L, 1L, "DRAFT", List.of(doxyItem), childContext);
         var result4 = engine.evaluate(snapshot4, ruleVersions, Instant.now());
-        assertFalse(result4.findings().stream().anyMatch(f -> f.rule().definition().code().equals(AgeContraindicationRule.CODE)));
+        assertTrue(result4.findings().stream().anyMatch(f -> f.rule().definition().code().equals(AgeContraindicationRule.CODE)
+                && f.message().contains("未满8周岁") && f.message().contains("盐酸多西环素片")));
+
+        // 5. 5岁儿童开立氨基糖苷类（庆大霉素注射液） -> 触发 6 岁以下耳毒性禁忌阻断
+        String gentamicin = """
+                {"id":2004,"code":"GEN","name":"硫酸庆大霉素注射液","doseForm":"注射剂"}
+                """;
+        var gentItem = createItem(4, 2004L, gentamicin);
+        var babyContext = new PatientSafetyContext(true, true, null, List.of(), 5, "MALE");
+        var snapshot5 = new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION, 1L, 10L, 0,
+                20L, 30L, 1L, 1L, "DRAFT", List.of(gentItem), babyContext);
+        var result5 = engine.evaluate(snapshot5, ruleVersions, Instant.now());
+        assertTrue(result5.findings().stream().anyMatch(f -> f.rule().definition().code().equals(AgeContraindicationRule.CODE)
+                && f.message().contains("未满6周岁") && f.message().contains("硫酸庆大霉素注射液")));
+
+        // 6. 年龄未提供（null） -> 安全跳过，不报异常
+        var unknownAgeContext = new PatientSafetyContext(true, true, null, List.of());
+        var snapshot6 = new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION, 1L, 10L, 0,
+                20L, 30L, 1L, 1L, "DRAFT", List.of(levoItem, aspirinItem), unknownAgeContext);
+        var result6 = engine.evaluate(snapshot6, ruleVersions, Instant.now());
+        assertFalse(result6.findings().stream().anyMatch(f -> f.rule().definition().code().equals(AgeContraindicationRule.CODE)));
     }
 
     @Test

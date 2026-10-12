@@ -88,6 +88,11 @@ public class Settlement {
         return previous;
     }
 
+    public void recordFinalizationTerminal(String scene, String code) {
+        if (status != SettlementStatus.SETTLED) throw new IllegalStateException("仅已完成结算可记录最终收款来源");
+        this.terminalScene = scene; this.terminalCode = code;
+    }
+
     public void applyInsuranceAllocation(BigDecimal insuranceFund, BigDecimal personalAccount,
                                          BigDecimal patientCash, BigDecimal otherFund) {
         if (!List.of(SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING, SettlementStatus.PARTIAL).contains(status)) {

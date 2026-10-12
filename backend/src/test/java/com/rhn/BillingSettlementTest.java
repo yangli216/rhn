@@ -74,7 +74,10 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
         assertEquals(1, duplicateSync.get("existingCharges").asInt());
 
         String accountId = synchronizedCharges.at("/statement/accountId").asString();
-        JsonNode invoice = issueInvoice(accountId, "INV-" + suffix);
+        JsonNode invoice = json(mockMvc.perform(post("/api/billing/accounts/{accountId}/invoices", accountId).with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                {"invoiceNo":"INV-%s","settlementScene":"OUTPATIENT","terminalScene":"DOCTOR_STATION","terminalCode":"WEB-DOCTOR-WORKSTATION"}
+                """.formatted(suffix))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         assertEquals(fullAmount, invoice.get("netAmount").decimalValue());
         JsonNode duplicateInvoice = issueInvoice(accountId, "INV-" + suffix);
         assertEquals(invoice.get("id").asString(), duplicateInvoice.get("id").asString());
@@ -117,6 +120,24 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.payments[0].paymentOrderId").value(paymentOrder.get("id").asLong()))
                 .andReturn().getResponse().getContentAsString());
         JsonNode payment = paidStatement.at("/payments/0");
+        String day = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString();
+        JsonNode completed = json(mockMvc.perform(get("/api/billing/settlement-records")
+                .param("from", day).param("to", day).param("cashier", "doctor").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(1, completed.size());
+        assertEquals(invoice.get("id").asString(), completed.get(0).get("id").asString());
+        assertEquals(payment.get("enteredBy").asString(), completed.get(0).get("finalizedBy").asString());
+        assertEquals("doctor", completed.get(0).get("cashierUsername").asString());
+        assertEquals("CASHIER", completed.get(0).get("terminalScene").asString());
+        assertEquals("CASHIER-TEST", completed.get(0).get("terminalCode").asString());
+        assertTrue(!completed.get(0).get("cashierName").asString().isBlank());
+        mockMvc.perform(get("/api/billing/settlement-records").param("from", day).with(rhnWorkContext()))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/billing/settlement-records").param("from", "2020-01-01").param("to", "2020-01-01")
+                .with(rhnWorkContext())).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/api/billing/settlement-records").param("from", day).param("to", day).param("cashier", "missing-cashier")
+                .with(rhnWorkContext())).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+
         mockMvc.perform(get("/api/billing/settlements/{settlementId}", invoice.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())

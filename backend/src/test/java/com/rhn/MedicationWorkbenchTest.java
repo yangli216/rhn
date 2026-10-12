@@ -93,14 +93,21 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
     @Test void active_rules_and_evaluations_and_candidate_approval() throws Exception {
         mockMvc.perform(get(ROOT+"/active-rules").with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(7))
+                .andExpect(jsonPath("$.length()").value(14))
                 .andExpect(jsonPath("$[?(@.ruleCode=='QMED.EXACT_GENERIC_DUPLICATE')]").exists())
                 .andExpect(jsonPath("$[?(@.ruleCode=='QMED.ANTIMICROBIAL_OUTPATIENT')]").exists())
                 .andExpect(jsonPath("$[?(@.ruleCode=='QMED.SKIN_TEST')]").exists())
                 .andExpect(jsonPath("$[?(@.ruleCode=='QMED.DRUG_ALLERGY')]").exists())
                 .andExpect(jsonPath("$[?(@.ruleCode=='QMED.NSAID_DUPLICATE')]").exists())
                 .andExpect(jsonPath("$[?(@.ruleCode=='QMED.AGE_CONTRAINDICATION')]").exists())
-                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.DISULFIRAM_INTERACTION')]").exists());
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.DISULFIRAM_INTERACTION')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.PPI_DUPLICATE')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.RASI_DUPLICATE')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.SEDATIVE_HYPNOTIC_DUPLICATE')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.TETRACYCLINE_PEDIATRIC')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.AMINOGLYCOSIDE_PEDIATRIC')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.MACROLIDE_STATIN_INTERACTION')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.PREGNANCY_CONTRA')]").exists());
 
         mockMvc.perform(get(ROOT+"/evaluations").with(rhnWorkContext()))
                 .andExpect(status().isOk());
@@ -136,7 +143,7 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post(ROOT+"/active-rules/trial").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(allRequest))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scope").value("ALL"))
-                .andExpect(jsonPath("$.cases.length()").value(7));
+                .andExpect(jsonPath("$.cases.length()").value(14));
     }
 
     @Test void rule_catalog_keeps_review_and_release_lifecycle_in_one_entry() throws Exception {

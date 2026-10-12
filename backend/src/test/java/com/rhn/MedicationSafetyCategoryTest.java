@@ -63,8 +63,38 @@ class MedicationSafetyCategoryTest extends RhnIntegrationTestSupport {
                 "ETHANOL_SOLVENT",
                 "SYSTEMIC_NSAID",
                 "QUINOLONE_PEDIATRIC_CONTRA",
-                "ASPIRIN_PEDIATRIC_CONTRA"
+                "ASPIRIN_PEDIATRIC_CONTRA",
+                "TETRACYCLINE_PEDIATRIC_CONTRA",
+                "AMINOGLYCOSIDE_PEDIATRIC_CONTRA",
+                "PPI_DUPLICATE_THERAPY",
+                "RASI_DUPLICATE_THERAPY",
+                "SEDATIVE_HYPNOTIC_DUPLICATE",
+                "MACROLIDE_STATIN_INTERACTION",
+                "PREGNANCY_CONTRA_CATEGORY_X",
+                "STATIN_LIPID_LOWERING"
         );
+
+        // 验证此前为 0 的阿司匹林、双硫仑致敏、含乙醇制剂及新增基础分类均有效纳管了真实药品
+        var aspirin = categories.stream().filter(c -> "ASPIRIN_PEDIATRIC_CONTRA".equals(c.code())).findFirst().orElseThrow();
+        assertThat(aspirin.memberCount()).isGreaterThan(0);
+
+        var disulfiram = categories.stream().filter(c -> "DISULFIRAM_INDUCER".equals(c.code())).findFirst().orElseThrow();
+        assertThat(disulfiram.memberCount()).isGreaterThan(0);
+
+        var ethanol = categories.stream().filter(c -> "ETHANOL_SOLVENT".equals(c.code())).findFirst().orElseThrow();
+        assertThat(ethanol.memberCount()).isGreaterThan(0);
+
+        var ppi = categories.stream().filter(c -> "PPI_DUPLICATE_THERAPY".equals(c.code())).findFirst().orElseThrow();
+        assertThat(ppi.memberCount()).isGreaterThan(0);
+
+        var rasi = categories.stream().filter(c -> "RASI_DUPLICATE_THERAPY".equals(c.code())).findFirst().orElseThrow();
+        assertThat(rasi.memberCount()).isGreaterThan(0);
+
+        var statin = categories.stream().filter(c -> "STATIN_LIPID_LOWERING".equals(c.code())).findFirst().orElseThrow();
+        assertThat(statin.memberCount()).isGreaterThan(0);
+
+        var macrolide = categories.stream().filter(c -> "MACROLIDE_STATIN_INTERACTION".equals(c.code())).findFirst().orElseThrow();
+        assertThat(macrolide.memberCount()).isGreaterThan(0);
     }
 
     @Test
@@ -104,6 +134,11 @@ class MedicationSafetyCategoryTest extends RhnIntegrationTestSupport {
         Long memberToRemove = members.getFirst().id();
         service.removeMember(created.id(), memberToRemove);
         assertThat(service.listMembers(created.id(), null)).hasSize(1);
+
+        // 6.1 一键清空剩余成员
+        int cleared = service.clearMembers(created.id());
+        assertEquals(1, cleared);
+        assertThat(service.listMembers(created.id(), null)).isEmpty();
 
         // 7. 删除自定义分类
         service.deleteCategory(created.id());

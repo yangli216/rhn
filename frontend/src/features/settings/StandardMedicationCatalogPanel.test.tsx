@@ -27,6 +27,17 @@ function setup(error = false, blocked = false, withSetup = blocked, records: Rec
     standardMedicationUsage: vi.fn().mockResolvedValue({entryId:entry.id,specifications:[{specificationId:'STD-AMIKACIN',records}]}),
     standardSpecificationDispositions: vi.fn().mockResolvedValue({identity,specifications:[]}),
     changeStandardSpecificationDisposition: changeDisposition,
+    medications: vi.fn().mockResolvedValue([
+      { id: '301', code: 'MED-AMK', name: '阿米卡星注射液', specification: '1ml:0.1g', doseForm: '注射剂', status: 'ACTIVE' }
+    ]),
+  }, medicationWorkbench: {
+    listSafetyCategories: vi.fn().mockResolvedValue([
+      { id: 'CAT-1', code: 'AMIKACIN_SAFETY', name: '氨基糖苷类肾耳毒性监控', status: 'ACTIVE', ruleKind: 'INTERACTION_CONTRAINDICATION' }
+    ]),
+    searchStandardCatalogCandidates: vi.fn().mockResolvedValue([
+      { medicationId: '301', medicationName: '硫酸阿米卡星注射液', preparationSpec: '1ml:0.1g', doseForm: '注射剂' }
+    ]),
+    addSafetyCategoryMembers: vi.fn().mockResolvedValue(1)
   }} as unknown as RhnApi
   const client = new QueryClient({defaultOptions:{queries:{retry:false}}})
   render(<QueryClientProvider client={client}><StandardMedicationCatalogPanel api={api} organizationId={withSetup ? 'org-1' : undefined}
@@ -142,5 +153,20 @@ describe('Standard medication catalog', () => {
     expect(screen.getByText('待核验 1 项')).toBeInTheDocument()
     expect(screen.getByText('关联规格：混悬液、干混悬剂')).toBeInTheDocument()
     expect(screen.getByText('(涉及 2 处)')).toBeInTheDocument()
+  })
+
+  it('does not display legacyCode in list and supports opening safety category bind dialog', async () => {
+    setup()
+    expect(await screen.findByRole('columnheader', { name: '药品名称' })).toBeInTheDocument()
+    expect(screen.queryByText('MED-2026-W016')).not.toBeInTheDocument()
+
+    await userEvent.click(await screen.findByText('阿米卡星'))
+    const bindBtn = await screen.findByRole('button', { name: '绑定至合理用药分类' })
+    expect(bindBtn).toBeInTheDocument()
+
+    await userEvent.click(bindBtn)
+    expect(await screen.findByText('绑定标准药品至合理用药分类')).toBeInTheDocument()
+    expect(screen.getByText(/标准品种：阿米卡星/)).toBeInTheDocument()
+    expect(await screen.findByText(/阿米卡星注射液/)).toBeInTheDocument()
   })
 })

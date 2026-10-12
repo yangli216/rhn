@@ -146,6 +146,7 @@ export function createMedicationWorkbenchApi(client:ApiClient) {
     listSafetyCategoryMembers: (id: string | number, query = '') => client.request<SafetyCategoryMemberView[]>(`/api/quality/medication-safety/categories/${id}/members${query ? `?query=${encodeURIComponent(query)}` : ''}`),
     addSafetyCategoryMembers: (id: string | number, items: SafetyCategoryMemberItem[]) => client.request<number>(`/api/quality/medication-safety/categories/${id}/members`, { method: 'POST', body: JSON.stringify({ items }) }),
     removeSafetyCategoryMember: (id: string | number, memberId: string | number) => client.request<void>(`/api/quality/medication-safety/categories/${id}/members/${memberId}`, { method: 'DELETE' }),
+    clearSafetyCategoryMembers: (id: string | number) => client.request<number>(`/api/quality/medication-safety/categories/${id}/members`, { method: 'DELETE' }),
     listSafetyTagsForMedication: (medicationId?: string | number, name?: string) => {
       const params = new URLSearchParams()
       if (medicationId) params.set('medicationId', String(medicationId))

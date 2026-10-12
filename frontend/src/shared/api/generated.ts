@@ -24979,6 +24979,10 @@ export interface components {
             finalizedAt?: string;
             /** @description 字典 RESIDENT_GENDER 的显示文本 */
             readonly genderText?: string;
+            /** @example 824633720832983041 */
+            finalizedBy?: string;
+            cashierName?: string;
+            cashierUsername?: string;
         };
         DailyReconciliationView: {
             /** Format: date */
@@ -50541,6 +50545,9 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                from?: string;
+                to?: string;
+                cashier?: string;
             };
             header: {
                 /** @description 当前县域医共体租户标识 */

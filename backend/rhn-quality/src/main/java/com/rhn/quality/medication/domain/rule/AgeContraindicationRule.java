@@ -12,8 +12,10 @@ import java.util.List;
 
 /**
  * 儿童及特定年龄禁忌用药核查。
- * 1. 18周岁以下儿童青少年禁用氟喹诺酮类抗菌药（软骨损害风险）；
- * 2. 12周岁以下儿童禁用阿司匹林进行解热镇痛（瑞氏综合征 Reye's syndrome 致命风险）。
+ * 1. 18周岁以下儿童青少年禁用氟喹诺酮类抗菌药（软骨损害高危风险）；
+ * 2. 12周岁以下儿童禁用阿司匹林进行解热镇痛（瑞氏综合征 Reye's syndrome 致命风险）；
+ * 3. 8周岁以下儿童骨骼牙齿发育期禁用四环素类抗菌药（四环素牙永久黄染与骨发育抑制风险）；
+ * 4. 6周岁以下儿童及婴幼儿禁用氨基糖苷类抗生素（不可逆药物性耳聋与急性肾毒性高危风险）。
  */
 public final class AgeContraindicationRule implements MedicationSafetyRule {
     public static final String CODE = "QMED.AGE_CONTRAINDICATION";
@@ -21,11 +23,21 @@ public final class AgeContraindicationRule implements MedicationSafetyRule {
 
     public static final String CAT_QUINOLONE = "QUINOLONE_PEDIATRIC_CONTRA";
     public static final String CAT_ASPIRIN = "ASPIRIN_PEDIATRIC_CONTRA";
+    public static final String CAT_TETRACYCLINE = "TETRACYCLINE_PEDIATRIC_CONTRA";
+    public static final String CAT_AMINOGLYCOSIDE = "AMINOGLYCOSIDE_PEDIATRIC_CONTRA";
 
     // 经典兜底基线（当租户尚未完成分类维护时平滑回退，保障基线安全）
     private static final List<String> FALLBACK_QUINOLONES = List.of(
             "诺氟沙星", "左氧氟沙星", "环丙沙星", "莫西沙星", "氧氟沙星",
             "依诺沙星", "氟罗沙星", "洛美沙星", "加替沙星", "托氟沙星", "司帕沙星"
+    );
+
+    private static final List<String> FALLBACK_TETRACYCLINES = List.of(
+            "多西环素", "米诺环素", "四环素", "土霉素", "金霉素", "地美环素"
+    );
+
+    private static final List<String> FALLBACK_AMINOGLYCOSIDES = List.of(
+            "阿米卡星", "庆大霉素", "妥布霉素", "链霉素", "奈替米星", "依替米星", "大观霉素", "新霉素", "卡那霉素"
     );
 
     private static final List<String> TOPICAL_FORMS = List.of(
@@ -107,6 +119,28 @@ public final class AgeContraindicationRule implements MedicationSafetyRule {
                         "12岁以下儿童病毒性感冒发热禁用阿司匹林解热镇痛。退热建议更换为儿童适用的布洛芬或对乙酰氨基酚。"
                 ));
             }
+
+            // 3. 8岁以下禁用四环素类抗生素（牙齿黄染及骨发育损害风险）
+            if (age < 8 && isSystemicTetracycline(tenantId, medId, name, doseForm)) {
+                findings.add(new MedicationSafetyFinding(
+                        GlobalIds.next(),
+                        version,
+                        "患者年龄（" + age + "岁）未满8周岁，禁用四环素类抗生素【" + name + "】（牙齿永久性黄染及骨骼生长发育受阻高危风险）。",
+                        List.of(item.medicationRequestId()),
+                        "8周岁以下儿童骨骼和牙齿发育期禁用四环素类抗生素（多西环素、米诺环素等）。请根据临床指征选用大环内酯类或青霉素类/头孢类适宜抗菌药。"
+                ));
+            }
+
+            // 4. 6岁以下禁用氨基糖苷类抗生素（耳毒性及肾毒性高危）
+            if (age < 6 && isSystemicAminoglycoside(tenantId, medId, name, doseForm)) {
+                findings.add(new MedicationSafetyFinding(
+                        GlobalIds.next(),
+                        version,
+                        "患者年龄（" + age + "岁）未满6周岁，禁用氨基糖苷类抗生素【" + name + "】（不可逆耳蜗前庭神经毒性导致永久性药物性耳聋与急性肾损伤高危风险）。",
+                        List.of(item.medicationRequestId()),
+                        "6周岁以下儿童及婴幼儿禁忌使用氨基糖苷类抗生素（庆大霉素、阿米卡星等）。请更换为儿童适用的无耳毒性、低肾毒性抗菌药。"
+                ));
+            }
         }
 
         return findings;
@@ -146,5 +180,45 @@ public final class AgeContraindicationRule implements MedicationSafetyRule {
         }
 
         return name.contains("阿司匹林") || name.contains("乙酰水杨酸") || name.contains("巴米尔");
+    }
+
+    private boolean isSystemicTetracycline(Long tenantId, Long medId, String name, String doseForm) {
+        if (name == null || name.isBlank()) return false;
+        for (String topical : TOPICAL_FORMS) {
+            if (name.contains(topical) || (doseForm != null && doseForm.contains(topical))) {
+                return false;
+            }
+        }
+
+        if (safetyCategories != null) {
+            return safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_TETRACYCLINE, doseForm);
+        }
+
+        for (String stem : FALLBACK_TETRACYCLINES) {
+            if (name.contains(stem)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isSystemicAminoglycoside(Long tenantId, Long medId, String name, String doseForm) {
+        if (name == null || name.isBlank()) return false;
+        for (String topical : TOPICAL_FORMS) {
+            if (name.contains(topical) || (doseForm != null && doseForm.contains(topical))) {
+                return false;
+            }
+        }
+
+        if (safetyCategories != null) {
+            return safetyCategories.isMedicationInCategory(tenantId, medId, name, CAT_AMINOGLYCOSIDE, doseForm);
+        }
+
+        for (String stem : FALLBACK_AMINOGLYCOSIDES) {
+            if (name.contains(stem)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

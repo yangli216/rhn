@@ -42,6 +42,7 @@ interface SelectBaseProps {
   pinyinSearch?: boolean
   showValue?: boolean
   leafOnly?: boolean
+  showHierarchyInLabel?: boolean
   popoverMinWidth?: number
   openOnFocus?: boolean
   onSelectionCommit?: (option?: SelectOption) => void
@@ -85,6 +86,7 @@ export function Select(props: SelectProps) {
     pinyinSearch = true,
     showValue = false,
     leafOnly = false,
+    showHierarchyInLabel = false,
     openOnFocus = false,
     onSelectionCommit,
     'aria-label': ariaLabel,
@@ -116,6 +118,7 @@ export function Select(props: SelectProps) {
       : []
   const valueSet = useMemo(() => new Set(values), [values])
   const selectedOptions = options.filter((option) => valueSet.has(option.value))
+  const byValue = useMemo(() => new Map(options.map((option) => [option.value, option])), [options])
   const hierarchical = options.some((option) => option.parentValue)
   const parentValueSet = useMemo(() => {
     const set = new Set<string>()
@@ -230,7 +233,19 @@ export function Select(props: SelectProps) {
   function selectionLabel() {
     if (loading) return loadingText
     if (!selectedOptions.length) return placeholder
-    if (!multiple) return selectedOptions[0]?.label ?? placeholder
+    if (!multiple) {
+      const opt = selectedOptions[0]
+      if (showHierarchyInLabel && hierarchical && opt?.parentValue) {
+        const path: string[] = []
+        let cur: SelectOption | undefined = opt
+        while (cur) {
+          path.unshift(cur.label)
+          cur = cur.parentValue ? byValue.get(cur.parentValue) : undefined
+        }
+        return path.join(' / ')
+      }
+      return opt?.label ?? placeholder
+    }
     if (selectedOptions.length <= 2) return selectedOptions.map((option) => option.label).join('、')
     return `${selectedOptions.slice(0, 2).map((option) => option.label).join('、')} 等 ${selectedOptions.length} 项`
   }

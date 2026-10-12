@@ -217,6 +217,7 @@ function setup(available: boolean, saved: unknown[] = []) {
     deleteSafetyCategory: vi.fn(),
     addSafetyCategoryMembers: vi.fn().mockResolvedValue(1),
     removeSafetyCategoryMember: vi.fn(),
+    clearSafetyCategoryMembers: vi.fn(),
     listSafetyTagsForMedication: vi.fn().mockResolvedValue([]),
     listStandardCatalogCategories: vi.fn().mockResolvedValue([
       { major: '一、抗微生物药', sub: '（八）喹诺酮类', entryCount: 15, entryNames: ['左氧氟沙星'] }
@@ -531,5 +532,28 @@ describe('MedicationWorkbench', () => {
     expect(await screen.findByText('头孢哌酮钠舒巴坦钠')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /纳入药品/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /编辑分类/ })).toBeInTheDocument()
+  })
+
+  it('supports quick age preset for 28yo female and filters active sandbox results', async () => {
+    setup(true)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('tab', { name: /内置规则验证沙箱/ }))
+
+    // 点击快速预设 "28岁育龄女性"
+    await user.click(screen.getByRole('button', { name: '28岁育龄女性' }))
+    expect(screen.getByLabelText('年龄（岁）')).toHaveValue(28)
+    expect(screen.getByRole('combobox', { name: '性别' })).toHaveTextContent('女')
+
+    // 运行沙箱验证
+    await user.click(screen.getByRole('combobox', { name: '沙箱第1行药品' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '阿莫西林')
+    await user.click(await screen.findByRole('option', { name: /阿莫西林/ }))
+    await user.click(screen.getByRole('button', { name: '验证全部内置规则' }))
+
+    // 验证筛选 tab 和命中药品标签存在
+    expect(await screen.findByRole('button', { name: /全部 \(1\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /仅看命中 \(1\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /正常通过 \(0\)/ })).toBeInTheDocument()
+    expect(screen.getByText('命中处方药品：')).toBeInTheDocument()
   })
 })

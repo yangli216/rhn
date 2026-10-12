@@ -179,6 +179,7 @@
 
 .pharmacy-query-field {
   display: grid;
+
   gap: var(--space-1);
 
   color: var(--color-text-secondary);

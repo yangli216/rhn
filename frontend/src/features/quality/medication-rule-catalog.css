@@ -190,6 +190,12 @@
   color: var(--color-violet);
 }
 
+.qmed-chip--param {
+  background: var(--color-info-soft);
+  color: var(--color-info);
+  border: 1px solid var(--color-info-border);
+}
+
 .qmed-governance__rule-foot {
   display: flex;
   align-items: center;
@@ -215,36 +221,20 @@
   min-height: 0;
 }
 
-/* 详情顶部核心看板 (Hero) */
+/* 详情顶部核心看板 (Hero: 2 行紧凑内聚结构) */
 .qmed-detail-hero {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-border);
 }
 
-.qmed-detail-hero__top {
+.qmed-detail-hero__row1 {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.qmed-detail-hero__identity {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-  flex: 1;
-}
-
-.qmed-detail-hero__identity h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  line-height: 1.4;
+  gap: var(--space-3);
 }
 
 .qmed-detail-hero__tags {
@@ -263,6 +253,29 @@
 
 .qmed-detail-hero__version-ctrl .ui-select {
   width: 170px;
+}
+
+.qmed-detail-hero__row2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.qmed-detail-hero__title-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.qmed-detail-hero__title-box h3 {
+  margin: 0;
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-body);
 }
 
 .qmed-detail-hero__badges {
@@ -285,21 +298,11 @@
   border: 1px solid var(--color-border);
 }
 
-/* 操作动作工具栏 */
-.qmed-detail-hero__actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  padding-top: var(--space-1);
-}
-
-.qmed-detail-hero__action-group {
+.qmed-detail-hero__action-inline {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 /* 运行机制说明条 (Callout) */
@@ -893,3 +896,234 @@
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
+
+/* 结构化在行规则规格与参数化网格 */
+.qmed-builtin-spec-detailed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.qmed-builtin-params-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.qmed-builtin-params-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.qmed-builtin-params-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.qmed-builtin-param-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.qmed-param-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.qmed-param-val {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.qmed-builtin-categories-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.qmed-builtin-categories-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.qmed-bound-cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-brand-soft);
+  border: 1px solid var(--color-brand-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+}
+
+.qmed-bound-cat-pill strong {
+  color: var(--color-brand-primary);
+}
+
+.qmed-bound-cat-pill code {
+  font-size: var(--font-size-small);
+  background: transparent;
+  color: var(--color-text-secondary);
+  padding: 0;
+}
+
+.qmed-cat-link-tip {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.qmed-clinical-risk-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning);
+  border-left: 4px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-small);
+}
+
+.qmed-clinical-risk-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.qmed-clinical-risk-content strong {
+  color: var(--color-warning);
+  font-weight: var(--font-weight-semibold);
+}
+
+.qmed-kv-list--compact {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-small);
+}
+
+/* 全宽卡片与循证医学证据网格 */
+.qmed-card--fullwidth {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.qmed-builtin-evidence-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--color-border);
+}
+
+.qmed-builtin-evidence-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.qmed-builtin-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-2);
+}
+
+/* 紧凑发布范围信息条 */
+.qmed-release-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.qmed-release-bar__info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.qmed-release-bar__text {
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+}
+
+/* 卡片底栏：规则执行基准、发布范围与管控 */
+.qmed-card__footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-top: 1px solid var(--color-border);
+}
+
+.qmed-card-footer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.qmed-card-footer-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: var(--font-size-small);
+}
+
+.qmed-card-footer-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.qmed-card-footer-item code {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-small);
+  color: var(--color-brand-strong);
+  background: var(--color-brand-soft);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.qmed-card-footer-scope {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.qmed-card-footer-hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-small);
+}
+
+.qmed-runtime-hint-text {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-small);
+}
+
+

@@ -97,6 +97,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
   const [sandboxScope, setSandboxScope] = useState<'ALL' | 'SINGLE'>('ALL')
   const [sandboxRuleCode, setSandboxRuleCode] = useState('')
   const [activeSandboxRun, setActiveSandboxRun] = useState<ActiveRuleTrialRun | null>(null)
+  const [sandboxCaseFilter, setSandboxCaseFilter] = useState<'ALL' | 'HIT' | 'PASS'>('ALL')
 
   // 2. 处方质量评价记录 (异步加载)
 
@@ -604,7 +605,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                 />
               </FormField>
               {sandboxScope === 'SINGLE' && (
-                <FormField label="内置规则">
+                <FormField label="内置规则" className="qmed-sandbox-rule-field">
                   <Select
                     aria-label="选择内置规则"
                     value={sandboxRuleCode}
@@ -633,9 +634,10 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                     <span><Icon name="user" /> 虚拟门诊患者画像</span>
                     <div className="qmed-age-quick-chips">
                       <span className="chip-label">快速预设:</span>
-                      <Button size="sm" variant="text" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(14); setActiveSandboxRun(null) }}>14岁儿童</Button>
-                      <Button size="sm" variant="text" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(35); setActiveSandboxRun(null) }}>35岁成人</Button>
-                      <Button size="sm" variant="text" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(72); setActiveSandboxRun(null) }}>72岁老年</Button>
+                      <Button size="sm" variant="text" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(14); setSimPatientGender('男'); setActiveSandboxRun(null) }}>14岁儿童</Button>
+                      <Button size="sm" variant="text" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(28); setSimPatientGender('女'); setActiveSandboxRun(null) }}>28岁育龄女性</Button>
+                      <Button size="sm" variant="text" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(35); setSimPatientGender('男'); setActiveSandboxRun(null) }}>35岁成人</Button>
+                      <Button size="sm" variant="text" className="qmed-quick-age-btn" onClick={() => { setSimPatientAge(72); setSimPatientGender('女'); setActiveSandboxRun(null) }}>72岁老年</Button>
                     </div>
                   </div>
                 </div>
@@ -658,9 +660,12 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   <span className="qmed-meta-text">处方只存在于本次验证请求，不会保存为真实医嘱</span>
                 </div>
                 {items.map((item, i) => {
+                  const isHitRow = activeSandboxRun?.cases.some(c => c.decision !== 'PASS' && c.matchedRows.includes(i + 1))
                   return (
-                    <div className="qmed-trial-row qmed-active-trial-row" key={i}>
-                      <span className="row-num">{i + 1}</span>
+                    <div className={`qmed-trial-row qmed-active-trial-row ${isHitRow ? 'is-hit-row' : ''}`} key={i}>
+                      <span className={`row-num ${isHitRow ? 'is-hit' : ''}`} title={isHitRow ? '该处方行命中了合理用药质控拦截规则' : undefined}>
+                        {i + 1}
+                      </span>
                       <div className="qmed-med-picker-col">
                         <ClinicalResourceSearch<MasterMedicationKnowledge> api={api} resource="medication"
                           aria-label={`沙箱第${i + 1}行药品`} value={simulationMedicationValue(item, meds)}
@@ -712,24 +717,72 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                 </div>
                 {activeSandboxRun && <span className={`qmed-dec-badge dec-${decisionMap[activeSandboxRun.decision]?.tone || 'muted'}`}>{decisionMap[activeSandboxRun.decision]?.label || activeSandboxRun.decision}</span>}
               </div>
+              {activeSandboxRun && (
+                <div className="qmed-active-filter-tabs" role="group" aria-label="沙箱结果过滤">
+                  <Button
+                    size="sm"
+                    variant={sandboxCaseFilter === 'ALL' ? 'primary' : 'secondary'}
+                    onClick={() => setSandboxCaseFilter('ALL')}
+                  >
+                    全部 ({activeSandboxRun.cases.length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={sandboxCaseFilter === 'HIT' ? 'primary' : 'secondary'}
+                    onClick={() => setSandboxCaseFilter('HIT')}
+                  >
+                    仅看命中 ({activeSandboxRun.cases.filter(c => c.decision !== 'PASS').length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={sandboxCaseFilter === 'PASS' ? 'primary' : 'secondary'}
+                    onClick={() => setSandboxCaseFilter('PASS')}
+                  >
+                    正常通过 ({activeSandboxRun.cases.filter(c => c.decision === 'PASS').length})
+                  </Button>
+                </div>
+              )}
               {!activeSandboxRun ? (
                 <div className="qmed-empty"><p>配置患者与处方后开始验证。单条验证便于调试规则，全部验证用于检查规则间的综合判定。</p></div>
               ) : (
                 <div className="qmed-active-rule-cases">
-                  {activeSandboxRun.cases.map(result => (
-                    <article className={`qmed-case result-${result.decision.toLowerCase()}`} key={result.ruleCode}>
-                      <div className="qmed-case-header">
-                        <div><strong>{result.ruleName}</strong><small>{result.ruleCode} · v{result.version}</small></div>
-                        <StatusBadge tone={result.decision === 'BLOCK' ? 'danger' : result.decision === 'WARN' || result.decision === 'REQUIRE_OVERRIDE' ? 'warning' : result.decision === 'PASS' ? 'success' : 'neutral'}>
-                          {decisionMap[result.decision]?.label || result.decision}
-                        </StatusBadge>
-                      </div>
-                      <div className="qmed-case-body">
-                        <p className="qmed-case-reason">{result.failureCode ? `执行失败：${result.failureCode}` : result.reasons.join('；') || '本次模拟处方未命中该规则。'}</p>
-                        {result.matchedRows.length > 0 && <div className="qmed-case-meta">命中处方行：{result.matchedRows.join('、')}</div>}
-                      </div>
-                    </article>
-                  ))}
+                  {activeSandboxRun.cases
+                    .filter(c => {
+                      if (sandboxCaseFilter === 'HIT') return c.decision !== 'PASS'
+                      if (sandboxCaseFilter === 'PASS') return c.decision === 'PASS'
+                      return true
+                    })
+                    .map(result => (
+                      <article className={`qmed-case result-${result.decision.toLowerCase()}`} key={result.ruleCode}>
+                        <div className="qmed-case-header">
+                          <div><strong>{result.ruleName}</strong><small>{result.ruleCode} · v{result.version}</small></div>
+                          <StatusBadge tone={result.decision === 'BLOCK' ? 'danger' : result.decision === 'WARN' || result.decision === 'REQUIRE_OVERRIDE' ? 'warning' : result.decision === 'PASS' ? 'success' : 'neutral'}>
+                            {decisionMap[result.decision]?.label || result.decision}
+                          </StatusBadge>
+                        </div>
+                        <div className="qmed-case-body">
+                          <p className="qmed-case-reason">{result.failureCode ? `执行失败：${result.failureCode}` : result.reasons.join('；') || '本次模拟处方未命中该规则。'}</p>
+                          {result.matchedRows.length > 0 && (
+                            <div className="qmed-case-meta">
+                              <span className="qmed-hit-label">命中处方药品：</span>
+                              <div className="qmed-hit-drugs">
+                                {result.matchedRows.map(rowNum => {
+                                  const item = items[rowNum - 1]
+                                  const medKnowledge = meds.find(m => m.medication.id === item?.medicationId)
+                                  const medName = item?.name || medKnowledge?.medication.name || (item?.spec ? `药品 (${item.spec})` : `第 ${rowNum} 行`)
+                                  return (
+                                    <span key={rowNum} className="qmed-hit-drug-pill">
+                                      <span className="pill-index">#{rowNum}</span>
+                                      <span className="pill-name">{medName}</span>
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    ))}
                 </div>
               )}
             </aside>

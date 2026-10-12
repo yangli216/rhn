@@ -7,6 +7,7 @@ import { StandardCatalogSourceReviewDialog } from './StandardCatalogSourceReview
 import { MedicationStandardImpactDialog } from './MedicationStandardImpactDialog'
 import { StandardCatalogPdfDialog } from './StandardCatalogPdfDialog'
 import { StandardSpecificationDispositionDialog } from './StandardSpecificationDispositionDialog'
+import { StandardMedicationBindSafetyCategoryDialog } from './StandardMedicationBindSafetyCategoryDialog'
 
 const reasons: Record<string, string> = {
   STANDARD_SPECIFICATION_INCOMPLETE: '标准规格不完整，不能作为具体药品身份',
@@ -43,6 +44,8 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
   const [pdfOpen, setPdfOpen] = useState(false)
   const [initialPdfLocation, setInitialPdfLocation] = useState<string | undefined>()
   const [dispositionSpec, setDispositionSpec] = useState<StandardMedicationSpecification>()
+  const [bindSafetyCategoryOpen, setBindSafetyCategoryOpen] = useState(false)
+  const [safetyNotice, setSafetyNotice] = useState<string | null>(null)
 
   const summary = useQuery({ queryKey: ['medication-standard-summary'], queryFn: api.masterData.standardMedicationSummary })
   // The source review is catalog-wide, while the transcription check is per
@@ -62,6 +65,11 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
     queryKey: ['medication-standard-detail', selected],
     queryFn: () => api.masterData.standardMedicationDetail(selected),
     enabled: Boolean(selected),
+  })
+  const safetyTags = useQuery({
+    queryKey: ['medication-safety-tags', detail.data?.name],
+    queryFn: () => api.medicationWorkbench.listSafetyTagsForMedication(undefined, detail.data!.name),
+    enabled: Boolean(detail.data?.name) && typeof api.medicationWorkbench?.listSafetyTagsForMedication === 'function',
   })
   const usage = useQuery({
     queryKey: ['standard-medication-usage', selected, organizationId],
@@ -208,7 +216,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
               handleSearch()
             }
           }}
-          placeholder="通用名、英文名、拼音、分类、规格或旧编码（回车或点击查询）"
+          placeholder="通用名、英文名、拼音、分类或规格（回车或点击查询）"
         />
         <Select
           value={type}
@@ -251,6 +259,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
     </div>
 
     {error && <Alert>{errorMessage(error)}</Alert>}
+    {safetyNotice && <Alert tone="success" onDismiss={() => setSafetyNotice(null)}>{safetyNotice}</Alert>}
 
     <div className="standard-medication__workspace">
       <div className="standard-medication__list">
@@ -258,7 +267,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
           <div className="standard-medication__table-scroll"><table className="master-data-table">
             <thead>
               <tr>
-                <th>药品 / 旧目录编码</th>
+                <th>药品名称</th>
                 <th>目录分类</th>
                 <th className="ui-table-cell--numeric">规格</th>
                 <th className="ui-table-cell--status">条目核对</th>
@@ -278,7 +287,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
                   }
                 }}
               >
-                <td><strong>{entry.name}</strong><small>{entry.legacyCode}</small></td>
+                <td><strong>{entry.name}</strong></td>
                 <td>{entry.categories[0]?.sub || entry.categories[0]?.major}<small>{entry.entryType === 'SCOPE' ? '范围条目 · 不可直接开立' : entry.innName || '中成药'}</small></td>
                 <td className="ui-table-cell--numeric">{entry.specificationCount}</td>
                 <td className="ui-table-cell--status">{(() => {
@@ -302,15 +311,36 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
               <div className="standard-medication__detail-header">
                 <div className="standard-medication__title-wrap">
                   <h3>{detail.data.name}</h3>
-                  <span className="standard-medication__muted">{detail.data.innName || detail.data.legacyCode}</span>
+                  {detail.data.innName && <span className="standard-medication__muted">{detail.data.innName}</span>}
                 </div>
-                {detail.data.specialistGuidance ? (
-                  <span className="standard-medication__specialist-tag" title="需相应处方资质或专科医师指导（原文 △）">
-                    △ 需专科指导
-                  </span>
-                ) : (
-                  <span className="standard-medication__tag-subtle">标准品种</span>
-                )}
+                <div className="standard-medication__detail-header-actions">
+                  {safetyTags.data && safetyTags.data.length > 0 && (
+                    <div className="standard-medication__safety-tags">
+                      {safetyTags.data.map(t => (
+                        <span key={t.categoryId} title={t.rationale}>
+                          <StatusBadge tone="danger">
+                            🛡️ {t.categoryName}
+                          </StatusBadge>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {detail.data.specialistGuidance ? (
+                    <span className="standard-medication__specialist-tag" title="需相应处方资质或专科医师指导（原文 △）">
+                      △ 需专科指导
+                    </span>
+                  ) : (
+                    <span className="standard-medication__tag-subtle">标准品种</span>
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setBindSafetyCategoryOpen(true)}
+                    title="一键将该标准药品下所有在库规格绑定纳入合理用药分类"
+                  >
+                    绑定至合理用药分类
+                  </Button>
+                </div>
               </div>
               <div className="standard-medication__meta-bar">
                 <span className="meta-item">
@@ -489,5 +519,16 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
       </aside>
     </div>
     {pdfOpen && <StandardCatalogPdfDialog api={api} entry={detail.data} initialLocation={initialPdfLocation} onClose={() => setPdfOpen(false)} />}
+    {bindSafetyCategoryOpen && detail.data && (
+      <StandardMedicationBindSafetyCategoryDialog
+        api={api}
+        entry={detail.data}
+        onClose={() => setBindSafetyCategoryOpen(false)}
+        onSuccess={(categoryName, count) => {
+          setSafetyNotice(`已成功将标准药品【${detail.data?.name}】（共 ${count} 种在库规格）绑定并纳入合理用药安全分类【${categoryName}】！`)
+          safetyTags.refetch()
+        }}
+      />
+    )}
   </section>
 }

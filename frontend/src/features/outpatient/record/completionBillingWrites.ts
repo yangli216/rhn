@@ -98,7 +98,7 @@ export function createCompletionBillingWriter() {
         })), attempt, attempt.statement)
       } else {
         invoice = requireInvoice(await write(() => api.issueInvoice(attempt.statement.accountId, attempt.invoiceNo,
-          'OUTPATIENT', attempt.charges.map(row => row.id))), attempt)
+          'OUTPATIENT', attempt.charges.map(row => row.id), 'DOCTOR_STATION', 'WEB-DOCTOR-WORKSTATION')), attempt)
       }
       check()
       const statement = requireCompletionStatement(await api.statement(attempt.encounter.id), attempt.encounter)

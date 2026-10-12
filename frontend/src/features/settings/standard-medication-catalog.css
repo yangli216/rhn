@@ -219,6 +219,13 @@
   gap: var(--space-2);
 }
 
+.standard-medication__detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .standard-medication__title-wrap {
   display: flex;
   align-items: baseline;
@@ -663,3 +670,154 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
 }
+
+/* 标准药品绑定合理用药分类弹窗 */
+.standard-bind-safety-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-0);
+}
+
+.standard-bind-safety-intro {
+  margin: var(--space-0);
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-body);
+}
+
+.standard-bind-safety-intro strong {
+  color: var(--color-brand-strong);
+}
+
+.standard-bind-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.standard-bind-systemic-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.standard-bind-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.standard-bind-preview-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-surface-subtle);
+}
+
+.standard-bind-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.standard-bind-preview-header h4 {
+  margin: var(--space-0);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.standard-bind-preview-hint {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.standard-bind-empty-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
+
+.standard-bind-drugs-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.standard-bind-drug-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.standard-bind-drug-item .drug-main-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.standard-bind-drug-item .drug-name {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+}
+
+.standard-bind-drug-item .drug-code {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.standard-bind-drug-item .drug-sub-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.standard-bind-drug-item .drug-spec {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-primary);
+}
+
+.standard-bind-drug-item .drug-form {
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.standard-bind-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* 详情头部安全分类徽标列表 */
+.standard-medication__safety-tags {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+

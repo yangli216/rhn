@@ -56,6 +56,40 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
         loadStandardCatalogData();
     }
 
+    private static final java.util.regex.Pattern CHINESE_NUMERAL_PATTERN =
+            java.util.regex.Pattern.compile("[（(]?([一二三四五六七八九十]+)[）) 、]|^[（(]?([一二三四五六七八九十]+)[）)]?");
+
+    private static int parseChineseNumeral(String text) {
+        if (text == null || text.isBlank()) return 9999;
+        java.util.regex.Matcher m = CHINESE_NUMERAL_PATTERN.matcher(text);
+        if (!m.find()) return 9999;
+        String s = m.group(1) != null ? m.group(1) : m.group(2);
+        if (s == null || s.isBlank()) return 9999;
+        if (s.equals("十")) return 10;
+        Map<Character, Integer> digits = Map.of(
+                '一', 1, '二', 2, '三', 3, '四', 4, '五', 5,
+                '六', 6, '七', 7, '八', 8, '九', 9
+        );
+        if (s.startsWith("十")) {
+            return 10 + (s.length() > 1 ? digits.getOrDefault(s.charAt(1), 0) : 0);
+        }
+        if (s.contains("十")) {
+            String[] parts = s.split("十");
+            int tens = digits.getOrDefault(parts[0].charAt(0), 1);
+            int ones = parts.length > 1 && !parts[1].isBlank() ? digits.getOrDefault(parts[1].charAt(0), 0) : 0;
+            return tens * 10 + ones;
+        }
+        return digits.getOrDefault(s.charAt(0), 9999);
+    }
+
+    private static int getMajorOrder(String major) {
+        if (major == null || major.isBlank()) return 99999;
+        int num = parseChineseNumeral(major);
+        boolean isTcm = major.contains("内科用药") || major.contains("外科用药") || major.contains("妇科用药")
+                || major.contains("骨伤科用药") || (num <= 7 && (major.contains("眼科用药") || major.contains("耳鼻喉科用药") || major.contains("儿科用药")) && !major.contains("二十"));
+        return isTcm ? 2000 + num : 1000 + num;
+    }
+
     private void loadStandardCatalogData() {
         try {
             ClassPathResource resource = new ClassPathResource("medication-standard-catalog.json");
@@ -64,8 +98,8 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
                 JsonNode root = jsonCodec.readTree(new String(input.readAllBytes(), StandardCharsets.UTF_8));
                 JsonNode entriesNode = root.path("entries");
 
-                Map<String, Set<String>> namesBySub = new LinkedHashMap<>();
-                Map<String, String> majorBySub = new HashMap<>();
+                record CatalogPair(String major, String sub) {}
+                Map<CatalogPair, Set<String>> namesByPair = new LinkedHashMap<>();
 
                 entriesNode.forEach(entry -> {
                     String name = entry.path("name").asString("");
@@ -75,24 +109,24 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
                         String major = cat.path("major").asString("").trim();
                         String sub = cat.path("sub").asString("").trim();
                         if (!sub.isBlank()) {
-                            namesBySub.computeIfAbsent(sub, k -> new LinkedHashSet<>()).add(name);
-                            if (!major.isBlank()) {
-                                majorBySub.put(sub, major);
-                            }
+                            namesByPair.computeIfAbsent(new CatalogPair(major, sub), k -> new LinkedHashSet<>()).add(name);
                         }
                     });
                 });
 
-                for (var entry : namesBySub.entrySet()) {
-                    String sub = entry.getKey();
-                    String major = majorBySub.getOrDefault(sub, "");
+                for (var entry : namesByPair.entrySet()) {
+                    CatalogPair pair = entry.getKey();
                     List<String> names = List.copyOf(entry.getValue());
-                    genericNamesBySubCategory.put(sub, names);
+                    genericNamesBySubCategory.put(pair.sub(), names);
+                    if (!pair.major().isBlank()) {
+                        genericNamesBySubCategory.put(pair.major() + "::" + pair.sub(), names);
+                    }
                     standardCatalogSummaries.add(new StandardCatalogCategorySummary(
-                            major, sub, names.size(), names
+                            pair.major(), pair.sub(), names.size(), names
                     ));
                 }
-                standardCatalogSummaries.sort(Comparator.comparing(StandardCatalogCategorySummary::major)
+                standardCatalogSummaries.sort(Comparator.comparingInt((StandardCatalogCategorySummary s) -> getMajorOrder(s.major()))
+                        .thenComparingInt(s -> parseChineseNumeral(s.sub()))
                         .thenComparing(StandardCatalogCategorySummary::sub));
             }
         } catch (Exception e) {
@@ -103,14 +137,55 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
     @Transactional(readOnly = true)
     public List<CategoryView> listCategories(String query, String ruleKind) {
         Long tenantId = TenantContext.requireTenantId();
-        return store.findCategories(tenantId, query, ruleKind);
+        List<CategoryView> categories = store.findCategories(tenantId, query, ruleKind);
+        if (categories.isEmpty()) return categories;
+        return categories.stream().map(c -> enrichCategoryMemberCount(tenantId, c)).toList();
     }
 
     @Transactional(readOnly = true)
     public CategoryView getCategory(Long id) {
         Long tenantId = TenantContext.requireTenantId();
-        return store.findCategoryById(tenantId, id)
+        CategoryView cat = store.findCategoryById(tenantId, id)
                 .orElseThrow(() -> notFound("SAFETY_CATEGORY_NOT_FOUND", "未找到指定合理用药安全分类"));
+        return enrichCategoryMemberCount(tenantId, cat);
+    }
+
+    private CategoryView enrichCategoryMemberCount(Long tenantId, CategoryView cat) {
+        if (cat.catalogSub() == null || cat.catalogSub().isBlank()) {
+            return cat;
+        }
+        List<String> genericNames = genericNamesBySubCategory.getOrDefault(cat.catalogSub().trim(), List.of());
+        if (genericNames.isEmpty()) {
+            return cat;
+        }
+        List<MemberItem> catalogMedications = store.findMedicationsByGenericNames(
+                tenantId, genericNames, cat.systemicOnly()
+        );
+        if (catalogMedications.isEmpty()) {
+            return cat;
+        }
+        List<MemberView> directMembers = store.findMembers(tenantId, cat.id(), null);
+        Set<Long> directMedIds = new HashSet<>();
+        Set<String> directNames = new HashSet<>();
+        for (var dm : directMembers) {
+            if (dm.medicationId() != null) directMedIds.add(dm.medicationId());
+            directNames.add(dm.medicationName());
+        }
+        int inheritedCount = 0;
+        for (var med : catalogMedications) {
+            if (!directMedIds.contains(med.medicationId()) && !directNames.contains(med.medicationName())) {
+                inheritedCount++;
+            }
+        }
+        int total = directMembers.size() + inheritedCount;
+        if (total == cat.memberCount()) {
+            return cat;
+        }
+        return new CategoryView(
+                cat.id(), cat.code(), cat.name(), cat.ruleKind(), cat.rationale(),
+                cat.isSystem(), cat.status(), total, cat.revision(),
+                cat.createdAt(), cat.updatedAt(), cat.catalogMajor(), cat.catalogSub(), cat.systemicOnly()
+        );
     }
 
     @Transactional
@@ -166,7 +241,13 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
 
         // 如果该安全分类配置了标准目录级联继承，获取目录下匹配的药品，合并未显式纳管的成员
         if (cat.catalogSub() != null && !cat.catalogSub().isBlank()) {
-            List<String> genericNames = genericNamesBySubCategory.getOrDefault(cat.catalogSub(), List.of());
+            List<String> genericNames = null;
+            if (cat.catalogMajor() != null && !cat.catalogMajor().isBlank()) {
+                genericNames = genericNamesBySubCategory.get(cat.catalogMajor().trim() + "::" + cat.catalogSub().trim());
+            }
+            if (genericNames == null || genericNames.isEmpty()) {
+                genericNames = genericNamesBySubCategory.getOrDefault(cat.catalogSub().trim(), List.of());
+            }
             if (!genericNames.isEmpty()) {
                 List<MemberItem> catalogMedications = store.findMedicationsByGenericNames(
                         tenantId, genericNames, cat.systemicOnly()
@@ -227,6 +308,15 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
         invalidateCache(tenantId, cat.code());
     }
 
+    @Transactional
+    public int clearMembers(Long categoryId) {
+        Long tenantId = TenantContext.requireTenantId();
+        CategoryView cat = getCategory(categoryId);
+        int cleared = store.clearMembers(tenantId, categoryId);
+        invalidateCache(tenantId, cat.code());
+        return cleared;
+    }
+
     // ==========================================
     // 标准目录复用与一键批量导入
     // ==========================================
@@ -245,7 +335,13 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
     ) {
         Long tenantId = TenantContext.requireTenantId();
         if (catalogSub == null || catalogSub.isBlank()) return List.of();
-        List<String> genericNames = genericNamesBySubCategory.getOrDefault(catalogSub.trim(), List.of());
+        List<String> genericNames = null;
+        if (catalogMajor != null && !catalogMajor.isBlank()) {
+            genericNames = genericNamesBySubCategory.get(catalogMajor.trim() + "::" + catalogSub.trim());
+        }
+        if (genericNames == null || genericNames.isEmpty()) {
+            genericNames = genericNamesBySubCategory.getOrDefault(catalogSub.trim(), List.of());
+        }
         if (genericNames.isEmpty()) return List.of();
 
         List<MemberItem> found = store.findMedicationsByGenericNames(
@@ -276,7 +372,13 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
         if (req.catalogSub() == null || req.catalogSub().isBlank()) {
             throw badRequest("CATALOG_SUB_REQUIRED", "必须指定导入的标准目录分类");
         }
-        List<String> genericNames = genericNamesBySubCategory.getOrDefault(req.catalogSub().trim(), List.of());
+        List<String> genericNames = null;
+        if (req.catalogMajor() != null && !req.catalogMajor().isBlank()) {
+            genericNames = genericNamesBySubCategory.get(req.catalogMajor().trim() + "::" + req.catalogSub().trim());
+        }
+        if (genericNames == null || genericNames.isEmpty()) {
+            genericNames = genericNamesBySubCategory.getOrDefault(req.catalogSub().trim(), List.of());
+        }
         if (genericNames.isEmpty()) {
             return new CatalogImportResult(0, 0, 0);
         }
@@ -307,12 +409,20 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
         String normalizedCode = categoryCode.trim().toUpperCase();
         CachedCategoryData data = getCachedCategoryData(tenantId, normalizedCode);
 
+        // 如果要求仅全身给药，且当前为外用/局部剂型，则直接排除
+        if (data.systemicOnly() && isTopicalDoseForm(doseForm)) {
+            return false;
+        }
+
         // 1. 显式直接纳管成员判定
         if (medName != null && !medName.isBlank()) {
             String trimmedName = medName.trim();
             if (data.directMemberNames().contains(trimmedName)) return true;
+            String cleanName = cleanGenericName(trimmedName);
             for (String mbr : data.directMemberNames()) {
-                if (trimmedName.contains(mbr) || mbr.contains(trimmedName)) {
+                if (mbr == null || mbr.isBlank()) continue;
+                String cleanMbr = cleanGenericName(mbr);
+                if (cleanName.equals(cleanMbr) || trimmedName.contains(mbr) || (!cleanMbr.isBlank() && trimmedName.contains(cleanMbr))) {
                     return true;
                 }
             }
@@ -320,10 +430,6 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
 
         // 2. 标准目录级联继承判定
         if (data.catalogSub() != null && !data.catalogSub().isBlank() && !data.catalogGenericNames().isEmpty()) {
-            // 如果要求全身给药，且当前为外用/局部剂型，则排除
-            if (data.systemicOnly() && isTopicalDoseForm(doseForm)) {
-                return false;
-            }
             if (medName != null && !medName.isBlank()) {
                 String trimmedName = medName.trim();
                 for (String cName : data.catalogGenericNames()) {
@@ -392,5 +498,19 @@ public class MedicationSafetyCategoryService implements com.rhn.quality.medicati
                 || df.contains("滴眼") || df.contains("滴鼻") || df.contains("滴耳")
                 || df.contains("喷雾") || df.contains("洗剂") || df.contains("搽剂")
                 || df.contains("涂剂") || df.contains("外用");
+    }
+
+    private static String cleanGenericName(String name) {
+        if (name == null || name.isBlank()) return "";
+        String cleaned = name.replaceAll("（[^）]*）|\\([^)]*\\)", "").trim();
+        for (String suffix : List.of("缓释胶囊", "肠溶胶囊", "软胶囊", "肠溶片", "分散片", "咀嚼片", "泡腾片",
+                "缓释片", "薄膜衣片", "注射液", "口服溶液", "口服液", "颗粒剂", "滴丸剂", "片剂",
+                "胶囊", "颗粒", "片", "丸", "散", "膏")) {
+            if (cleaned.endsWith(suffix) && cleaned.length() > suffix.length()) {
+                cleaned = cleaned.substring(0, cleaned.length() - suffix.length()).trim();
+                break;
+            }
+        }
+        return cleaned;
     }
 }

@@ -90,6 +90,18 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void standard_active_rule_set_records_all_fourteen_rules_including_parameterized() {
+        var request = new PrescriptionSafetyRequest(snapshot(item(11, 90L, "DRAFT")), MedicationSafetyEngine.RULE_SET);
+        var result = safety.evaluate(request);
+        assertEquals(MedicationSafetyDecision.Status.UNAVAILABLE, result.decision());
+        assertEquals(14, result.ruleExecutions().size());
+        assertTrue(result.ruleExecutions().stream().anyMatch(e -> "QMED.PPI_DUPLICATE".equals(e.ruleCode()) && "COMPLETED".equals(e.outcome())));
+        assertTrue(result.ruleExecutions().stream().anyMatch(e -> "QMED.RASI_DUPLICATE".equals(e.ruleCode()) && "COMPLETED".equals(e.outcome())));
+        assertTrue(result.ruleExecutions().stream().anyMatch(e -> "QMED.MACROLIDE_STATIN_INTERACTION".equals(e.ruleCode()) && "COMPLETED".equals(e.outcome())));
+        assertTrue(result.ruleExecutions().stream().anyMatch(e -> "QMED.PREGNANCY_CONTRA".equals(e.ruleCode()) && "COMPLETED".equals(e.outcome())));
+    }
+
+    @Test
     void tenant_prescription_and_work_scope_cannot_cross_evaluation_boundaries() {
         var request = legacyRequest(snapshot(item(11, 90L, "DRAFT")));
         var result = safety.evaluate(request);

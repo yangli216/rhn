@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { SettlementRecord } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -57,6 +57,31 @@ function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides
 }
 
 describe('BillingQueryWorkspace', () => {
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-09-08T04:00:00Z')) })
+  afterEach(() => vi.useRealTimers())
+  it('starts today, preserves required dates, and submits cashier selection to the server', async () => {
+    const api = renderWorkspace([{ ...record, cashierName: '张收费', cashierUsername: 'cashier.zhang', finalizedBy: '123' }])
+    const row = await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
+    expect(row).toHaveTextContent('张收费')
+    expect(row).toHaveTextContent('收费处 · CASHIER-01')
+    expect(screen.getByLabelText('开始日期')).toHaveValue('2026-09-08')
+    fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '' } })
+    expect(screen.getByLabelText('开始日期')).toHaveValue('2026-09-08')
+    expect(screen.getByLabelText('结束日期')).toHaveValue('2026-09-08')
+    await userEvent.type(screen.getByLabelText('收费员'), '张收费')
+    await userEvent.click(screen.getByRole('button', { name: '查询' }))
+    await waitFor(() => expect(api.billing.settlementRecords).toHaveBeenLastCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '张收费' }))
+    await userEvent.click(screen.getByRole('button', { name: '重置' }))
+    expect(screen.getByLabelText('收费员')).toHaveValue('')
+    expect(screen.getByLabelText('开始日期')).toHaveValue('2026-09-08')
+  })
+  it('shows recorded doctor source even when the physical terminal number is missing', async () => {
+    renderWorkspace([{ ...record, terminalScene: 'DOCTOR_STATION', terminalCode: undefined }])
+    const row = await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
+    expect(row).toHaveTextContent('医生站')
+    expect(row).toHaveTextContent('未记录收费员')
+  })
   it.each(['failure', 'invalid'] as const)('does not present unavailable list as no records: %s', async (state) => {
     const settlementRecords = state === 'failure' ? vi.fn().mockRejectedValue(new Error('查询失败')) : vi.fn().mockResolvedValue(null)
     renderWorkspace([record], { settlementRecords })
@@ -117,7 +142,7 @@ describe('BillingQueryWorkspace', () => {
     expect(await within(detail).findByText('阿莫西林胶囊')).toBeInTheDocument()
     expect(within(detail).getByText('微信支付')).toBeInTheDocument()
     expect(within(detail).getByText('360100000001')).toBeInTheDocument()
-    expect(api.billing.settlementRecords).toHaveBeenCalledWith(500)
+    expect(api.billing.settlementRecords).toHaveBeenCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '' })
 
     // 点击关闭按钮关闭抽屉
     const closeBtn = within(detail).getByRole('button', { name: '关闭收费记录详情' })
@@ -166,13 +191,11 @@ describe('BillingQueryWorkspace', () => {
 
     // 通过统一的 DateRangePicker 组件输入筛选日期
     const startInput = screen.getByLabelText('开始日期')
-    await userEvent.clear(startInput)
-    await userEvent.type(startInput, '2026-09-09')
-    expect(screen.getByText('暂无匹配记录')).toBeInTheDocument()
+    fireEvent.change(startInput, { target: { value: '2026-09-09' } })
+    expect(await screen.findByText('暂无匹配记录')).toBeInTheDocument()
 
     // 重新输入匹配日期
-    await userEvent.clear(startInput)
-    await userEvent.type(startInput, '2026-09-08')
+    fireEvent.change(startInput, { target: { value: '2026-09-08' } })
     expect(await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })).toBeInTheDocument()
   })
 

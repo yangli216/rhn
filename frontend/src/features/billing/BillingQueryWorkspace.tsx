@@ -9,7 +9,8 @@ import {
   Select, StatusBadge, tableCellClass,
 } from '../../shared/ui'
 import { DateRangePicker } from '../../shared/ui/DateRangePicker'
-import type { DateRange } from '../../shared/utils/dateRange'
+import { formatDate, getTodayRange, type DateRange } from '../../shared/utils/dateRange'
+import { billingTerminalLabel } from '../../shared/presentation/billingTerminal'
 import { Icon } from '../../shared/ui/Icon'
 import { money } from './BillingShared'
 import './billing-query-workspace.css'
@@ -55,7 +56,9 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
   const queryClient = useQueryClient()
   const [keyword, setKeyword] = useState('')
   const [submittedKeyword, setSubmittedKeyword] = useState('')
-  const [dateRange, setDateRange] = useState<DateRange>({ from: '', to: '' })
+  const [dateRange, setDateRange] = useState<DateRange>(getTodayRange)
+  const [cashier, setCashier] = useState('')
+  const [submittedCashier, setSubmittedCashier] = useState('')
   const [scene, setScene] = useState('ALL')
   const [settlementType, setSettlementType] = useState('ALL')
   const [selectedId, setSelectedId] = useState('')
@@ -65,9 +68,9 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
   const [pageSize, setPageSize] = useState(20)
 
   const records = useQuery({
-    queryKey: ['billing-settlement-records', clinicalContext.organization.id, clinicalContext.department.id],
+    queryKey: ['billing-settlement-records', clinicalContext.organization.id, clinicalContext.department.id, dateRange.from, dateRange.to, submittedCashier],
     queryFn: async () => {
-      const data = await api.billing.settlementRecords(500)
+      const data = await api.billing.settlementRecords(500, { ...dateRange, cashier: submittedCashier })
       if (!Array.isArray(data) || data.some((record) => !record || !record.id || !record.createdAt
         || ![record.netAmount, record.patientAmount, record.insuranceAmount].every(Number.isFinite))) {
         throw new Error('收费记录返回不完整，无法确认查询结果')
@@ -79,7 +82,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
   const filteredRecords = useMemo(() => {
     const normalized = submittedKeyword.trim().toLowerCase()
     return (records.data ?? []).filter((record) => {
-      const occurredDate = (record.finalizedAt ?? record.createdAt).slice(0, 10)
+      const occurredDate = formatDate(new Date(record.finalizedAt ?? record.createdAt))
       if (dateRange.from && occurredDate < dateRange.from) return false
       if (dateRange.to && occurredDate > dateRange.to) return false
       if (scene !== 'ALL' && record.settlementScene !== scene) return false
@@ -190,7 +193,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
     .map((charge) => [charge.id, charge])), [statement.data?.charges])
 
   const error = records.error || settlement.error || statement.error || receipts.error
-  const hasFilters = Boolean(submittedKeyword || keyword || dateRange.from || dateRange.to || scene !== 'ALL' || settlementType !== 'ALL')
+  const hasFilters = Boolean(submittedKeyword || keyword || cashier || submittedCashier || dateRange.from !== getTodayRange().from || dateRange.to !== getTodayRange().to || scene !== 'ALL' || settlementType !== 'ALL')
 
   const refresh = () => Promise.all([
     queryClient.invalidateQueries({ queryKey: ['billing-settlement-records'] }),
@@ -202,13 +205,16 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault()
     setSubmittedKeyword(keyword.trim())
+    setSubmittedCashier(cashier.trim())
     setPageIndex(0)
   }
 
   const resetFilters = () => {
     setKeyword('')
     setSubmittedKeyword('')
-    setDateRange({ from: '', to: '' })
+    setDateRange(getTodayRange())
+    setCashier('')
+    setSubmittedCashier('')
     setScene('ALL')
     setSettlementType('ALL')
     setPageIndex(0)
@@ -253,8 +259,8 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
         />
       </FormField>
 
-      <FormField label="结算日期范围" className="billing-filter-field--date">
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
+      <FormField required label="结算日期范围" className="billing-filter-field--date">
+        <DateRangePicker value={dateRange} onChange={range => setDateRange({ from: range.from || dateRange.from, to: range.to || dateRange.to })} />
       </FormField>
 
       <FormField label="业务场景" className="billing-filter-field--scene">
@@ -264,6 +270,9 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
         <Select value={settlementType} options={typeOptions} onChange={setSettlementType} />
       </FormField>
 
+      <FormField label="收费员" className="billing-filter-field--cashier">
+        <input value={cashier} onChange={e => setCashier(e.target.value)} placeholder="姓名 / 账号 / 人员 ID" />
+      </FormField>
       <div className="ui-query-filters__actions">
         <Button type="submit" variant="secondary" busy={records.isFetching}>
           <Icon name="search" />查询
@@ -276,6 +285,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
       </div>
     </form>
 
+    {records.data && records.data.length >= 500 && <Alert>当前范围记录较多，仅展示最近 500 条；请缩小日期或按收费员查询后核对金额。</Alert>}
     {/* 主体卡片：全宽财务流水台账表格 */}
     <Panel className="billing-query-main-panel" aria-label="已结算收费记录">
       {records.isPending ? (
@@ -293,17 +303,19 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
         <>
           <div className="billing-query-table-scroll">
             <table className="billing-query-grid-table">
+              <colgroup><col className="billing-query-col--number" /><col className="billing-query-col--time" /><col className="billing-query-col--patient" /><col className="billing-query-col--encounter" /><col className="billing-query-col--cashier" /><col className="billing-query-col--type" /><col className="billing-query-col--amount" /><col className="billing-query-col--amount" /><col className="billing-query-col--amount" /><col className="billing-query-col--actions" /></colgroup>
               <thead>
                 <tr>
-                  <th style={{ width: '18%' }}>结算单号 / 场景</th>
-                  <th style={{ width: '14%' }}>结算时间 / 终端</th>
-                  <th style={{ width: '13%' }}>患者姓名 / 档案号</th>
-                  <th style={{ width: '12%' }}>门诊号 / 科室</th>
-                  <th style={{ width: '10%' }}>结算类型</th>
-                  <th style={{ width: '11%' }} className={tableCellClass('numeric')}>结算金额</th>
-                  <th style={{ width: '11%' }} className={tableCellClass('numeric')}>医保支付</th>
-                  <th style={{ width: '11%' }} className={tableCellClass('numeric')}>个人支付</th>
-                  <th style={{ width: '10%', textAlign: 'center' }}>操作</th>
+                  <th>结算单号 / 场景</th>
+                  <th>结算时间 / 终端</th>
+                  <th>患者姓名 / 档案号</th>
+                  <th>门诊号 / 科室</th>
+                  <th>收费员</th>
+                  <th>结算类型</th>
+                  <th className={tableCellClass('numeric')}>结算金额</th>
+                  <th className={tableCellClass('numeric')}>医保支付</th>
+                  <th className={tableCellClass('numeric')}>个人支付</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -348,7 +360,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                           {formatDateTime(record.finalizedAt ?? record.createdAt)}
                         </span>
                         <small className="billing-grid-terminal">
-                          {record.terminalCode ?? '未记录终端'}
+                          {billingTerminalLabel(record.terminalScene)}{record.terminalCode ? ` · ${record.terminalCode}` : ''}
                         </small>
                       </td>
                       <td>
@@ -365,6 +377,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                           </small>
                         </div>
                       </td>
+                      <td>{record.cashierName ?? record.cashierUsername ?? (record.finalizedBy ? `人员 ${record.finalizedBy}` : '未记录收费员')}</td>
                       <td>
                         <StatusBadge tone={record.settlementType === 'REVERSAL' ? 'warning' : 'success'}>
                           {typeText[record.settlementType] ?? record.settlementType}
@@ -463,7 +476,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
               </div>
               <h2>{selected.settlementNo}</h2>
               <p>
-                {formatDateTime(selected.finalizedAt ?? selected.createdAt)} · {selected.terminalCode ?? '未记录终端'}
+                收费员：{selected.cashierName ?? selected.cashierUsername ?? (selected.finalizedBy ? `人员 ${selected.finalizedBy}` : '未记录')} · {formatDateTime(selected.finalizedAt ?? selected.createdAt)} · {billingTerminalLabel(selected.terminalScene)}{selected.terminalCode ? ` · ${selected.terminalCode}` : ''}
               </p>
             </div>
             <button

@@ -8,8 +8,7 @@ import type {
   RuleCatalog,
   RuleCatalogCommand,
   RuleCatalogEntry,
-  RuleDeployment,
-  RuleRuntimeRecord
+  RuleDeployment
 } from '../../shared/api/medicationWorkbenchApi'
 import { Alert, Button, Dialog, FormField, Icon, LoadingState, SearchField, Select, StatusBadge } from '../../shared/ui'
 import './medication-rule-catalog.css'
@@ -18,6 +17,7 @@ import { MedicationKnowledgeDeploymentDialog } from './MedicationKnowledgeDeploy
 import { MedicationKnowledgeReviewDialog } from './MedicationKnowledgeReviewDialog'
 import { MedicationKnowledgeTestDialog } from './MedicationKnowledgeTestDialog'
 import { MedicationKnowledgeRuleView } from './MedicationKnowledgeRuleView'
+import { getBuiltinRuleSpec } from './medicationRuleCatalogSpecs'
 
 const reviews: Record<string, string> = {
   DRAFT: '草稿',
@@ -134,7 +134,6 @@ export function MedicationRuleCatalog({
   const [deploymentCandidate, setDeploymentCandidate] = useState<NonNullable<CatalogVersion['knowledgeCandidate']>>()
   const [reviewCandidate, setReviewCandidate] = useState<NonNullable<CatalogVersion['knowledgeCandidate']>>()
   const [loading, setLoading] = useState(true)
-  const [runs, setRuns] = useState<RuleRuntimeRecord[]>([])
   const [action, setAction] = useState<{ operation: string; versionId: string; deployment?: RuleDeployment; mode?: string }>()
   const [draft, setDraft] = useState<{ parent?: MedicationCandidate }>()
 
@@ -220,21 +219,6 @@ export function MedicationRuleCatalog({
       })
     return () => { alive = false }
   }, [api])
-
-  useEffect(() => {
-    setRuns([])
-    if (!selected) return
-    let alive = true
-    const catalogRunsFn = (api.medicationWorkbench as any).catalogRuns
-    ;(typeof catalogRunsFn === 'function' ? catalogRunsFn(selected) : Promise.resolve([] as RuleRuntimeRecord[]))
-      .then((value: RuleRuntimeRecord[]) => {
-        if (alive) setRuns(value)
-      })
-      .catch((e: unknown) => {
-        if (alive) setError(errorMessage(e))
-      })
-    return () => { alive = false }
-  }, [api, selected, data])
 
   const visible = (data?.rules ?? []).filter(r => {
     const matchText = `${r.code} ${r.name}`.toLowerCase().includes(query.toLowerCase())
@@ -365,9 +349,20 @@ export function MedicationRuleCatalog({
                       <span className={`qmed-chip ${r.origin === 'BUILTIN' ? 'qmed-chip--brand' : r.origin === 'AI' ? 'qmed-chip--ai' : ''}`}>
                         {originName[r.origin] ?? r.origin}
                       </span>
+                      {(() => {
+                        const spec = getBuiltinRuleSpec(r.code)
+                        if (spec?.isParameterized) {
+                          return (
+                            <span className="qmed-chip qmed-chip--param" title={`基于${spec.templateName}构建`}>
+                              {spec.templateName.replace('模板 ', '')}
+                            </span>
+                          )
+                        }
+                        return null
+                      })()}
                     </div>
                     <div className="qmed-governance__rule-foot">
-                      <span>{r.versions.length} 个版本 · 最新 {latestReview}</span>
+                      <span>{r.versions.length} 个版本 · {r.origin === 'BUILTIN' ? '系统在行基线' : `最新 ${latestReview}`}</span>
                       {isSelected && <Icon name="chevron-right" />}
                     </div>
                   </button>
@@ -386,18 +381,26 @@ export function MedicationRuleCatalog({
           <div className="qmed-governance__detail">
             {rule && version ? (
               <>
-                {/* 详情顶部核心看板 */}
+                {/* 详情顶部核心看板 (2 行紧凑布局，标题、状态徽章与操作按钮同行对齐) */}
                 <div className="qmed-detail-hero">
-                  <div className="qmed-detail-hero__top">
-                    <div className="qmed-detail-hero__identity">
-                      <div className="qmed-detail-hero__tags">
-                        <code className="qmed-code-pill">{rule.code}</code>
-                        <span className={`qmed-chip ${rule.origin === 'BUILTIN' ? 'qmed-chip--brand' : rule.origin === 'AI' ? 'qmed-chip--ai' : ''}`}>
-                          {originName[rule.origin] ?? rule.origin}
-                        </span>
-                        <span className="qmed-chip">修订 #{rule.revision}</span>
-                      </div>
-                      <h3>{rule.name}</h3>
+                  <div className="qmed-detail-hero__row1">
+                    <div className="qmed-detail-hero__tags">
+                      <code className="qmed-code-pill">{rule.code}</code>
+                      <span className={`qmed-chip ${rule.origin === 'BUILTIN' ? 'qmed-chip--brand' : rule.origin === 'AI' ? 'qmed-chip--ai' : ''}`}>
+                        {originName[rule.origin] ?? rule.origin}
+                      </span>
+                      <span className="qmed-chip">修订 #{rule.revision}</span>
+                      {(() => {
+                        const spec = getBuiltinRuleSpec(rule.code, version.builtin?.implementationKey)
+                        if (spec) {
+                          return (
+                            <StatusBadge tone={spec.templateBadgeTone}>
+                              {spec.templateName}
+                            </StatusBadge>
+                          )
+                        }
+                        return null
+                      })()}
                     </div>
                     <div className="qmed-detail-hero__version-ctrl">
                       <span className="qmed-field-label">审阅版本:</span>
@@ -413,39 +416,62 @@ export function MedicationRuleCatalog({
                     </div>
                   </div>
 
-                  <div className="qmed-detail-hero__badges">
-                    <StatusBadge tone={reviewTone(version.reviewStatus)}>
-                      {reviews[version.reviewStatus] ?? version.reviewStatus}
-                    </StatusBadge>
-                    <StatusBadge tone={version.testsPassed ? 'success' : 'warning'}>
-                      {version.testsPassed
-                        ? (version.knowledgeCandidate ? '结构样例通过 · 人工验证另查' : version.builtin ? '内置执行器回归基线' : '回归测试通过')
-                        : '尚未通过回归测试'}
-                    </StatusBadge>
-                    {version.knowledgeCandidate && <StatusBadge tone={version.manualValidation?.status === 'FAILED' ? 'danger' : 'info'}>
-                      人工样例：{version.manualValidation?.status === 'PASSED' ? `v${version.manualValidation.suiteVersion} 全部通过` : version.manualValidation?.status === 'FAILED' ? `v${version.manualValidation.suiteVersion} 有失败项` : version.manualValidation?.status === 'NOT_RUN' ? `v${version.manualValidation.suiteVersion} 待运行` : '尚未编写'}
-                    </StatusBadge>}
-                    <span className="qmed-action-chip">
-                      审核动作：{version.review?.action ? actions[version.review.action] ?? version.review.action : '待审核确定'}
-                    </span>
-                  </div>
+                  <div className="qmed-detail-hero__row2">
+                    <div className="qmed-detail-hero__title-box">
+                      <h3>{rule.name}</h3>
+                      <div className="qmed-detail-hero__badges">
+                        {version.builtin ? (
+                          <>
+                            <StatusBadge tone="success">系统在行基线</StatusBadge>
+                            <StatusBadge tone={version.builtin.decision === 'BLOCK' ? 'danger' : 'warning'}>
+                              执行动作：{actions[version.builtin.decision] ?? version.builtin.decision}
+                            </StatusBadge>
+                          </>
+                        ) : (
+                          <>
+                            <StatusBadge tone={reviewTone(version.reviewStatus)}>
+                              {reviews[version.reviewStatus] ?? version.reviewStatus}
+                            </StatusBadge>
+                            <StatusBadge tone={version.testsPassed ? 'success' : 'warning'}>
+                              {version.testsPassed
+                                ? (version.knowledgeCandidate ? '结构样例通过 · 人工验证另查' : '回归测试通过')
+                                : '尚未通过回归测试'}
+                            </StatusBadge>
+                            {version.knowledgeCandidate && (
+                              <StatusBadge tone={version.manualValidation?.status === 'FAILED' ? 'danger' : 'info'}>
+                                人工样例：{version.manualValidation?.status === 'PASSED' ? `v${version.manualValidation.suiteVersion} 全部通过` : version.manualValidation?.status === 'FAILED' ? `v${version.manualValidation.suiteVersion} 有失败项` : version.manualValidation?.status === 'NOT_RUN' ? `v${version.manualValidation.suiteVersion} 待运行` : '尚未编写'}
+                              </StatusBadge>
+                            )}
+                            <span className="qmed-action-chip">
+                              审核动作：{version.review?.action ? actions[version.review.action] ?? version.review.action : '待审核确定'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
-                  <div className="qmed-detail-hero__actions">
-                    <div className="qmed-detail-hero__action-group">
-                      {version.knowledgeCandidate && <><Button variant="secondary" onClick={() => setTestCandidate(version.knowledgeCandidate!)}>人工验证样例</Button><Button variant="secondary" onClick={() => setReviewCandidate(version.knowledgeCandidate!)}>审核与提交</Button><Button variant="secondary" onClick={() => setDeploymentCandidate(version.knowledgeCandidate!)}>旁路部署与观察</Button><Button variant="primary" onClick={() => setPublicationCandidate(version.knowledgeCandidate!)}>正式启用与回退</Button></>}
+                    <div className="qmed-detail-hero__action-inline">
+                      {version.knowledgeCandidate && (
+                        <>
+                          <Button variant="secondary" size="sm" onClick={() => setTestCandidate(version.knowledgeCandidate!)}>人工样例</Button>
+                          <Button variant="secondary" size="sm" onClick={() => setReviewCandidate(version.knowledgeCandidate!)}>审核提交</Button>
+                          <Button variant="secondary" size="sm" onClick={() => setDeploymentCandidate(version.knowledgeCandidate!)}>旁路部署</Button>
+                          <Button variant="primary" size="sm" onClick={() => setPublicationCandidate(version.knowledgeCandidate!)}>启用回退</Button>
+                        </>
+                      )}
                       {version.candidate && (
                         <>
-                          <Button variant="secondary" disabled={busy} onClick={() => void runSuite(version)}>
+                          <Button variant="secondary" size="sm" disabled={busy} onClick={() => void runSuite(version)}>
                             <Icon name="flask" />
                             <span>运行回归套件</span>
                           </Button>
-                          <Button variant="secondary" onClick={() => onOpenCandidate(version.candidate!)}>
+                          <Button variant="secondary" size="sm" onClick={() => onOpenCandidate(version.candidate!)}>
                             <Icon name="clinical" />
-                            <span>模拟与处方回放</span>
+                            <span>处方回放</span>
                           </Button>
-                          <Button variant="secondary" onClick={() => setDraft({ parent: version.candidate! })}>
+                          <Button variant="secondary" size="sm" onClick={() => setDraft({ parent: version.candidate! })}>
                             <Icon name="add" />
-                            <span>创建新版本</span>
+                            <span>新版本</span>
                           </Button>
                         </>
                       )}
@@ -455,9 +481,10 @@ export function MedicationRuleCatalog({
                           <span>验证当前规则</span>
                         </Button>
                       )}
-                      {!version.knowledgeCandidate && ['DRAFT', 'REJECTED'].includes(version.reviewStatus) && (
+                      {!version.builtin && !version.knowledgeCandidate && ['DRAFT', 'REJECTED'].includes(version.reviewStatus) && (
                         <Button
                           variant="primary"
+                          size="sm"
                           disabled={!version.testsPassed}
                           onClick={() => setAction({ operation: 'SUBMIT', versionId: version.id })}
                         >
@@ -468,6 +495,7 @@ export function MedicationRuleCatalog({
                         <>
                           <Button
                             variant="primary"
+                            size="sm"
                             onClick={() => setAction({ operation: 'APPROVE', versionId: version.id })}
                           >
                             <Icon name="check" />
@@ -475,6 +503,7 @@ export function MedicationRuleCatalog({
                           </Button>
                           <Button
                             variant="secondary"
+                            size="sm"
                             onClick={() => setAction({ operation: 'REJECT', versionId: version.id })}
                           >
                             <Icon name="close" />
@@ -486,13 +515,15 @@ export function MedicationRuleCatalog({
                         <>
                           <Button
                             variant="primary"
+                            size="sm"
                             onClick={() => setAction({ operation: 'DEPLOY', versionId: version.id, mode: 'SHADOW' })}
                           >
                             <Icon name="eye" />
-                            <span>启用旁路观察</span>
+                            <span>旁路观察</span>
                           </Button>
                           <Button
                             variant="primary"
+                            size="sm"
                             onClick={() => setAction({ operation: 'DEPLOY', versionId: version.id, mode: 'ENFORCED' })}
                           >
                             <Icon name="check" />
@@ -500,294 +531,274 @@ export function MedicationRuleCatalog({
                           </Button>
                         </>
                       )}
-                    </div>
-                    <div className="qmed-detail-hero__action-group">
-                      {version.reviewStatus !== 'RETIRED' && (
+                      {!version.builtin && version.reviewStatus !== 'RETIRED' && (
                         <Button
                           variant="danger"
+                          size="sm"
                           onClick={() => setAction({ operation: 'RETIRE', versionId: version.id })}
                         >
-                          <span>废止此版本</span>
+                          <span>废止</span>
                         </Button>
                       )}
                     </div>
                   </div>
-
-                  <div className="qmed-runtime-note">
-                    <Icon name="info" />
-                    <span>
-                      当前在行规则由版本化强类型执行器运行，正式版本会在发布范围内参与处方提交校验；旁路版本只记录评价，不改变提交结果。
-                    </span>
-                  </div>
                 </div>
 
-                {/* 宽屏卡片栅格 1：规则版本内容 vs 临床审核证据 */}
-                <div className="qmed-grid-2col">
-                  {/* 卡片 1：版本内容与执行逻辑 */}
-                  <section className={`qmed-card${version.knowledgeCandidate ? ' qmed-card--knowledge' : ''}`}>
-                    <div className="qmed-card__header">
-                      <div className="qmed-card__header-title">
-                        <Icon name="clinical" />
-                        <h4>版本内容</h4>
+
+                {/* 主卡片：规则版本内容、判定逻辑与循证医学依据 (全宽展示) */}
+                {(() => {
+                  const evidences = (version.builtin?.evidence?.length ? version.builtin.evidence : undefined)
+                    ?? (version.review?.evidence?.length ? version.review.evidence : undefined)
+                    ?? []
+
+                  return (
+                    <section className={`qmed-card qmed-card--fullwidth${version.knowledgeCandidate ? ' qmed-card--knowledge' : ''}`}>
+                      <div className="qmed-card__header">
+                        <div className="qmed-card__header-title">
+                          <Icon name="clinical" />
+                          <h4>版本内容与规则定义</h4>
+                        </div>
+                        <span className="qmed-ver-tag">v{version.version}</span>
                       </div>
-                      <span className="qmed-ver-tag">v{version.version}</span>
-                    </div>
-                    <div className="qmed-card__body">
-                      <p className="qmed-card__lead">
-                        {version.candidate?.rule.explanation ?? version.builtin?.definition.category}
-                      </p>
-                      {version.candidate && (
-                        <>
-                          {version.candidate.medications.length > 0 && (
-                            <div className="qmed-meds-tags">
-                              <span className="qmed-field-label">适用药品：</span>
-                              {version.candidate.medications.map(m => (
-                                <span key={m.medication.id} className="qmed-med-pill">
-                                  {m.medication.name}
-                                  {m.medication.preparationSpec ? ` · ${m.medication.preparationSpec}` : ''}
-                                </span>
+                      <div className="qmed-card__body">
+                        <p className="qmed-card__lead">
+                          {version.candidate?.rule.explanation
+                            ?? (version.builtin ? getBuiltinRuleSpec(rule.code, version.builtin.implementationKey)?.explanation : undefined)
+                            ?? version.builtin?.definition.category}
+                        </p>
+                        {version.candidate && (
+                          <>
+                            {version.candidate.medications.length > 0 && (
+                              <div className="qmed-meds-tags">
+                                <span className="qmed-field-label">适用药品：</span>
+                                {version.candidate.medications.map(m => (
+                                  <span key={m.medication.id} className="qmed-med-pill">
+                                    {m.medication.name}
+                                    {m.medication.preparationSpec ? ` · ${m.medication.preparationSpec}` : ''}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="qmed-code-block">
+                              <div className="qmed-code-header">
+                                <span>规则表达式 (DSL)</span>
+                                <span className="qmed-code-type">强化校验规则</span>
+                              </div>
+                              <pre>{version.candidate.rule.ruleExpression ?? version.candidate.rule.explanation}</pre>
+                            </div>
+                            <div className="qmed-meta-row">
+                              <span className="qmed-field-label">起草依据：</span>
+                              <span>{version.candidate.source || '尚未填写'}</span>
+                            </div>
+                          </>
+                        )}
+                        {version.knowledgeCandidate && <><p>来源知识 {version.knowledgeCandidate.knowledgeId} · 第 {version.knowledgeCandidate.knowledge.version} 版；生成者：{version.knowledgeCandidate.actor}；原因：{version.knowledgeCandidate.reason}。修改时请回到知识草稿，保存后生成新候选版本。可维护人工验证样例并提交独立审核；旁路部署、暂停及观察请使用“旁路部署与观察”入口；正式启用、暂停正式及回退请使用“正式启用与回退”入口。</p><MedicationKnowledgeRuleView value={version.knowledgeCandidate} /></>}
+                        {version.builtin && (() => {
+                          const builtinSpec = getBuiltinRuleSpec(rule.code, version.builtin.implementationKey)
+                          if (builtinSpec) {
+                            return (
+                              <div className="qmed-builtin-spec-detailed">
+                                {/* 临床机制与拦截风险说明 (置于表达式前，引导临床语境) */}
+                                {builtinSpec.clinicalRisk && (
+                                  <div className="qmed-clinical-risk-callout">
+                                    <Icon name="info" />
+                                    <div className="qmed-clinical-risk-content">
+                                      <strong>临床药理风险与拦截防范目的：</strong>
+                                      <span>{builtinSpec.clinicalRisk}</span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 结构化规则表达式 (DSL) 代码块 */}
+                                <div className="qmed-code-block">
+                                  <div className="qmed-code-header">
+                                    <span>规则判定表达式 (DSL)</span>
+                                    <span className="qmed-code-type">{builtinSpec.templateName}</span>
+                                  </div>
+                                  <pre>{builtinSpec.dslExpression}</pre>
+                                </div>
+
+                                {/* 参数化判定条件与规则配置 */}
+                                <div className="qmed-builtin-params-section">
+                                  <div className="qmed-builtin-params-title">
+                                    <span className="qmed-field-label">参数化判定条件与规则配置：</span>
+                                  </div>
+                                  <div className="qmed-builtin-params-grid">
+                                    {builtinSpec.parameters.map((p, idx) => (
+                                      <div key={idx} className="qmed-builtin-param-item">
+                                        <span className="qmed-param-label">{p.label}</span>
+                                        <span className="qmed-param-val">
+                                          {p.badgeTone ? (
+                                            <StatusBadge tone={p.badgeTone}>{p.value}</StatusBadge>
+                                          ) : (
+                                            p.value
+                                          )}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* 挂载合理用药安全分类 */}
+                                {builtinSpec.boundCategories.length > 0 && (
+                                  <div className="qmed-builtin-categories-row">
+                                    <span className="qmed-field-label">挂载合理用药安全分类：</span>
+                                    <div className="qmed-builtin-categories-list">
+                                      {builtinSpec.boundCategories.map(cat => (
+                                        <span key={cat.code} className="qmed-bound-cat-pill" title={cat.description}>
+                                          <strong>{cat.name}</strong>
+                                          <code>{cat.code}</code>
+                                        </span>
+                                      ))}
+                                      <span className="qmed-cat-link-tip">
+                                        （支持在【安全分类维护】中扩展药品，规则动态生效）
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          }
+
+                          return (
+                            <div className="qmed-builtin-spec">
+                              <p>内置规则的计算逻辑由版本化执行器维护，发布范围和审核策略在此管理。</p>
+                            </div>
+                          )
+                        })()}
+
+                        {/* 循证医学与审核依据 (仅当有证据时按需展示，绝不常驻空态) */}
+                        {evidences.length > 0 && (
+                          <div className="qmed-builtin-evidence-section">
+                            <div className="qmed-builtin-evidence-title">
+                              <Icon name="award" />
+                              <span className="qmed-field-label">循证医学与法规依据（{evidences.length} 项已审定）：</span>
+                            </div>
+                            <div className="qmed-builtin-evidence-grid">
+                              {evidences.map((e, i) => (
+                                <div key={i} className="qmed-evidence-card">
+                                  <div className="qmed-evidence-card__head">
+                                    <strong>{e.sourceTitle}</strong>
+                                    <span className="qmed-evidence-ver">版本：{e.sourceVersion}</span>
+                                  </div>
+                                  <div className="qmed-evidence-card__locator">
+                                    {e.sourceLocator}{e.section ? ` · ${e.section}` : ''}
+                                  </div>
+                                  <blockquote className="qmed-evidence-card__excerpt">
+                                    <Icon name="info" />
+                                    <span>{e.excerpt}</span>
+                                  </blockquote>
+                                </div>
                               ))}
                             </div>
-                          )}
-                          <div className="qmed-code-block">
-                            <div className="qmed-code-header">
-                              <span>规则表达式 (DSL)</span>
-                              <span className="qmed-code-type">强化校验规则</span>
-                            </div>
-                            <pre>{version.candidate.rule.ruleExpression ?? version.candidate.rule.explanation}</pre>
                           </div>
-                          <div className="qmed-meta-row">
-                            <span className="qmed-field-label">起草依据：</span>
-                            <span>{version.candidate.source || '尚未填写'}</span>
-                          </div>
-                        </>
-                      )}
-                      {version.knowledgeCandidate && <><p>来源知识 {version.knowledgeCandidate.knowledgeId} · 第 {version.knowledgeCandidate.knowledge.version} 版；生成者：{version.knowledgeCandidate.actor}；原因：{version.knowledgeCandidate.reason}。修改时请回到知识草稿，保存后生成新候选版本。可维护人工验证样例并提交独立审核；旁路部署、暂停及观察请使用“旁路部署与观察”入口；正式启用、暂停正式及回退请使用“正式启用与回退”入口。</p><MedicationKnowledgeRuleView value={version.knowledgeCandidate} /></>}
-                      {version.builtin && (
-                        <div className="qmed-builtin-spec">
-                          <p>内置规则的计算逻辑由版本化执行器维护，发布范围和审核策略在此管理。</p>
-                          <div className="qmed-kv-list">
-                            <div>
-                              <span className="qmed-field-label">执行器实现：</span>
-                              <code>{version.builtin.implementationKey || '内置引擎'}</code>
-                            </div>
-                            <div>
-                              <span className="qmed-field-label">规则集基准：</span>
-                              <code>标准基线 · {version.builtin.ruleSetVersion || 'qmed-standard-shadow-v2'}</code>
-                            </div>
-                            <div>
-                              <span className="qmed-field-label">默认动作：</span>
-                              <span>{actions[version.builtin.decision] ?? version.builtin.decision}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </section>
-
-                  {/* 卡片 2：审核依据与循证医学支持 */}
-                  <section className="qmed-card">
-                    <div className="qmed-card__header">
-                      <div className="qmed-card__header-title">
-                        <Icon name="award" />
-                        <h4>审核依据</h4>
+                        )}
                       </div>
-                      {version.review?.status === 'APPROVED' && (
-                        <StatusBadge tone="success">已审核通过</StatusBadge>
-                      )}
-                    </div>
-                    <div className="qmed-card__body">
-                      {version.review?.evidence?.length ? (
-                        version.review.evidence.map((e, i) => (
-                          <div key={i} className="qmed-evidence-card">
-                            <div className="qmed-evidence-card__head">
-                              <strong>{e.sourceTitle}</strong>
-                              <span className="qmed-evidence-ver">版本：{e.sourceVersion}</span>
+
+                      {/* 卡片底栏：规则执行基准、发布范围与管控 */}
+                      {version.builtin && (
+                        <div className="qmed-card__footer">
+                          <div className="qmed-card-footer-bar">
+                            <div className="qmed-card-footer-meta">
+                              <div className="qmed-card-footer-item">
+                                <span className="qmed-field-label">执行器实现：</span>
+                                <code>{version.builtin.implementationKey || '内置引擎'}</code>
+                              </div>
+                              <div className="qmed-card-footer-item">
+                                <span className="qmed-field-label">规则集基准：</span>
+                                <code>标准基线 · {version.builtin.ruleSetVersion || 'qmed-standard-shadow-v2'}</code>
+                              </div>
+                              <div className="qmed-card-footer-item">
+                                <span className="qmed-field-label">默认动作：</span>
+                                <span>{actions[version.builtin.decision] ?? version.builtin.decision}</span>
+                              </div>
+                              {hasDefaultShadow(rule) && !rule.deployments.length && (
+                                <div className="qmed-card-footer-item">
+                                  <span className="qmed-field-label">发布策略：</span>
+                                  <StatusBadge tone="info">内置默认旁路</StatusBadge>
+                                  <span className="qmed-card-footer-scope">（全机构各科室生效）</span>
+                                </div>
+                              )}
                             </div>
-                            <div className="qmed-evidence-card__locator">
-                              {e.sourceLocator}{e.section ? ` · ${e.section}` : ''}
-                            </div>
-                            <blockquote className="qmed-evidence-card__excerpt">
-                              <Icon name="info" />
-                              <span>{e.excerpt}</span>
-                            </blockquote>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="qmed-empty-evidence">
-                          <Icon name="info" />
-                          <p>尚无已审核证据。AI 起草内容和工程基线不会自动成为正式发布依据。</p>
-                          <small>正式上线前须由药事专家录入经审定的说明书、指南或规范条款。</small>
-                        </div>
-                      )}
-                      {version.review && (version.review.actorId || version.review.recordedAt) && (
-                        <div className="qmed-review-stamp">
-                          <Icon name="check" />
-                          <div>
-                            <strong>审核责任人：{version.review.actorId || '系统管理员'}</strong>
-                            <small> · {new Date(version.review.recordedAt).toLocaleString()}</small>
-                            {version.review.reason && (
-                              <p className="qmed-review-reason">审核理由：{version.review.reason}</p>
+                            {hasDefaultShadow(rule) && !rule.deployments.length && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setAction({
+                                  operation: 'PAUSE',
+                                  versionId: rule.versions.find(v => v.builtin?.ruleSetVersion === 'qmed-standard-shadow-v2')!.id
+                                })}
+                              >
+                                暂停本机构默认旁路
+                              </Button>
                             )}
                           </div>
+                          <div className="qmed-card-footer-hint">
+                            <small className="qmed-runtime-hint-text">
+                              当前在行规则由版本化强类型执行器运行，正式版本会在发布范围内参与处方提交校验；旁路版本只记录评价，不改变提交结果。
+                            </small>
+                          </div>
                         </div>
                       )}
-                    </div>
-                  </section>
-                </div>
+                    </section>
+                  )
+                })()}
 
-                {/* 卡片 3：发布与运行范围管控 */}
-                <section className="qmed-card">
-                  <div className="qmed-card__header">
-                    <div className="qmed-card__header-title">
-                      <Icon name="hospital" />
-                      <h4>发布与运行范围</h4>
-                    </div>
-                    <small>管控本机构及科室范围生效策略</small>
-                  </div>
-                  <div className="qmed-card__body">
-                    {hasDefaultShadow(rule) && (
-                      <div className="qmed-release-row is-builtin">
-                        <div className="qmed-release-row__info">
-                          <div className="qmed-release-row__title">
-                            <StatusBadge tone="info">内置默认旁路</StatusBadge>
-                            <strong>内置默认旁路 · 全部适用机构</strong>
-                          </div>
-                          <small>默认旁路静默记录评价结果，不干预处方开立。可按需暂停本机构默认旁路。</small>
-                        </div>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setAction({
-                            operation: 'PAUSE',
-                            versionId: rule.versions.find(v => v.builtin?.ruleSetVersion === 'qmed-standard-shadow-v2')!.id
-                          })}
-                        >
-                          暂停本机构默认旁路
-                        </Button>
-                      </div>
-                    )}
-                    {!rule.deployments.length && !hasDefaultShadow(rule) && (
-                      <div className="qmed-empty-state">
-                        <Icon name="warning" />
-                        <p>尚未发布。旧的旁路批准标签仅作历史记录，须在此完成审核并启用。</p>
-                      </div>
-                    )}
-                    {rule.deployments.length > 0 && (
-                      <div className="qmed-deployments-list">
-                        {[...rule.deployments].reverse().map(d => (
-                          <div key={d.id} className="qmed-release-row">
-                            <div className="qmed-release-row__info">
-                              <div className="qmed-release-row__title">
-                                <span className="qmed-ver-tag">v{d.version}</span>
-                                <StatusBadge tone={modeTone(runtimeStatus(d))}>{runtimeStatus(d)}</StatusBadge>
-                                <strong>{actions[d.action] ?? d.action}</strong>
-                                <span className="qmed-scope-tag">
-                                  机构 {d.organizationId} / {d.departmentId ? `科室 ${d.departmentId}` : '全机构'}
-                                </span>
-                              </div>
-                              <div className="qmed-release-row__meta">
-                                <span>有效期限：{new Date(d.effectiveFrom).toLocaleString()} 至 {d.effectiveTo ? new Date(d.effectiveTo).toLocaleString() : '长期有效'}</span>
-                                {d.reason && <span>· 说明：{d.reason}</span>}
-                              </div>
-                            </div>
-                            <div className="qmed-release-row__actions">
-                              {d.status === 'ACTIVE' && runtimeStatus(d) !== '已结束' && (
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={() => { const candidate = rule.versions.find(v => v.id === d.versionId)?.knowledgeCandidate; if (candidate) { if (d.mode === 'ENFORCED') setPublicationCandidate(candidate); else setDeploymentCandidate(candidate); } else setAction({ operation: 'PAUSE', versionId: d.versionId, deployment: d }) }}
-                                >
-                                  暂停
-                                </Button>
-                              )}
-                              {rule.origin !== 'KNOWLEDGE' && ['已结束', '已替换', '已暂停'].includes(runtimeStatus(d)) && (
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={() => setAction({ operation: 'ROLLBACK', versionId: d.versionId, deployment: d, mode: d.mode })}
-                                >
-                                  回滚至 v{d.version}
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </section>
 
-                {/* 底部双列卡片：真实处方观察流水 vs 操作审计日志 */}
-                <div className="qmed-grid-2col">
-                  {/* 卡片 4：真实处方观察 */}
+                {/* 发布与运行范围管控 (非内置默认旁路或已有发布部署记录时展示) */}
+                {(!hasDefaultShadow(rule) || rule.deployments.length > 0) && (
                   <section className="qmed-card">
                     <div className="qmed-card__header">
                       <div className="qmed-card__header-title">
-                        <Icon name="pill" />
-                        <h4>真实处方观察 · 最近 {runs.length} 次</h4>
+                        <Icon name="hospital" />
+                        <h4>发布与运行范围</h4>
                       </div>
-                      {runs.length > 0 && <span className="qmed-count-chip">{runs.length} 条流水</span>}
+                      <small>管控本机构及科室范围生效策略</small>
                     </div>
                     <div className="qmed-card__body">
-                      {!runs.length ? (
+                      {!rule.deployments.length && (
                         <div className="qmed-empty-state">
-                          <Icon name="eye" />
-                          <p>尚无自动运行记录。启用旁路后，适用范围内的处方评价会自动产生记录。</p>
-                        </div>
-                      ) : (
-                        <div className="qmed-runs-stream">
-                          {runs.slice(0, 12).map(r => (
-                            <div key={r.id} className="qmed-stream-item">
-                              <div className="qmed-stream-item__left">
-                                <StatusBadge tone={modeTone(modes[r.mode] ?? r.mode)}>
-                                  {modes[r.mode] ?? r.mode}
-                                </StatusBadge>
-                                <span className="qmed-stream-decision">
-                                  {r.decision === 'NOT_APPLICABLE' ? '不在适用范围' : (actions[r.decision] ?? r.decision)}
-                                </span>
-                              </div>
-                              <div className="qmed-stream-item__right">
-                                <code>处方 {r.prescriptionId}</code>
-                                <small>{new Date(r.time).toLocaleString()}</small>
-                              </div>
-                            </div>
-                          ))}
+                          <Icon name="warning" />
+                          <p>尚未发布。旧的旁路批准标签仅作历史记录，须在此完成审核并启用。</p>
                         </div>
                       )}
-                    </div>
-                  </section>
-
-                  {/* 卡片 5：操作记录 */}
-                  <section className="qmed-card">
-                    <div className="qmed-card__header">
-                      <div className="qmed-card__header-title">
-                        <Icon name="tasks" />
-                        <h4>操作记录</h4>
-                      </div>
-                      {rule.history.length > 0 && <span className="qmed-count-chip">{rule.history.length} 次操作</span>}
-                    </div>
-                    <div className="qmed-card__body">
-                      {!rule.history.length ? (
-                        <div className="qmed-empty-state">
-                          <Icon name="info" />
-                          <p>尚无目录管理操作。</p>
-                        </div>
-                      ) : (
-                        <div className="qmed-history-timeline">
-                          {[...rule.history].reverse().slice(0, 20).map(h => (
-                            <div key={h.id} className="qmed-history-item">
-                              <div className="qmed-history-item__dot" />
-                              <div className="qmed-history-item__content">
-                                <div className="qmed-history-item__head">
-                                  <strong>{operations[h.operation] ?? h.operation}</strong>
-                                  <span className="qmed-ver-chip">
-                                    版本 {rule.versions.find(v => v.id === h.versionId)?.version ?? h.versionId}
+                      {rule.deployments.length > 0 && (
+                        <div className="qmed-deployments-list">
+                          {[...rule.deployments].reverse().map(d => (
+                            <div key={d.id} className="qmed-release-row">
+                              <div className="qmed-release-row__info">
+                                <div className="qmed-release-row__title">
+                                  <span className="qmed-ver-tag">v{d.version}</span>
+                                  <StatusBadge tone={modeTone(runtimeStatus(d))}>{runtimeStatus(d)}</StatusBadge>
+                                  <strong>{actions[d.action] ?? d.action}</strong>
+                                  <span className="qmed-scope-tag">
+                                    机构 {d.organizationId} / {d.departmentId ? `科室 ${d.departmentId}` : '全机构'}
                                   </span>
-                                  <span className="qmed-chip">操作人 {h.actorId}</span>
-                                  <small>{new Date(h.time).toLocaleString()}</small>
                                 </div>
-                                {h.reason && <p className="qmed-history-reason">{h.reason}</p>}
+                                <div className="qmed-release-row__meta">
+                                  <span>有效期限：{new Date(d.effectiveFrom).toLocaleString()} 至 {d.effectiveTo ? new Date(d.effectiveTo).toLocaleString() : '长期有效'}</span>
+                                  {d.reason && <span>· 说明：{d.reason}</span>}
+                                </div>
+                              </div>
+                              <div className="qmed-release-row__actions">
+                                {d.status === 'ACTIVE' && runtimeStatus(d) !== '已结束' && (
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => { const candidate = rule.versions.find(v => v.id === d.versionId)?.knowledgeCandidate; if (candidate) { if (d.mode === 'ENFORCED') setPublicationCandidate(candidate); else setDeploymentCandidate(candidate); } else setAction({ operation: 'PAUSE', versionId: d.versionId, deployment: d }) }}
+                                  >
+                                    暂停
+                                  </Button>
+                                )}
+                                {rule.origin !== 'KNOWLEDGE' && ['已结束', '已替换', '已暂停'].includes(runtimeStatus(d)) && (
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setAction({ operation: 'ROLLBACK', versionId: d.versionId, deployment: d, mode: d.mode })}
+                                  >
+                                    回滚至 v{d.version}
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -795,7 +806,8 @@ export function MedicationRuleCatalog({
                       )}
                     </div>
                   </section>
-                </div>
+                )}
+
               </>
             ) : (
               <div className="qmed-empty-state">

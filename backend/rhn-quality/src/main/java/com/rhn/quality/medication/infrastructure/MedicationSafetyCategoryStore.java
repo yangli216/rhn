@@ -264,6 +264,11 @@ public class MedicationSafetyCategoryStore {
                 tenantId, categoryId, memberId);
     }
 
+    public int clearMembers(Long tenantId, Long categoryId) {
+        return jdbc.update("delete from RHN_AUD_MED_SAFETY_CAT_MBR where ID_TNT = ? and ID_SAFETY_CAT = ?",
+                tenantId, categoryId);
+    }
+
     public List<MemberItem> findMedicationsByGenericNames(Long tenantId, List<String> names, boolean systemicOnly) {
         if (names == null || names.isEmpty()) return List.of();
         StringBuilder sql = new StringBuilder("""

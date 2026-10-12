@@ -66,7 +66,8 @@ public final class BillingViews {
             String settlementNo, String settlementType, String settlementScene, String terminalScene,
             String status, BigDecimal grossAmount, BigDecimal discountAmount, BigDecimal insuranceAmount,
             BigDecimal patientAmount, BigDecimal otherAmount, BigDecimal roundingAmount, BigDecimal netAmount,
-            String currencyCode, String terminalCode, Instant createdAt, Instant finalizedAt) {}
+            String currencyCode, String terminalCode, Instant createdAt, Instant finalizedAt,
+            Long finalizedBy, String cashierName, String cashierUsername) {}
 
     public record PaymentView(
             Long id, Long patientAccountId, Long invoiceId, Long paymentOrderId, String paymentNo, String paymentType,

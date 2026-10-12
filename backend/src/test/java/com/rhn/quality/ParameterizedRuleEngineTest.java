@@ -52,11 +52,18 @@ class ParameterizedRuleEngineTest {
         }
     }
 
-    private final InMemoryCategoryMembership membership = new InMemoryCategoryMembership(Map.of(
-            "RAS_ACEI", Set.of("卡托普利片", "依那普利胶囊"),
-            "RAS_ARB", Set.of("氯沙坦钾片", "厄贝沙坦片"),
-            "SYSTEMIC_NSAID", Set.of("布洛芬缓释胶囊", "双氯芬酸钠肠溶片", "塞来昔布胶囊"),
-            "QUINOLONE_PEDIATRIC", Set.of("左氧氟沙星片", "环丙沙星注射液")
+    private final InMemoryCategoryMembership membership = new InMemoryCategoryMembership(Map.ofEntries(
+            Map.entry("RAS_ACEI", Set.of("卡托普利片", "依那普利胶囊")),
+            Map.entry("RAS_ARB", Set.of("氯沙坦钾片", "厄贝沙坦片")),
+            Map.entry("SYSTEMIC_NSAID", Set.of("布洛芬缓释胶囊", "双氯芬酸钠肠溶片", "塞来昔布胶囊")),
+            Map.entry("QUINOLONE_PEDIATRIC", Set.of("左氧氟沙星片", "环丙沙星注射液")),
+            Map.entry("PPI_DUPLICATE_THERAPY", Set.of("奥美拉唑肠溶胶囊", "雷贝拉唑钠肠溶片")),
+            Map.entry("RASI_DUPLICATE_THERAPY", Set.of("卡托普利片", "缬沙坦胶囊")),
+            Map.entry("TETRACYCLINE_PEDIATRIC_CONTRA", Set.of("盐酸多西环素片", "盐酸米诺环素胶囊")),
+            Map.entry("AMINOGLYCOSIDE_PEDIATRIC_CONTRA", Set.of("硫酸庆大霉素注射液", "硫酸阿米卡星注射液")),
+            Map.entry("MACROLIDE_STATIN_INTERACTION", Set.of("克拉霉素片", "阿奇霉素分散片")),
+            Map.entry("STATIN_LIPID_LOWERING", Set.of("辛伐他汀片", "阿托伐他汀钙片")),
+            Map.entry("PREGNANCY_CONTRA_CATEGORY_X", Set.of("利巴韦林颗粒", "甲氨蝶呤片", "阿托伐他汀钙片"))
     ));
 
     @BeforeEach
@@ -105,8 +112,12 @@ class ParameterizedRuleEngineTest {
     }
 
     private PrescriptionSafetySnapshot createSnapshot(Integer patientAge, List<PrescriptionSafetySnapshot.MedicationItem> items) {
-        var context = patientAge != null
-                ? new PatientSafetyContext(true, true, null, List.of(), patientAge, "MALE")
+        return createSnapshot(patientAge, "MALE", items);
+    }
+
+    private PrescriptionSafetySnapshot createSnapshot(Integer patientAge, String gender, List<PrescriptionSafetySnapshot.MedicationItem> items) {
+        var context = (patientAge != null || gender != null)
+                ? new PatientSafetyContext(true, true, null, List.of(), patientAge, gender)
                 : null;
         return new PrescriptionSafetySnapshot(
                 PrescriptionSafetySnapshot.SCHEMA_VERSION,
@@ -218,5 +229,114 @@ class ParameterizedRuleEngineTest {
                 createItem(301L, "布洛芬缓释胶囊", "ACTIVE")
         ));
         assertTrue(rule.evaluate(snapshotOneNsaid, mockVersion).isEmpty());
+    }
+
+    @Test
+    void clinical_parameterized_rules_factory_correctly_evaluates_new_categories() {
+        // 1. PPI 类重复用药核查
+        var ppiRule = com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.ppiDuplicate(json, membership);
+        var twoPpis = createSnapshot(50, List.of(
+                createItem(401L, "奥美拉唑肠溶胶囊", "ACTIVE"),
+                createItem(402L, "雷贝拉唑钠肠溶片", "ACTIVE")
+        ));
+        var ppiFindings = ppiRule.evaluate(twoPpis, mockVersion);
+        assertEquals(1, ppiFindings.size());
+        assertTrue(ppiFindings.getFirst().message().contains("质子泵抑制剂（PPI）"));
+        assertEquals(List.of(401L, 402L), ppiFindings.getFirst().medicationRequestIds());
+
+        // 2. RASI 类重复用药核查（普利 + 沙坦）
+        var rasiRule = com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.rasiDuplicate(json, membership);
+        var twoRasis = createSnapshot(60, List.of(
+                createItem(501L, "卡托普利片", "ACTIVE"),
+                createItem(502L, "缬沙坦胶囊", "ACTIVE")
+        ));
+        var rasiFindings = rasiRule.evaluate(twoRasis, mockVersion);
+        assertEquals(1, rasiFindings.size());
+        assertTrue(rasiFindings.getFirst().message().contains("普利类/沙坦类降压药"));
+
+        // 3. 7岁儿童开立四环素类（多西环素） -> 命中
+        var tetraRule = com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.tetracyclinePediatric(json, membership);
+        var tetraChild = createSnapshot(7, List.of(
+                createItem(601L, "盐酸多西环素片", "ACTIVE")
+        ));
+        var tetraFindings = tetraRule.evaluate(tetraChild, mockVersion);
+        assertEquals(1, tetraFindings.size());
+        assertTrue(tetraFindings.getFirst().message().contains("7岁"));
+        assertTrue(tetraFindings.getFirst().message().contains("四环素类抗生素"));
+
+        // 4. 5岁儿童开立氨基糖苷类（庆大霉素） -> 命中
+        var aminoRule = com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.aminoglycosidePediatric(json, membership);
+        var aminoBaby = createSnapshot(5, List.of(
+                createItem(701L, "硫酸庆大霉素注射液", "ACTIVE")
+        ));
+        var aminoFindings = aminoRule.evaluate(aminoBaby, mockVersion);
+        assertEquals(1, aminoFindings.size());
+        assertTrue(aminoFindings.getFirst().message().contains("5岁"));
+        assertTrue(aminoFindings.getFirst().message().contains("氨基糖苷类抗生素"));
+
+        // 5. 大环内酯类抗菌药与他汀类相互作用核查（克拉霉素 + 辛伐他汀） -> 命中
+        var macrolideStatinRule = com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.macrolideStatinConflict(json, membership);
+        var conflictPrescription = createSnapshot(45, List.of(
+                createItem(801L, "克拉霉素片", "ACTIVE"),
+                createItem(802L, "辛伐他汀片", "ACTIVE")
+        ));
+        var conflictFindings = macrolideStatinRule.evaluate(conflictPrescription, mockVersion);
+        assertEquals(1, conflictFindings.size());
+        assertTrue(conflictFindings.getFirst().message().contains("相互作用风险"));
+        assertTrue(conflictFindings.getFirst().message().contains("横纹肌溶解"));
+        assertEquals(List.of(801L, 802L), conflictFindings.getFirst().medicationRequestIds());
+
+        // 6. 克拉霉素 + 非他汀类药物（如布洛芬） -> 放行（不再因致畸分类误报）
+        var nonConflictPrescription = createSnapshot(45, List.of(
+                createItem(801L, "克拉霉素片", "ACTIVE"),
+                createItem(803L, "布洛芬缓释胶囊", "ACTIVE")
+        ));
+        assertTrue(macrolideStatinRule.evaluate(nonConflictPrescription, mockVersion).isEmpty());
+
+        // 7. 育龄期女性开立妊娠期高危致畸药物（利巴韦林、阿托伐他汀） -> 命中
+        var pregRule = com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.pregnancyContraindication(json, membership);
+        var pregWomanSnapshot = createSnapshot(28, "FEMALE", List.of(
+                createItem(901L, "利巴韦林颗粒", "ACTIVE")
+        ));
+        var pregFindings = pregRule.evaluate(pregWomanSnapshot, mockVersion);
+        assertEquals(1, pregFindings.size());
+        assertTrue(pregFindings.getFirst().message().contains("育龄期女性"));
+        assertTrue(pregFindings.getFirst().message().contains("利巴韦林颗粒"));
+        assertEquals(List.of(901L), pregFindings.getFirst().medicationRequestIds());
+
+        // 8. 育龄期女性（中文'女'）开立他汀 -> 命中
+        var pregWomanCn = createSnapshot(32, "女", List.of(
+                createItem(902L, "阿托伐他汀钙片", "ACTIVE")
+        ));
+        var statinFindings = pregRule.evaluate(pregWomanCn, mockVersion);
+        assertEquals(1, statinFindings.size());
+        assertTrue(statinFindings.getFirst().message().contains("阿托伐他汀钙片"));
+
+        // 9. 男性开立利巴韦林 / 他汀 -> 放行（不触发妊娠禁忌）
+        var maleSnapshot = createSnapshot(28, "MALE", List.of(
+                createItem(901L, "利巴韦林颗粒", "ACTIVE"),
+                createItem(902L, "阿托伐他汀钙片", "ACTIVE")
+        ));
+        assertTrue(pregRule.evaluate(maleSnapshot, mockVersion).isEmpty());
+
+        // 10. 65岁绝经期老年女性开立他汀 -> 放行（超出育龄期）
+        var elderlyWomanSnapshot = createSnapshot(65, "FEMALE", List.of(
+                createItem(902L, "阿托伐他汀钙片", "ACTIVE")
+        ));
+        assertTrue(pregRule.evaluate(elderlyWomanSnapshot, mockVersion).isEmpty());
+
+        // 11. 8岁女童开立利巴韦林 -> 放行（未进入育龄期）
+        var youngGirlSnapshot = createSnapshot(8, "FEMALE", List.of(
+                createItem(901L, "利巴韦林颗粒", "ACTIVE")
+        ));
+        assertTrue(pregRule.evaluate(youngGirlSnapshot, mockVersion).isEmpty());
+
+        // 12. 女性患者但年龄未知（null）开立致畸高危药 -> 防御性命中
+        var unknownAgeWoman = createSnapshot(null, "FEMALE", List.of(
+                createItem(901L, "利巴韦林颗粒", "ACTIVE")
+        ));
+        var unknownAgeFindings = pregRule.evaluate(unknownAgeWoman, mockVersion);
+        assertEquals(1, unknownAgeFindings.size());
+        assertTrue(unknownAgeFindings.getFirst().message().contains("利巴韦林颗粒"));
     }
 }
