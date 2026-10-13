@@ -138,6 +138,14 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             推荐方案时必须核对 availablePlans 中的 diagnoses、medications 和 services；不得只依据方案名称猜测。
             不得改变方案条目或声称已执行库存、禁忌、相互作用、执行科室、标本或部位校验。
             diagnosisCandidates 最多 3 项，differentialDiagnoses 最多 5 项；编码必须使用 ICD-10。
+            诊断数量是上限，不是目标。每条 diagnosisCandidates 必须有独立的本次患者事实依据；不能仅因编码存在、病种相关或拟开某项检查而加入诊断。
+            保留已明确的疾病分型；已确诊疾病能够解释的表现不重复列为独立症状或异常结果诊断。没有明确测量值、报告结论或医生已确认的异常事实，不得生成对应的检查异常诊断。
+            例如：已明确2型糖尿病，只有空腹心悸、出汗而无血糖升高证据时，不能追加“未特指的血糖过多 [R73.9]”；应将血糖异常方向及症状时血糖值列为待核对信息。
+            疑似低血糖等未证实原因只进入 differentialDiagnoses 或 safetyAlerts，不能仅凭症状改成已确诊疾病，也不能把已有糖尿病擅自改为伴并发症分型。
+            慢病复诊的检查须区分当前症状评估、长期控制复查、用药安全监测和分型/功能评估。近期结果、复查时点或特定适应证不明时，提示核对，不默认把所有项目都列入本次执行建议。
+            胰岛素释放试验、C肽刺激试验等动态功能试验需要明确的分型、胰岛功能或专科评估目的，不作为已明确2型糖尿病常规复诊的默认套餐。
+            检验意图使用规范项目名称，例如普通血糖化验写“葡萄糖测定”；如需空腹、餐后或症状时采样，在 rationale 说明本次采样目的，不把不同采样时点当成已完成事实。
+            “肝肾功能”等检查组不能替代明确项目：依据本次目的分别提出所需的具体指标，不无依据地拆成全套；未明确组合内容时仅提示医生核对。心电图必须区分普通、动态或运动试验，不将不同方案作为同义词。
             safetyAlerts 仅表达需要医生核对的风险，不得声称已经完成处置。
             diagnosticReports 是当前就诊或近14天关联历史就诊的真实检查检验报告。解读时必须区分初步、正式和更正报告，
             数值异常优先依据 interpretation、参考范围和原始值，不得把缺失范围推断成正常或异常。
@@ -146,6 +154,13 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             信息不足写入 missingInformation，不得用常识补成患者事实。
             当用户要求梳理鉴别依据时，仅在 differentialDiagnoses.rationale 中简要列出当前事实支持点、反对点和仍需确认项。
             priorSuggestion 是同一就诊上一轮已校验输出，当前输入与检查报告始终优先。
+            【本次患者事实与推荐决策顺序】：
+            先综合医生本次录入的 question、voiceTranscript、draft 中已确认的事实与 patient、allergies、diagnosticReports、clinicalHistory，再分别组织病历、诊断和医嘱搜索意图，不能仅按接诊场景标签或疾病名称套用通用套餐。
+            患者年龄和性别来自 patient；本次主诉、病程、症状关系、既往病史、正在用药及明确过敏信息必须保留。病历用规范医学术语和连贯中文组织已知事实；主诉提炼本次主要问题及已知持续时间，未提供时间不能编造。
+            本次明确事实优先于历史资料和上一轮 AI 建议；同一指标或用药在时间、单位或来源上冲突时，在 missingInformation 或 safetyAlerts 提示核对，不猜测数值、换算单位或隐去矛盾。历史诊断、历史处方及历史检查不自动成为本次确诊、正在用药或本次已完成检查。
+            每项诊断及医嘱先核对与本次症状时间线、诱发/缓解因素、已有诊断和检查结果是否相符；医嘱 rationale 说明要解决的具体问题及本次必要性，不把病种常见项目当成患者必需项目。
+            药品和检查建议必须结合年龄、性别、明确过敏、已知用药及已有肝肾功能等事实；已知禁忌或明确冲突的方向不推荐。关键安全信息缺失时写入待核对信息，不能将未知过敏、妊娠状态或肝肾功能当作正常，也不能声称已完成相互作用或禁忌核查。
+            当前输入明确正在使用的药品不重复列为新增用药；复诊续方、调整或停药需要医生核对当前适应证、既往用法及本次安全依据，不由模型自由生成新剂量或自动沿用历史处方。
             clinicalHistory 是近 90 天最多 10 次已完成历史就诊，可作为既往史与用药参考引用。
             每次历史就诊的 coverage 分别记录 diagnoses、medications、services 的 total、included、omitted。
             omitted 大于 0 表示上下文省略了真实记录，不得据此断言无其他诊断、用药或服务；需要完整明细时提示人工核对。
@@ -182,7 +197,8 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                已知当前危险征象写入 safetyAlerts，提示医生在本次就诊及时评估；离院后新出现或加重的危险征象可提示及时急诊就医，不能因此省略当前风险。
                转诊/专科会诊仅在已有资料支持且需进一步专科评估时条件性提出，不假设本次机构或科室无法处置。没有明确计划依据时不编造固定复诊日期，不输出“待评估病情后确定随访计划”。
                宣教和随访是建议，不是既成事实。检查、药品方向写入 treatmentRecommendations 供后续目录匹配，不在病历生成 treatmentPlan；不得编造具体剂量和疗程；历史处方仅供参考，续方须核对当前适应证、禁忌及用法。
-            diagnosisCandidates 为待医生确认的初步诊断，依据不足可推荐症状诊断或留空；缺失依据写入 missingInformation，diagnosisCandidates.rationale 留空。
+            diagnosisCandidates 为待医生确认的初步诊断，依据不足可推荐有已知事实支持的症状诊断或留空；缺失依据写入 missingInformation。
+            diagnosisCandidates.rationale 用一句简短中文（建议60字以内）说明支持该条诊断的已知患者事实及尚待确认的边界；不能编造结果、用通用病种介绍替代依据，或以 ICD-10 目录匹配证明诊断成立。
             【场景感知】：receptionScene 是接诊辅助场景，receptionSceneContext 是医生选定的关注范围，均不是确诊事实。
             FIRST_VISIT：侧重新发症状的时间线、补问要点、鉴别诊断支持/反对依据及有目的的检查建议。
             CHRONIC_REFILL：选定病种仅为归组，具体疾病名称与糖尿病分型必须保留原始诊断，不可擅自改型。依据已有确诊病史及选定病种拟写“xx病复诊配药”，组织控制情况、用药依从性和配药目的。
@@ -196,7 +212,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             recordDraft 不得输出 treatmentPlan 或自由文本诊断；诊断和诊疗计划通过结构化诊断候选与方案提供。书写字段依据已提供事实和已有书写预设整理；保留常见查体与默认阴性预设及其来源，不能把预设编造成本次明确口述或已检查结果。
             recordDraft 另包含 annotations 数组，正文保持正常可读文本。仅标记需要关注的变量、重点预设和明确口述事实；每项为 field、text（正文中的精确片段）、source（VOICE/CONTEXT/AI）、kind（VARIABLE/IMPORTANT/FACT/CONFLICT）、binding（对应语义，如 symptom.cough.duration）、label、sourceQuote、reason。VOICE 必须引用本次提问或语音原话，CONTEXT 必须引用当前草稿原文；没有对应原文时用 AI，不能声称医生已确认。口述事实与模板预设冲突时以明确口述为依据，不能全局替换相同数字；保留各自语义绑定。未标记片段仍是完整草稿的一部分，标记不构成保存门槛。不要在正文输出 HTML 或标记代码。
             recordDraft{chiefComplaint,presentIllness,medicalHistory,physicalExam,allergyHistory,medicationHistory,auxiliaryExaminations,healthEducation,followUp,temperature,pulseRate,respiratoryRate,systolic,diastolic,oxygenSaturation,heightCm,weightKg}；summary；
-            diagnosisCandidates[{code,display,type,confidence}]；
+            diagnosisCandidates[{code,display,type,confidence,rationale}]；
             differentialDiagnoses[{code,display,type,confidence,rationale}]；missingInformation[string]；
             safetyAlerts[{level,title,detail}]；recommendedPlans[{templateId,name,description,rationale}]；
             treatmentRecommendations：RECORD_DIAGNOSIS 使用 [{type,name,specification,rationale}]，CATALOG_TREATMENT 使用 [{type,catalogItemId}]；disclaimer。

@@ -49,7 +49,7 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
   editing, canEdit, completionMode, enteringEdit, onRequestEditing,
   onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters, aiSurfaceRefs, aiFieldStream,
   aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange, currentDepartmentName, planTemplateDrawerHost, recommendedPlanId,
-  onClosePlanDrawer,
+  onClosePlanDrawer, onCaptureTreatmentBatchDiscard,
   onOpenPrintCenter }: {
   encounter: Encounter; birthDate?: string; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
   completionMode: OutpatientCompletionMode | undefined
@@ -74,6 +74,7 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
   recommendedPlanId?: string
   planTemplateDrawerHost?: HTMLDivElement | null
   onClosePlanDrawer?: () => void
+  onCaptureTreatmentBatchDiscard?: () => (() => void) | undefined
   onOpenPrintCenter?: () => void
 }) {
   const queryClient = useQueryClient()
@@ -145,7 +146,9 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
       const formErrors = validateStructuredForm(selectedNoteForm, structuredValues)
       setStructuredErrors(formErrors)
       if (Object.keys(formErrors).length) throw new Error(Object.values(formErrors)[0])
-      return draftSaver.current.save(api, {
+      const discardTreatmentBatch = medicationDrafts.length || serviceDrafts.length
+        ? onCaptureTreatmentBatchDiscard?.() : undefined
+      const saved = await draftSaver.current.save(api, {
         encounterId: encounter.id,
         residentId: encounter.residentId,
         organizationId: encounter.organizationId,
@@ -155,10 +158,12 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
         medicationDrafts,
         serviceDrafts,
       }, session.assertUnchanged)
+      return { ...saved, discardTreatmentBatch }
     },
-    onSuccess: async ({ encounter: savedEncounter, document: savedDocument, documents: savedDocuments, confirmApplied }, { form, session }) => {
+    onSuccess: async ({ encounter: savedEncounter, document: savedDocument, documents: savedDocuments, confirmApplied, discardTreatmentBatch }, { form, session }) => {
       session.assertUnchanged()
       confirmApplied()
+      discardTreatmentBatch?.()
       setCopyNotice('')
       setMedicationDrafts([])
       setServiceDrafts([])
@@ -484,7 +489,7 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
             }}
           />
         </>} />
-      {document?.status === 'AMENDMENT_IN_PROGRESS' && canEdit && !editing && <Alert tone="warning">
+      {document?.status === 'AMENDMENT_IN_PROGRESS' && canEdit && !editing && <Alert placement="inline" tone="warning">
         更正草稿尚未签署。<Button size="sm" busy={sign.isPending} onClick={() => sign.mutate()}>重新签署更正版</Button>
       </Alert>}
       {error && <Alert>{errorMessage(error)}</Alert>}
@@ -645,7 +650,7 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
         }
       >
         <div className="doctor-print-compliance-notice">
-          <Alert tone="info">
+          <Alert placement="inline" tone="info">
             当前病历版本为<strong>草稿 V{document.currentVersion}</strong>。受控打印平台要求文书已签署且具备防篡改签名凭证。
             {canEdit && editing && (formState.isDirty || structuredChanged || diagnosesChanged
               ? ' 当前存在未保存的修改，请先保存全部草稿后再执行签署。'

@@ -154,10 +154,10 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
         var catalog = json(mockMvc.perform(get("/api/quality/medication-rule-catalog").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         var entry = java.util.stream.StreamSupport.stream(catalog.path("rules").spliterator(), false)
-                .filter(value -> value.path("key").asText().startsWith("CANDIDATE:"))
+                .filter(value -> value.path("key").asString().startsWith("CANDIDATE:"))
                 .filter(value -> value.path("versions").toString().contains(candidateId))
                 .findFirst().orElseThrow();
-        var key = entry.path("key").asText();
+        var key = entry.path("key").asString();
         var revision = entry.path("revision").asLong();
         var submit = """
                 {"expectedRevision":%d,"operation":"SUBMIT","versionId":"%s","reason":"提交药师审核"}
@@ -165,7 +165,7 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
         var inReview = json(mockMvc.perform(post("/api/quality/medication-rule-catalog/{key}/commands", key)
                 .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(submit))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertEquals("IN_REVIEW", inReview.path("versions").findValue("reviewStatus").asText());
+        assertEquals("IN_REVIEW", inReview.path("versions").findValue("reviewStatus").asString());
 
         var approve = """
                 {"expectedRevision":%d,"operation":"APPROVE","versionId":"%s","reason":"完成证据审核",
@@ -177,7 +177,7 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
         var approved = json(mockMvc.perform(post("/api/quality/medication-rule-catalog/{key}/commands", key)
                 .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(approve))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertEquals("APPROVED", approved.path("versions").findValue("reviewStatus").asText());
+        assertEquals("APPROVED", approved.path("versions").findValue("reviewStatus").asString());
 
         var deploy = """
                 {"expectedRevision":%d,"operation":"DEPLOY","versionId":"%s","reason":"启用旁路观察",

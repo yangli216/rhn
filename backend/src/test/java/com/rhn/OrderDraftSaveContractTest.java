@@ -25,5 +25,9 @@ class OrderDraftSaveContractTest extends RhnIntegrationTestSupport {
         assertTrue(response.path("properties").has("encounterId"));
         assertTrue(response.path("properties").has("prescriptions"));
         assertTrue(response.path("properties").has("services"));
+        var medication = doc.path("components").path("schemas").path("MedicationRequestResponse").path("properties");
+        assertTrue(medication.has("stockSiteId"));
+        assertTrue(medication.has("stockSiteName"));
+        assertTrue(medication.has("stockSiteSource"));
     }
 }

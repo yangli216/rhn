@@ -60,6 +60,7 @@ export function OrderDocumentReviewCard({
   onChangeInfo,
   encounter,
   readOnly = false,
+  defaultExpanded = false,
 }: {
   cardKey: string
   title: string
@@ -71,6 +72,7 @@ export function OrderDocumentReviewCard({
   onChangeInfo: (next: OrderDocumentInfo) => void
   encounter: Encounter
   readOnly?: boolean
+  defaultExpanded?: boolean
 }) {
   const isPrescription = ['western', 'patent', 'herbal'].includes(kind)
   const isService = !isPrescription
@@ -78,7 +80,7 @@ export function OrderDocumentReviewCard({
   const missing = checkDocumentInfoMissing(info, isService ? 'service' : 'prescription')
   const baseId = useId()
   const inList = useContext(ReviewListContext)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(defaultExpanded)
 
   const availableDiagnoses = encounter.diagnoses ?? []
   const hasDiagnoses = availableDiagnoses.length > 0

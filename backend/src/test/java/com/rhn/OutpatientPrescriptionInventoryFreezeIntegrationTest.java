@@ -229,12 +229,24 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                 .andReturn().getResponse().getContentAsString());
 
         // 5. Submit prescription -> triggers inventory freeze (order reservation)
+        String pharmacyId = medicationRequest.path("stockSiteId").asString();
+        org.junit.jupiter.api.Assertions.assertFalse(pharmacyId.isBlank());
+        assertEquals("ROUTING", medicationRequest.path("stockSiteSource").asString());
         mockMvc.perform(post("/api/encounters/{encounterId}/prescriptions/{id}/submit", encounterId, prescriptionId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":0,"reason":"医生提交开立"}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ACTIVE"));
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.medicationRequests[0].stockSiteId").value(pharmacyId))
+                .andExpect(jsonPath("$.medicationRequests[0].stockSiteSource").value("RESERVATION"));
+
+        // Opened orders retain the reserved destination even after routing is removed.
+        jdbcTemplate.update("delete from RHN_SUP_DISP_ROUTE where ID_TNT=? and ID_ORG=?",Long.valueOf(TENANT),Long.valueOf(ORGANIZATION));
+        mockMvc.perform(get("/api/encounters/{id}/medication-requests",encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].stockSiteId").value(pharmacyId))
+                .andExpect(jsonPath("$[0].stockSiteName").isNotEmpty())
+                .andExpect(jsonPath("$[0].stockSiteSource").value("RESERVATION"));
 
         // Verify active freeze in database
         int activeFreezes = jdbcTemplate.queryForObject(

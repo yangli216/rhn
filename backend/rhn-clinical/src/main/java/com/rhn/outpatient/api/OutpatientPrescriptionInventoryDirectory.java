@@ -41,6 +41,13 @@ public interface OutpatientPrescriptionInventoryDirectory {
 
     record DispensingPharmacy(Long id, String name) {}
 
+    /** Read-only draft display; a missing/invalid route stays unknown without aborting the read transaction. */
+    java.util.Optional<DispensingPharmacy> findDispensingPharmacy(Long tenantId, Long organizationId, Long departmentId,
+                                                                String medicationType, java.time.LocalDate businessDate);
+
+    /** Saved reservation destinations, including released historical reservations. Never re-routes an opened order. */
+    java.util.Map<Long, DispensingPharmacy> savedDispensingPharmacies(Long tenantId, java.util.Set<Long> requestIds);
+
     /**
      * 门诊处方提交时，针对路由药房执行库存预留冻结。
      */

@@ -61,7 +61,9 @@ export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isT
         {resolveExecutingDepartment({
           kind: 'medication',
           type: value.medicationType,
-          stockSiteName: (value as any).stockSiteName,
+          stockSiteName: value.stockSiteName,
+          stockSiteSource: value.stockSiteSource,
+          selfProvided: value.selfProvided,
         }, currentDept)}
       </span>
     </span>

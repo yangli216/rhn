@@ -47,7 +47,7 @@ class PrescriptionSafetySnapshotServiceTest {
         var cancelled = request(11L, MedicationRequestStatus.CANCELLED);
         when(active.medicationSnapshot()).thenReturn("{\"clinicalSemantics\":{\"schemaVersion\":\"qmed-medication-semantics-v1\","
                 + "\"status\":\"VERSIONED_PARTIAL\",\"medicationSemanticVersion\":\"" + "a".repeat(64) + "\"}}");
-        when(medications.findByTenantIdAndRequestGroupIdOrderByAuthoredAt(1L, prescription.id()))
+        when(medications.findSafetyContext(1L, 3L, prescription.id()))
                 .thenReturn(List.of(active, cancelled));
         var snapshot = snapshots.requireSnapshot(3L, prescription.id());
         assertEquals(List.of(11L, 12L), snapshot.medications().stream()

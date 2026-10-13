@@ -27,6 +27,7 @@ export interface ExecutingDepartmentSource {
   kind: 'medication' | 'service'
   type?: string
   stockSiteName?: string | null
+  stockSiteSource?: 'RESERVATION' | 'ROUTING' | null
   selfProvided?: boolean
   itemName?: string
   performerDepartmentId?: string
@@ -38,7 +39,12 @@ export function resolveExecutingDepartment(
   _currentDepartmentName?: string
 ): string {
   // 当前就诊科室、项目类型与名称都不是执行去向的证据。
-  if (item.kind === 'medication') return item.selfProvided ? '患者自备，无需药房发药' : item.stockSiteName?.trim() || '发药药房待确认'
+  if (item.kind === 'medication') {
+    if (item.selfProvided) return '患者自备，无需药房发药'
+    const name = item.stockSiteName?.trim()
+    if (!name) return '发药药房待确认'
+    return item.stockSiteSource === 'ROUTING' ? `${name}（当前路由）` : name
+  }
   const name = item.performerDepartmentName?.trim()
   if (name) return name
   const id = item.performerDepartmentId?.trim()

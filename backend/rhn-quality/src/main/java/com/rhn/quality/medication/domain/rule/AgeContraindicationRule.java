@@ -94,8 +94,8 @@ public final class AgeContraindicationRule implements MedicationSafetyRule {
                 throw new MissingSafetyDataException();
             }
 
-            String name = med.path("name").asText(med.path("medicationName").asText(""));
-            String doseForm = med.path("doseForm").asText("");
+            String name = med.path("name").asString(med.path("medicationName").asString(""));
+            String doseForm = med.path("doseForm").asString("");
             Long medId = med.hasNonNull("id") ? med.path("id").asLong() : null;
 
             // 1. 18岁以下禁用全身性氟喹诺酮类

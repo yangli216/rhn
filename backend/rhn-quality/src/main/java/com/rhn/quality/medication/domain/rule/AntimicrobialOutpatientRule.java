@@ -41,7 +41,7 @@ public final class AntimicrobialOutpatientRule implements MedicationSafetyRule {
             if (!med.path("antimicrobial").asBoolean(false)) {
                 continue;
             }
-            String name = med.path("name").asText(med.path("medicationName").asText("抗菌药物"));
+            String name = med.path("name").asString(med.path("medicationName").asString("抗菌药物"));
             boolean outpatientAllowed = med.path("antimicrobialOutpatientAllowed").asBoolean(true);
             if (!outpatientAllowed) {
                 findings.add(new MedicationSafetyFinding(GlobalIds.next(), version,

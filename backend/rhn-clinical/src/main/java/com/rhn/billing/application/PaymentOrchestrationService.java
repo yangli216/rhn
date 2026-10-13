@@ -9,7 +9,6 @@ import com.rhn.billing.api.PaymentChannelAdapter.RefundResult;
 import com.rhn.billing.api.PaymentChannelAdapter.QueryInstruction;
 import com.rhn.billing.api.PaymentChannelAdapter.QueryResult;
 import com.rhn.billing.api.PaymentResultDirectory;
-import com.rhn.billing.api.PaymentResultDirectory.PaymentOrderView;
 import com.rhn.billing.domain.PaymentOrder;
 import com.rhn.billing.domain.Payment;
 import com.rhn.platform.integration.api.ExternalMessageService;
@@ -398,7 +397,6 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
         return List.of("SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED", "REFUNDED").contains(status);
     }
     private String endpoint(String method) { return "PAYMENT_" + method; }
-    private String normalize(String value) { return value == null ? null : value.trim().toUpperCase(); }
     private String message(RuntimeException exception) {
         String value = exception.getMessage(); return value == null || value.isBlank() ? "支付通道状态暂时未知" : value;
     }

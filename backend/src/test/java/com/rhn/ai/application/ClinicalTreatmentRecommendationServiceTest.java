@@ -77,6 +77,75 @@ class ClinicalTreatmentRecommendationServiceTest {
         assertEquals("LABORATORY", result.getFirst().candidates().getFirst().type());
         verifyNoInteractions(inventory);
     }
+    @Test void bloodGlucoseFindsActualGlucoseTestWithoutUsingUrineOrToleranceTests() {
+        var glucose = lab(601, "葡萄糖测定", "葡萄糖测定");
+        var urine = lab(602, "尿葡萄糖测定", "血糖");
+        var tolerance = lab(603, "葡萄糖耐量试验", "血糖");
+        when(services.searchOrderableServices(eq("血糖"), eq("LABORATORY"), eq(3L), any()))
+                .thenReturn(List.of(urine, tolerance, glucose));
+        var result = service.recommend(List.of(intent("LABORATORY", "血糖")), request, null);
+        assertEquals(List.of(601L), result.items().stream().map(TreatmentRecommendation::catalogItemId).toList());
+        assertEquals("葡萄糖测定", result.items().getFirst().name());
+        assertTrue(result.matches().isEmpty());
+    }
+    @Test void duplicateGlucoseCatalogItemsRequireChoiceAndMissingItemsAreNotInvented() {
+        var first = lab(601, "葡萄糖测定", "葡萄糖测定");
+        var second = lab(604, "葡萄糖测定", "葡萄糖测定");
+        when(services.searchOrderableServices(eq("葡萄糖测定"), eq("LABORATORY"), eq(3L), any()))
+                .thenReturn(List.of(first, second));
+        var result = service.recommend(List.of(intent("LABORATORY", "血糖")), request, null);
+        assertTrue(result.items().isEmpty());
+        assertEquals("AMBIGUOUS", result.matches().getFirst().status());
+        assertEquals(2, result.matches().getFirst().candidates().size());
+        when(services.searchOrderableServices(eq("葡萄糖测定"), eq("LABORATORY"), eq(3L), any()))
+                .thenReturn(List.of());
+        var absent = service.recommend(List.of(intent("LABORATORY", "血糖")), request, null);
+        assertTrue(absent.items().isEmpty());
+        assertEquals("NO_ORDERABLE_SERVICE", absent.matches().getFirst().status());
+        assertTrue(absent.matches().getFirst().decisionReview().detail().contains("核对院内项目配置"));
+    }
+    @Test void insulinReleaseTrialCannotAutomaticallyBecomeASingleSerumInsulinMeasurement() {
+        lab(611, "血清胰岛素测定", "血清胰岛素测定");
+        var result = service.recommend(List.of(intent("LABORATORY", "胰岛素释放试验")), request, null);
+        assertTrue(result.items().isEmpty());
+        assertEquals("AMBIGUOUS", result.matches().getFirst().status());
+        assertEquals(611L, result.matches().getFirst().candidates().getFirst().catalogItemId());
+        assertTrue(result.matches().getFirst().reason().contains("标本、检查方法"));
+    }
+    @Test void liverKidneyGroupRecallsRelatedIndicatorsWithoutSelectingAPanelOrUnrelatedTests() {
+        var alt = lab(621, "血清丙氨酸氨基转移酶测定", "血清丙氨酸氨基转移酶");
+        var creatinine = lab(622, "肌酐测定", "肌酐");
+        var clearance = lab(623, "内生肌酐清除率试验", "肌酐");
+        when(services.searchOrderableServices(eq("肌酐"), eq("LABORATORY"), eq(3L), any()))
+                .thenReturn(List.of(creatinine, clearance));
+        var result = service.recommend(List.of(intent("LABORATORY", "肝肾功能")), request, null);
+        assertTrue(result.items().isEmpty());
+        assertEquals("AMBIGUOUS", result.matches().getFirst().status());
+        assertEquals(List.of(alt.id(), creatinine.id()), result.matches().getFirst().candidates().stream()
+                .map(TreatmentRecommendation::catalogItemId).toList());
+        when(services.searchOrderableServices(eq("血清丙氨酸氨基转移酶测定"), eq("LABORATORY"), eq(3L), any()))
+                .thenReturn(List.of(alt));
+        when(services.searchOrderableServices(eq("肌酐测定"), eq("LABORATORY"), eq(3L), any()))
+                .thenReturn(List.of(creatinine));
+        var explicit = resolver.resolve(List.of(intent("LABORATORY", "血清丙氨酸氨基转移酶测定+肌酐测定")), LocalDate.now());
+        assertEquals(2, explicit.size());
+        assertTrue(explicit.stream().allMatch(match -> "MATCHED".equals(match.status())));
+    }
+    @Test void genericEcgRecallsRoutineStudyForReviewWithoutSubstitutingHolterOrExercise() {
+        var routine = mock(MasterDataViews.ServiceView.class);
+        when(routine.id()).thenReturn(631L); when(routine.name()).thenReturn("常规心电图检查");
+        var holter = mock(MasterDataViews.ServiceView.class);
+        when(holter.name()).thenReturn("动态心电图");
+        var exercise = mock(MasterDataViews.ServiceView.class);
+        when(exercise.name()).thenReturn("运动心电图试验");
+        when(services.searchOrderableServices(eq("心电图"), eq("EXAMINATION"), eq(3L), any()))
+                .thenReturn(List.of(holter, routine, exercise));
+        var result = service.recommend(List.of(intent("EXAMINATION", "心电图")), request, null);
+        assertTrue(result.items().isEmpty());
+        assertEquals("AMBIGUOUS", result.matches().getFirst().status());
+        assertEquals(List.of(631L), result.matches().getFirst().candidates().stream()
+                .map(TreatmentRecommendation::catalogItemId).toList());
+    }
     @Test void hsCrpCannotFallbackToOrdinaryCrpEvenIfItIsTheOnlyAvailableItem() {
         lab(201, "C反应蛋白测定", "C反应蛋白");
         var result = resolver.resolve(List.of(intent("LABORATORY", "超敏CRP")), LocalDate.now());

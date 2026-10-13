@@ -3,10 +3,7 @@ package com.rhn.analytics.semantic.baseline;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Stream;
 
 public final class SemanticCaseLoader {
     private static final String RESOURCE_DIR = "semantic-cases";
@@ -52,7 +49,6 @@ public final class SemanticCaseLoader {
         return List.copyOf(allCases);
     }
 
-    @SuppressWarnings("unchecked")
     private static SemanticCase parseCase(Map<?, ?> raw) {
         String id = Objects.toString(raw.get("id"), null);
         String category = Objects.toString(raw.get("category"), null);

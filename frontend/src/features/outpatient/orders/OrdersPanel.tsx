@@ -3,7 +3,7 @@ import { useSavedOrderDepartmentNames } from "./useOrderExecutionDepartments";
 import { ClinicalRecordValidationError } from "../record/clinicalRecordDraft";
 import { usePrescriptionSplitPreview } from "./usePrescriptionSplitPreview";
 import { matchSplitPreviewDraft, draftToBatchItem } from "./persistOrderDrafts";
-import { OrderDocumentSummary, orderDocuments } from "../OrderDocuments";
+import { orderDocuments } from "../OrderDocuments";
 import { canPrintPrescription } from "./dispensableOptions";
 import { buildDefaultDocumentInfo, getPrimaryDiagnosis } from "./orderDocumentDefaults";
 import { OrderDocumentReviewCard, OrderDocumentReviewList } from "./OrderDocumentReviewCard";
@@ -332,11 +332,6 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
         </>}
       </div>} />
     {error && <Alert className="doctor-order-error">{errorMessage(error)}</Alert>}
-    <OrderDocumentSummary
-      documents={documents}
-      selectedKey={documentKey}
-      onSelect={openDocument}
-    />
     <div className="doctor-orders-content">
       {prescriptions.isPending || services.isPending || medications.isPending ? <LoadingState />
         : <UnifiedOrderListEditor aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
@@ -583,6 +578,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
                   key={cardKey}
                   cardKey={cardKey}
                   title={prescriptionReviewTitle(rx.categoryCode, categoryIndex)}
+                  defaultExpanded={documentKey === cardKey}
                   kind={kind}
                   deptOrSite={resolveExecutingDepartment({ kind: 'medication' })}
                   items={items}
@@ -639,6 +635,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
                 cardKey={cardKey}
                 title={isPrescription && rx ? prescriptionReviewTitle(rx.categoryCode, typeIndex)
                   : svc ? serviceReviewTitle(svc.serviceType, typeIndex) : doc.shortLabel}
+                defaultExpanded={documentKey === cardKey}
                 kind={kind}
                 deptOrSite={resolveExecutingDepartment(isPrescription ? { kind: 'medication' }
                   : { kind: 'service', performerDepartmentId: svc?.performerDepartmentId,

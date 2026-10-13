@@ -1,4 +1,6 @@
 .ui-alert-anchor { display: none; }
+.ui-alert--inline { position: relative; margin: var(--space-2) 0; }
+.ui-alert--inline:has(.ui-toast__close) { padding-right: var(--space-12); }
 
 .ui-notification-viewport {
   position: fixed;

@@ -196,6 +196,12 @@ class MedicationKnowledgePublicationTest extends RhnIntegrationTestSupport {
 
     record ClinicalDraft(String encounter,tools.jackson.databind.JsonNode rx) {}
     ClinicalDraft clinicalDuplicateDraft() throws Exception {
+        return clinicalDuplicateDraft(false);
+    }
+    ClinicalDraft clinicalDuplicateDraft(boolean split) throws Exception {
+        return clinicalDuplicateDraft(split, 2);
+    }
+    ClinicalDraft clinicalDuplicateDraft(boolean split, int itemCount) throws Exception {
         var doctor=identities.findActiveAccount(T,"doctor").orElseThrow();
         when(contexts.requireCurrent()).thenReturn(new ExecutionContext(T,doctor.id(),"doctor","test",Set.of("MASTER_DATA.MANAGE","OUTPATIENT_REGISTRATION.ACCESS","OUTPATIENT_RECEPTION.ACCESS"),O,D,"DEPARTMENT",Set.of(),Set.of(),doctor.practitionerId()));
         String medication=linkStandardMedication("STD-04D8635B1192769EBA24309B","MED-2026-W185").path("id").asString();
@@ -208,10 +214,90 @@ class MedicationKnowledgePublicationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(verifiedEncounterStart(encounter)).andExpect(status().isOk());recordInpatientNoKnownDrugAllergy(resident,encounter);
         var rx=json(mockMvc.perform(post("/api/encounters/{id}/prescriptions",encounter).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{\"categoryCode\":\"WESTERN\"}")).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String prescription=rx.path("id").asString();
-        for(int i=0;i<2;i++) mockMvc.perform(post("/api/encounters/{id}/medication-requests",encounter).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+        for(int i=0;i<itemCount;i++) {
+            String target = prescription;
+            if (split && i == 1) target = json(mockMvc.perform(post("/api/encounters/{id}/prescriptions",encounter)
+                    .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{\"categoryCode\":\"WESTERN\"}"))
+                    .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).path("id").asString();
+            mockMvc.perform(post("/api/encounters/{id}/medication-requests",encounter).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
             {"prescriptionId":"%s","medicationId":"%s","quantity":1,"quantityUnit":"片","doseValue":5,"doseUnit":"mg","routeCode":"PO","frequencyCode":"QD","durationValue":7,"durationUnit":"DAY","allergyReviewConfirmed":true,"substitutionAllowed":false,"selfProvided":true,"pricingRequired":false}
-            """.formatted(prescription,medication))).andExpect(status().isCreated());
+            """.formatted(target,medication))).andExpect(status().isCreated());
+        }
         return new ClinicalDraft(encounter,rx);
+    }
+
+    @Test void formal_safety_blocks_cross_prescription_duplicates_and_atomic_draft_save() throws Exception {
+        publish();
+        var clinical = clinicalDuplicateDraft(true);
+        String encounter = clinical.encounter(), prescription = clinical.rx().path("id").asString();
+        mockMvc.perform(post("/api/encounters/{e}/prescriptions/{p}/submit",encounter,prescription)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{\"expectedRevision\":0}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("MEDICATION_SAFETY_BLOCKED"));
+        String input = jdbc.queryForObject("select JSON_INPUT from RHN_AUD_MED_EVAL where ID_RX=? and SD_MODE='ENFORCED'",
+                String.class, prescription);
+        assertThat(json.readTree(input).path("medications").size()).isEqualTo(2);
+        String medication = jdbc.queryForObject("select ID_MED from RHN_EX_MED_REQ where ID_CARE_REQ in "
+                + "(select ID_CARE_REQ from RHN_EX_CARE_REQ where ID_REQ_GRP=?) fetch first 1 row only",String.class,prescription);
+        String item = """
+                {"medicationId":"%s","quantity":1,"quantityUnit":"片","doseValue":5,"doseUnit":"mg",
+                 "routeCode":"PO","frequencyCode":"QD","durationValue":7,"durationUnit":"DAY",
+                 "allergyReviewConfirmed":true,"substitutionAllowed":false,"selfProvided":true,"pricingRequired":false}
+                """.formatted(medication);
+        // Six items force a two-document split; no part of the failed batch may be committed.
+        mockMvc.perform(post("/api/encounters/{e}/order-drafts",encounter).with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"commandCode\":\""+UUID.randomUUID()
+                        +"\",\"medicationItems\":["+String.join(",",Collections.nCopies(6,item))+"],\"serviceItems\":[]}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("MEDICATION_SAFETY_BLOCKED"));
+        assertThat(jdbc.queryForObject("select count(*) from RHN_EX_CARE_REQ where ID_ENC=? and SD_REQ_KIND='MEDICATION'",
+                Integer.class,encounter)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from RHN_EX_REQ_GRP where ID_ENC=? and SD_GRP_TYPE='PRESCRIPTION'",
+                Integer.class,encounter)).isEqualTo(2);
+    }
+
+    @Test void encounter_safety_excludes_cancelled_prescriptions_and_other_visits() throws Exception {
+        publish();
+        var clinical = clinicalDuplicateDraft(true);
+        String encounter = clinical.encounter(), prescription = clinical.rx().path("id").asString();
+        String other = jdbc.queryForObject("select ID_REQ_GRP from RHN_EX_REQ_GRP where ID_ENC=? and ID_REQ_GRP<>? "
+                +"and SD_GRP_TYPE='PRESCRIPTION'",String.class,encounter,prescription);
+        mockMvc.perform(post("/api/encounters/{e}/prescriptions/{p}/cancel",encounter,other).with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"expectedRevision\":0,\"reason\":\"取消待用药品\"}"))
+                .andExpect(status().isOk());
+        clinicalDuplicateDraft(true); // Same drug in another patient's visit must not enter this evaluation.
+        var evaluation = json(mockMvc.perform(post("/api/encounters/{e}/prescriptions/{p}/safety-evaluations",encounter,prescription)
+                .with(rhnWorkContext())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(evaluation.path("mode").asString()).isEqualTo("ENFORCED");
+        assertThat(evaluation.path("decision").asString()).isEqualTo("PASS");
+        String input = jdbc.queryForObject("select JSON_INPUT from RHN_AUD_MED_EVAL where ID_EVAL=?",String.class,
+                evaluation.path("evaluationId").asString());
+        assertThat(json.readTree(input).path("medications").size()).isEqualTo(1);
+    }
+
+    @Test void parallel_batches_for_one_visit_cannot_both_bypass_duplicate_safety() throws Exception {
+        publish();
+        var clinical = clinicalDuplicateDraft(false, 0);
+        String encounter = clinical.encounter();
+        String medication = jdbc.queryForObject("select ID_MED from RHN_BD_MED where CD_MED='MED-2026-W185'",String.class);
+        String item = """
+                {"medicationId":"%s","quantity":1,"quantityUnit":"片","doseValue":5,"doseUnit":"mg",
+                 "routeCode":"PO","frequencyCode":"QD","durationValue":7,"durationUnit":"DAY",
+                 "allergyReviewConfirmed":true,"substitutionAllowed":false,"selfProvided":true,"pricingRequired":false}
+                """.formatted(medication);
+        var start = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            Callable<Integer> save = () -> {
+                start.await();
+                return mockMvc.perform(post("/api/encounters/{e}/order-drafts",encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"commandCode\":\""+UUID.randomUUID()
+                                +"\",\"medicationItems\":["+item+"],\"serviceItems\":[]}"))
+                        .andReturn().getResponse().getStatus();
+            };
+            var first = pool.submit(save); var second = pool.submit(save); start.countDown();
+            assertThat(List.of(first.get(20,TimeUnit.SECONDS),second.get(20,TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder(200,409);
+        }
+        assertThat(jdbc.queryForObject("select count(*) from RHN_EX_CARE_REQ where ID_ENC=? and SD_REQ_KIND='MEDICATION'",
+                Integer.class,encounter)).isEqualTo(1);
     }
 
     @Test void clinical_prescription_requiring_override_accepts_only_a_nonblank_handling_reason() throws Exception {

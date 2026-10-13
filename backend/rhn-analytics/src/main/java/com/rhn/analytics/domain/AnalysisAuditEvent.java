@@ -4,8 +4,6 @@ import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.text.Strings;
 import jakarta.persistence.*;
 import org.hibernate.annotations.Immutable;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 /** A06 storage only; no approval, authorization or execution is implied by persistence. */

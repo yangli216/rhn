@@ -6,7 +6,7 @@ import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { documentMissing, type OrderDocument } from '../OrderDocuments'
 import { canPrintPrescription } from './dispensableOptions'
-import { resolveExecutingDepartment } from './orderPresentation'
+import { resolveExecutingDepartment, summarizeExecutingDepartments } from './orderPresentation'
 import { extractSpecialMethod, parseHerbalInstruction } from './herbalInstructions'
 import { HerbalFormulaHeaderBar } from './HerbalFormulaHeaderBar'
 import { HerbalPrescriptionMatrix } from './HerbalPrescriptionMatrix'
@@ -17,7 +17,7 @@ import type { GroupingComposerTarget } from './orderListTypes'
 import { useSavedOrderDepartmentNames } from './useOrderExecutionDepartments'
 
 export function SavedOrderList({ savedEntries, draftEntries, allDocuments, prescriptions,
-  documentRows, activeDocKey, handleSelectDoc: _handleSelectDoc, onSavedDocument: _onSavedDocument, encounter: _encounter, api, readOnly, busy,
+  documentRows, activeDocKey, handleSelectDoc, onSavedDocument: _onSavedDocument, encounter: _encounter, api, readOnly, busy,
   documentEditing, currentDept, onCancelService, onPrintService, onCancelMedication, onPrint, onInspectMedication,
   skinTestByRequest, groupingComposerTarget, groupingSession, isComposerActive, composer }: {
   savedEntries: SavedOrderEntry[]
@@ -26,7 +26,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
   prescriptions: Prescription[]
   documentRows: Record<string, { key: string; label: string; selected: boolean }>
   activeDocKey: string | null
-  handleSelectDoc: (key: string | null) => void
+  handleSelectDoc?: (key: string | null) => void
   onSavedDocument?: () => Promise<unknown>
   encounter: Encounter
   api: RhnApi
@@ -54,6 +54,10 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
         const isFirstInDocGroup = entryDocKey !== prevDocKey
 
         const doc = allDocuments.find((d) => d.key === entryDocKey)
+        const canEdit = !readOnly && doc && (doc.kind === 'prescription'
+          ? doc.value.status === 'DRAFT'
+          : (doc.value as ServiceRequest).documentInfoEditable !== false)
+        const onEdit = canEdit && handleSelectDoc ? () => handleSelectDoc(entryDocKey) : undefined
         const docItems = savedEntries.filter((e) => getEntryDocKey(e) === entryDocKey)
 
         const isHerbal = entry.kind === 'medication' && (
@@ -83,6 +87,8 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                     performerDepartmentName: departmentName(svc) })}
                   subtotal={subtotal}
                   missingFields={missingFields}
+                  onEdit={onEdit}
+                  editDisabled={busy || documentEditing}
                   isSelected={activeDocKey === entryDocKey || Boolean(documentRows[svc.id]?.selected)}
                   canPrint={svc.status === 'ACTIVE'}
                   onPrint={() => onPrintService(svc)}
@@ -110,9 +116,12 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   kind={groupKind}
                   itemCount={docItems.length}
                   itemUnit={isHerbal ? '味' : '项'}
-                  dept={resolveExecutingDepartment({ kind: 'medication' })}
+                  dept={summarizeExecutingDepartments(docItems.map(entry => ({ kind: 'medication',
+                    ...(entry.value as MedicationRequest) })))}
                   subtotal={subtotal}
                   missingFields={missingFields}
+                  onEdit={onEdit}
+                  editDisabled={busy || documentEditing}
                   isSelected={activeDocKey === entryDocKey || docItems.some((e) => documentRows[e.value.id]?.selected)}
                   canPrint={Boolean(rx && firstActive && canPrintPrescription(rx))}
                   onPrint={() => rx && onPrint(rx)}

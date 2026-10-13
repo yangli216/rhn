@@ -66,6 +66,39 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
 
     @Override
     @Transactional(readOnly = true)
+    public java.util.Optional<DispensingPharmacy> findDispensingPharmacy(Long tenantId, Long organizationId, Long departmentId,
+                                                                      String medicationType, LocalDate businessDate) {
+        if (medicationType == null || medicationType.isBlank()) return java.util.Optional.empty();
+        var resolution = routing.resolveDetailed(tenantId, organizationId, departmentId, medicationType, "OUTPATIENT", businessDate);
+        if (!resolution.matched()) return java.util.Optional.empty();
+        return stockSiteRepository.findByIdAndTenantId(resolution.route().stockSiteId(), tenantId)
+                .map(site -> new DispensingPharmacy(site.id(), site.name()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, DispensingPharmacy> savedDispensingPharmacies(Long tenantId, Set<Long> requestIds) {
+        if (requestIds.isEmpty()) return Map.of();
+        var freezes = freezeRepository.findByTenantIdAndRequestIdIn(tenantId, requestIds);
+        var siteIds = freezes.stream().map(PrescriptionInventoryFreeze::stockSiteId).collect(Collectors.toSet());
+        if (siteIds.isEmpty()) return Map.of();
+        var sites = stockSiteRepository.findByTenantIdAndIdIn(tenantId, siteIds).stream()
+                .collect(Collectors.toMap(StockSite::id, site -> new DispensingPharmacy(site.id(), site.name())));
+        var byRequest = freezes.stream().collect(Collectors.groupingBy(PrescriptionInventoryFreeze::requestId,
+                Collectors.mapping(PrescriptionInventoryFreeze::stockSiteId, Collectors.toSet())));
+        Map<Long, DispensingPharmacy> result = new HashMap<>();
+        byRequest.forEach((requestId, destinations) -> {
+            // A multi-site historical fact is not evidence for choosing an arbitrary pharmacy.
+            if (destinations.size() == 1) {
+                var site = sites.get(destinations.iterator().next());
+                if (site != null) result.put(requestId, site);
+            }
+        });
+        return Map.copyOf(result);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<OrderableMedicationView> findOrderableMedications(Long tenantId, Long organizationId,
                                                                  Long departmentId, String query) {
         var candidates = collectOrderableMedications(tenantId, organizationId, departmentId, query, true);

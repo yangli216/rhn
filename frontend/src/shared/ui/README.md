@@ -28,7 +28,7 @@
 | `FormSelect` | 表单下拉适配 | 与 React Hook Form 的 `control`、字段值和校验状态集成 |
 | `TreePanel` | 分类、目录和层级对象维护 | 检索、展开/收起、选中、增改删操作插槽、拖拽与键盘排序、层级调整 |
 | `RelationshipGraph` | 物理表和统计实体的直接关系 | 当前对象的一跳关系、完整连接条件、候选虚线、分页、键盘可访问的对象跳转；不推断不存在的关联 |
-| `Alert` | 全局提示反馈 | 顶部向下浮现、自动关闭、手动关闭、消息堆叠、error/warning/success/info 语义与读屏播报 |
+| `Alert` | 操作反馈与内容区提示 | toast / inline 两种位置；error/warning/success/info 语义、生命周期与读屏播报 |
 | `StatusBadge` | 业务状态 | success/info/warning/danger/neutral 语义色 |
 | `LoadingState` / `EmptyState` | 异步区域状态 | 状态播报、统一空状态结构和可选操作 |
 | `Dialog` | 单任务弹窗 | 焦点约束、Escape、焦点恢复、滚动锁定 |
@@ -156,11 +156,17 @@ PC 端配置、基础数据和平台管理页面默认使用 `compact`。当前�
 
 平台管理页面不得自行用 `role="tablist"`、搜索输入框外壳或裸表格复制上述交互。业务差异通过 `Tabs` 的变体、组件 `className` 的布局修饰和表格单元格内容表达，不重复定义边框、圆角、焦点环、键盘行为或滚动规则。
 
-所有跨区域的成功、失败、警告和一般提示统一使用 `Alert`。组件默认挂载到当前工作页的顶部浮层，从上向下依次出现，不参与内容区布局；成功提示默认显示 4.5 秒，普通提示 5 秒，警告和错误 8 秒。需要延长、持续显示或在关闭后同步业务状态时，分别使用 `duration`、`duration={null}` 和 `onDismiss`，不要在业务模块内另建 Toast。
+反馈统一使用 `Alert`，按用途选择语义和位置，不在业务模块另建 Toast：
+
+- 操作失败使用 `tone="error"`；成功回执使用 `tone="success"`。跨区域操作反馈沿用默认的顶部 `toast`，可关闭、自动消失，成功默认 4.5 秒、普通提示 5 秒、警告和错误 8 秒。
+- 操作说明使用 `tone="info" placement="inline"`，需要注意的业务事项使用 `tone="warning" placement="inline"`。提示放在对应弹窗或业务区内，默认持续显示，不带关闭按钮或倒计时，不应在打开弹窗时冒出红色错误通知。
+- `tone` 默认仍为 `error`，仅用于已有错误调用；一般说明和警示必须明确指定语义。`placement` 默认仍为 `toast`，保证已有操作反馈兼容。
+- 两种形式均支持 `duration`、`dismissible` 和 `onDismiss`；显式控制生命周期时必须符合业务用途。`duration={null}` 表示持续显示，`dismissible` 可为内容区提示添加关闭操作。
 
 ```tsx
 <Alert tone="success">保存成功</Alert>
-<Alert tone="warning" duration={10_000}>库存即将不足，请及时补货。</Alert>
+<Alert tone="info" placement="inline">保存后继续核对诊毕资料。</Alert>
+<Alert tone="warning" placement="inline">库存即将不足，请及时补货。</Alert>
 <Alert duration={null} onDismiss={() => setError('')}>{error}</Alert>
 ```
 

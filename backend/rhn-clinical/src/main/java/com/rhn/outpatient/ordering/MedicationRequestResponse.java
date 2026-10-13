@@ -34,6 +34,7 @@ record MedicationRequestResponse(
         BigDecimal quantity, String quantityUnit, BigDecimal baseQuantity, String baseUnit,
         BigDecimal packageFactor, String packageUnitName, String packageSpec,
         boolean substitutionAllowed, boolean selfProvided, String medicationInstruction,
+        Long stockSiteId, String stockSiteName, String stockSiteSource,
         JsonNode medicationSnapshot, JsonNode itemAttributeSnapshot, String itemAttributeHash,
         Instant itemAttributeResolvedAt, JsonNode standardMappings,
         Instant cancelledAt, Long cancelledBy, String cancelReason) {}

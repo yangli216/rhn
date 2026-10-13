@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import type { ClinicalAiDraftContext, ClinicalAiRecommendedPlan, ClinicalAiSuggestion, GenerateClinicalAiSuggestionInput } from '../../../shared/api/clinicalAiApi'
@@ -22,6 +22,8 @@ function result(input: GenerateClinicalAiSuggestionInput): ClinicalAiSuggestion 
 function setup(generateStream = vi.fn().mockImplementation(async (_id, input) => result(input)), withTreatmentReview = false,
   plans?: ClinicalAiRecommendedPlan[], diagnoses: ClinicalAiDraftContext['diagnoses'] = []) {
   const reviewRecommendedPlan = vi.fn()
+  let registeredDiscard: (() => (() => void) | undefined) | null = null
+  const registerTreatmentBatchDiscard = (capture: typeof registeredDiscard) => { registeredDiscard = capture }
   const recommendPlans = vi.fn().mockResolvedValue(plans ?? [])
   const recordEvent = vi.fn().mockResolvedValue(undefined), apply = vi.fn((request: ClinicalAiDraftRequest) => request.onApplied?.()), onFieldStream = vi.fn()
   const api = { organization: { departments: vi.fn().mockResolvedValue([
@@ -59,6 +61,7 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
         api={api} allergies={[]} allergyState="READY" disabled={false} surfaces={surfaces}
         onReviewRecommendedPlan={plans ? reviewRecommendedPlan : undefined}
         existingTreatmentKeys={treatmentKeys}
+        onRegisterTreatmentBatchDiscard={registerTreatmentBatchDiscard}
         onReviewTreatment={withTreatmentReview ? (items, completed) => {
           const keys = items.map((item) => `${item.type}:${item.catalogItemId}`)
           completed(keys); setTreatmentKeys(keys)
@@ -73,7 +76,8 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
       fireEvent.click(pill)
     }
   }
-  return { generateStream, recommendPlans, reviewRecommendedPlan, recordEvent, apply, surfaces, onFieldStream, openHub }
+  return { generateStream, recommendPlans, reviewRecommendedPlan, recordEvent, apply, surfaces, onFieldStream, openHub,
+    captureTreatmentBatchDiscard: () => registeredDiscard?.() }
 }
 async function advance(ms: number) { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
@@ -530,7 +534,7 @@ describe('quiet clinical AI workflow', () => {
     const generateStream = vi.fn().mockImplementation(async (_id, input) => ({
       ...result(input),
       diagnosisCandidates: [
-        { code: 'J06.9', display: '急性上呼吸道感染', type: 'PRIMARY', rationale: '需核对' },
+        { code: 'J06.9', display: '急性上呼吸道感染', type: 'PRIMARY', rationale: '发热伴咽痛3天，病因待核对' },
       ],
       treatmentRecommendations: [
         { type: 'MEDICATION', catalogItemId: 'p-1', code: 'PARA001', name: '对乙酰氨基酚', medicationId: 'm-1', rationale: '解热镇痛' },
@@ -547,7 +551,7 @@ describe('quiet clinical AI workflow', () => {
     expect(screen.queryByRole('button', { name: '确认录入' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '确认所选诊断（1）' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '为什么推荐？' })).toBeInTheDocument()
-    expect(screen.getByLabelText('AI 诊断待确认')).not.toHaveTextContent('需核对')
+    expect(screen.getByLabelText('AI 诊断待确认')).toHaveTextContent('依据：发热伴咽痛3天，病因待核对')
     expect(screen.getByLabelText('AI 诊断待确认').querySelector('.doctor-diag-col-management')).toHaveTextContent('—')
 
     // 检查药品建议行中存在“说明书”按钮
@@ -558,6 +562,57 @@ describe('quiet clinical AI workflow', () => {
     await advance(20)
     expect(screen.getByRole('dialog', { name: /临床指南 · 急性上呼吸道感染/ })).toBeInTheDocument()
     expect(screen.getByText(/临床指南 · 急性上呼吸道感染/)).toBeInTheDocument()
+  })
+
+  it('marks a missing diagnosis rationale without inventing patient evidence', async () => {
+    const { openHub } = setup(vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
+      diagnosisCandidates: [{ code: 'J06.9', display: '急性上呼吸道感染', type: 'PRIMARY' }] })))
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await advance(100)
+    expect(screen.getByLabelText('AI 诊断待确认')).toHaveTextContent('本条未提供患者事实依据，请核对后再确认。')
+    expect(screen.getByLabelText('AI 诊断待确认')).not.toHaveTextContent('依据：')
+  })
+
+  it('discards matched and unmatched recommendations while preserving record and diagnosis suggestions', async () => {
+    const { openHub, surfaces } = setup(vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
+      diagnosisCandidates: [{ code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY', rationale: '本次症状支持' }],
+      treatmentRecommendations: [{ type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规' }],
+      treatmentMatches: [{ key: 'unmatched', intent: { type: 'LABORATORY', name: '未匹配检查' }, status: 'NO_ORDERABLE_SERVICE',
+        reason: '未找到可开立项目', candidates: [] }],
+    })), true)
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' })); await advance(100)
+    expect(within(surfaces.plans).getByText('血常规')).toBeInTheDocument()
+    expect(within(surfaces.plans).getByText('未匹配检查')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '丢弃本轮推荐' }))
+    expect(within(surfaces.plans).queryByText('血常规')).not.toBeInTheDocument()
+    expect(within(surfaces.plans).queryByText('未匹配检查')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: '选择 测试诊断甲' })).toBeInTheDocument()
+    expect(within(surfaces.note).getByText('待核对的测试主诉')).toBeInTheDocument()
+  })
+
+  it('a delayed save discards only the captured batch and cannot hide a newer analysis', async () => {
+    let sequence = 0
+    const { openHub, surfaces, captureTreatmentBatchDiscard } = setup(vi.fn().mockImplementation(async (_id, input) => ({
+      ...result(input), id: `batch-${++sequence}`,
+      treatmentMatches: [{ key: `unmatched-${sequence}`, intent: { type: 'LABORATORY', name: `未匹配检查${sequence}` },
+        status: 'NO_ORDERABLE_SERVICE', reason: '未找到可开立项目', candidates: [] }],
+    })), true)
+    expect(captureTreatmentBatchDiscard()).toBeUndefined()
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' })); await advance(100)
+    const discardOld = captureTreatmentBatchDiscard()!
+    expect(within(surfaces.plans).getByText('未匹配检查1')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' })); await advance(100)
+    act(() => discardOld())
+    expect(within(surfaces.plans).getByText('未匹配检查2')).toBeInTheDocument()
+    act(() => captureTreatmentBatchDiscard()!())
+    expect(within(surfaces.plans).queryByText('未匹配检查2')).not.toBeInTheDocument()
+    act(() => discardOld())
+    expect(within(surfaces.plans).queryByText('未匹配检查2')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' })); await advance(100)
+    expect(within(surfaces.plans).getByText('未匹配检查3')).toBeInTheDocument()
   })
 
 })

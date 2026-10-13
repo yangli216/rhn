@@ -1937,6 +1937,12 @@ describe('DoctorWorkstation reception flow', () => {
     expect(await screen.findByRole('button', { name: /保存草稿/ })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '诊毕' }))
     expect(await screen.findByRole('button', { name: '保存并继续诊毕' })).toBeInTheDocument()
+    const draftDialog = screen.getByRole('dialog', { name: /完成诊毕前请处理草稿/ })
+    const guidance = within(draftDialog).getByRole('status')
+    expect(guidance).toHaveTextContent('保存将同步病历、诊断和医嘱草稿')
+    expect(guidance).toHaveClass('ui-alert--info')
+    expect(guidance).not.toHaveClass('ui-toast', 'ui-alert--error')
+
 
     await user.click(screen.getByRole('button', { name: '保存并继续诊毕' }))
     expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
@@ -2403,6 +2409,11 @@ describe('DoctorWorkstation inline AI collaboration', () => {
 
   it('reviews and adopts the complete recommended plan with its linked note before AI co-writing', async () => {
     const api = aiApi()
+    const generate = vi.mocked(api.clinicalAi.generate).getMockImplementation()!
+    vi.mocked(api.clinicalAi.generate).mockImplementation(async (...args) => ({ ...await generate(...args),
+      treatmentMatches: [{ key: 'unbuilt-lab', intent: { type: 'LABORATORY', name: '未构建检查方向' },
+        status: 'NO_ORDERABLE_SERVICE', reason: '院内目录未匹配', candidates: [] }],
+    }))
     const plan: OutpatientPlanTemplate = { id: 'whole-plan', revision: 1, scopeType: 'PERSONAL',
       name: '慢病整体方案', description: '病历和诊断', status: 'ACTIVE', noteTemplateId: 'note-template-1',
       sortOrder: 0, useCount: 0, diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
@@ -2425,6 +2436,11 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
     await user.type(screen.getByLabelText('收缩压'), '120')
     await user.type(screen.getByLabelText('舒张压'), '80')
+    vi.mocked(api.clinicalAi.recommendPlans).mockResolvedValue([])
+    const aiPill = screen.getByRole('button', { name: /AI 辅诊/ })
+    if (aiPill.getAttribute('aria-expanded') !== 'true') await user.click(aiPill)
+    await user.click(await screen.findByRole('button', { name: '分析当前病历' }))
+    expect(await screen.findByText('未构建检查方向')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '审核开立' }))
     const review = await screen.findByRole('dialog', { name: '医嘱开立核查' })
     expect(within(review).queryByText('病历未录入诊断')).not.toBeInTheDocument()
@@ -2434,14 +2450,19 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
     expect((await screen.findAllByText('病历保存失败')).length).toBeGreaterThan(0)
     expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
+    expect(screen.getByText('未构建检查方向')).toBeInTheDocument()
     vi.mocked(api.clinicalDocuments.byEncounter).mockRejectedValueOnce(new Error('文书查询中断'))
     await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
     expect((await screen.findAllByText(/病历保存回执未确认.*读取保存后的文书失败/)).length).toBeGreaterThan(0)
     expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
     expect(screen.queryByText('门诊病历、诊断与医嘱草稿已保存')).not.toBeInTheDocument()
     expect(within(review).getByText('原发性高血压')).toBeInTheDocument()
+    vi.mocked(api.encounters.saveOrderDrafts).mockResolvedValueOnce(undefined as never)
     await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
-    await waitFor(() => expect(api.encounters.saveOrderDrafts).toHaveBeenCalledTimes(1))
+    expect((await screen.findAllByText(/医嘱保存回执未确认/)).length).toBeGreaterThan(0)
+    expect(screen.getByText('未构建检查方向')).toBeInTheDocument()
+    await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
+    await waitFor(() => expect(api.encounters.saveOrderDrafts).toHaveBeenCalledTimes(2))
     const recordCalls = vi.mocked(api.encounters.recordClinicalData).mock.calls
     expect(recordCalls[1][1].commandCode).toBe(recordCalls[2][1].commandCode)
     expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
@@ -2450,6 +2471,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(vi.mocked(api.encounters.recordClinicalData).mock.invocationCallOrder[0])
       .toBeLessThan(vi.mocked(api.encounters.saveOrderDrafts).mock.invocationCallOrder[0])
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '医嘱开立核查' })).not.toBeInTheDocument())
+    expect(screen.queryByText('未构建检查方向')).not.toBeInTheDocument()
   })
 
   it('edits template marks inline and confirms their remaining sources through the existing save action', async () => {

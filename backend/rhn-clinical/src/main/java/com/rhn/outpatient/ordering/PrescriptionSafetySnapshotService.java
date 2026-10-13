@@ -47,7 +47,8 @@ class PrescriptionSafetySnapshotService implements PrescriptionSafetySnapshotDir
         var prescription = prescriptions.findByIdAndTenantId(prescriptionId, encounter.tenantId())
                 .filter(value -> encounterId.equals(value.encounterId()))
                 .orElseThrow(() -> notFound("PRESCRIPTION_NOT_FOUND", "未找到当前就诊的处方"));
-        var items = medications.findByTenantIdAndRequestGroupIdOrderByAuthoredAt(encounter.tenantId(), prescriptionId)
+        // Splitting a visit into documents must not remove concurrent therapy from safety evaluation.
+        var items = medications.findSafetyContext(encounter.tenantId(), encounterId, prescriptionId)
                 .stream().map(value -> new PrescriptionSafetySnapshot.MedicationItem(
                         value.id(), value.revision(), value.medicationId(), value.catalogItemId(), value.parentRequestId(),
                         value.status().name(), semanticStatus(value.medicationSnapshot()), value.doseValue(), value.doseUnit(), value.routeId(), value.routeCode(),

@@ -252,6 +252,41 @@ describe('UnifiedOrderListEditor', () => {
     expect(setServiceDrafts).not.toHaveBeenCalled()
     expect(document.getElementById('order-s1')).toHaveClass('is-document-selected')
     expect(screen.getByText('血常规五分类')).toBeInTheDocument()
+    const group = screen.getByLabelText('检验单1分组')
+    const edit = within(group).getByRole('button', { name: '编辑检验单1' })
+    expect(edit.parentElement).toContainElement(within(group).getByRole('button', { name: '打印检验单1' }))
+    await userEvent.click(edit)
+    expect(onOpenDocument).toHaveBeenCalledWith('service:s1')
+    expect(setServiceDrafts).not.toHaveBeenCalled()
+  })
+
+  it('opens the correct saved prescription from its group edit action', async () => {
+    const onOpenDocument = vi.fn(), onSelectDocument = vi.fn()
+    const medication = { id: 'med-edit', prescriptionId: 'rx-edit', status: 'ACTIVE', medicationName: '阿莫西林', quantity: 1 }
+    renderComponent({ prescriptions: [{ id: 'rx-edit', status: 'DRAFT', categoryCode: 'WESTERN',
+      authoredAt: '2026-10-12T01:00:00Z', medicationRequests: [medication] }], medications: [medication],
+      onOpenDocument, onSelectDocument })
+    await userEvent.click(screen.getByRole('button', { name: '编辑西药处方1' }))
+    expect(onOpenDocument).toHaveBeenCalledWith('prescription:rx-edit')
+    expect(onSelectDocument).toHaveBeenCalledWith('prescription:rx-edit')
+  })
+
+  it.each([
+    { readOnly: true },
+    { documentInfoEditable: false },
+  ])('hides document edit actions for a locked or read-only service (%j)', (options) => {
+    renderComponent({ readOnly: options.readOnly, onOpenDocument: vi.fn(), services: [{
+      id: 'locked', serviceType: 'LABORATORY', itemName: '血常规', quantity: 1,
+      authoredAt: '2026-10-12T01:00:00Z', status: 'ACTIVE', documentInfoEditable: options.documentInfoEditable,
+    }] })
+    expect(screen.queryByRole('button', { name: '编辑检验单1' })).not.toBeInTheDocument()
+  })
+
+  it.each([{ busy: true }, { documentEditing: true }])('disables group editing during pending work (%j)', (options) => {
+    renderComponent({ ...options, onOpenDocument: vi.fn(), services: [{ id: 'pending',
+      serviceType: 'LABORATORY', itemName: '血常规', quantity: 1, status: 'ACTIVE',
+      authoredAt: '2026-10-12T01:00:00Z' }] })
+    expect(screen.getByRole('button', { name: '编辑检验单1' })).toBeDisabled()
   })
 
   const ensureComposerOpen = async (user?: ReturnType<typeof userEvent.setup>) => {
@@ -357,7 +392,9 @@ describe('UnifiedOrderListEditor', () => {
     renderComponent({ medicationDrafts: [mockMedicationDraft] })
 
     const addOrderLauncher = screen.getByRole('button', { name: '新增医嘱' })
-    expect(addOrderLauncher).toBeInTheDocument()
+    const table = screen.getByRole('table', { name: '本次医嘱连续录入列表' })
+    expect(table.lastElementChild).toContainElement(addOrderLauncher)
+    expect(table.lastElementChild?.previousElementSibling).toBe(screen.getByRole('row', { name: '编辑待确认医嘱 阿莫西林胶囊' }))
     await userEvent.click(addOrderLauncher)
     expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
 

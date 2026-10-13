@@ -170,6 +170,9 @@ export interface CreateServiceRequestInput {
 }
 
 export interface MedicationRequest {
+  stockSiteId?: string | null
+  stockSiteName?: string | null
+  stockSiteSource?: 'RESERVATION' | 'ROUTING' | null
   id: string
   revision: number
   residentId: string

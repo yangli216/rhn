@@ -13,6 +13,8 @@ public interface PrescriptionInventoryFreezeRepository extends JpaRepository<Pre
 
     List<PrescriptionInventoryFreeze> findByTenantIdAndPrescriptionIdOrderByCreatedAt(Long tenantId, Long prescriptionId);
 
+    List<PrescriptionInventoryFreeze> findByTenantIdAndRequestIdIn(Long tenantId, java.util.Set<Long> requestIds);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select f from PrescriptionInventoryFreeze f

@@ -518,10 +518,6 @@ public class BillingApplicationService {
                 || "MEDICATION_RETURN".equals(charge.sourceType());
     }
 
-    private ChargeCategory chargeCategory(ChargeItem charge) {
-        return categoryResolver.resolve(null, charge);
-    }
-
     private ChargePricing pricing(ExecutionContext context, DispenseBillingFact event) {
         MedicationRequestSnapshot request = medicationRequestDirectory.requireForPharmacy(event.requestId());
         if (request.selfProvided()) throw conflict("SELF_PROVIDED_MEDICATION_NOT_CHARGEABLE", "自备药不能形成药房收费事项");

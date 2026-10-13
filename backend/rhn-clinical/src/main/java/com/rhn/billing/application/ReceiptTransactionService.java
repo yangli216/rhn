@@ -125,7 +125,7 @@ class ReceiptTransactionService {
         Settlement settlement = settlements.findByIdAndTenantId(input.settlementId(), context.tenantId())
                 .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
         if (settlement.status() != SettlementStatus.SETTLED) throw conflict("RECEIPT_SETTLEMENT_NOT_FINAL", "只有已结清结算单可以申请票据");
-        PatientAccount account = requireAccess(context, settlement.patientAccountId());
+        requireAccess(context, settlement.patientAccountId());
         funding.resolve(settlement);
         receiptLines.resolve(settlement);
         String type = upper(input.receiptType());

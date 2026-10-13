@@ -40,7 +40,7 @@ public final class SkinTestRequirementRule implements MedicationSafetyRule {
             if (!med.path("skinTestRequired").asBoolean(false)) {
                 continue;
             }
-            String name = med.path("name").asText(med.path("medicationName").asText("需皮试药品"));
+            String name = med.path("name").asString(med.path("medicationName").asString("需皮试药品"));
             if (item.skinTestExempt()) {
                 boolean hasReason = item.skinTestExemptReason() != null && !item.skinTestExemptReason().isBlank();
                 boolean hasEvidence = item.exemptEvidenceEventId() != null;
