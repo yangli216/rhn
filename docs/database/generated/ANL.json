@@ -1,5 +1,5 @@
 {
-  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
+  "fingerprint": "44eb885588d66429ac3199aa5815a439aaaecdd293a2a5a5dcd27292cebbf0ab",
   "tables": [
     {
       "logical": "anl.presence_metric_sample",

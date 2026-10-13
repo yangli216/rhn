@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface InventoryTraceEventRepository extends JpaRepository<InventoryTraceEvent, Long> {
+    List<InventoryTraceEvent> findByTenantIdAndDocumentTypeAndDocumentId(Long tenantId,String documentType,Long documentId);
     List<InventoryTraceEvent> findByTenantIdAndTraceCodeIdOrderByOccurredAtAsc(Long tenantId, Long traceCodeId);
 }

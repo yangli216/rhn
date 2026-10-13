@@ -27,4 +27,7 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select event from OutboxEvent event where event.eventId = :eventId")
     java.util.Optional<OutboxEvent> lockByEventId(@Param("eventId") Long eventId);
+
+    @Query("select event.tenantId from OutboxEvent event where event.eventId=:eventId")
+    java.util.Optional<Long> tenantOf(@Param("eventId") Long eventId);
 }

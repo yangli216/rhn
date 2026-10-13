@@ -1,5 +1,5 @@
 {
-  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
+  "fingerprint": "44eb885588d66429ac3199aa5815a439aaaecdd293a2a5a5dcd27292cebbf0ab",
   "tables": [
     {
       "legacy": "an_audit_evt",
@@ -185,6 +185,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/application/AnalyticsMaintenanceTables.java",
+          "line": 11
+        },
         {
           "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/domain/AnalysisAuditEvent.java",
           "line": 12
@@ -387,6 +391,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/application/AnalyticsMaintenanceTables.java",
+          "line": 12
+        },
         {
           "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/domain/AnalyticsCatalogVersion.java",
           "line": 14
@@ -635,6 +643,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/application/AnalyticsMaintenanceTables.java",
+          "line": 13
+        },
+        {
           "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/domain/AnalysisDraftVersion.java",
           "line": 14
         }
@@ -872,6 +884,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/application/AnalyticsMaintenanceTables.java",
+          "line": 14
+        },
         {
           "path": "backend/rhn-analytics/src/main/java/com/rhn/analytics/domain/AnalysisRun.java",
           "line": 10

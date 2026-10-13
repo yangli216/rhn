@@ -122,6 +122,22 @@ public class InventoryBalance {
         recalculate();
     }
 
+    /** Removes the original document value so unrelated stock does not retain a mixed historical cost. */
+    public void issueValue(BigDecimal quantity, BigDecimal issueValue) {
+        if (quantity == null || quantity.signum() <= 0)
+            throw invalid("INVENTORY_ISSUE_QUANTITY_INVALID", "出库数量必须大于零");
+        if (issueValue != null && issueValue.signum() < 0)
+            throw invalid("INVENTORY_ISSUE_COST_INVALID", "出库价值不能小于零");
+        BigDecimal nextQuantity = quantityOnHand.subtract(quantity);
+        BigDecimal nextValue = averageUnitCost == null || issueValue == null ? null
+                : averageUnitCost.multiply(quantityOnHand).subtract(issueValue);
+        if (nextQuantity.signum() > 0 && nextValue != null && nextValue.signum() < 0)
+            throw invalid("INVENTORY_ISSUE_COST_INVALID", "按原流水扣除后剩余库存价值不能为负");
+        issueAvailable(quantity);
+        averageUnitCost = nextQuantity.signum() == 0 || nextValue == null ? null
+                : nextValue.divide(nextQuantity, 6, RoundingMode.HALF_UP);
+    }
+
     public void adjust(BigDecimal quantityDelta, BigDecimal unitCost) {
         if (quantityDelta == null || quantityDelta.signum() == 0) {
             throw invalid("INVENTORY_ADJUSTMENT_QUANTITY_INVALID", "库存调整数量不能为零");

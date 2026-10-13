@@ -6,6 +6,8 @@ import java.util.List;
 public interface OrganizationDirectory {
     TenantView requireTenant(Long tenantId);
     OrganizationView requireOrganization(Long tenantId, Long organizationId);
+    /** Legal organizations only; organization units and departments are not independent tenant data scopes. */
+    List<OrganizationView> listOrganizationUnits(Long tenantId);
     Long catalogSourceOrganizationId(Long tenantId, Long organizationId);
     DepartmentView requireDepartment(Long tenantId, Long organizationId, Long departmentId);
     List<DepartmentView> listDepartments(Long tenantId, Long organizationId);

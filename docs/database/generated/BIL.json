@@ -1,5 +1,5 @@
 {
-  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
+  "fingerprint": "44eb885588d66429ac3199aa5815a439aaaecdd293a2a5a5dcd27292cebbf0ab",
   "tables": [
     {
       "logical": "bil.cashier_close_event",
@@ -245,6 +245,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 12
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/CashierCloseEvent.java",
           "line": 12
         }
@@ -449,6 +453,14 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceContribution.java",
+          "line": 32
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 13
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/CashierCloseItem.java",
           "line": 12
@@ -692,6 +704,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 14
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/CashierCloseLine.java",
           "line": 12
@@ -1214,6 +1230,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 11
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/CashierClose.java",
           "line": 16
         }
@@ -1507,6 +1527,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 16
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ChargeItemComponent.java",
           "line": 12
@@ -2194,6 +2218,10 @@
           "line": 436
         },
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 15
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/JpaSettlementAuthorizationDirectory.java",
           "line": 20
         },
@@ -2391,6 +2419,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 18
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/InvoiceCategorySummary.java",
           "line": 12
@@ -2616,6 +2648,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 19
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/InvoiceLine.java",
           "line": 12
@@ -3064,6 +3100,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 17
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/Invoice.java",
           "line": 13
@@ -3514,6 +3554,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 20
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/LedgerEntry.java",
           "line": 13
         }
@@ -3890,6 +3934,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 21
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/PatientAccount.java",
           "line": 15
         }
@@ -4233,6 +4281,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 23
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/PaymentEvent.java",
           "line": 14
@@ -4928,6 +4980,14 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceContribution.java",
+          "line": 19
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 24
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/PaymentOrder.java",
           "line": 14
         }
@@ -5489,6 +5549,14 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceContribution.java",
+          "line": 15
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 22
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/Payment.java",
           "line": 13
         }
@@ -5816,6 +5884,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 26
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReceiptEvent.java",
           "line": 12
@@ -6477,6 +6549,14 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceContribution.java",
+          "line": 27
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 25
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/Receipt.java",
           "line": 17
         }
@@ -7027,6 +7107,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 27
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationBatch.java",
           "line": 9
         }
@@ -7275,6 +7359,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 29
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationItemEvent.java",
           "line": 3
@@ -7686,6 +7774,14 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceContribution.java",
+          "line": 32
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 28
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationItem.java",
           "line": 8
@@ -8619,6 +8715,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 30
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/RegistrationBillingIntent.java",
           "line": 16
         }
@@ -8811,6 +8911,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 32
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/SettlementCategorySummary.java",
           "line": 13
@@ -9083,6 +9187,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 33
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/SettlementEvent.java",
           "line": 12
@@ -9455,6 +9563,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 34
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/JpaSettlementAuthorizationDirectory.java",
           "line": 19
         },
@@ -9784,6 +9896,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 35
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/SettlementTender.java",
           "line": 12
@@ -10431,6 +10547,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 31
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/JpaSettlementAuthorizationDirectory.java",
           "line": 18

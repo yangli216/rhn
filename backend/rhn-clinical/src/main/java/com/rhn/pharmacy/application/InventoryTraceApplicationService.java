@@ -192,6 +192,25 @@ public class InventoryTraceApplicationService {
         }
     }
 
+    /** Preserve immutable trace history while retiring references to deleted test documents. */
+    public void normalizeMaintenanceReferences(ExecutionContext context, java.util.Set<Long> owned,
+                                               Map<Long,Long> restoreBins, java.util.Set<Long> splitCodes,Long task) {
+        if (!com.rhn.platform.maintenance.api.MaintenanceExecutionScope.currentTaskId().filter(task::equals).isPresent())
+            throw conflict("MAINTENANCE_TASK_BINDING_REQUIRED", "追溯维护必须绑定真实维护任务");
+        java.util.Set<Long> ids = new java.util.TreeSet<>(splitCodes); ids.addAll(restoreBins.keySet());
+        for (Long id : ids) {
+            InventoryTraceCode code = lockTrace(context,id);
+            if (!owned.contains(code.currentDocumentId())) continue;
+            String from=code.status().name(); Long bin=code.stockBinId(); BigDecimal quantity=code.remainingBaseQuantity();
+            if (restoreBins.containsKey(id)) code.restoreAvailableForMaintenance(restoreBins.get(id),task,task.toString(),context.subjectId());
+            else code.rebindMaintenanceReference(task,task.toString(),context.subjectId());
+            codeRepository.save(code);
+            eventRepository.save(event(context,code,"MAINTENANCE_RESTORE",from,code.status().name(),code.stockSiteId(),code.stockSiteId(),
+                    bin,code.stockBinId(),"MAINTENANCE_TASK",task,task.toString(),"恢复经核对的测试追溯流转，原历史保留",
+                    code.remainingBaseQuantity().subtract(quantity),code.remainingBaseQuantity()));
+        }
+    }
+
     public void issue(ExecutionContext context, Long siteId, String documentType, Long documentId, String documentNo,
                       List<TraceMovementLine> lines) {
         for (TraceMovementLine line : lines) {
@@ -297,6 +316,10 @@ public class InventoryTraceApplicationService {
 
     public void returnMedication(ExecutionContext context, Long siteId, Long originalDispenseId,
                                  Long returnId, String returnNo, List<TraceReturnLine> lines) {
+        returnMedication(context, siteId, originalDispenseId, returnId, returnNo, "MEDICATION_RETURN", lines);
+    }
+    public void returnMedication(ExecutionContext context, Long siteId, Long originalDispenseId,
+                                 Long returnId, String returnNo, String documentType, List<TraceReturnLine> lines) {
         for (TraceReturnLine line : lines) {
             StockItem item = requireItem(context, line.stockItemId(), siteId); if (!item.traceRequired()) continue;
             List<InventoryTraceCode> selected = selectExact(codeRepository.lockIssuedDispenseCodes(context.tenantId(),
@@ -304,10 +327,10 @@ public class InventoryTraceApplicationService {
                     "TRACE_RETURN_QUANTITY_MISMATCH");
             for (InventoryTraceCode code : selected) {
                 String from = code.status().name(); BigDecimal before = code.remainingBaseQuantity();
-                code.returnFromDispense(line.stockBinId(), line.targetStatus(),
+                code.returnFromDispense(line.stockBinId(), line.targetStatus(), documentType,
                         returnId, returnNo, context.subjectId());
                 eventRepository.save(event(context, code, "MEDICATION_RETURN", from, code.status().name(), siteId, siteId,
-                        null, line.stockBinId(), "MEDICATION_RETURN", returnId, returnNo, null,
+                        null, line.stockBinId(), documentType, returnId, returnNo, null,
                         code.remainingBaseQuantity().subtract(before), code.remainingBaseQuantity()));
             }
         }
@@ -343,11 +366,15 @@ public class InventoryTraceApplicationService {
 
     public void restorePartial(ExecutionContext context, Long traceCodeId, Long binId, BigDecimal quantity,
                                Long documentId, String documentNo, Instant occurredAt) {
+        restorePartial(context, traceCodeId, binId, quantity, documentId, documentNo, occurredAt, "MEDICATION_RETURN");
+    }
+    public void restorePartial(ExecutionContext context, Long traceCodeId, Long binId, BigDecimal quantity,
+                               Long documentId, String documentNo, Instant occurredAt, String documentType) {
         InventoryTraceCode code = lockTrace(context, traceCodeId); String from = code.status().name();
-        Long fromBin = code.stockBinId(); code.restorePartial(binId, quantity, "MEDICATION_RETURN",
+        Long fromBin = code.stockBinId(); code.restorePartial(binId, quantity, documentType,
                 documentId, documentNo, context.subjectId()); codeRepository.save(code);
         eventRepository.save(event(context, code, "PARTIAL_RETURN", from, code.status().name(), code.stockSiteId(),
-                code.stockSiteId(), fromBin, binId, "MEDICATION_RETURN", documentId, documentNo,
+                code.stockSiteId(), fromBin, binId, documentType, documentId, documentNo,
                 "可再销售拆零退药恢复追溯码余量", quantity, code.remainingBaseQuantity(), occurredAt));
     }
 

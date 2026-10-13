@@ -1,5 +1,5 @@
 {
-  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
+  "fingerprint": "44eb885588d66429ac3199aa5815a439aaaecdd293a2a5a5dcd27292cebbf0ab",
   "tables": [
     {
       "logical": "aud.audit_log",
@@ -1683,6 +1683,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/application/MedicationMaintenanceContribution.java",
+          "line": 12
+        },
         {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationEvaluationStore.java",
           "line": 32
