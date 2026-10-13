@@ -86,6 +86,13 @@ class ClinicalOrderChargeTruthTest {
         assertEquals("REQUEST", value.requestCode()); assertEquals(8L, value.enteredBy()); assertEquals(occurred, value.occurredAt());
         assertNull(value.accountingCategory()); verify(consumed).save(any()); verify(components).save(any()); verify(ledger).save(any());
     }
+    @Test void unnumbered_medication_line_uses_its_technical_identity_for_the_charge() {
+        var data = payload(); data.remove("requestNo"); data.put("selfProvided", false);
+        projector.project(event("MEDICATION_REQUEST_AUTHORED", data));
+        var captured = ArgumentCaptor.forClass(ChargeItem.class); verify(charges).save(captured.capture());
+        assertEquals("MEDICATION_REQUEST:7", captured.getValue().requestCode());
+        assertEquals(7L, captured.getValue().sourceId());
+    }
     @Test void account_for_another_patient_cannot_receive_the_charge() {
         when(accounts.findByTenantIdAndEncounterIdAndCurrencyCode(1L, 4L, "CNY"))
                 .thenReturn(Optional.of(new PatientAccount(1L, 99L, 4L, 1L, 1L, "CNY")));

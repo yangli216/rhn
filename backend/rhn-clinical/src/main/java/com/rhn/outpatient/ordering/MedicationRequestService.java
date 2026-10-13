@@ -684,7 +684,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     private void publish(MedicationRequest value, String type, String summary, Map<String, Object> details) {
         Map<String, Object> payload = new LinkedHashMap<>(details);
-        payload.put("requestNo", pharmacySnapshot(value).requestNo()); payload.put("summary", summary);
+        String requestNo = value.requestNo() == null ? prescriptionNumber(value) : value.requestNo();
+        if (requestNo != null) payload.put("requestNo", requestNo);
+        payload.put("summary", summary);
         Instant occurredAt = switch (type) {
             case "MEDICATION_REQUEST_AUTHORED", "MEDICATION_REQUEST_DRAFTED" -> value.authoredAt();
             case "MEDICATION_REQUEST_CANCELLED" -> value.cancelledAt();

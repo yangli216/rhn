@@ -1,5 +1,5 @@
 {
-  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
+  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
   "tables": [
     {
       "logical": "ex.care_request",
@@ -1003,7 +1003,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
-          "line": 95
+          "line": 104
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/ClinicalSemanticUsageService.java",
@@ -1389,13 +1389,6 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_EX_DIAG_EXEC_T_DIAG_TASK_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_TASK_NO"
-          ]
-        },
-        {
           "name": "UK_EX_DIAG_EXEC_T_DIAG_TASK_RE",
           "columns": [
             "ID_TNT",
@@ -1629,22 +1622,6 @@
             {
               "position": 1,
               "name": "ID_DIAG_EXEC_TASK",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_EX_DIAG_EXEC_T_DIAG_TASK_NO_INDEX_3",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_TASK_NO",
               "direction": "A"
             }
           ],
@@ -5257,11 +5234,11 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
-          "line": 126
+          "line": 135
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
-          "line": 236
+          "line": 245
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/ClinicalSemanticUsageService.java",
@@ -6998,11 +6975,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
-          "line": 137
+          "line": 146
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
-          "line": 259
+          "line": 268
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/ServiceRequest.java",
@@ -8820,13 +8797,6 @@
           ]
         },
         {
-          "name": "UK_EX_TREAT_EXEC_TREAT_TASK_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_TASK_NO"
-          ]
-        },
-        {
           "name": "UK_EX_TREAT_EXEC_TREAT_TASK_TE",
           "columns": [
             "ID_TNT",
@@ -9042,22 +9012,6 @@
             {
               "position": 3,
               "name": "ID_CARE_REQ_SRC_GRP",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_EX_TREAT_EXEC_TREAT_TASK_NO_INDEX_1",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_TASK_NO",
               "direction": "A"
             }
           ],

@@ -1,5 +1,5 @@
 {
-  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
+  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
   "tables": [
     {
       "logical": "ins.insurance_claim_line",
@@ -1234,7 +1234,7 @@
           "ordinal": 37,
           "comment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性",
           "logical": "organization_id",
-          "catalogComment": "业务单据所属机构标识"
+          "catalogComment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性"
         }
       ],
       "kind": "BASE TABLE",

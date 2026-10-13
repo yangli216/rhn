@@ -129,7 +129,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
                 command.tenantId(), command.organizationId(), command.departmentId(),
                 account.id(), command.residentId(), command.encounterId(), command.requestId(),
                 command.catalogItemId(), EXECUTION_SOURCE, command.taskId(),
-                command.requestNo() + "-" + command.occurrenceNo(), quantity, command.unitCode(), unitPrice, amount,
+                (command.requestNo() == null ? "INPATIENT_ORDER_TASK:" + command.taskId() : command.requestNo() + "-" + command.occurrenceNo()), quantity, command.unitCode(), unitPrice, amount,
                 command.currencyCode(), command.priceId(), command.priceRevision(), command.priceType(),
                 command.itemCode(), command.itemName(), command.completedAt(), command.completedBy(), null,
                 accountingCategory));
@@ -246,8 +246,8 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         List<Payment> accountPayments = payments.findByTenantIdAndPatientAccountIdOrderByPaidAtAscIdAsc(
                 command.tenantId(), account.id());
         List<Payment> replays = accountPayments.stream().filter(value -> "REFUND".equals(value.paymentType()))
-                .filter(value -> value.paymentNo().equals(command.commandCode())
-                        || value.paymentNo().startsWith(command.commandCode() + "-"))
+                .filter(value -> value.commandCode().equals(command.commandCode())
+                        || value.commandCode().startsWith(command.commandCode() + "-"))
                 .toList();
         if (!replays.isEmpty()) {
             BigDecimal replayed = money(replays.stream().map(Payment::amount)

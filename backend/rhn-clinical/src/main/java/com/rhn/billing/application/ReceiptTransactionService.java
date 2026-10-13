@@ -139,11 +139,11 @@ class ReceiptTransactionService {
         String authority = Strings.trimToNull(input.fiscalAuthorityCode());
         if (authority == null) authority = List.of("RECEIPT", "VIRTUAL").contains(type) ? "LOCAL" : null;
         if (authority == null) throw badRequest("FISCAL_AUTHORITY_REQUIRED", "财政票据必须指定财政平台编码");
-        Receipt value = receipts.save(new Receipt(context.tenantId(), account.organizationId(), settlement.id(), command, type,
+        Receipt value = receipts.save(new Receipt(context.tenantId(), settlement.organizationId(), settlement.id(), command, type,
                 authority.toUpperCase(), settlement.netAmount(), settlement.currencyCode(), channel,
                 Strings.trimToNull(input.payerName()), Strings.trimToNull(input.payerIdentityDigest()),
                 Strings.trimToNull(input.correlationId()) == null ? context.correlationId() : Strings.trimToNull(input.correlationId()),
-                context.subjectId(), numbers.next("receipt", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()))));
+                context.subjectId(), numbers.next("receipt", new BusinessNumberContext(context.tenantId(), settlement.organizationId(), settlement.departmentId()))));
         events.save(new ReceiptEvent(context.tenantId(), value.id(), null, "REQUEST", null, "REQUESTED",
                 "REQUEST-" + command, context.subjectId(), null, null));
         return new CreateResult(value, false);

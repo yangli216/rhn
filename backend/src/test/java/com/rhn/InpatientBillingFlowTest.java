@@ -218,7 +218,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 deposit.at("/account/estimatedOutstandingAmount").decimalValue()));
         assertEquals(0, new BigDecimal("8").compareTo(deposit.at("/account/ledgerBalance").decimalValue()));
         assertEquals(1, deposit.at("/account/deposits").size());
-        assertEquals("IP-DEP-0001", deposit.at("/account/deposits/0/paymentNo").asString());
+        org.junit.jupiter.api.Assertions.assertTrue(deposit.at("/account/deposits/0/paymentNo").asString().matches("IPD\\d{11}"));
         assertEquals(0, new BigDecimal("10").compareTo(
                 deposit.at("/account/deposits/0/originalAmount").decimalValue()));
         assertEquals(0, new BigDecimal("10").compareTo(
@@ -316,7 +316,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 + "/billing/final-settlement/payments", paymentBody, 201);
         assertEquals(true, replayPayment.get("duplicate").asBoolean());
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
-                + "and ID_INVOICE is not null and CD_PAY_NO = 'IP-PAY-0001'", accountId));
+                + "and ID_INVOICE is not null and CD_CMD = 'IP-PAY-0001'", accountId));
     }
 
     @Test
@@ -363,7 +363,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(0, refund.at("/account/depositAmount").decimalValue().compareTo(BigDecimal.ZERO));
         assertEquals(0, refund.at("/account/ledgerBalance").decimalValue().compareTo(BigDecimal.ZERO));
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
-                + "and SD_PAY_TYPE = 'REFUND' and CD_PAY_NO = 'IP-REFUND-SURPLUS'", accountId));
+                + "and SD_PAY_TYPE = 'REFUND' and CD_CMD = 'IP-REFUND-SURPLUS'", accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
                 + "and SD_PAY_TYPE = 'REFUND' and ID_PAY_RVRS is not null", accountId));
         JsonNode replay = postJson("/api/inpatient/episodes/" + episodeId

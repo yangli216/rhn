@@ -32,7 +32,10 @@ alter table RHN_BIL_RECON_BATCH add constraint UK_BIL_RECON_BATCH_ORG_NO unique 
 alter table RHN_BIL_STL drop constraint UK_BIL_STL_SETTLEMENT_NO;
 alter table RHN_BIL_STL add constraint UK_BIL_STL_ORG_NO unique (ID_TNT, ID_ORG, CD_STL_NO);
 alter table RHN_EX_CARE_REQ drop constraint UK_EX_CARE_REQ_CARE_REQUEST_NO;
-alter table RHN_EX_CARE_REQ add constraint UK_EX_CARE_REQ_ORG_NO unique (ID_TNT, ID_ORG_EXEC, CD_REQ_NO);
+-- All index expressions must be NULL for unnumbered medication and inpatient lines.
+create unique index UK_EX_CARE_REQ_ORG_NO on RHN_EX_CARE_REQ
+(case when CD_REQ_NO is not null then ID_TNT end,
+ case when CD_REQ_NO is not null then ID_ORG_EXEC end, CD_REQ_NO);
 alter table RHN_EX_REQ_GRP drop constraint UK_EX_REQ_GRP_REQUEST_GROUP_NO;
 alter table RHN_EX_REQ_GRP add constraint UK_EX_REQ_GRP_ORG_NO unique (ID_TNT, ID_ORG_REQ, CD_GRP_NO);
 alter table RHN_INS_CLAIM drop constraint UK_INS_CLAIM_INS_CLAIM_NO;
@@ -77,6 +80,13 @@ alter table RHN_VIS_ENC drop constraint UK_VIS_ENC_ENCOUNTER_NO;
 alter table RHN_VIS_ENC add constraint UK_VIS_ENC_ORG_NO unique (ID_TNT, ID_ORG, CD_ENC_NO);
 alter table RHN_OP_TRIAGE_REC drop constraint UK_OP_TRIAGE_NO;
 alter table RHN_OP_TRIAGE_REC add constraint UK_OP_TRIAGE_REC_ORG_NO unique (ID_TNT, ID_ORG, CD_TRIAGE_NO);
+-- Internal records retain their primary and command identities; no unique business number is required.
+alter table RHN_SUP_DISP_TASK drop constraint UK_SUP_DISP_TASK_DISPENSE_TA_1;
+alter table RHN_SUP_PHARM_REVIEW drop constraint UK_SUP_PHARM_REVI_PHARMACY_R_1;
+alter table RHN_SUP_INV_TXN drop constraint UK_SUP_INV_TXN_INV_TXN_NO;
+alter table RHN_EX_TREAT_EXEC_TASK drop constraint UK_EX_TREAT_EXEC_TREAT_TASK_NO;
+alter table RHN_EX_DIAG_EXEC_TASK drop constraint UK_EX_DIAG_EXEC_T_DIAG_TASK_NO;
+alter table RHN_SC_SCHED_SLOT_POOL drop constraint UK_SC_SCHED_SLOT_SCHED_POOL_CO;
 alter table RHN_EX_CARE_REQ modify (CD_REQ_NO null);
 alter table RHN_SUP_DISP_TASK modify (CD_TASK_NO null);
 alter table RHN_SUP_PHARM_REVIEW modify (CD_REVIEW_NO null);

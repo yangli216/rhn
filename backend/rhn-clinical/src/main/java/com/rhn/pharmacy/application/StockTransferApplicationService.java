@@ -102,10 +102,10 @@ public class StockTransferApplicationService {
         if (input.lines() == null || input.lines().isEmpty())
             throw badRequest("TRANSFER_LINES_REQUIRED", "调拨单至少需要一条明细");
         if (input.lines().size() > 500) throw badRequest("TRANSFER_LINES_TOO_MANY", "单张调拨单不能超过500条明细");
-        String no = Strings.trimToNull(input.transferNo());
-        if (no == null) no = numbers.next("stock-transfer", new BusinessNumberContext(context.tenantId(), source.organizationId(), null));
         Long srcDeptId = StockSiteRequirements.requireDepartment(source);
         Long destDeptId = StockSiteRequirements.requireDepartment(destination);
+        String no = Strings.trimToNull(input.transferNo());
+        if (no == null) no = numbers.next("stock-transfer", new BusinessNumberContext(context.tenantId(), source.organizationId(), srcDeptId));
         StockTransfer value = new StockTransfer(context.tenantId(), source.organizationId(), srcDeptId, destDeptId,
                 source.id(), destination.id(), no, requestCode,
                 input.requestedAt() == null ? Instant.now() : input.requestedAt(), Strings.trimToNull(input.reason()),

@@ -44,6 +44,9 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                  "commandCode":"IP-DX-ORDER"}
                 """.formatted(episodeId, SERVICE_ITEM), 201);
         String requestId = order.get("id").asString();
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "select CD_REQ_NO from RHN_EX_CARE_REQ where ID_CARE_REQ = ?", String.class,
+                Long.valueOf(requestId))).matches("SR[0-9]{11}");
         assertEquals(0, count("select count(*) from RHN_EX_DIAG_EXEC_TASK where ID_CARE_REQ = ?", requestId));
 
         postJson("/api/inpatient/orders/" + requestId + "/sign",
@@ -127,6 +130,9 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                  "commandCode":"IP-TR-ORDER"}
                 """.formatted(episodeId, TREATMENT_ITEM), 201);
         String treatmentRequestId = treatmentOrder.get("id").asString();
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "select CD_REQ_NO from RHN_EX_CARE_REQ where ID_CARE_REQ = ?", String.class,
+                Long.valueOf(treatmentRequestId))).isNull();
         postJson("/api/inpatient/orders/" + treatmentRequestId + "/sign",
                 command(0, "IP-TR-SIGN"), 200);
         postJson("/api/inpatient/orders/" + treatmentRequestId + "/verify",

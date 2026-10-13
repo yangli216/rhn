@@ -464,7 +464,7 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                                 """.formatted(returnNo, BUSINESS_DAY, pharmacist.practitionerId(),
                                 pharmacist.assignmentId(), dispense.at("/lines/0/id").asString())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.returnNo").value(org.hamcrest.Matchers.matchesPattern("RET-[0-9]{11}")));
+                .andExpect(jsonPath("$.returnNo").value(org.hamcrest.Matchers.matchesPattern("RET[0-9]{11}")));
     }
 
     private JsonNode dispense(String taskId, String requestCode, String quantity, Reviewer pharmacist) throws Exception {

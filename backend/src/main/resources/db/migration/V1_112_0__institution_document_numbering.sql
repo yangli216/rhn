@@ -77,6 +77,13 @@ alter table RHN_VIS_ENC drop constraint UK_VIS_ENC_ENCOUNTER_NO;
 alter table RHN_VIS_ENC add constraint UK_VIS_ENC_ORG_NO unique (ID_TNT, ID_ORG, CD_ENC_NO);
 alter table RHN_OP_TRIAGE_REC drop constraint UK_OP_TRIAGE_NO;
 alter table RHN_OP_TRIAGE_REC add constraint UK_OP_TRIAGE_REC_ORG_NO unique (ID_TNT, ID_ORG, CD_TRIAGE_NO);
+-- Internal records retain their primary and command identities; no unique business number is required.
+alter table RHN_SUP_DISP_TASK drop constraint UK_SUP_DISP_TASK_DISPENSE_TA_1;
+alter table RHN_SUP_PHARM_REVIEW drop constraint UK_SUP_PHARM_REVI_PHARMACY_R_1;
+alter table RHN_SUP_INV_TXN drop constraint UK_SUP_INV_TXN_INV_TXN_NO;
+alter table RHN_EX_TREAT_EXEC_TASK drop constraint UK_EX_TREAT_EXEC_TREAT_TASK_NO;
+alter table RHN_EX_DIAG_EXEC_TASK drop constraint UK_EX_DIAG_EXEC_T_DIAG_TASK_NO;
+alter table RHN_SC_SCHED_SLOT_POOL drop constraint UK_SC_SCHED_SLOT_SCHED_POOL_CO;
 alter table RHN_EX_CARE_REQ alter column CD_REQ_NO drop not null;
 alter table RHN_SUP_DISP_TASK alter column CD_TASK_NO drop not null;
 alter table RHN_SUP_PHARM_REVIEW alter column CD_REVIEW_NO drop not null;

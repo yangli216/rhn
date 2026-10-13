@@ -11,6 +11,7 @@ import com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
 import com.rhn.platform.masterdata.api.MedicationSemanticDirectory;
 import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -46,16 +47,18 @@ class InpatientCareRequestStoreOracleBindingTest {
     @Test
     void care_request_instants_are_bound_as_timestamp_with_time_zone() throws Exception {
         RecordingJdbc recording = recordingJdbc();
+        BusinessNumberGenerator numbers = mock(BusinessNumberGenerator.class);
         InpatientCareRequestStore store = new InpatientCareRequestStore(
                 mock(CatalogLifecycleDirectory.class), mock(ItemAttributeSnapshotDirectory.class),
                 mock(ItemStandardMappingDirectory.class), mock(MedicationRouteDirectory.class),
                 mock(MedicationSemanticDirectory.class), mock(OrderFrequencyDirectory.class),
-                mock(JsonCodec.class), recording.jdbc());
+                mock(JsonCodec.class), recording.jdbc(), numbers);
 
         store.create(new InpatientCareRequestStore.CreateFact(
                 1L, 2L, 3L, 4L, 5L, 6L, "NURSING", null,
                 "NUR-FASTING", "检查前禁食", null, null, null, null, "午夜后禁食", 7L));
 
+        org.mockito.Mockito.verifyNoInteractions(numbers);
         assertEquals(1, recording.sql().size());
         PreparedStatement statement = recording.statements().getFirst();
         var timestampValues = org.mockito.ArgumentCaptor.forClass(Object.class);
@@ -67,6 +70,7 @@ class InpatientCareRequestStoreOracleBindingTest {
     @Test
     void medication_number_one_flags_are_bound_parameters_not_sql_boolean_literals() throws Exception {
         RecordingJdbc recording = recordingJdbc();
+        BusinessNumberGenerator numbers = mock(BusinessNumberGenerator.class);
         CatalogLifecycleDirectory catalog = mock(CatalogLifecycleDirectory.class);
         ItemAttributeSnapshotDirectory attributes = mock(ItemAttributeSnapshotDirectory.class);
         ItemStandardMappingDirectory mappings = mock(ItemStandardMappingDirectory.class);
@@ -101,12 +105,13 @@ class InpatientCareRequestStoreOracleBindingTest {
                         50L, "ORAL", "口服", "RHN.EX.CS.MEDICATION_ROUTE", "1.0", "NONE"));
         InpatientCareRequestStore store = new InpatientCareRequestStore(
                 catalog, attributes, mappings, routes, mock(MedicationSemanticDirectory.class),
-                mock(OrderFrequencyDirectory.class), json, recording.jdbc());
+                mock(OrderFrequencyDirectory.class), json, recording.jdbc(), numbers);
 
         store.create(new InpatientCareRequestStore.CreateFact(
                 1L, 2L, 3L, 4L, 5L, 6L, "MEDICATION", item.id(),
                 null, null, new BigDecimal("0.25"), "g", "ORAL", "TID", "饭后服用", 7L));
 
+        org.mockito.Mockito.verifyNoInteractions(numbers);
         assertEquals(2, recording.sql().size());
         String medicationSql = recording.sql().get(1).toLowerCase();
         assertFalse(medicationSql.matches("(?s).*\\b(?:true|false)\\b.*"));

@@ -173,9 +173,9 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT, returnRequestLineId);
         JsonNode received = postJson("/api/pharmacy/ward-medication-returns/" + returnRequestId + "/receive",
                 receiveBody, pharmacyContext(), 200);
-        int stockReturnCount = countText("select count(*) from RHN_SUP_STOCK_RETURN where CD_RETURN_NO like ?", "WMR%");
+        int stockReturnCount = countText("select count(*) from RHN_SUP_STOCK_RETURN where CD_CMD like ?", "WARD-RETURN:%");
         int inventoryTransactionCount = countText(
-                "select count(*) from RHN_SUP_INV_TXN where CD_REQ like ?", "WMR%");
+                "select count(*) from RHN_SUP_INV_TXN where CD_REQ like ? or CD_REQ like 'WARD-RETURN:%'", "WMR%");
         int returnChargeCount = countId("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
                 + "and SD_SRC_TYPE = 'MEDICATION_RETURN'", requestId);
         JsonNode receiveReplay = postJson("/api/pharmacy/ward-medication-returns/" + returnRequestId + "/receive",
@@ -185,10 +185,10 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                 receiveReplay.at("/lines/0/stockReturnId").asString());
         assertEquals(1, stockReturnCount);
         assertEquals(stockReturnCount,
-                countText("select count(*) from RHN_SUP_STOCK_RETURN where CD_RETURN_NO like ?", "WMR%"));
+                countText("select count(*) from RHN_SUP_STOCK_RETURN where CD_CMD like ?", "WARD-RETURN:%"));
         assertEquals(2, inventoryTransactionCount);
         assertEquals(inventoryTransactionCount,
-                countText("select count(*) from RHN_SUP_INV_TXN where CD_REQ like ?", "WMR%"));
+                countText("select count(*) from RHN_SUP_INV_TXN where CD_REQ like ? or CD_REQ like 'WARD-RETURN:%'", "WMR%"));
         assertEquals(1, returnChargeCount);
         assertEquals(returnChargeCount, countId("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
                 + "and SD_SRC_TYPE = 'MEDICATION_RETURN'", requestId));

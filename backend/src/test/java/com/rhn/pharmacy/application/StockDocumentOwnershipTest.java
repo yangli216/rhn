@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class StockDocumentOwnershipTest {
+    @Mock com.rhn.platform.numbering.api.BusinessNumberGenerator numbers;
     @Mock ExecutionContextProvider contexts;
     @Mock StockSiteRepository sites;
     @Mock StockCountRepository counts;
@@ -53,7 +54,7 @@ class StockDocumentOwnershipTest {
         verify(counts, never()).save(any());
         verify(transfers, never()).save(any());
         verify(dispenses, never()).save(any());
-        verifyNoInteractions(countLines, transferLines, events);
+        verifyNoInteractions(countLines, transferLines, events, numbers);
     }
     @ParameterizedTest @NullSource @ValueSource(longs = {23L})
     void count_never_substitutes_seed_or_operator_department(Long operatorDepartment) {

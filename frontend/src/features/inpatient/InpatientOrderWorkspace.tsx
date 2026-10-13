@@ -325,7 +325,7 @@ function DoctorOrderRow({ order, deliveries, allergies, allergyLoading, allergyE
   const orderStatus = inpatientOrderStatusPresentation(order.status)
   return <article className="inpatient-order-row">
     <div className="inpatient-order-row__identity"><span>{inpatientOrderDurationLabel(order.durationType)} · {inpatientOrderCategoryLabel(order.orderCategory)}</span>
-      <strong>{order.itemName}</strong><small>{order.orderNo} · {order.itemCode}</small></div>
+      <strong>{order.itemName}</strong><small>{order.itemCode}</small></div>
     <div className="inpatient-order-row__directions"><strong>{orderDirections(order)}</strong>
       <span>{order.instructions || '按医嘱执行'}</span></div>
     <div className="inpatient-order-row__state"><StatusBadge tone={orderStatus.tone}>{orderStatus.label}</StatusBadge>
@@ -520,7 +520,7 @@ function NurseOrderWorkbench({ api, episode, orders, tasks, deliveries, readOnly
     {showExecution && orders.length > 0 && <section className="inpatient-verification-list"><header className="inpatient-order-section-head"><div>
       <strong>待核对医嘱</strong><span>{orders.length} 项签署医嘱</span></div></header>
       {orders.map((order) => <article key={order.id}><div><strong>{order.itemName}</strong><span>{inpatientOrderDurationLabel(order.durationType)} · {orderDirections(order)}</span></div>
-        <small>{order.orderNo} · {order.instructions || '按医嘱执行'}</small>
+        <small>{order.instructions || '按医嘱执行'}</small>
         {!readOnly && <Button size="sm" onClick={() => void onVerify(order).catch(() => undefined)} busy={busy}>核对通过</Button>}</article>)}</section>}
     {showExecution && <section className="inpatient-task-section"><header className="inpatient-order-section-head"><div><strong>执行任务</strong>
       <span>仅按已确定时点执行，无需配置复杂排班</span></div><nav aria-label="执行任务范围">
@@ -686,7 +686,7 @@ function NurseTaskRow({ task, delivery, selected, readOnly, busy, onSelectedChan
     <time dateTime={task.scheduledAt}><strong>{formatTime(task.scheduledAt)}</strong><small>计划执行</small></time>
     <div className="inpatient-task-row__identity"><strong>{task.itemName}</strong>
       <span>{inpatientOrderDurationLabel(task.durationType)} · {inpatientOrderCategoryLabel(task.orderCategory)} · {orderDirections(task)}</span>
-      <small>{task.orderNo} · 第 {task.occurrenceNo} 次{task.instructions ? ` · ${task.instructions}` : ''}</small></div>
+      <small>第 {task.occurrenceNo} 次{task.instructions ? ` · ${task.instructions}` : ''}</small></div>
     <MedicationFulfillmentSummary task={task} delivery={delivery} />
     <StatusBadge tone={taskStatus.tone}>{taskStatus.label}</StatusBadge>
     {task.status === 'PLANNED' && !readOnly ? <div className="inpatient-task-row__actions"><input aria-label={`执行备注 ${task.itemName}`}

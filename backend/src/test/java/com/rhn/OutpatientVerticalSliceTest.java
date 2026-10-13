@@ -240,6 +240,14 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].baseQuantity").value(40))
                 .andExpect(jsonPath("$[0].totalAmount").value(37.6));
+        org.junit.jupiter.api.Assertions.assertNull(jdbc.queryForObject(
+                "select CD_REQ_NO from RHN_EX_CARE_REQ where ID_CARE_REQ = ?", String.class, request.get("id").asLong()));
+        // Simulate a pre-migration standalone line: cancellation must retain the original charge identity.
+        String historicalNo = "MR-HISTORICAL-" + suffix;
+        jdbc.update("update RHN_EX_CARE_REQ set CD_REQ_NO = ? where ID_CARE_REQ = ?",
+                historicalNo, request.get("id").asLong());
+        jdbc.update("update RHN_BIL_CHARGE_ITEM set CD_REQ = ? where SD_SRC_TYPE = 'MEDICATION_REQUEST' and ID_SRC = ?",
+                historicalNo, request.get("id").asLong());
         mockMvc.perform(post("/api/encounters/{encounterId}/medication-requests/{requestId}/cancel",
                                 encounterId, request.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -248,6 +256,10 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.cancelReason").value("调整处方"));
+        OutboxEvent cancelled = outboxEventRepository.findByAggregateIdOrderByRecordedAt(request.get("id").asLong())
+                .stream().filter(event -> "MEDICATION_REQUEST_CANCELLED".equals(event.eventType()))
+                .findFirst().orElseThrow();
+        assertEquals(historicalNo, json(cancelled.payloadJson()).path("requestNo").asString());
     }
 
     @Test

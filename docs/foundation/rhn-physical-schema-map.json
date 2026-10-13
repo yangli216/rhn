@@ -9208,7 +9208,7 @@
       {
         "logical": "organization_id",
         "physical": "ID_ORG",
-        "comment": "业务单据所属机构标识"
+        "comment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性"
       }
     ]
   },
@@ -19447,7 +19447,7 @@
       {
         "logical": "organization_id",
         "physical": "ID_ORG",
-        "comment": "业务单据所属机构标识"
+        "comment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性"
       }
     ]
   },
@@ -21439,7 +21439,7 @@
       {
         "logical": "organization_id",
         "physical": "ID_ORG",
-        "comment": "业务单据所属机构标识"
+        "comment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性"
       }
     ]
   },
@@ -23941,7 +23941,7 @@
       {
         "logical": "organization_id",
         "physical": "ID_ORG",
-        "comment": "业务单据所属机构标识"
+        "comment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性"
       }
     ]
   },
@@ -25615,7 +25615,7 @@
       {
         "logical": "command_code",
         "physical": "CD_CMD",
-        "comment": "配送请求幂等键；与展示业务编码分离"
+        "comment": "配送请求幂等键；与机构级展示业务编码分离"
       }
     ]
   },

@@ -185,11 +185,11 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
                 stockItemId, lotId, returnTransactionLineId, BigDecimal.ONE);
         jdbc.update("""
                 insert into RHN_SUP_WARD_DELIV (ID_WARD_DELIV, REVISION, ID_TNT, ID_ORG, ID_STOCK_SITE,
-                    ID_DEPT_NURS_UNIT, CD_DELIV_NO, SD_STATUS, NA_STOCK_SITE_SNAP,
+                    ID_DEPT_NURS_UNIT, CD_DELIV_NO, CD_CMD, SD_STATUS, NA_STOCK_SITE_SNAP,
                     NA_NURS_UNIT_SNAP, DT_CREATED, ID_USER_CREATED, DT_DSPTD, ID_USER_DSPTD,
                     DES_DSPT_NOTE, DT_RECVD, ID_USER_RECVD, DES_RCPT_NOTE, DES_DSCRPN_NOTE,
                     DT_RSLVD, ID_USER_RSLVD, CD_RSLN, DES_RSLN_NOTE)
-                values (?,0,?,?,?,?,'IP-CONS-DELIVERY','RECEIVED','住院药房','综合病区',?,?,?, ?,null,
+                values (?,0,?,?,?,?,'IP-CONS-DELIVERY','IP-CONS-DELIVERY','RECEIVED','住院药房','综合病区',?,?,?, ?,null,
                     ?,?,null,null,null,null,null,null)
                 """, deliveryId, Long.parseLong(TENANT), Long.parseLong(ORGANIZATION), siteId,
                 Long.parseLong(DEPARTMENT), now, ACTOR, now, ACTOR, now, ACTOR);

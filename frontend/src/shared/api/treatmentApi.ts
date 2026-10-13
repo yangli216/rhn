@@ -13,7 +13,7 @@ export interface TreatmentExecutionItem {
   sourceType: 'SERVICE_REQUEST' | 'MEDICATION_REQUEST'
   sourceId: string
   parentSourceId?: string
-  requestNo: string
+  requestNo: string | null
   itemCode: string
   itemName: string
   doseValue?: number
@@ -87,7 +87,7 @@ export interface CompleteTreatmentInput {
 export interface SkinTestWorkItem {
   medicationRequestId: string
   medicationRequestRevision: number
-  requestNo: string
+  requestNo: string | null
   residentId: string
   residentName: string
   healthRecordNo: string

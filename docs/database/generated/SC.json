@@ -1,5 +1,5 @@
 {
-  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
+  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
   "tables": [
     {
       "logical": "sc.appointment_event",
@@ -4505,13 +4505,6 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_SC_SCHED_SLOT_SCHED_POOL_CO",
-          "columns": [
-            "ID_TNT",
-            "CD_POOL"
-          ]
-        },
-        {
           "name": "UK_SC_SCHED_SLOT_SCHED_POOL_SC",
           "columns": [
             "ID_TNT",
@@ -4565,22 +4558,6 @@
             {
               "position": 1,
               "name": "ID_SCHED_SLOT_POOL",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_SC_SCHED_SLOT_SCHED_POOL_CO_INDEX_B",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_POOL",
               "direction": "A"
             }
           ],
@@ -5180,7 +5157,7 @@
           "ordinal": 16,
           "comment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性",
           "logical": "organization_id",
-          "catalogComment": "业务单据所属机构标识"
+          "catalogComment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性"
         }
       ],
       "kind": "BASE TABLE",

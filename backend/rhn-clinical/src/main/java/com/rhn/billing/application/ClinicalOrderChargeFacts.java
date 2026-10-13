@@ -61,7 +61,8 @@ record ClinicalOrderChargeFacts(Long encounterId, Long residentId, Long organiza
         } else {
             require(priceId == null && priceRevision == null && priceType == null, "未定价医嘱包含不完整的价格来源");
         }
-        String requestNo = text(data, "requestNo", true);
+        String requestNo = text(data, "requestNo", !medication);
+        if (requestNo == null) requestNo = "MEDICATION_REQUEST:" + event.aggregateId();
         String prescriptionNo = text(data, "prescriptionNo", false);
         return new ClinicalOrderChargeFacts(encounter, resident, organization, department, catalog, author, actor,
                 quantity, price == null ? null : money(price), total == null ? null : money(total), currency,

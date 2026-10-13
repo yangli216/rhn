@@ -190,7 +190,7 @@ public class WardMedicationReturnApplicationService {
         WardMedicationReturnRequest request = requests.save(new WardMedicationReturnRequest(
                 context.tenantId(), first.delivery().organizationId(), first.dispense().stockSiteId(),
                 first.delivery().nursingUnitDepartmentId(), first.dispense().residentId(),
-                first.dispense().encounterId(), context.subjectId(), Strings.trimToNull(input.note()), numbers.next("ward-medication-return")));
+                first.dispense().encounterId(), context.subjectId(), Strings.trimToNull(input.note()), numbers.next("ward-medication-return", new BusinessNumberContext(context.tenantId(), first.delivery().organizationId(), first.delivery().nursingUnitDepartmentId()))));
         for (RequestedDetail value : details) {
             ReturnableDetail detail = value.detail();
             requestLines.save(new WardMedicationReturnLine(request, detail.taskLine().requestId(),

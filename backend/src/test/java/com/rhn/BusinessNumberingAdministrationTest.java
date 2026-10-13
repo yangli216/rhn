@@ -52,11 +52,18 @@ class BusinessNumberingAdministrationTest extends RhnIntegrationTestSupport {
                 "select * from RHN_SYS_ORG where ID_ORG = ?", Long.valueOf(ORGANIZATION)));
         organization.put("ID_ORG", secondOrg); organization.put("CD_ORG", "NUMBERING-" + secondOrg);
         insert("RHN_SYS_ORG", organization);
+        long secondDept = com.rhn.shared.id.GlobalIds.next();
+        var department = new org.springframework.util.LinkedCaseInsensitiveMap<Object>();
+        department.putAll(jdbc.queryForMap("select * from RHN_SYS_DEPT where ID_DEPT = ?", Long.valueOf(DEPARTMENT)));
+        department.put("ID_DEPT", secondDept); department.put("ID_ORG", secondOrg);
+        department.put("CD_DEPT", "NUMBERING-" + secondDept);
+        insert("RHN_SYS_DEPT", department);
         var resource = new org.springframework.util.LinkedCaseInsensitiveMap<Object>();
         resource.putAll(jdbc.queryForMap(
                 "select * from RHN_SYS_SVC_RSRC where ID_SVC_RSRC = ?", 362387869899081L));
         String number = (String) resource.get("CD_RSRC");
         resource.put("ID_SVC_RSRC", secondResource); resource.put("ID_ORG", secondOrg);
+        resource.put("ID_DEPT", secondDept);
         insert("RHN_SYS_SVC_RSRC", resource);
         assertThat(jdbc.queryForObject("select count(*) from RHN_SYS_SVC_RSRC where ID_TNT = ? and CD_RSRC = ?",
                 Long.class, Long.valueOf(TENANT), number)).isEqualTo(2L);
@@ -65,7 +72,7 @@ class BusinessNumberingAdministrationTest extends RhnIntegrationTestSupport {
         resource.put("ID_PRACT", null); resource.put("ID_STAFF_ASSIGN", null);
         resource.put("SD_RSRC_TYPE", "DEPARTMENT"); resource.put("CD_RSRC_KEY", "NUMBERING-DUPLICATE");
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> insert("RHN_SYS_SVC_RSRC", resource))
-                .isInstanceOf(org.springframework.dao.DuplicateKeyException.class).hasMessageContaining("ORG_NO");
+                .isInstanceOf(org.springframework.dao.DuplicateKeyException.class).hasMessageContaining("org_no");
     }
 
     private void insert(String table, java.util.Map<String, Object> row) {

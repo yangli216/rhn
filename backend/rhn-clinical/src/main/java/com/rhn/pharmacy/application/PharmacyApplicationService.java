@@ -726,7 +726,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
     private void publish(ExecutionContext context, Long organizationId, Long residentId, DispenseTask task,
                          String type, String summary, Map<String, Object> details) {
         Map<String, Object> payload = new LinkedHashMap<>(details); payload.put("summary", summary);
-        payload.put("taskNo", task.taskNo()); payload.put("encounterId", task.encounterId());
+        payload.put("taskId", task.id()); payload.put("encounterId", task.encounterId());
         eventPublisher.publish(context.tenantId(), organizationId, type, 1, "DispenseTask", task.id(),
                 task.revision(), residentId, Instant.now(), payload);
     }

@@ -504,7 +504,7 @@ public class InpatientOrderApplicationService {
         put(payload, "unitPrice", request.unitPrice());
         put(payload, "totalAmount", request.totalAmount());
         put(payload, "currencyCode", request.currencyCode());
-        payload.put("requestNo", request.requestNo());
+        put(payload, "requestNo", request.requestNo());
         payload.put("careSetting", "INPATIENT");
         payload.put("summary", summary);
         domainEvents.publish(request.tenantId(), request.performerOrganizationId(), eventType, 1,

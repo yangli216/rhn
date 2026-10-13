@@ -1,5 +1,5 @@
 {
-  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
+  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
   "tables": [
     {
       "logical": "sup.dispense_route",
@@ -1247,13 +1247,6 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_SUP_DISP_TASK_DISPENSE_TA_1",
-          "columns": [
-            "ID_TNT",
-            "CD_TASK_NO"
-          ]
-        },
-        {
           "name": "UK_SUP_DISP_TASK_DISPENSE_TASK",
           "columns": [
             "ID_TNT",
@@ -1411,22 +1404,6 @@
             {
               "position": 2,
               "name": "ID_DISP_TASK",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_SUP_DISP_TASK_DISPENSE_TA_1_INDEX_7",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_TASK_NO",
               "direction": "A"
             }
           ],
@@ -14328,13 +14305,6 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_SUP_INV_TXN_INV_TXN_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_TXN_NO"
-          ]
-        },
-        {
           "name": "UK_SUP_INV_TXN_INV_TXN_REQUEST",
           "columns": [
             "ID_TNT",
@@ -14441,22 +14411,6 @@
             {
               "position": 1,
               "name": "ID_INV_TXN",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_SUP_INV_TXN_INV_TXN_NO_INDEX_8",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_TXN_NO",
               "direction": "A"
             }
           ],
@@ -16888,13 +16842,6 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_SUP_PHARM_REVI_PHARMACY_R_1",
-          "columns": [
-            "ID_TNT",
-            "CD_REVIEW_NO"
-          ]
-        },
-        {
           "name": "UK_SUP_PHARM_REVI_PHARMACY_REV",
           "columns": [
             "ID_TNT",
@@ -16989,22 +16936,6 @@
             {
               "position": 2,
               "name": "ID_PHARM_REVIEW",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_SUP_PHARM_REVI_PHARMACY_R_1_INDEX_E",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_REVIEW_NO",
               "direction": "A"
             }
           ],
@@ -22052,7 +21983,7 @@
           "ordinal": 18,
           "comment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性",
           "logical": "organization_id",
-          "catalogComment": "业务单据所属机构标识"
+          "catalogComment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性"
         }
       ],
       "kind": "BASE TABLE",
@@ -25238,7 +25169,7 @@
           "ordinal": 24,
           "comment": "配送请求幂等键；与机构级展示业务编码分离",
           "logical": "command_code",
-          "catalogComment": "配送请求幂等键；与展示业务编码分离"
+          "catalogComment": "配送请求幂等键；与机构级展示业务编码分离"
         }
       ],
       "kind": "BASE TABLE",

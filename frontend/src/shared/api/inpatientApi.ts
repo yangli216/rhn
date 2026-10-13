@@ -244,7 +244,7 @@ export interface InpatientOrderTask {
   id: string
   revision: number
   orderId: string
-  orderNo: string
+  orderNo: string | null
   orderCategory: InpatientOrderCategory
   durationType: InpatientOrderDurationType
   episodeId: string
@@ -281,7 +281,7 @@ export interface InpatientOrderTask {
 export interface InpatientOrder {
   id: string
   revision: number
-  orderNo: string
+  orderNo: string | null
   orderCategory: InpatientOrderCategory
   durationType: InpatientOrderDurationType
   status: InpatientOrderStatus

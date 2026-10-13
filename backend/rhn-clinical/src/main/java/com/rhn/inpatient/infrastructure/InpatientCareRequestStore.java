@@ -8,6 +8,8 @@ import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
 import com.rhn.platform.masterdata.api.MedicationSemanticDirectory;
 import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.json.JsonCodec;
 import com.rhn.shared.text.Strings;
@@ -42,6 +44,7 @@ public class InpatientCareRequestStore {
     private final MedicationSemanticDirectory semantics;
     private final OrderFrequencyDirectory frequencies;
     private final NamedParameterJdbcTemplate jdbc;
+    private final BusinessNumberGenerator numbers;
 
     public InpatientCareRequestStore(CatalogLifecycleDirectory catalogDirectory,
                                      ItemAttributeSnapshotDirectory attributeDirectory,
@@ -49,7 +52,8 @@ public class InpatientCareRequestStore {
                                      MedicationRouteDirectory routeDirectory,
                                      MedicationSemanticDirectory semantics, OrderFrequencyDirectory frequencies,
                                      JsonCodec jsonCodec,
-                                     JdbcTemplate jdbcTemplate) {
+                                     JdbcTemplate jdbcTemplate, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.semantics = semantics; this.frequencies = frequencies;
         this.catalogDirectory = catalogDirectory;
         this.attributeDirectory = attributeDirectory;
@@ -69,10 +73,15 @@ public class InpatientCareRequestStore {
                 && resolved.defaultDepartmentId() != null
                 ? resolved.defaultDepartmentId() : input.departmentId();
 
+        // Diagnostic applications are visible documents; medication and ordinary order lines use only IDs.
+        String requestNo = "SERVICE".equals(input.orderCategory())
+                && ("LABORATORY".equals(resolved.serviceType()) || "EXAMINATION".equals(resolved.serviceType()))
+                ? numbers.next("service-request", new BusinessNumberContext(
+                        input.tenantId(), input.organizationId(), performerDepartmentId)) : null;
         MapSqlParameterSource values = new MapSqlParameterSource()
                 .addValue("id", requestId).addValue("tenantId", input.tenantId())
                 .addValue("residentId", input.residentId()).addValue("encounterId", input.encounterId())
-                .addValue("requestNo", null, Types.VARCHAR).addValue("requestKind", requestKind)
+                .addValue("requestNo", requestNo, Types.VARCHAR).addValue("requestKind", requestKind)
                 .addValue("catalogItemId", resolved.catalogItemId()).addValue("organizationId", input.organizationId())
                 .addValue("departmentId", performerDepartmentId)
                 .addValue("requestingOrganizationId", input.organizationId())

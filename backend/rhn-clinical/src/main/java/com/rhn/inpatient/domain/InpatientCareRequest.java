@@ -23,7 +23,7 @@ public class InpatientCareRequest {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
-    @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
+    @Column(name = "CD_REQ_NO") private String requestNo;
     @Column(name = "SD_REQ_KIND", nullable = false) private String requestKind;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private InpatientCareRequestStatus status;
     @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;

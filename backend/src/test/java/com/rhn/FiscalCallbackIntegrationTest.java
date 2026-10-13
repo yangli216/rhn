@@ -159,7 +159,7 @@ class FiscalCallbackIntegrationTest extends RhnIntegrationTestSupport {
         var invoice=invoices.saveAndFlush(new Invoice(Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),account.id(),"INV-"+key,"CNY",BigDecimal.TEN,Instant.now(),362387869790222L));
         var settlement=new Settlement(invoice.id(),Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),account.id(),invoice.id(),"STL-"+key,key,"NORMAL","OUTPATIENT","CASHIER",BigDecimal.TEN,"CNY","TEST",362387869790222L,Instant.now());
         settlement.applyPaidAmount(BigDecimal.TEN,362387869790222L,Instant.now());settlements.saveAndFlush(settlement);
-        var receipt=new Receipt(Long.valueOf(TENANT), 1L,invoice.id(),key,"MEDICAL_E_INVOICE","FISCAL",BigDecimal.TEN,"CNY","CASHIER","payer",null,"corr",362387869790222L, "TEST-Receipt");
+        var receipt=new Receipt(Long.valueOf(TENANT), Long.valueOf(ORGANIZATION),invoice.id(),key,"MEDICAL_E_INVOICE","FISCAL",BigDecimal.TEN,"CNY","CASHIER","payer",null,"corr",362387869790222L, "TEST-Receipt");
         if(!operation.equals("ISSUE"))receipt.applyIssueResult(new ReceiptResult(ReceiptResult.Outcome.ISSUED,"EXT-"+receipt.receiptNo(),"CODE","NUMBER","VERIFY","OBJECT",ISSUED,null,null,null));
         receipts.saveAndFlush(receipt);
         return operation.equals("RED_FLUSH")?receipts.saveAndFlush(Receipt.redFlushOf(receipt,"RED-"+key,"corr",362387869790222L, "TEST-RED-RECEIPT")):receipt;
