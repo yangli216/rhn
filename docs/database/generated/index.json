@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
+  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -774,7 +774,7 @@
       "logical": "ins.insurance_claim",
       "domain": "INS",
       "comment": "医保理赔；一行代表一条医保理赔记录",
-      "columns": 36
+      "columns": 37
     },
     {
       "physical": "RHN_SUP_INV_BAL",
@@ -1523,7 +1523,7 @@
       "logical": "bil.receipt",
       "domain": "BIL",
       "comment": "票据；一行代表一条票据记录",
-      "columns": 27
+      "columns": 28
     },
     {
       "physical": "RHN_BIL_RECON_BATCH",
@@ -1684,7 +1684,7 @@
       "logical": "sc.schedule_template",
       "domain": "SC",
       "comment": "排班模板；一行代表一条排班模板记录",
-      "columns": 15
+      "columns": 16
     },
     {
       "physical": "RHN_BD_SVC_ITEM",
@@ -1859,7 +1859,7 @@
       "logical": "sup.stock_return",
       "domain": "SUP",
       "comment": "库存退回；一行代表一条库存退回记录",
-      "columns": 17
+      "columns": 18
     },
     {
       "physical": "RHN_SUP_STOCK_SITE",
@@ -1985,7 +1985,7 @@
       "logical": "sup.ward_delivery",
       "domain": "SUP",
       "comment": "病区配送；一行代表一条病区配送记录",
-      "columns": 23
+      "columns": 24
     },
     {
       "physical": "RHN_SUP_WARD_DELIV_EVT",

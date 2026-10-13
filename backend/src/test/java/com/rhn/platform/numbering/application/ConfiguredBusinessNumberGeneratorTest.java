@@ -54,7 +54,7 @@ class ConfiguredBusinessNumberGeneratorTest {
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     var configuration = context.getBean(BusinessNumberingProperties.class);
-                    assertThat(configuration.rules()).hasSize(45);
+                    assertThat(configuration.rules()).hasSize(36);
                     var rule = configuration.rules().get("outpatient-encounter");
                     assertThat(rule.scope()).isEqualTo(BusinessNumberScope.DEPARTMENT);
                     assertThat(rule.format(LocalDate.of(2026, 10, 11), 1)).isEqualTo("OP2026101100001-B");
@@ -68,15 +68,15 @@ class ConfiguredBusinessNumberGeneratorTest {
         new YamlPropertySourceLoader().load("numbering", new ClassPathResource("business-numbering.yml"))
                 .forEach(source -> environment.getPropertySources().addLast(source));
         var properties = Binder.get(environment).bind("rhn.business-numbering", Bindable.of(BusinessNumberingProperties.class)).get();
-        assertThat(properties.rules()).hasSize(45).containsKeys("outpatient-encounter", "invoice", "stock-purchase-order", "schedule", "pharmacy-return");
+        assertThat(properties.rules()).hasSize(36).containsKeys("outpatient-encounter", "invoice", "stock-purchase-order", "schedule", "pharmacy-return");
         assertThat(properties.rules().get("inpatient-episode").prefix()).isEqualTo("IP");
         assertThat(properties.rules().get("inpatient-encounter").prefix()).isEqualTo("IPE");
         var counter = mock(BusinessNumberCounter.class);
         when(counter.next(anyString(), anyLong())).thenReturn(1L);
         var generator = generator(properties, counter, DAY);
         assertThat(generator.next("outpatient-encounter")).isEqualTo("OP26101100001");
-        assertThat(generator.preview("pharmacy-return", LocalDate.of(2026, 10, 11), 1)).isEqualTo("RET-26101100001");
-        verify(counter).next("rhn:business-number:outpatient-encounter:tenant:1:20261011", 99999L);
+        assertThat(generator.preview("pharmacy-return", LocalDate.of(2026, 10, 11), 1)).isEqualTo("RET26101100001");
+        verify(counter).next("rhn:business-number:outpatient-encounter:tenant:1:organization:2:20261011", 99999L);
         assertThat(generator.rules().get("invoice").dateFormat()).isEqualTo("yyMMdd");
         assertThatThrownBy(() -> generator.rules().clear()).isInstanceOf(UnsupportedOperationException.class);
     }
@@ -168,6 +168,38 @@ class ConfiguredBusinessNumberGeneratorTest {
                 .isInstanceOf(java.time.DateTimeException.class);
         assertThatThrownBy(() -> new BusinessNumberRule("OP", null, null, 2, null).format(LocalDate.of(2026, 10, 11), 100))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void date_free_numbers_keep_their_counter_across_days_and_organizations_can_repeat() {
+        Map<String, AtomicLong> values = new ConcurrentHashMap<>();
+        BusinessNumberCounter counter = new BusinessNumberCounter() {
+            public long next(String key, long maximum) { return values.computeIfAbsent(key, ignored -> new AtomicLong()).incrementAndGet(); }
+            public long current(String key) { return values.getOrDefault(key, new AtomicLong()).get(); }
+        };
+        var rules = properties(new BusinessNumberRule("RES", null, "", 4, BusinessNumberScope.ORGANIZATION));
+        var today = generator(rules, counter, DAY);
+        var tomorrow = generator(rules, counter, Clock.offset(DAY, java.time.Duration.ofDays(1)));
+        assertThat(today.next("visit", OWNER)).isEqualTo("RES0001");
+        assertThat(tomorrow.inspect("visit", OWNER).nextNumber()).isEqualTo("RES0002");
+        assertThat(tomorrow.next("visit", OWNER)).isEqualTo("RES0002");
+        assertThat(tomorrow.next("visit", new BusinessNumberContext(1L, 5L, 3L))).isEqualTo("RES0001");
+        assertThat(values.keySet()).allMatch(key -> key.endsWith(":continuous"));
+    }
+
+    @Test
+    void institution_rollout_uses_the_legacy_tenant_floor_without_reserving_on_inspection() {
+        var counter = mock(BusinessNumberCounter.class);
+        var generator = generator(properties(new BusinessNumberRule("OP", null, "yyMMdd", 5, BusinessNumberScope.ORGANIZATION)), counter, DAY);
+        String legacy = "rhn:business-number:visit:tenant:1:20261011";
+        String local = "rhn:business-number:visit:tenant:1:organization:2:20261011";
+        when(counter.current(legacy)).thenReturn(42L);
+        when(counter.current(local)).thenReturn(3L);
+        assertThat(generator.inspect("visit", OWNER).nextNumber()).isEqualTo("OP26101100043");
+        verify(counter, never()).next(anyString(), anyLong(), anyLong());
+        when(counter.next(local, 99999L, 42L)).thenReturn(43L);
+        assertThat(generator.next("visit", OWNER)).isEqualTo("OP26101100043");
+        verify(counter).next(local, 99999L, 42L);
     }
 
     private static BusinessNumberingProperties properties(BusinessNumberRule rule) {

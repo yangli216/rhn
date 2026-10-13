@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.PharmacyViews.StockReturnView;
 import com.rhn.pharmacy.api.WardMedicationReturnViews.ReturnableMedicationLineView;
 import com.rhn.pharmacy.api.WardMedicationReturnViews.WardMedicationReturnEventView;
@@ -67,6 +69,7 @@ public class WardMedicationReturnApplicationService {
     private static final Set<String> REQUEST_STATUSES = Set.of("REQUESTED", "IN_TRANSIT", "RECEIVED");
     private static final Set<String> DISPOSITIONS = Set.of("RESTOCK", "QUARANTINE", "DESTROY");
 
+    private final BusinessNumberGenerator numbers;
     private final WardMedicationReturnRequestRepository requests;
     private final WardMedicationReturnLineRepository requestLines;
     private final WardMedicationReturnEventRepository requestEvents;
@@ -98,7 +101,8 @@ public class WardMedicationReturnApplicationService {
             StockItemRepository stockItems,
             DispenseApplicationService dispenseService,
             ExecutionContextProvider contextProvider,
-            EntityManager entityManager) {
+            EntityManager entityManager, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.requests = requests;
         this.requestLines = requestLines;
         this.requestEvents = requestEvents;
@@ -186,7 +190,7 @@ public class WardMedicationReturnApplicationService {
         WardMedicationReturnRequest request = requests.save(new WardMedicationReturnRequest(
                 context.tenantId(), first.delivery().organizationId(), first.dispense().stockSiteId(),
                 first.delivery().nursingUnitDepartmentId(), first.dispense().residentId(),
-                first.dispense().encounterId(), context.subjectId(), Strings.trimToNull(input.note())));
+                first.dispense().encounterId(), context.subjectId(), Strings.trimToNull(input.note()), numbers.next("ward-medication-return")));
         for (RequestedDetail value : details) {
             ReturnableDetail detail = value.detail();
             requestLines.save(new WardMedicationReturnLine(request, detail.taskLine().requestId(),
@@ -271,7 +275,7 @@ public class WardMedicationReturnApplicationService {
                         .add(value));
         int groupNo = 0;
         for (Map.Entry<Long, List<WardMedicationReturnLine>> entry : grouped.entrySet()) {
-            String returnNo = request.requestNo() + "-" + (++groupNo);
+            String returnNo = "WARD-RETURN:" + request.id() + ":" + (++groupNo);
             List<ReturnLineCommand> formalLines = entry.getValue().stream().map(value -> {
                 ReceiveLineCommand received = inputs.get(value.id());
                 return new ReturnLineCommand(value.originalDispenseLineId(), value.requestedQuantity(),

@@ -174,7 +174,8 @@ export interface MedicationRequest {
   revision: number
   residentId: string
   encounterId: string
-  requestNo: string
+  requestNo: string | null
+  prescriptionNo?: string | null
   status: 'DRAFT' | 'ACTIVE' | 'CANCELLED'
   prescriptionId?: string
   parentRequestId?: string

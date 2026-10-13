@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 record MedicationRequestResponse(
-        Long id, long revision, Long residentId, Long encounterId, String requestNo, String status,
+        Long id, long revision, Long residentId, Long encounterId, String requestNo, String prescriptionNo, String status,
         Long prescriptionId, Long parentRequestId, Long catalogItemId, Long medicationId, Long packageId,
         Long performerOrganizationId, Long performerDepartmentId, LocalDate businessDate,
         Instant authoredAt, Long authoredBy, String reason,

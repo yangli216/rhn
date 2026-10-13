@@ -102,7 +102,7 @@ class ReceiptFundingServiceTest {
         rows.add(new SettlementTender(1L,2L,value.id(),rows.size()+1,prepay?"PREPAYMENT":"CASH",method,null,money(applied),"CNY"));return value;
     }
     InsuranceClaimResponse insurance(String operation,String fund,String personal,String patient,String other) {
-        var claim=claims.findByTenantIdAndSettlementId(1L,2L).orElseGet(()->new InsuranceClaim(1L,2L,3L,7L,"CLAIM","REGION","TYPE","PAYER","ORG","DEPT","DOC","DIGEST",Instant.now(),null,money("10"),"CNY","CORR",5L, "TEST-InsuranceClaim"));
+        var claim=claims.findByTenantIdAndSettlementId(1L,2L).orElseGet(()->new InsuranceClaim(1L, 1L,2L,3L,7L,"CLAIM","REGION","TYPE","PAYER","ORG","DEPT","DOC","DIGEST",Instant.now(),null,money("10"),"CNY","CORR",5L, "TEST-InsuranceClaim"));
         when(claims.findByTenantIdAndSettlementId(1L,2L)).thenReturn(Optional.of(claim));
         var response=new InsuranceClaimResponse(1L,claim.id(),null,"CMD"+rows.size(),operation,new InsuranceResult(InsuranceResult.Outcome.SUCCEEDED,"EXT","MSG"+rows.size(),money(fund),money(personal),money(patient),money(other),"CNY",null,null,null));
         when(responses.findByTenantIdAndClaimIdOrderByRespondedAtAscIdAsc(1L,claim.id())).thenReturn(List.of(response));

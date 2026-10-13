@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.PharmacyViews.WardDeliveryEventView;
 import com.rhn.pharmacy.api.PharmacyViews.WardDeliveryLineView;
 import com.rhn.pharmacy.api.PharmacyViews.WardDeliveryView;
@@ -47,6 +49,7 @@ public class WardDeliveryApplicationService {
     private static final Set<String> RESOLUTION_CODES = Set.of(
             "SUPPLEMENTED", "RETURNED_TO_PHARMACY", "ACCEPTED_VARIANCE");
 
+    private final BusinessNumberGenerator numbers;
     private final WardDeliveryRepository deliveries;
     private final WardDeliveryLineRepository lines;
     private final WardDeliveryEventRepository events;
@@ -63,7 +66,8 @@ public class WardDeliveryApplicationService {
                                           DispenseTaskRepository tasks,
                                           StockSiteRepository sites,
                                           JdbcTemplate jdbc,
-                                          ExecutionContextProvider contextProvider) {
+                                          ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.deliveries = deliveries; this.lines = lines; this.events = events;
         this.dispenses = dispenses; this.tasks = tasks; this.sites = sites;
         this.jdbc = jdbc; this.contextProvider = contextProvider;
@@ -74,7 +78,7 @@ public class WardDeliveryApplicationService {
         ExecutionContext context = requireContext();
         String deliveryNo = required(input.deliveryNo(), "WARD_DELIVERY_NO_REQUIRED", "配送交接单号不能为空", 64);
         List<Long> dispenseIds = normalizedIds(input.dispenseIds());
-        WardDelivery existing = deliveries.findByTenantIdAndDeliveryNo(context.tenantId(), deliveryNo).orElse(null);
+        WardDelivery existing = deliveries.findByTenantIdAndCommandCode(context.tenantId(), deliveryNo).orElse(null);
         if (existing != null) {
             Set<Long> existingIds = lines.findByTenantIdAndDeliveryIdOrderById(context.tenantId(), existing.id())
                     .stream().map(WardDeliveryLine::dispenseId).collect(java.util.stream.Collectors.toSet());
@@ -94,8 +98,8 @@ public class WardDeliveryApplicationService {
             throw badRequest("WARD_DELIVERY_SCOPE_MIXED", "同一配送交接单只能包含同一药房送往同一病区的药品");
         }
         WardDelivery delivery = deliveries.save(new WardDelivery(context.tenantId(), first.destination().organizationId(),
-                first.stockSite().id(), first.destination().nursingUnitDepartmentId(), deliveryNo,
-                first.stockSite().name(), first.destination().nursingUnitName(), context.subjectId(), Instant.now()));
+                first.stockSite().id(), first.destination().nursingUnitDepartmentId(), numbers.next("ward-delivery", new BusinessNumberContext(context.tenantId(), first.destination().organizationId(), first.destination().nursingUnitDepartmentId())),
+                first.stockSite().name(), first.destination().nursingUnitName(), context.subjectId(), Instant.now(), deliveryNo));
         for (DeliveryCandidate value : candidates) {
             lines.save(new WardDeliveryLine(context.tenantId(), delivery.id(), value.dispense().id(),
                     value.dispense().residentId(), value.dispense().encounterId(), value.destination().residentName(),

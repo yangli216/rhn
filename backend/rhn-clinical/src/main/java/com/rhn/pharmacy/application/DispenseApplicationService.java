@@ -287,15 +287,14 @@ public class DispenseApplicationService {
         ReturnPreparation preparation = validateReturnLines(context, taskLine, original, input.lines());
         BigDecimal total = preparation.total(); Map<Long, MedicationDispenseLine> originals = preparation.originals();
         Long returnDeptId = site.departmentId() != null ? site.departmentId() : original.departmentId();
-        String displayNumber = "INPATIENT".equals(task.taskType()) ? returnNo
-                : numbers.next("pharmacy-return",
+        String displayNumber = numbers.next("pharmacy-return",
                 new BusinessNumberContext(context.tenantId(), site.organizationId(), returnDeptId));
         MedicationDispense returnEvent = dispenseRepository.save(new MedicationDispense(context.tenantId(),
                 site.organizationId(), returnDeptId, task.id(),
                 task.residentId(), task.encounterId(), site.id(), original.id(), displayNumber, "RETURN", occurredAt,
                 input.processorPractitionerId(), context.subjectId(), input.processorAssignmentId(), null, null,
                 null, total, original.operationUnitCode(), Strings.trimToNull(input.description())));
-        StockReturn stockReturn = returnRepository.save(new StockReturn(context.tenantId(), site.id(), task.residentId(),
+        StockReturn stockReturn = returnRepository.save(new StockReturn(context.tenantId(), site.organizationId(), site.id(), task.residentId(),
                 original.id(), returnEvent.id(), displayNumber, reasonCode, occurredAt, context.subjectId(), Strings.trimToNull(input.description()), returnNo));
         List<ReturnAllocation> allocations = buildReturnAllocations(context, taskLine, original, stockReturn,
                 displayNumber, occurredAt, input.lines(), originals);

@@ -44,7 +44,7 @@ public class WardMedicationReturnRequest {
 
     public WardMedicationReturnRequest(Long tenantId, Long organizationId, Long stockSiteId,
                                        Long nursingUnitDepartmentId, Long residentId, Long encounterId,
-                                       Long actorId, String note) {
+                                       Long actorId, String note, String businessNumber) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.organizationId = organizationId;
@@ -52,7 +52,7 @@ public class WardMedicationReturnRequest {
         this.nursingUnitDepartmentId = nursingUnitDepartmentId;
         this.residentId = residentId;
         this.encounterId = encounterId;
-        this.requestNo = "WMR" + id;
+        this.requestNo = businessNumber;
         this.status = WardMedicationReturnRequestStatus.REQUESTED;
         this.requestedAt = Instant.now();
         this.requestedBy = actorId;

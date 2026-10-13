@@ -23,7 +23,7 @@ public class DispenseTask {
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
     @Column(name = "ID_PHARM_REVIEW_LATEST") private Long latestReviewId;
-    @Column(name = "CD_TASK_NO", nullable = false) private String taskNo;
+    @Column(name = "CD_TASK_NO") private String taskNo;
     @Column(name = "SD_TASK_TYPE", nullable = false) private String taskType;
     @Column(name = "SD_PRI", nullable = false) private String priority;
     @Enumerated(EnumType.STRING)

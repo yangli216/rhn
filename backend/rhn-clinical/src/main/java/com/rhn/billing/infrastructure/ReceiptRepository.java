@@ -14,7 +14,7 @@ import java.util.Optional;
 public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
     Optional<Receipt> findByIdAndTenantId(Long id, Long tenantId);
     Optional<Receipt> findByTenantIdAndCommandCode(Long tenantId, String commandCode);
-    Optional<Receipt> findByTenantIdAndReceiptNo(Long tenantId, String receiptNo);
+    Optional<Receipt> findByTenantIdAndOrganizationIdAndReceiptNo(Long tenantId, Long organizationId, String receiptNo);
     Optional<Receipt> findByTenantIdAndReversesReceiptId(Long tenantId, Long reversesReceiptId);
     List<Receipt> findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(Long tenantId, Long settlementId);
     @Query("""
@@ -34,6 +34,6 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
     Optional<Receipt> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select value from Receipt value where value.receiptNo = :receiptNo and value.tenantId = :tenantId")
-    Optional<Receipt> lockByReceiptNoAndTenantId(@Param("receiptNo") String receiptNo, @Param("tenantId") Long tenantId);
+    @Query("select value from Receipt value where value.receiptNo = :receiptNo and value.tenantId = :tenantId and value.organizationId = :organizationId")
+    Optional<Receipt> lockByReceiptNoAndTenantIdAndOrganizationId(@Param("receiptNo") String receiptNo, @Param("tenantId") Long tenantId, @Param("organizationId") Long organizationId);
 }

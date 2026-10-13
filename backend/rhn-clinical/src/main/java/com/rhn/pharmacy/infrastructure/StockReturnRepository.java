@@ -8,6 +8,5 @@ import java.util.Optional;
 
 public interface StockReturnRepository extends JpaRepository<StockReturn, Long> {
     Optional<StockReturn> findByTenantIdAndCommandCode(Long tenantId, String commandCode);
-    Optional<StockReturn> findByTenantIdAndReturnNo(Long tenantId, String returnNo);
     List<StockReturn> findByTenantIdAndOriginalDispenseIdOrderByRequestedAt(Long tenantId, Long originalDispenseId);
 }

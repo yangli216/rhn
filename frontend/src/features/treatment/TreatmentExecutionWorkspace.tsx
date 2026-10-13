@@ -177,7 +177,7 @@ export function TreatmentExecutionWorkspace({ api, clinicalContext, onNavigate }
       </Panel>
       <Panel className="treatment-detail">
         {!selected ? <EmptyState icon="clinical" title="请选择治疗任务" copy="从左侧队列选择患者后开始执行。" /> : <>
-          <header className="treatment-detail-head"><div><span>{selected.taskType === 'MEDICATION' ? '用药执行' : '治疗项目'} · {selected.taskNo}</span>
+          <header className="treatment-detail-head"><div><span>{selected.taskType === 'MEDICATION' ? '用药执行' : '治疗项目'} · {[...new Set(selected.items.map(item => item.requestNo).filter(Boolean))].join('、') || '—'}</span>
             <h2>{selected.residentName}</h2><p>健康档案 {selected.healthRecordNo} · 就诊 {selected.encounterId}</p></div>
             <StatusBadge tone={tone(selected.status)}>{statusText[selected.status]}</StatusBadge></header>
           <section className="treatment-items"><h3>本次执行项目</h3>

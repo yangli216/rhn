@@ -42,7 +42,7 @@ export interface TreatmentExecutionItem {
 export interface TreatmentExecutionTask {
   id: string
   revision: number
-  taskNo: string
+  taskNo: string | null
   taskType: TreatmentTaskType
   status: TreatmentTaskStatus
   residentId: string

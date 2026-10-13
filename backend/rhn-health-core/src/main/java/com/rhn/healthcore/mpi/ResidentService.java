@@ -1,5 +1,6 @@
 package com.rhn.healthcore.mpi;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import cn.hutool.core.util.StrUtil;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.platform.dictionary.api.DictionaryDirectory;
@@ -40,6 +41,7 @@ public class ResidentService implements ResidentDirectory {
     // Other identifiers lack a verified issuing scope (or have already lost their original type).
     private static final Set<String> EXACT_MATCH_SYSTEMS = Set.of("1", "2", "3", "4", "5", "6");
 
+    private final BusinessNumberGenerator numbers;
     private final ResidentRepository residentRepository;
     private final ResidentIdentifierRepository identifierRepository;
     private final ResidentSourceRecordRepository sourceRecordRepository;
@@ -75,7 +77,8 @@ public class ResidentService implements ResidentDirectory {
                            OrganizationDirectory organizationDirectory,
                            DomainEventPublisher eventPublisher,
                            ExecutionContextProvider executionContextProvider,
-                           JsonCodec jsonCodec) {
+                           JsonCodec jsonCodec, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.residentRepository = residentRepository;
         this.identifierRepository = identifierRepository;
         this.sourceRecordRepository = sourceRecordRepository;
@@ -110,7 +113,7 @@ public class ResidentService implements ResidentDirectory {
 
         String nationalId = identifiers.stream().filter(identifier -> identifier.system().equals("1") || identifier.system().equals("NATIONAL_ID"))
                 .map(NormalizedIdentifier::value).findFirst().orElse(null);
-        Resident resident = new Resident(tenantId, nextRecordNo(), request.fullName().trim(), nationalId,
+        Resident resident = new Resident(tenantId, numbers.next("resident-record"), request.fullName().trim(), nationalId,
                 request.gender(), request.birthDate(), normalize(request.phone()), actor());
         try {
             residentRepository.saveAndFlush(resident);
@@ -536,10 +539,6 @@ public class ResidentService implements ResidentDirectory {
         return jsonCodec.write(value);
     }
 
-    private String nextRecordNo() {
-        String time = LocalDateTime.now(clock).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        return "RHN" + time + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
 
     private String normalize(String value) {
         return StrUtil.trimToNull(value);

@@ -14,9 +14,10 @@ public record BusinessNumberRule(String prefix, String suffix, String dateFormat
             throw new IllegalArgumentException("Business number prefix/suffix must contain up to 16 ASCII code characters");
         }
         dateFormat = dateFormat == null ? "yyMMdd" : switch (dateFormat.toLowerCase(Locale.ROOT)) {
+            case "", "none" -> "";
             case "yymmdd" -> "yyMMdd";
             case "yyyymmdd" -> "yyyyMMdd";
-            default -> throw new IllegalArgumentException("Business number date-format must be yyMMdd or yyyyMMdd");
+            default -> throw new IllegalArgumentException("Business number date-format must be empty, yyMMdd or yyyyMMdd");
         };
         sequenceWidth = sequenceWidth == null ? 5 : sequenceWidth;
         if (sequenceWidth < 1 || sequenceWidth > 12) throw new IllegalArgumentException("Business number sequence-width must be 1..12");
@@ -28,12 +29,12 @@ public record BusinessNumberRule(String prefix, String suffix, String dateFormat
     }
 
     public String format(LocalDate date, long sequence) {
-        if (date == null || date.getYear() < 2000 || date.getYear() > 2099) {
+        if (!dateFormat.isEmpty() && (date == null || date.getYear() < 2000 || date.getYear() > 2099)) {
             throw new IllegalArgumentException("Business number date must be in 2000..2099");
         }
         if (sequence < 1 || sequence > maximumSequence()) throw new IllegalArgumentException("Business number sequence exceeds configured capacity");
         String value = Long.toString(sequence);
-        return prefix + date.format(DateTimeFormatter.ofPattern(dateFormat, Locale.ROOT))
+        return prefix + (dateFormat.isEmpty() ? "" : date.format(DateTimeFormatter.ofPattern(dateFormat, Locale.ROOT)))
                 + "0".repeat(sequenceWidth - value.length()) + value + suffix;
     }
 }

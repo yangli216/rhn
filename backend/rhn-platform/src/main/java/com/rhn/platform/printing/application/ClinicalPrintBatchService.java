@@ -405,7 +405,7 @@ public class ClinicalPrintBatchService {
         LinkedHashMap<String, Object> value = new LinkedHashMap<>();
         value.put("patientName", task.residentName()); value.put("healthRecordNo", task.healthRecordNo());
         value.put("gender", ""); value.put("ageText", ""); value.put("bedNo", "门诊");
-        value.put("taskNo", task.taskNo()); value.put("barcode", task.taskNo());
+        value.put("taskNo", task.taskNo()); value.put("barcode", task.id().toString());
         value.put("medicationName", active.stream().map(ItemSnapshot::itemName)
                 .reduce((a, b) -> a + "、" + b).orElse("-"));
         value.put("doseText", active.stream().map(this::doseText).reduce((a, b) -> a + "；" + b).orElse("按医嘱"));

@@ -1,5 +1,5 @@
 {
-  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
+  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
   "tables": [
     {
       "logical": "bil.cashier_close_event",
@@ -995,17 +995,18 @@
           ]
         },
         {
-          "name": "UK_BIL_CASHIER_CL_CASH_CLOSE_N",
-          "columns": [
-            "ID_TNT",
-            "CD_CLOSE_NO"
-          ]
-        },
-        {
           "name": "UK_BIL_CASHIER_CL_CASH_CLOSE_T",
           "columns": [
             "ID_TNT",
             "ID_CASHIER_CLOSE"
+          ]
+        },
+        {
+          "name": "UK_BIL_CASHIER_CLOSE_ORG_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_CLOSE_NO"
           ]
         }
       ],
@@ -1122,6 +1123,27 @@
           "unique": true
         },
         {
+          "name": "UK_BIL_CASHIER_CLOSE_ORG_NO_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_CLOSE_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
           "name": "UK_BIL_CASHIER_CL_CASH_CLOSE_C_INDEX_F",
           "columns": [
             {
@@ -1132,22 +1154,6 @@
             {
               "position": 2,
               "name": "CD_COMMAND",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_BIL_CASHIER_CL_CASH_CLOSE_N_INDEX_F",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_CLOSE_NO",
               "direction": "A"
             }
           ],
@@ -2834,17 +2840,18 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_BIL_INVOICE_INVOICE_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_INVOICE_NO"
-          ]
-        },
-        {
           "name": "UK_BIL_INVOICE_INVOICE_TENANT_",
           "columns": [
             "ID_TNT",
             "ID_INVOICE"
+          ]
+        },
+        {
+          "name": "UK_BIL_INVOICE_ORG_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_INVOICE_NO"
           ]
         }
       ],
@@ -2967,22 +2974,6 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_INVOICE_INVOICE_NO_INDEX_9",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_INVOICE_NO",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
           "name": "UK_BIL_INVOICE_INVOICE_TENANT__INDEX_9",
           "columns": [
             {
@@ -2993,6 +2984,27 @@
             {
               "position": 2,
               "name": "ID_INVOICE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_INVOICE_ORG_NO_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_INVOICE_NO",
               "direction": "A"
             }
           ],
@@ -5176,9 +5188,10 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_BIL_PAY_PAYMENT_NO",
+          "name": "UK_BIL_PAY_ORG_NO",
           "columns": [
             "ID_TNT",
+            "ID_ORG",
             "CD_PAY_NO"
           ]
         },
@@ -5385,7 +5398,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_PAY_PAYMENT_NO_INDEX_F",
+          "name": "UK_BIL_PAY_ORG_NO_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -5394,6 +5407,11 @@
             },
             {
               "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
               "name": "CD_PAY_NO",
               "direction": "A"
             }
@@ -6134,6 +6152,18 @@
           "comment": "外部票据编号",
           "logical": "external_receipt_no",
           "catalogComment": "外部票据编号"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 28,
+          "comment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性",
+          "logical": "organization_id",
+          "catalogComment": "业务单据所属机构标识"
         }
       ],
       "kind": "BASE TABLE",
@@ -6141,6 +6171,14 @@
         "ID_RCPT"
       ],
       "uniqueKeys": [
+        {
+          "name": "UK_BIL_RCPT_ORG_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_RCPT_NO"
+          ]
+        },
         {
           "name": "UK_BIL_RCPT_RECEIPT_COMMAND",
           "columns": [
@@ -6152,16 +6190,9 @@
           "name": "UK_BIL_RCPT_RECEIPT_FISCAL",
           "columns": [
             "ID_TNT",
-            "CD_FISCAL_AUTHORITY",
+            "CD_FISCAL_AUTHRTY",
             "CD_FISCAL",
             "CD_FISCAL_NUMBER"
-          ]
-        },
-        {
-          "name": "UK_BIL_RCPT_RECEIPT_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_RCPT_NO"
           ]
         },
         {
@@ -6174,23 +6205,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BIL_RCPT_BIL_RCPT_RECEIPT_R_INDEX_1",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "ID_RCPT_RVRS",
-              "direction": "A"
-            }
-          ],
-          "unique": false
-        },
-        {
-          "name": "FK_BIL_RCPT_BIL_STL_RECEIPT_SE_INDEX_1",
+          "name": "FK_BIL_RCPT_BIL_STL_RECEIPT_SE_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -6206,7 +6221,23 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_RCPT_SYS_TNT_RECEIPT_TE_INDEX_1",
+          "name": "FK_BIL_RCPT_ORG_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_RCPT_SYS_TNT_RECEIPT_TE_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -6322,7 +6353,7 @@
           "unique": true
         },
         {
-          "name": "PRIMARY_KEY_1B5",
+          "name": "PRIMARY_KEY_CA1B",
           "columns": [
             {
               "position": 1,
@@ -6333,7 +6364,28 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_RCPT_RECEIPT_COMMAND_INDEX_1",
+          "name": "UK_BIL_RCPT_ORG_NO_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_RCPT_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_RCPT_RECEIPT_COMMAND_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -6349,7 +6401,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_RCPT_RECEIPT_FISCAL_INDEX_1",
+          "name": "UK_BIL_RCPT_RECEIPT_FISCAL_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -6375,23 +6427,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_RCPT_RECEIPT_NO_INDEX_1",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_RCPT_NO",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_BIL_RCPT_RECEIPT_TENANT_ID_INDEX_1",
+          "name": "UK_BIL_RCPT_RECEIPT_TENANT_ID_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -6748,13 +6784,6 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_BIL_RECON_BATC_RECON_BATC_1",
-          "columns": [
-            "ID_TNT",
-            "CD_BATCH_NO"
-          ]
-        },
-        {
           "name": "UK_BIL_RECON_BATC_RECON_BATC_2",
           "columns": [
             "ID_TNT",
@@ -6777,6 +6806,14 @@
           "columns": [
             "ID_TNT",
             "ID_RECON_BATCH"
+          ]
+        },
+        {
+          "name": "UK_BIL_RECON_BATCH_ORG_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_BATCH_NO"
           ]
         }
       ],
@@ -6867,6 +6904,27 @@
           "unique": true
         },
         {
+          "name": "UK_BIL_RECON_BATCH_ORG_NO_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_BATCH_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
           "name": "UK_BIL_RECON_BATC_RECON_BATCH__INDEX_C",
           "columns": [
             {
@@ -6877,22 +6935,6 @@
             {
               "position": 2,
               "name": "ID_RECON_BATCH",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_BIL_RECON_BATC_RECON_BATC_1_INDEX_C",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_BATCH_NO",
               "direction": "A"
             }
           ],
@@ -10110,6 +10152,14 @@
       ],
       "uniqueKeys": [
         {
+          "name": "UK_BIL_STL_ORG_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_STL_NO"
+          ]
+        },
+        {
           "name": "UK_BIL_STL_SETTLEMENT_COMMAND",
           "columns": [
             "ID_TNT",
@@ -10121,13 +10171,6 @@
           "columns": [
             "ID_TNT",
             "ID_INVOICE_LEGACY"
-          ]
-        },
-        {
-          "name": "UK_BIL_STL_SETTLEMENT_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_STL_NO"
           ]
         },
         {
@@ -10278,6 +10321,27 @@
           "unique": true
         },
         {
+          "name": "UK_BIL_STL_ORG_NO_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_STL_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
           "name": "UK_BIL_STL_SETTLEMENT_COMMAND_INDEX_4",
           "columns": [
             {
@@ -10304,22 +10368,6 @@
             {
               "position": 2,
               "name": "ID_INVOICE_LEGACY",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_BIL_STL_SETTLEMENT_NO_INDEX_4",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_STL_NO",
               "direction": "A"
             }
           ],
@@ -11477,6 +11525,25 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_BIL_STL",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RCPT_ORG",
+      "sourceTable": "RHN_BIL_RCPT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

@@ -1,5 +1,5 @@
 {
-  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
+  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
   "tables": [
     {
       "logical": "sys.access_permission",
@@ -3081,7 +3081,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
-          "line": 247
+          "line": 251
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
@@ -9948,9 +9948,10 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_SYS_SVC_RSRC_SCHED_RESOUR_1",
+          "name": "UK_SYS_SVC_RSRC_ORG_NO",
           "columns": [
             "ID_TNT",
+            "ID_ORG",
             "CD_RSRC"
           ]
         },
@@ -10122,6 +10123,27 @@
           "unique": true
         },
         {
+          "name": "UK_SYS_SVC_RSRC_ORG_NO_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_RSRC",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
           "name": "UK_SYS_SVC_RSRC_SCHED_RESOURCE_INDEX_D",
           "columns": [
             {
@@ -10132,22 +10154,6 @@
             {
               "position": 2,
               "name": "ID_SVC_RSRC",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_SYS_SVC_RSRC_SCHED_RESOUR_1_INDEX_D",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_RSRC",
               "direction": "A"
             }
           ],
@@ -15688,6 +15694,25 @@
       "description": ""
     },
     {
+      "id": "FK_BIL_RCPT_ORG",
+      "sourceTable": "RHN_BIL_RCPT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
       "id": "FK_BIL_RCPT_SYS_TNT_RECEIPT_TE",
       "sourceTable": "RHN_BIL_RCPT",
       "sourceColumns": [
@@ -16884,6 +16909,25 @@
       "description": ""
     },
     {
+      "id": "FK_INS_CLAIM_ORG",
+      "sourceTable": "RHN_INS_CLAIM",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
       "id": "FK_INS_CLAIM_SYS_TNT_INS_CLAIM",
       "sourceTable": "RHN_INS_CLAIM",
       "sourceColumns": [
@@ -18013,6 +18057,25 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SC_SCHED_TMPL_ORG",
+      "sourceTable": "RHN_SC_SCHED_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",
@@ -19546,6 +19609,25 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SUP_STOCK_RETURN_ORG",
+      "sourceTable": "RHN_SUP_STOCK_RETURN",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

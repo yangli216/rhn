@@ -64,7 +64,7 @@ export function requestMatchesSearch(item: PharmacyInboxItem, keyword: string) {
   const request = item.request
   return request.medicationName.toLowerCase().includes(keyword)
     || request.itemName.toLowerCase().includes(keyword)
-    || request.requestNo.toLowerCase().includes(keyword)
+    || (request.prescriptionNo ?? '').toLowerCase().includes(keyword)
     || Boolean(request.prescriptionId?.toLowerCase().includes(keyword))
 }
 
@@ -85,7 +85,7 @@ export function inferDispenseSearchIntent(rawKeyword: string, patients: Dispensi
   if (/^1\d{10}$/.test(keyword) || has((patient) => Boolean(patient.phone?.includes(keyword)))) return 'PHONE'
   if (/^\d{17}[\dx]$/.test(keyword)
     || has((patient) => Boolean(patient.nationalId?.toLowerCase().includes(keyword)))) return 'NATIONAL_ID'
-  if (has((patient) => patient.items.some((item) => item.request.requestNo.toLowerCase().includes(keyword)
+  if (has((patient) => patient.items.some((item) => (item.request.prescriptionNo ?? '').toLowerCase().includes(keyword)
     || Boolean(item.request.prescriptionId?.toLowerCase().includes(keyword))))
     || /^(mr|rx|cf)/i.test(keyword)) return 'PRESCRIPTION_NO'
   if (has((patient) => Boolean(patient.encounterNo?.toLowerCase().includes(keyword)))
@@ -184,7 +184,7 @@ export function pharmacyQueryItemMatches(item: PharmacyInboxItem, rawKeyword: st
   if (!keyword) return true
   const snapshot = item.request.medicationSnapshot as Record<string, unknown> | undefined
   const values = [
-    item.request.requestNo, item.request.prescriptionId, item.request.medicationId,
+    item.request.prescriptionNo, item.request.prescriptionId, item.request.medicationId,
     item.request.medicationCode, item.request.medicationName, item.request.itemCode,
     item.request.itemName, item.request.localCode, item.request.localName,
     item.request.residentId, item.request.encounterId, item.clinicalContext?.encounterNo,

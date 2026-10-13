@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface WardDeliveryRepository extends JpaRepository<WardDelivery, Long> {
-    Optional<WardDelivery> findByTenantIdAndDeliveryNo(Long tenantId, String deliveryNo);
+    Optional<WardDelivery> findByTenantIdAndCommandCode(Long tenantId, String commandCode);
     Optional<WardDelivery> findByIdAndTenantId(Long id, Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

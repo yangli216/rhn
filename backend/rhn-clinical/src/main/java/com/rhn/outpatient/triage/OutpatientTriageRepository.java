@@ -15,7 +15,6 @@ public interface OutpatientTriageRepository extends JpaRepository<OutpatientTria
 
     Optional<OutpatientTriageRecord> findByTenantIdAndId(Long tenantId, Long id);
 
-    Optional<OutpatientTriageRecord> findByTenantIdAndTriageNo(Long tenantId, String triageNo);
 
     Optional<OutpatientTriageRecord> findTopByTenantIdAndEncounterIdOrderByTriageTimeDesc(Long tenantId, Long encounterId);
 

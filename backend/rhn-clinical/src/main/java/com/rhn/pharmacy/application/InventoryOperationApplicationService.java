@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.InventoryOperationViews.DocumentEventView;
 import com.rhn.pharmacy.api.InventoryOperationViews.GoodsReceiptLineView;
 import com.rhn.pharmacy.api.InventoryOperationViews.GoodsReceiptView;
@@ -43,7 +45,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,12 +59,11 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class InventoryOperationApplicationService {
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
     private static final Set<GoodsReceiptStatus> OPEN_RECEIPT_STATUSES = Set.of(
             GoodsReceiptStatus.RECEIVED, GoodsReceiptStatus.INSPECTING,
             GoodsReceiptStatus.ACCEPTED, GoodsReceiptStatus.PARTIALLY_ACCEPTED);
 
+    private final BusinessNumberGenerator numbers;
     private final SupplierRepository supplierRepository;
     private final SupplierSupplyItemRepository supplyItemRepository;
     private final PurchaseOrderRepository orderRepository;
@@ -85,7 +85,8 @@ public class InventoryOperationApplicationService {
             InventoryDocumentEventRepository eventRepository, StockSiteRepository siteRepository,
             StockItemRepository stockItemRepository, StockBinRepository binRepository,
             InventoryApplicationService inventoryService, InventoryTraceApplicationService traceService,
-            ExecutionContextProvider contextProvider) {
+            ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.supplierRepository = supplierRepository; this.supplyItemRepository = supplyItemRepository;
         this.orderRepository = orderRepository; this.orderLineRepository = orderLineRepository;
         this.receiptRepository = receiptRepository; this.receiptLineRepository = receiptLineRepository;
@@ -203,7 +204,7 @@ public class InventoryOperationApplicationService {
         }
         if (input.lines() == null || input.lines().isEmpty()) throw badRequest("PURCHASE_LINES_REQUIRED", "采购单至少需要一条明细");
         if (input.lines().size() > 500) throw badRequest("PURCHASE_LINES_TOO_MANY", "单张采购单不能超过500条明细");
-        String orderNo = Strings.trimToNull(input.orderNo()); if (orderNo == null) orderNo = nextNo("PO");
+        String orderNo = Strings.trimToNull(input.orderNo()); if (orderNo == null) orderNo = numbers.next("stock-purchase-order", new BusinessNumberContext(context.tenantId(), site.organizationId(), null));
         PurchaseOrder value = new PurchaseOrder(context.tenantId(), site.organizationId(), site.id(), supplier.id(),
                 orderNo, requestCode, orderDate, input.expectedDate(), Strings.trimToNull(input.description()), context.subjectId());
         Set<Long> itemIds = new HashSet<>(); int sortOrder = 0;
@@ -297,7 +298,7 @@ public class InventoryOperationApplicationService {
         Map<Long, PurchaseOrderLine> orderLines = new HashMap<>();
         orderLineRepository.lockByPurchaseOrder(context.tenantId(), order.id()).forEach(line -> orderLines.put(line.id(), line));
         Map<Long, BigDecimal> outstanding = outstandingReceiptQuantities(context, order.id());
-        String receiptNo = Strings.trimToNull(input.receiptNo()); if (receiptNo == null) receiptNo = nextNo("GR");
+        String receiptNo = Strings.trimToNull(input.receiptNo()); if (receiptNo == null) receiptNo = numbers.next("stock-goods-receipt", new BusinessNumberContext(context.tenantId(), order.organizationId(), null));
         Instant receivedAt = input.receivedAt() == null ? Instant.now() : input.receivedAt();
         GoodsReceipt receipt = new GoodsReceipt(context.tenantId(), order.organizationId(), order.stockSiteId(),
                 order.id(), order.supplierId(), receiptNo, requestCode, Strings.trimToNull(input.deliveryNoteNo()), receivedAt,
@@ -518,7 +519,7 @@ public class InventoryOperationApplicationService {
                                                             String requestCode) {
         String poRequestCode = requestCode + ":PO";
         String orderNo = Strings.trimToNull(input.orderNo());
-        if (orderNo == null) orderNo = nextNo("PO");
+        if (orderNo == null) orderNo = numbers.next("stock-purchase-order", new BusinessNumberContext(context.tenantId(), site.organizationId(), null));
         PurchaseOrder po = orderRepository.save(new PurchaseOrder(context.tenantId(), site.organizationId(), site.id(), supplier.id(),
                 orderNo, poRequestCode, today, today,
                 Strings.trimToNull(input.description()) == null ? "直接采购验收入库生成" : Strings.trimToNull(input.description()), context.subjectId()));
@@ -561,7 +562,7 @@ public class InventoryOperationApplicationService {
                                                           String requestCode,
                                                           Map<Long, PurchaseOrderLine> poLinesByStockItem) {
         String receiptNo = Strings.trimToNull(input.receiptNo());
-        if (receiptNo == null) receiptNo = nextNo("GR");
+        if (receiptNo == null) receiptNo = numbers.next("stock-goods-receipt", new BusinessNumberContext(context.tenantId(), site.organizationId(), null));
         Instant receivedAt = input.receivedAt() == null ? Instant.now() : input.receivedAt();
         GoodsReceipt receipt = receiptRepository.save(new GoodsReceipt(context.tenantId(), site.organizationId(), site.id(),
                 po.id(), supplier.id(), receiptNo, requestCode, Strings.trimToNull(input.deliveryNoteNo()), receivedAt,
@@ -777,9 +778,7 @@ public class InventoryOperationApplicationService {
         for (String value : values) if (value != null && value.toLowerCase(java.util.Locale.ROOT).contains(normalized)) return true;
         return false;
     }
-    private String nextNo(String prefix) {
-        return prefix + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
+
     private String required(String value, String code, String message) {
         String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }

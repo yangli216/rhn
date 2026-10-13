@@ -1,5 +1,5 @@
 {
-  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
+  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
   "tables": [
     {
       "logical": "ex.care_request",
@@ -73,7 +73,7 @@
           "type": "CHARACTER VARYING",
           "size": 64,
           "scale": 0,
-          "nullable": false,
+          "nullable": true,
           "defaultValue": null,
           "ordinal": 6,
           "comment": "请求编号",
@@ -531,17 +531,18 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_EX_CARE_REQ_CARE_REQUEST_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_REQ_NO"
-          ]
-        },
-        {
           "name": "UK_EX_CARE_REQ_CARE_REQUEST_TE",
           "columns": [
             "ID_TNT",
             "ID_CARE_REQ"
+          ]
+        },
+        {
+          "name": "UK_EX_CARE_REQ_ORG_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG_EXEC",
+            "CD_REQ_NO"
           ]
         }
       ],
@@ -902,22 +903,6 @@
           "unique": true
         },
         {
-          "name": "UK_EX_CARE_REQ_CARE_REQUEST_NO_INDEX_1",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_REQ_NO",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
           "name": "UK_EX_CARE_REQ_CARE_REQUEST_TE_INDEX_1",
           "columns": [
             {
@@ -928,6 +913,27 @@
             {
               "position": 2,
               "name": "ID_CARE_REQ",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_CARE_REQ_ORG_NO_INDEX_6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG_EXEC",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_REQ_NO",
               "direction": "A"
             }
           ],
@@ -1153,7 +1159,7 @@
           "type": "CHARACTER VARYING",
           "size": 64,
           "scale": 0,
-          "nullable": false,
+          "nullable": true,
           "defaultValue": null,
           "ordinal": 11,
           "comment": "任务编号",
@@ -6584,9 +6590,10 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_EX_REQ_GRP_REQUEST_GROUP_NO",
+          "name": "UK_EX_REQ_GRP_ORG_NO",
           "columns": [
             "ID_TNT",
+            "ID_ORG_REQ",
             "CD_GRP_NO"
           ]
         },
@@ -6754,7 +6761,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_REQ_GRP_REQUEST_GROUP_NO_INDEX_1",
+          "name": "UK_EX_REQ_GRP_ORG_NO_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -6763,6 +6770,11 @@
             },
             {
               "position": 2,
+              "name": "ID_ORG_REQ",
+              "direction": "A"
+            },
+            {
+              "position": 3,
               "name": "CD_GRP_NO",
               "direction": "A"
             }
@@ -8040,7 +8052,7 @@
           "type": "CHARACTER VARYING",
           "size": 64,
           "scale": 0,
-          "nullable": false,
+          "nullable": true,
           "defaultValue": null,
           "ordinal": 7,
           "comment": "请求编号",
@@ -8606,7 +8618,7 @@
           "type": "CHARACTER VARYING",
           "size": 64,
           "scale": 0,
-          "nullable": false,
+          "nullable": true,
           "defaultValue": null,
           "ordinal": 9,
           "comment": "任务编号",

@@ -173,7 +173,7 @@ public class DiagnosticExecutionService {
                 longValue(event.payload().get("encounterId")), event.aggregateId(),
                 text(event.payload().get("requestNo")), type, text(event.payload().get("itemCode")),
                 text(event.payload().get("itemName")), text(event.payload().get("specimenType")),
-                text(event.payload().get("examinationType")), settlementRequired, event.occurredAt(), numbers.next("diagnostic-task", new BusinessNumberContext(event.tenantId(), event.organizationId(), longValue(event.payload().get("performerDepartmentId"))))));
+                text(event.payload().get("examinationType")), settlementRequired, event.occurredAt(), null));
     }
 
     private void updateSettlement(DomainEventEnvelope event, boolean finalized) {
@@ -197,7 +197,7 @@ public class DiagnosticExecutionService {
         return new DiagnosticExecutionTask(value.tenantId(), value.performerOrganizationId(),
                 value.performerDepartmentId(), value.residentId(), value.encounterId(), value.id(),
                 value.requestNo(), value.serviceType(), value.itemCode(), value.itemName(), value.specimenType(),
-                value.examinationType(), settlementRequired, value.authoredAt(), numbers.next("diagnostic-task", new BusinessNumberContext(value.tenantId(), value.performerOrganizationId(), value.performerDepartmentId())));
+                value.examinationType(), settlementRequired, value.authoredAt(), null);
     }
 
     private void reconcileSettlement(DiagnosticExecutionTask task) {
@@ -234,7 +234,7 @@ public class DiagnosticExecutionService {
                 value.specimenTypeSnapshot(), value.examinationTypeSnapshot(), value.createdAt(),
                 value.collectedAt(), value.specimenNo(), value.collectionNote(), value.startedAt(),
                 inconsistent ? null : value.completedAt(), inconsistent ? null : value.completionNote(),
-                inconsistent ? "任务完成标记与最新有效报告不一致，请核对报告记录" : value.exceptionNote());
+                inconsistent ? "任务完成标记与最新有效报告不一致，请核对报告记录" : value.exceptionNote(), requests.requireForDiagnosticExchange(value.requestId()).requestNo());
     }
 
     private ExecutionContext requireWorkContext() {

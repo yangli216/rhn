@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class InsuranceClaimResultTruthTest {
     static BigDecimal n(String value) { return new BigDecimal(value); }
     static InsuranceClaim claim() {
-        return new InsuranceClaim(1L,2L,3L,4L,"KEY","330100","310","payer","H","D","P","HASH",
+        return new InsuranceClaim(1L, 1L,2L,3L,4L,"KEY","330100","310","payer","H","D","P","HASH",
                 Instant.parse("2026-10-04T01:00:00Z"),null,n("100"),"CNY","CORR",5L, "TEST-InsuranceClaim");
     }
     static InsuranceResult result(String externalNo, String currency, BigDecimal fund, BigDecimal personal,

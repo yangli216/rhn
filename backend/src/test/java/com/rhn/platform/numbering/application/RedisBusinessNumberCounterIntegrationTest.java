@@ -111,6 +111,22 @@ class RedisBusinessNumberCounterIntegrationTest {
         }
     }
 
+    @Test
+    void historical_floor_is_atomic_under_concurrent_allocation_and_never_rewinds() throws Exception {
+        var one = new RedisBusinessNumberCounter(first); var two = new RedisBusinessNumberCounter(second);
+        String key = "test:historical-floor";
+        try (var pool = Executors.newFixedThreadPool(8)) {
+            var jobs = IntStream.range(0, 100).<java.util.concurrent.Callable<Long>>mapToObj(index ->
+                    () -> (index % 2 == 0 ? one : two).next(key, 99999, 42)).toList();
+            var unique = new HashSet<Long>();
+            for (var value : pool.invokeAll(jobs)) unique.add(value.get());
+            assertThat(unique).hasSize(100).contains(43L, 142L);
+        }
+        assertThat(one.next(key, 99999, 1)).isEqualTo(143L);
+        assertThat(one.next("test:floor-exhausted", 99, 99)).isEqualTo(-1);
+        assertThat(first.hasKey("test:floor-exhausted")).isFalse();
+    }
+
     private static LettuceConnectionFactory connection(int port) {
         var factory = new LettuceConnectionFactory("127.0.0.1", port);
         factory.afterPropertiesSet(); factory.start(); return factory;

@@ -9204,6 +9204,11 @@
         "logical": "reversed_at",
         "physical": "DT_RVRSD",
         "comment": "reversed时间"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "业务单据所属机构标识"
       }
     ]
   },
@@ -19438,6 +19443,11 @@
         "logical": "external_receipt_no",
         "physical": "CD_EXT_RCPT_NO",
         "comment": "外部票据编号"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "业务单据所属机构标识"
       }
     ]
   },
@@ -21425,6 +21435,11 @@
         "logical": "updated_by",
         "physical": "ID_USER_UPDATED",
         "comment": "更新人标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "业务单据所属机构标识"
       }
     ]
   },
@@ -23922,6 +23937,11 @@
         "logical": "command_code",
         "physical": "CD_CMD",
         "comment": "请求幂等键；与展示业务编码分离，历史值沿用原编号"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "业务单据所属机构标识"
       }
     ]
   },
@@ -25591,6 +25611,11 @@
         "logical": "resolution_note",
         "physical": "DES_RSLN_NOTE",
         "comment": "处理结果备注"
+      },
+      {
+        "logical": "command_code",
+        "physical": "CD_CMD",
+        "comment": "配送请求幂等键；与展示业务编码分离"
       }
     ]
   },

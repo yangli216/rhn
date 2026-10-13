@@ -173,7 +173,7 @@ class InsuranceClaimTransactionService {
         Map<Long, ChargeItem> byId = charges.findAllById(values.stream().map(
                 com.rhn.billing.domain.SettlementLine::chargeItemId).toList()).stream()
                 .collect(Collectors.toMap(ChargeItem::id, value -> value));
-        InsuranceClaim claim = claims.save(new InsuranceClaim(context.tenantId(), settlement.id(), account.id(),
+        InsuranceClaim claim = claims.save(new InsuranceClaim(context.tenantId(), account.organizationId(), settlement.id(), account.id(),
                 coverage.id(), command, upper(input.regionCode(), "INSURANCE_REGION_REQUIRED", "医保统筹区不能为空"),
                 insuranceType, coverage.payerName(), required(input.organizationCode(), "INSURANCE_ORG_CODE_REQUIRED", "医保机构编码不能为空"),
                 required(input.departmentCode(), "INSURANCE_DEPT_CODE_REQUIRED", "医保科室编码不能为空"),
@@ -335,7 +335,7 @@ class InsuranceClaimTransactionService {
     @Transactional(readOnly = true)
     InsuranceClaim requireBySettlementNo(String settlementNo) {
         ExecutionContext context = requireContext();
-        Settlement settlement = settlements.findByTenantIdAndSettlementNo(context.tenantId(), required(settlementNo,
+        Settlement settlement = settlements.findByTenantIdAndOrganizationIdAndSettlementNo(context.tenantId(), context.organizationId(), required(settlementNo,
                         "SETTLEMENT_NO_REQUIRED", "结算单号不能为空"))
                 .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
         InsuranceClaim value = claims.findByTenantIdAndSettlementId(context.tenantId(), settlement.id())

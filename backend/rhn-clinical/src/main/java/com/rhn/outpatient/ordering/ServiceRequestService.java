@@ -147,7 +147,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 "INSURANCE", businessDate);
 
         ServiceRequest value = repository.saveAndFlush(new ServiceRequest(tenantId, encounter.residentId(),
-                encounter.id(), numbers.next("service-request", new BusinessNumberContext(tenantId, encounter.organizationId(), encounter.departmentId())), input.catalogItemId(), input.packageId(), performerOrganizationId,
+                encounter.id(), numbers.next("service-request", new BusinessNumberContext(tenantId, performerOrganizationId, performerDepartmentId)), input.catalogItemId(), input.packageId(), performerOrganizationId,
                 performerDepartmentId, encounter.organizationId(), encounter.departmentId(), businessDate, context.subjectId(), Strings.trimToNull(input.reason()), item.code(),
                 item.name(), unitCode, adoption.localCode(), adoption.localName(), adoption.id(), adoption.revision(),
                 price == null ? null : price.id(), price == null ? null : price.revision(),
@@ -239,7 +239,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
     @Transactional(readOnly = true)
     public ServiceRequestSnapshot requireForDiagnosticExchange(String requestNo) {
         ExecutionContext context = contextProvider.requireCurrent();
-        ServiceRequest value = repository.findByTenantIdAndRequestNo(context.tenantId(), requestNo)
+        ServiceRequest value = repository.findByTenantIdAndPerformerOrganizationIdAndRequestNo(context.tenantId(), context.organizationId(), requestNo)
                 .orElseThrow(() -> notFound("SERVICE_REQUEST_NOT_FOUND", "未找到诊疗请求"));
         if (!context.canAccessOrganization(value.performerOrganizationId())
                 || !context.canAccessDepartment(value.performerDepartmentId())) {

@@ -15,7 +15,7 @@ public class PharmacyReview {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
     @Column(name = "ID_DISP_TASK", nullable = false) private Long taskId;
-    @Column(name = "CD_REVIEW_NO", nullable = false) private String reviewNo;
+    @Column(name = "CD_REVIEW_NO") private String reviewNo;
     @Column(name = "SD_RESULT", nullable = false) private String result;
     @Column(name = "CD_REASON") private String reasonCode;
     @Column(name = "DES_PHARM_REVIEW") private String description;

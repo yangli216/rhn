@@ -191,7 +191,7 @@ class SchedulingApplicationService {
                 context.subjectId());
         resourceRepository.saveAndFlush(resource);
 
-        ScheduleTemplate template = templateRepository.saveAndFlush(new ScheduleTemplate(context.tenantId(),
+        ScheduleTemplate template = templateRepository.saveAndFlush(new ScheduleTemplate(context.tenantId(), context.organizationId(),
                 resource.id(), ownerName + "简易门诊排班", timezoneCode,
                 request.dateFrom(), request.dateTo(), context.subjectId(), numbers.next("schedule-template")));
         List<ScheduleTemplatePeriod> periods = buildPeriods(context.tenantId(), template.id(), request);
@@ -208,7 +208,7 @@ class SchedulingApplicationService {
         scheduleRepository.saveAllAndFlush(generated);
 
         persistPoolsAndEvents(context.tenantId(), idempotencyCode, context.subjectId(), generated,
-                generated.stream().map(value -> new ScheduleSlotPool(context.tenantId(), value.id(), request.capacity(), numbers.next("schedule-slot-pool")))
+                generated.stream().map(value -> new ScheduleSlotPool(context.tenantId(), value.id(), request.capacity(), null))
                         .toList(),
                 value -> new ServiceScheduleEvent(context.tenantId(), value.id(),
                         idempotencyCode + ":schedule:" + value.id(), context.subjectId()));
@@ -342,7 +342,7 @@ class SchedulingApplicationService {
                 context.subjectId());
         resourceRepository.saveAndFlush(resource);
 
-        ScheduleTemplate template = templateRepository.saveAndFlush(new ScheduleTemplate(context.tenantId(),
+        ScheduleTemplate template = templateRepository.saveAndFlush(new ScheduleTemplate(context.tenantId(), context.organizationId(),
                 resource.id(), request.templateName().trim(), ScheduleManagementMode.PROFESSIONAL, timezoneCode,
                 request.dateFrom(), request.dateTo(), context.subjectId(), numbers.next("schedule-template")));
         ScheduleDayPart templateDayPart = dayPart(request.startTime(), request.endTime());
@@ -373,7 +373,7 @@ class SchedulingApplicationService {
         List<ScheduleSlotPool> pools = new ArrayList<>();
         for (ServiceSchedule schedule : generated) {
             pools.add(new ScheduleSlotPool(context.tenantId(), schedule.id(), schedule.totalCapacity(),
-                    request.slotMode().name(), numbers.next("schedule-slot-pool")));
+                    request.slotMode().name(), null));
         }
         persistPoolsAndEvents(context.tenantId(), idempotencyCode, context.subjectId(), generated, pools,
                 value -> new ServiceScheduleEvent(context.tenantId(), value.id(), "PUBLISHED", null,

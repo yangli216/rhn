@@ -159,7 +159,7 @@ export function ClinicalPrintingWorkspace({ api }: { api: RhnApi }) {
           </div>
           <div className="clinical-print-selection-list">{selected.map((value, index) => <article key={value.sourceId}>
             <span className="clinical-print-sequence">{index + 1}</span><div><strong>{value.residentName}</strong>
-              <p>{value.medicationSummary}</p><small>{value.taskNo} · {value.routeSummary}</small></div>
+              <p>{value.medicationSummary}</p><small>{value.routeSummary}</small></div>
             {value.printedBefore && <Tooltip content="该任务今天已按当前模板版本打印，继续提交将作为补打记录。">
               <span className="clinical-print-repeat">补</span></Tooltip>}
             <IconButton icon="close" label={`移除 ${value.residentName}`} onClick={() => toggle(value)} />

@@ -170,7 +170,7 @@ export function DiagnosticWorkspace({ api, clinicalContext, onNavigate }: {
       <Panel className="diagnostic-detail">
         {!selected ? <EmptyState icon="clinical" title="请选择医技任务" copy="从左侧队列选择患者和项目后开始操作。" /> : <>
           <header className="diagnostic-detail-head">
-            <div><span>{selected.requestType === 'LABORATORY' ? '检验申请' : '检查申请'} · {selected.taskNo}</span>
+            <div><span>{selected.requestType === 'LABORATORY' ? '检验申请' : '检查申请'} · {selected.requestNo}</span>
               <h2>{selected.itemName}</h2><p>{selected.itemCode} · 就诊 {selected.encounterId}</p></div>
             <StatusBadge tone={tone(selected.status)}>{statusText[selected.status]}</StatusBadge>
           </header>

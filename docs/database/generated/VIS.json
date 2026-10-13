@@ -1,5 +1,5 @@
 {
-  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
+  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
   "tables": [
     {
       "logical": "vis.allergy_intolerance",
@@ -902,9 +902,10 @@
           ]
         },
         {
-          "name": "UK_VIS_CARE_EPISODE_CARE_EP_NO",
+          "name": "UK_VIS_CARE_EPISODE_ORG_NO",
           "columns": [
             "ID_TNT",
+            "ID_ORG",
             "CD_EPISODE_NO"
           ]
         }
@@ -991,7 +992,7 @@
           "unique": true
         },
         {
-          "name": "UK_VIS_CARE_EPISODE_CARE_EP_NO_INDEX_C",
+          "name": "UK_VIS_CARE_EPISODE_ORG_NO_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -1000,6 +1001,11 @@
             },
             {
               "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
               "name": "CD_EPISODE_NO",
               "direction": "A"
             }
@@ -6045,13 +6051,6 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_VIS_ENC_ENCOUNTER_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_ENC_NO"
-          ]
-        },
-        {
           "name": "UK_VIS_ENC_ENCOUNTER_TENANT_ID",
           "columns": [
             "ID_TNT",
@@ -6064,6 +6063,14 @@
             "ID_TNT",
             "ID_PAT",
             "ID_ENC"
+          ]
+        },
+        {
+          "name": "UK_VIS_ENC_ORG_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_ENC_NO"
           ]
         }
       ],
@@ -6308,22 +6315,6 @@
           "unique": true
         },
         {
-          "name": "UK_VIS_ENC_ENCOUNTER_NO_INDEX_E",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_ENC_NO",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
           "name": "UK_VIS_ENC_ENCOUNTER_TENANT_ID_INDEX_E",
           "columns": [
             {
@@ -6355,6 +6346,27 @@
             {
               "position": 3,
               "name": "ID_ENC",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_VIS_ENC_ORG_NO_INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_ENC_NO",
               "direction": "A"
             }
           ],
@@ -6471,7 +6483,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
-          "line": 245
+          "line": 249
         },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/allergy/AllergyService.java",
@@ -12036,7 +12048,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
-          "line": 246
+          "line": 250
         }
       ]
     }

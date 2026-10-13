@@ -409,7 +409,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         PrescriptionReviewPolicy.Mode reviewMode = reviewPolicy.resolve(
                 context, site.organizationId(), site.departmentId());
         DispenseTask task = new DispenseTask(context.tenantId(), request.residentId(),
-                request.encounterId(), site.id(), numbers.next("pharmacy-dispense-task", new BusinessNumberContext(context.tenantId(), site.organizationId(), site.departmentId())), careSetting, "ROUTINE", Strings.trimToNull(input.description()));
+                request.encounterId(), site.id(), null, careSetting, "ROUTINE", Strings.trimToNull(input.description()));
         DispenseTaskLine line = new DispenseTaskLine(context.tenantId(), task.id(), request.id(),
                 fulfillmentSourceType, fulfillmentSourceId, stockItem.id(),
                 stockItem.basePackageId(), requestedQuantity, plan.quantity(), plan.unitCode(), plan.factor(),
@@ -523,7 +523,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
             throw badRequest("PHARMACY_POST_REVIEW_OVERRIDE_INVALID", "事后审方不支持强制通过结论");
         }
         PharmacyReview review = reviewRepository.save(new PharmacyReview(context.tenantId(), line.requestId(),
-                task.id(), numbers.next("pharmacy-review"), result, reason, description, input.pharmacistPractitionerId(),
+                task.id(), null, result, reason, description, input.pharmacistPractitionerId(),
                 context.subjectId(), input.reviewerAssignmentId()));
         if (mode.beforeDispense()) {
             task.applyReview(review.id(), result); line.applyReview(result);

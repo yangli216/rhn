@@ -17,6 +17,7 @@ public class InsuranceClaim {
     @Id @Column(name = "ID_INS_CLAIM") private Long id;
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
     @Column(name = "ID_STL", nullable = false) private Long settlementId;
     @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
     @Column(name = "ID_PAT_COVER", nullable = false) private Long coverageId;
@@ -53,12 +54,12 @@ public class InsuranceClaim {
 
     protected InsuranceClaim() {}
 
-    public InsuranceClaim(Long tenantId, Long settlementId, Long patientAccountId, Long coverageId,
+    public InsuranceClaim(Long tenantId, Long organizationId, Long settlementId, Long patientAccountId, Long coverageId,
                           String commandCode, String regionCode, String insuranceTypeCode, String payerName,
                           String organizationCode, String departmentCode, String practitionerCode,
                           String diagnosisPayloadDigest, Instant serviceStartedAt, Instant serviceEndedAt,
                           BigDecimal grossAmount, String currencyCode, String correlationId, Long createdBy, String businessNumber) {
-        this.id = GlobalIds.next(); this.tenantId = tenantId; this.settlementId = settlementId;
+        this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId; this.settlementId = settlementId;
         this.patientAccountId = patientAccountId; this.coverageId = coverageId; this.claimNo = businessNumber;
         this.commandCode = commandCode; this.claimType = "NORMAL"; this.status = "PRE_SETTLEMENT_PENDING";
         this.currentOperation = "PRE_SETTLE"; this.regionCode = regionCode; this.insuranceTypeCode = insuranceTypeCode;
@@ -184,6 +185,7 @@ public class InsuranceClaim {
     private BigDecimal zero() { return BigDecimal.ZERO.setScale(6); }
 
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
     public Long settlementId() { return settlementId; } public Long patientAccountId() { return patientAccountId; }
     public Long coverageId() { return coverageId; } public String claimNo() { return claimNo; }
     public String commandCode() { return commandCode; } public String status() { return status; }

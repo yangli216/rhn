@@ -45,12 +45,15 @@ public class ConfiguredBusinessNumberGenerator implements BusinessNumberGenerato
         LocalDate day = LocalDate.now(clock.withZone(ZoneId.of(properties.zoneId())));
         String key = counterKey(businessCode, rule, context, day);
         long sequence;
-        try { sequence = counter.next(key, rule.maximumSequence()); }
+        try {
+            long minimum = historicalFloor(businessCode, rule, context, day);
+            sequence = minimum == 0 ? counter.next(key, rule.maximumSequence()) : counter.next(key, rule.maximumSequence(), minimum);
+        }
         catch (RuntimeException error) {
             var unavailable = new BusinessException("BUSINESS_NUMBER_UNAVAILABLE", "业务编号生成服务暂不可用，请稍后重试", HttpStatus.SERVICE_UNAVAILABLE);
             unavailable.initCause(error); throw unavailable;
         }
-        if (sequence < 0) throw new BusinessException("BUSINESS_NUMBER_EXHAUSTED", "当日业务编号序列已用尽，请联系管理员", HttpStatus.CONFLICT);
+        if (sequence < 0) throw new BusinessException("BUSINESS_NUMBER_EXHAUSTED", "业务编号序列已用尽，请联系管理员", HttpStatus.CONFLICT);
         return rule.format(day, sequence);
     }
 
@@ -63,7 +66,7 @@ public class ConfiguredBusinessNumberGenerator implements BusinessNumberGenerato
         LocalDate day = LocalDate.now(clock.withZone(ZoneId.of(properties.zoneId())));
         String key = counterKey(businessCode, rule, context, day);
         long current;
-        try { current = counter.current(key); }
+        try { current = Math.max(counter.current(key), historicalFloor(businessCode, rule, context, day)); }
         catch (RuntimeException error) {
             var unavailable = new BusinessException("BUSINESS_NUMBER_UNAVAILABLE", "业务编号流水查询暂不可用，请稍后重试", HttpStatus.SERVICE_UNAVAILABLE);
             unavailable.initCause(error); throw unavailable;
@@ -78,10 +81,17 @@ public class ConfiguredBusinessNumberGenerator implements BusinessNumberGenerato
         try {
             rule.format(day, 1);
             return properties.redisKeyPrefix() + ":" + code + ":" + rule.scope().key(context)
-                    + ":" + day.format(DateTimeFormatter.BASIC_ISO_DATE);
+                    + ":" + (rule.dateFormat().isEmpty() ? "continuous" : day.format(DateTimeFormatter.BASIC_ISO_DATE));
         } catch (IllegalArgumentException error) {
             throw new BusinessException("BUSINESS_NUMBER_CONTEXT_INVALID", error.getMessage(), HttpStatus.BAD_REQUEST);
         }
+    }
+
+    // On the tenant-to-organization rollout, preserve the old day's issued floor. Reading is side-effect free.
+    private long historicalFloor(String code, BusinessNumberRule rule, BusinessNumberContext context, LocalDate day) {
+        if (rule.scope() != com.rhn.platform.numbering.api.BusinessNumberScope.ORGANIZATION || rule.dateFormat().isEmpty()) return 0;
+        return counter.current(properties.redisKeyPrefix() + ":" + code + ":tenant:" + context.tenantId()
+                + ":" + day.format(DateTimeFormatter.BASIC_ISO_DATE));
     }
 
     private BusinessNumberRule rule(String code) {

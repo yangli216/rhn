@@ -573,7 +573,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
         : selectedLine ? selectedLine.plannedQuantity - selectedLine.dispensedQuantity : NaN
       if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('缺少有效的待发药数量，请核实发药任务')
       return api.pharmacy.dispense(selected!.taskId!, {
-      requestCode: `DSP-${task.data!.taskNo}-${Date.now()}`,
+      requestCode: `DSP-${task.data!.id}-${crypto.randomUUID()}`,
       operationQuantity: quantity,
       dispenserPractitionerId: practitionerId,
       dispenserAssignmentId: assignmentId,
@@ -1029,7 +1029,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
 
   const returnMedication = useMutation({
     mutationFn: () => api.pharmacy.returnMedication(selectedReturnLine!.event.id, {
-      returnNo: `RET-${task.data!.taskNo}-${Date.now()}`, reasonCode: returnReason.trim(),
+      returnNo: `RET-${task.data!.id}-${crypto.randomUUID()}`, reasonCode: returnReason.trim(),
       processorPractitionerId: practitionerId, processorAssignmentId: assignmentId,
       description: '退药确认', lines: [{ originalDispenseLineId: selectedReturnLine!.line.id,
         quantity: Number(returnQuantity), disposition: returnDisposition }],

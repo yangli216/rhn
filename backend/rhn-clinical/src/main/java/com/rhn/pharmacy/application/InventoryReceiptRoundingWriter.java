@@ -49,7 +49,7 @@ public class InventoryReceiptRoundingWriter {
                     values (?, ?, ?, ?, ?, ?, ?, ?, ?, 'COST', 'ROUNDING', 'INVENTORY_TRANSACTION', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, GlobalIds.next(), context.tenantId(), transaction.inventoryPeriodId(), adjustment.balanceId(),
                     adjustment.siteId(), adjustment.binId(), adjustment.itemId(), adjustment.lotId(), adjustment.stockStatus(),
-                    transaction.id(), transaction.transactionNo(), "RECEIPT-ROUNDING:" + adjustment.lineId(), adjustment.quantity(),
+                    transaction.id(), transaction.sourceCode(), "RECEIPT-ROUNDING:" + adjustment.lineId(), adjustment.quantity(),
                     adjustment.unitCost(), adjustment.unitCost(), adjustment.before(), adjustment.after(),
                     amount(adjustment.after().subtract(adjustment.before())), currency,
                     new SqlParameterValue(Types.TIMESTAMP, Timestamp.from(transaction.occurredAt())),

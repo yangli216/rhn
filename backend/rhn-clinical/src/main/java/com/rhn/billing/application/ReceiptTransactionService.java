@@ -1,6 +1,7 @@
 package com.rhn.billing.application;
 
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptInstruction;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptLine;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptAction;
@@ -68,8 +69,8 @@ class ReceiptTransactionService {
         String command = required(input.commandCode(), "RECEIPT_EVENT_COMMAND_REQUIRED", "票据事件命令编码不能为空");
         String messageId = required(input.externalMessageBusinessId(), "RECEIPT_CALLBACK_MESSAGE_REQUIRED", "票据回调必须提供外部业务消息号");
         ExecutionContext context = contextProvider.requireCurrent();
-        Receipt value = receipts.lockByReceiptNoAndTenantId(required(input.receiptRequestNo(),
-                        "RECEIPT_REQUEST_NO_REQUIRED", "票据申请号不能为空"), context.tenantId())
+        Receipt value = receipts.lockByReceiptNoAndTenantIdAndOrganizationId(required(input.receiptRequestNo(),
+                        "RECEIPT_REQUEST_NO_REQUIRED", "票据申请号不能为空"), context.tenantId(), context.organizationId())
                 .orElseThrow(() -> notFound("RECEIPT_NOT_FOUND", "未找到票据请求"));
         require(value.id(), context);
         String authority = Strings.trimToNull(input.fiscalAuthorityCode());
@@ -138,11 +139,11 @@ class ReceiptTransactionService {
         String authority = Strings.trimToNull(input.fiscalAuthorityCode());
         if (authority == null) authority = List.of("RECEIPT", "VIRTUAL").contains(type) ? "LOCAL" : null;
         if (authority == null) throw badRequest("FISCAL_AUTHORITY_REQUIRED", "财政票据必须指定财政平台编码");
-        Receipt value = receipts.save(new Receipt(context.tenantId(), settlement.id(), command, type,
+        Receipt value = receipts.save(new Receipt(context.tenantId(), account.organizationId(), settlement.id(), command, type,
                 authority.toUpperCase(), settlement.netAmount(), settlement.currencyCode(), channel,
                 Strings.trimToNull(input.payerName()), Strings.trimToNull(input.payerIdentityDigest()),
                 Strings.trimToNull(input.correlationId()) == null ? context.correlationId() : Strings.trimToNull(input.correlationId()),
-                context.subjectId(), numbers.next("receipt")));
+                context.subjectId(), numbers.next("receipt", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()))));
         events.save(new ReceiptEvent(context.tenantId(), value.id(), null, "REQUEST", null, "REQUESTED",
                 "REQUEST-" + command, context.subjectId(), null, null));
         return new CreateResult(value, false);
@@ -174,7 +175,7 @@ class ReceiptTransactionService {
         Receipt existing = receipts.findByTenantIdAndReversesReceiptId(context.tenantId(), originalReceiptId).orElse(null);
         if (existing != null) throw conflict("RECEIPT_ALREADY_RED_FLUSHED", "原票据已经存在红冲票据");
         Receipt value = receipts.save(Receipt.redFlushOf(original, command,
-                Strings.trimToNull(correlationId) == null ? context.correlationId() : Strings.trimToNull(correlationId), context.subjectId(), numbers.next("receipt")));
+                Strings.trimToNull(correlationId) == null ? context.correlationId() : Strings.trimToNull(correlationId), context.subjectId(), numbers.next("receipt", new BusinessNumberContext(context.tenantId(), original.organizationId(), context.departmentId()))));
         events.save(new ReceiptEvent(context.tenantId(), value.id(), null, "RED_FLUSH", null, "REQUESTED",
                 command, context.subjectId(), requiredReason(reason, "RECEIPT_RED_FLUSH_REASON_REQUIRED", "红冲原因不能为空"),
                 null, null));
@@ -301,7 +302,7 @@ class ReceiptTransactionService {
     @Transactional(readOnly = true)
     Receipt requireByReceiptNo(String receiptNo) {
         ExecutionContext context = contextProvider.requireCurrent();
-        Receipt value = receipts.findByTenantIdAndReceiptNo(context.tenantId(), required(receiptNo,
+        Receipt value = receipts.findByTenantIdAndOrganizationIdAndReceiptNo(context.tenantId(), context.organizationId(), required(receiptNo,
                         "RECEIPT_REQUEST_NO_REQUIRED", "票据申请号不能为空"))
                 .orElseThrow(() -> notFound("RECEIPT_NOT_FOUND", "未找到票据请求"));
         require(value.id(), context);

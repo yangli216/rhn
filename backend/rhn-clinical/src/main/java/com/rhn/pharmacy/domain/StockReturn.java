@@ -15,6 +15,7 @@ public class StockReturn {
     @Id @Column(name = "ID_STOCK_RETURN") private Long id;
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
     @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_MED_DISP_ORIG", nullable = false) private Long originalDispenseId;
@@ -33,17 +34,17 @@ public class StockReturn {
 
     protected StockReturn() {}
 
-    public StockReturn(Long tenantId, Long stockSiteId, Long residentId, Long originalDispenseId,
+    public StockReturn(Long tenantId, Long organizationId, Long stockSiteId, Long residentId, Long originalDispenseId,
                        Long returnDispenseId, String returnNo, String reasonCode, Instant occurredAt,
                        Long actorId, String description) {
-        this(tenantId, stockSiteId, residentId, originalDispenseId, returnDispenseId, returnNo, reasonCode, occurredAt, actorId, description, returnNo);
+        this(tenantId, organizationId, stockSiteId, residentId, originalDispenseId, returnDispenseId, returnNo, reasonCode, occurredAt, actorId, description, returnNo);
     }
 
-    public StockReturn(Long tenantId, Long stockSiteId, Long residentId, Long originalDispenseId,
+    public StockReturn(Long tenantId, Long organizationId, Long stockSiteId, Long residentId, Long originalDispenseId,
                        Long returnDispenseId, String returnNo, String reasonCode, Instant occurredAt,
                        Long actorId, String description, String commandCode) {
         this.commandCode = commandCode;
-        this.id = GlobalIds.next(); this.tenantId = tenantId; this.stockSiteId = stockSiteId;
+        this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId; this.stockSiteId = stockSiteId;
         this.residentId = residentId; this.originalDispenseId = originalDispenseId;
         this.returnDispenseId = returnDispenseId; this.returnNo = returnNo; this.returnType = "PATIENT";
         this.status = "CONFIRMED"; this.reasonCode = reasonCode; this.requestedAt = occurredAt;
@@ -54,6 +55,7 @@ public class StockReturn {
     public Long id() { return id; }
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
     public Long stockSiteId() { return stockSiteId; }
     public Long residentId() { return residentId; }
     public Long originalDispenseId() { return originalDispenseId; }

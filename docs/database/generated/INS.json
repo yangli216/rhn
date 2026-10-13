@@ -1,5 +1,5 @@
 {
-  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
+  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
   "tables": [
     {
       "logical": "ins.insurance_claim_line",
@@ -1223,6 +1223,18 @@
           "comment": "reversed时间",
           "logical": "reversed_at",
           "catalogComment": "reversed时间"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 37,
+          "comment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性",
+          "logical": "organization_id",
+          "catalogComment": "业务单据所属机构标识"
         }
       ],
       "kind": "BASE TABLE",
@@ -1238,13 +1250,6 @@
           ]
         },
         {
-          "name": "UK_INS_CLAIM_INS_CLAIM_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_CLAIM_NO"
-          ]
-        },
-        {
           "name": "UK_INS_CLAIM_INS_CLAIM_SETTLEM",
           "columns": [
             "ID_TNT",
@@ -1257,11 +1262,19 @@
             "ID_TNT",
             "ID_INS_CLAIM"
           ]
+        },
+        {
+          "name": "UK_INS_CLAIM_ORG_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_CLAIM_NO"
+          ]
         }
       ],
       "indexes": [
         {
-          "name": "FK_INS_CLAIM_BIL_PAT_INS_CLAIM_INDEX_D",
+          "name": "FK_INS_CLAIM_BIL_PAT_INS_CLAIM_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -1277,7 +1290,7 @@
           "unique": false
         },
         {
-          "name": "FK_INS_CLAIM_INS_PAT_INS_CLAIM_INDEX_D",
+          "name": "FK_INS_CLAIM_INS_PAT_INS_CLAIM_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -1293,7 +1306,23 @@
           "unique": false
         },
         {
-          "name": "FK_INS_CLAIM_SYS_TNT_INS_CLAIM_INDEX_D",
+          "name": "FK_INS_CLAIM_ORG_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_INS_CLAIM_SYS_TNT_INS_CLAIM_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -1372,7 +1401,7 @@
           "unique": true
         },
         {
-          "name": "PRIMARY_KEY_D6",
+          "name": "PRIMARY_KEY_B8",
           "columns": [
             {
               "position": 1,
@@ -1383,7 +1412,7 @@
           "unique": true
         },
         {
-          "name": "UK_INS_CLAIM_INS_CLAIM_COMMAND_INDEX_D",
+          "name": "UK_INS_CLAIM_INS_CLAIM_COMMAND_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -1399,23 +1428,7 @@
           "unique": true
         },
         {
-          "name": "UK_INS_CLAIM_INS_CLAIM_NO_INDEX_D",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_CLAIM_NO",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_INS_CLAIM_INS_CLAIM_SETTLEM_INDEX_D",
+          "name": "UK_INS_CLAIM_INS_CLAIM_SETTLEM_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -1431,7 +1444,7 @@
           "unique": true
         },
         {
-          "name": "UK_INS_CLAIM_INS_CLAIM_TENANT__INDEX_D",
+          "name": "UK_INS_CLAIM_INS_CLAIM_TENANT__INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -1441,6 +1454,27 @@
             {
               "position": 2,
               "name": "ID_INS_CLAIM",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_INS_CLAIM_ORG_NO_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_CLAIM_NO",
               "direction": "A"
             }
           ],
@@ -1911,6 +1945,25 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_INS_PAT_COVER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_INS_CLAIM_ORG",
+      "sourceTable": "RHN_INS_CLAIM",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

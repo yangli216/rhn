@@ -28,7 +28,7 @@ public class DiagnosticExecutionTask {
     @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
     @Column(name = "ID_STL") private Long settlementId;
     @Column(name = "ID_DIAG_REPORT") private Long reportId;
-    @Column(name = "CD_TASK_NO", nullable = false) private String taskNo;
+    @Column(name = "CD_TASK_NO") private String taskNo;
     @Column(name = "SD_REQ_TYPE", nullable = false) private String requestType;
     @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
     @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;

@@ -137,7 +137,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
         String itemName = item == null ? medication.name() : item.name();
 
         MedicationRequest value = repository.saveAndFlush(new MedicationRequest(tenantId, encounter.residentId(),
-                encounter.id(), numbers.next("medication-request", new BusinessNumberContext(tenantId, encounter.organizationId(), encounter.departmentId())), prescription == null ? null : prescription.id(),
+                encounter.id(), null, prescription == null ? null : prescription.id(),
                 parentRequest == null ? null : parentRequest.id(),
                 prescription == null ? MedicationRequestStatus.ACTIVE : MedicationRequestStatus.DRAFT, item == null ? null : item.id(), input.packageId(),
                 performerOrganizationId, performerDepartmentId, encounter.organizationId(), encounter.departmentId(),
@@ -418,8 +418,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
     @Transactional(readOnly = true)
     List<MedicationRequestResponse> list(Long encounterId) {
         var encounter = encounterDirectory.requireAccessible(encounterId);
-        return repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(encounter.tenantId(), encounterId)
-                .stream().map(this::response).toList();
+        var values = repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(encounter.tenantId(), encounterId);
+        var parents = prescriptionNumbers(values, encounter.tenantId());
+        return values.stream().map(value -> response(value, parents.get(value.requestGroupId()))).toList();
     }
 
     @Transactional
@@ -486,10 +487,10 @@ class MedicationRequestService implements MedicationRequestDirectory {
     public List<MedicationRequestSnapshot> activeForPharmacy(Long organizationId) {
         ExecutionContext context = contextProvider.requireCurrent();
         requirePharmacyOrganizationAccess(context, organizationId);
-        return repository.findByTenantIdAndPerformerOrganizationIdAndStatusOrderByAuthoredAt(
+        return pharmacySnapshots(repository.findByTenantIdAndPerformerOrganizationIdAndStatusOrderByAuthoredAt(
                 context.tenantId(), organizationId, MedicationRequestStatus.ACTIVE).stream()
                 .filter(value -> !value.selfProvided())
-                .map(this::pharmacySnapshot).toList();
+                .toList(), context.tenantId());
     }
 
     @Override
@@ -500,13 +501,33 @@ class MedicationRequestService implements MedicationRequestDirectory {
             throw com.rhn.shared.api.BusinessErrors.forbidden(
                     "MEDICATION_REQUEST_EXECUTION_SCOPE_INVALID", "无权读取当前工作上下文之外的药品请求");
         }
-        return repository.findActiveForExecution(context.tenantId(), organizationId, departmentId)
-                .stream().map(this::pharmacySnapshot).toList();
+        return pharmacySnapshots(repository.findActiveForExecution(context.tenantId(), organizationId, departmentId), context.tenantId());
+    }
+
+    private String prescriptionNumber(MedicationRequest value) {
+        return value.requestGroupId() == null ? null : prescriptionRepository
+                .findByIdAndTenantId(value.requestGroupId(), value.tenantId()).map(Prescription::groupNo).orElse(null);
+    }
+
+    private java.util.Map<Long, String> prescriptionNumbers(List<MedicationRequest> values, Long tenantId) {
+        var ids = values.stream().map(MedicationRequest::requestGroupId).filter(java.util.Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) return java.util.Map.of();
+        return prescriptionRepository.findByTenantIdAndIdIn(tenantId, ids).stream()
+                .collect(java.util.stream.Collectors.toMap(Prescription::id, Prescription::groupNo));
+    }
+
+    private List<MedicationRequestSnapshot> pharmacySnapshots(List<MedicationRequest> values, Long tenantId) {
+        var parents = prescriptionNumbers(values, tenantId);
+        return values.stream().map(value -> pharmacySnapshot(value, parents.get(value.requestGroupId()))).toList();
     }
 
     private MedicationRequestSnapshot pharmacySnapshot(MedicationRequest value) {
+        return pharmacySnapshot(value, prescriptionNumber(value));
+    }
+
+    private MedicationRequestSnapshot pharmacySnapshot(MedicationRequest value, String prescriptionNo) {
         return new MedicationRequestSnapshot(value.id(), value.revision(), value.tenantId(), value.residentId(),
-                value.encounterId(), value.requestGroupId(), value.requestNo(), value.status().name(), value.catalogItemId(),
+                value.encounterId(), value.requestGroupId(), prescriptionNo, value.status().name(), value.catalogItemId(),
                 value.medicationId(), value.packageId(), value.performerOrganizationId(),
                 value.performerDepartmentId(), value.businessDate(), value.authoredAt(), value.authoredBy(),
                 value.itemCodeSnapshot(), value.itemNameSnapshot(), value.localCodeSnapshot(),
@@ -534,8 +555,12 @@ class MedicationRequestService implements MedicationRequestDirectory {
     }
 
     MedicationRequestResponse response(MedicationRequest value) {
+        return response(value, prescriptionNumber(value));
+    }
+
+    private MedicationRequestResponse response(MedicationRequest value, String prescriptionNo) {
         return new MedicationRequestResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
-                value.requestNo(), value.status().name(), value.requestGroupId(), value.parentRequestId(),
+                value.requestNo(), prescriptionNo, value.status().name(), value.requestGroupId(), value.parentRequestId(),
                 value.catalogItemId(), value.medicationId(),
                 value.packageId(), value.performerOrganizationId(), value.performerDepartmentId(), value.businessDate(),
                 value.authoredAt(), value.authoredBy(), value.reasonText(), value.itemCodeSnapshot(), value.itemNameSnapshot(),
@@ -632,7 +657,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     private void publish(MedicationRequest value, String type, String summary, Map<String, Object> details) {
         Map<String, Object> payload = new LinkedHashMap<>(details);
-        payload.put("requestNo", value.requestNo()); payload.put("summary", summary);
+        payload.put("requestNo", pharmacySnapshot(value).requestNo()); payload.put("summary", summary);
         Instant occurredAt = switch (type) {
             case "MEDICATION_REQUEST_AUTHORED", "MEDICATION_REQUEST_DRAFTED" -> value.authoredAt();
             case "MEDICATION_REQUEST_CANCELLED" -> value.cancelledAt();

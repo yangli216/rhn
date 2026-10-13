@@ -1,5 +1,5 @@
 {
-  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
+  "fingerprint": "97f4f35078a36c4e317d46070b4009a90c92de01c29bfb8a1a42c0032eeaf78e",
   "tables": [
     {
       "logical": "sc.appointment_event",
@@ -685,13 +685,6 @@
           ]
         },
         {
-          "name": "UK_SC_APPT_APPOINTMENT_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_APPT_NO"
-          ]
-        },
-        {
           "name": "UK_SC_APPT_APPOINTMENT_SLOT_HO",
           "columns": [
             "ID_TNT",
@@ -710,6 +703,14 @@
           "columns": [
             "ID_TNT",
             "ID_APPT_RESCHEDULED_FROM"
+          ]
+        },
+        {
+          "name": "UK_SC_APPT_ORG_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_APPT_NO"
           ]
         }
       ],
@@ -985,22 +986,6 @@
           "unique": true
         },
         {
-          "name": "UK_SC_APPT_APPOINTMENT_NO_INDEX_4",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_APPT_NO",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
           "name": "UK_SC_APPT_APPOINTMENT_SLOT_HO_INDEX_4",
           "columns": [
             {
@@ -1043,6 +1028,27 @@
             {
               "position": 2,
               "name": "ID_APPT_RESCHD_FROM",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_SC_APPT_ORG_NO_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_APPT_NO",
               "direction": "A"
             }
           ],
@@ -1319,6 +1325,14 @@
       ],
       "uniqueKeys": [
         {
+          "name": "UK_SC_PAT_REG_ORG_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_REG_NO"
+          ]
+        },
+        {
           "name": "UK_SC_PAT_REG_REGISTRATION_APP",
           "columns": [
             "ID_TNT",
@@ -1337,13 +1351,6 @@
           "columns": [
             "ID_TNT",
             "CD_IDEMP"
-          ]
-        },
-        {
-          "name": "UK_SC_PAT_REG_REGISTRATION_NO",
-          "columns": [
-            "ID_TNT",
-            "CD_REG_NO"
           ]
         },
         {
@@ -1520,6 +1527,27 @@
           "unique": true
         },
         {
+          "name": "UK_SC_PAT_REG_ORG_NO_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_REG_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
           "name": "UK_SC_PAT_REG_REGISTRATION_APP_INDEX_7",
           "columns": [
             {
@@ -1562,22 +1590,6 @@
             {
               "position": 2,
               "name": "CD_IDEMP",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_SC_PAT_REG_REGISTRATION_NO_INDEX_7",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_REG_NO",
               "direction": "A"
             }
           ],
@@ -3514,7 +3526,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 200
+          "line": 202
         }
       ]
     },
@@ -3870,7 +3882,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 245
+          "line": 247
         }
       ]
     },
@@ -4371,7 +4383,7 @@
           "type": "CHARACTER VARYING",
           "size": 128,
           "scale": 0,
-          "nullable": false,
+          "nullable": true,
           "defaultValue": null,
           "ordinal": 5,
           "comment": "池编码",
@@ -4646,7 +4658,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 432
+          "line": 434
         }
       ]
     },
@@ -4967,7 +4979,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 151
+          "line": 153
         }
       ]
     },
@@ -5157,6 +5169,18 @@
           "comment": "更新人标识",
           "logical": "updated_by",
           "catalogComment": "更新人标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "业务单据所属机构标识；与业务编码共同确定机构内唯一性",
+          "logical": "organization_id",
+          "catalogComment": "业务单据所属机构标识"
         }
       ],
       "kind": "BASE TABLE",
@@ -5165,9 +5189,10 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_SC_SCHED_TMPL_SCHED_TEMPL_1",
+          "name": "UK_SC_SCHED_TMPL_ORG_NO",
           "columns": [
             "ID_TNT",
+            "ID_ORG",
             "CD_TMPL"
           ]
         },
@@ -5181,7 +5206,23 @@
       ],
       "indexes": [
         {
-          "name": "FK_SC_SCHED_TMPL_SYS_SVC_SCHED_INDEX_3",
+          "name": "FK_SC_SCHED_TMPL_ORG_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_SC_SCHED_TMPL_SYS_SVC_SCHED_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -5197,7 +5238,7 @@
           "unique": false
         },
         {
-          "name": "FK_SC_SCHED_TMPL_SYS_TNT_SCHED_INDEX_3",
+          "name": "FK_SC_SCHED_TMPL_SYS_TNT_SCHED_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -5234,7 +5275,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_31C",
+          "name": "PRIMARY_KEY_AB",
           "columns": [
             {
               "position": 1,
@@ -5245,7 +5286,7 @@
           "unique": true
         },
         {
-          "name": "UK_SC_SCHED_TMPL_SCHED_TEMPLAT_INDEX_3",
+          "name": "UK_SC_SCHED_TMPL_ORG_NO_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -5254,23 +5295,28 @@
             },
             {
               "position": 2,
-              "name": "ID_SCHED_TMPL",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_SC_SCHED_TMPL_SCHED_TEMPL_1_INDEX_3",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
+              "name": "ID_ORG",
               "direction": "A"
             },
             {
-              "position": 2,
+              "position": 3,
               "name": "CD_TMPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_SC_SCHED_TMPL_SCHED_TEMPLAT_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_SCHED_TMPL",
               "direction": "A"
             }
           ],
@@ -5578,7 +5624,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 547
+          "line": 549
         }
       ]
     },
@@ -5980,9 +6026,10 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_SC_SVC_SCHED_SERVICE_SCHE_1",
+          "name": "UK_SC_SVC_SCHED_ORG_NO",
           "columns": [
             "ID_TNT",
+            "ID_ORG",
             "CD_SCHED"
           ]
         },
@@ -6264,6 +6311,27 @@
           "unique": true
         },
         {
+          "name": "UK_SC_SVC_SCHED_ORG_NO_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_SCHED",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
           "name": "UK_SC_SVC_SCHED_SERVICE_SCHEDU_INDEX_C",
           "columns": [
             {
@@ -6274,22 +6342,6 @@
             {
               "position": 2,
               "name": "ID_SVC_SCHED",
-              "direction": "A"
-            }
-          ],
-          "unique": true
-        },
-        {
-          "name": "UK_SC_SVC_SCHED_SERVICE_SCHE_1_INDEX_C",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "CD_SCHED",
               "direction": "A"
             }
           ],
@@ -6381,7 +6433,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 301
+          "line": 303
         }
       ]
     },
@@ -6745,7 +6797,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 590
+          "line": 592
         }
       ]
     }
@@ -7651,6 +7703,25 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SC_SCHED_TMPL_ORG",
+      "sourceTable": "RHN_SC_SCHED_TMPL",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

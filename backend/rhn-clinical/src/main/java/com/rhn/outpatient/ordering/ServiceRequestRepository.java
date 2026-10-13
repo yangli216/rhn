@@ -14,8 +14,8 @@ interface ServiceRequestRepository extends JpaRepository<ServiceRequest, Long> {
             + "and request.requestKind = 'SERVICE'")
     Optional<ServiceRequest> findByIdAndTenantId(Long id, Long tenantId);
     @Query("select request from ServiceRequest request where request.tenantId = :tenantId "
-            + "and request.requestNo = :requestNo and request.requestKind = 'SERVICE'")
-    Optional<ServiceRequest> findByTenantIdAndRequestNo(Long tenantId, String requestNo);
+            + "and request.performerOrganizationId = :organizationId and request.requestNo = :requestNo and request.requestKind = 'SERVICE'")
+    Optional<ServiceRequest> findByTenantIdAndPerformerOrganizationIdAndRequestNo(Long tenantId, Long organizationId, String requestNo);
     @Query("select request from ServiceRequest request where request.tenantId = :tenantId "
             + "and request.encounterId = :encounterId and request.requestKind = 'SERVICE' "
             + "order by request.authoredAt desc")

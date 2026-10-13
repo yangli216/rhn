@@ -26,7 +26,7 @@ public class TreatmentExecutionTask {
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "ID_CARE_REQ_SRC_GRP", nullable = false) private Long sourceGroupId;
-    @Column(name = "CD_TASK_NO", nullable = false) private String taskNo;
+    @Column(name = "CD_TASK_NO") private String taskNo;
     @Column(name = "SD_TASK_TYPE", nullable = false) private String taskType;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private TreatmentExecutionTaskStatus status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;

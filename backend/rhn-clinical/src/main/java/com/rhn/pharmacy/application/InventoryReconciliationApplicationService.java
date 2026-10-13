@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.InventoryAccuracyViews.ReconciliationLineView;
 import com.rhn.pharmacy.api.InventoryAccuracyViews.ReconciliationRunView;
 import com.rhn.pharmacy.domain.StockSite;
@@ -25,7 +27,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,8 +35,8 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class InventoryReconciliationApplicationService {
-    private static final DateTimeFormatter RUN_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC);
     private static final Logger log = LoggerFactory.getLogger(InventoryReconciliationApplicationService.class);
+    private final BusinessNumberGenerator numbers;
     private final JdbcTemplate jdbc;
     private final StockSiteRepository siteRepository;
     private final ExecutionContextProvider contextProvider;
@@ -43,7 +44,8 @@ public class InventoryReconciliationApplicationService {
 
     public InventoryReconciliationApplicationService(JdbcTemplate jdbc, StockSiteRepository siteRepository,
                                                      ExecutionContextProvider contextProvider,
-                                                     TransactionTemplate transactions) {
+                                                     TransactionTemplate transactions, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.jdbc = jdbc; this.siteRepository = siteRepository; this.contextProvider = contextProvider;
         this.transactions = transactions;
     }
@@ -85,7 +87,7 @@ public class InventoryReconciliationApplicationService {
     private ReconciliationRunView runInternal(Long tenantId, Long organizationId, Long siteId, Long actorId,
                                               LocalDate businessDate, String runType) {
         Long runId = GlobalIds.next(); Instant started = Instant.now();
-        String runNo = "REC" + RUN_TIME.format(started) + GlobalIds.randomSuffix(6);
+        String runNo = numbers.next("stock-reconciliation", new BusinessNumberContext(tenantId, organizationId, null));
         jdbc.update("""
                 insert into RHN_SUP_INV_RECON_RUN
                 (ID_INV_RECON_RUN, ID_TNT, ID_ORG, ID_STOCK_SITE, CD_RUN_NO, SD_RUN_TYPE, SD_STATUS, DA_BIZ,

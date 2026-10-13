@@ -72,7 +72,7 @@ public class InpatientCareRequestStore {
         MapSqlParameterSource values = new MapSqlParameterSource()
                 .addValue("id", requestId).addValue("tenantId", input.tenantId())
                 .addValue("residentId", input.residentId()).addValue("encounterId", input.encounterId())
-                .addValue("requestNo", nextRequestNo()).addValue("requestKind", requestKind)
+                .addValue("requestNo", null, Types.VARCHAR).addValue("requestKind", requestKind)
                 .addValue("catalogItemId", resolved.catalogItemId()).addValue("organizationId", input.organizationId())
                 .addValue("departmentId", performerDepartmentId)
                 .addValue("requestingOrganizationId", input.organizationId())

@@ -35,7 +35,7 @@ describe('业务编码管理', () => {
       { ...row, businessCode: 'prescription', status: 'EXHAUSTED',
         sequence: { ...row.sequence, currentSequence: 99999, nextSequence: undefined, nextNumber: undefined } }])
     await screen.findByText('流水查询暂不可用')
-    expect(screen.getByText('当日流水已用尽')).toBeInTheDocument()
+    expect(screen.getByText('流水已用尽')).toBeInTheDocument()
     expect(screen.queryByText('OP26101200001')).not.toBeInTheDocument()
   })
 

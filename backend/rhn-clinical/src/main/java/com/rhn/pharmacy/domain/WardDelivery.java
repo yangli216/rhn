@@ -19,6 +19,7 @@ public class WardDelivery {
     @Id @Column(name = "ID_WARD_DELIV") private Long id;
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "CD_CMD", nullable = false) private String commandCode;
     @Column(name = "ID_ORG", nullable = false) private Long organizationId;
     @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
     @Column(name = "ID_DEPT_NURS_UNIT", nullable = false) private Long nursingUnitDepartmentId;
@@ -45,7 +46,8 @@ public class WardDelivery {
 
     public WardDelivery(Long tenantId, Long organizationId, Long stockSiteId, Long nursingUnitDepartmentId,
                         String deliveryNo, String stockSiteNameSnapshot, String nursingUnitNameSnapshot,
-                        Long actorId, Instant now) {
+                        Long actorId, Instant now, String commandCode) {
+        this.commandCode = commandCode;
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.stockSiteId = stockSiteId; this.nursingUnitDepartmentId = nursingUnitDepartmentId;
         this.deliveryNo = deliveryNo; this.status = WardDeliveryStatus.PENDING_DISPATCH;

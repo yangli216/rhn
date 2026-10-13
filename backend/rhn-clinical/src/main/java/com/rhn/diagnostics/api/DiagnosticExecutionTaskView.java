@@ -12,5 +12,5 @@ public record DiagnosticExecutionTaskView(
         String itemCode, String itemName, String specimenType,
         @DictionaryBinding(MasterDataDictionaryCodes.EXAM_TYPE) String examinationType,
         Instant createdAt, Instant collectedAt, String specimenNo, String collectionNote,
-        Instant startedAt, Instant completedAt, String completionNote, String exceptionNote) {}
+        Instant startedAt, Instant completedAt, String completionNote, String exceptionNote, String requestNo) {}
 

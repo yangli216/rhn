@@ -1,5 +1,6 @@
 package com.rhn.inpatient.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.healthcore.api.ResidentDirectory.ResidentSnapshot;
 import com.rhn.healthcore.api.EncounterDiagnosisDirectory;
@@ -70,6 +71,7 @@ public class InpatientApplicationService {
     private static final Set<String> BED_OPERATIONAL_STATUSES = Set.of(
             "AVAILABLE", "CLEANING", "BLOCKED", "MAINTENANCE");
 
+    private final BusinessNumberGenerator numbers;
     private final ExecutionContextProvider contextProvider;
     private final ResidentDirectory residents;
     private final OrganizationDirectory organizations;
@@ -105,7 +107,8 @@ public class InpatientApplicationService {
             InpatientDischargeReadinessService dischargeReadiness,
             EncounterDiagnosisDirectory encounterDiagnoses,
             IdempotencyService idempotency,
-            JsonCodec jsonCodec) {
+            JsonCodec jsonCodec, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.contextProvider = contextProvider;
         this.residents = residents;
         this.organizations = organizations;
@@ -165,10 +168,10 @@ public class InpatientApplicationService {
             throw badRequest("INPATIENT_ADMISSION_TIME_FUTURE", "入院时间不能晚于当前时间");
         }
         CareEpisode episode = episodes.save(new CareEpisode(
-                context.tenantId(), resident.id(), context.organizationId(), nextBusinessNo("IP"),
+                context.tenantId(), resident.id(), context.organizationId(), numbers.next("inpatient-episode"),
                 context.practitionerId(), actorId, admittedAt));
         InpatientEncounter encounter = encounters.save(new InpatientEncounter(
-                context.tenantId(), resident.id(), nextBusinessNo("IPE"), context.organizationId(),
+                context.tenantId(), resident.id(), numbers.next("inpatient-encounter"), context.organizationId(),
                 department.id(), episode.id(), bedLocation.id(), context.practitionerId(), admittedAt));
         episodeDetails.save(new InpatientEpisodeDetail(
                 episode.id(), context.tenantId(), optionalCode(input.admissionTypeCode()),
@@ -590,11 +593,6 @@ public class InpatientApplicationService {
         return command;
     }
 
-    private static String nextBusinessNo(String prefix) {
-        String id = Long.toString(GlobalIds.next());
-        String suffix = id.substring(Math.max(0, id.length() - 8));
-        return prefix + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + suffix;
-    }
 
     private static boolean matches(EpisodeView value, String keyword) {
         String normalized = Strings.trimToNull(keyword);

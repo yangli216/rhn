@@ -57,13 +57,13 @@ export function PharmacyOperationsPanel({ model }: { model: ReturnType<typeof us
                 <StatusBadge tone={statusTone(item.taskStatus)}>{taskStatusText[item.taskStatus ?? ''] ?? '待接方'}</StatusBadge></div>
               <span>{item.request.itemName} · {formatQuantityWithUnit(item.request.quantity,
                 requestPackageUnit(item.request.quantityUnit, item.request.packageUnitName))}</span>
-              <small>{item.request.requestNo} · {formatTime(item.request.authoredAt)}</small>
+              <small>{item.request.prescriptionNo} · {formatTime(item.request.authoredAt)}</small>
             </Button>)}</div>}
         </Panel>
         <Panel className="pharmacy-detail">
           {!selected ? <EmptyState icon="pharmacy" title="请选择一条处方" copy="左侧选择后可继续处理当前业务。" />
             : <>
-              <header className="pharmacy-detail__head"><div><span className="ui-eyebrow">{selected.request.requestNo}</span>
+              <header className="pharmacy-detail__head"><div><span className="ui-eyebrow">{selected.request.prescriptionNo}</span>
                 <h2>{selected.request.medicationName}</h2><p>{selected.request.itemName}</p></div>
                 <StatusBadge tone={statusTone(selected.taskStatus)}>{taskStatusText[selected.taskStatus ?? ''] ?? '待接方'}</StatusBadge>
               </header>
@@ -76,7 +76,7 @@ export function PharmacyOperationsPanel({ model }: { model: ReturnType<typeof us
               </dl>
               {selected.taskId && (task.isPending ? <LoadingState label="正在加载发药任务…" /> : task.data && <>
                 <section className="pharmacy-action-section">
-                  <div className="pharmacy-section-head"><div><h3>发药任务</h3><span>{task.data.taskNo}</span></div></div>
+                  <div className="pharmacy-section-head"><div><h3>发药任务</h3><span>{selected.request.prescriptionNo ?? '—'}</span></div></div>
                   <div className="pharmacy-task-lines">{task.data.lines.map((line) => <article key={line.id}>
                     <div><strong>{line.productName}</strong><code>{line.productCode}</code></div>
                     <span>计划 {formatQuantityWithUnit(line.plannedQuantity, displayUnitName(line.dispenseUnitCode))}

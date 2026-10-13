@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByIdAndTenantId(Long id, Long tenantId);
     Optional<Payment> findByTenantIdAndCommandCode(Long tenantId, String commandCode);
-    Optional<Payment> findByTenantIdAndPaymentNo(Long tenantId, String paymentNo);
+    Optional<Payment> findByTenantIdAndOrganizationIdAndPaymentNo(Long tenantId, Long organizationId, String paymentNo);
     Optional<Payment> findByTenantIdAndPaymentOrderId(Long tenantId, Long paymentOrderId);
     List<Payment> findByTenantIdAndPatientAccountIdOrderByPaidAtAscIdAsc(Long tenantId, Long accountId);
 

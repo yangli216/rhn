@@ -32,7 +32,7 @@ public class BusinessNumberAdministrationController {
                 var sequence = numbers.inspect(entry.getKey(), owner);
                 return new BusinessNumberRuleView(entry.getKey(), entry.getValue(), sequence,
                         sequence.nextSequence() == null ? "EXHAUSTED" : "AVAILABLE",
-                        sequence.nextSequence() == null ? "当日流水已用尽" : null);
+                        sequence.nextSequence() == null ? "流水已用尽" : null);
             } catch (BusinessException error) {
                 return new BusinessNumberRuleView(entry.getKey(), entry.getValue(), null,
                         error.code(), error.getMessage());

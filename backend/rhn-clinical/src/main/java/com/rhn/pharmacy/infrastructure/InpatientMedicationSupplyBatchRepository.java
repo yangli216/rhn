@@ -14,7 +14,6 @@ import java.util.Optional;
 
 public interface InpatientMedicationSupplyBatchRepository
         extends JpaRepository<InpatientMedicationSupplyBatch, Long> {
-    Optional<InpatientMedicationSupplyBatch> findByTenantIdAndBatchNo(Long tenantId, String batchNo);
     Optional<InpatientMedicationSupplyBatch> findByTenantIdAndGenerationCommandCode(
             Long tenantId, String generationCommandCode);
     List<InpatientMedicationSupplyBatch> findByTenantIdAndStockSiteIdAndStatusOrderByWindowStart(

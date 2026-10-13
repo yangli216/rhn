@@ -96,6 +96,7 @@ class ScheduleTemplate {
     @Id @Column(name = "ID_SCHED_TMPL") private Long id;
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
     @Column(name = "ID_SVC_RSRC", nullable = false) private Long resourceId;
     @Column(name = "CD_TMPL", nullable = false) private String templateCode;
     @Column(name = "NA_TMPL", nullable = false) private String templateName;
@@ -111,16 +112,17 @@ class ScheduleTemplate {
 
     protected ScheduleTemplate() {}
 
-    ScheduleTemplate(Long tenantId, Long resourceId, String name, String timezoneCode,
+    ScheduleTemplate(Long tenantId, Long organizationId, Long resourceId, String name, String timezoneCode,
                      LocalDate validFrom, LocalDate validTo, Long actorId, String businessNumber) {
-        this(tenantId, resourceId, name, ScheduleManagementMode.SIMPLE, timezoneCode,
+        this(tenantId, organizationId, resourceId, name, ScheduleManagementMode.SIMPLE, timezoneCode,
                 validFrom, validTo, actorId, businessNumber);
     }
 
-    ScheduleTemplate(Long tenantId, Long resourceId, String name, ScheduleManagementMode managementMode,
+    ScheduleTemplate(Long tenantId, Long organizationId, Long resourceId, String name, ScheduleManagementMode managementMode,
                      String timezoneCode, LocalDate validFrom, LocalDate validTo, Long actorId, String businessNumber) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
+        this.organizationId = organizationId;
         this.resourceId = resourceId;
         this.templateCode = businessNumber;
         this.templateName = name;
@@ -435,7 +437,7 @@ class ScheduleSlotPool {
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_SVC_SCHED", nullable = false) private Long scheduleId;
-    @Column(name = "CD_POOL", nullable = false) private String poolCode;
+    @Column(name = "CD_POOL") private String poolCode;
     @Column(name = "SD_SLOT_MODE", nullable = false) private String slotMode;
     @Column(name = "SD_QUOTA_MODE", nullable = false) private String quotaMode;
     @Column(name = "QTY_TOTAL", nullable = false) private int totalCount;

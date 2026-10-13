@@ -15,9 +15,12 @@ public class RedisBusinessNumberCounter implements BusinessNumberCounter {
     public RedisBusinessNumberCounter(StringRedisTemplate redis) { this.redis = redis; }
 
     @Override
-    public long next(String key, long maximum) {
-        if (key == null || key.isBlank() || maximum < 1 || maximum > 999_999_999_999L) throw new IllegalArgumentException("Invalid sequence request");
-        Long value = redis.execute(NEXT, List.of(key), Long.toString(maximum));
+    public long next(String key, long maximum) { return next(key, maximum, 0); }
+
+    @Override
+    public long next(String key, long maximum, long minimum) {
+        if (key == null || key.isBlank() || maximum < 1 || maximum > 999_999_999_999L || minimum < 0 || minimum > 999_999_999_999L) throw new IllegalArgumentException("Invalid sequence request");
+        Long value = redis.execute(NEXT, List.of(key), Long.toString(maximum), Long.toString(minimum));
         if (value == null || value == 0 || value < -1 || value > maximum) throw new IllegalStateException("Redis returned an invalid business sequence");
         return value;
     }

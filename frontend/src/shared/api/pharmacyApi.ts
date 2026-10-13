@@ -175,7 +175,7 @@ export interface InventoryTransactionLine {
 export interface InventoryTransaction {
   id: string
   inventoryPeriodId: string
-  transactionNo: string
+  transactionNo: string | null
   requestCode: string
   transactionType: string
   sourceType: string
@@ -381,7 +381,7 @@ export interface InventoryReservation {
 
 export interface ReservationResult {
   taskId: string
-  taskNo: string
+  taskNo: string | null
   taskStatus: DispenseTaskStatus
   requiredBaseQuantity: number
   reservedBaseQuantity: number
@@ -391,7 +391,7 @@ export interface ReservationResult {
 export interface PharmacyInboxItem {
   request: MedicationRequest
   taskId?: string
-  taskNo?: string
+  taskNo?: string | null
   taskStatus?: DispenseTaskStatus
   stockItemId?: string
   selectedProductName?: string
@@ -438,7 +438,7 @@ export interface DispenseTaskLine {
 
 export interface PharmacyReview {
   id: string
-  reviewNo: string
+  reviewNo: string | null
   result: PharmacyReviewResult
   reasonCode?: string
   description?: string
@@ -463,7 +463,7 @@ export interface DispenseTask {
   residentId: string
   encounterId: string
   stockSiteId: string
-  taskNo: string
+  taskNo: string | null
   taskType: string
   priority: string
   status: DispenseTaskStatus
@@ -530,7 +530,7 @@ export interface StockReturn {
 
 export interface DispenseTrace {
   taskId: string
-  taskNo: string
+  taskNo: string | null
   taskStatus: DispenseTaskStatus
   plannedQuantity: number
   dispensedQuantity: number

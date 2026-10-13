@@ -13,6 +13,9 @@ import com.rhn.billing.infrastructure.ChargeItemRepository;
 import com.rhn.billing.infrastructure.LedgerEntryRepository;
 import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.billing.infrastructure.PaymentRepository;
+import com.rhn.billing.infrastructure.InvoiceRepository;
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.billing.infrastructure.SettlementRepository;
 import com.rhn.billing.infrastructure.SettlementTenderRepository;
 import org.springframework.stereotype.Service;
@@ -41,6 +44,8 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
     private final SettlementRepository settlements;
     private final SettlementTenderRepository tenders;
     private final BillingApplicationService billingService;
+    private final InvoiceRepository invoices;
+    private final BusinessNumberGenerator numbers;
 
     public JpaInpatientBillingDirectory(PatientAccountRepository accounts,
                                         ChargeItemRepository charges,
@@ -49,7 +54,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
                                         LedgerEntryRepository ledger,
                                         SettlementRepository settlements,
                                         SettlementTenderRepository tenders,
-                                        BillingApplicationService billingService) {
+                                        BillingApplicationService billingService, InvoiceRepository invoices, BusinessNumberGenerator numbers) {
         this.accounts = accounts;
         this.charges = charges;
         this.components = components;
@@ -58,6 +63,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         this.settlements = settlements;
         this.tenders = tenders;
         this.billingService = billingService;
+        this.invoices = invoices; this.numbers = numbers;
     }
 
     @Override
@@ -85,7 +91,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
     @Override
     @Transactional
     public DepositResult registerDeposit(DepositCommand command) {
-        Payment existing = payments.findByTenantIdAndPaymentNo(command.tenantId(), command.paymentNo()).orElse(null);
+        Payment existing = payments.findByTenantIdAndCommandCode(command.tenantId(), command.paymentNo()).orElse(null);
         if (existing != null) return replay(command, existing);
         PatientAccount account = accounts.findByTenantIdAndEncounterIdAndCurrencyCode(
                         command.tenantId(), command.encounterId(), command.currencyCode())
@@ -96,9 +102,9 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         Instant paidAt = command.paidAt() == null ? Instant.now() : command.paidAt();
         Payment payment = payments.save(new Payment(
                 command.tenantId(), account.organizationId(), account.departmentId(),
-                account.id(), null, null, command.paymentNo(), "PAYMENT",
+                account.id(), null, null, numbers.next("inpatient-deposit", new BusinessNumberContext(command.tenantId(), account.organizationId(), account.departmentId())), "PAYMENT",
                 command.paymentMethodCode(), DEPOSIT_SCENE, money(command.amount()), command.currencyCode(), paidAt,
-                command.externalTransactionNo(), null, command.actorId(), command.description()));
+                command.externalTransactionNo(), null, command.actorId(), command.description(), command.paymentNo()));
         ledger.save(new LedgerEntry(command.tenantId(), account.id(), "PAYMENT", "CREDIT", money(command.amount()),
                 command.currencyCode(), null, null, payment.id(), null, paidAt, command.actorId()));
         return result(payment, false);
@@ -167,7 +173,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
     @Override
     @Transactional
     public FinalSettlementResult issueFinalSettlement(FinalSettlementCommand command) {
-        var existing = settlements.findByTenantIdAndSettlementNo(command.tenantId(), command.invoiceNo()).orElse(null);
+        var existing = invoices.findByTenantIdAndCommandCode(command.tenantId(), command.invoiceNo()).orElse(null);
         var invoice = billingService.issueInvoice(command.patientAccountId(),
                 new BillingApplicationService.IssueInvoiceCommand(
                         command.invoiceNo(), command.issuedAt(), "INPATIENT", "CASHIER", command.terminalCode()));
@@ -191,7 +197,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
     @Transactional
     public SettlementPaymentResult collectFinalPayment(SettlementPaymentCommand command) {
         Settlement settlement = requireSettlement(command.tenantId(), command.settlementId());
-        Payment replay = payments.findByTenantIdAndPaymentNo(command.tenantId(), command.commandCode()).orElse(null);
+        Payment replay = payments.findByTenantIdAndCommandCode(command.tenantId(), command.commandCode()).orElse(null);
         if (replay != null) {
             verifySettlementPaymentReplay(command, settlement, replay);
             PatientAccount account = account(command.tenantId(), settlement);

@@ -38,7 +38,7 @@ class InsuranceRequestTruthTest {
     final PatientAccount account = mock(PatientAccount.class);
     final Instant started = Instant.parse("2026-10-03T23:30:00Z");
     final Instant ended = started.plusSeconds(1800);
-    final InsuranceClaim claim = new InsuranceClaim(1L,2L,3L,4L,"KEY","REGION","BASIC","payer",
+    final InsuranceClaim claim = new InsuranceClaim(1L, 1L,2L,3L,4L,"KEY","REGION","BASIC","payer",
             "H","D","P","HASH",started,ended,new BigDecimal("100"),"CNY","original-correlation",5L, "TEST-InsuranceClaim");
     InsuranceClaimTransactionService service;
 

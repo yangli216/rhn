@@ -17,7 +17,8 @@ public class TreatmentMedicationPrintSource implements MedicationPrintSource {
     @Override
     public List<TaskSnapshot> worklist(String taskType, String status, String keyword) {
         return treatments.worklist(taskType, status, keyword).stream()
-                .map(task -> new TaskSnapshot(task.id(), task.revision(), task.taskNo(), task.status(),
+                .map(task -> new TaskSnapshot(task.id(), task.revision(), task.items().stream().map(item -> item.requestNo())
+                        .filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.joining("、")), task.status(),
                         task.residentId(), task.residentName(), task.healthRecordNo(), task.encounterId(),
                         task.sourceGroupId(), task.createdAt(), task.startedAt(), task.completedAt(),
                         task.executionSite(), task.items().stream()

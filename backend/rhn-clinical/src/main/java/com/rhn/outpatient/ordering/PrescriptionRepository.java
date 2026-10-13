@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 interface PrescriptionRepository extends JpaRepository<Prescription, Long> {
+    List<Prescription> findByTenantIdAndIdIn(Long tenantId, List<Long> ids);
     Optional<Prescription> findByIdAndTenantId(Long id, Long tenantId);
     List<Prescription> findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(Long tenantId, Long encounterId);
 }

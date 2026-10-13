@@ -28,7 +28,7 @@ class InsuranceResponseIdempotencyTest {
     final PatientAccountRepository accounts=mock(PatientAccountRepository.class);
     final SettlementApplicationService accounting=mock(SettlementApplicationService.class);
     final ExecutionContextProvider contexts=mock(ExecutionContextProvider.class);
-    final InsuranceClaim claim=new InsuranceClaim(1L,2L,3L,4L,"KEY","REGION","BASIC","payer","H","D","P","HASH",
+    final InsuranceClaim claim=new InsuranceClaim(1L, 1L,2L,3L,4L,"KEY","REGION","BASIC","payer","H","D","P","HASH",
             Instant.parse("2026-10-04T01:00:00Z"),null,n("100"),"CNY","corr",5L, "TEST-InsuranceClaim");
     final List<InsuranceClaimResponse> stored=new ArrayList<>();
     InsuranceClaimTransactionService service;

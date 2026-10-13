@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ReceiptResultTruthTest {
     static final Instant ISSUED=Instant.parse("2026-10-04T00:00:00Z");
-    Receipt original(){return new Receipt(1L,2L,"KEY","MEDICAL_E_INVOICE","FISCAL",BigDecimal.TEN,"CNY","CASHIER","payer",null,"corr",3L, "TEST-Receipt");}
+    Receipt original(){return new Receipt(1L, 1L,2L,"KEY","MEDICAL_E_INVOICE","FISCAL",BigDecimal.TEN,"CNY","CASHIER","payer",null,"corr",3L, "TEST-Receipt");}
     ReceiptResult result(Outcome outcome,String external,String code,String number,Instant time) {
         return new ReceiptResult(outcome,external,code,number,"VERIFY","OBJECT",time,null,null,null);
     }

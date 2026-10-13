@@ -332,8 +332,7 @@ public class BillingApplicationService {
         BigDecimal total = money(charges.stream().map(ChargeItem::totalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add));
         Instant issuedAt = input.issuedAt() == null ? Instant.now() : input.issuedAt();
-        String displayNumber = "INPATIENT".equals(account.accountType()) ? invoiceNo
-                : numbers.next("invoice", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()));
+        String displayNumber =  numbers.next("invoice", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()));
         Invoice invoice = invoiceRepository.save(new Invoice(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), displayNumber,
                 account.currencyCode(), total, issuedAt, context.subjectId(), invoiceNo));
@@ -392,8 +391,7 @@ public class BillingApplicationService {
         BigDecimal outstanding = money(invoice.netAmount().subtract(paid));
         if (amount.compareTo(outstanding) > 0) throw conflict("PAYMENT_EXCEEDS_OUTSTANDING", "支付金额超过结算凭证未付金额");
         Instant paidAt = input.paidAt() == null ? Instant.now() : input.paidAt();
-        String displayNumber = "INPATIENT".equals(account.accountType()) ? paymentNo
-                : numbers.next("payment", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()));
+        String displayNumber =  numbers.next("payment", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()));
         Payment payment = paymentRepository.save(new Payment(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), invoice.id(),
                 input.paymentOrderId(), displayNumber, "PAYMENT", method, paymentScene, amount, account.currencyCode(), paidAt,
@@ -429,8 +427,7 @@ public class BillingApplicationService {
         if (amount.compareTo(refundableCredit) > 0) throw conflict(
                 "REFUND_EXCEEDS_ACCOUNT_CREDIT", "退款金额超过退药等反向收费形成的可退余额");
         Instant paidAt = input.refundedAt() == null ? Instant.now() : input.refundedAt();
-        String displayNumber = "INPATIENT".equals(account.accountType()) ? refundNo
-                : numbers.next("refund", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()));
+        String displayNumber =  numbers.next("refund", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()));
         Payment refund = paymentRepository.save(new Payment(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), original.invoiceId(),
                 input.paymentOrderId(), displayNumber, "REFUND", original.paymentMethodCode(),

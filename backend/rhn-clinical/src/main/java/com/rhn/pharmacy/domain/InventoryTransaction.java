@@ -15,7 +15,7 @@ public class InventoryTransaction {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_INV_PERIOD", nullable = false) private Long inventoryPeriodId;
     @Column(name = "ID_INV_TXN_RVRS") private Long reversesTransactionId;
-    @Column(name = "CD_TXN_NO", nullable = false) private String transactionNo;
+    @Column(name = "CD_TXN_NO") private String transactionNo;
     @Column(name = "CD_REQ", nullable = false) private String requestCode;
     @Column(name = "SD_TXN_TYPE", nullable = false) private String transactionType;
     @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;

@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTaskView;
 import com.rhn.pharmacy.api.PharmacyViews.WardDeliveryView;
 import com.rhn.pharmacy.api.WardMedicationSupplyCandidateDirectory;
@@ -40,7 +42,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -58,9 +59,8 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class WardMedicationSupplyApplicationService {
-    private static final DateTimeFormatter BATCH_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneId.of("Asia/Shanghai"));
 
+    private final BusinessNumberGenerator numbers;
     private final InpatientMedicationSupplyBatchRepository batches;
     private final InpatientMedicationSupplyLineRepository lines;
     private final InpatientMedicationSupplyTaskRepository supplyTasks;
@@ -94,7 +94,8 @@ public class WardMedicationSupplyApplicationService {
             PharmacyApplicationService pharmacy,
             InventoryApplicationService inventory,
             DispenseApplicationService dispense,
-            WardDeliveryApplicationService delivery) {
+            WardDeliveryApplicationService delivery, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.batches = batches;
         this.lines = lines;
         this.supplyTasks = supplyTasks;
@@ -192,7 +193,7 @@ public class WardMedicationSupplyApplicationService {
 
         InpatientMedicationSupplyBatch batch = new InpatientMedicationSupplyBatch(
                 tenantId, site.organizationId(), site.id(), departmentId,
-                nextBatchNo(), "DAILY", "UNIT_DOSE", window.from(), window.to(), window.from(),
+                numbers.next("medication-supply-batch", new BusinessNumberContext(tenantId, site.organizationId(), departmentId)), "DAILY", "UNIT_DOSE", window.from(), window.to(), window.from(),
                 commandCode, payloadHash, triggerType, actorId,
                 dispenseRouteId, dispenseRouteRevision, routingDimension);
         // IDs are assigned by the application, so Spring Data persists a new aggregate through merge.
@@ -827,9 +828,7 @@ public class WardMedicationSupplyApplicationService {
         return normalized;
     }
 
-    private String nextBatchNo() {
-        return "MS" + BATCH_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
+
 
     private String hash(String value) {
         try {

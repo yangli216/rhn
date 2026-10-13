@@ -9,7 +9,7 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { DiagnosticWorkspace } from './DiagnosticWorkspace'
 
 const context = { organization: { id: 'org1', name: '测试机构' }, department: { id: 'dept1', name: '检验科' } } as ClinicalContext
-const task: DiagnosticExecutionTask = { id: 'task1', revision: 1, taskNo: 'DX123456', requestType: 'LABORATORY',
+const task: DiagnosticExecutionTask = { id: 'task1', revision: 1, requestNo: 'SR26101300001', taskNo: 'DX123456', requestType: 'LABORATORY',
   status: 'READY', residentId: 'resident1', residentName: '患者甲', healthRecordNo: 'H001', encounterId: 'enc1',
   requestId: 'req1', organizationId: 'org1', departmentId: 'dept1', itemCode: 'LAB1', itemName: '检验项目',
   createdAt: '2026-10-03T01:00:00Z' }

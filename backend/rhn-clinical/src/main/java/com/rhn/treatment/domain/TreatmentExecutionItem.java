@@ -19,7 +19,7 @@ public class TreatmentExecutionItem {
     @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;
     @Column(name = "ID_CARE_REQ_SRC", nullable = false) private Long sourceId;
     @Column(name = "ID_CARE_REQ_PARENT_SRC") private Long parentSourceId;
-    @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
+    @Column(name = "CD_REQ_NO") private String requestNo;
     @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
     @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
     @Column(name = "QTY_DOSE_VAL", precision = 28, scale = 8) private BigDecimal doseValue;

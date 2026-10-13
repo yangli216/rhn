@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.InventoryPriceAdjustmentViews.PriceAdjustmentDetailView;
 import com.rhn.pharmacy.api.InventoryPriceAdjustmentViews.PriceAdjustmentLineView;
 import com.rhn.pharmacy.api.InventoryPriceAdjustmentViews.PriceAdjustmentView;
@@ -37,7 +39,6 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
@@ -51,9 +52,8 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 public class InventoryPriceAdjustmentApplicationService {
     private static final Set<String> TYPES = Set.of("SALE_PRICE", "COST_REVALUE");
-    private static final DateTimeFormatter DOCUMENT_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
 
+    private final BusinessNumberGenerator numbers;
     private final JdbcTemplate jdbc;
     private final StockSiteRepository sites;
     private final StockItemRepository items;
@@ -66,7 +66,8 @@ public class InventoryPriceAdjustmentApplicationService {
                                                        StockItemRepository items, InventoryPeriodRepository periods,
                                                        InventoryAvailabilityService availability,
                                                        CatalogLifecycleDirectory catalog,
-                                                       ExecutionContextProvider contexts) {
+                                                       ExecutionContextProvider contexts, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.jdbc = jdbc; this.sites = sites; this.items = items; this.periods = periods;
         this.availability = availability; this.catalog = catalog; this.contexts = contexts;
     }
@@ -100,7 +101,7 @@ public class InventoryPriceAdjustmentApplicationService {
             return get(context, repeated.id());
         }
         Instant now = Instant.now(); Long id = GlobalIds.next();
-        String adjustmentNo = "PA" + DOCUMENT_TIME.format(now) + GlobalIds.randomSuffix(6);
+        String adjustmentNo = numbers.next("stock-price-adjustment", new BusinessNumberContext(context.tenantId(), site.organizationId(), null));
         jdbc.update("""
                 insert into RHN_SUP_INV_PRICE_ADJ
                 (ID_INV_PRICE_ADJ, ID_TNT, ID_ORG, ID_STOCK_SITE, CD_ADJ_NO, CD_REQ, HASH_REQ,

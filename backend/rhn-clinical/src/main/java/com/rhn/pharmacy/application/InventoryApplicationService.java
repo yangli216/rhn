@@ -51,7 +51,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -68,8 +67,6 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
     private static final Set<String> BIN_TYPES = Set.of("ZONE", "RACK", "BIN", "COUNTER", "TRANSIT");
     private static final Set<String> STOCK_STATUSES = Set.of("AVAILABLE", "PENDING", "QUARANTINE", "DAMAGED", "EXPIRED");
     private static final Set<String> QUALITY_STATUSES = Set.of("PENDING", "QUALIFIED", "QUARANTINE", "REJECTED", "RECALLED");
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
     private static final Comparator<ReceiveDocumentLineCommand> RECEIPT_LOCK_ORDER = Comparator
             .comparing(ReceiveDocumentLineCommand::stockBinId, Comparator.nullsFirst(Long::compareTo))
             .thenComparing(ReceiveDocumentLineCommand::stockItemId, Comparator.nullsFirst(Long::compareTo))
@@ -239,7 +236,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                 "INVENTORY_RECEIPT_QUANTITY_PRECISION_INVALID", "入库数量");
         InventoryPeriod period = requireOpenPeriod(context, site.id(), businessDate);
         InventoryTransaction transaction = transactionRepository.save(new InventoryTransaction(context.tenantId(),
-                period.id(), nextNo("IT"), requestCode, "RECEIPT", receiptSourceType,
+                period.id(), null, requestCode, "RECEIPT", receiptSourceType,
                 required(input.sourceCode(), "INVENTORY_SOURCE_CODE_REQUIRED", "入库来源编码不能为空"),
                 input.occurredAt(), context.subjectId(), Strings.trimToNull(input.description())));
         InventoryTransactionLine line = transactionLineRepository.save(new InventoryTransactionLine(
@@ -257,7 +254,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         }
         eventPublisher.publish(context.tenantId(), site.organizationId(), "INVENTORY_TRANSACTION_POSTED", 1,
                 "InventoryTransaction", transaction.id(), 1, null, transaction.postedAt(),
-                Map.of("transactionNo", transaction.transactionNo(), "transactionType", "RECEIPT",
+                Map.of("transactionId", transaction.id(), "transactionType", "RECEIPT",
                         "stockItemId", item.id(), "quantityDelta", quantityDelta));
         return transactionView(transaction, List.of(line));
     }
@@ -287,7 +284,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         StockSite site = requireSite(context, input.stockSiteId()); requireOrganizationAccess(context, site.organizationId());
         InventoryPeriod period = requireOpenPeriod(context, site.id(), businessDate);
         InventoryTransaction transaction = transactionRepository.save(new InventoryTransaction(context.tenantId(),
-                period.id(), nextNo("IT"), requestCode, "RECEIPT", receiptSourceType, sourceCode,
+                period.id(), null, requestCode, "RECEIPT", receiptSourceType, sourceCode,
                 occurredAt, context.subjectId(), Strings.trimToNull(input.description())));
         List<InventoryTransactionLine> persisted = new ArrayList<>(); int order = 0;
         List<InventoryReceiptRoundingWriter.Adjustment> roundingAdjustments = new ArrayList<>();
@@ -354,7 +351,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         }
         eventPublisher.publish(context.tenantId(), site.organizationId(), "INVENTORY_TRANSACTION_POSTED", 1,
                 "InventoryTransaction", transaction.id(), 1, null, transaction.postedAt(),
-                Map.of("transactionNo", transaction.transactionNo(), "transactionType", "RECEIPT",
+                Map.of("transactionId", transaction.id(), "transactionType", "RECEIPT",
                         "sourceType", receiptSourceType, "lineCount", persisted.size()));
         return transactionView(transaction, persisted);
     }
@@ -382,7 +379,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         requireOrganizationAccess(context, site.organizationId());
         InventoryPeriod period = requireOpenPeriod(context, site.id(), businessDate);
         InventoryTransaction transaction = transactionRepository.save(new InventoryTransaction(context.tenantId(),
-                period.id(), nextNo("IT"), requestCode, transactionType, sourceType, sourceCode,
+                period.id(), null, requestCode, transactionType, sourceType, sourceCode,
                 occurredAt, context.subjectId(), Strings.trimToNull(input.description())));
         List<InventoryTransactionLine> persisted = new ArrayList<>(); int order = 0;
         List<DocumentPostingLineCommand> orderedLines = input.lines().stream()
@@ -433,7 +430,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         }
         eventPublisher.publish(context.tenantId(), site.organizationId(), "INVENTORY_TRANSACTION_POSTED", 1,
                 "InventoryTransaction", transaction.id(), 1, null, transaction.postedAt(),
-                Map.of("transactionNo", transaction.transactionNo(), "transactionType", transactionType,
+                Map.of("transactionId", transaction.id(), "transactionType", transactionType,
                         "sourceType", sourceType, "lineCount", persisted.size()));
         return transactionView(transaction, persisted);
     }
@@ -592,7 +589,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         if (expiryMinutes < 1 || expiryMinutes > 1440) {
             throw badRequest("INVENTORY_RESERVATION_EXPIRY_INVALID", "预留有效分钟数必须在 1 至 1440 之间");
         }
-        String group = task.taskNo() + "-R" + (history.stream().map(InventoryReservation::reservationGroupCode)
+        String group = task.id() + "-R" + (history.stream().map(InventoryReservation::reservationGroupCode)
                 .distinct().count() + 1);
         Instant expiresAt = Instant.now().plusSeconds(expiryMinutes * 60L);
         BigDecimal remaining = required; List<InventoryReservation> created = new ArrayList<>();
@@ -609,7 +606,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         availabilityService.flush(); reservationRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
         eventPublisher.publish(context.tenantId(), site.organizationId(), "INVENTORY_RESERVED", 1,
                 "DispenseTask", task.id(), task.revision(), task.residentId(), Instant.now(),
-                Map.of("taskNo", task.taskNo(), "requestId", line.requestId(), "reservationGroup", group,
+                Map.of("taskId", task.id(), "requestId", line.requestId(), "reservationGroup", group,
                         "requiredBaseQuantity", required, "allocationCount", created.size()));
         return reservationResult(context, task, required, created);
     }
@@ -643,7 +640,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         availabilityService.flush(); reservationRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
         eventPublisher.publish(context.tenantId(), site.organizationId(), "INVENTORY_RESERVATION_RELEASED", 1,
                 "DispenseTask", task.id(), task.revision(), task.residentId(), Instant.now(),
-                Map.of("taskNo", task.taskNo(), "requestId", line.requestId(), "reason", reason));
+                Map.of("taskId", task.id(), "requestId", line.requestId(), "reason", reason));
         return reservationResult(context, task, required, active);
     }
 
@@ -688,7 +685,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         availabilityService.flush(); reservationRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
         eventPublisher.publish(tenantId, site.organizationId(), "INVENTORY_RESERVATION_EXPIRED", 1,
                 "DispenseTask", task.id(), task.revision(), task.residentId(), now,
-                Map.of("taskNo", task.taskNo(), "requestId", line.requestId(), "allocationCount", due.size()));
+                Map.of("taskId", task.id(), "requestId", line.requestId(), "allocationCount", due.size()));
     }
 
     @Transactional(readOnly = true)
@@ -922,9 +919,6 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         }
     }
 
-    private String nextNo(String prefix) {
-        return prefix + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
     private String required(String value, String code, String message) {
         String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }

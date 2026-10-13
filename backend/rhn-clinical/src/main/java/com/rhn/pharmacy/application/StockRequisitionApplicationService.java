@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.InventoryOperationViews.RequisitionAllocationView;
 import com.rhn.pharmacy.api.InventoryOperationViews.RequisitionLineView;
 import com.rhn.pharmacy.api.InventoryOperationViews.RequisitionView;
@@ -33,7 +35,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -48,8 +49,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class StockRequisitionApplicationService {
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
+    private final BusinessNumberGenerator numbers;
     private final StockRequisitionRepository repository;
     private final StockRequisitionLineRepository lineRepository;
     private final StockRequisitionAllocationRepository allocationRepository;
@@ -68,7 +68,8 @@ public class StockRequisitionApplicationService {
             StockItemRepository itemRepository, InventoryAvailabilityService availabilityService,
             InventoryDocumentEventRepository eventRepository, InventoryLedgerPostingService inventoryService,
             InventoryTraceApplicationService traceService,
-            OrganizationDirectory organizationDirectory, ExecutionContextProvider contextProvider) {
+            OrganizationDirectory organizationDirectory, ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.repository = repository; this.lineRepository = lineRepository; this.allocationRepository = allocationRepository;
         this.siteRepository = siteRepository; this.itemRepository = itemRepository; this.availabilityService = availabilityService;
         this.eventRepository = eventRepository; this.inventoryService = inventoryService; this.traceService = traceService;
@@ -93,7 +94,7 @@ public class StockRequisitionApplicationService {
         }
         if (input.lines() == null || input.lines().isEmpty()) throw badRequest("REQUISITION_LINES_REQUIRED", "请领单至少需要一条明细");
         if (input.lines().size() > 500) throw badRequest("REQUISITION_LINES_TOO_MANY", "单张请领单不能超过500条明细");
-        String no = Strings.trimToNull(input.requisitionNo()); if (no == null) no = nextNo("REQ");
+        String no = Strings.trimToNull(input.requisitionNo()); if (no == null) no = numbers.next("stock-requisition", new BusinessNumberContext(context.tenantId(), source.organizationId(), null));
         Instant requestedAt = input.requestedAt() == null ? Instant.now() : input.requestedAt();
         StockRequisition value = new StockRequisition(context.tenantId(), source.organizationId(), source.id(),
                 requestingDepartmentId, null, no, requestCode, requestedAt, Strings.trimToNull(input.reason()),
@@ -298,7 +299,7 @@ public class StockRequisitionApplicationService {
     }
     private void positive(BigDecimal value, String code, String message) { if (value == null || value.signum() <= 0) throw badRequest(code, message); }
     private String required(String value, String code, String message) { String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result; }
-    private String nextNo(String prefix) { return prefix + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6); }
+
 
     public record RequisitionLineCommand(Long stockItemId, BigDecimal requestedQuantity, String description) {}
     public record CreateRequisitionCommand(Long sourceSiteId, Long requestingDepartmentId, Long destinationSiteId,

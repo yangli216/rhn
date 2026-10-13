@@ -28,7 +28,7 @@ class MedicationRequest {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
-    @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
+    @Column(name = "CD_REQ_NO") private String requestNo;
     @Column(name = "ID_REQ_GRP") private Long requestGroupId;
     @Column(name = "ID_CARE_REQ_PARENT") private Long parentRequestId;
     @Column(name = "SD_REQ_KIND", nullable = false) private String requestKind;

@@ -18,5 +18,11 @@ public class IsolatedBusinessNumberCounter implements BusinessNumberCounter {
         values.put(key, current + 1);
         return current + 1;
     }
+    @Override public synchronized long next(String key, long maximum, long minimum) {
+        long current = Math.max(current(key), minimum);
+        if (current >= maximum) return -1;
+        values.put(key, current + 1);
+        return current + 1;
+    }
     @Override public long current(String key) { return values.getOrDefault(key, 0L); }
 }

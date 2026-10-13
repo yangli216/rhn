@@ -198,9 +198,9 @@ public class TreatmentExecutionService {
         Instant createdAt = occurredAt == null ? Instant.now() : occurredAt;
         TreatmentExecutionTask task = tasks.findByTenantIdAndTaskTypeAndSourceGroupId(tenantId, taskType, groupId)
                 .orElseGet(() -> tasks.save(new TreatmentExecutionTask(tenantId, organizationId, departmentId,
-                        residentId, encounterId, groupId, taskType, createdAt, numbers.next("treatment-task", new BusinessNumberContext(tenantId, organizationId, departmentId)))));
+                        residentId, encounterId, groupId, taskType, createdAt, null)));
         items.save(new TreatmentExecutionItem(tenantId, task.id(), sourceType, sourceId, parentSourceId,
-                first(requestNo, sourceType + sourceId), first(itemCode, sourceType), first(itemName, "门诊治疗"),
+                requestNo, first(itemCode, sourceType), first(itemName, "门诊治疗"),
                 doseValue, doseUnit, routeCode, frequencyCode, frequencyId, frequencyName, frequencyRule,
                 durationValue, durationUnit, skinTestRequired,
                 settlementRequired, fulfillmentRequired, createdAt));
@@ -371,7 +371,7 @@ public class TreatmentExecutionService {
     }
 
     private String searchable(TreatmentExecutionTaskView value) {
-        StringBuilder result = new StringBuilder(value.taskNo()).append(' ').append(value.residentName())
+        StringBuilder result = new StringBuilder(value.taskNo() == null ? "" : value.taskNo()).append(' ').append(value.residentName())
                 .append(' ').append(value.healthRecordNo()).append(' ').append(value.encounterId());
         value.items().forEach(item -> result.append(' ').append(item.itemCode()).append(' ')
                 .append(item.itemName()).append(' ').append(item.requestNo()));

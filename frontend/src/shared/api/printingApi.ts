@@ -230,7 +230,7 @@ export type ClinicalPrintBatchStatus = 'BUILDING' | 'GENERATED' | 'QUEUED' | 'SE
 export interface ClinicalPrintCandidate {
   sourceId: string
   sourceVersion: number
-  taskNo: string
+  taskNo: string | null
   status: string
   residentId: string
   residentName: string

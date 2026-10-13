@@ -39,5 +39,9 @@ public interface MedicationRequestDirectory {
             BigDecimal unitPrice, BigDecimal priceQuantity, BigDecimal totalAmount, String currencyCode,
             JsonNode medicationSnapshot, JsonNode itemAttributeSnapshot, String itemAttributeHash,
             Instant itemAttributeResolvedAt, JsonNode standardMappings,
-            String packageSpec, String manufacturerName, String packageUnitName) {}
+            String packageSpec, String manufacturerName, String packageUnitName) {
+        /** Linked prescription number; medication lines do not allocate their own business number. */
+        @com.fasterxml.jackson.annotation.JsonProperty("prescriptionNo")
+        public String prescriptionNo() { return requestNo; }
+    }
 }

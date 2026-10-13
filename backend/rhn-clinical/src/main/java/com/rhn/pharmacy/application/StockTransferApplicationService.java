@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.InventoryOperationViews.TransferAllocationView;
 import com.rhn.pharmacy.api.InventoryOperationViews.TransferLineView;
 import com.rhn.pharmacy.api.InventoryOperationViews.TransferView;
@@ -36,7 +38,6 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -51,9 +52,8 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class StockTransferApplicationService {
-    private static final DateTimeFormatter NUMBER_TIME =
-            DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC);
 
+    private final BusinessNumberGenerator numbers;
     private final StockTransferRepository repository;
     private final StockTransferLineRepository lineRepository;
     private final StockTransferAllocationRepository allocationRepository;
@@ -72,7 +72,8 @@ public class StockTransferApplicationService {
             StockSiteRepository siteRepository, StockItemRepository itemRepository, StockBinRepository binRepository,
             InventoryAvailabilityService availabilityService, InventoryDocumentEventRepository eventRepository,
             InventoryLedgerPostingService inventoryService, InventoryTraceApplicationService traceService,
-            CatalogLifecycleDirectory catalogDirectory, ExecutionContextProvider contextProvider) {
+            CatalogLifecycleDirectory catalogDirectory, ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.repository = repository;
         this.lineRepository = lineRepository;
         this.allocationRepository = allocationRepository;
@@ -102,7 +103,7 @@ public class StockTransferApplicationService {
             throw badRequest("TRANSFER_LINES_REQUIRED", "调拨单至少需要一条明细");
         if (input.lines().size() > 500) throw badRequest("TRANSFER_LINES_TOO_MANY", "单张调拨单不能超过500条明细");
         String no = Strings.trimToNull(input.transferNo());
-        if (no == null) no = nextNo("TR");
+        if (no == null) no = numbers.next("stock-transfer", new BusinessNumberContext(context.tenantId(), source.organizationId(), null));
         Long srcDeptId = StockSiteRequirements.requireDepartment(source);
         Long destDeptId = StockSiteRequirements.requireDepartment(destination);
         StockTransfer value = new StockTransfer(context.tenantId(), source.organizationId(), srcDeptId, destDeptId,
@@ -469,9 +470,7 @@ public class StockTransferApplicationService {
         return r;
     }
 
-    private String nextNo(String prefix) {
-        return prefix + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
+
 
     private record TransferQuantity(String operationUnitCode, BigDecimal baseQuantityFactor, BigDecimal baseQuantity) {}
 

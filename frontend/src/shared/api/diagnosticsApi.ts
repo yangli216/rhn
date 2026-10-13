@@ -109,7 +109,8 @@ export type DiagnosticTaskStatus = 'WAITING_SETTLEMENT' | 'READY' | 'COLLECTED' 
 export interface DiagnosticExecutionTask {
   id: string
   revision: number
-  taskNo: string
+  taskNo: string | null
+  requestNo: string
   requestType: 'LABORATORY' | 'EXAMINATION'
   status: DiagnosticTaskStatus
   residentId: string

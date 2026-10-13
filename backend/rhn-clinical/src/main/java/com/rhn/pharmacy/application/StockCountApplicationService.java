@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.InventoryOperationViews.*;
 import com.rhn.pharmacy.application.InventoryApplicationService.*;
 import com.rhn.pharmacy.domain.*;
@@ -11,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.rhn.shared.api.BusinessErrors.*;
@@ -21,9 +22,8 @@ public class StockCountApplicationService {
     private static final Set<String> TYPES = Set.of("FULL", "BIN", "ITEM", "CYCLE");
     private static final Set<StockCountStatus> ACTIVE = Set.of(StockCountStatus.DRAFT, StockCountStatus.COUNTING,
             StockCountStatus.SUBMITTED, StockCountStatus.APPROVED);
-    private static final DateTimeFormatter FORMAT =
-            DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC);
 
+    private final BusinessNumberGenerator numbers;
     private final StockCountRepository repository;
     private final StockCountLineRepository lineRepository;
     private final StockSiteRepository siteRepository;
@@ -36,7 +36,8 @@ public class StockCountApplicationService {
     public StockCountApplicationService(StockCountRepository repository, StockCountLineRepository lineRepository,
             StockSiteRepository siteRepository, StockBinRepository binRepository,
             InventoryAvailabilityService balanceRepository, InventoryDocumentEventRepository eventRepository,
-            InventoryLedgerPostingService inventoryService, ExecutionContextProvider contextProvider) {
+            InventoryLedgerPostingService inventoryService, ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.repository = repository;
         this.lineRepository = lineRepository;
         this.siteRepository = siteRepository;
@@ -93,7 +94,7 @@ public class StockCountApplicationService {
         }
         String no = Strings.trimToNull(input.countNo());
         if (no == null) {
-            no = "CT" + FORMAT.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
+            no = numbers.next("stock-count", new BusinessNumberContext(c.tenantId(), site.organizationId(), null));
         }
         StockCount value = new StockCount(c.tenantId(), site.organizationId(),
                 departmentId,

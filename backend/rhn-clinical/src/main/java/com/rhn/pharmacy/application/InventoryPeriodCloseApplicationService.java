@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.InventoryAccuracyViews.InventoryPeriodView;
 import com.rhn.pharmacy.api.InventoryAccuracyViews.PeriodCloseDifferenceView;
 import com.rhn.pharmacy.api.InventoryAccuracyViews.PeriodCloseRunView;
@@ -30,7 +32,6 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
@@ -41,11 +42,10 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class InventoryPeriodCloseApplicationService {
-    private static final DateTimeFormatter RUN_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
     private static final BigDecimal ZERO_QUANTITY = new BigDecimal("0.00000000");
     private static final BigDecimal ZERO_AMOUNT = new BigDecimal("0.000000");
 
+    private final BusinessNumberGenerator numbers;
     private final JdbcTemplate jdbc;
     private final InventoryPeriodRepository periods;
     private final InventoryAvailabilityService balances;
@@ -54,7 +54,8 @@ public class InventoryPeriodCloseApplicationService {
 
     public InventoryPeriodCloseApplicationService(JdbcTemplate jdbc, InventoryPeriodRepository periods,
                                                   InventoryAvailabilityService balances, StockSiteRepository sites,
-                                                  ExecutionContextProvider contexts) {
+                                                  ExecutionContextProvider contexts, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.jdbc = jdbc; this.periods = periods; this.balances = balances;
         this.sites = sites; this.contexts = contexts;
     }
@@ -113,8 +114,8 @@ public class InventoryPeriodCloseApplicationService {
                 previousCloseRunId);
         String stateHash = stateHash(period, currency, dimensions, missing);
         Instant now = Instant.now(); Long reconciliationId = GlobalIds.next(); Long closeRunId = GlobalIds.next();
-        String runNo = "PC" + RUN_TIME.format(now) + GlobalIds.randomSuffix(6);
-        String reconciliationNo = "REC" + RUN_TIME.format(now) + GlobalIds.randomSuffix(6);
+        String runNo = numbers.next("stock-period-close", new BusinessNumberContext(context.tenantId(), site.organizationId(), null));
+        String reconciliationNo = numbers.next("stock-reconciliation", new BusinessNumberContext(context.tenantId(), site.organizationId(), null));
         jdbc.update("""
                 insert into RHN_SUP_INV_RECON_RUN
                 (ID_INV_RECON_RUN, ID_TNT, ID_ORG, ID_STOCK_SITE, CD_RUN_NO, SD_RUN_TYPE, SD_STATUS, DA_BIZ,

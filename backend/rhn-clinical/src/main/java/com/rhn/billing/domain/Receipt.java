@@ -19,6 +19,7 @@ public class Receipt {
     @Id @Column(name = "ID_RCPT") private Long id;
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
     @Column(name = "ID_STL", nullable = false) private Long settlementId;
     @Column(name = "ID_RCPT_RVRS") private Long reversesReceiptId;
     @Column(name = "CD_RCPT_NO", nullable = false) private String receiptNo;
@@ -46,10 +47,10 @@ public class Receipt {
 
     protected Receipt() {}
 
-    public Receipt(Long tenantId, Long settlementId, String commandCode, String receiptType,
+    public Receipt(Long tenantId, Long organizationId, Long settlementId, String commandCode, String receiptType,
                    String fiscalAuthorityCode, BigDecimal amount, String currencyCode, String issueChannel,
                    String payerName, String payerIdentityDigest, String correlationId, Long createdBy, String businessNumber) {
-        this.id = GlobalIds.next(); this.tenantId = tenantId; this.settlementId = settlementId;
+        this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId; this.settlementId = settlementId;
         this.receiptNo = businessNumber; this.commandCode = commandCode; this.receiptType = receiptType;
         this.status = "REQUESTED"; this.fiscalAuthorityCode = fiscalAuthorityCode;
         this.receiptAmount = amount; this.currencyCode = currencyCode; this.issueChannel = issueChannel;
@@ -59,7 +60,7 @@ public class Receipt {
     }
 
     public static Receipt redFlushOf(Receipt original, String commandCode, String correlationId, Long createdBy, String businessNumber) {
-        Receipt value = new Receipt(original.tenantId, original.settlementId, commandCode, original.receiptType,
+        Receipt value = new Receipt(original.tenantId, original.organizationId, original.settlementId, commandCode, original.receiptType,
                 original.fiscalAuthorityCode, original.receiptAmount.negate(), original.currencyCode,
                 original.issueChannel, original.payerNameSnapshot, original.payerIdentityDigest,
                 correlationId, createdBy, businessNumber);
@@ -197,6 +198,7 @@ public class Receipt {
     public Long id() { return id; }
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
     public Long settlementId() { return settlementId; }
     public Long reversesReceiptId() { return reversesReceiptId; }
     public String receiptNo() { return receiptNo; }

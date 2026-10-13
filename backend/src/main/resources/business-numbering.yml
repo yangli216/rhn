@@ -1,6 +1,5 @@
-# Packaged defaults for the common generator; consumer migration is tracked in docs/ai/business-numbering.md.
-# Missing rule fields default to: suffix="", date-format=yyMMdd, sequence-width=5, scope=TENANT.
-# One counter per business code + scope identity + business day; no database configuration tables.
+# Business-facing documents only. Empty date-format means a lifetime counter; other rules reset daily.
+# Numbers may repeat between institutions: identity is tenant + owning organization + number.
 rhn:
   business-numbering:
     redis-key-prefix: rhn:business-number
@@ -8,95 +7,181 @@ rhn:
     rules:
       resident-record:
         prefix: RHN
+        date-format: ""
+        sequence-width: 7
+        scope: TENANT
       outpatient-encounter:
         prefix: OP
-        suffix: ""
-        date-format: yyMMdd
+        date-format: "yyMMdd"
         sequence-width: 5
-        scope: TENANT
+        scope: ORGANIZATION
       outpatient-appointment:
         prefix: AP
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       outpatient-registration:
         prefix: RG
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       outpatient-triage:
         prefix: TR
-      medication-request:
-        prefix: MR
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       service-request:
         prefix: SR
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       prescription:
         prefix: RX
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       inpatient-encounter:
         prefix: IPE
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       inpatient-episode:
         prefix: IP
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       inpatient-deposit:
         prefix: IPD
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       invoice:
         prefix: INV
-      settlement:
-        prefix: ST
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       payment-order:
         prefix: PO
+        date-format: "yyMMdd"
+        sequence-width: 6
+        scope: TENANT
       refund-order:
         prefix: RO
+        date-format: "yyMMdd"
+        sequence-width: 6
+        scope: TENANT
       payment:
         prefix: PAY
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       refund:
         prefix: RF
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       receipt:
         prefix: RC
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       insurance-claim:
         prefix: IC
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       cashier-close:
         prefix: CC
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       cashier-reopen:
         prefix: CR
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       reconciliation-batch:
         prefix: RB
-      treatment-task:
-        prefix: TX
-      diagnostic-task:
-        prefix: DX
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       stock-purchase-order:
-        prefix: PO
+        prefix: PUR
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       stock-goods-receipt:
         prefix: GR
-      stock-transaction:
-        prefix: IT
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       stock-transfer:
-        prefix: TR
+        prefix: STF
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       stock-requisition:
         prefix: REQ
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       stock-count:
         prefix: CT
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       stock-price-adjustment:
         prefix: PA
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       stock-period-close:
         prefix: PC
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       stock-reconciliation:
         prefix: REC
+        date-format: "yyMMdd"
+        sequence-width: 4
+        scope: ORGANIZATION
       medication-supply-batch:
         prefix: MS
-      pharmacy-dispense-task:
-        prefix: DT
-      pharmacy-review:
-        prefix: PR
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       pharmacy-return:
-        prefix: RET-
+        prefix: RET
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       ward-delivery:
         prefix: WD
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       ward-medication-return:
         prefix: WMR
-      inpatient-care-request:
-        prefix: IP
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
       outpatient-referral:
-        prefix: RF
+        prefix: REF
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: TENANT
       schedule-resource:
-        prefix: SR-
+        prefix: RES
+        date-format: ""
+        sequence-width: 4
+        scope: ORGANIZATION
       schedule-template:
-        prefix: ST-
+        prefix: TPL
+        date-format: ""
+        sequence-width: 4
+        scope: ORGANIZATION
       schedule:
-        prefix: SCH-
-      schedule-slot-pool:
-        prefix: SP-
+        prefix: SCH
+        date-format: "yyMMdd"
+        sequence-width: 5
+        scope: ORGANIZATION
