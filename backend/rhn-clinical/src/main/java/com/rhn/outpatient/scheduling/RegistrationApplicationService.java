@@ -1,5 +1,7 @@
 package com.rhn.outpatient.scheduling;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
 import com.rhn.outpatient.api.OutpatientScheduleDirectory;
@@ -37,6 +39,7 @@ import com.rhn.platform.organization.api.OrganizationDirectory;
 
 @Service
 public class RegistrationApplicationService implements OutpatientRegistrationDirectory {
+    private final BusinessNumberGenerator numbers;
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final PatientRegistrationRepository registrationRepository;
@@ -67,7 +70,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                                           RegistrationValidityPolicy validityPolicy,
                                           EncounterFlowDirectory encounterFlowDirectory,
                                           IdentityAccessDirectory identityAccessDirectory,
-                                          OrganizationDirectory organizationDirectory) {
+                                          OrganizationDirectory organizationDirectory, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.registrationRepository = registrationRepository;
         this.appointmentRepository = appointmentRepository;
         this.appointmentEventRepository = appointmentEventRepository;
@@ -137,7 +141,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
             }
             appointment = appointmentRepository.save(new Appointment(context.tenantId(), schedule, pool,
                     command.slotHoldId(),
-                    command.residentId(), idempotencyCode, context.subjectId()));
+                    command.residentId(), idempotencyCode, context.subjectId(), numbers.next("outpatient-appointment", new BusinessNumberContext(context.tenantId(), schedule.organizationId(), schedule.departmentId()))));
             if (command.slotHoldId() == null) {
                 int slotSequence = slotEventRepository
                         .findTopByTenantIdAndPoolIdOrderBySequenceNoDesc(context.tenantId(), pool.id())
@@ -152,7 +156,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 schedule == null ? null : schedule.id(), command.residentId(), command.organizationId(),
                 command.departmentId(), command.encounterId(), idempotencyCode,
                 normalizeSource(command.registrationSource(), schedule != null), normalizeVisitType(command.visitType()),
-                context.subjectId()));
+                context.subjectId(), numbers.next("outpatient-registration", new BusinessNumberContext(context.tenantId(), command.organizationId(), command.departmentId()))));
         if (command.slotHoldId() != null) slotHolds.bindRegistration(command.slotHoldId(), registration.id());
         TicketSnapshot ticket = queueing.checkInForOrganization(new QueueingDirectory.CheckInCommand(
                 command.organizationId(), command.departmentId(), null,

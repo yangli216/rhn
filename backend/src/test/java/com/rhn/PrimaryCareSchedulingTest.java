@@ -32,7 +32,7 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.practitioners[?(@.id == '362387869790223')].name")
                         .value("示范全科医生"));
 
-        LocalDate monday = LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY));
+        LocalDate monday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         LocalDate sunday = monday.plusDays(6);
         String requestCode = "test-schedule-" + GlobalIds.next();
         String body = """
@@ -156,7 +156,7 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
 
     @Test
     void department_scoped_inventory_does_not_require_a_practitioner() throws Exception {
-        LocalDate monday = LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY)).plusWeeks(3);
+        LocalDate monday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY)).plusWeeks(3);
         String command = "test-department-schedule-" + GlobalIds.next();
         String body = """
                 {

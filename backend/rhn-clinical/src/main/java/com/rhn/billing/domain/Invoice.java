@@ -29,6 +29,8 @@ public class Invoice {
     @Column(name = "DT_CNCLD") private Instant cancelledAt;
     @Column(name = "DES_CNCLN_REASON") private String cancellationReason;
 
+    @Column(name = "CD_CMD", nullable = false) private String commandCode;
+
     protected Invoice() {}
 
     public Invoice(Long tenantId, Long patientAccountId, String invoiceNo, String currencyCode,
@@ -39,6 +41,13 @@ public class Invoice {
     public Invoice(Long tenantId, Long organizationId, Long departmentId,
                    Long patientAccountId, String invoiceNo, String currencyCode,
                    BigDecimal amount, Instant issuedAt, Long issuedBy) {
+        this(tenantId, organizationId, departmentId, patientAccountId, invoiceNo, currencyCode, amount, issuedAt, issuedBy, invoiceNo);
+    }
+
+    public Invoice(Long tenantId, Long organizationId, Long departmentId,
+                   Long patientAccountId, String invoiceNo, String currencyCode,
+                   BigDecimal amount, Instant issuedAt, Long issuedBy, String commandCode) {
+        this.commandCode = commandCode;
         this.id = GlobalIds.next(); this.tenantId = tenantId;
         this.organizationId = organizationId; this.departmentId = departmentId;
         this.patientAccountId = patientAccountId;
@@ -58,6 +67,7 @@ public class Invoice {
     public Long organizationId() { return organizationId; }
     public Long departmentId() { return departmentId; }
     public Long patientAccountId() { return patientAccountId; }
+    public String commandCode() { return commandCode; }
     public String invoiceNo() { return invoiceNo; }
     public String invoiceType() { return invoiceType; }
     public String status() { return status; }

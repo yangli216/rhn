@@ -1,5 +1,7 @@
 package com.rhn.billing.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.billing.api.BillingViews.AccountStatementView;
 import com.rhn.billing.api.BillingViews.ChargeItemView;
 import com.rhn.billing.api.BillingViews.ChargeSynchronizationView;
@@ -71,6 +73,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class BillingApplicationService {
+    private final BusinessNumberGenerator numbers;
     private final PatientAccountRepository accountRepository;
     private final ChargeItemRepository chargeRepository;
     private final ChargeItemComponentRepository componentRepository;
@@ -109,7 +112,8 @@ public class BillingApplicationService {
             SettlementApplicationService settlements,
             ChargeCategoryResolver categoryResolver, PaymentRoundingPolicy roundingPolicy,
             MedicationReturnChargeService medicationReturns, UnitDefinitionDirectory unitDirectory,
-            BillingOrderOriginResolver orderOrigins) {
+            BillingOrderOriginResolver orderOrigins, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.accountRepository = accountRepository; this.chargeRepository = chargeRepository;
         this.componentRepository = componentRepository; this.invoiceRepository = invoiceRepository;
         this.invoiceLineRepository = invoiceLineRepository; this.categoryRepository = categoryRepository;
@@ -308,10 +312,10 @@ public class BillingApplicationService {
     public InvoiceView issueInvoice(Long accountId, IssueInvoiceCommand input) {
         ExecutionContext context = requireWorkContext(); String invoiceNo = required(input.invoiceNo(),
                 "INVOICE_NO_REQUIRED", "结算凭证编码不能为空");
-        Invoice existing = invoiceRepository.findByTenantIdAndInvoiceNo(context.tenantId(), invoiceNo).orElse(null);
+        Invoice existing = invoiceRepository.findByTenantIdAndCommandCode(context.tenantId(), invoiceNo).orElse(null);
         if (existing != null) return verifyInvoice(context, existing, accountId);
         PatientAccount account = lockAccount(context, accountId);
-        existing = invoiceRepository.findByTenantIdAndInvoiceNo(context.tenantId(), invoiceNo).orElse(null);
+        existing = invoiceRepository.findByTenantIdAndCommandCode(context.tenantId(), invoiceNo).orElse(null);
         if (existing != null) return verifyInvoice(context, existing, accountId);
         List<ChargeItem> charges = chargeRepository.findUninvoiced(context.tenantId(), account.id());
         if (charges.isEmpty()) throw conflict("INVOICE_NO_UNINVOICED_CHARGES", "当前费用账户没有待结算收费事项");
@@ -328,9 +332,11 @@ public class BillingApplicationService {
         BigDecimal total = money(charges.stream().map(ChargeItem::totalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add));
         Instant issuedAt = input.issuedAt() == null ? Instant.now() : input.issuedAt();
+        String displayNumber = "INPATIENT".equals(account.accountType()) ? invoiceNo
+                : numbers.next("invoice", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()));
         Invoice invoice = invoiceRepository.save(new Invoice(context.tenantId(),
-                account.organizationId(), account.departmentId(), account.id(), invoiceNo,
-                account.currencyCode(), total, issuedAt, context.subjectId()));
+                account.organizationId(), account.departmentId(), account.id(), displayNumber,
+                account.currencyCode(), total, issuedAt, context.subjectId(), invoiceNo));
         int lineNo = 1; List<InvoiceLine> invoiceLines = new ArrayList<>();
         for (ChargeItem charge : charges) invoiceLines.add(invoiceLineRepository.save(new InvoiceLine(
                 context.tenantId(), invoice.id(), charge.id(), lineNo++, charge.totalAmount())));
@@ -348,7 +354,7 @@ public class BillingApplicationService {
         }
         eventPublisher.publish(context.tenantId(), account.organizationId(), "BILLING_INVOICE_ISSUED", 1,
                 "Invoice", invoice.id(), 1L, account.residentId(), issuedAt,
-                Map.of("accountId", account.id(), "invoiceNo", invoiceNo, "netAmount", total));
+                Map.of("accountId", account.id(), "invoiceNo", displayNumber, "netAmount", total));
         return invoiceView(context, invoice);
     }
 
@@ -356,10 +362,10 @@ public class BillingApplicationService {
     public PaymentView collectPayment(Long invoiceId, PaymentCommand input) {
         ExecutionContext context = requireWorkContext(); String paymentNo = required(input.paymentNo(),
                 "PAYMENT_NO_REQUIRED", "支付编码不能为空");
-        Payment existing = paymentRepository.findByTenantIdAndPaymentNo(context.tenantId(), paymentNo).orElse(null);
+        Payment existing = paymentRepository.findByTenantIdAndCommandCode(context.tenantId(), paymentNo).orElse(null);
         if (existing != null) return verifyPayment(context, existing, invoiceId, input);
         Invoice invoice = requireInvoice(context, invoiceId); PatientAccount account = lockAccount(context, invoice.patientAccountId());
-        existing = paymentRepository.findByTenantIdAndPaymentNo(context.tenantId(), paymentNo).orElse(null);
+        existing = paymentRepository.findByTenantIdAndCommandCode(context.tenantId(), paymentNo).orElse(null);
         if (existing != null) return verifyPayment(context, existing, invoiceId, input);
         BigDecimal amount = positiveMoney(input.amount(), "PAYMENT_AMOUNT_INVALID", "支付金额必须大于零");
         String method = upper(input.paymentMethodCode());
@@ -386,16 +392,18 @@ public class BillingApplicationService {
         BigDecimal outstanding = money(invoice.netAmount().subtract(paid));
         if (amount.compareTo(outstanding) > 0) throw conflict("PAYMENT_EXCEEDS_OUTSTANDING", "支付金额超过结算凭证未付金额");
         Instant paidAt = input.paidAt() == null ? Instant.now() : input.paidAt();
+        String displayNumber = "INPATIENT".equals(account.accountType()) ? paymentNo
+                : numbers.next("payment", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()));
         Payment payment = paymentRepository.save(new Payment(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), invoice.id(),
-                input.paymentOrderId(), paymentNo, "PAYMENT", method, paymentScene, amount, account.currencyCode(), paidAt,
-                Strings.trimToNull(input.externalTransactionNo()), null, context.subjectId(), Strings.trimToNull(input.description())));
+                input.paymentOrderId(), displayNumber, "PAYMENT", method, paymentScene, amount, account.currencyCode(), paidAt,
+                Strings.trimToNull(input.externalTransactionNo()), null, context.subjectId(), Strings.trimToNull(input.description()), paymentNo));
         ledgerRepository.save(new LedgerEntry(context.tenantId(), account.id(), "PAYMENT", "CREDIT", amount,
                 account.currencyCode(), null, invoice.id(), payment.id(), null, paidAt, context.subjectId()));
         settlements.recordPayment(context, invoice, payment, paid.add(amount));
         eventPublisher.publish(context.tenantId(), account.organizationId(), "BILLING_PAYMENT_COMPLETED", 1,
                 "Payment", payment.id(), 1L, account.residentId(), paidAt,
-                Map.of("invoiceId", invoice.id(), "paymentNo", paymentNo, "amount", amount,
+                Map.of("invoiceId", invoice.id(), "paymentNo", displayNumber, "amount", amount,
                         "paymentSceneCode", paymentScene));
         return paymentView(payment);
     }
@@ -404,12 +412,12 @@ public class BillingApplicationService {
     public PaymentView refundPayment(Long paymentId, RefundCommand input) {
         ExecutionContext context = requireWorkContext(); String refundNo = required(input.refundNo(),
                 "REFUND_NO_REQUIRED", "退款编码不能为空");
-        Payment existing = paymentRepository.findByTenantIdAndPaymentNo(context.tenantId(), refundNo).orElse(null);
+        Payment existing = paymentRepository.findByTenantIdAndCommandCode(context.tenantId(), refundNo).orElse(null);
         if (existing != null) return verifyRefund(context, existing, paymentId, input);
         Payment original = requirePayment(context, paymentId);
         if (!"PAYMENT".equals(original.paymentType())) throw conflict("REFUND_ORIGINAL_PAYMENT_INVALID", "只能对原始支付执行退款");
         PatientAccount account = lockAccount(context, original.patientAccountId());
-        existing = paymentRepository.findByTenantIdAndPaymentNo(context.tenantId(), refundNo).orElse(null);
+        existing = paymentRepository.findByTenantIdAndCommandCode(context.tenantId(), refundNo).orElse(null);
         if (existing != null) return verifyRefund(context, existing, paymentId, input);
         BigDecimal amount = positiveMoney(input.amount(), "REFUND_AMOUNT_INVALID", "退款金额必须大于零");
         BigDecimal refunded = money(paymentRepository.refundedForPayment(context.tenantId(), original.id()));
@@ -421,12 +429,14 @@ public class BillingApplicationService {
         if (amount.compareTo(refundableCredit) > 0) throw conflict(
                 "REFUND_EXCEEDS_ACCOUNT_CREDIT", "退款金额超过退药等反向收费形成的可退余额");
         Instant paidAt = input.refundedAt() == null ? Instant.now() : input.refundedAt();
+        String displayNumber = "INPATIENT".equals(account.accountType()) ? refundNo
+                : numbers.next("refund", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()));
         Payment refund = paymentRepository.save(new Payment(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), original.invoiceId(),
-                input.paymentOrderId(), refundNo, "REFUND", original.paymentMethodCode(),
+                input.paymentOrderId(), displayNumber, "REFUND", original.paymentMethodCode(),
                 input.paymentSceneCode() == null ? original.paymentSceneCode() : upper(input.paymentSceneCode()),
                 amount, account.currencyCode(), paidAt, Strings.trimToNull(input.externalTransactionNo()), original.id(),
-                context.subjectId(), Strings.trimToNull(input.reason())));
+                context.subjectId(), Strings.trimToNull(input.reason()), refundNo));
         Long originalLedgerId = ledgerRepository.findByTenantIdAndPaymentId(context.tenantId(), original.id())
                 .map(LedgerEntry::id).orElseThrow(() -> conflict("PAYMENT_LEDGER_MISSING", "原支付缺少可冲正账务分录"));
         ledgerRepository.save(new LedgerEntry(context.tenantId(), account.id(), "PAYMENT_REFUND", "DEBIT", amount,
@@ -434,7 +444,7 @@ public class BillingApplicationService {
                 paidAt, context.subjectId()));
         eventPublisher.publish(context.tenantId(), account.organizationId(), "BILLING_PAYMENT_REFUNDED", 1,
                 "Payment", refund.id(), 1L, account.residentId(), paidAt,
-                Map.of("originalPaymentId", original.id(), "refundNo", refundNo, "amount", amount));
+                Map.of("originalPaymentId", original.id(), "refundNo", displayNumber, "amount", amount));
         return paymentView(refund);
     }
 
@@ -584,7 +594,7 @@ public class BillingApplicationService {
         BigDecimal tendered = settlements.tenderedForInvoice(context, invoice.id());
         BigDecimal paid = tendered == null
                 ? money(paymentRepository.netPaidForInvoice(context.tenantId(), invoice.id())) : tendered;
-        return new InvoiceView(invoice.id(), invoice.patientAccountId(), invoice.invoiceNo(), invoice.invoiceType(),
+        return new InvoiceView(invoice.id(), invoice.patientAccountId(), invoice.invoiceNo(), invoice.commandCode(), invoice.invoiceType(),
                 invoice.status(), invoice.currencyCode(), invoice.grossAmount(), invoice.discountAmount(),
                 invoice.netAmount(), paid, money(invoice.netAmount().subtract(paid)), invoice.issuedAt(),
                 invoice.issuedBy(), lines);

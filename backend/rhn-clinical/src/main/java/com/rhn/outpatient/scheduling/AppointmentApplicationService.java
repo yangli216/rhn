@@ -1,5 +1,7 @@
 package com.rhn.outpatient.scheduling;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.OutpatientAppointmentDirectory;
 import com.rhn.outpatient.scheduling.AppointmentContracts.AppointmentView;
@@ -29,6 +31,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 class AppointmentApplicationService implements OutpatientAppointmentDirectory {
+    private final BusinessNumberGenerator numbers;
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
     private static final List<AppointmentStatus> ACTIVE_STATUSES = List.of(AppointmentStatus.BOOKED, AppointmentStatus.REGISTERED);
     private static final List<String> BOOKING_SOURCES = List.of(
@@ -50,7 +53,8 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
                                   ScheduleSlotPoolRepository poolRepository,
                                   SlotEventRepository slotEventRepository,
                                   ResidentDirectory residentDirectory,
-                                  ExecutionContextProvider contextProvider) {
+                                  ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.appointmentRepository = appointmentRepository;
         this.appointmentEventRepository = appointmentEventRepository;
         this.registrationRepository = registrationRepository;
@@ -147,7 +151,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
         pool.occupyOne();
         String source = normalizeSource(request.bookingSource());
         Appointment appointment = appointmentRepository.save(new Appointment(context.tenantId(), schedule, pool,
-                resident.id(), commandCode, source, null, context.subjectId()));
+                resident.id(), commandCode, source, null, context.subjectId(), numbers.next("outpatient-appointment", new BusinessNumberContext(context.tenantId(), schedule.organizationId(), schedule.departmentId()))));
         appendSlotEvent(context, pool, schedule.id(), "OCCUPIED", 1, commandCode, "预约确认占用共享号源");
         appointmentEventRepository.save(new AppointmentEvent(context.tenantId(), appointment.id(), null,
                 "BOOKED", null, "BOOKED", commandCode, context.subjectId(),
@@ -230,7 +234,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
         sourcePool.releaseOccupiedOne();
 
         Appointment replacement = appointmentRepository.save(new Appointment(context.tenantId(), targetSchedule,
-                targetPool, resident.id(), commandCode, original.bookingSource(), original.id(), context.subjectId()));
+                targetPool, resident.id(), commandCode, original.bookingSource(), original.id(), context.subjectId(), numbers.next("outpatient-appointment", new BusinessNumberContext(context.tenantId(), targetSchedule.organizationId(), targetSchedule.departmentId()))));
         String previous = original.status().name();
         original.cancel("改约：" + request.reason().trim(), context.subjectId());
         appendSlotEvent(context, sourcePool, originalSchedule.id(), "RELEASED", -1,

@@ -21,7 +21,7 @@ class TreatmentFlowTruthTest {
     private final Instant start = Instant.parse("2026-10-03T00:00:00Z");
 
     private TreatmentExecutionTask completed() {
-        var task = new TreatmentExecutionTask(1L, 2L, 3L, 4L, 5L, 6L, "SERVICE", start);
+        var task = new TreatmentExecutionTask(1L, 2L, 3L, 4L, 5L, 6L, "SERVICE", start, "TEST-TreatmentExecutionTask");
         task.synchronize(true, true, true, true, false, null);
         task.start(0, true, "CARD", null, null, 7L, start);
         task.complete(0, "COMPLETED", null, false, null, 7L, start.plusSeconds(60));

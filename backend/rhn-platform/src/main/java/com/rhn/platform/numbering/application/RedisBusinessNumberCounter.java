@@ -22,6 +22,15 @@ public class RedisBusinessNumberCounter implements BusinessNumberCounter {
         return value;
     }
 
+    @Override
+    public long current(String key) {
+        if (key == null || key.isBlank()) throw new IllegalArgumentException("Invalid sequence key");
+        String value = redis.opsForValue().get(key);
+        if (value == null) return 0;
+        if (!value.matches("[1-9][0-9]{0,11}")) throw new IllegalStateException("Invalid persisted business sequence");
+        return Long.parseLong(value);
+    }
+
     private static DefaultRedisScript<Long> script() {
         var script = new DefaultRedisScript<Long>();
         script.setLocation(new ClassPathResource("numbering/next-business-number.lua"));

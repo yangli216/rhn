@@ -1,3 +1,5 @@
+import { createBusinessNumberingApi } from './businessNumberingApi'
+export * from './businessNumberingApi'
 import { createDecisionObservationApi } from './decisionObservationApi'
 import { createStandardCatalogEditionApi } from './standardCatalogEditionApi'
 export * from './standardCatalogEditionApi'
@@ -95,6 +97,7 @@ function createApiModules(client: ApiClient) {
     encounters: createEncountersApi(client),
     dictionaries: createDictionaryApi(client),
     configuration: createConfigurationApi(client),
+    businessNumbering: createBusinessNumberingApi(client),
     clinicalDocuments: createClinicalDocumentsApi(client),
     masterData: createMasterDataApi(client),
     timeline: createTimelineApi(client),

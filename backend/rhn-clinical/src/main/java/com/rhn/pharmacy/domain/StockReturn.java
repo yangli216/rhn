@@ -29,11 +29,20 @@ public class StockReturn {
     @Column(name = "ID_USER_CNFRMD", nullable = false) private Long confirmedBy;
     @Column(name = "DES_STOCK_RETURN") private String description;
 
+    @Column(name = "CD_CMD", nullable = false) private String commandCode;
+
     protected StockReturn() {}
 
     public StockReturn(Long tenantId, Long stockSiteId, Long residentId, Long originalDispenseId,
                        Long returnDispenseId, String returnNo, String reasonCode, Instant occurredAt,
                        Long actorId, String description) {
+        this(tenantId, stockSiteId, residentId, originalDispenseId, returnDispenseId, returnNo, reasonCode, occurredAt, actorId, description, returnNo);
+    }
+
+    public StockReturn(Long tenantId, Long stockSiteId, Long residentId, Long originalDispenseId,
+                       Long returnDispenseId, String returnNo, String reasonCode, Instant occurredAt,
+                       Long actorId, String description, String commandCode) {
+        this.commandCode = commandCode;
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.stockSiteId = stockSiteId;
         this.residentId = residentId; this.originalDispenseId = originalDispenseId;
         this.returnDispenseId = returnDispenseId; this.returnNo = returnNo; this.returnType = "PATIENT";
@@ -49,6 +58,7 @@ public class StockReturn {
     public Long residentId() { return residentId; }
     public Long originalDispenseId() { return originalDispenseId; }
     public Long returnDispenseId() { return returnDispenseId; }
+    public String commandCode() { return commandCode; }
     public String returnNo() { return returnNo; }
     public String returnType() { return returnType; }
     public String status() { return status; }

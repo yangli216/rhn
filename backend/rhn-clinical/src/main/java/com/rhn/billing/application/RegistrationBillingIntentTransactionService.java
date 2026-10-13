@@ -1,5 +1,8 @@
 package com.rhn.billing.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
+
 import com.rhn.billing.api.RegistrationBillingViews.RegistrationIntentView;
 import com.rhn.billing.domain.ChargeItem;
 import com.rhn.billing.domain.ChargeItemComponent;
@@ -67,6 +70,7 @@ class RegistrationBillingIntentTransactionService {
     private final EncounterDirectory encounters;
     private final CoverageDirectory coverages;
     private final OrganizationDirectory organizations;
+    private final BusinessNumberGenerator numbers;
     private final ExecutionContextProvider contextProvider;
 
     RegistrationBillingIntentTransactionService(RegistrationBillingIntentRepository intents,
@@ -78,7 +82,8 @@ class RegistrationBillingIntentTransactionService {
             OutpatientScheduleDirectory schedules, OutpatientAppointmentDirectory appointments,
             CatalogLifecycleDirectory catalog,
             EncounterDirectory encounters, CoverageDirectory coverages, OrganizationDirectory organizations,
-            ExecutionContextProvider contextProvider) {
+            ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.intents = intents; this.accounts = accounts; this.payments = payments;
         this.charges = charges; this.components = components;
         this.ledger = ledger; this.invoices = invoices; this.invoiceLines = invoiceLines;
@@ -194,8 +199,9 @@ class RegistrationBillingIntentTransactionService {
         ledger.save(new LedgerEntry(context.tenantId(), account.id(), "CHARGE", "DEBIT", amount, currency,
                 charge.id(), null, null, null, now, context.subjectId()));
         Invoice invoice = invoices.save(new Invoice(context.tenantId(),
-                account.organizationId(), account.departmentId(), account.id(), "RGI" + intent.id(),
-                currency, amount, now, context.subjectId()));
+                account.organizationId(), account.departmentId(), account.id(), numbers.next("invoice",
+                        new BusinessNumberContext(context.tenantId(), intent.organizationId(), intent.departmentId())),
+                currency, amount, now, context.subjectId(), "RGI" + intent.id()));
         InvoiceLine line = invoiceLines.save(new InvoiceLine(context.tenantId(), invoice.id(), charge.id(), 1, amount));
         invoiceCategories.save(new InvoiceCategorySummary(context.tenantId(), invoice.id(),
                 "REGISTRATION", "挂号费", amount));

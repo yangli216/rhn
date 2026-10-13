@@ -44,7 +44,7 @@ class ServiceResource {
 
     ServiceResource(Long tenantId, Long organizationId, Long departmentId, ScheduleRegistrationScope scope,
                     Long practitionerId, Long assignmentId, Long catalogItemId, String ownerName,
-                    String serviceCode, String serviceName, Long actorId) {
+                    String serviceCode, String serviceName, Long actorId, String businessNumber) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.organizationId = organizationId;
@@ -55,7 +55,7 @@ class ServiceResource {
         this.practitionerId = practitionerId;
         this.assignmentId = assignmentId;
         this.catalogItemId = catalogItemId;
-        this.resourceCode = "SR-" + id;
+        this.resourceCode = businessNumber;
         this.resourceName = ownerName + " · " + serviceName;
         this.serviceCodeSnapshot = serviceCode;
         this.serviceNameSnapshot = serviceName;
@@ -112,17 +112,17 @@ class ScheduleTemplate {
     protected ScheduleTemplate() {}
 
     ScheduleTemplate(Long tenantId, Long resourceId, String name, String timezoneCode,
-                     LocalDate validFrom, LocalDate validTo, Long actorId) {
+                     LocalDate validFrom, LocalDate validTo, Long actorId, String businessNumber) {
         this(tenantId, resourceId, name, ScheduleManagementMode.SIMPLE, timezoneCode,
-                validFrom, validTo, actorId);
+                validFrom, validTo, actorId, businessNumber);
     }
 
     ScheduleTemplate(Long tenantId, Long resourceId, String name, ScheduleManagementMode managementMode,
-                     String timezoneCode, LocalDate validFrom, LocalDate validTo, Long actorId) {
+                     String timezoneCode, LocalDate validFrom, LocalDate validTo, Long actorId, String businessNumber) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.resourceId = resourceId;
-        this.templateCode = "ST-" + id;
+        this.templateCode = businessNumber;
         this.templateName = name;
         this.managementMode = managementMode.name();
         this.timezoneCode = timezoneCode;
@@ -340,11 +340,11 @@ class ServiceSchedule {
                     Long assignmentId, Long catalogItemId, ScheduleDayPart dayPart,
                     String practitionerName, String serviceCode, String serviceName, String locationName,
                     String timezoneCode, LocalDate serviceDate, Instant startAt, Instant endAt,
-                    int totalCapacity, Long actorId) {
+                    int totalCapacity, Long actorId, String businessNumber) {
         this(tenantId, resourceId, templateId, templatePeriodId, generationRunId, organizationId,
                 departmentId, practitionerId, assignmentId, catalogItemId, dayPart, practitionerName,
                 serviceCode, serviceName, locationName, timezoneCode, serviceDate, startAt, endAt,
-                totalCapacity, ScheduleManagementMode.SIMPLE, "SHARED", actorId);
+                totalCapacity, ScheduleManagementMode.SIMPLE, "SHARED", actorId, businessNumber);
     }
 
     ServiceSchedule(Long tenantId, Long resourceId, Long templateId, Long templatePeriodId,
@@ -353,7 +353,7 @@ class ServiceSchedule {
                     String practitionerName, String serviceCode, String serviceName, String locationName,
                     String timezoneCode, LocalDate serviceDate, Instant startAt, Instant endAt,
                     int totalCapacity, ScheduleManagementMode managementMode, String bookingPolicy,
-                    Long actorId) {
+                    Long actorId, String businessNumber) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.resourceId = resourceId;
@@ -367,7 +367,7 @@ class ServiceSchedule {
         this.practitionerId = practitionerId;
         this.assignmentId = assignmentId;
         this.catalogItemId = catalogItemId;
-        this.scheduleCode = "SCH-" + id;
+        this.scheduleCode = businessNumber;
         this.managementMode = managementMode.name();
         this.scheduleType = "OUTPATIENT";
         this.bookingPolicy = bookingPolicy;
@@ -448,15 +448,15 @@ class ScheduleSlotPool {
 
     protected ScheduleSlotPool() {}
 
-    ScheduleSlotPool(Long tenantId, Long scheduleId, int totalCount) {
-        this(tenantId, scheduleId, totalCount, "POOL");
+    ScheduleSlotPool(Long tenantId, Long scheduleId, int totalCount, String businessNumber) {
+        this(tenantId, scheduleId, totalCount, "POOL", businessNumber);
     }
 
-    ScheduleSlotPool(Long tenantId, Long scheduleId, int totalCount, String slotMode) {
+    ScheduleSlotPool(Long tenantId, Long scheduleId, int totalCount, String slotMode, String businessNumber) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.scheduleId = scheduleId;
-        this.poolCode = "SP-" + id;
+        this.poolCode = businessNumber;
         this.slotMode = slotMode;
         this.quotaMode = "SHARED";
         this.totalCount = totalCount;

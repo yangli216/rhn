@@ -22,7 +22,7 @@ class InsuranceCallbackTruthTest {
     final ExternalMessageService messages=mock(ExternalMessageService.class);
     final ExecutionContextProvider contexts=mock(ExecutionContextProvider.class);
     final InsuranceClaim claim=new InsuranceClaim(1L,2L,3L,4L,"KEY","REGION","BASIC","payer","H","D","P","HASH",
-            Instant.parse("2026-10-04T01:00:00Z"),null,new BigDecimal("100"),"CNY","corr",5L);
+            Instant.parse("2026-10-04T01:00:00Z"),null,new BigDecimal("100"),"CNY","corr",5L, "TEST-InsuranceClaim");
     InsuranceClaimApplicationService service;
     @BeforeEach void setup() {
         service=new InsuranceClaimApplicationService(transactions,List.of(),messages,contexts,mock(NationalInsuranceClient.class));

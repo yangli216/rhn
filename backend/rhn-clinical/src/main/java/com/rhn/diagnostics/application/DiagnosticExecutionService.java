@@ -1,5 +1,7 @@
 package com.rhn.diagnostics.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.diagnostics.api.DiagnosticExecutionTaskView;
 import com.rhn.billing.api.SettlementAuthorizationDirectory;
 import com.rhn.diagnostics.domain.DiagnosticExecutionTask;
@@ -31,6 +33,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class DiagnosticExecutionService {
+    private final BusinessNumberGenerator numbers;
     private static final String CONSUMER = "diagnostic-execution-projection-v1";
     private static final Set<String> PROJECTED_EVENTS = Set.of(
             "SERVICE_REQUEST_AUTHORED", "SERVICE_REQUEST_CANCELLED",
@@ -55,7 +58,8 @@ public class DiagnosticExecutionService {
                                       ExecutionContextProvider contextProvider,
                                       IdempotentDomainEventConsumer eventConsumer,
                                       @Value("${rhn.diagnostics.require-settlement-authorization:true}")
-                                      boolean requireSettlementAuthorization) {
+                                      boolean requireSettlementAuthorization, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.tasks = tasks; this.reports = reports; this.requests = requests; this.residents = residents; this.settlements = settlements;
         this.contextProvider = contextProvider; this.eventConsumer = eventConsumer;
         this.requireSettlementAuthorization = requireSettlementAuthorization;
@@ -169,7 +173,7 @@ public class DiagnosticExecutionService {
                 longValue(event.payload().get("encounterId")), event.aggregateId(),
                 text(event.payload().get("requestNo")), type, text(event.payload().get("itemCode")),
                 text(event.payload().get("itemName")), text(event.payload().get("specimenType")),
-                text(event.payload().get("examinationType")), settlementRequired, event.occurredAt()));
+                text(event.payload().get("examinationType")), settlementRequired, event.occurredAt(), numbers.next("diagnostic-task", new BusinessNumberContext(event.tenantId(), event.organizationId(), longValue(event.payload().get("performerDepartmentId"))))));
     }
 
     private void updateSettlement(DomainEventEnvelope event, boolean finalized) {
@@ -193,7 +197,7 @@ public class DiagnosticExecutionService {
         return new DiagnosticExecutionTask(value.tenantId(), value.performerOrganizationId(),
                 value.performerDepartmentId(), value.residentId(), value.encounterId(), value.id(),
                 value.requestNo(), value.serviceType(), value.itemCode(), value.itemName(), value.specimenType(),
-                value.examinationType(), settlementRequired, value.authoredAt());
+                value.examinationType(), settlementRequired, value.authoredAt(), numbers.next("diagnostic-task", new BusinessNumberContext(value.tenantId(), value.performerOrganizationId(), value.performerDepartmentId())));
     }
 
     private void reconcileSettlement(DiagnosticExecutionTask task) {

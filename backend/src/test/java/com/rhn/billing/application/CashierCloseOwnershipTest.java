@@ -23,7 +23,7 @@ class CashierCloseOwnershipTest {
         var events = mock(CashierCloseEventRepository.class);
         var payments = mock(PaymentRepository.class);
         var users = mock(IdentityAccessDirectory.class);
-        var service = new CashierCloseApplicationService(closes, lines, items, events, payments, users, contexts);
+        var service = new CashierCloseApplicationService(closes, lines, items, events, payments, users, contexts, org.mockito.Mockito.mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class));
         assertThatThrownBy(() -> service.calculate(new CashierCloseApplicationService.CalculateCommand(
                 "CLOSE-1", "CASHIER", Instant.now().minusSeconds(60), Instant.now(), List.of())))
                 .isInstanceOfSatisfying(BusinessException.class,

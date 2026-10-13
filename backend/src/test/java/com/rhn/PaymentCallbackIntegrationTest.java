@@ -103,7 +103,7 @@ class PaymentCallbackIntegrationTest extends RhnIntegrationTestSupport {
         var paymentOrder=fixture();var order=paymentOrder;
         if(refund) {
             callback(body(paymentOrder,"PAID","PAID","SUCCEEDED","10")).andExpect(status().isOk());
-            var payment=payments.findByTenantIdAndPaymentNo(Long.valueOf(TENANT),"PAY-"+paymentOrder.orderNo()).orElseThrow();
+            var payment=payments.findByTenantIdAndCommandCode(Long.valueOf(TENANT),"PAY-"+paymentOrder.orderNo()).orElseThrow();
             order=orders.saveAndFlush(new PaymentOrder(Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),
                     paymentOrder.patientAccountId(),paymentOrder.invoiceId(),payment.id(),"REFUND-"+UUID.randomUUID(),UUID.randomUUID().toString(),
                     "OUTPATIENT","CASHIER","CASH","现金","REFUND",BigDecimal.TEN,"CNY","test",null,null,362387869790222L));

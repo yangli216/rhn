@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.MedicationFulfillmentDirectory;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTraceView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionLineView;
@@ -64,6 +66,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class DispenseApplicationService {
+    private final BusinessNumberGenerator numbers;
     private static final Set<String> RETURN_DISPOSITIONS = Set.of("RESTOCK", "QUARANTINE", "DESTROY");
     private static final Comparator<DispenseAllocation> DISPENSE_LOCK_ORDER = Comparator
             .comparing((DispenseAllocation value) -> value.reservation().stockBinId())
@@ -111,7 +114,8 @@ public class DispenseApplicationService {
             OrganizationDirectory organizationDirectory, InventoryTraceApplicationService traceService,
             InventoryQuantityPolicy quantityPolicy, InventorySplitApplicationService splitService,
             DomainEventPublisher eventPublisher,
-            ExecutionContextProvider contextProvider) {
+            ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.taskRepository = taskRepository; this.taskLineRepository = taskLineRepository;
         this.siteRepository = siteRepository; this.itemRepository = itemRepository;
         this.binRepository = binRepository; this.lotRepository = lotRepository;
@@ -257,10 +261,13 @@ public class DispenseApplicationService {
     public StockReturnView returnMedication(Long originalDispenseId, ReturnCommand input) {
         ExecutionContext context = requireWorkContext(); String returnNo = required(input.returnNo(),
                 "STOCK_RETURN_NO_REQUIRED", "退药请求编码不能为空");
-        StockReturn existing = returnRepository.findByTenantIdAndReturnNo(context.tenantId(), returnNo).orElse(null);
+        StockReturn existing = returnRepository.findByTenantIdAndCommandCode(context.tenantId(), returnNo).orElse(null);
         if (existing != null) return verifyIdempotentReturn(context, existing, originalDispenseId, input);
         MedicationDispense original = dispenseRepository.lockByIdAndTenantId(originalDispenseId, context.tenantId())
                 .orElseThrow(() -> notFound("MEDICATION_DISPENSE_NOT_FOUND", "未找到原发药事件"));
+        existing = returnRepository.findByTenantIdAndCommandCode(context.tenantId(), returnNo).orElse(null);
+        if (existing != null) return verifyIdempotentReturn(context, existing, originalDispenseId, input);
+
         if (!Set.of("DISPENSE", "REDISPENSE").contains(original.dispenseType())) {
             throw conflict("STOCK_RETURN_ORIGINAL_TYPE_INVALID", "退药只能关联实际发药或补发事件");
         }
@@ -280,19 +287,22 @@ public class DispenseApplicationService {
         ReturnPreparation preparation = validateReturnLines(context, taskLine, original, input.lines());
         BigDecimal total = preparation.total(); Map<Long, MedicationDispenseLine> originals = preparation.originals();
         Long returnDeptId = site.departmentId() != null ? site.departmentId() : original.departmentId();
+        String displayNumber = "INPATIENT".equals(task.taskType()) ? returnNo
+                : numbers.next("pharmacy-return",
+                new BusinessNumberContext(context.tenantId(), site.organizationId(), returnDeptId));
         MedicationDispense returnEvent = dispenseRepository.save(new MedicationDispense(context.tenantId(),
                 site.organizationId(), returnDeptId, task.id(),
-                task.residentId(), task.encounterId(), site.id(), original.id(), returnNo, "RETURN", occurredAt,
+                task.residentId(), task.encounterId(), site.id(), original.id(), displayNumber, "RETURN", occurredAt,
                 input.processorPractitionerId(), context.subjectId(), input.processorAssignmentId(), null, null,
                 null, total, original.operationUnitCode(), Strings.trimToNull(input.description())));
         StockReturn stockReturn = returnRepository.save(new StockReturn(context.tenantId(), site.id(), task.residentId(),
-                original.id(), returnEvent.id(), returnNo, reasonCode, occurredAt, context.subjectId(), Strings.trimToNull(input.description())));
+                original.id(), returnEvent.id(), displayNumber, reasonCode, occurredAt, context.subjectId(), Strings.trimToNull(input.description()), returnNo));
         List<ReturnAllocation> allocations = buildReturnAllocations(context, taskLine, original, stockReturn,
-                returnNo, occurredAt, input.lines(), originals);
-        InventoryTransactionView transaction = postReturnDocument(returnNo, site, occurredAt, input.description(),
+                displayNumber, occurredAt, input.lines(), originals);
+        InventoryTransactionView transaction = postReturnDocument(returnNo, displayNumber, site, occurredAt, input.description(),
                 allocations);
         ReturnPostings postings = persistReturnLines(context, taskLine, site, original, returnEvent, stockReturn,
-                returnNo, transaction, allocations);
+                displayNumber, transaction, allocations);
         taskLine.recordReturn(postings.taskReturned());
         task.recordReturn(taskLine.netDispensedQuantity().signum() == 0);
         dispenseLineRepository.flush();
@@ -377,9 +387,9 @@ public class DispenseApplicationService {
         return allocations;
     }
 
-    private InventoryTransactionView postReturnDocument(String returnNo, StockSite site, Instant occurredAt,
+    private InventoryTransactionView postReturnDocument(String requestCode, String returnNo, StockSite site, Instant occurredAt,
                                                         String description, List<ReturnAllocation> allocations) {
-        InventoryTransactionView transaction = inventoryLedger.postDocument(new DocumentPostingCommand(returnNo, "RETURN",
+        InventoryTransactionView transaction = inventoryLedger.postDocument(new DocumentPostingCommand(requestCode, "RETURN",
                 "PATIENT_RETURN", returnNo, site.id(), occurredAt, Strings.trimToNull(description),
                 allocations.stream().map(value -> new DocumentPostingLineCommand(value.originalLine().stockBinId(),
                         value.originalLine().stockItemId(), value.originalLine().stockLotId(), value.stockStatus(),

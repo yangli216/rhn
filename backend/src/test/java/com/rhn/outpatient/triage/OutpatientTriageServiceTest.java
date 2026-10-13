@@ -53,7 +53,7 @@ class OutpatientTriageServiceTest {
                 triageRepository,
                 registrationDirectory,
                 mock(ClinicalValidationDirectory.class),
-                assessments, contexts);
+                assessments, contexts, org.mockito.Mockito.mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class));
     }
 
     @AfterEach

@@ -1,5 +1,7 @@
 package com.rhn.treatment.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.billing.api.SettlementAuthorizationDirectory;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory;
@@ -41,6 +43,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class TreatmentExecutionService {
+    private final BusinessNumberGenerator numbers;
     private static final String CONSUMER = "treatment-execution-projection-v1";
     private static final Set<String> PROJECTED_EVENTS = Set.of(
             "SERVICE_REQUEST_AUTHORED", "SERVICE_REQUEST_CANCELLED",
@@ -73,7 +76,8 @@ public class TreatmentExecutionService {
                                      ExecutionContextProvider contextProvider,
                                      IdempotentDomainEventConsumer eventConsumer,
                                      DomainEventPublisher eventPublisher,
-                                     JsonCodec jsonCodec) {
+                                     JsonCodec jsonCodec, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.tasks = tasks; this.items = items; this.serviceRequests = serviceRequests;
         this.medicationRequests = medicationRequests; this.residents = residents;
         this.settlements = settlements; this.fulfillment = fulfillment; this.skinTests = skinTests;
@@ -194,7 +198,7 @@ public class TreatmentExecutionService {
         Instant createdAt = occurredAt == null ? Instant.now() : occurredAt;
         TreatmentExecutionTask task = tasks.findByTenantIdAndTaskTypeAndSourceGroupId(tenantId, taskType, groupId)
                 .orElseGet(() -> tasks.save(new TreatmentExecutionTask(tenantId, organizationId, departmentId,
-                        residentId, encounterId, groupId, taskType, createdAt)));
+                        residentId, encounterId, groupId, taskType, createdAt, numbers.next("treatment-task", new BusinessNumberContext(tenantId, organizationId, departmentId)))));
         items.save(new TreatmentExecutionItem(tenantId, task.id(), sourceType, sourceId, parentSourceId,
                 first(requestNo, sourceType + sourceId), first(itemCode, sourceType), first(itemName, "门诊治疗"),
                 doseValue, doseUnit, routeCode, frequencyCode, frequencyId, frequencyName, frequencyRule,

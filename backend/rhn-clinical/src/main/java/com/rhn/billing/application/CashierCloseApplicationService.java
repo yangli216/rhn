@@ -1,5 +1,6 @@
 package com.rhn.billing.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.billing.domain.CashierClose;
 import com.rhn.billing.domain.CashierCloseEvent;
 import com.rhn.billing.domain.CashierCloseItem;
@@ -13,7 +14,6 @@ import com.rhn.billing.infrastructure.CashierCloseRepository;
 import com.rhn.billing.infrastructure.PaymentRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
-import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.text.Strings;
 import com.rhn.platform.identityaccess.api.IdentityAccessDirectory;
 import org.springframework.stereotype.Service;
@@ -23,8 +23,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,8 +35,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class CashierCloseApplicationService {
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
+    private final BusinessNumberGenerator numbers;
     private final CashierCloseRepository closes;
     private final CashierCloseLineRepository lines;
     private final CashierCloseItemRepository items;
@@ -50,7 +47,8 @@ public class CashierCloseApplicationService {
     public CashierCloseApplicationService(CashierCloseRepository closes, CashierCloseLineRepository lines,
                                           CashierCloseItemRepository items, CashierCloseEventRepository events,
                                           PaymentRepository payments, IdentityAccessDirectory users,
-                                          ExecutionContextProvider contextProvider) {
+                                          ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.closes = closes; this.lines = lines; this.items = items; this.events = events;
         this.payments = payments; this.users = users; this.contextProvider = contextProvider;
     }
@@ -111,7 +109,7 @@ public class CashierCloseApplicationService {
             drafts.add(new Draft(entry.getKey(), entry.getValue().count, expected, actual));
         }
         expectedTotal = money(expectedTotal); actualTotal = money(actualTotal);
-        String closeNo = "CC" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6);
+        String closeNo = numbers.next("cashier-close");
         Long deptId = context.departmentId();
         CashierClose close = closes.save(new CashierClose(context.tenantId(), context.organizationId(), deptId,
                 context.subjectId(), null, closeNo, commandCode, terminalCode, CashierCloseStatus.CALCULATED, rangeFrom, rangeTo,
@@ -189,7 +187,7 @@ public class CashierCloseApplicationService {
         CashierClose original = lock(closeId, context);
         if (original.status() != CashierCloseStatus.CONFIRMED) throw conflict("CASHIER_CLOSE_NOT_REVERSIBLE", "只有已确认日结可以撤销");
         String reason = required(input.reason(), "CASHIER_CLOSE_REVERSE_REASON_REQUIRED", "撤销日结必须填写原因");
-        String closeNo = "CR" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6);
+        String closeNo = numbers.next("cashier-reopen");
         CashierClose reversal = closes.save(new CashierClose(context.tenantId(), context.organizationId(),
                 original.departmentId(), original.cashierUserId(), original.id(), closeNo, commandCode, original.terminalCode(), CashierCloseStatus.CONFIRMED,
                 original.rangeFrom(), original.rangeTo(), original.transactionCount(), original.expectedAmount().negate(),

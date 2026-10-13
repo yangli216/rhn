@@ -54,10 +54,10 @@ public class DiagnosticExecutionTask {
                                    Long residentId, Long encounterId, Long requestId, String requestNo,
                                    String requestType, String itemCode, String itemName,
                                    String specimenType, String examinationType, boolean settlementRequired,
-                                   Instant createdAt) {
+                                   Instant createdAt, String businessNumber) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.departmentId = departmentId; this.residentId = residentId; this.encounterId = encounterId;
-        this.requestId = requestId; this.taskNo = "DX-" + requestNo; this.requestType = requestType;
+        this.requestId = requestId; this.taskNo = businessNumber; this.requestType = requestType;
         this.itemCodeSnapshot = itemCode; this.itemNameSnapshot = itemName;
         this.specimenTypeSnapshot = specimenType; this.examinationTypeSnapshot = examinationType;
         this.status = settlementRequired

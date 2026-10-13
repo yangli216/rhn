@@ -81,6 +81,7 @@ class DirectVisitIntegrationTest extends RhnIntegrationTestSupport {
         String resident = resident(), command = UUID.randomUUID().toString();
         JsonNode first = receive(resident, command, 200);
         String encounter = first.at("/encounter/id").asString();
+        assertTrue(first.at("/encounter/encounterNo").asString().matches("OP[0-9]{11}"));
         assertEquals("CREATED", first.get("outcome").asString());
         assertEquals("IN_PROGRESS", first.at("/encounter/status").asString());
         assertTrue(first.at("/encounter/scheduleId").isNull());

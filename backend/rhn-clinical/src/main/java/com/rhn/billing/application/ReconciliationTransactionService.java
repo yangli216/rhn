@@ -1,26 +1,24 @@
 package com.rhn.billing.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.billing.api.ReconciliationAdapter.ExternalTransaction;
 import com.rhn.billing.api.ReconciliationAdapter.ReconciliationStatement;
 import com.rhn.billing.domain.*;
 import com.rhn.billing.infrastructure.*;
 import com.rhn.shared.context.*;
-import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.*;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.rhn.shared.api.BusinessErrors.*;
 
 @Service
 public class ReconciliationTransactionService {
-    private static final DateTimeFormatter NUMBER_TIME =
-            DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC);
+    private final BusinessNumberGenerator numbers;
 
     private final ReconciliationBatchRepository batches;
     private final ReconciliationItemRepository items;
@@ -29,7 +27,8 @@ public class ReconciliationTransactionService {
     private final ExecutionContextProvider contexts;
 
     ReconciliationTransactionService(ReconciliationBatchRepository batches, ReconciliationItemRepository items,
-            ReconciliationItemEventRepository events, PaymentRepository payments, ExecutionContextProvider contexts) {
+            ReconciliationItemEventRepository events, PaymentRepository payments, ExecutionContextProvider contexts, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.batches = batches;
         this.items = items;
         this.events = events;
@@ -56,7 +55,7 @@ public class ReconciliationTransactionService {
                 c.tenantId(), c.organizationId(), type, source, date, currency).isPresent())
             throw conflict("RECON_SCOPE_EXISTS", "当前机构、来源和业务日期的对账批次已存在");
         ReconciliationBatch value = batches.save(new ReconciliationBatch(c.tenantId(), c.organizationId(),
-                "RB" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6), command, type, source, method,
+                numbers.next("reconciliation-batch"), command, type, source, method,
                 date, currency, c.subjectId()));
         return new PrepareResult(value, false);
     }

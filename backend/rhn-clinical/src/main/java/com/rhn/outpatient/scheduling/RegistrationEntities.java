@@ -51,25 +51,25 @@ class Appointment {
     protected Appointment() {}
 
     Appointment(Long tenantId, ServiceSchedule schedule, ScheduleSlotPool pool, Long slotHoldId, Long residentId,
-                String idempotencyCode, Long actorId) {
+                String idempotencyCode, Long actorId, String businessNumber) {
         this(tenantId, schedule, pool, slotHoldId, residentId, idempotencyCode,
-                AppointmentStatus.REGISTERED, "WINDOW", null, actorId);
+                AppointmentStatus.REGISTERED, "WINDOW", null, actorId, businessNumber);
         this.checkedInAt = this.confirmedAt;
     }
 
     Appointment(Long tenantId, ServiceSchedule schedule, ScheduleSlotPool pool, Long residentId,
-                String idempotencyCode, String bookingSource, Long rescheduledFromId, Long actorId) {
+                String idempotencyCode, String bookingSource, Long rescheduledFromId, Long actorId, String businessNumber) {
         this(tenantId, schedule, pool, null, residentId, idempotencyCode,
-                AppointmentStatus.BOOKED, bookingSource, rescheduledFromId, actorId);
+                AppointmentStatus.BOOKED, bookingSource, rescheduledFromId, actorId, businessNumber);
     }
 
     private Appointment(Long tenantId, ServiceSchedule schedule, ScheduleSlotPool pool, Long slotHoldId,
                         Long residentId, String idempotencyCode, AppointmentStatus status, String bookingSource,
-                        Long rescheduledFromId, Long actorId) {
+                        Long rescheduledFromId, Long actorId, String businessNumber) {
         this.id = GlobalIds.next(); this.tenantId = tenantId;
         this.organizationId = schedule.organizationId(); this.departmentId = schedule.departmentId();
         this.scheduleId = schedule.id();
-        this.slotPoolId = pool.id(); this.slotHoldId = slotHoldId; this.residentId = residentId; this.appointmentNo = "AP" + id;
+        this.slotPoolId = pool.id(); this.slotHoldId = slotHoldId; this.residentId = residentId; this.appointmentNo = businessNumber;
         this.idempotencyCode = idempotencyCode; this.status = status; this.bookingSource = bookingSource;
         this.rescheduledFromId = rescheduledFromId;
         this.serviceCode = schedule.serviceCode(); this.serviceNameSnapshot = schedule.serviceName();
@@ -211,10 +211,10 @@ class PatientRegistration {
 
     PatientRegistration(Long tenantId, Long appointmentId, Long scheduleId, Long residentId,
                         Long organizationId, Long departmentId, Long encounterId, String idempotencyCode,
-                        String registrationSource, String visitType, Long actorId) {
+                        String registrationSource, String visitType, Long actorId, String businessNumber) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.appointmentId = appointmentId;
         this.scheduleId = scheduleId; this.residentId = residentId; this.organizationId = organizationId;
-        this.departmentId = departmentId; this.encounterId = encounterId; this.registrationNo = "RG" + id;
+        this.departmentId = departmentId; this.encounterId = encounterId; this.registrationNo = businessNumber;
         this.idempotencyCode = idempotencyCode; this.registrationSource = registrationSource;
         this.visitType = visitType; this.status = PatientRegistrationStatus.REGISTERED; this.registeredAt = Instant.now();
         this.registeredBy = actorId;

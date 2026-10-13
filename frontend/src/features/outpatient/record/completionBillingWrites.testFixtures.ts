@@ -10,7 +10,7 @@ export function billingWriteFixture(encounter: Encounter, kind: 'invoice' | 'pay
     encounterId: encounter.id, catalogItemId: 'service-1', sourceType: 'SERVICE_REQUEST', sourceId: 'source-1',
     requestCode: 'REQ-1', status: 'POSTED', quantity: 1, unitCode: '次', unitPrice: 10, totalAmount: 10,
     currencyCode: 'CNY', itemCode: 'S1', itemName: '检查项目', occurredAt: '2026-10-04T00:00:00Z' }
-  const invoice = (invoiceNo: string): Invoice => ({ id: 'invoice-1', patientAccountId: 'acc-1', invoiceNo,
+  const invoice = (invoiceNo: string): Invoice => ({ id: 'invoice-1', patientAccountId: 'acc-1', invoiceNo: `INV-DISPLAY-${invoiceNo}`, commandCode: invoiceNo,
     invoiceType: 'STANDARD', status: 'ISSUED', currencyCode: 'CNY', grossAmount: 10, discountAmount: 0, netAmount: 10,
     paidAmount: 0, outstandingAmount: 10, issuedAt: '2026-10-04T00:00:00Z', issuedBy: 'doctor-1',
     lines: [{ id: 'line-1', chargeItemId: charge.id, lineNo: 1, amount: 10 }] })
@@ -18,7 +18,7 @@ export function billingWriteFixture(encounter: Encounter, kind: 'invoice' | 'pay
     accountBalance: 10, uninvoicedAmount: 10 }
   let orders: PaymentOrder[] = []
   const issue = (invoiceNo: string) => {
-    if (statement.invoices.some(row => row.invoiceNo === invoiceNo)) return statement.invoices.find(row => row.invoiceNo === invoiceNo)!
+    if (statement.invoices.some(row => row.commandCode === invoiceNo)) return statement.invoices.find(row => row.commandCode === invoiceNo)!
     if (!statement.uninvoicedAmount) throw new Error('没有待结算收费事项')
     const saved = invoice(invoiceNo)
     statement = { ...statement, uninvoicedAmount: 0, invoicedAmount: 10, invoices: [saved],

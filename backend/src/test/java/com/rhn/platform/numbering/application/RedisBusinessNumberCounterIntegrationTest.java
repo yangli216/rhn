@@ -55,6 +55,21 @@ class RedisBusinessNumberCounterIntegrationTest {
     }
 
     @Test
+    void inspection_reads_current_sequence_without_reservation_and_rejects_corruption() {
+        var counter = new RedisBusinessNumberCounter(first);
+        String key = "test:read-only";
+        assertThat(counter.current(key)).isZero();
+        assertThat(first.hasKey(key)).isFalse();
+        assertThat(counter.next(key, 99)).isEqualTo(1);
+        assertThat(counter.current(key)).isEqualTo(1);
+        assertThat(counter.current(key)).isEqualTo(1);
+        assertThat(counter.next(key, 99)).isEqualTo(2);
+        first.opsForValue().set(key, "broken");
+        assertThatThrownBy(() -> counter.current(key)).isInstanceOf(IllegalStateException.class);
+        assertThat(first.opsForValue().get(key)).isEqualTo("broken");
+    }
+
+    @Test
     void concurrent_instances_share_unique_sequences_and_application_recreation_keeps_progress() throws Exception {
         var one = new RedisBusinessNumberCounter(first); var two = new RedisBusinessNumberCounter(second);
         try (var pool = Executors.newFixedThreadPool(12)) {

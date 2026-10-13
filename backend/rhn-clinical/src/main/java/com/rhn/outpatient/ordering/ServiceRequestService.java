@@ -1,5 +1,7 @@
 package com.rhn.outpatient.ordering;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.ServiceRequestDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
@@ -18,8 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,8 +30,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 class ServiceRequestService implements ServiceRequestDirectory {
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
+    private final BusinessNumberGenerator numbers;
 
     private final OrderDocumentInfoSupport documentInfoSupport;
     private final ServiceRequestRepository repository;
@@ -52,7 +51,8 @@ class ServiceRequestService implements ServiceRequestDirectory {
                           OrganizationDirectory organizationDirectory,
                           DomainEventPublisher eventPublisher,
                           ExecutionContextProvider contextProvider, JsonCodec jsonCodec, OrderDocumentInfoSupport documentInfoSupport,
-                          com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments) {
+                          com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.documentInfoSupport = documentInfoSupport;
         this.repository = repository;
         this.encounterDirectory = encounterDirectory;
@@ -147,7 +147,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 "INSURANCE", businessDate);
 
         ServiceRequest value = repository.saveAndFlush(new ServiceRequest(tenantId, encounter.residentId(),
-                encounter.id(), nextRequestNo(), input.catalogItemId(), input.packageId(), performerOrganizationId,
+                encounter.id(), numbers.next("service-request", new BusinessNumberContext(tenantId, encounter.organizationId(), encounter.departmentId())), input.catalogItemId(), input.packageId(), performerOrganizationId,
                 performerDepartmentId, encounter.organizationId(), encounter.departmentId(), businessDate, context.subjectId(), Strings.trimToNull(input.reason()), item.code(),
                 item.name(), unitCode, adoption.localCode(), adoption.localName(), adoption.id(), adoption.revision(),
                 price == null ? null : price.id(), price == null ? null : price.revision(),
@@ -319,8 +319,5 @@ class ServiceRequestService implements ServiceRequestDirectory {
         return details;
     }
 
-    private String nextRequestNo() {
-        return "SR" + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
 
 }

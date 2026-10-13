@@ -1,5 +1,6 @@
 package com.rhn.billing.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.billing.api.PaymentResultDirectory.PaymentEventView;
 import com.rhn.billing.api.PaymentResultDirectory.PaymentOrderView;
 import com.rhn.billing.domain.Invoice;
@@ -18,7 +19,6 @@ import com.rhn.platform.dictionary.api.DictionaryAttributeDirectory;
 import com.rhn.platform.dictionary.api.DictionaryDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
-import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,8 +27,6 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -40,8 +38,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 class PaymentOrderTransactionService {
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
+    private final BusinessNumberGenerator numbers;
     private final PaymentOrderRepository orderRepository;
     private final PaymentEventRepository eventRepository;
     private final PatientAccountRepository accountRepository;
@@ -63,7 +60,8 @@ class PaymentOrderTransactionService {
                                    DictionaryDirectory dictionaryDirectory,
                                    DictionaryAttributeDirectory attributeDirectory,
                                    ExecutionContextProvider contextProvider,
-                                   SettlementApplicationService settlements, PaymentRoundingPolicy roundingPolicy) {
+                                   SettlementApplicationService settlements, PaymentRoundingPolicy roundingPolicy, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.orderRepository = orderRepository; this.eventRepository = eventRepository;
         this.accountRepository = accountRepository; this.invoiceRepository = invoiceRepository;
         this.paymentRepository = paymentRepository; this.ledgerRepository = ledgerRepository;
@@ -135,7 +133,7 @@ class PaymentOrderTransactionService {
         if (input.expiresAt() != null && !input.expiresAt().isAfter(Instant.now())) {
             throw badRequest("PAYMENT_ORDER_EXPIRY_INVALID", "支付指令过期时间必须晚于当前时间");
         }
-        String orderNo = "PO" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6);
+        String orderNo = numbers.next("payment-order");
         PaymentOrder value = orderRepository.save(new PaymentOrder(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), invoice.id(), null,
                 orderNo, idempotencyKey, businessScene, paymentScene, paymentMethod, methodName, "SETTLEMENT_PAY", amount,
@@ -181,7 +179,7 @@ class PaymentOrderTransactionService {
             throw conflict("REFUND_ORDER_EXCEEDS_ACCOUNT_CREDIT", "退款金额超过退费事项形成并扣除在途退款后的账户可退余额");
         }
         String reason = required(input.reason(), "REFUND_REASON_REQUIRED", "退款原因不能为空");
-        String orderNo = "RO" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6);
+        String orderNo = numbers.next("refund-order");
         PaymentOrder sourceOrder = original.paymentOrderId() == null ? null
                 : orderRepository.findByIdAndTenantId(original.paymentOrderId(), context.tenantId()).orElse(null);
         String businessScene = sourceOrder == null ? "OUTPATIENT" : sourceOrder.businessScene();

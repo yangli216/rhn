@@ -41,7 +41,7 @@ function requireInvoice(value: unknown, pending: Extract<Pending, { kind: 'invoi
   const invoice = value as Invoice | undefined
   const total = pending.charges.reduce((sum, row) => sum + row.amount, 0)
   requireFact(invoice && text(invoice.id) && invoice.patientAccountId === pending.statement.accountId
-    && invoice.invoiceNo === pending.invoiceNo && invoice.currencyCode === pending.statement.currencyCode
+    && text(invoice.invoiceNo) && invoice.commandCode === pending.invoiceNo && invoice.currencyCode === pending.statement.currencyCode
     && invoice.invoiceType === (total >= 0 ? 'STANDARD' : 'CREDIT') && invoice.status === 'ISSUED'
     && text(invoice.issuedBy) && text(invoice.issuedAt) && Number.isFinite(Date.parse(invoice.issuedAt))
     && sameAmount(invoice.grossAmount, total) && finite(invoice.discountAmount) && finite(invoice.netAmount)

@@ -8,6 +8,7 @@ public interface BusinessNumberGenerator {
     String next(String businessCode);
     String next(String businessCode, BusinessNumberContext context);
     Map<String, BusinessNumberRule> rules();
+    BusinessNumberSequence inspect(String businessCode, BusinessNumberContext context);
     /** Preview is pure formatting: it does not reserve/consume a Redis sequence. */
     String preview(String businessCode, LocalDate date, long sequence);
 }

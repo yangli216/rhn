@@ -48,9 +48,9 @@ public class Receipt {
 
     public Receipt(Long tenantId, Long settlementId, String commandCode, String receiptType,
                    String fiscalAuthorityCode, BigDecimal amount, String currencyCode, String issueChannel,
-                   String payerName, String payerIdentityDigest, String correlationId, Long createdBy) {
+                   String payerName, String payerIdentityDigest, String correlationId, Long createdBy, String businessNumber) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.settlementId = settlementId;
-        this.receiptNo = "RC" + id; this.commandCode = commandCode; this.receiptType = receiptType;
+        this.receiptNo = businessNumber; this.commandCode = commandCode; this.receiptType = receiptType;
         this.status = "REQUESTED"; this.fiscalAuthorityCode = fiscalAuthorityCode;
         this.receiptAmount = amount; this.currencyCode = currencyCode; this.issueChannel = issueChannel;
         this.payerNameSnapshot = payerName; this.payerIdentityDigest = payerIdentityDigest;
@@ -58,11 +58,11 @@ public class Receipt {
         this.createdAt = Instant.now(); this.updatedAt = createdAt;
     }
 
-    public static Receipt redFlushOf(Receipt original, String commandCode, String correlationId, Long createdBy) {
+    public static Receipt redFlushOf(Receipt original, String commandCode, String correlationId, Long createdBy, String businessNumber) {
         Receipt value = new Receipt(original.tenantId, original.settlementId, commandCode, original.receiptType,
                 original.fiscalAuthorityCode, original.receiptAmount.negate(), original.currencyCode,
                 original.issueChannel, original.payerNameSnapshot, original.payerIdentityDigest,
-                correlationId, createdBy);
+                correlationId, createdBy, businessNumber);
         value.reversesReceiptId = original.id;
         return value;
     }

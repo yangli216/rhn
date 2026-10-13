@@ -57,9 +57,9 @@ public class InsuranceClaim {
                           String commandCode, String regionCode, String insuranceTypeCode, String payerName,
                           String organizationCode, String departmentCode, String practitionerCode,
                           String diagnosisPayloadDigest, Instant serviceStartedAt, Instant serviceEndedAt,
-                          BigDecimal grossAmount, String currencyCode, String correlationId, Long createdBy) {
+                          BigDecimal grossAmount, String currencyCode, String correlationId, Long createdBy, String businessNumber) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.settlementId = settlementId;
-        this.patientAccountId = patientAccountId; this.coverageId = coverageId; this.claimNo = "IC" + id;
+        this.patientAccountId = patientAccountId; this.coverageId = coverageId; this.claimNo = businessNumber;
         this.commandCode = commandCode; this.claimType = "NORMAL"; this.status = "PRE_SETTLEMENT_PENDING";
         this.currentOperation = "PRE_SETTLE"; this.regionCode = regionCode; this.insuranceTypeCode = insuranceTypeCode;
         this.payerNameSnapshot = payerName; this.organizationCode = organizationCode;

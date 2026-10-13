@@ -21,7 +21,7 @@ class DiagnosticFlowTruthTest {
 
     private DiagnosticExecutionTask task(long request) {
         return new DiagnosticExecutionTask(1L, 2L, 3L, 4L, 5L, request, "REQ-" + request,
-                "LABORATORY", "LAB", "检验", "BLOOD", null, false, Instant.now());
+                "LABORATORY", "LAB", "检验", "BLOOD", null, false, Instant.now(), "TEST-DiagnosticExecutionTask");
     }
     private DiagnosticReport report(String status, int version) {
         return new DiagnosticReport(1L, 4L, 5L, 6L, 2L, 3L, "LIS", "REPORT", version, null,

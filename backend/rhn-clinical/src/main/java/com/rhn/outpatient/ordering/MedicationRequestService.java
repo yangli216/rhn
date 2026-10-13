@@ -1,5 +1,7 @@
 package com.rhn.outpatient.ordering;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory;
 import com.rhn.healthcore.api.AllergyDirectory;
@@ -24,8 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,8 +36,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 class MedicationRequestService implements MedicationRequestDirectory {
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
+    private final BusinessNumberGenerator numbers;
 
     private final MedicationRequestRepository repository;
     private final PrescriptionRepository prescriptionRepository;
@@ -70,7 +69,8 @@ class MedicationRequestService implements MedicationRequestDirectory {
                              DomainEventPublisher eventPublisher,
                              ExecutionContextProvider contextProvider, JsonCodec jsonCodec,
                              MedicationSemanticDirectory semantics,
-                             OutpatientAllergyVerificationPolicy allergyVerificationPolicy) {
+                             OutpatientAllergyVerificationPolicy allergyVerificationPolicy, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.semantics = semantics;
         this.allergyVerificationPolicy = allergyVerificationPolicy;
         this.repository = repository; this.prescriptionRepository = prescriptionRepository;
@@ -137,7 +137,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
         String itemName = item == null ? medication.name() : item.name();
 
         MedicationRequest value = repository.saveAndFlush(new MedicationRequest(tenantId, encounter.residentId(),
-                encounter.id(), nextRequestNo(), prescription == null ? null : prescription.id(),
+                encounter.id(), numbers.next("medication-request", new BusinessNumberContext(tenantId, encounter.organizationId(), encounter.departmentId())), prescription == null ? null : prescription.id(),
                 parentRequest == null ? null : parentRequest.id(),
                 prescription == null ? MedicationRequestStatus.ACTIVE : MedicationRequestStatus.DRAFT, item == null ? null : item.id(), input.packageId(),
                 performerOrganizationId, performerDepartmentId, encounter.organizationId(), encounter.departmentId(),
@@ -714,9 +714,6 @@ class MedicationRequestService implements MedicationRequestDirectory {
         return details;
     }
 
-    private String nextRequestNo() {
-        return "MR" + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
 
     private boolean sameNumber(BigDecimal left, BigDecimal right) {
         return left == null ? right == null : right != null && left.compareTo(right) == 0;

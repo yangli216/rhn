@@ -11514,6 +11514,11 @@
         "logical": "department_id",
         "physical": "ID_DEPT",
         "comment": "科室标识"
+      },
+      {
+        "logical": "command_code",
+        "physical": "CD_CMD",
+        "comment": "请求幂等键；与展示业务编码分离，历史值沿用原编号"
       }
     ]
   },
@@ -17252,6 +17257,11 @@
         "logical": "department_id",
         "physical": "ID_DEPT",
         "comment": "科室标识"
+      },
+      {
+        "logical": "command_code",
+        "physical": "CD_CMD",
+        "comment": "请求幂等键；与展示业务编码分离，历史值沿用原编号"
       }
     ],
     "previousPhysical": "RHN_BIL_PAYMENT"
@@ -23907,6 +23917,11 @@
         "logical": "description",
         "physical": "DES_STOCK_RETURN",
         "comment": "说明"
+      },
+      {
+        "logical": "command_code",
+        "physical": "CD_CMD",
+        "comment": "请求幂等键；与展示业务编码分离，历史值沿用原编号"
       }
     ]
   },

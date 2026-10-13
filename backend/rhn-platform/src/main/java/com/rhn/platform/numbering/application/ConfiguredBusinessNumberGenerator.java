@@ -3,6 +3,7 @@ package com.rhn.platform.numbering.application;
 import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.platform.numbering.api.BusinessNumberRule;
+import com.rhn.platform.numbering.api.BusinessNumberSequence;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,11 +43,7 @@ public class ConfiguredBusinessNumberGenerator implements BusinessNumberGenerato
     public String next(String businessCode, BusinessNumberContext context) {
         BusinessNumberRule rule = rule(businessCode);
         LocalDate day = LocalDate.now(clock.withZone(ZoneId.of(properties.zoneId())));
-        String scope;
-        try { scope = rule.scope().key(context); rule.format(day, 1); }
-        catch (IllegalArgumentException error) { throw new BusinessException("BUSINESS_NUMBER_CONTEXT_INVALID", error.getMessage(), HttpStatus.BAD_REQUEST); }
-        // Full date is independent of display format; formatting changes do not reset the counter.
-        String key = properties.redisKeyPrefix() + ":" + businessCode + ":" + scope + ":" + day.format(DateTimeFormatter.BASIC_ISO_DATE);
+        String key = counterKey(businessCode, rule, context, day);
         long sequence;
         try { sequence = counter.next(key, rule.maximumSequence()); }
         catch (RuntimeException error) {
@@ -59,6 +56,33 @@ public class ConfiguredBusinessNumberGenerator implements BusinessNumberGenerato
 
     @Override public Map<String, BusinessNumberRule> rules() { return properties.rules(); }
     @Override public String preview(String businessCode, LocalDate date, long sequence) { return rule(businessCode).format(date, sequence); }
+
+    @Override
+    public BusinessNumberSequence inspect(String businessCode, BusinessNumberContext context) {
+        BusinessNumberRule rule = rule(businessCode);
+        LocalDate day = LocalDate.now(clock.withZone(ZoneId.of(properties.zoneId())));
+        String key = counterKey(businessCode, rule, context, day);
+        long current;
+        try { current = counter.current(key); }
+        catch (RuntimeException error) {
+            var unavailable = new BusinessException("BUSINESS_NUMBER_UNAVAILABLE", "业务编号流水查询暂不可用，请稍后重试", HttpStatus.SERVICE_UNAVAILABLE);
+            unavailable.initCause(error); throw unavailable;
+        }
+        if (current < 0 || current > 999_999_999_999L) throw new BusinessException("BUSINESS_NUMBER_UNAVAILABLE", "业务编号计数异常", HttpStatus.SERVICE_UNAVAILABLE);
+        Long next = current >= rule.maximumSequence() ? null : current + 1;
+        return new BusinessNumberSequence(day, properties.zoneId(), rule.scope().key(context), current,
+                next, rule.maximumSequence(), next == null ? null : rule.format(day, next));
+    }
+
+    private String counterKey(String code, BusinessNumberRule rule, BusinessNumberContext context, LocalDate day) {
+        try {
+            rule.format(day, 1);
+            return properties.redisKeyPrefix() + ":" + code + ":" + rule.scope().key(context)
+                    + ":" + day.format(DateTimeFormatter.BASIC_ISO_DATE);
+        } catch (IllegalArgumentException error) {
+            throw new BusinessException("BUSINESS_NUMBER_CONTEXT_INVALID", error.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
 
     private BusinessNumberRule rule(String code) {
         BusinessNumberRule rule = code == null ? null : properties.rules().get(code);

@@ -78,7 +78,7 @@ describe('verified completion billing writes', () => {
       const read = api.statement.getMockImplementation()!
       api.statement.mockImplementationOnce(async (...args) => ({ ...await read(...args), settlements: [] }))
     } else api.issueInvoice.mockImplementationOnce(async (...args) => ({ ...await actual(...args),
-      ...(field === 'account' ? { patientAccountId: 'other' } : field === 'number' ? { invoiceNo: 'other' }
+      ...(field === 'account' ? { patientAccountId: 'other' } : field === 'number' ? { commandCode: 'other' }
         : field === 'amount' ? { grossAmount: 11 } : { lines: [] }),
     }))
     await expect(writer.issue(api, encounter, before, current)).rejects.toThrow('未确认')

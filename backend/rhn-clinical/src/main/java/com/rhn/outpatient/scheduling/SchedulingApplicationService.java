@@ -1,5 +1,6 @@
 package com.rhn.outpatient.scheduling;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import cn.hutool.core.util.StrUtil;
 import com.rhn.outpatient.scheduling.SchedulingContracts.PeriodDefault;
 import com.rhn.outpatient.scheduling.SchedulingContracts.PractitionerOption;
@@ -52,6 +53,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 class SchedulingApplicationService {
+    private final BusinessNumberGenerator numbers;
     static final String MODE_KEY = "outpatient.scheduling.management-mode";
     static final String CAPACITY_KEY = "outpatient.scheduling.simple.default-capacity";
     static final String GENERATE_DAYS_KEY = "outpatient.scheduling.simple.generate-days";
@@ -88,7 +90,8 @@ class SchedulingApplicationService {
                                  CatalogLifecycleDirectory catalogLifecycleDirectory,
                                  ConfigurationDirectory configurationDirectory,
                                  ExecutionContextProvider contextProvider,
-                                 JsonCodec jsonCodec) {
+                                 JsonCodec jsonCodec, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.resourceRepository = resourceRepository;
         this.templateRepository = templateRepository;
         this.periodRepository = periodRepository;
@@ -183,14 +186,14 @@ class SchedulingApplicationService {
                 .orElseGet(() -> new ServiceResource(context.tenantId(), context.organizationId(),
                         effectiveDepartmentId, registrationScope, request.practitionerId(),
                         assignment == null ? null : assignment.id(), request.catalogItemId(), ownerName,
-                        service.code(), service.name(), context.subjectId()));
+                        service.code(), service.name(), context.subjectId(), numbers.next("schedule-resource")));
         resource.refresh(assignment == null ? null : assignment.id(), ownerName, service.code(), service.name(),
                 context.subjectId());
         resourceRepository.saveAndFlush(resource);
 
         ScheduleTemplate template = templateRepository.saveAndFlush(new ScheduleTemplate(context.tenantId(),
                 resource.id(), ownerName + "简易门诊排班", timezoneCode,
-                request.dateFrom(), request.dateTo(), context.subjectId()));
+                request.dateFrom(), request.dateTo(), context.subjectId(), numbers.next("schedule-template")));
         List<ScheduleTemplatePeriod> periods = buildPeriods(context.tenantId(), template.id(), request);
         periodRepository.saveAllAndFlush(periods);
 
@@ -205,7 +208,7 @@ class SchedulingApplicationService {
         scheduleRepository.saveAllAndFlush(generated);
 
         persistPoolsAndEvents(context.tenantId(), idempotencyCode, context.subjectId(), generated,
-                generated.stream().map(value -> new ScheduleSlotPool(context.tenantId(), value.id(), request.capacity()))
+                generated.stream().map(value -> new ScheduleSlotPool(context.tenantId(), value.id(), request.capacity(), numbers.next("schedule-slot-pool")))
                         .toList(),
                 value -> new ServiceScheduleEvent(context.tenantId(), value.id(),
                         idempotencyCode + ":schedule:" + value.id(), context.subjectId()));
@@ -259,7 +262,7 @@ class SchedulingApplicationService {
                         assignment == null ? null : assignment.id(), request.catalogItemId(), dayPart,
                         practitionerScoped ? ownerName : null,
                         service.code(), service.name(), locationName, timezoneCode, date, startAt, endAt,
-                        request.capacity(), context.subjectId()));
+                        request.capacity(), context.subjectId(), numbers.next("schedule")));
             }
         }
         return new GeneratedSchedules(generated, skipped);
@@ -334,14 +337,14 @@ class SchedulingApplicationService {
                 .orElseGet(() -> new ServiceResource(context.tenantId(), context.organizationId(),
                         context.departmentId(), registrationScope, request.practitionerId(),
                         assignment == null ? null : assignment.id(), request.catalogItemId(), ownerName,
-                        service.code(), service.name(), context.subjectId()));
+                        service.code(), service.name(), context.subjectId(), numbers.next("schedule-resource")));
         resource.refresh(assignment == null ? null : assignment.id(), ownerName, service.code(), service.name(),
                 context.subjectId());
         resourceRepository.saveAndFlush(resource);
 
         ScheduleTemplate template = templateRepository.saveAndFlush(new ScheduleTemplate(context.tenantId(),
                 resource.id(), request.templateName().trim(), ScheduleManagementMode.PROFESSIONAL, timezoneCode,
-                request.dateFrom(), request.dateTo(), context.subjectId()));
+                request.dateFrom(), request.dateTo(), context.subjectId(), numbers.next("schedule-template")));
         ScheduleDayPart templateDayPart = dayPart(request.startTime(), request.endTime());
         List<ScheduleTemplatePeriod> periods = request.weekdays().stream().sorted()
                 .map(weekday -> new ScheduleTemplatePeriod(context.tenantId(), template.id(), weekday,
@@ -370,7 +373,7 @@ class SchedulingApplicationService {
         List<ScheduleSlotPool> pools = new ArrayList<>();
         for (ServiceSchedule schedule : generated) {
             pools.add(new ScheduleSlotPool(context.tenantId(), schedule.id(), schedule.totalCapacity(),
-                    request.slotMode().name()));
+                    request.slotMode().name(), numbers.next("schedule-slot-pool")));
         }
         persistPoolsAndEvents(context.tenantId(), idempotencyCode, context.subjectId(), generated, pools,
                 value -> new ServiceScheduleEvent(context.tenantId(), value.id(), "PUBLISHED", null,
@@ -445,7 +448,7 @@ class SchedulingApplicationService {
                         dayPart(toTime(window[0]), toTime(window[1])), practitionerScoped ? ownerName : null,
                         service.code(), service.name(), locationName, timezoneCode,
                         date, startAt, endAt, capacity, ScheduleManagementMode.PROFESSIONAL, "SHARED",
-                        context.subjectId()));
+                        context.subjectId(), numbers.next("schedule")));
             }
         }
         return new GeneratedSchedules(generated, skipped);

@@ -37,7 +37,7 @@ class InsuranceQuickContextTruthTest {
     @BeforeEach void setup() {
         service = new InsuranceClaimTransactionService(claims, mock(InsuranceClaimLineRepository.class),
                 mock(InsuranceClaimResponseRepository.class), settlements, lines, charges, accounts, coverages,
-                mock(SettlementApplicationService.class), contexts, mock(JsonCodec.class), resolver, mappings, mock(com.rhn.platform.integration.api.ExternalMessageService.class));
+                mock(SettlementApplicationService.class), contexts, mock(JsonCodec.class), resolver, mappings, mock(com.rhn.platform.integration.api.ExternalMessageService.class), org.mockito.Mockito.mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class));
         when(contexts.requireCurrent()).thenReturn(new ExecutionContext(1L,10L,"cashier","corr",Set.of(),2L,3L,"SELF",Set.of(),Set.of()));
         var settlement=mock(Settlement.class); when(settlement.patientAccountId()).thenReturn(4L);
         when(settlements.findByIdAndTenantId(5L,1L)).thenReturn(Optional.of(settlement));

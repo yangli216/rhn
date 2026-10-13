@@ -13,14 +13,10 @@ import jakarta.persistence.Version;
 import org.springframework.http.HttpStatus;
 
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 
 @Entity
 @Table(name = "RHN_EX_TREAT_EXEC_TASK")
 public class TreatmentExecutionTask {
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
 
     @Id @Column(name = "ID_TREAT_EXEC_TASK") private Long id;
     @Version @Column(name = "REVISION") private long revision;
@@ -51,11 +47,10 @@ public class TreatmentExecutionTask {
 
     public TreatmentExecutionTask(Long tenantId, Long organizationId, Long departmentId,
                                   Long residentId, Long encounterId, Long sourceGroupId,
-                                  String taskType, Instant createdAt) {
+                                  String taskType, Instant createdAt, String businessNumber) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.departmentId = departmentId; this.residentId = residentId; this.encounterId = encounterId;
-        this.sourceGroupId = sourceGroupId; this.taskNo = "TX" + NUMBER_TIME.format(createdAt)
-                + GlobalIds.randomSuffix(6); this.taskType = taskType; this.status = TreatmentExecutionTaskStatus.WAITING_SETTLEMENT;
+        this.sourceGroupId = sourceGroupId; this.taskNo = businessNumber; this.taskType = taskType; this.status = TreatmentExecutionTaskStatus.WAITING_SETTLEMENT;
         this.createdAt = createdAt;
     }
 

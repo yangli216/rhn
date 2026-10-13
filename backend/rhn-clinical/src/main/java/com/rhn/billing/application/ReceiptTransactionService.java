@@ -1,5 +1,6 @@
 package com.rhn.billing.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptInstruction;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptLine;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptAction;
@@ -24,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -38,6 +38,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 class ReceiptTransactionService {
+    private final BusinessNumberGenerator numbers;
     private final ReceiptRepository receipts;
     private final ReceiptEventRepository events;
     private final SettlementRepository settlements;
@@ -50,7 +51,8 @@ class ReceiptTransactionService {
     ReceiptTransactionService(ReceiptRepository receipts, ReceiptEventRepository events,
                               SettlementRepository settlements, ReceiptLineService receiptLines,
                               PatientAccountRepository accounts,
-                              ExecutionContextProvider contextProvider, ExternalMessageService messages, ReceiptFundingService funding) {
+                              ExecutionContextProvider contextProvider, ExternalMessageService messages, ReceiptFundingService funding, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.receipts = receipts; this.events = events; this.settlements = settlements;
         this.receiptLines = receiptLines; this.accounts = accounts;
         this.contextProvider = contextProvider;
@@ -140,7 +142,7 @@ class ReceiptTransactionService {
                 authority.toUpperCase(), settlement.netAmount(), settlement.currencyCode(), channel,
                 Strings.trimToNull(input.payerName()), Strings.trimToNull(input.payerIdentityDigest()),
                 Strings.trimToNull(input.correlationId()) == null ? context.correlationId() : Strings.trimToNull(input.correlationId()),
-                context.subjectId()));
+                context.subjectId(), numbers.next("receipt")));
         events.save(new ReceiptEvent(context.tenantId(), value.id(), null, "REQUEST", null, "REQUESTED",
                 "REQUEST-" + command, context.subjectId(), null, null));
         return new CreateResult(value, false);
@@ -172,7 +174,7 @@ class ReceiptTransactionService {
         Receipt existing = receipts.findByTenantIdAndReversesReceiptId(context.tenantId(), originalReceiptId).orElse(null);
         if (existing != null) throw conflict("RECEIPT_ALREADY_RED_FLUSHED", "原票据已经存在红冲票据");
         Receipt value = receipts.save(Receipt.redFlushOf(original, command,
-                Strings.trimToNull(correlationId) == null ? context.correlationId() : Strings.trimToNull(correlationId), context.subjectId()));
+                Strings.trimToNull(correlationId) == null ? context.correlationId() : Strings.trimToNull(correlationId), context.subjectId(), numbers.next("receipt")));
         events.save(new ReceiptEvent(context.tenantId(), value.id(), null, "RED_FLUSH", null, "REQUESTED",
                 command, context.subjectId(), requiredReason(reason, "RECEIPT_RED_FLUSH_REASON_REQUIRED", "红冲原因不能为空"),
                 null, null));

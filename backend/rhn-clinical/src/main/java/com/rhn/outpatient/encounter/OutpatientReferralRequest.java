@@ -51,12 +51,12 @@ class OutpatientReferralRequest {
     OutpatientReferralRequest(Long tenantId, Encounter encounter, ReferralType referralType,
                               Long targetOrganizationId, Long targetDepartmentId, Long targetPractitionerId,
                               ReferralUrgency urgency, String referralReason, String clinicalSummary,
-                              Instant expectedAt, Long requestedBy, String commandCode) {
+                              Instant expectedAt, Long requestedBy, String commandCode, String businessNumber) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.encounterId = encounter.id();
         this.residentId = encounter.residentId();
-        this.requestNo = "RF" + id;
+        this.requestNo = businessNumber;
         this.referralType = referralType;
         this.targetOrganizationId = targetOrganizationId;
         this.targetDepartmentId = targetDepartmentId;

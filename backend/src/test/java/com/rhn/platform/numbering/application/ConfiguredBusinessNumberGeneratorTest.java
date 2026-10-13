@@ -95,7 +95,10 @@ class ConfiguredBusinessNumberGeneratorTest {
     @EnumSource(BusinessNumberScope.class)
     void allocation_is_isolated_by_the_selected_level_and_reuses_the_same_counter_for_same_owner(BusinessNumberScope scope) {
         Map<String, AtomicLong> values = new ConcurrentHashMap<>();
-        BusinessNumberCounter counter = (key, maximum) -> values.computeIfAbsent(key, ignored -> new AtomicLong()).incrementAndGet();
+        BusinessNumberCounter counter = new BusinessNumberCounter() {
+            public long next(String key, long maximum) { return values.computeIfAbsent(key, ignored -> new AtomicLong()).incrementAndGet(); }
+            public long current(String key) { return values.getOrDefault(key, new AtomicLong()).get(); }
+        };
         var generator = generator(properties(new BusinessNumberRule("OP", null, null, null, scope)), counter, DAY);
         assertThat(generator.next("visit", OWNER)).endsWith("00001");
         // Department changes split only a department-level counter.
@@ -114,7 +117,10 @@ class ConfiguredBusinessNumberGeneratorTest {
     @Test
     void midnight_uses_business_timezone_and_next_day_starts_a_new_counter_while_clock_rollback_reuses_old_counter() {
         Map<String, AtomicLong> values = new ConcurrentHashMap<>();
-        BusinessNumberCounter counter = (key, max) -> values.computeIfAbsent(key, ignored -> new AtomicLong()).incrementAndGet();
+        BusinessNumberCounter counter = new BusinessNumberCounter() {
+            public long next(String key, long maximum) { return values.computeIfAbsent(key, ignored -> new AtomicLong()).incrementAndGet(); }
+            public long current(String key) { return values.getOrDefault(key, new AtomicLong()).get(); }
+        };
         var properties = properties(new BusinessNumberRule("OP", null, null, null, null));
         var before = generator(properties, counter, Clock.fixed(Instant.parse("2026-10-10T15:59:59Z"), ZoneOffset.UTC));
         var after = generator(properties, counter, DAY);
@@ -166,6 +172,41 @@ class ConfiguredBusinessNumberGeneratorTest {
 
     private static BusinessNumberingProperties properties(BusinessNumberRule rule) {
         return new BusinessNumberingProperties(null, null, Map.of("visit", rule));
+    }
+
+    @Test
+    void inspection_does_not_allocate_and_reports_capacity_timezone_and_unavailability() {
+        var counter = mock(BusinessNumberCounter.class);
+        var generator = generator(properties(new BusinessNumberRule("OP", null, null, 2, null)), counter, DAY);
+        when(counter.current(anyString())).thenReturn(0L, 98L, 99L);
+        var first = generator.inspect("visit", OWNER);
+        assertThat(first.businessDate()).isEqualTo(LocalDate.of(2026, 10, 11));
+        assertThat(first.zoneId()).isEqualTo("Asia/Shanghai");
+        assertThat(first.scopeKey()).isEqualTo("tenant:1");
+        assertThat(first.nextNumber()).isEqualTo("OP26101101");
+        assertThat(generator.inspect("visit", OWNER).nextSequence()).isEqualTo(99L);
+        var exhausted = generator.inspect("visit", OWNER);
+        assertThat(exhausted.nextSequence()).isNull();
+        assertThat(exhausted.nextNumber()).isNull();
+        verify(counter, never()).next(anyString(), anyLong());
+        when(counter.current(anyString())).thenThrow(new IllegalStateException("Redis unavailable"));
+        assertThatThrownBy(() -> generator.inspect("visit", OWNER)).isInstanceOfSatisfying(BusinessException.class,
+                error -> assertThat(error.code()).isEqualTo("BUSINESS_NUMBER_UNAVAILABLE"));
+    }
+
+    @Test
+    void outpatient_startup_rejects_scopes_that_can_collide_within_a_tenant() throws Exception {
+        var environment = new StandardEnvironment();
+        new YamlPropertySourceLoader().load("numbering", new ClassPathResource("business-numbering.yml"))
+                .forEach(source -> environment.getPropertySources().addLast(source));
+        var properties = Binder.get(environment).bind("rhn.business-numbering", Bindable.of(BusinessNumberingProperties.class)).get();
+        var numbers = mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class);
+        var rules = new java.util.HashMap<>(properties.rules());
+        when(numbers.rules()).thenReturn(rules);
+        com.rhn.outpatient.OutpatientBusinessNumberingPolicy.validate(numbers);
+        rules.put("outpatient-encounter", new BusinessNumberRule("OP", null, null, null, BusinessNumberScope.DEPARTMENT));
+        assertThatThrownBy(() -> com.rhn.outpatient.OutpatientBusinessNumberingPolicy.validate(numbers))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("outpatient-encounter");
     }
 
     private static ConfiguredBusinessNumberGenerator generator(BusinessNumberingProperties properties, BusinessNumberCounter counter, Clock clock) {

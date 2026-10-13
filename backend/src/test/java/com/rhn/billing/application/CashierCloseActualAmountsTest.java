@@ -38,7 +38,7 @@ class CashierCloseActualAmountsTest {
         when(closes.save(any())).thenAnswer(call -> saved = call.getArgument(0));
         when(lines.save(any())).thenAnswer(call -> { CashierCloseLine line = call.getArgument(0); savedLines.add(line); return line; });
         when(lines.findByTenantIdAndCashierCloseIdOrderByLineNo(anyLong(), anyLong())).thenAnswer(call -> savedLines);
-        service = new CashierCloseApplicationService(closes, lines, items, events, payments, users, contexts);
+        service = new CashierCloseApplicationService(closes, lines, items, events, payments, users, contexts, org.mockito.Mockito.mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class));
     }
 
     Payment payment(String method, String type, String amount) {

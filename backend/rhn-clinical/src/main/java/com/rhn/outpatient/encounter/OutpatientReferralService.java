@@ -1,5 +1,7 @@
 package com.rhn.outpatient.encounter;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.healthcore.api.ClinicalDocumentDirectory;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.OutpatientReferralFlowDirectory;
@@ -15,8 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -36,10 +36,9 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class OutpatientReferralService implements OutpatientReferralFlowDirectory {
+    private final BusinessNumberGenerator numbers;
     private static final Collection<ReferralStatus> OPEN_STATUSES =
             List.of(ReferralStatus.REQUESTED, ReferralStatus.ACCEPTED);
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
 
     private final OutpatientReferralRequestRepository requests;
     private final OutpatientReferralEventRepository events;
@@ -69,7 +68,8 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
                                      OrganizationDirectory organizations,
                                      OutpatientRegistrationDirectory registrations,
                                      ExecutionContextProvider contextProvider,
-                                     DomainEventPublisher eventPublisher) {
+                                     DomainEventPublisher eventPublisher, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.requests = requests;
         this.events = events;
         this.encounters = encounters;
@@ -126,7 +126,7 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
         OutpatientReferralRequest request = requests.saveAndFlush(new OutpatientReferralRequest(
                 context.tenantId(), encounter, type, input.targetOrganizationId(), input.targetDepartmentId(),
                 input.targetPractitionerId(), urgency, input.referralReason().trim(),
-                input.clinicalSummary().trim(), input.expectedAt(), actorId(context), input.commandCode().trim()));
+                input.clinicalSummary().trim(), input.expectedAt(), actorId(context), input.commandCode().trim(), numbers.next("outpatient-referral", new BusinessNumberContext(context.tenantId(), encounter.organizationId(), encounter.departmentId()))));
         events.save(new OutpatientReferralEvent(request, null, "CREATE", input.commandCode().trim(),
                 actorId(context), input.referralReason().trim()));
         if (type == ReferralType.DEPARTMENT_TRANSFER) {
@@ -278,7 +278,8 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
                 .ifPresent(value -> { throw conflict("TRANSFER_TARGET_ENCOUNTER_DUPLICATE",
                         "患者在目标科室已有进行中的就诊"); });
         Encounter target = encounters.saveAndFlush(new Encounter(context.tenantId(), source.residentId(),
-                nextEncounterNo(), request.targetOrganizationId(), request.targetDepartmentId()));
+                numbers.next("outpatient-encounter", new BusinessNumberContext(context.tenantId(),
+                        request.targetOrganizationId(), request.targetDepartmentId())), request.targetOrganizationId(), request.targetDepartmentId()));
         OutpatientRegistrationDirectory.RegistrationSnapshot registration = registrations.register(
                 new OutpatientRegistrationDirectory.RegisterCommand(source.residentId(), target.id(),
                         request.targetOrganizationId(), request.targetDepartmentId(), null, null, null,
@@ -405,9 +406,6 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
                 ? commandCode + suffix : commandCode.substring(0, 128 - suffix.length()) + suffix;
     }
 
-    private String nextEncounterNo() {
-        return "OP" + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
 
     private void publish(Encounter encounter, String type, String summary, Map<String, Object> payload) {
         Map<String, Object> details = new LinkedHashMap<>(payload);

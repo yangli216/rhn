@@ -29,7 +29,7 @@ class InsuranceResponseIdempotencyTest {
     final SettlementApplicationService accounting=mock(SettlementApplicationService.class);
     final ExecutionContextProvider contexts=mock(ExecutionContextProvider.class);
     final InsuranceClaim claim=new InsuranceClaim(1L,2L,3L,4L,"KEY","REGION","BASIC","payer","H","D","P","HASH",
-            Instant.parse("2026-10-04T01:00:00Z"),null,n("100"),"CNY","corr",5L);
+            Instant.parse("2026-10-04T01:00:00Z"),null,n("100"),"CNY","corr",5L, "TEST-InsuranceClaim");
     final List<InsuranceClaimResponse> stored=new ArrayList<>();
     InsuranceClaimTransactionService service;
     static BigDecimal n(String value) { return new BigDecimal(value); }
@@ -48,7 +48,7 @@ class InsuranceResponseIdempotencyTest {
         when(responses.save(any())).thenAnswer(c->{ InsuranceClaimResponse r=c.getArgument(0); stored.add(r); return r; });
         service=new InsuranceClaimTransactionService(claims,mock(InsuranceClaimLineRepository.class),responses,
                 mock(SettlementRepository.class),mock(SettlementLineRepository.class),mock(ChargeItemRepository.class),accounts,
-                mock(CoverageDirectory.class),accounting,contexts,mock(JsonCodec.class),mock(InsuranceQuickSubmissionResolver.class),mock(ItemStandardMappingDirectory.class),mock(com.rhn.platform.integration.api.ExternalMessageService.class));
+                mock(CoverageDirectory.class),accounting,contexts,mock(JsonCodec.class),mock(InsuranceQuickSubmissionResolver.class),mock(ItemStandardMappingDirectory.class),mock(com.rhn.platform.integration.api.ExternalMessageService.class), org.mockito.Mockito.mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class));
     }
     InsuranceClaimTransactionService.ApplyResult apply(String operation,InsuranceResult result,String command) {
         return service.apply(claim.id(),operation,result,command,null,false);

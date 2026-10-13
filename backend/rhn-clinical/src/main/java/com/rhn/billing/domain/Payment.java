@@ -32,6 +32,8 @@ public class Payment {
     @Column(name = "ID_USER_ENTERED", nullable = false) private Long enteredBy;
     @Column(name = "DES_PAY") private String description;
 
+    @Column(name = "CD_CMD", nullable = false) private String commandCode;
+
     protected Payment() {}
 
     public Payment(Long tenantId, Long patientAccountId, Long invoiceId, String paymentNo, String paymentType,
@@ -55,6 +57,15 @@ public class Payment {
                    String paymentNo, String paymentType, String paymentMethodCode, String paymentSceneCode,
                    BigDecimal amount, String currencyCode, Instant paidAt, String externalTransactionNo,
                    Long reversesPaymentId, Long enteredBy, String description) {
+        this(tenantId, organizationId, departmentId, patientAccountId, invoiceId, paymentOrderId, paymentNo, paymentType, paymentMethodCode, paymentSceneCode, amount, currencyCode, paidAt, externalTransactionNo, reversesPaymentId, enteredBy, description, paymentNo);
+    }
+
+    public Payment(Long tenantId, Long organizationId, Long departmentId,
+                   Long patientAccountId, Long invoiceId, Long paymentOrderId,
+                   String paymentNo, String paymentType, String paymentMethodCode, String paymentSceneCode,
+                   BigDecimal amount, String currencyCode, Instant paidAt, String externalTransactionNo,
+                   Long reversesPaymentId, Long enteredBy, String description, String commandCode) {
+        this.commandCode = commandCode;
         this.id = GlobalIds.next(); this.tenantId = tenantId;
         this.organizationId = organizationId; this.departmentId = departmentId;
         this.patientAccountId = patientAccountId;
@@ -72,6 +83,7 @@ public class Payment {
     public Long patientAccountId() { return patientAccountId; }
     public Long invoiceId() { return invoiceId; }
     public Long paymentOrderId() { return paymentOrderId; }
+    public String commandCode() { return commandCode; }
     public String paymentNo() { return paymentNo; }
     public String paymentType() { return paymentType; }
     public String paymentMethodCode() { return paymentMethodCode; }

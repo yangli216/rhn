@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class TreatmentAssessmentTest {
     private TreatmentExecutionTask readyTask() {
-        var task = new TreatmentExecutionTask(1L, 2L, 3L, 4L, 5L, 6L, "SERVICE", Instant.now());
+        var task = new TreatmentExecutionTask(1L, 2L, 3L, 4L, 5L, 6L, "SERVICE", Instant.now(), "TEST-TreatmentExecutionTask");
         task.synchronize(true, true, true, true, false, null);
         return task;
     }

@@ -1,5 +1,7 @@
 package com.rhn.outpatient.encounter;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.healthcore.api.ClinicalDocumentDirectory;
 import com.rhn.healthcore.api.ClinicalObservationDirectory;
@@ -24,8 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -42,13 +42,12 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 
 @Service
 public class EncounterService implements EncounterDirectory {
+    private final BusinessNumberGenerator numbers;
     private static final String START_OPERATION = "OUTPATIENT.ENCOUNTER.START";
     private static final String SUSPEND_OPERATION = "OUTPATIENT.ENCOUNTER.SUSPEND";
     private static final String RESUME_OPERATION = "OUTPATIENT.ENCOUNTER.RESUME";
     private static final String RECORD_OPERATION = "OUTPATIENT.ENCOUNTER.RECORD";
     private static final String COMPLETE_OPERATION = "OUTPATIENT.ENCOUNTER.COMPLETE";
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
 
     private final EncounterRepository encounterRepository;
     private final EncounterDiagnosisRepository diagnosisRepository;
@@ -96,7 +95,8 @@ public class EncounterService implements EncounterDirectory {
                             ExecutionContextProvider executionContextProvider,
                             JsonCodec jsonCodec,
                             com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventoryDirectory,
-                            RegistrationValidityPolicy validityPolicy) {
+                            RegistrationValidityPolicy validityPolicy, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.encounterRepository = encounterRepository;
         this.diagnosisRepository = diagnosisRepository;
         this.diagnosisRevisionRepository = diagnosisRevisionRepository;
@@ -134,7 +134,8 @@ public class EncounterService implements EncounterDirectory {
         Long tenantId = TenantContext.requireTenantId();
         ExecutionContext context = executionContextProvider.requireCurrent();
         Encounter encounter = encounterRepository.saveAndFlush(new Encounter(tenantId, residentId,
-                nextEncounterNo(), request.organizationId(), request.departmentId()));
+                numbers.next("outpatient-encounter", new BusinessNumberContext(tenantId,
+                        request.organizationId(), request.departmentId())), request.organizationId(), request.departmentId()));
         OutpatientRegistrationDirectory.RegistrationSnapshot registration = registrationDirectory.register(
                 new OutpatientRegistrationDirectory.RegisterCommand(residentId, encounter.id(),
                         request.organizationId(), request.departmentId(), request.appointmentId(), request.scheduleId(),
@@ -793,9 +794,6 @@ public class EncounterService implements EncounterDirectory {
         );
     }
 
-    private String nextEncounterNo() {
-        return "OP" + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
 
     private static final java.time.ZoneId BUSINESS_ZONE = java.time.ZoneId.of("Asia/Shanghai");
 

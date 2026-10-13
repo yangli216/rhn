@@ -1,5 +1,5 @@
 {
-  "fingerprint": "4c9be68bf2bc572d723de47d7e9ff7594083a94c65b67dae3eec3a14e3a48d7f",
+  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
   "tables": [
     {
       "logical": "bil.cashier_close_event",
@@ -2814,6 +2814,18 @@
           "comment": "科室标识",
           "logical": "department_id",
           "catalogComment": "科室标识"
+        },
+        {
+          "physical": "CD_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "请求幂等键；与展示业务编码分离，历史值沿用原编号",
+          "logical": "command_code",
+          "catalogComment": "请求幂等键；与展示业务编码分离，历史值沿用原编号"
         }
       ],
       "kind": "BASE TABLE",
@@ -2838,7 +2850,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BIL_INVOICE_BIL_PAT_INVOICE_INDEX_2",
+          "name": "FK_BIL_INVOICE_BIL_PAT_INVOICE_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -2854,7 +2866,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_INVOICE_SYS_TNT_INVOICE_INDEX_2",
+          "name": "FK_BIL_INVOICE_SYS_TNT_INVOICE_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -2865,7 +2877,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_INV_SYS_DEPT_INDEX_D",
+          "name": "FK_BIL_INV_SYS_DEPT_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -2886,7 +2898,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_INV_SYS_ORG_INDEX_D",
+          "name": "FK_BIL_INV_SYS_ORG_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -2944,7 +2956,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_2625",
+          "name": "PRIMARY_KEY_9E",
           "columns": [
             {
               "position": 1,
@@ -2955,7 +2967,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_INVOICE_INVOICE_NO_INDEX_2",
+          "name": "UK_BIL_INVOICE_INVOICE_NO_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -2971,7 +2983,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_INVOICE_INVOICE_TENANT__INDEX_2",
+          "name": "UK_BIL_INVOICE_INVOICE_TENANT__INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -2981,6 +2993,22 @@
             {
               "position": 2,
               "name": "ID_INVOICE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_INV_CMD",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_CMD",
               "direction": "A"
             }
           ],
@@ -5127,6 +5155,18 @@
           "comment": "科室标识",
           "logical": "department_id",
           "catalogComment": "科室标识"
+        },
+        {
+          "physical": "CD_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "请求幂等键；与展示业务编码分离，历史值沿用原编号",
+          "logical": "command_code",
+          "catalogComment": "请求幂等键；与展示业务编码分离，历史值沿用原编号"
         }
       ],
       "previousPhysical": "RHN_BIL_PAYMENT",
@@ -5159,7 +5199,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BIL_PAY_BIL_INVO_PAYMENT_IN_INDEX_7",
+          "name": "FK_BIL_PAY_BIL_INVO_PAYMENT_IN_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -5175,7 +5215,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_PAY_BIL_PAT_PAYMENT_ACC_INDEX_7",
+          "name": "FK_BIL_PAY_BIL_PAT_PAYMENT_ACC_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -5191,7 +5231,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_PAY_BIL_PAY_PAYMENT_REV_INDEX_7",
+          "name": "FK_BIL_PAY_BIL_PAY_PAYMENT_REV_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -5207,7 +5247,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_PAY_SYS_DEPT_INDEX_C",
+          "name": "FK_BIL_PAY_SYS_DEPT_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -5228,7 +5268,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_PAY_SYS_ORG_INDEX_C",
+          "name": "FK_BIL_PAY_SYS_ORG_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -5244,7 +5284,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_PAY_SYS_TNT_PAYMENT_TEN_INDEX_7",
+          "name": "FK_BIL_PAY_SYS_TNT_PAYMENT_TEN_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -5318,7 +5358,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_7376",
+          "name": "PRIMARY_KEY_FB5",
           "columns": [
             {
               "position": 1,
@@ -5329,7 +5369,23 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_PAY_PAYMENT_NO_INDEX_7",
+          "name": "UK_BIL_PAY_CMD",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_CMD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_PAY_PAYMENT_NO_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -5345,7 +5401,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_PAY_PAYMENT_ORDER_FACT_INDEX_7",
+          "name": "UK_BIL_PAY_PAYMENT_ORDER_FACT_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -5361,7 +5417,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_PAY_PAYMENT_TENANT_ID_INDEX_7",
+          "name": "UK_BIL_PAY_PAYMENT_TENANT_ID_INDEX_F",
           "columns": [
             {
               "position": 1,

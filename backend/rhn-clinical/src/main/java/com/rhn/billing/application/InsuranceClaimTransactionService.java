@@ -1,5 +1,7 @@
 package com.rhn.billing.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.billing.api.InsuranceResultDirectory.InsuranceClaimLineView;
 import com.rhn.billing.api.InsuranceResultDirectory.InsuranceClaimResponseView;
 import com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView;
@@ -50,6 +52,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 class InsuranceClaimTransactionService {
+    private final BusinessNumberGenerator numbers;
     private final InsuranceClaimRepository claims;
     private final InsuranceClaimLineRepository claimLines;
     private final InsuranceClaimResponseRepository responses;
@@ -72,7 +75,8 @@ class InsuranceClaimTransactionService {
                                      SettlementApplicationService settlementService,
                                      ExecutionContextProvider contextProvider, JsonCodec json,
                                      InsuranceQuickSubmissionResolver quickResolver, ItemStandardMappingDirectory itemMappings,
-                                     ExternalMessageService messages) {
+                                     ExternalMessageService messages, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.claims = claims; this.claimLines = claimLines; this.responses = responses; this.settlements = settlements;
         this.settlementLines = settlementLines; this.charges = charges; this.accounts = accounts;
         this.coverages = coverages; this.settlementService = settlementService;
@@ -177,7 +181,7 @@ class InsuranceClaimTransactionService {
                 required(input.diagnosisPayloadDigest(), "INSURANCE_DIAGNOSIS_DIGEST_REQUIRED", "诊断摘要不能为空"),
                 input.serviceStartedAt(), input.serviceEndedAt(),
                 money(settlement.netAmount()), settlement.currencyCode(), Strings.trimToNull(input.correlationId()) == null
-                ? context.correlationId() : Strings.trimToNull(input.correlationId()), context.subjectId()));
+                ? context.correlationId() : Strings.trimToNull(input.correlationId()), context.subjectId(), numbers.next("insurance-claim", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()))));
         for (var line : values) {
             LineMapping mapping = mappings.get(line.id());
             if (mapping == null) throw badRequest("INSURANCE_LINE_MAPPING_INCOMPLETE", "每条结算明细都必须提供医保目录映射");

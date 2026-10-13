@@ -37,6 +37,8 @@ const DictionaryAttributeManagement = lazy(() => import('../features/settings/Di
   .then((module) => ({ default: module.DictionaryAttributeManagement })))
 const AccessControlManagement = lazy(() => import('../features/settings/AccessControlManagement')
   .then((module) => ({ default: module.AccessControlManagement })))
+const BusinessNumberManagement = lazy(() => import('../features/settings/BusinessNumberManagement')
+  .then((module) => ({ default: module.BusinessNumberManagement })))
 const ParameterManagement = lazy(() => import('../features/settings/ParameterManagement')
   .then((module) => ({ default: module.ParameterManagement })))
 const AiConfigurationManagement = lazy(() => import('../features/settings/AiConfigurationManagement')
@@ -311,6 +313,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
         to: '/schema-workbench.html', requiredAuthority: 'PORTAL.ACCESS', fullPageNavigation: true,
       }] : []),
       { id: 'ai-assistant', label: 'AI助理配置', icon: 'sparkles', to: '/settings/ai-assistant', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
+      { id: 'business-numbering', label: '业务编码管理', icon: 'settings', to: '/settings/business-numbering', requiredAuthority: 'CONFIGURATION.ACCESS' },
       { id: 'system-parameters', label: '系统运行参数', icon: 'settings', to: '/settings/system-parameters', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
       { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'settings', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
       { id: 'item-attributes', label: '主数据扩展配置', icon: 'settings', to: '/settings/item-attributes', requiredAuthority: 'CONFIGURATION.ACCESS' },
@@ -427,6 +430,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/settings/organization') return { id: pathname, path: pathname, title: '组织与人员', icon: 'residents', closeable: true }
   if (pathname === '/settings/grid-addresses') return { id: pathname, path: pathname, title: '网格地址', icon: 'roadmap', closeable: true }
   if (pathname === '/settings/dispense-routes') return { id: pathname, path: pathname, title: '发药药房设置', icon: 'pharmacy', closeable: true }
+  if (pathname === '/settings/business-numbering') return { id: pathname, path: pathname, title: '业务编码管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/business-parameters') return { id: pathname, path: pathname, title: '业务参数配置', icon: 'settings', closeable: true }
   if (pathname === '/settings/system-parameters') return { id: pathname, path: pathname, title: '系统运行参数', icon: 'settings', closeable: true }
   if (pathname === '/settings/parameters') return { id: pathname, path: pathname, title: '参数管理', icon: 'settings', closeable: true }
@@ -1028,6 +1032,7 @@ export function AppShell() {
                     canManage={tabAuthorities.has('ORG_CATALOG.MANAGE') || tabAuthorities.has('ROLE_ADMIN')} />} />
                   <Route path="/settings/partners" element={<BusinessPartnerManagement api={tabSlot.api}
                     organization={tabSlot.clinicalContext.organization} />} />
+                  <Route path="/settings/business-numbering" element={<BusinessNumberManagement api={tabSlot.api} tenantId={session.tenantId} context={tabSlot.clinicalContext} />} />
                   <Route path="/settings/business-parameters" element={<ParameterManagement api={tabSlot.api} fixedConfigType="BUSINESS" context={{
                     tenantId: session.tenantId,
                     organization: tabSlot.clinicalContext.organization, department: tabSlot.clinicalContext.department,

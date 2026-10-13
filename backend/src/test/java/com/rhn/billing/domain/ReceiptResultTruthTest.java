@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ReceiptResultTruthTest {
     static final Instant ISSUED=Instant.parse("2026-10-04T00:00:00Z");
-    Receipt original(){return new Receipt(1L,2L,"KEY","MEDICAL_E_INVOICE","FISCAL",BigDecimal.TEN,"CNY","CASHIER","payer",null,"corr",3L);}
+    Receipt original(){return new Receipt(1L,2L,"KEY","MEDICAL_E_INVOICE","FISCAL",BigDecimal.TEN,"CNY","CASHIER","payer",null,"corr",3L, "TEST-Receipt");}
     ReceiptResult result(Outcome outcome,String external,String code,String number,Instant time) {
         return new ReceiptResult(outcome,external,code,number,"VERIFY","OBJECT",time,null,null,null);
     }
@@ -22,7 +22,7 @@ class ReceiptResultTruthTest {
                     result(red?Outcome.RED_FLUSHED:Outcome.ISSUED,"EXT",null,"NUMBER",ISSUED),
                     result(red?Outcome.RED_FLUSHED:Outcome.ISSUED,"EXT","CODE"," ",ISSUED),
                     result(red?Outcome.RED_FLUSHED:Outcome.ISSUED,"EXT","CODE","NUMBER",null)}) {
-                var receipt=red?Receipt.redFlushOf(original(),"RED","corr",3L):original();
+                var receipt=red?Receipt.redFlushOf(original(),"RED","corr",3L, "TEST-RED-RECEIPT"):original();
                 assertThrows(IllegalStateException.class,()->{if(red) receipt.applyRedFlushResult(result);else receipt.applyIssueResult(result);});
                 assertEquals("REQUESTED",receipt.status());assertNull(receipt.externalReceiptNo());assertNull(receipt.issuedAt());
             }
@@ -36,7 +36,7 @@ class ReceiptResultTruthTest {
     }
     @Test void duplicateIssueAndRedFlushVerifyFullIdentityAndTime() {
         for(boolean red:new boolean[]{false,true}) {
-            var receipt=red?Receipt.redFlushOf(original(),"RED","corr",3L):original();var outcome=red?Outcome.RED_FLUSHED:Outcome.ISSUED;
+            var receipt=red?Receipt.redFlushOf(original(),"RED","corr",3L, "TEST-RED-RECEIPT"):original();var outcome=red?Outcome.RED_FLUSHED:Outcome.ISSUED;
             if(red)receipt.applyRedFlushResult(success(outcome));else receipt.applyIssueResult(success(outcome));
             for(var changed:new ReceiptResult[]{result(outcome,"OTHER","CODE","NUMBER",ISSUED),result(outcome,"EXT","OTHER","NUMBER",ISSUED),
                     result(outcome,"EXT","CODE","OTHER",ISSUED),result(outcome,"EXT","CODE","NUMBER",ISSUED.plusSeconds(1)),
@@ -55,7 +55,7 @@ class ReceiptResultTruthTest {
         assertEquals("EXT",receipt.externalReceiptNo());
     }
     @Test void issueAndRedFlushCannotBeSubstitutedForEachOther() {
-        var original=original();var red=Receipt.redFlushOf(original,"RED","corr",3L);
+        var original=original();var red=Receipt.redFlushOf(original,"RED","corr",3L, "TEST-RED-RECEIPT");
         assertThrows(IllegalStateException.class,()->red.applyIssueResult(success(Outcome.ISSUED)));
         assertThrows(IllegalStateException.class,()->red.applyRedFlushResult(success(Outcome.ISSUED)));
         assertThrows(IllegalStateException.class,()->original.applyIssueResult(success(Outcome.RED_FLUSHED)));

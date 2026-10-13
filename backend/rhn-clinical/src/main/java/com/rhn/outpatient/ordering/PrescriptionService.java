@@ -1,5 +1,7 @@
 package com.rhn.outpatient.ordering;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.MedicationSafetyDecision;
 import com.rhn.outpatient.api.PrescriptionSafetyEvaluationDirectory;
@@ -13,8 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,8 +30,7 @@ import com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory.Prescript
 
 @Service
 class PrescriptionService {
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
+    private final BusinessNumberGenerator numbers;
 
     private final OrderDocumentInfoSupport documentInfoSupport;
     private final PrescriptionRepository repository;
@@ -55,7 +54,8 @@ class PrescriptionService {
                         PrescriptionInventoryFreezePolicy freezePolicy,
                         PrescriptionSplitEngine splitEngine,
                         PrescriptionSafetyEvaluationDirectory safetyEvaluations, OrderDocumentInfoSupport documentInfoSupport,
-                        com.rhn.shared.json.JsonCodec json) {
+                        com.rhn.shared.json.JsonCodec json, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.json = json;
         this.documentInfoSupport = documentInfoSupport;
         this.repository = repository; this.medicationRepository = medicationRepository;
@@ -89,7 +89,7 @@ class PrescriptionService {
 
             Prescription prescription = repository.saveAndFlush(new Prescription(
                     tenantId, encounter.residentId(), encounterId,
-                    nextPrescriptionNo(), plan.categoryCode(), organizationId, departmentId,
+                    numbers.next("prescription", new BusinessNumberContext(tenantId, encounter.organizationId(), encounter.departmentId())), plan.categoryCode(), organizationId, departmentId,
                     context.subjectId(), plan.title()
             ));
             publish(prescription, "PRESCRIPTION_DRAFT_CREATED", "批量自动分方建立处方草稿",
@@ -161,7 +161,7 @@ class PrescriptionService {
                 ? encounter.departmentId() : input.performerDepartmentId();
         requireScope(context, tenantId, organizationId, departmentId);
         Prescription value = repository.saveAndFlush(new Prescription(tenantId, encounter.residentId(), encounterId,
-                nextPrescriptionNo(), Strings.trimToNull(input.categoryCode()) == null ? "OUTPATIENT" : Strings.trimToNull(input.categoryCode()),
+                numbers.next("prescription", new BusinessNumberContext(tenantId, encounter.organizationId(), encounter.departmentId())), Strings.trimToNull(input.categoryCode()) == null ? "OUTPATIENT" : Strings.trimToNull(input.categoryCode()),
                 organizationId, departmentId, context.subjectId(), Strings.trimToNull(input.note())));
         publish(value, "PRESCRIPTION_DRAFT_CREATED", "建立处方草稿", Map.of());
         return response(value);
@@ -315,7 +315,4 @@ class PrescriptionService {
                 "Prescription", value.id(), value.revision(), value.residentId(), Instant.now(), payload);
     }
 
-    private String nextPrescriptionNo() {
-        return "RX" + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
-    }
 }

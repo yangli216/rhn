@@ -1566,7 +1566,7 @@ export interface paths {
         get: operations["listMembers"];
         put?: never;
         post: operations["addMembers"];
-        delete?: never;
+        delete: operations["clearMembers"];
         options?: never;
         head?: never;
         patch?: never;
@@ -10990,6 +10990,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["detail_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/business-numbering/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["rules"];
         put?: never;
         post?: never;
         delete?: never;
@@ -21706,6 +21722,7 @@ export interface components {
             /** @example 824633720832983041 */
             patientAccountId?: string;
             invoiceNo?: string;
+            commandCode?: string;
             invoiceType?: string;
             status?: string;
             currencyCode?: string;
@@ -25431,6 +25448,35 @@ export interface components {
             modelCalled?: boolean;
             judged?: boolean;
             uncertain?: boolean;
+        };
+        BusinessNumberRule: {
+            prefix?: string;
+            suffix?: string;
+            dateFormat?: string;
+            /** Format: int32 */
+            sequenceWidth?: number;
+            /** @enum {string} */
+            scope?: "SYSTEM" | "TENANT" | "ORGANIZATION" | "DEPARTMENT";
+        };
+        BusinessNumberRuleView: {
+            businessCode?: string;
+            rule?: components["schemas"]["BusinessNumberRule"];
+            sequence?: components["schemas"]["BusinessNumberSequence"];
+            status?: string;
+            message?: string;
+        };
+        BusinessNumberSequence: {
+            /** Format: date */
+            businessDate?: string;
+            zoneId?: string;
+            scopeKey?: string;
+            /** Format: int64 */
+            currentSequence?: number;
+            /** @example 824633720832983041 */
+            nextSequence?: string;
+            /** Format: int64 */
+            maximumSequence?: number;
+            nextNumber?: string;
         };
     };
     responses: never;
@@ -29468,6 +29514,37 @@ export interface operations {
                 "application/json": components["schemas"]["MedicationSafetyAddMembersRequest"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": number;
+                };
+            };
+        };
+    };
+    clearMembers: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -51722,6 +51799,35 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DecisionDetail"];
+                };
+            };
+        };
+    };
+    rules: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BusinessNumberRuleView"][];
                 };
             };
         };

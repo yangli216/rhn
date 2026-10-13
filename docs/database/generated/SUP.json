@@ -1,5 +1,5 @@
 {
-  "fingerprint": "4c9be68bf2bc572d723de47d7e9ff7594083a94c65b67dae3eec3a14e3a48d7f",
+  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
   "tables": [
     {
       "logical": "sup.dispense_route",
@@ -21981,6 +21981,18 @@
           "comment": "说明",
           "logical": "description",
           "catalogComment": "说明"
+        },
+        {
+          "physical": "CD_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "请求幂等键；与展示业务编码分离，历史值沿用原编号",
+          "logical": "command_code",
+          "catalogComment": "请求幂等键；与展示业务编码分离，历史值沿用原编号"
         }
       ],
       "kind": "BASE TABLE",
@@ -22012,7 +22024,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_SUP_STOCK_RETU_PI_PAT_STOCK_INDEX_D",
+          "name": "FK_SUP_STOCK_RETU_PI_PAT_STOCK_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -22028,7 +22040,7 @@
           "unique": false
         },
         {
-          "name": "FK_SUP_STOCK_RETU_SUP_MED_STOC_INDEX_D",
+          "name": "FK_SUP_STOCK_RETU_SUP_MED_STOC_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -22044,7 +22056,7 @@
           "unique": false
         },
         {
-          "name": "FK_SUP_STOCK_RETU_SUP_STOC_STO_INDEX_D",
+          "name": "FK_SUP_STOCK_RETU_SUP_STOC_STO_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -22060,7 +22072,7 @@
           "unique": false
         },
         {
-          "name": "FK_SUP_STOCK_RETU_SYS_TNT_STOC_INDEX_D",
+          "name": "FK_SUP_STOCK_RETU_SYS_TNT_STOC_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -22118,7 +22130,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_D61",
+          "name": "PRIMARY_KEY_B1B",
           "columns": [
             {
               "position": 1,
@@ -22129,7 +22141,23 @@
           "unique": true
         },
         {
-          "name": "UK_SUP_STOCK_RETU_STOCK_RET_EV_INDEX_D",
+          "name": "UK_SUP_RETURN_CMD",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_CMD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_SUP_STOCK_RETU_STOCK_RET_EV_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -22145,7 +22173,7 @@
           "unique": true
         },
         {
-          "name": "UK_SUP_STOCK_RETU_STOCK_RET_NO_INDEX_D",
+          "name": "UK_SUP_STOCK_RETU_STOCK_RET_NO_INDEX_B",
           "columns": [
             {
               "position": 1,
@@ -22161,7 +22189,7 @@
           "unique": true
         },
         {
-          "name": "UK_SUP_STOCK_RETU_STOCK_RET_TE_INDEX_D",
+          "name": "UK_SUP_STOCK_RETU_STOCK_RET_TE_INDEX_B",
           "columns": [
             {
               "position": 1,

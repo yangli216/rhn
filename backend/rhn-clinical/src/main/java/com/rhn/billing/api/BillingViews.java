@@ -28,7 +28,7 @@ public final class BillingViews {
     public record InvoiceLineView(Long id, Long chargeItemId, int lineNo, BigDecimal amount) {}
 
     public record InvoiceView(
-            Long id, Long patientAccountId, String invoiceNo, String invoiceType, String status,
+            Long id, Long patientAccountId, String invoiceNo, String commandCode, String invoiceType, String status,
             String currencyCode, BigDecimal grossAmount, BigDecimal discountAmount, BigDecimal netAmount,
             BigDecimal paidAmount, BigDecimal outstandingAmount, Instant issuedAt, Long issuedBy,
             List<InvoiceLineView> lines) {}

@@ -39,12 +39,12 @@ class InsuranceRequestTruthTest {
     final Instant started = Instant.parse("2026-10-03T23:30:00Z");
     final Instant ended = started.plusSeconds(1800);
     final InsuranceClaim claim = new InsuranceClaim(1L,2L,3L,4L,"KEY","REGION","BASIC","payer",
-            "H","D","P","HASH",started,ended,new BigDecimal("100"),"CNY","original-correlation",5L);
+            "H","D","P","HASH",started,ended,new BigDecimal("100"),"CNY","original-correlation",5L, "TEST-InsuranceClaim");
     InsuranceClaimTransactionService service;
 
     @BeforeEach void setup() {
         service = new InsuranceClaimTransactionService(claims,lines,responses,settlements,settlementLines,charges,
-                accounts,coverages,mock(SettlementApplicationService.class),contexts,json,resolver,mock(ItemStandardMappingDirectory.class),mock(com.rhn.platform.integration.api.ExternalMessageService.class));
+                accounts,coverages,mock(SettlementApplicationService.class),contexts,json,resolver,mock(ItemStandardMappingDirectory.class),mock(com.rhn.platform.integration.api.ExternalMessageService.class), org.mockito.Mockito.mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class));
         when(contexts.requireCurrent()).thenReturn(new ExecutionContext(1L,5L,"cashier","corr",Set.of(),6L,7L,"SELF",Set.of(),Set.of()));
         when(claims.findByTenantIdAndCommandCode(1L,"KEY")).thenReturn(Optional.of(claim));
         when(accounts.findByIdAndTenantId(3L,1L)).thenReturn(Optional.of(account));

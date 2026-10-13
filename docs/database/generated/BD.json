@@ -1,5 +1,5 @@
 {
-  "fingerprint": "4c9be68bf2bc572d723de47d7e9ff7594083a94c65b67dae3eec3a14e3a48d7f",
+  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
   "tables": [
     {
       "logical": "bd.catalog_change_batch_row",
@@ -4298,6 +4298,10 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/dictionary/domain/DictionaryDefinition.java",
           "line": 17
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationSafetyCategoryStore.java",
+          "line": 279
         }
       ]
     },
@@ -5130,6 +5134,10 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/dictionary/domain/DictionaryItem.java",
           "line": 12
+        },
+        {
+          "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationSafetyCategoryStore.java",
+          "line": 278
         }
       ]
     },
@@ -13925,7 +13933,7 @@
         },
         {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationSafetyCategoryStore.java",
-          "line": 234
+          "line": 277
         }
       ]
     },

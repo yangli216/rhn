@@ -60,6 +60,10 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         JsonNode replay = createIntent(residentId, scheduleId, intentCode);
         assertEquals(intent.get("id").asString(), replay.get("id").asString());
         assertEquals(true, replay.get("duplicate").asBoolean());
+        JsonNode settlement = json(mockMvc.perform(get("/api/billing/settlements/{id}", intent.path("settlementId").asString())
+                .with(rhnWorkContext())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        org.junit.jupiter.api.Assertions.assertTrue(settlement.path("settlementNo").asString().matches("INV[0-9]{11}"));
+
 
         JsonNode order = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
                                 intent.get("settlementId").asString()).with(rhnWorkContext())

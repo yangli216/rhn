@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "4c9be68bf2bc572d723de47d7e9ff7594083a94c65b67dae3eec3a14e3a48d7f",
+  "fingerprint": "0ec07a198d338dc94d723e8a41d5e13683e16178a05f25e0bb24bfba4e8414af",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -935,7 +935,7 @@
       "logical": "bil.invoice",
       "domain": "BIL",
       "comment": "发票；一行代表一条发票记录",
-      "columns": 16
+      "columns": 17
     },
     {
       "physical": "RHN_BD_ITEM_ALIAS",
@@ -1348,7 +1348,7 @@
       "logical": "bil.payment",
       "domain": "BIL",
       "comment": "支付；一行代表一条支付记录",
-      "columns": 19
+      "columns": 20
     },
     {
       "physical": "RHN_SUP_PHARM_FULFILL_AUTH",
@@ -1859,7 +1859,7 @@
       "logical": "sup.stock_return",
       "domain": "SUP",
       "comment": "库存退回；一行代表一条库存退回记录",
-      "columns": 16
+      "columns": 17
     },
     {
       "physical": "RHN_SUP_STOCK_SITE",

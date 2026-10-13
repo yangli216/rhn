@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.healthcore.api.EncounterCareSettingDirectory;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory;
@@ -45,8 +47,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -60,12 +60,11 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class PharmacyApplicationService implements com.rhn.pharmacy.api.PharmacyReviewDirectory {
+    private final BusinessNumberGenerator numbers;
     private static final Set<String> SITE_TYPES = Set.of("WAREHOUSE", "PHARMACY", "DEPARTMENT_STORE", "VIRTUAL");
     private static final Set<String> SERVICE_SCOPES = Set.of("OUTPATIENT", "INPATIENT", "EMERGENCY", "COMMUNITY", "MIXED");
     private static final Set<String> ISSUE_POLICIES = Set.of("FEFO", "FIFO", "MANUAL");
     private static final Set<String> REVIEW_RESULTS = Set.of("PASS", "REJECT", "INTERVENE", "OVERRIDE");
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
 
     private final StockSiteRepository siteRepository;
     private final StockItemRepository itemRepository;
@@ -108,7 +107,8 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
                                       PrescriptionReviewPolicy reviewPolicy,
                                       com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory prescriptionSafety,
                                       @Value("${rhn.pharmacy.require-settlement-authorization:true}")
-                                      boolean requireSettlementAuthorization) {
+                                      boolean requireSettlementAuthorization, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.siteRepository = siteRepository; this.itemRepository = itemRepository;
         this.taskRepository = taskRepository; this.lineRepository = lineRepository;
         this.reviewRepository = reviewRepository; this.fulfillmentAuthorizations = fulfillmentAuthorizations;
@@ -409,7 +409,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         PrescriptionReviewPolicy.Mode reviewMode = reviewPolicy.resolve(
                 context, site.organizationId(), site.departmentId());
         DispenseTask task = new DispenseTask(context.tenantId(), request.residentId(),
-                request.encounterId(), site.id(), nextNo("DT"), careSetting, "ROUTINE", Strings.trimToNull(input.description()));
+                request.encounterId(), site.id(), numbers.next("pharmacy-dispense-task", new BusinessNumberContext(context.tenantId(), site.organizationId(), site.departmentId())), careSetting, "ROUTINE", Strings.trimToNull(input.description()));
         DispenseTaskLine line = new DispenseTaskLine(context.tenantId(), task.id(), request.id(),
                 fulfillmentSourceType, fulfillmentSourceId, stockItem.id(),
                 stockItem.basePackageId(), requestedQuantity, plan.quantity(), plan.unitCode(), plan.factor(),
@@ -523,7 +523,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
             throw badRequest("PHARMACY_POST_REVIEW_OVERRIDE_INVALID", "事后审方不支持强制通过结论");
         }
         PharmacyReview review = reviewRepository.save(new PharmacyReview(context.tenantId(), line.requestId(),
-                task.id(), nextNo("PR"), result, reason, description, input.pharmacistPractitionerId(),
+                task.id(), numbers.next("pharmacy-review"), result, reason, description, input.pharmacistPractitionerId(),
                 context.subjectId(), input.reviewerAssignmentId()));
         if (mode.beforeDispense()) {
             task.applyReview(review.id(), result); line.applyReview(result);
@@ -731,8 +731,6 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
                 task.revision(), residentId, Instant.now(), payload);
     }
 
-    private String nextNo(String prefix) { return prefix + NUMBER_TIME.format(Instant.now())
-            + com.rhn.shared.id.GlobalIds.randomSuffix(6); }
     private String required(String value, String code, String message) {
         String result = Strings.trimToNull(value); if (result == null) throw badRequest(code, message); return result;
     }

@@ -1,5 +1,7 @@
 package com.rhn.outpatient.triage;
 
+import com.rhn.platform.numbering.api.BusinessNumberGenerator;
+import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.healthcore.api.ClinicalValidationDirectory;
 import com.rhn.healthcore.api.ClinicalValidationDirectory.VitalSignsInput;
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
@@ -14,7 +16,6 @@ import com.rhn.outpatient.triage.TriageContracts.TriageStatisticsResponse;
 import com.rhn.outpatient.triage.TriageContracts.UpdateTriageRequest;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.api.BusinessException;
-import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.data.domain.Page;
@@ -28,7 +29,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -41,9 +41,9 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class OutpatientTriageService {
+    private final BusinessNumberGenerator numbers;
 
     private static final ZoneId SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai");
-    private static final DateTimeFormatter TRIAGE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final Set<String> TRIAGE_QUEUE_STATUSES = Set.of("WAITING", "CALLED", "MISSED");
 
     private final OutpatientTriageRepository triageRepository;
@@ -55,7 +55,8 @@ public class OutpatientTriageService {
     public OutpatientTriageService(OutpatientTriageRepository triageRepository,
                                   OutpatientRegistrationDirectory registrationDirectory,
                                   ClinicalValidationDirectory clinicalValidationDirectory,
-                                  TriageAssessmentEngine assessmentEngine, ExecutionContextProvider contextProvider) {
+                                  TriageAssessmentEngine assessmentEngine, ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+        this.numbers = numbers;
         this.triageRepository = triageRepository;
         this.registrationDirectory = registrationDirectory;
         this.clinicalValidationDirectory = clinicalValidationDirectory;
@@ -82,10 +83,8 @@ public class OutpatientTriageService {
         validateVitals(request.temperature(), request.pulseRate(), request.respiratoryRate(),
                 request.systolic(), request.diastolic(), request.oxygenSaturation());
 
-        // 生成分诊唯一单号: TR + yyyyMMdd + 6位序列
-        String dateStr = LocalDate.now(SHANGHAI_ZONE).format(TRIAGE_DATE_FORMATTER);
-        long seq = Math.abs(GlobalIds.next() % 1000000L);
-        String triageNo = "TR" + dateStr + String.format("%06d", seq);
+        String triageNo = numbers.next("outpatient-triage",
+                new BusinessNumberContext(tenantId, orgId, contextProvider.requireCurrent().departmentId()));
 
         boolean fever = request.fever() || (request.temperature() != null
                 && request.temperature().compareTo(BigDecimal.valueOf(37.3)) >= 0);
