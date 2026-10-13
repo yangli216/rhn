@@ -26,7 +26,7 @@ class BusinessNumberingAdministrationTest extends RhnIntegrationTestSupport {
         for (int i = 0; i < 2; i++) {
             var rows = json(mockMvc.perform(get("/api/platform/business-numbering/rules").with(rhnWorkContext()).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("doctor").authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("CONFIGURATION.ACCESS"))))
                     .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-            assertThat(rows.size()).isEqualTo(36);
+            assertThat(rows.size()).isEqualTo(37);
             var row = java.util.stream.StreamSupport.stream(rows.spliterator(), false)
                     .filter(value -> "outpatient-encounter".equals(value.path("businessCode").asString())).findFirst().orElseThrow();
             assertThat(row.path("sequence").path("nextNumber").asString()).isEqualTo(before.nextNumber());

@@ -17,7 +17,7 @@ create table RHN_BD_DIAG_TPL (
     constraint CK_BD_DIAG_TPL_TYPE check (SD_SVC_TYPE in ('LABORATORY','EXAMINATION'))
 );
 create index IX_BD_DIAG_TPL_EFF on RHN_BD_DIAG_TPL(ID_TNT, ID_ORG, ID_CATALOG_ITEM, DA_VALID_FROM, SN_VERSION);
-comment on table RHN_BD_DIAG_TPL is '机构诊疗项目报告模板；一行一个已发布不可变版本';
+comment on table RHN_BD_DIAG_TPL is '机构诊疗项目报告模板；一行代表一个已发布不可变版本';
 comment on column RHN_BD_DIAG_TPL.ID_DIAG_TPL is '报告模板版本主键';
 comment on column RHN_BD_DIAG_TPL.ID_TNT is '租户标识';
 comment on column RHN_BD_DIAG_TPL.ID_ORG is '模板所属机构';

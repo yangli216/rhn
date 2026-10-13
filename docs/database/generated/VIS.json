@@ -1,5 +1,5 @@
 {
-  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
+  "fingerprint": "454d16651c8f480303c91c5af6b76566a40f7beed2e45177a27a0bacf8cd3bac",
   "tables": [
     {
       "logical": "vis.allergy_intolerance",
@@ -11492,7 +11492,7 @@
           "nullable": true,
           "defaultValue": null,
           "ordinal": 28,
-          "comment": "",
+          "comment": "签发结果规则及患者匹配条件快照",
           "logical": "rule_snapshot",
           "catalogComment": "签发结果规则及患者匹配条件快照"
         }

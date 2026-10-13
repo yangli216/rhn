@@ -54,7 +54,7 @@ class ConfiguredBusinessNumberGeneratorTest {
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     var configuration = context.getBean(BusinessNumberingProperties.class);
-                    assertThat(configuration.rules()).hasSize(36);
+                    assertThat(configuration.rules()).hasSize(37);
                     var rule = configuration.rules().get("outpatient-encounter");
                     assertThat(rule.scope()).isEqualTo(BusinessNumberScope.DEPARTMENT);
                     assertThat(rule.format(LocalDate.of(2026, 10, 11), 1)).isEqualTo("OP2026101100001-B");
@@ -68,13 +68,15 @@ class ConfiguredBusinessNumberGeneratorTest {
         new YamlPropertySourceLoader().load("numbering", new ClassPathResource("business-numbering.yml"))
                 .forEach(source -> environment.getPropertySources().addLast(source));
         var properties = Binder.get(environment).bind("rhn.business-numbering", Bindable.of(BusinessNumberingProperties.class)).get();
-        assertThat(properties.rules()).hasSize(36).containsKeys("outpatient-encounter", "invoice", "stock-purchase-order", "schedule", "pharmacy-return");
+        assertThat(properties.rules()).hasSize(37).containsKeys("outpatient-encounter", "invoice", "stock-purchase-order", "schedule", "pharmacy-return", "diagnostic-specimen");
         assertThat(properties.rules().get("inpatient-episode").prefix()).isEqualTo("IP");
         assertThat(properties.rules().get("inpatient-encounter").prefix()).isEqualTo("IPE");
         var counter = mock(BusinessNumberCounter.class);
         when(counter.next(anyString(), anyLong())).thenReturn(1L);
         var generator = generator(properties, counter, DAY);
         assertThat(generator.next("outpatient-encounter")).isEqualTo("OP26101100001");
+        assertThat(generator.preview("diagnostic-specimen", LocalDate.of(2026, 10, 11), 1)).isEqualTo("SP261011000001");
+        assertThat(properties.rules().get("diagnostic-specimen").scope()).isEqualTo(BusinessNumberScope.ORGANIZATION);
         assertThat(generator.preview("pharmacy-return", LocalDate.of(2026, 10, 11), 1)).isEqualTo("RET26101100001");
         verify(counter).next("rhn:business-number:outpatient-encounter:tenant:1:organization:2:20261011", 99999L);
         assertThat(generator.rules().get("invoice").dateFormat()).isEqualTo("yyMMdd");

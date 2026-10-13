@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
+  "fingerprint": "454d16651c8f480303c91c5af6b76566a40f7beed2e45177a27a0bacf8cd3bac",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -2432,7 +2432,7 @@
       "physical": "RHN_EX_DIAG_DRAFT",
       "logical": "ex.diagnostic_report_draft",
       "domain": "EX",
-      "comment": "医技报告草稿；每个执行任务一份当前工作内容",
+      "comment": "医技报告草稿；一行代表一个执行任务的当前工作内容",
       "columns": 10
     },
     {
@@ -2467,21 +2467,21 @@
       "physical": "RHN_EX_DIAG_IMAGE",
       "logical": "ex.diagnostic_image",
       "domain": "EX",
-      "comment": "医技关键图像；原图不可变，正式版本关联不可删除",
+      "comment": "医技关键图像；一行代表一张不可变原图，正式版本关联不可删除",
       "columns": 14
     },
     {
       "physical": "RHN_EX_REPORT_IMAGE",
       "logical": "ex.diagnostic_report_image",
       "domain": "EX",
-      "comment": "医技报告版本关键图像；一行是一个冻结的版本图像关联",
+      "comment": "报告版本关键图像；一行代表一个冻结的版本图像关联",
       "columns": 5
     },
     {
       "physical": "RHN_BD_DIAG_TPL",
       "logical": "bd.diagnostic_template_version",
       "domain": "BD",
-      "comment": "机构诊疗项目报告模板；一行一个已发布不可变版本",
+      "comment": "机构诊疗项目报告模板；一行代表一个已发布不可变版本",
       "columns": 11
     }
   ]

@@ -43,7 +43,7 @@ comment on column RHN_EX_DIAG_SPEC.SD_SPEC_TYPE is '标本类型编码';
 comment on column RHN_EX_DIAG_SPEC.NA_SPEC_TYPE is '标本类型名称快照';
 comment on column RHN_EX_DIAG_SPEC.SD_CONTNR is '容器编码';
 comment on column RHN_EX_DIAG_SPEC.NA_CONTNR is '容器名称快照';
-comment on column RHN_EX_DIAG_SPEC.SD_STATUS is 'READY/COLLECTED/RECEIVED/REJECTED';
+comment on column RHN_EX_DIAG_SPEC.SD_STATUS is '标本状态：READY/COLLECTED/RECEIVED/REJECTED';
 comment on column RHN_EX_DIAG_SPEC.DT_CREATED is '生成时间';
 comment on column RHN_EX_DIAG_SPEC.DT_COLLD is '采集时间';
 comment on column RHN_EX_DIAG_SPEC.ID_USER_COLLD is '采集人';

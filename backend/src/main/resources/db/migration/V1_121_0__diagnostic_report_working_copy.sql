@@ -15,7 +15,7 @@ create table RHN_EX_DIAG_DRAFT (
     constraint FK_EX_DIAG_DRAFT_TASK foreign key (ID_DIAG_EXEC_TASK) references RHN_EX_DIAG_EXEC_TASK(ID_DIAG_EXEC_TASK),
     constraint FK_EX_DIAG_DRAFT_REPORT foreign key (ID_DIAG_REPORT) references RHN_EX_DIAG_REPORT(ID_DIAG_REPORT)
 );
-comment on table RHN_EX_DIAG_DRAFT is '医技报告草稿；每个执行任务一份当前工作内容';
+comment on table RHN_EX_DIAG_DRAFT is '医技报告草稿；一行代表一个执行任务的当前工作内容';
 comment on column RHN_EX_DIAG_DRAFT.ID_DIAG_DRAFT is '报告草稿主键';
 comment on column RHN_EX_DIAG_DRAFT.REVISION is '乐观锁版本';
 comment on column RHN_EX_DIAG_DRAFT.ID_TNT is '租户标识';

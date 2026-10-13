@@ -8,7 +8,7 @@ create table RHN_EX_DIAG_IMAGE (
     NUM_BYTES number(19) not null,
     NUM_WIDTH number(10) not null,
     NUM_HEIGHT number(10) not null,
-    DES_CAPTION varchar2(500),
+    DES_CAPTION varchar2(500 char),
     FG_DRAFT number(1) not null,
     DT_CREATED timestamp with time zone not null,
     ID_USER_CREATED number(19) not null,
@@ -19,7 +19,7 @@ create table RHN_EX_DIAG_IMAGE (
     constraint CK_EX_IMAGE_SIZE check (NUM_BYTES > 0 and NUM_BYTES <= 10485760),
     constraint CK_EX_IMAGE_PIXELS check (NUM_WIDTH > 0 and NUM_HEIGHT > 0 and NUM_WIDTH * NUM_HEIGHT <= 20000000)
 );
-comment on table RHN_EX_DIAG_IMAGE is '医技关键图像；原图不可变，正式版本关联不可删除';
+comment on table RHN_EX_DIAG_IMAGE is '医技关键图像；一行代表一张不可变原图，正式版本关联不可删除';
 comment on column RHN_EX_DIAG_IMAGE.ID_DIAG_IMAGE is '关键图像主键';
 comment on column RHN_EX_DIAG_IMAGE.ID_TNT is '租户标识';
 comment on column RHN_EX_DIAG_IMAGE.ID_DIAG_EXEC_TASK is '医技执行任务';
@@ -47,7 +47,7 @@ create table RHN_EX_REPORT_IMAGE (
     constraint FK_EX_IMAGE_REPORT foreign key (ID_DIAG_REPORT) references RHN_EX_DIAG_REPORT(ID_DIAG_REPORT),
     constraint FK_EX_REPORT_IMAGE foreign key (ID_DIAG_IMAGE) references RHN_EX_DIAG_IMAGE(ID_DIAG_IMAGE)
 );
-comment on table RHN_EX_REPORT_IMAGE is '医技报告版本关键图像；一行是一个冻结的版本图像关联';
+comment on table RHN_EX_REPORT_IMAGE is '报告版本关键图像；一行代表一个冻结的版本图像关联';
 comment on column RHN_EX_REPORT_IMAGE.ID_REPORT_IMAGE is '报告图像关联主键';
 comment on column RHN_EX_REPORT_IMAGE.ID_TNT is '租户标识';
 comment on column RHN_EX_REPORT_IMAGE.ID_DIAG_REPORT is '不可变报告版本';

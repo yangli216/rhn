@@ -1,5 +1,5 @@
 {
-  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
+  "fingerprint": "454d16651c8f480303c91c5af6b76566a40f7beed2e45177a27a0bacf8cd3bac",
   "tables": [
     {
       "logical": "bd.catalog_change_batch_row",
@@ -21109,7 +21109,7 @@
       "legacy": "diagnostic_template_versions",
       "physical": "RHN_BD_DIAG_TPL",
       "domain": "BD",
-      "comment": "机构诊疗项目报告模板；一行一个已发布不可变版本",
+      "comment": "机构诊疗项目报告模板；一行代表一个已发布不可变版本",
       "columns": [
         {
           "physical": "ID_DIAG_TPL",
@@ -21239,7 +21239,7 @@
           "nullable": false,
           "defaultValue": null,
           "ordinal": 11,
-          "comment": "",
+          "comment": "不可变模板指标规则词条内容",
           "logical": "content",
           "catalogComment": "不可变模板指标规则词条内容"
         }
@@ -21350,7 +21350,7 @@
           "expression": "\"sn_version\" > 0"
         }
       ],
-      "catalogComment": "机构诊疗项目报告模板；一行一个已发布不可变版本",
+      "catalogComment": "机构诊疗项目报告模板；一行代表一个已发布不可变版本",
       "catalogAvailable": true,
       "structureAvailable": true,
       "catalogMissingColumns": [],

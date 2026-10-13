@@ -3931,17 +3931,17 @@
       {
         "logical": "request_no_snapshot",
         "physical": "CD_REQ_NO_SNAP",
-        "comment": "申请号快照"
+        "comment": "申请号快照；队列查询"
       },
       {
         "logical": "resident_name_snapshot",
         "physical": "NA_PAT_SNAP",
-        "comment": "患者姓名快照"
+        "comment": "申请时患者姓名；队列查询"
       },
       {
         "logical": "health_record_no_snapshot",
         "physical": "CD_HR_NO_SNAP",
-        "comment": "健康档案号快照"
+        "comment": "申请时健康档案号；队列查询"
       }
     ]
   },
@@ -4142,7 +4142,7 @@
       {
         "logical": "double_signature_required",
         "physical": "FG_DOUBLE_SIGN",
-        "comment": "签发时机构是否要求双签；历史未知为空"
+        "comment": "签发时机构是否要求双签；未知历史为空"
       },
       {
         "logical": "template_version_id",
@@ -29475,7 +29475,7 @@
   },
   {
     "logical": "ex.diagnostic_report_draft",
-    "legacy": null,
+    "legacy": "diagnostic_report_draft",
     "physical": "RHN_EX_DIAG_DRAFT",
     "domain": "EX",
     "comment": "医技报告草稿；一行代表一个执行任务的当前工作内容",
@@ -29526,7 +29526,7 @@
         "comment": "已签发的报告版本"
       },
       {
-        "logical": "issue_command_id",
+        "logical": "issue_command_code",
         "physical": "CD_CMD",
         "comment": "签发请求幂等键"
       }
@@ -29534,7 +29534,7 @@
   },
   {
     "logical": "ex.diagnostic_specimen",
-    "legacy": null,
+    "legacy": "diagnostic_specimen",
     "physical": "RHN_EX_DIAG_SPEC",
     "domain": "EX",
     "comment": "医技实际标本；一行代表一管实际标本及其当前作业事实",
@@ -29602,7 +29602,7 @@
       {
         "logical": "status",
         "physical": "SD_STATUS",
-        "comment": "READY/COLLECTED/RECEIVED/REJECTED"
+        "comment": "标本状态：READY/COLLECTED/RECEIVED/REJECTED"
       },
       {
         "logical": "created_at",
@@ -29663,7 +29663,7 @@
   },
   {
     "logical": "ex.diagnostic_specimen_task",
-    "legacy": null,
+    "legacy": "diagnostic_specimen_task",
     "physical": "RHN_EX_DIAG_SPEC_TASK",
     "domain": "EX",
     "comment": "医技标本申请关联；一行代表一管标本与一张申请的关联",
@@ -29692,7 +29692,7 @@
   },
   {
     "logical": "ex.diagnostic_local_command",
-    "legacy": null,
+    "legacy": "diagnostic_local_command",
     "physical": "RHN_EX_DIAG_CMD",
     "domain": "EX",
     "comment": "医技签发回执；一行代表一次本地签发命令与不可变报告的关联",
@@ -29713,7 +29713,7 @@
         "comment": "执行任务"
       },
       {
-        "logical": "command_id",
+        "logical": "command_code",
         "physical": "CD_CMD",
         "comment": "签发命令标识"
       },
@@ -29731,7 +29731,7 @@
   },
   {
     "logical": "ex.diagnostic_specimen_batch",
-    "legacy": null,
+    "legacy": "diagnostic_specimen_batch",
     "physical": "RHN_EX_SPEC_BATCH",
     "domain": "EX",
     "comment": "标本生成批次；一行代表一个机构内唯一的标本生成命令",
@@ -29752,7 +29752,7 @@
         "comment": "所属机构"
       },
       {
-        "logical": "command_id",
+        "logical": "command_code",
         "physical": "CD_CMD",
         "comment": "生成命令标识"
       },
@@ -29765,10 +29765,10 @@
   },
   {
     "logical": "ex.diagnostic_image",
-    "legacy": null,
+    "legacy": "diagnostic_image",
     "physical": "RHN_EX_DIAG_IMAGE",
     "domain": "EX",
-    "comment": "医技关键图像；原图不可变",
+    "comment": "医技关键图像；一行代表一张不可变原图，正式版本关联不可删除",
     "columns": [
       {
         "logical": "id",
@@ -29786,7 +29786,7 @@
         "comment": "医技执行任务"
       },
       {
-        "logical": "command_id",
+        "logical": "command_code",
         "physical": "CD_CMD",
         "comment": "上传命令幂等键"
       },
@@ -29844,10 +29844,10 @@
   },
   {
     "logical": "ex.diagnostic_report_image",
-    "legacy": null,
+    "legacy": "diagnostic_report_image",
     "physical": "RHN_EX_REPORT_IMAGE",
     "domain": "EX",
-    "comment": "报告版本冻结的图像关联",
+    "comment": "报告版本关键图像；一行代表一个冻结的版本图像关联",
     "columns": [
       {
         "logical": "id",
@@ -29881,7 +29881,7 @@
     "legacy": "diagnostic_template_versions",
     "physical": "RHN_BD_DIAG_TPL",
     "domain": "BD",
-    "comment": "机构诊疗项目报告模板；一行一个已发布不可变版本",
+    "comment": "机构诊疗项目报告模板；一行代表一个已发布不可变版本",
     "columns": [
       {
         "logical": "id",

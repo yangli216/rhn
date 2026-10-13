@@ -1,5 +1,5 @@
 {
-  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
+  "fingerprint": "454d16651c8f480303c91c5af6b76566a40f7beed2e45177a27a0bacf8cd3bac",
   "tables": [
     {
       "logical": "ex.care_request",
@@ -1396,7 +1396,7 @@
           "ordinal": 30,
           "comment": "申请号快照；队列查询",
           "logical": "request_no_snapshot",
-          "catalogComment": "申请号快照"
+          "catalogComment": "申请号快照；队列查询"
         },
         {
           "physical": "NA_PAT_SNAP",
@@ -1408,7 +1408,7 @@
           "ordinal": 31,
           "comment": "申请时患者姓名；队列查询",
           "logical": "resident_name_snapshot",
-          "catalogComment": "患者姓名快照"
+          "catalogComment": "申请时患者姓名；队列查询"
         },
         {
           "physical": "CD_HR_NO_SNAP",
@@ -1420,7 +1420,7 @@
           "ordinal": 32,
           "comment": "申请时健康档案号；队列查询",
           "logical": "health_record_no_snapshot",
-          "catalogComment": "健康档案号快照"
+          "catalogComment": "申请时健康档案号；队列查询"
         }
       ],
       "kind": "BASE TABLE",
@@ -2264,7 +2264,7 @@
           "nullable": true,
           "defaultValue": null,
           "ordinal": 26,
-          "comment": "",
+          "comment": "检查所见",
           "logical": "findings",
           "catalogComment": "检查所见"
         },
@@ -2324,7 +2324,7 @@
           "nullable": true,
           "defaultValue": null,
           "ordinal": 31,
-          "comment": "",
+          "comment": "报告更正原因",
           "logical": "correction_reason",
           "catalogComment": "报告更正原因"
         },
@@ -2338,7 +2338,7 @@
           "ordinal": 32,
           "comment": "签发时机构是否要求双签；未知历史为空",
           "logical": "double_signature_required",
-          "catalogComment": "签发时机构是否要求双签；历史未知为空"
+          "catalogComment": "签发时机构是否要求双签；未知历史为空"
         },
         {
           "physical": "ID_DIAG_TPL",
@@ -2360,7 +2360,7 @@
           "nullable": true,
           "defaultValue": null,
           "ordinal": 34,
-          "comment": "",
+          "comment": "签发时模板及机构规则不可变快照",
           "logical": "template_snapshot",
           "catalogComment": "签发时模板及机构规则不可变快照"
         }
@@ -9281,10 +9281,10 @@
     },
     {
       "logical": "ex.diagnostic_report_draft",
-      "legacy": null,
+      "legacy": "diagnostic_report_draft",
       "physical": "RHN_EX_DIAG_DRAFT",
       "domain": "EX",
-      "comment": "医技报告草稿；每个执行任务一份当前工作内容",
+      "comment": "医技报告草稿；一行代表一个执行任务的当前工作内容",
       "columns": [
         {
           "physical": "ID_DIAG_DRAFT",
@@ -9342,7 +9342,7 @@
           "nullable": false,
           "defaultValue": null,
           "ordinal": 5,
-          "comment": "",
+          "comment": "报告工作内容JSON",
           "logical": "content",
           "catalogComment": "报告工作内容JSON"
         },
@@ -9403,7 +9403,7 @@
           "defaultValue": null,
           "ordinal": 10,
           "comment": "签发请求幂等键",
-          "logical": "issue_command_id",
+          "logical": "issue_command_code",
           "catalogComment": "签发请求幂等键"
         }
       ],
@@ -9499,7 +9499,7 @@
     },
     {
       "logical": "ex.diagnostic_specimen",
-      "legacy": null,
+      "legacy": "diagnostic_specimen",
       "physical": "RHN_EX_DIAG_SPEC",
       "domain": "EX",
       "comment": "医技实际标本；一行代表一管实际标本及其当前作业事实",
@@ -9656,9 +9656,9 @@
           "nullable": false,
           "defaultValue": null,
           "ordinal": 13,
-          "comment": "READY/COLLECTED/RECEIVED/REJECTED",
+          "comment": "标本状态：READY/COLLECTED/RECEIVED/REJECTED",
           "logical": "status",
-          "catalogComment": "READY/COLLECTED/RECEIVED/REJECTED"
+          "catalogComment": "标本状态：READY/COLLECTED/RECEIVED/REJECTED"
         },
         {
           "physical": "DT_CREATED",
@@ -9929,7 +9929,7 @@
     },
     {
       "logical": "ex.diagnostic_specimen_task",
-      "legacy": null,
+      "legacy": "diagnostic_specimen_task",
       "physical": "RHN_EX_DIAG_SPEC_TASK",
       "domain": "EX",
       "comment": "医技标本申请关联；一行代表一管标本与一张申请的关联",
@@ -10097,7 +10097,7 @@
     },
     {
       "logical": "ex.diagnostic_local_command",
-      "legacy": null,
+      "legacy": "diagnostic_local_command",
       "physical": "RHN_EX_DIAG_CMD",
       "domain": "EX",
       "comment": "医技签发回执；一行代表一次本地签发命令与不可变报告的关联",
@@ -10147,7 +10147,7 @@
           "defaultValue": null,
           "ordinal": 4,
           "comment": "签发命令标识",
-          "logical": "command_id",
+          "logical": "command_code",
           "catalogComment": "签发命令标识"
         },
         {
@@ -10273,7 +10273,7 @@
     },
     {
       "logical": "ex.diagnostic_specimen_batch",
-      "legacy": null,
+      "legacy": "diagnostic_specimen_batch",
       "physical": "RHN_EX_SPEC_BATCH",
       "domain": "EX",
       "comment": "标本生成批次；一行代表一个机构内唯一的标本生成命令",
@@ -10323,7 +10323,7 @@
           "defaultValue": null,
           "ordinal": 4,
           "comment": "生成命令标识",
-          "logical": "command_id",
+          "logical": "command_code",
           "catalogComment": "生成命令标识"
         },
         {
@@ -10415,10 +10415,10 @@
     },
     {
       "logical": "ex.diagnostic_image",
-      "legacy": null,
+      "legacy": "diagnostic_image",
       "physical": "RHN_EX_DIAG_IMAGE",
       "domain": "EX",
-      "comment": "医技关键图像；原图不可变，正式版本关联不可删除",
+      "comment": "医技关键图像；一行代表一张不可变原图，正式版本关联不可删除",
       "columns": [
         {
           "physical": "ID_DIAG_IMAGE",
@@ -10465,7 +10465,7 @@
           "defaultValue": null,
           "ordinal": 4,
           "comment": "上传命令幂等键",
-          "logical": "command_id",
+          "logical": "command_code",
           "catalogComment": "上传命令幂等键"
         },
         {
@@ -10584,7 +10584,7 @@
           "nullable": false,
           "defaultValue": null,
           "ordinal": 14,
-          "comment": "",
+          "comment": "数据库保存的原始图像内容",
           "logical": "content_base64",
           "catalogComment": "数据库保存的原始图像内容"
         }
@@ -10679,7 +10679,7 @@
           "expression": "(\"num_bytes\" > CAST(0 AS BIGINT))\n    AND (\"num_bytes\" <= CAST(10485760 AS BIGINT))"
         }
       ],
-      "catalogComment": "医技关键图像；原图不可变",
+      "catalogComment": "医技关键图像；一行代表一张不可变原图，正式版本关联不可删除",
       "catalogAvailable": true,
       "structureAvailable": true,
       "catalogMissingColumns": [],
@@ -10706,10 +10706,10 @@
     },
     {
       "logical": "ex.diagnostic_report_image",
-      "legacy": null,
+      "legacy": "diagnostic_report_image",
       "physical": "RHN_EX_REPORT_IMAGE",
       "domain": "EX",
-      "comment": "医技报告版本关键图像；一行是一个冻结的版本图像关联",
+      "comment": "报告版本关键图像；一行代表一个冻结的版本图像关联",
       "columns": [
         {
           "physical": "ID_REPORT_IMAGE",
@@ -10872,7 +10872,7 @@
         }
       ],
       "checks": [],
-      "catalogComment": "报告版本冻结的图像关联",
+      "catalogComment": "报告版本关键图像；一行代表一个冻结的版本图像关联",
       "catalogAvailable": true,
       "structureAvailable": true,
       "catalogMissingColumns": [],

@@ -1,5 +1,8 @@
 package com.rhn.platform.masterdata.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,12 +20,13 @@ public interface DiagnosticTemplateDirectory {
                      boolean required, String methodCode, String specimenType, List<String> allowedCodes,
                      List<ReferenceRule> rules) {}
     /** Age ranges are [minimumAgeDays, maximumAgeDays); absent conditions are unrestricted. */
-    record ReferenceRule(String code, String gender, Integer minimumAgeDays, Integer maximumAgeDays,
+    record ReferenceRule(String code, @DictionaryBinding("RESIDENT_GENDER") String gender, Integer minimumAgeDays, Integer maximumAgeDays,
                          String instrumentCode, String populationCode, BigDecimal referenceLow,
                          BigDecimal referenceHigh, BigDecimal criticalLow, BigDecimal criticalHigh,
                          List<String> criticalCodes) {}
     record Phrase(String code, String title, String findings, String conclusion) {}
-    record TemplateView(Long id, Long organizationId, Long catalogItemId, int version, String serviceType,
+    @Schema(name = "DiagnosticTemplateVersionView")
+    record TemplateView(Long id, Long organizationId, Long catalogItemId, int version, @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_TYPE) String serviceType,
                         LocalDate effectiveFrom, String publicationBasis, Long publishedBy,
                         Instant publishedAt, TemplateContent content) {}
     record PublishCommand(int expectedVersion, LocalDate effectiveFrom, String publicationBasis,

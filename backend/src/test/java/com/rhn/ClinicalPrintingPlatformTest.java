@@ -38,11 +38,13 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
         JsonNode catalog = json(mockMvc.perform(get("/api/platform/printing/administration/catalog")
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.documentDefinitions.length()").value(9))
-                .andExpect(jsonPath("$.mediaProfiles.length()").value(8))
+                .andExpect(jsonPath("$.documentDefinitions.length()").value(12))
+                .andExpect(jsonPath("$.documentDefinitions[*].documentType", org.hamcrest.Matchers.hasItems(
+                        "LABORATORY_REPORT", "EXAMINATION_REPORT", "SPECIMEN_LABEL")))
+                .andExpect(jsonPath("$.mediaProfiles.length()").value(9))
                 .andExpect(jsonPath("$.mediaProfiles[*].mediaCode", org.hamcrest.Matchers.hasItems(
                         "A4_PORTRAIT", "A5_PORTRAIT", "A5_LANDSCAPE", "THERMAL_80_CONTINUOUS", "LABEL_70X50",
-                        "A4_LABEL_70X50_8_UP", "A5_LABEL_70X50_3_UP")))
+                        "A4_LABEL_70X50_8_UP", "A5_LABEL_70X50_3_UP", "LABEL_60X40")))
                 .andReturn().getResponse().getContentAsString());
         JsonNode definition = find(catalog.get("documentDefinitions"), "documentType", "ORAL_MEDICATION_CARD");
         JsonNode media = find(catalog.get("mediaProfiles"), "mediaCode", "THERMAL_80_CONTINUOUS");
@@ -105,7 +107,7 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
         JsonNode business = json(mockMvc.perform(get("/api/platform/printing/administration/business")
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tasks.length()").value(9))
+                .andExpect(jsonPath("$.tasks.length()").value(12))
                 .andExpect(jsonPath("$.organizationName").isNotEmpty())
                 .andReturn().getResponse().getContentAsString());
         JsonNode task = find(business.get("tasks"), "taskCode", "TREATMENT.ORAL_MEDICATION_CARD.PRINT");

@@ -1,5 +1,5 @@
 {
-  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
+  "fingerprint": "454d16651c8f480303c91c5af6b76566a40f7beed2e45177a27a0bacf8cd3bac",
   "tables": [
     {
       "logical": "hpl.care_task_event",
